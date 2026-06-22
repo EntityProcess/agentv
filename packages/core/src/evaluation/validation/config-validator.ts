@@ -270,7 +270,7 @@ function validateProjectRepoConfig(
         errors,
         filePath,
         `${location}.repo.remote`,
-        `Use '${location}.repo.url' for the source Git URL. '${location}.repo.remote' is reserved for Git remote names in results repo config.`,
+        `Use '${location}.repo.url' for the source Git URL. '${location}.repo.remote' is only valid inside results repo config.`,
       );
     }
     return;
@@ -361,14 +361,34 @@ function validateResultsRepoBlock(
 
   const repoRecord = rawRepo;
   const hasUrl = repoRecord.url !== undefined;
+  const hasRemote = repoRecord.remote !== undefined;
   const hasPath = repoRecord.path !== undefined;
 
-  if (!hasUrl && !hasPath) {
-    addError(errors, filePath, location, `Field '${location}' must set url or path`);
+  if (!hasRemote && !hasUrl && !hasPath) {
+    addError(errors, filePath, location, `Field '${location}' must set remote or path`);
+  }
+
+  if (hasRemote && hasUrl) {
+    addError(
+      errors,
+      filePath,
+      location,
+      `Field '${location}' must set only one remote endpoint. Use '${location}.remote'.`,
+    );
+  }
+
+  if (hasRemote) {
+    validateGitRemoteUrl(errors, filePath, repoRecord.remote, `${location}.remote`);
   }
 
   if (hasUrl) {
     validateGitRemoteUrl(errors, filePath, repoRecord.url, `${location}.url`);
+    addWarning(
+      errors,
+      filePath,
+      `${location}.url`,
+      `Field '${location}.url' is accepted for compatibility. Use '${location}.remote' for the Git remote URL.`,
+    );
   }
 
   if (hasPath) {
@@ -384,31 +404,6 @@ function validateResultsRepoBlock(
       filePath,
       `${location}.branch`,
       `Field '${location}.branch' must be a non-empty string`,
-    );
-  }
-
-  if (
-    repoRecord.remote !== undefined &&
-    (typeof repoRecord.remote !== 'string' || repoRecord.remote.trim().length === 0)
-  ) {
-    addError(
-      errors,
-      filePath,
-      `${location}.remote`,
-      `Field '${location}.remote' must be a non-empty string`,
-    );
-  }
-
-  if (
-    typeof repoRecord.remote === 'string' &&
-    repoRecord.remote.trim().length > 0 &&
-    isGitRemoteUrlValue(repoRecord.remote)
-  ) {
-    addError(
-      errors,
-      filePath,
-      `${location}.remote`,
-      `Field '${location}.remote' is an optional local Git remote name override. Use '${location}.url' for Git remote URLs.`,
     );
   }
 }
@@ -486,13 +481,13 @@ function validateFlatResultsRepoConfig(
     hasRepoPath,
   ].filter(Boolean).length;
   if (sourceCount === 0) {
-    addError(errors, filePath, location, `Field '${location}' must set repo.url or repo.path`);
+    addError(errors, filePath, location, `Field '${location}' must set repo.remote or repo.path`);
   } else if (sourceCount > 1) {
     addError(
       errors,
       filePath,
       location,
-      `Field '${location}' must set only one results repo source. Use '${location}.repo.url' for a managed clone or '${location}.repo.path' for an existing local checkout.`,
+      `Field '${location}' must set only one results repo source. Use '${location}.repo.remote' for a managed clone or '${location}.repo.path' for an existing local checkout.`,
     );
   } else if (hasLegacyRepo) {
     validateRequiredString(errors, filePath, resultsRecord.repo, `${location}.repo`);
@@ -555,8 +550,8 @@ function warnFlatResultsMigration(
   location: string,
 ): void {
   const migrations: Record<string, string> = {
-    repo: `${location}.repo.url`,
-    repo_url: `${location}.repo.url`,
+    repo: `${location}.repo.remote`,
+    repo_url: `${location}.repo.remote`,
     repo_path: `${location}.repo.path`,
     branch: `${location}.repo.branch`,
     remote: `${location}.repo.remote`,
@@ -600,7 +595,7 @@ function validateResultsConfigBody(
         errors,
         filePath,
         `${location}.mode`,
-        `Remove '${location}.mode'; project results use '${location}.repo.url' or '${location}.repo.path'.`,
+        `Remove '${location}.mode'; project results use '${location}.repo.remote' or '${location}.repo.path'.`,
       );
     } else if (resultsRecord.mode !== 'github') {
       addError(errors, filePath, `${location}.mode`, `Field '${location}.mode' must be 'github'`);
@@ -608,7 +603,7 @@ function validateResultsConfigBody(
   }
 
   for (const [field, message] of Object.entries({
-    repository: `Field '${location}.repository' was removed. Use '${location}.repo.url' with a Git remote URL instead.`,
+    repository: `Field '${location}.repository' was removed. Use '${location}.repo.remote' with a Git remote URL instead.`,
     local_path: `Field '${location}.local_path' was removed. Use '${location}.repo.path' for the local clone path instead.`,
   })) {
     if (resultsRecord[field] !== undefined) {
@@ -634,7 +629,7 @@ function validateResultsConfigBody(
         errors,
         filePath,
         `${location}.repo`,
-        `Field '${location}.repo' must be an object. Use '${location}.repo.url' for a managed results clone or '${location}.repo.path' for an existing local checkout.`,
+        `Field '${location}.repo' must be an object. Use '${location}.repo.remote' for a Git remote URL or '${location}.repo.path' for an existing local checkout.`,
       );
     }
   }

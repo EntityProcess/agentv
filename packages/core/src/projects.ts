@@ -22,7 +22,7 @@
  *         path: /home/user/projects/my-app
  *       results:
  *         repo:
- *           url: https://github.com/example/my-app.git
+ *           remote: https://github.com/example/my-app.git
  *           path: .
  *           branch: agentv/results/v1
  *         sync:
@@ -175,15 +175,18 @@ function fromYaml(raw: unknown): ProjectEntry | null {
     const r = e.results as Partial<ProjectResultsYaml>;
     const resultsRepo =
       r.repo && typeof r.repo === 'object' && !Array.isArray(r.repo) ? r.repo : undefined;
-    const repoUrl = readTrimmedString(resultsRepo?.url) ?? readTrimmedString(r.repo_url);
-    const repoPath = resultsRepo?.url
+    const repoUrl =
+      readTrimmedString(resultsRepo?.remote) ??
+      readTrimmedString(resultsRepo?.url) ??
+      readTrimmedString(r.repo_url);
+    const repoPath = repoUrl
       ? undefined
       : (readTrimmedString(resultsRepo?.path) ?? readTrimmedString(r.repo_path));
-    const clonePath = resultsRepo?.url
-      ? readTrimmedString(resultsRepo.path)
+    const clonePath = repoUrl
+      ? (readTrimmedString(resultsRepo?.path) ?? readTrimmedString(r.path))
       : readTrimmedString(r.path);
     const resultsBranch = readTrimmedString(resultsRepo?.branch) ?? readTrimmedString(r.branch);
-    const resultsRemote = readTrimmedString(resultsRepo?.remote) ?? readTrimmedString(r.remote);
+    const resultsRemote = resultsRepo ? undefined : readTrimmedString(r.remote);
     if (repoUrl || repoPath) {
       const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
       entry.results = {
@@ -225,9 +228,8 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   };
   if (entry.results) {
     const resultsRepo: ProjectResultsRepoYaml = {
-      ...(entry.results.repoUrl !== undefined && { url: entry.results.repoUrl }),
+      ...(entry.results.repoUrl !== undefined && { remote: entry.results.repoUrl }),
       ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
-      ...(entry.results.remote !== undefined && { remote: entry.results.remote }),
       ...(entry.results.repoUrl &&
         entry.results.path !== undefined && {
           path: entry.results.path,

@@ -634,6 +634,7 @@ function parseNestedResultsRepoConfig(
   const repoPath = readTrimmedString(repo.path);
   const branch = readTrimmedString(repo.branch);
   const remote = readTrimmedString(repo.remote);
+  const remoteUrl = remote ?? url;
 
   if (repo.url !== undefined && !url) {
     logWarning(`Invalid results.repo.url in ${configPath}, expected non-empty string`);
@@ -647,10 +648,6 @@ function parseNestedResultsRepoConfig(
     logWarning(`Invalid results.repo.path in ${configPath}, expected non-empty string`);
     return undefined;
   }
-  if (!url && !repoPath) {
-    logWarning(`Invalid results.repo in ${configPath}, expected url or path`);
-    return undefined;
-  }
   if (repo.branch !== undefined && !branch) {
     logWarning(`Invalid results.repo.branch in ${configPath}, expected non-empty string`);
     return undefined;
@@ -659,19 +656,24 @@ function parseNestedResultsRepoConfig(
     logWarning(`Invalid results.repo.remote in ${configPath}, expected non-empty string`);
     return undefined;
   }
-  if (remote && isGitRemoteUrl(remote)) {
-    logWarning(
-      `Invalid results.repo.remote in ${configPath}: use results.repo.url for Git remote URLs and results.repo.remote only for an optional local Git remote name override.`,
-    );
+  if (remote && !isGitRemoteUrl(remote)) {
+    logWarning(`Invalid results.repo.remote in ${configPath}, expected Git remote URL`);
+    return undefined;
+  }
+  if (remote && url) {
+    logWarning(`Invalid results.repo in ${configPath}, set only one of remote or url`);
+    return undefined;
+  }
+  if (!remoteUrl && !repoPath) {
+    logWarning(`Invalid results.repo in ${configPath}, expected remote or path`);
     return undefined;
   }
 
   return {
-    ...(url && { repo_url: url }),
-    ...(repoPath && !url && { repo_path: repoPath }),
-    ...(url && repoPath && { path: repoPath }),
+    ...(remoteUrl && { repo_url: remoteUrl }),
+    ...(repoPath && !remoteUrl && { repo_path: repoPath }),
+    ...(remoteUrl && repoPath && { path: repoPath }),
     ...(branch && { branch }),
-    ...(remote && { remote }),
   };
 }
 
@@ -718,13 +720,13 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   const repo = legacyRepo || repoUrl;
   if (!repo && !repoPath) {
     logWarning(
-      `Invalid results in ${configPath}, expected nested repo.url/repo.path or compatible repo_url/repo_path`,
+      `Invalid results in ${configPath}, expected nested repo.remote/repo.path or compatible repo_url/repo_path`,
     );
     return undefined;
   }
   if (repo && repoPath) {
     logWarning(
-      `Invalid results in ${configPath}, set only one of nested repo.url/repo.path or compatible repo_url/repo_path`,
+      `Invalid results in ${configPath}, set only one of nested repo.remote/repo.path or compatible repo_url/repo_path`,
     );
     return undefined;
   }

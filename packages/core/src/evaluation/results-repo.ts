@@ -2250,7 +2250,6 @@ async function commitStorageBranchWorktreePaths(params: {
       return false;
     }
 
-    await ensureResultsRepoCommitIdentity(params.repoDir);
     const commitArgs = [
       'commit-tree',
       newTree,
@@ -2258,7 +2257,9 @@ async function commitStorageBranchWorktreePaths(params: {
       '-m',
       params.commitMessage,
     ];
-    const { stdout: commitStdout } = await runGit(commitArgs, { cwd: params.repoDir });
+    const { stdout: commitStdout } = await runGitWithFallbackCommitIdentity(commitArgs, {
+      cwd: params.repoDir,
+    });
     const commitSha = commitStdout.trim();
     await runGit(
       [

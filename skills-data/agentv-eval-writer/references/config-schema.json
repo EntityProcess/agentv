@@ -71,11 +71,11 @@
   "definitions": {
     "repoBlock": {
       "type": "object",
-      "description": "Nested repository block. Use url for Git URLs, path for local checkout or clone paths, branch for the checked-out/storage branch, and remote for a Git remote name such as origin.",
+      "description": "Nested repository block. Source project repos use url for Git URLs. Results repos use remote for the Git endpoint URL. Use path for local checkout or clone paths and branch for the checked-out/storage branch.",
       "properties": {
         "url": {
           "type": "string",
-          "description": "Git remote URL used for cloning or pushing.",
+          "description": "Source Git remote URL. For results repos, accepted as a compatibility alias for remote.",
           "examples": ["https://github.com/example/repo.git", "git@github.com:example/repo.git"]
         },
         "path": {
@@ -90,8 +90,11 @@
         },
         "remote": {
           "type": "string",
-          "description": "Git remote name for an existing local checkout, such as origin.",
-          "examples": ["origin"]
+          "description": "Results Git remote endpoint URL used for fetching and pushing.",
+          "examples": [
+            "https://github.com/example/results.git",
+            "git@github.com:example/results.git"
+          ]
         }
       },
       "additionalProperties": false

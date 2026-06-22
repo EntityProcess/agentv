@@ -52,7 +52,7 @@ describe('validateConfigFile', () => {
       filePath,
       `results:
   repo:
-    url: https://github.com/EntityProcess/agentv-evals.git
+    remote: https://github.com/EntityProcess/agentv-evals.git
     branch: agentv-results
     path: ~/data/agentv-results
   sync:
@@ -95,7 +95,7 @@ describe('validateConfigFile', () => {
       path: /srv/agentv
     results:
       repo:
-        url: git@github.com:EntityProcess/agentv-results.git
+        remote: git@github.com:EntityProcess/agentv-results.git
         branch: agentv-results
         path: /srv/agentv-results
       sync:
@@ -122,7 +122,7 @@ describe('validateConfigFile', () => {
       path: /srv/agentv
     results:
       repo:
-        url: https://github.com/EntityProcess/agentv.git
+        remote: https://github.com/EntityProcess/agentv.git
         path: .
         branch: agentv/results/v1
       sync:
@@ -237,9 +237,8 @@ describe('validateConfigFile', () => {
       branch: ""
     results:
       repo:
-        url: EntityProcess/results
+        remote: EntityProcess/results
         branch: ""
-        remote: ""
         path: repo/subdir
       sync:
         auto_push: yes
@@ -258,7 +257,6 @@ describe('validateConfigFile', () => {
         expect.objectContaining({ severity: 'error', location: 'projects[0].repo.url' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].repo.path' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].repo.branch' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo.url' }),
         expect.objectContaining({
           severity: 'error',
           location: 'projects[0].results.repo.branch',
@@ -308,23 +306,23 @@ describe('validateConfigFile', () => {
       yaml: `results:
       repo: example/legacy-results`,
       location: 'projects[0].results.repo',
-      migration: 'repo.url',
+      migration: 'repo.remote',
     },
 
     {
       field: 'results.repository',
       yaml: `results:
       repo:
-        url: https://github.com/example/results.git
+        remote: https://github.com/example/results.git
       repository: example/results`,
       location: 'projects[0].results.repository',
-      migration: 'repo.url',
+      migration: 'repo.remote',
     },
     {
       field: 'results.local_path',
       yaml: `results:
       repo:
-        url: https://github.com/example/results.git
+        remote: https://github.com/example/results.git
       local_path: /srv/results`,
       location: 'projects[0].results.local_path',
       migration: 'path',
@@ -333,7 +331,7 @@ describe('validateConfigFile', () => {
       field: 'results.auto_push',
       yaml: `results:
       repo:
-        url: https://github.com/example/results.git
+        remote: https://github.com/example/results.git
       auto_push: true`,
       location: 'projects[0].results.auto_push',
       migration: 'sync.auto_push',

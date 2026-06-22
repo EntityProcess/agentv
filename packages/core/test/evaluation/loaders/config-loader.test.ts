@@ -331,9 +331,8 @@ describe('parseResultsConfig', () => {
     const result = parseResultsConfig(
       {
         repo: {
-          url: 'https://github.com/example/results.git',
+          remote: 'https://github.com/example/results.git',
           branch: 'agentv/results/v1',
-          remote: 'origin',
           path: '~/data/agentv-results',
         },
         sync: {
@@ -348,7 +347,6 @@ describe('parseResultsConfig', () => {
       repo: 'https://github.com/example/results.git',
       repo_url: 'https://github.com/example/results.git',
       branch: 'agentv/results/v1',
-      remote: 'origin',
       path: '~/data/agentv-results',
       sync: {
         auto_push: true,
@@ -360,7 +358,7 @@ describe('parseResultsConfig', () => {
     const result = parseResultsConfig(
       {
         repo: {
-          url: 'https://github.com/example/source.git',
+          remote: 'https://github.com/example/source.git',
           path: '.',
           branch: 'agentv/results/v1',
         },
@@ -389,7 +387,6 @@ describe('parseResultsConfig', () => {
         repo: {
           path: '.',
           branch: 'agentv/results/v1',
-          remote: 'origin',
         },
         sync: {
           require_push: true,
@@ -402,7 +399,6 @@ describe('parseResultsConfig', () => {
       mode: 'github',
       repo_path: '.',
       branch: 'agentv/results/v1',
-      remote: 'origin',
       sync: {
         require_push: true,
       },

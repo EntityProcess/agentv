@@ -195,7 +195,9 @@ describe('projects registry', () => {
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
     expect(yamlOnDisk).toContain('repo:');
-    expect(yamlOnDisk).toContain('url: https://github.com/EntityProcess/results-project-runs.git');
+    expect(yamlOnDisk).toContain(
+      'remote: https://github.com/EntityProcess/results-project-runs.git',
+    );
     expect(yamlOnDisk).toContain('branch: agentv-results');
     expect(yamlOnDisk).toContain('path: /srv/agentv/results/results-project');
     expect(yamlOnDisk).toContain('auto_push: true');
@@ -220,7 +222,7 @@ describe('projects registry', () => {
       path: /srv/agentv/repo
     results:
       repo:
-        url: git@github.com:example/source.git
+        remote: git@github.com:example/source.git
         path: .
         branch: agentv/results/v1
       sync:
@@ -243,10 +245,9 @@ describe('projects registry', () => {
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
     expect(yamlOnDisk).toContain('repo:');
-    expect(yamlOnDisk).toContain('url: git@github.com:example/source.git');
+    expect(yamlOnDisk).toContain('remote: git@github.com:example/source.git');
     expect(yamlOnDisk).toContain('path: .');
     expect(yamlOnDisk).toContain('branch: agentv/results/v1');
-    expect(yamlOnDisk).not.toContain('remote: origin');
     expect(yamlOnDisk).toContain('auto_push: false');
     expect(yamlOnDisk).toContain('require_push: true');
     expect(yamlOnDisk).not.toContain('repo_path:');

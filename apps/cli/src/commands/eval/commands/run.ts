@@ -79,7 +79,7 @@ export const evalRunCommand = command({
     resultsRemote: option({
       type: optional(string),
       long: 'results-remote',
-      description: 'Git remote name for results push/fetch (default: origin)',
+      description: 'Advanced compatibility override: local Git remote name for results push/fetch',
     }),
     resultsPush: flag({
       long: 'results-push',

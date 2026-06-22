@@ -130,7 +130,7 @@ eval_patterns:
 
 results:
   repo:
-    url: $results_url
+    remote: $results_url
     branch: agentv/results/v1
     path: /data/results/agentv-evalresults
   sync:
@@ -168,7 +168,7 @@ const nextEntry = {
   },
   results: {
     repo: {
-      url: resultsRepo,
+      remote: resultsRepo,
       branch: "agentv/results/v1",
       path: "/data/results/agentv-evalresults",
     },
