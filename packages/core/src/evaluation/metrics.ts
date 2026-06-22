@@ -1,36 +1,25 @@
 /**
- * AgentV execution summary v1.
+ * AgentV metrics v1.
  *
- * This is a derived per-case projection over `EvaluationResult` and
- * `agentv.trace.v1`. It gives dashboards, graders, and result comparisons the
- * compact Vercel-style observability fields without making Vercel o11y,
- * OpenInference, OTLP, or transcript JSONL canonical AgentV storage.
- *
- * Keep raw/detail state in `outputs/trace.json`; keep ordered conversational
- * compatibility rows in `outputs/transcript.jsonl`; keep run-level aggregates
- * in `benchmark.json`. This sidecar is the AgentV-owned summary layer between
- * those artifacts.
+ * This is a derived per-case executor metrics projection over `EvaluationResult`
+ * and `agentv.trace.v1`. It aligns with Agent Skills `outputs/metrics.json`
+ * while carrying the compact Vercel-style observability fields. It is not the
+ * canonical trace store; full detail stays in `outputs/trace.json`, ordered
+ * transcript compatibility rows stay in `outputs/transcript.jsonl`, and
+ * duration/token/cost usage stays in `timing.json`.
  */
 
 import { z } from 'zod';
 import type { Message, ToolCall } from './providers/types.js';
 import {
   CANONICAL_TRACE_ARTIFACT_PATH,
-  EXECUTION_SUMMARY_SCHEMA_VERSION,
+  METRICS_SCHEMA_VERSION,
 } from './result-artifact-contract.js';
 import { EXECUTION_TRACE_SCHEMA_VERSION, type TraceEnvelope } from './trace-envelope.js';
-import type { TokenUsage, TraceEvent } from './trace.js';
+import type { TraceEvent } from './trace.js';
 import type { EvaluationResult } from './types.js';
 
 const TOOL_STATUS_VALUES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
-const SUMMARY_SOURCE_VALUES = [
-  'provider_reported',
-  'token_estimated',
-  'aggregate',
-  'unavailable',
-] as const;
-
-type SummarySource = (typeof SUMMARY_SOURCE_VALUES)[number];
 
 const FILE_READ_KEY_SET = new Set([
   'file',
@@ -56,16 +45,6 @@ const URL_KEY_SET = new Set(['url', 'uri', 'href', 'extractedurl', '_extractedur
 
 const EXIT_CODE_KEY_SET = new Set(['exitcode', 'exitstatus', 'code', 'statuscode']);
 const STATUS_CODE_KEY_SET = new Set(['status', 'statuscode', 'httpstatus', 'httpstatuscode']);
-
-const ExecutionSummaryTokenUsageWireSchema = z
-  .object({
-    input: z.number().nonnegative().optional(),
-    output: z.number().nonnegative().optional(),
-    cached: z.number().nonnegative().optional(),
-    reasoning: z.number().nonnegative().optional(),
-    total: z.number().nonnegative(),
-  })
-  .strict();
 
 const ExecutionToolCallWireSchema = z
   .object({
@@ -134,46 +113,32 @@ const ReasoningBlockWireSchema = z
   })
   .strict();
 
-export const ExecutionSummaryWireSchema = z
+export const MetricsWireSchema = z
   .object({
-    total_turns: z.number().int().nonnegative(),
-    tool_calls: z.array(ExecutionToolCallWireSchema),
+    tool_calls: z.record(z.string(), z.number().int().nonnegative()),
     tool_call_counts: z.record(z.string(), z.number().int().nonnegative()),
     tool_category_counts: z.record(z.string(), z.number().int().nonnegative()),
     total_tool_calls: z.number().int().nonnegative(),
+    total_steps: z.number().int().nonnegative(),
+    total_turns: z.number().int().nonnegative(),
+    tool_call_events: z.array(ExecutionToolCallWireSchema),
     shell_commands: z.array(ShellCommandWireSchema),
     files_read: z.array(FileReferenceWireSchema),
     files_modified: z.array(FileReferenceWireSchema),
+    files_created: z.array(z.string()),
     web_fetches: z.array(WebFetchWireSchema),
     errors: z.array(ExecutionErrorWireSchema),
+    errors_encountered: z.number().int().nonnegative(),
+    output_chars: z.number().int().nonnegative(),
+    transcript_chars: z.number().int().nonnegative(),
     reasoning_blocks: z.array(ReasoningBlockWireSchema),
     thinking_blocks: z.number().int().nonnegative(),
   })
   .strict();
 
-export const UsageSummaryWireSchema = z
+export const MetricsArtifactWireSchema = z
   .object({
-    token_usage: ExecutionSummaryTokenUsageWireSchema.nullable(),
-    token_usage_source: z.enum(SUMMARY_SOURCE_VALUES),
-    total_tokens: z.number().nonnegative().nullable(),
-    total_tokens_source: z.enum(SUMMARY_SOURCE_VALUES),
-    cost_usd: z.number().nonnegative().nullable(),
-    cost_source: z.enum(SUMMARY_SOURCE_VALUES),
-    duration_ms: z.number().nonnegative().nullable(),
-    duration_source: z.enum(SUMMARY_SOURCE_VALUES),
-    aggregate: z
-      .object({
-        token_usage: ExecutionSummaryTokenUsageWireSchema.optional(),
-        duration_ms: z.number().nonnegative().optional(),
-      })
-      .strict()
-      .optional(),
-  })
-  .strict();
-
-export const ExecutionSummaryArtifactWireSchema = z
-  .object({
-    schema_version: z.literal(EXECUTION_SUMMARY_SCHEMA_VERSION),
+    schema_version: z.literal(METRICS_SCHEMA_VERSION),
     artifact_id: z.string(),
     generated_at: z.string(),
     test_id: z.string(),
@@ -197,12 +162,11 @@ export const ExecutionSummaryArtifactWireSchema = z
         timing_path: z.string().optional(),
       })
       .strict(),
-    execution_summary: ExecutionSummaryWireSchema,
-    usage_summary: UsageSummaryWireSchema,
+    metrics: MetricsWireSchema,
   })
   .strict();
 
-export type ExecutionSummaryArtifactWire = z.infer<typeof ExecutionSummaryArtifactWireSchema>;
+export type MetricsArtifactWire = z.infer<typeof MetricsArtifactWireSchema>;
 
 type ToolCallRef = {
   readonly toolCall: ToolCall;
@@ -210,8 +174,6 @@ type ToolCallRef = {
   readonly toolIndex: number;
   readonly position: number;
 };
-
-type TokenUsageWire = z.infer<typeof ExecutionSummaryTokenUsageWireSchema>;
 
 function dropUndefined<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
@@ -540,6 +502,28 @@ function parseModifiedPathsFromDiff(fileChanges: string | undefined): string[] {
   return [...paths];
 }
 
+function parseCreatedPathsFromDiff(fileChanges: string | undefined): string[] {
+  if (!fileChanges) {
+    return [];
+  }
+  const paths = new Set<string>();
+  const lines = fileChanges.split('\n');
+  for (let index = 0; index < lines.length - 1; index++) {
+    if (lines[index] !== '--- /dev/null') {
+      continue;
+    }
+    const nextLine = lines[index + 1];
+    if (!nextLine?.startsWith('+++ b/')) {
+      continue;
+    }
+    const filePath = nextLine.slice('+++ b/'.length).trim();
+    if (filePath && filePath !== '/dev/null') {
+      paths.add(filePath);
+    }
+  }
+  return [...paths];
+}
+
 function buildFileModifications(result: EvaluationResult, calls: readonly ToolCallRef[]) {
   const refs: z.infer<typeof FileReferenceWireSchema>[] = [];
   for (const call of calls) {
@@ -569,6 +553,19 @@ function buildFileModifications(result: EvaluationResult, calls: readonly ToolCa
   }
 
   return uniqueFileReferences(refs);
+}
+
+function buildFilesCreated(result: EvaluationResult, calls: readonly ToolCallRef[]): string[] {
+  const paths = new Set<string>(parseCreatedPathsFromDiff(result.fileChanges));
+  for (const call of calls) {
+    if (toolCategory(call.toolCall.tool) !== 'file_write') {
+      continue;
+    }
+    for (const filePath of collectStringValuesByKey(call.toolCall.input, FILE_READ_KEY_SET)) {
+      paths.add(filePath);
+    }
+  }
+  return [...paths];
 }
 
 function buildWebFetches(calls: readonly ToolCallRef[]) {
@@ -775,143 +772,57 @@ function buildReasoningBlocks(messages: readonly Message[], events: readonly Tra
   return blocks;
 }
 
-function normalizeTokenUsage(usage: TokenUsage | undefined): TokenUsageWire | undefined {
-  if (!usage) {
-    return undefined;
-  }
-  const input = usage.input ?? 0;
-  const output = usage.output ?? 0;
-  const reasoning = usage.reasoning ?? 0;
-  return dropUndefined({
-    input: usage.input,
-    output: usage.output,
-    cached: usage.cached,
-    reasoning: usage.reasoning,
-    total: input + output + reasoning,
-  }) as TokenUsageWire;
+function buildTranscriptCharCount(
+  messages: readonly Message[],
+  events: readonly TraceEvent[],
+): number {
+  const rows = [...messages, ...events].map((entry) => JSON.stringify(entry));
+  return rows.length === 0 ? 0 : rows.join('\n').length + 1;
 }
 
-function sumTokenUsage(messages: readonly Message[]): TokenUsage | undefined {
-  let sawUsage = false;
-  let input = 0;
-  let output = 0;
-  let cached = 0;
-  let reasoning = 0;
-  let sawCached = false;
-  let sawReasoning = false;
-
-  for (const message of messages) {
-    const usage = message.tokenUsage;
-    if (!usage) {
-      continue;
-    }
-    sawUsage = true;
-    input += usage.input ?? 0;
-    output += usage.output ?? 0;
-    if (usage.cached !== undefined) {
-      sawCached = true;
-      cached += usage.cached;
-    }
-    if (usage.reasoning !== undefined) {
-      sawReasoning = true;
-      reasoning += usage.reasoning;
-    }
-  }
-
-  if (!sawUsage) {
-    return undefined;
-  }
-  return dropUndefined({
-    input,
-    output,
-    cached: sawCached ? cached : undefined,
-    reasoning: sawReasoning ? reasoning : undefined,
-  }) as TokenUsage;
-}
-
-function metadataUsageSource(
-  metadata: EvaluationResult['metadata'],
-  key: 'token_usage_source' | 'cost_source' | 'duration_source',
-): SummarySource | undefined {
-  const usageSummary = metadata?.usage_summary;
-  const value = isRecord(usageSummary) ? usageSummary[key] : metadata?.[key];
-  return typeof value === 'string' && SUMMARY_SOURCE_VALUES.includes(value as SummarySource)
-    ? (value as SummarySource)
-    : undefined;
-}
-
-function buildUsageSummary(result: EvaluationResult) {
-  const messageAggregate = sumTokenUsage(result.trace.messages);
-  const resultUsage = result.tokenUsage ?? result.trace.tokenUsage;
-  const tokenUsage = normalizeTokenUsage(resultUsage ?? messageAggregate);
-  const tokenUsageSource =
-    metadataUsageSource(result.metadata, 'token_usage_source') ??
-    (resultUsage ? 'provider_reported' : messageAggregate ? 'aggregate' : 'unavailable');
-  const durationSource =
-    metadataUsageSource(result.metadata, 'duration_source') ??
-    (result.durationMs !== undefined || result.trace.durationMs !== undefined
-      ? 'provider_reported'
-      : 'unavailable');
-  const costSource =
-    metadataUsageSource(result.metadata, 'cost_source') ??
-    (result.costUsd !== undefined || result.trace.costUsd !== undefined
-      ? 'provider_reported'
-      : 'unavailable');
-
-  return {
-    token_usage: tokenUsage ?? null,
-    token_usage_source: tokenUsageSource,
-    total_tokens: tokenUsage?.total ?? null,
-    total_tokens_source: tokenUsageSource,
-    cost_usd: result.costUsd ?? result.trace.costUsd ?? null,
-    cost_source: costSource,
-    duration_ms: result.durationMs ?? result.trace.durationMs ?? null,
-    duration_source: durationSource,
-    aggregate:
-      result.evalRun?.tokenUsage || result.evalRun?.durationMs !== undefined
-        ? dropUndefined({
-            token_usage: normalizeTokenUsage(result.evalRun.tokenUsage),
-            duration_ms: result.evalRun.durationMs,
-          })
-        : undefined,
-  };
-}
-
-function buildExecutionSummary(result: EvaluationResult) {
+function buildMetrics(result: EvaluationResult) {
   const messages = result.trace.messages ?? [];
+  const events = result.trace.events ?? [];
   const calls = collectToolCalls(messages);
   const toolCallCounts = buildToolCallCounts(result, calls);
   const totalToolCalls =
     calls.length > 0
       ? calls.length
       : Object.values(toolCallCounts).reduce((sum, count) => sum + count, 0);
-  const reasoningBlocks = buildReasoningBlocks(messages, result.trace.events ?? []);
+  const reasoningBlocks = buildReasoningBlocks(messages, events);
+  const errors = buildErrors(result, calls);
+  const totalTurns =
+    result.trace.llmCallCount ?? messages.filter((message) => message.role === 'assistant').length;
 
   return {
-    total_turns:
-      result.trace.llmCallCount ??
-      messages.filter((message) => message.role === 'assistant').length,
-    tool_calls: buildToolCallSummaries(calls),
+    tool_calls: toolCallCounts,
     tool_call_counts: toolCallCounts,
     tool_category_counts: buildToolCategoryCounts(toolCallCounts),
     total_tool_calls: totalToolCalls,
+    total_steps: totalTurns,
+    total_turns: totalTurns,
+    tool_call_events: buildToolCallSummaries(calls),
     shell_commands: buildShellCommands(calls),
     files_read: buildFileReads(calls),
     files_modified: buildFileModifications(result, calls),
+    files_created: buildFilesCreated(result, calls),
     web_fetches: buildWebFetches(calls),
-    errors: buildErrors(result, calls),
+    errors,
+    errors_encountered: errors.length,
+    output_chars: result.output.length,
+    transcript_chars: buildTranscriptCharCount(messages, events),
     reasoning_blocks: reasoningBlocks,
     thinking_blocks: reasoningBlocks.length,
   };
 }
 
-function executionSummaryArtifactId(traceArtifactId: string): string {
+function metricsArtifactId(traceArtifactId: string): string {
   return traceArtifactId.startsWith('execution-trace-')
-    ? traceArtifactId.replace('execution-trace-', 'execution-summary-')
-    : `execution-summary-${traceArtifactId}`;
+    ? traceArtifactId.replace('execution-trace-', 'metrics-')
+    : `metrics-${traceArtifactId}`;
 }
 
-export function buildExecutionSummaryArtifact(
+export function buildMetricsArtifact(
   result: EvaluationResult,
   envelope: TraceEnvelope,
   options: {
@@ -921,12 +832,12 @@ export function buildExecutionSummaryArtifact(
     timingPath?: string;
     generatedAt?: string;
   } = {},
-): ExecutionSummaryArtifactWire {
+): MetricsArtifactWire {
   const tracePath = options.tracePath ?? CANONICAL_TRACE_ARTIFACT_PATH;
-  return ExecutionSummaryArtifactWireSchema.parse(
+  return MetricsArtifactWireSchema.parse(
     dropUndefined({
-      schema_version: EXECUTION_SUMMARY_SCHEMA_VERSION,
-      artifact_id: executionSummaryArtifactId(envelope.artifactId),
+      schema_version: METRICS_SCHEMA_VERSION,
+      artifact_id: metricsArtifactId(envelope.artifactId),
       generated_at: options.generatedAt ?? envelope.createdAt,
       test_id: result.testId ?? 'unknown',
       target: result.target ?? 'unknown',
@@ -945,8 +856,7 @@ export function buildExecutionSummaryArtifact(
         grading_path: options.gradingPath,
         timing_path: options.timingPath,
       }),
-      execution_summary: buildExecutionSummary(result),
-      usage_summary: buildUsageSummary(result),
+      metrics: buildMetrics(result),
     }),
   );
 }

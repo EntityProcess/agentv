@@ -23,21 +23,20 @@ export const AGENTV_RESULTS_REFS = {
 
 export const CANONICAL_TRACE_ARTIFACT_PATH = 'outputs/trace.json' as const;
 export const CANONICAL_TRANSCRIPT_ARTIFACT_PATH = 'outputs/transcript.jsonl' as const;
-export const CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH = 'outputs/execution_summary.json' as const;
+export const CANONICAL_METRICS_ARTIFACT_PATH = 'outputs/metrics.json' as const;
 
 export const TRANSCRIPT_SCHEMA_VERSION = 'agentv.transcript.v1' as const;
-export const EXECUTION_SUMMARY_SCHEMA_VERSION = 'agentv.execution_summary.v1' as const;
+export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;
 export const TRANSCRIPT_JSONL_MEDIA_TYPE = 'application/x-ndjson' as const;
 export const TRACE_JSON_MEDIA_TYPE = 'application/vnd.agentv.trace.v1+json' as const;
-export const EXECUTION_SUMMARY_JSON_MEDIA_TYPE =
-  'application/vnd.agentv.execution_summary.v1+json' as const;
+export const METRICS_JSON_MEDIA_TYPE = 'application/vnd.agentv.metrics.v1+json' as const;
 
 export type AgentVResultsRefName = (typeof AGENTV_RESULTS_REFS)[keyof typeof AGENTV_RESULTS_REFS];
 
 export type ResultArtifactFamily =
   | 'traces'
   | 'transcripts'
-  | 'execution-summaries'
+  | 'metrics'
   | 'outputs'
   | 'raw-logs'
   | 'screenshots';
@@ -81,10 +80,10 @@ export type TranscriptArtifactPointerWire = ResultArtifactPointerWire & {
 export interface ResultArtifactPointersWire {
   readonly trace?: ResultArtifactPointerWire;
   readonly transcript?: TranscriptArtifactPointerWire;
-  readonly execution_summary?: ResultArtifactPointerWire & {
-    readonly schema_version: typeof EXECUTION_SUMMARY_SCHEMA_VERSION;
-    readonly media_type: typeof EXECUTION_SUMMARY_JSON_MEDIA_TYPE;
-    readonly family: 'execution-summaries';
+  readonly metrics?: ResultArtifactPointerWire & {
+    readonly schema_version: typeof METRICS_SCHEMA_VERSION;
+    readonly media_type: typeof METRICS_JSON_MEDIA_TYPE;
+    readonly family: 'metrics';
   };
 }
 

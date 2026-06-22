@@ -94,7 +94,7 @@ export function buildIndexArtifactEntry(
     outputPath?: string;
     answerPath?: string;
     transcriptPath?: string;
-    executionSummaryPath?: string;
+    metricsPath?: string;
     rawProviderLogPath?: string;
     inputPath?: string;
     responsePath?: string;

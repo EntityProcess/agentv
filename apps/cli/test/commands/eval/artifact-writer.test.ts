@@ -5,16 +5,16 @@ import path from 'node:path';
 
 import {
   AGENTV_RESULTS_ARTIFACTS_REF,
-  CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH,
+  CANONICAL_METRICS_ARTIFACT_PATH,
   CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
-  EXECUTION_SUMMARY_JSON_MEDIA_TYPE,
-  EXECUTION_SUMMARY_SCHEMA_VERSION,
   EXECUTION_TRACE_SCHEMA_VERSION,
   type EvalTest,
   type EvaluationResult,
-  ExecutionSummaryArtifactWireSchema,
   type GraderResult,
+  METRICS_JSON_MEDIA_TYPE,
+  METRICS_SCHEMA_VERSION,
+  MetricsArtifactWireSchema,
   TRACE_JSON_MEDIA_TYPE,
   TRANSCRIPT_JSONL_MEDIA_TYPE,
   TRANSCRIPT_SCHEMA_VERSION,
@@ -983,9 +983,7 @@ describe('writeArtifactsFromResults', () => {
     expect(envelope.artifact_id).toMatch(/^execution-trace-/);
     expect(envelope.artifacts.trace_path).toBe(CANONICAL_TRACE_ARTIFACT_PATH);
     expect(envelope.artifacts.transcript_path).toBe(CANONICAL_TRANSCRIPT_ARTIFACT_PATH);
-    expect(envelope.artifacts.execution_summary_path).toBe(
-      CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH,
-    );
+    expect(envelope.artifacts.metrics_path).toBe(CANONICAL_METRICS_ARTIFACT_PATH);
     expect(envelope.artifacts).not.toHaveProperty('execution_trace_path');
     expect(envelope.eval.test_id).toBe('transcript-case');
     expect(envelope.trace.spans.map((span) => span.attributes['gen_ai.operation.name'])).toEqual([
@@ -1002,22 +1000,20 @@ describe('writeArtifactsFromResults', () => {
     );
     expect(indexLine.transcript_path).toBe('transcript-case/outputs/transcript.jsonl');
     expect(indexLine.transcript_path.endsWith(CANONICAL_TRANSCRIPT_ARTIFACT_PATH)).toBe(true);
-    expect(indexLine.execution_summary_path).toBe('transcript-case/outputs/execution_summary.json');
-    expect(
-      indexLine.execution_summary_path.endsWith(CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH),
-    ).toBe(true);
+    expect(indexLine.metrics_path).toBe('transcript-case/outputs/metrics.json');
+    expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
     expect(indexLine).not.toHaveProperty('trace_path');
 
     const traceContent = await readFile(
       path.join(testDir, 'transcript-case', 'outputs', 'trace.json'),
     );
     const transcriptContent = await readFile(transcriptPath);
-    const executionSummaryContent = await readFile(
-      path.join(testDir, 'transcript-case', 'outputs', 'execution_summary.json'),
+    const metricsContent = await readFile(
+      path.join(testDir, 'transcript-case', 'outputs', 'metrics.json'),
     );
     const traceSha = sha256Hex(traceContent);
     const transcriptSha = sha256Hex(transcriptContent);
-    const executionSummarySha = sha256Hex(executionSummaryContent);
+    const metricsSha = sha256Hex(metricsContent);
 
     expect(indexLine.artifact_pointers.trace).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
@@ -1041,20 +1037,20 @@ describe('writeArtifactsFromResults', () => {
       media_type: TRANSCRIPT_JSONL_MEDIA_TYPE,
       family: 'transcripts',
     });
-    expect(indexLine.artifact_pointers.execution_summary).toMatchObject({
+    expect(indexLine.artifact_pointers.metrics).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'execution-summaries/transcript-case/outputs/execution_summary.json',
-      object_version: `sha256:${executionSummarySha}`,
-      path: 'transcript-case/outputs/execution_summary.json',
-      sha256: executionSummarySha,
-      size: executionSummaryContent.byteLength,
-      schema_version: EXECUTION_SUMMARY_SCHEMA_VERSION,
-      media_type: EXECUTION_SUMMARY_JSON_MEDIA_TYPE,
-      family: 'execution-summaries',
+      key: 'metrics/transcript-case/outputs/metrics.json',
+      object_version: `sha256:${metricsSha}`,
+      path: 'transcript-case/outputs/metrics.json',
+      sha256: metricsSha,
+      size: metricsContent.byteLength,
+      schema_version: METRICS_SCHEMA_VERSION,
+      media_type: METRICS_JSON_MEDIA_TYPE,
+      family: 'metrics',
     });
   });
 
-  it('writes AgentV execution and usage summaries as Vercel-style superset projections', async () => {
+  it('writes AgentV metrics as Agent Skills and Vercel-style behavior projections', async () => {
     const input = [{ role: 'user' as const, content: 'Inspect the repo and fetch context' }];
     const output = [
       {
@@ -1109,6 +1105,10 @@ describe('writeArtifactsFromResults', () => {
       '@@ -1 +1 @@',
       '-old',
       '+new',
+      '--- /dev/null',
+      '+++ b/src/new.ts',
+      '@@ -0,0 +1 @@',
+      '+created',
     ].join('\n');
     const results = [
       makeResult({
@@ -1144,39 +1144,44 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.execution_summary_path).toBe('summary-case/outputs/execution_summary.json');
+    expect(indexLine.metrics_path).toBe('summary-case/outputs/metrics.json');
 
-    const summary = ExecutionSummaryArtifactWireSchema.parse(
+    const summary = MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(
-          path.join(testDir, 'summary-case', 'outputs', 'execution_summary.json'),
-          'utf8',
-        ),
+        await readFile(path.join(testDir, 'summary-case', 'outputs', 'metrics.json'), 'utf8'),
       ),
     );
 
-    expect(summary.schema_version).toBe(EXECUTION_SUMMARY_SCHEMA_VERSION);
+    expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
     expect(summary.source_artifacts).toMatchObject({
       trace_path: CANONICAL_TRACE_ARTIFACT_PATH,
       transcript_path: CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
       grading_path: 'grading.json',
       timing_path: 'timing.json',
     });
-    expect(summary.execution_summary.total_turns).toBe(2);
-    expect(summary.execution_summary.total_tool_calls).toBe(4);
-    expect(summary.execution_summary.tool_call_counts).toMatchObject({
+    expect(summary.metrics.total_turns).toBe(2);
+    expect(summary.metrics.total_tool_calls).toBe(4);
+    expect(summary.metrics.total_steps).toBe(2);
+    expect(summary.metrics.tool_calls).toMatchObject({
       Read: 1,
       Bash: 1,
       WebFetch: 1,
       Edit: 1,
     });
-    expect(summary.execution_summary.tool_category_counts).toMatchObject({
+    expect(summary.metrics.tool_call_counts).toMatchObject({
+      Read: 1,
+      Bash: 1,
+      WebFetch: 1,
+      Edit: 1,
+    });
+    expect(summary.metrics.tool_category_counts).toMatchObject({
       file_read: 1,
       shell: 1,
       web_fetch: 1,
       file_edit: 1,
     });
-    expect(summary.execution_summary.shell_commands).toEqual([
+    expect(summary.metrics.tool_call_events).toHaveLength(4);
+    expect(summary.metrics.shell_commands).toEqual([
       {
         command: 'bun test apps/cli/test/commands/eval/artifact-writer.test.ts',
         tool_call_id: 'bash-1',
@@ -1185,25 +1190,24 @@ describe('writeArtifactsFromResults', () => {
         duration_ms: 1200,
       },
     ]);
-    expect(summary.execution_summary.files_read).toContainEqual({
+    expect(summary.metrics.files_read).toContainEqual({
       path: 'src/input.ts',
       tool_call_id: 'read-1',
       source: 'tool_input',
     });
-    expect(summary.execution_summary.files_modified).toEqual([
-      {
-        path: 'src/output.ts',
-        operation: 'edit',
-        tool_call_id: 'edit-1',
-        source: 'tool_input',
-      },
-      {
-        path: 'src/output.ts',
-        operation: 'workspace_diff',
-        source: 'file_changes',
-      },
-    ]);
-    expect(summary.execution_summary.web_fetches).toEqual([
+    expect(summary.metrics.files_modified).toContainEqual({
+      path: 'src/output.ts',
+      operation: 'edit',
+      tool_call_id: 'edit-1',
+      source: 'tool_input',
+    });
+    expect(summary.metrics.files_modified).toContainEqual({
+      path: 'src/output.ts',
+      operation: 'workspace_diff',
+      source: 'file_changes',
+    });
+    expect(summary.metrics.files_created).toEqual(['src/new.ts']);
+    expect(summary.metrics.web_fetches).toEqual([
       {
         url: 'https://example.com/spec',
         method: 'GET',
@@ -1212,31 +1216,37 @@ describe('writeArtifactsFromResults', () => {
         tool_call_id: 'web-1',
       },
     ]);
-    expect(summary.execution_summary.errors).toContainEqual({
+    expect(summary.metrics.errors).toContainEqual({
       message: 'quality gate failed',
     });
-    expect(summary.execution_summary.thinking_blocks).toBe(2);
-    expect(summary.execution_summary.reasoning_blocks.map((block) => block.kind)).toEqual([
+    expect(summary.metrics.errors_encountered).toBe(1);
+    expect(summary.metrics.output_chars).toBe('Editing output.'.length);
+    expect(summary.metrics.transcript_chars).toBeGreaterThan(0);
+    expect(summary.metrics.thinking_blocks).toBe(2);
+    expect(summary.metrics.reasoning_blocks.map((block) => block.kind)).toEqual([
       'reasoning',
       'thinking',
     ]);
-    expect(summary.usage_summary).toMatchObject({
-      token_usage: { input: 100, output: 40, cached: 10, reasoning: 5, total: 145 },
-      token_usage_source: 'provider_reported',
-      total_tokens: 145,
-      total_tokens_source: 'provider_reported',
-      cost_usd: 0.25,
-      cost_source: 'provider_reported',
+    expect(summary).not.toHaveProperty('usage_summary');
+
+    const timing = JSON.parse(
+      await readFile(path.join(testDir, 'summary-case', 'timing.json'), 'utf8'),
+    );
+    expect(timing).toMatchObject({
+      total_tokens: 140,
       duration_ms: 4200,
-      duration_source: 'provider_reported',
-      aggregate: {
-        token_usage: { input: 120, output: 50, reasoning: 6, total: 176 },
-        duration_ms: 5000,
+      cost_usd: 0.25,
+      token_usage: { input: 100, output: 40, reasoning: 5 },
+      usage_sources: {
+        token_usage: 'provider_reported',
+        total_tokens: 'provider_reported',
+        duration: 'provider_reported',
+        cost: 'provider_reported',
       },
     });
   });
 
-  it('distinguishes aggregate, estimated, and unavailable usage sources', async () => {
+  it('distinguishes aggregate, estimated, and unavailable timing usage sources', async () => {
     const aggregateOutput = [
       {
         role: 'assistant' as const,
@@ -1263,9 +1273,10 @@ describe('writeArtifactsFromResults', () => {
         tokenUsage: { input: 6, output: 7 },
         costUsd: 0.002,
         metadata: {
-          usage_summary: {
-            token_usage_source: 'token_estimated',
-            cost_source: 'token_estimated',
+          usage_sources: {
+            token_usage: 'token_estimated',
+            total_tokens: 'token_estimated',
+            cost: 'token_estimated',
           },
         },
       }),
@@ -1273,38 +1284,56 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const aggregateSummary = ExecutionSummaryArtifactWireSchema.parse(
+    const aggregateTiming = JSON.parse(
+      await readFile(path.join(testDir, 'aggregate-usage', 'timing.json'), 'utf8'),
+    );
+    const estimatedTiming = JSON.parse(
+      await readFile(path.join(testDir, 'estimated-usage', 'timing.json'), 'utf8'),
+    );
+    const runTiming = JSON.parse(await readFile(path.join(testDir, 'timing.json'), 'utf8'));
+
+    MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(
-          path.join(testDir, 'aggregate-usage', 'outputs', 'execution_summary.json'),
-          'utf8',
-        ),
+        await readFile(path.join(testDir, 'aggregate-usage', 'outputs', 'metrics.json'), 'utf8'),
       ),
     );
-    const estimatedSummary = ExecutionSummaryArtifactWireSchema.parse(
+    MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(
-          path.join(testDir, 'estimated-usage', 'outputs', 'execution_summary.json'),
-          'utf8',
-        ),
+        await readFile(path.join(testDir, 'estimated-usage', 'outputs', 'metrics.json'), 'utf8'),
       ),
     );
 
-    expect(aggregateSummary.usage_summary).toMatchObject({
-      token_usage: { input: 3, output: 4, total: 7 },
-      token_usage_source: 'aggregate',
-      total_tokens_source: 'aggregate',
+    expect(aggregateTiming).toMatchObject({
+      token_usage: { input: 3, output: 4, reasoning: 0 },
+      total_tokens: 7,
       cost_usd: null,
-      cost_source: 'unavailable',
-      duration_ms: null,
-      duration_source: 'unavailable',
+      usage_sources: {
+        token_usage: 'aggregate',
+        total_tokens: 'aggregate',
+        cost: 'unavailable',
+        duration: 'unavailable',
+      },
     });
-    expect(estimatedSummary.usage_summary).toMatchObject({
-      token_usage: { input: 6, output: 7, total: 13 },
-      token_usage_source: 'token_estimated',
-      total_tokens_source: 'token_estimated',
+    expect(estimatedTiming).toMatchObject({
+      token_usage: { input: 6, output: 7, reasoning: 0 },
+      total_tokens: 13,
       cost_usd: 0.002,
-      cost_source: 'token_estimated',
+      usage_sources: {
+        token_usage: 'token_estimated',
+        total_tokens: 'token_estimated',
+        cost: 'token_estimated',
+        duration: 'unavailable',
+      },
+    });
+    expect(runTiming).toMatchObject({
+      total_tokens: 20,
+      cost_usd: 0.002,
+      usage_sources: {
+        token_usage: 'aggregate',
+        total_tokens: 'aggregate',
+        cost: 'aggregate',
+        duration: 'unavailable',
+      },
     });
   });
 
@@ -1427,9 +1456,7 @@ describe('writeArtifactsFromResults', () => {
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('transcript_path');
-    expect(indexLine.execution_summary_path).toBe(
-      'no-transcript-case/outputs/execution_summary.json',
-    );
+    expect(indexLine.metrics_path).toBe('no-transcript-case/outputs/metrics.json');
     expect(indexLine.artifact_pointers.trace).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
       key: 'traces/no-transcript-case/outputs/trace.json',
@@ -1439,11 +1466,11 @@ describe('writeArtifactsFromResults', () => {
       family: 'traces',
     });
     expect(indexLine.artifact_pointers).not.toHaveProperty('transcript');
-    expect(indexLine.artifact_pointers.execution_summary).toMatchObject({
-      key: 'execution-summaries/no-transcript-case/outputs/execution_summary.json',
-      path: 'no-transcript-case/outputs/execution_summary.json',
-      schema_version: EXECUTION_SUMMARY_SCHEMA_VERSION,
-      family: 'execution-summaries',
+    expect(indexLine.artifact_pointers.metrics).toMatchObject({
+      key: 'metrics/no-transcript-case/outputs/metrics.json',
+      path: 'no-transcript-case/outputs/metrics.json',
+      schema_version: METRICS_SCHEMA_VERSION,
+      family: 'metrics',
     });
 
     const envelope = TraceEnvelopeWireSchema.parse(
@@ -1452,9 +1479,7 @@ describe('writeArtifactsFromResults', () => {
       ),
     );
     expect(envelope.artifacts).not.toHaveProperty('transcript_path');
-    expect(envelope.artifacts.execution_summary_path).toBe(
-      CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH,
-    );
+    expect(envelope.artifacts.metrics_path).toBe(CANONICAL_METRICS_ARTIFACT_PATH);
   });
 
   it('sanitizes test IDs for directory names', async () => {

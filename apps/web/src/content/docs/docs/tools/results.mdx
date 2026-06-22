@@ -108,48 +108,52 @@ Duplicate policy is explicit:
 
 `attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
 
-### Execution summary sidecar
+### Metrics sidecar
 
-Each per-case artifact directory includes `outputs/execution_summary.json`
-(`schema_version: "agentv.execution_summary.v1"`). This is an AgentV-owned
-derived projection over `outputs/trace.json`, the result row, `timing.json`, and
-`grading.json`. It is the compact behavior and usage summary for dashboards,
-comparison exports, and metric-style graders; it is not canonical trace storage.
+Each per-case artifact directory includes `outputs/metrics.json`
+(`schema_version: "agentv.metrics.v1"`). This is an AgentV-owned
+derived projection over `outputs/trace.json`, the result row, and
+`grading.json`. It is the compact executor behavior summary for dashboards,
+comparison exports, and metric-style graders; it is not canonical trace storage
+and does not carry token/cost usage.
 
 `outputs/transcript.jsonl` remains the ordered conversational/log compatibility
 projection. Full trace detail stays in `outputs/trace.json`
 (`agentv.trace.v1`). `benchmark.json` remains the run-level aggregate summary,
-and `index.jsonl` carries the lightweight `execution_summary_path` plus
-`artifact_pointers.execution_summary`.
+and `index.jsonl` carries the lightweight `metrics_path` plus
+`artifact_pointers.metrics`. Duration, token, and cost usage remains in
+`timing.json`, including source labels such as `provider_reported`,
+`token_estimated`, `aggregate`, or `unavailable`.
 
-The summary contains two top-level sections:
+The `metrics` section aligns with Claude Agent Skills `outputs/metrics.json`
+while adding AgentV/Vercel-style detail:
 
-| Section | Purpose |
-|---------|---------|
-| `execution_summary` | Per-case turns, raw tool call counts, normalized tool category counts, shell commands, files read, files modified, web fetches, errors, and reasoning/thinking blocks when source data includes them |
-| `usage_summary` | Token usage, total tokens, cost, duration, aggregate eval-run usage, and explicit source labels: `provider_reported`, `token_estimated`, `aggregate`, or `unavailable` |
+| Field group | Purpose |
+|-------------|---------|
+| `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created` | Agent Skills-compatible executor metrics |
+| `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV/Vercel-style behavior summary when source data includes it |
 
 Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 
 | Vercel field | AgentV field | Artifact location |
 |--------------|--------------|-------------------|
-| `shellCommands` | `execution_summary.shell_commands` | `outputs/execution_summary.json` |
-| `filesRead` | `execution_summary.files_read` | `outputs/execution_summary.json` |
-| `filesModified` | `execution_summary.files_modified` | `outputs/execution_summary.json` |
-| `toolCalls` | `execution_summary.tool_calls` and `tool_call_counts` | `outputs/execution_summary.json`; aggregate count can also appear in `grading.json.execution_metrics` and `benchmark.json.run_summary[*].tool_calls` |
-| `totalToolCalls` | `execution_summary.total_tool_calls` | `outputs/execution_summary.json` |
-| `webFetches` | `execution_summary.web_fetches` | `outputs/execution_summary.json` |
-| `totalTurns` | `execution_summary.total_turns` | `outputs/execution_summary.json`; conversational rows remain in `outputs/transcript.jsonl` |
-| `errors` | `execution_summary.errors` | `outputs/execution_summary.json`; compact count remains in `grading.json.execution_metrics.errors_encountered` |
-| `thinkingBlocks` | `execution_summary.reasoning_blocks` and `thinking_blocks` | `outputs/execution_summary.json` |
+| `shellCommands` | `metrics.shell_commands` | `outputs/metrics.json` |
+| `filesRead` | `metrics.files_read` | `outputs/metrics.json` |
+| `filesModified` | `metrics.files_modified` | `outputs/metrics.json` |
+| `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `outputs/metrics.json`; compact counts can also appear in `grading.json.execution_metrics` and `benchmark.json.run_summary[*].tool_calls` |
+| `totalToolCalls` | `metrics.total_tool_calls` | `outputs/metrics.json` |
+| `webFetches` | `metrics.web_fetches` | `outputs/metrics.json` |
+| `totalTurns` | `metrics.total_turns` | `outputs/metrics.json`; conversational rows remain in `outputs/transcript.jsonl` |
+| `errors` | `metrics.errors` | `outputs/metrics.json`; compact count remains in `grading.json.execution_metrics.errors_encountered` |
+| `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `outputs/metrics.json` |
 
 Agent Skills eval artifacts map into AgentV like this:
 
 | Agent Skills pattern | AgentV field | Artifact location |
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
-| Per-case `outputs/` | Final answer and sidecars | `outputs/answer.md`, `outputs/response.md`, `outputs/trace.json`, `outputs/transcript.jsonl`, `outputs/execution_summary.json` |
-| Per-case `timing.json` | Duration and token totals | `timing.json`; source-labeled per-case usage appears in `usage_summary` |
+| Per-case `outputs/` | Final answer and sidecars | `outputs/answer.md`, `outputs/response.md`, `outputs/trace.json`, `outputs/transcript.jsonl`, `outputs/metrics.json` |
+| Per-case `timing.json` | Duration, token totals, cost, and usage source labels | `timing.json` |
 | Per-case `grading.json` | Assertions, graders, execution metrics, workspace changes | `grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `benchmark.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `benchmark.json` |
 | Transcript/log outlier analysis | Ordered transcript and canonical trace | `outputs/transcript.jsonl` for log compatibility; `outputs/trace.json` for full detail |
