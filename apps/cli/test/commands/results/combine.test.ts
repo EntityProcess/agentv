@@ -124,17 +124,6 @@ describe('results combine', () => {
             media_type: 'application/x-ndjson',
             family: 'transcripts',
           },
-          metrics: {
-            ref: 'agentv/artifacts/v1',
-            key: 'metrics/demo/test-a/outputs/metrics.json',
-            object_version: 'sha256:metrics',
-            path: 'demo/test-a/outputs/metrics.json',
-            sha256: 'metrics',
-            size: 180,
-            schema_version: 'agentv.metrics.v1',
-            media_type: 'application/vnd.agentv.metrics.v1+json',
-            family: 'metrics',
-          },
         },
       }),
     ]);
@@ -197,11 +186,8 @@ describe('results combine', () => {
         key: 'transcripts/sources/source-1/demo/test-a/outputs/transcript.jsonl',
         path: 'sources/source-1/demo/test-a/outputs/transcript.jsonl',
       },
-      metrics: {
-        key: 'metrics/sources/source-1/demo/test-a/outputs/metrics.json',
-        path: 'sources/source-1/demo/test-a/outputs/metrics.json',
-      },
     });
+    expect(record.artifact_pointers).not.toHaveProperty('metrics');
     expect(
       existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/trace.json')),
     ).toBe(true);

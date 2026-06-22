@@ -121,9 +121,10 @@ and does not carry token/cost usage.
 projection. Full trace detail stays in `outputs/trace.json`
 (`agentv.trace.v1`). `benchmark.json` remains the run-level aggregate summary,
 and `index.jsonl` carries the lightweight `metrics_path` plus
-`artifact_pointers.metrics`. Duration, token, and cost usage remains in
-`timing.json`, including source labels such as `provider_reported`,
-`token_estimated`, `aggregate`, or `unavailable`.
+the trace/transcript artifact pointers used for detached payload publishing.
+Duration, token, and cost usage remains in `timing.json`, including source
+labels such as `provider_reported`, `token_estimated`, `aggregate`, or
+`unavailable`.
 
 The `metrics` section aligns with Claude Agent Skills `outputs/metrics.json`
 while adding AgentV/Vercel-style detail:

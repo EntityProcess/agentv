@@ -329,7 +329,6 @@ const MANIFEST_PATH_FIELDS = [
 const POINTER_FAMILIES = {
   trace: 'traces',
   transcript: 'transcripts',
-  metrics: 'metrics',
 } as const;
 
 function isSafeRelativeArtifactPath(relativePath: string): boolean {
@@ -416,7 +415,6 @@ function rewriteArtifactPointers(
   }
 
   return {
-    ...pointers,
     trace: rewriteArtifactPointer('trace', pointers.trace, sourceBaseDir, outputDir, sourceIndex),
     transcript: rewriteTranscriptArtifactPointer(
       pointers.transcript,
@@ -424,13 +422,6 @@ function rewriteArtifactPointers(
       outputDir,
       sourceIndex,
     ),
-    metrics: rewriteArtifactPointer(
-      'metrics',
-      pointers.metrics,
-      sourceBaseDir,
-      outputDir,
-      sourceIndex,
-    ) as ResultArtifactPointersWire['metrics'],
   };
 }
 
@@ -458,13 +449,6 @@ function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManife
     artifactPointers?.transcript?.path
   ) {
     rewritten.transcript_path = artifactPointers.transcript.path;
-  }
-  if (
-    row.record.metrics_path &&
-    rewritten.metrics_path === row.record.metrics_path &&
-    artifactPointers?.metrics?.path
-  ) {
-    rewritten.metrics_path = artifactPointers.metrics.path;
   }
   return rewritten as unknown as ResultManifestRecord;
 }

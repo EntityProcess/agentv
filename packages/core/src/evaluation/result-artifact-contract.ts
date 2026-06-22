@@ -36,7 +36,6 @@ export type AgentVResultsRefName = (typeof AGENTV_RESULTS_REFS)[keyof typeof AGE
 export type ResultArtifactFamily =
   | 'traces'
   | 'transcripts'
-  | 'metrics'
   | 'outputs'
   | 'raw-logs'
   | 'screenshots';
@@ -80,11 +79,6 @@ export type TranscriptArtifactPointerWire = ResultArtifactPointerWire & {
 export interface ResultArtifactPointersWire {
   readonly trace?: ResultArtifactPointerWire;
   readonly transcript?: TranscriptArtifactPointerWire;
-  readonly metrics?: ResultArtifactPointerWire & {
-    readonly schema_version: typeof METRICS_SCHEMA_VERSION;
-    readonly media_type: typeof METRICS_JSON_MEDIA_TYPE;
-    readonly family: 'metrics';
-  };
 }
 
 export function toResultArtifactPointerWire(

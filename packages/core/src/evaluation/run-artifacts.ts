@@ -35,8 +35,6 @@ import {
   CANONICAL_METRICS_ARTIFACT_PATH,
   CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
-  METRICS_JSON_MEDIA_TYPE,
-  METRICS_SCHEMA_VERSION,
   type ResultArtifactFamily,
   type ResultArtifactPointerWire,
   type ResultArtifactPointersWire,
@@ -1008,35 +1006,15 @@ async function buildTranscriptPointer(
   return pointer as TranscriptArtifactPointerWire;
 }
 
-async function buildMetricsPointer(
-  outputDir: string,
-  metricsPath: string,
-): Promise<NonNullable<ResultArtifactPointersWire['metrics']>> {
-  const pointer = await buildArtifactPointer({
-    filePath: metricsPath,
-    runRelativePath: toRelativeArtifactPath(outputDir, metricsPath),
-    family: 'metrics',
-    schemaVersion: METRICS_SCHEMA_VERSION,
-    mediaType: METRICS_JSON_MEDIA_TYPE,
-  });
-  return pointer as NonNullable<ResultArtifactPointersWire['metrics']>;
-}
-
 async function buildArtifactPointers(params: {
   readonly outputDir: string;
   readonly tracePath: string;
   readonly transcriptPath?: string;
-  readonly metricsPath?: string;
 }): Promise<ResultArtifactPointersWire> {
   return {
     trace: await buildTracePointer(params.outputDir, params.tracePath),
     ...(params.transcriptPath
       ? { transcript: await buildTranscriptPointer(params.outputDir, params.transcriptPath) }
-      : {}),
-    ...(params.metricsPath
-      ? {
-          metrics: await buildMetricsPointer(params.outputDir, params.metricsPath),
-        }
       : {}),
   };
 }
@@ -1599,7 +1577,6 @@ export async function writePerTestArtifacts(
       outputDir,
       tracePath,
       transcriptPath,
-      metricsPath,
     });
 
     const extraIndexFields = await collectAdditionalIndexFields(
@@ -1774,7 +1751,6 @@ export async function writeArtifactsFromResults(
       outputDir,
       tracePath: plan.tracePath,
       transcriptPath: plan.transcriptPath,
-      metricsPath: plan.metricsPath,
     });
 
     const extraIndexFields = await collectAdditionalIndexFields(

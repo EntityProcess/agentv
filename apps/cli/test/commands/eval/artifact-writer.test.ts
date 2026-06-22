@@ -12,7 +12,6 @@ import {
   type EvalTest,
   type EvaluationResult,
   type GraderResult,
-  METRICS_JSON_MEDIA_TYPE,
   METRICS_SCHEMA_VERSION,
   MetricsArtifactWireSchema,
   TRACE_JSON_MEDIA_TYPE,
@@ -1008,12 +1007,8 @@ describe('writeArtifactsFromResults', () => {
       path.join(testDir, 'transcript-case', 'outputs', 'trace.json'),
     );
     const transcriptContent = await readFile(transcriptPath);
-    const metricsContent = await readFile(
-      path.join(testDir, 'transcript-case', 'outputs', 'metrics.json'),
-    );
     const traceSha = sha256Hex(traceContent);
     const transcriptSha = sha256Hex(transcriptContent);
-    const metricsSha = sha256Hex(metricsContent);
 
     expect(indexLine.artifact_pointers.trace).toMatchObject({
       ref: AGENTV_RESULTS_ARTIFACTS_REF,
@@ -1037,17 +1032,7 @@ describe('writeArtifactsFromResults', () => {
       media_type: TRANSCRIPT_JSONL_MEDIA_TYPE,
       family: 'transcripts',
     });
-    expect(indexLine.artifact_pointers.metrics).toMatchObject({
-      ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'metrics/transcript-case/outputs/metrics.json',
-      object_version: `sha256:${metricsSha}`,
-      path: 'transcript-case/outputs/metrics.json',
-      sha256: metricsSha,
-      size: metricsContent.byteLength,
-      schema_version: METRICS_SCHEMA_VERSION,
-      media_type: METRICS_JSON_MEDIA_TYPE,
-      family: 'metrics',
-    });
+    expect(indexLine.artifact_pointers).not.toHaveProperty('metrics');
   });
 
   it('writes AgentV metrics as Agent Skills and Vercel-style behavior projections', async () => {
@@ -1466,12 +1451,7 @@ describe('writeArtifactsFromResults', () => {
       family: 'traces',
     });
     expect(indexLine.artifact_pointers).not.toHaveProperty('transcript');
-    expect(indexLine.artifact_pointers.metrics).toMatchObject({
-      key: 'metrics/no-transcript-case/outputs/metrics.json',
-      path: 'no-transcript-case/outputs/metrics.json',
-      schema_version: METRICS_SCHEMA_VERSION,
-      family: 'metrics',
-    });
+    expect(indexLine.artifact_pointers).not.toHaveProperty('metrics');
 
     const envelope = TraceEnvelopeWireSchema.parse(
       JSON.parse(
