@@ -1858,7 +1858,11 @@ function normalizeDestinationPath(destinationPath: string): string {
   if (
     segments.length === 0 ||
     normalized.startsWith('/') ||
-    segments.some((segment) => segment === '..')
+    segments.some((segment) => segment === '..') ||
+    normalized.split('').some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
   ) {
     throw new Error(`Invalid results destination path: ${destinationPath}`);
   }

@@ -27,6 +27,7 @@ import {
   materializeGitRun,
   normalizeResultsConfig,
   pushWipCheckpoint,
+  readGitResultArtifact,
   setupWipWorktree,
   syncResultsRepo,
   syncResultsRepoForProject,
@@ -440,6 +441,20 @@ describe('listGitRuns', () => {
     expect(readFileSync(path.join(runDir, 'attachments', 'response.md'), 'utf8')).toBe(
       'hello from git\n',
     );
+  });
+
+  it('rejects artifact keys with control characters before git batch reads', async () => {
+    writeFileSync(path.join(repoDir, 'public.txt'), 'public');
+    writeFileSync(path.join(repoDir, 'secret.txt'), 'secret');
+    git('git add public.txt secret.txt && git commit --quiet -m "seed files"', repoDir);
+
+    await expect(
+      readGitResultArtifact({
+        repoDir,
+        ref: 'HEAD',
+        key: 'public.txt\nHEAD:secret.txt',
+      }),
+    ).rejects.toThrow('Invalid results destination path');
   });
 
   it('lists and materializes runs from a non-default ref', async () => {
