@@ -356,6 +356,33 @@ describe('parseResultsConfig', () => {
     });
   });
 
+  it('parses nested repo config for a URL-backed source storage branch', () => {
+    const result = parseResultsConfig(
+      {
+        repo: {
+          url: 'https://github.com/example/source.git',
+          path: '.',
+          branch: 'agentv/results/v1',
+        },
+        sync: {
+          auto_push: true,
+        },
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      mode: 'github',
+      repo: 'https://github.com/example/source.git',
+      repo_url: 'https://github.com/example/source.git',
+      path: '.',
+      branch: 'agentv/results/v1',
+      sync: {
+        auto_push: true,
+      },
+    });
+  });
+
   it('parses nested repo config for an existing local results checkout', () => {
     const result = parseResultsConfig(
       {

@@ -373,19 +373,6 @@ function validateResultsRepoBlock(
 
   if (hasPath) {
     validateRequiredString(errors, filePath, repoRecord.path, `${location}.path`);
-    if (
-      hasUrl &&
-      typeof repoRecord.path === 'string' &&
-      repoRecord.path.trim().length > 0 &&
-      !isFilesystemPath(repoRecord.path.trim())
-    ) {
-      addError(
-        errors,
-        filePath,
-        `${location}.path`,
-        `'${location}.path' must be an absolute or home-relative filesystem path when '${location}.url' is set.`,
-      );
-    }
   }
 
   if (
@@ -421,7 +408,7 @@ function validateResultsRepoBlock(
       errors,
       filePath,
       `${location}.remote`,
-      `Field '${location}.remote' is the Git remote name (for example, origin). Use '${location}.url' for Git remote URLs.`,
+      `Field '${location}.remote' is an optional local Git remote name override. Use '${location}.url' for Git remote URLs.`,
     );
   }
 }

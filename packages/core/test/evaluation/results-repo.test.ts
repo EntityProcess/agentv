@@ -494,6 +494,27 @@ describe('results repo write path', () => {
     expect(normalized.branch).toBe('agentv/results/v1');
     expect(normalized.repo_path).toBe('/tmp/source-project');
     expect(normalized.auto_push).toBe(false);
+    expect(normalized.remote).toBe('origin');
+  });
+
+  it('normalizes URL-backed source storage branch config without requiring a local remote name', () => {
+    const normalized = normalizeResultsConfig(
+      {
+        repo_url: 'https://github.com/example/source.git',
+        path: '.',
+        branch: DEFAULT_RESULTS_BRANCH,
+        sync: { auto_push: true },
+      },
+      { baseDir: '/tmp/source-project' },
+    );
+
+    expect(normalized.repo).toBe('https://github.com/example/source.git');
+    expect(normalized.repo_url).toBe('https://github.com/example/source.git');
+    expect(normalized.repo_path).toBeUndefined();
+    expect(normalized.path).toBe('/tmp/source-project');
+    expect(normalized.branch).toBe(DEFAULT_RESULTS_BRANCH);
+    expect(normalized.remote).toBe('agentv-results');
+    expect(normalized.auto_push).toBe(true);
   });
 
   it('publishes current-repo results to an auto-created branch without switching source checkout', async () => {
@@ -686,6 +707,50 @@ describe('results repo write path', () => {
         });
       },
     );
+  }, 20000);
+
+  it('publishes URL-backed source results through a managed remote alias', async () => {
+    const { remoteDir } = initializeRemoteRepo(rootDir);
+    const projectDir = path.join(rootDir, 'source-project-url-path');
+    mkdirSync(projectDir, { recursive: true });
+    git('git init --initial-branch=main --quiet', projectDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+    writeFileSync(path.join(projectDir, 'README.md'), '# source project\n');
+    git('git add README.md && git commit --quiet -m "seed source"', projectDir);
+
+    const runTimestamp = '2026-06-22T04-00-00-000Z';
+    const runDir = path.join(
+      projectDir,
+      '.agentv',
+      'results',
+      'runs',
+      'url-backed-source',
+      runTimestamp,
+    );
+    writeRunArtifacts(runDir, 'url-backed-source', '2026-06-22T04:00:00.000Z');
+
+    const published = await directPushResults({
+      config: {
+        repo_url: `file://${remoteDir}`,
+        path: projectDir,
+        branch: DEFAULT_RESULTS_BRANCH,
+        sync: { auto_push: true },
+      },
+      sourceDir: runDir,
+      destinationPath: path.join('url-backed-source', runTimestamp),
+      commitMessage: 'feat(results): url-backed-source - 1/1 PASS (1.000)',
+    });
+
+    expect(published).toBe(true);
+    expect(git('git remote get-url agentv-results', projectDir)).toBe(`file://${remoteDir}`);
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+    const remoteFiles = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
+      rootDir,
+    );
+    expect(remoteFiles).toContain(`runs/url-backed-source/${runTimestamp}/benchmark.json`);
+    expect(remoteFiles).not.toContain('README.md');
   }, 20000);
 
   it('commits repo_path metadata overlays to the configured storage branch during sync', async () => {
@@ -1395,11 +1460,12 @@ describe('results repo write path', () => {
       commit_created: false,
       blocked: false,
       branch: storageBranch,
-      upstream: `origin/${storageBranch}`,
+      upstream: `agentv-results/${storageBranch}`,
     });
-    expect(readFileSync(path.join(cloneDir, 'REMOTE_BRANCH.md'), 'utf8')).toBe(
-      'branch remote update\n',
+    expect(git(`git show ${storageBranch}:REMOTE_BRANCH.md`, cloneDir)).toBe(
+      'branch remote update',
     );
+    expect(git('git branch --show-current', cloneDir)).toBe('main');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
       'REMOTE_BRANCH.md',
     );

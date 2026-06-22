@@ -215,11 +215,14 @@ describe('projects registry', () => {
       `projects:
   - id: branch-results
     name: Branch Results
-    path: /srv/agentv/repo
+    repo:
+      url: git@github.com:example/source.git
+      path: /srv/agentv/repo
     results:
-      repo_path: .
-      branch: agentv/results/v1
-      remote: origin
+      repo:
+        url: git@github.com:example/source.git
+        path: .
+        branch: agentv/results/v1
       sync:
         auto_push: false
         require_push: true
@@ -231,18 +234,19 @@ describe('projects registry', () => {
 
     const registry = loadProjectRegistry();
     expect(registry.projects[0].results).toEqual({
-      repoPath: '.',
+      repoUrl: 'git@github.com:example/source.git',
+      path: '.',
       branch: 'agentv/results/v1',
-      remote: 'origin',
       sync: { autoPush: false, requirePush: true },
     });
 
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
     expect(yamlOnDisk).toContain('repo:');
+    expect(yamlOnDisk).toContain('url: git@github.com:example/source.git');
     expect(yamlOnDisk).toContain('path: .');
     expect(yamlOnDisk).toContain('branch: agentv/results/v1');
-    expect(yamlOnDisk).toContain('remote: origin');
+    expect(yamlOnDisk).not.toContain('remote: origin');
     expect(yamlOnDisk).toContain('auto_push: false');
     expect(yamlOnDisk).toContain('require_push: true');
     expect(yamlOnDisk).not.toContain('repo_path:');

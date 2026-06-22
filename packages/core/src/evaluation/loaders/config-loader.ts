@@ -651,12 +651,6 @@ function parseNestedResultsRepoConfig(
     logWarning(`Invalid results.repo in ${configPath}, expected url or path`);
     return undefined;
   }
-  if (url && repoPath && !isFilesystemPath(repoPath)) {
-    logWarning(
-      `Invalid results.repo.path in ${configPath}: '${repoPath}' must be an absolute or home-relative filesystem path when results.repo.url is set.`,
-    );
-    return undefined;
-  }
   if (repo.branch !== undefined && !branch) {
     logWarning(`Invalid results.repo.branch in ${configPath}, expected non-empty string`);
     return undefined;
@@ -667,7 +661,7 @@ function parseNestedResultsRepoConfig(
   }
   if (remote && isGitRemoteUrl(remote)) {
     logWarning(
-      `Invalid results.repo.remote in ${configPath}: use results.repo.url for Git remote URLs and results.repo.remote for the remote name such as origin.`,
+      `Invalid results.repo.remote in ${configPath}: use results.repo.url for Git remote URLs and results.repo.remote only for an optional local Git remote name override.`,
     );
     return undefined;
   }

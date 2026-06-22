@@ -51,6 +51,7 @@ const GIT_ENV_INHERIT_ALLOWLIST = new Set([
   'GIT_USERNAME',
 ]);
 export const DEFAULT_RESULTS_BRANCH = AGENTV_RESULTS_PRIMARY_REF;
+const MANAGED_RESULTS_REMOTE = 'agentv-results';
 const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // The results branch is a self-rooted orphan whose first commit is a fixed,
 // byte-identical empty-tree genesis. Pinning the message, identity, and dates
@@ -118,6 +119,8 @@ export interface NormalizedResultsConfig {
   readonly auto_push: boolean;
   readonly require_push: boolean;
   readonly branch_prefix: string;
+  /** @internal Runtime mode; not part of YAML wire format. */
+  readonly storageBranchWorktree: boolean;
 }
 
 type StorageBranchResultsConfig = NormalizedResultsConfig & { readonly branch: string };
@@ -176,22 +179,30 @@ function expandHome(p: string): string {
   return p;
 }
 
+function resolveLocalPath(p: string, baseDir: string): string {
+  const expanded = expandHome(p);
+  return path.isAbsolute(expanded) ? expanded : path.resolve(baseDir, expanded);
+}
+
 export function normalizeResultsConfig(
   config: ResultsConfig,
   options?: { baseDir?: string },
 ): NormalizedResultsConfig {
+  const baseDir = options?.baseDir ?? process.cwd();
   const repoUrl = (config.repo_url ?? config.repo)?.trim();
   const repoPath = config.repo_path?.trim();
+  const explicitClonePath = config.path?.trim();
   const repo = repoUrl ?? repoPath ?? '';
   const branch = config.branch?.trim() || (repoPath ? DEFAULT_RESULTS_BRANCH : undefined);
-  const remote = config.remote?.trim() || 'origin';
+  const useStorageBranchWorktree = Boolean(repoPath || (repoUrl && explicitClonePath && branch));
+  const remote =
+    config.remote?.trim() ||
+    (repoUrl && useStorageBranchWorktree ? MANAGED_RESULTS_REMOTE : 'origin');
   const autoPush = config.sync?.auto_push ?? config.auto_push === true;
   const requirePush = config.sync?.require_push === true;
-  const resolvedRepoPath = repoPath
-    ? path.resolve(options?.baseDir ?? process.cwd(), expandHome(repoPath))
-    : undefined;
-  const resolvedPath = config.path
-    ? expandHome(config.path.trim())
+  const resolvedRepoPath = repoPath ? resolveLocalPath(repoPath, baseDir) : undefined;
+  const resolvedPath = explicitClonePath
+    ? resolveLocalPath(explicitClonePath, baseDir)
     : repoUrl
       ? path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repoUrl))
       : (resolvedRepoPath ?? path.join(getAgentvDataDir(), 'results', sanitizeRepoSlug(repo)));
@@ -206,6 +217,7 @@ export function normalizeResultsConfig(
     auto_push: autoPush,
     require_push: requirePush,
     branch_prefix: config.branch_prefix?.trim() || 'eval-results',
+    storageBranchWorktree: useStorageBranchWorktree,
   };
 }
 
@@ -223,6 +235,10 @@ export function getResultsRepoLocalPaths(repo: string): ResultsRepoLocalPaths {
     repoDir: path.join(rootDir, 'repo'),
     statusFile: path.join(rootDir, 'status.json'),
   };
+}
+
+function usesStorageBranchWorktree(config: NormalizedResultsConfig): boolean {
+  return config.storageBranchWorktree === true || Boolean(config.repo_path);
 }
 
 function readPersistedStatus(statusFile: string): PersistedStatus {
@@ -537,6 +553,29 @@ async function resolveGitTopLevel(repoDir: string): Promise<string> {
   return stdout.trim() || repoDir;
 }
 
+async function ensureResultsRepoRemote(
+  repoDir: string,
+  config: NormalizedResultsConfig,
+): Promise<void> {
+  if (!config.repo_url) {
+    return;
+  }
+
+  const remoteUrl = resolveResultsRepoUrl(config.repo_url);
+  const { stdout } = await runGit(['remote', 'get-url', config.remote], {
+    cwd: repoDir,
+    check: false,
+  });
+  const existingUrl = stdout.trim();
+  if (!existingUrl) {
+    await runGit(['remote', 'add', config.remote, remoteUrl], { cwd: repoDir });
+    return;
+  }
+  if (existingUrl !== remoteUrl) {
+    await runGit(['remote', 'set-url', config.remote, remoteUrl], { cwd: repoDir });
+  }
+}
+
 function updateStatusFile(
   config: ResultsConfig | NormalizedResultsConfig,
   patch: PersistedStatus,
@@ -577,6 +616,7 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
         resolveResultsRepoUrl(normalized.repo_url ?? normalized.repo),
         cloneDir,
       ]);
+      await ensureResultsRepoRemote(cloneDir, normalized);
       return cloneDir;
     } catch (error) {
       updateStatusFile(normalized, { last_error: withFriendlyGitHubAuthError(error).message });
@@ -588,6 +628,7 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
     throw new Error(`Results repo clone path is not a git repository: ${cloneDir}`);
   }
 
+  await ensureResultsRepoRemote(cloneDir, normalized);
   return cloneDir;
 }
 
@@ -1154,7 +1195,8 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
   }
 
   try {
-    if (normalized.repo_path) {
+    await ensureResultsRepoRemote(normalized.path, normalized);
+    if (usesStorageBranchWorktree(normalized)) {
       await fetchResultsRepo(normalized.path, normalized.remote, normalized.branch).catch(
         () => undefined,
       );
@@ -1186,7 +1228,7 @@ export async function syncResultsRepo(config: ResultsConfig): Promise<ResultsRep
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
     await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
-    if (!normalized.repo_path) {
+    if (!usesStorageBranchWorktree(normalized)) {
       await checkoutConfiguredResultsBranch(repoDir, normalized);
     }
     updateStatusFile(normalized, {
@@ -1226,7 +1268,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
-    if (normalized.repo_path) {
+    if (usesStorageBranchWorktree(normalized)) {
       try {
         await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
       } catch (error) {
@@ -2111,7 +2153,7 @@ async function ensureResultsBranchNotCheckedOut(
   if (currentBranch !== normalized.branch) {
     return;
   }
-  if (normalized.repo_path) {
+  if (usesStorageBranchWorktree(normalized)) {
     throw new Error(
       `Refusing to publish results while '${normalized.branch}' is checked out in ${repoDir}`,
     );

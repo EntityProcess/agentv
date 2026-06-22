@@ -110,7 +110,7 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('accepts branch-backed repo_path results in global project config', async () => {
+  it('accepts URL-backed source storage branch results in global project config', async () => {
     const filePath = path.join(tempDir, 'global-config-repo-path.yaml');
     await writeFile(
       filePath,
@@ -118,12 +118,13 @@ describe('validateConfigFile', () => {
   - id: agentv
     name: AgentV
     repo:
+      url: https://github.com/EntityProcess/agentv.git
       path: /srv/agentv
     results:
       repo:
+        url: https://github.com/EntityProcess/agentv.git
         path: .
         branch: agentv/results/v1
-        remote: origin
       sync:
         auto_push: false
         require_push: true
@@ -266,7 +267,6 @@ describe('validateConfigFile', () => {
           severity: 'error',
           location: 'projects[0].results.repo.remote',
         }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo.path' }),
         expect.objectContaining({
           severity: 'error',
           location: 'projects[0].results.sync.auto_push',

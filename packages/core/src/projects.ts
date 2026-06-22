@@ -22,9 +22,9 @@
  *         path: /home/user/projects/my-app
  *       results:
  *         repo:
+ *           url: https://github.com/example/my-app.git
  *           path: .
  *           branch: agentv/results/v1
- *           remote: origin
  *         sync:
  *           auto_push: true
  *           require_push: false
