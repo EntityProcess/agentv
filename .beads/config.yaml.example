@@ -1,4 +1,6 @@
 # Beads Configuration File
+# Copy this file to .beads/config.yaml when using Beads in this checkout.
+# Keep .beads/config.yaml local; do not commit it.
 # This file configures default behavior for all bd commands in this repository
 # All settings can also be set via environment variables (BD_* prefix)
 # or overridden with command-line flags
@@ -53,4 +55,7 @@
 # - github.org
 # - github.repo
 
+# AgentV code lives in EntityProcess/agentv. Beads coordination data lives in
+# EntityProcess/agentv-beads. Keep both Beads remotes pointed at agentv-beads.
+sync.remote: "git+https://github.com/EntityProcess/agentv-beads.git"
 federation.remote: "git+https://github.com/EntityProcess/agentv-beads.git"

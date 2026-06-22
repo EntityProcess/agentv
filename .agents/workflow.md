@@ -9,8 +9,7 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 - Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details outside this public repository.
 - GitHub remains the PR, CI, review, and merge surface. Use GitHub Issues or Projects for external collaboration only when the user or operator explicitly asks for that workflow.
 - Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
-- The only repo-local Beads files intentionally tracked are `.beads/config.yaml`, `.beads/metadata.json`, and `.beads/.gitignore`. Never commit the embedded Dolt database, JSONL exports, backups, locks, logs, or runtime state.
-- Do not commit project-local coordination config files. The safe Beads defaults above are the exception.
+- Do not commit project-local coordination config files.
 - Do not use `git stash` on shared checkouts. Inspect `git status`, stage only your files, use a dedicated worktree, or ask before moving uncommitted changes.
 
 ## Worktree Setup
@@ -20,6 +19,7 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 - When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local coordination config, generated evidence, or unrelated tracker or doc state.
 - Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale or dirty in paths you need.
 - Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit.
+- Before Beads bootstrap, copy `.beads/config.yaml.example` to `.beads/config.yaml` and run `bun run beads:check`. Keep `.beads/metadata.json` tracked; it preserves AgentV's `av` embedded Dolt identity. See [docs/runbooks/beads-worktree-recovery.md](../docs/runbooks/beads-worktree-recovery.md).
 
 Manual setup:
 
