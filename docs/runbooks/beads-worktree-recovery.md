@@ -13,6 +13,11 @@ database `av` and project `a7aea826-0087-45fc-93f5-9084e9924e8b`.
 before running `bd bootstrap`; the example pins both `sync.remote` and
 `federation.remote` to `EntityProcess/agentv-beads`.
 
+Beads supports Git worktrees natively. AgentV worktrees should normally use
+plain `bd` commands and share the primary checkout's hydrated Beads database.
+Do not bootstrap a second worktree-local embedded Dolt database when the
+primary checkout already has `.beads/embeddeddolt`.
+
 ## Preflight
 
 Run the guard before `bd bootstrap`, `bd dolt push`, or `bd federation sync`:
@@ -44,23 +49,51 @@ After creating an AgentV worktree:
 ```bash
 bun install
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
-cp .beads/config.yaml.example .beads/config.yaml
 bun run beads:check
-bd bootstrap --dry-run
-bd bootstrap
+bd worktree info
+bd where
 ```
 
-Stop if `bd bootstrap --dry-run` plans to sync from
+`bd where` should report the primary checkout's `.beads` path. If it reports
+the worktree's own `.beads/embeddeddolt`, do not run `bd bootstrap` or
+`bd dolt pull` against that local database. Prefer creating future worktrees
+with `bd worktree create`; for an existing manually-created worktree, add a
+checkout-local redirect:
+
+```bash
+primary="$(git worktree list --porcelain | head -1 | sed 's/worktree //')"
+realpath --relative-to=. "$primary/.beads" > .beads/redirect
+bd where
+```
+
+If the primary checkout does not have a hydrated Beads database yet, copy
+`.beads/config.yaml.example` to `.beads/config.yaml` in the primary checkout,
+run `bun run beads:check`, then use `bd bootstrap --dry-run` and `bd bootstrap`.
+Stop if the dry run plans to sync from
 `git+https://github.com/EntityProcess/agentv.git` or database `beads`.
 
 ## Recovery
 
 If `bd --readonly context --json` reports database `beads`, no project ID, or a
 project ID other than `a7aea826-0087-45fc-93f5-9084e9924e8b`, restore the tracked
-identity and local config first:
+identity first:
 
 ```bash
 git restore -- .beads/metadata.json
+```
+
+If this is a linked worktree and `bd where` points at the worktree's own
+`.beads/embeddeddolt`, redirect it to the primary checkout:
+
+```bash
+primary="$(git worktree list --porcelain | head -1 | sed 's/worktree //')"
+realpath --relative-to=. "$primary/.beads" > .beads/redirect
+bun run beads:check
+```
+
+If this is the primary checkout rather than a linked worktree, use local config:
+
+```bash
 cp .beads/config.yaml.example .beads/config.yaml
 bun run beads:check
 ```

@@ -18,7 +18,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 const root = resolve(import.meta.dirname, '..');
@@ -61,6 +61,8 @@ interface BdContext {
   readonly project_id?: string;
   readonly repo_root?: string;
   readonly beads_dir?: string;
+  readonly is_redirected?: boolean;
+  readonly is_worktree?: boolean;
 }
 
 interface BootstrapPlan {
@@ -339,12 +341,31 @@ function checkBdCurrent(): void {
   );
   if (context) checkContextIdentity(context, 'current bd context');
 
+  const contextBeadsDir = context?.beads_dir ? resolve(context.beads_dir) : undefined;
+  const worktreeBeadsDir = resolve(root, '.beads');
+
+  if (
+    context?.is_worktree &&
+    !context.is_redirected &&
+    context.repo_root &&
+    contextBeadsDir === worktreeBeadsDir
+  ) {
+    const primaryBeadsDir = resolve(context.repo_root, '.beads');
+    const redirectTarget = relative(root, primaryBeadsDir) || '.';
+    record(
+      'ERROR',
+      'worktree Beads is using local tracker state instead of the primary checkout',
+      `repo_root: ${context.repo_root}\nbeads_dir: ${context.beads_dir ?? 'unknown'}`,
+      `Use plain bd commands from a Beads-native worktree, or recover this manual worktree with: printf '%s\\n' "${redirectTarget}" > .beads/redirect`,
+    );
+    return;
+  }
+
   if (context?.repo_root && resolve(context.repo_root) !== root) {
     record(
-      'WARN',
-      'bd context is using a Beads directory outside this checkout',
+      'OK',
+      'bd context uses the primary checkout Beads directory',
       `repo_root: ${context.repo_root}\nbeads_dir: ${context.beads_dir ?? 'unknown'}`,
-      `Use --fixture to verify this branch template. If operating on the shared Beads directory, copy ${configExamplePath} to that checkout's ${configPath}.`,
     );
     return;
   }
