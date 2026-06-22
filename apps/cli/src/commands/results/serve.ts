@@ -245,7 +245,27 @@ interface FileNode {
   name: string;
   path: string;
   type: 'file' | 'dir';
+  kind?: string;
+  storage?: string;
+  ref?: string;
+  key?: string;
+  sha256?: string;
+  media_type?: string;
   children?: FileNode[];
+}
+
+type ArtifactCatalogStorage = 'local' | 'git';
+
+interface ArtifactCatalogEntry {
+  readonly displayPath: string;
+  readonly kind: 'transcript' | 'trace' | 'answer' | 'artifact';
+  readonly storage: ArtifactCatalogStorage;
+  readonly ref?: string;
+  readonly key?: string;
+  readonly path?: string;
+  readonly sha256?: string;
+  readonly mediaType?: string;
+  readonly objectVersion?: string;
 }
 
 function buildFileTree(dirPath: string, relativeTo: string): FileNode[] {
@@ -269,8 +289,73 @@ function buildFileTree(dirPath: string, relativeTo: string): FileNode[] {
           children: buildFileTree(fullPath, relativeTo),
         };
       }
-      return { name: entry.name, path: relPath, type: 'file' as const };
+      return {
+        name: entry.name,
+        path: relPath.split(path.sep).join('/'),
+        type: 'file' as const,
+        storage: 'local',
+      };
     });
+}
+
+function flattenFileTree(nodes: readonly FileNode[]): FileNode[] {
+  const files: FileNode[] = [];
+  for (const node of nodes) {
+    if (node.type === 'file') {
+      files.push(node);
+    } else if (node.children) {
+      files.push(...flattenFileTree(node.children));
+    }
+  }
+  return files;
+}
+
+function ensureCatalogFileNode(root: FileNode[], entry: ArtifactCatalogEntry): void {
+  const segments = entry.displayPath.split('/').filter(Boolean);
+  if (segments.length === 0) return;
+
+  let siblings = root;
+  let currentPath = '';
+  for (let i = 0; i < segments.length; i += 1) {
+    const segment = segments[i];
+    if (!segment) continue;
+    currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+    const isFile = i === segments.length - 1;
+    let node = siblings.find((candidate) => candidate.name === segment);
+    if (!node) {
+      node = {
+        name: segment,
+        path: currentPath,
+        type: isFile ? 'file' : 'dir',
+        ...(isFile
+          ? {
+              kind: entry.kind,
+              storage: entry.storage,
+              ...(entry.ref && { ref: entry.ref }),
+              ...(entry.key && { key: entry.key }),
+              ...(entry.sha256 && { sha256: entry.sha256 }),
+              ...(entry.mediaType && { media_type: entry.mediaType }),
+            }
+          : { children: [] }),
+      };
+      siblings.push(node);
+      siblings.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    if (isFile) {
+      node.kind = entry.kind;
+      node.storage = entry.storage;
+      if (entry.ref) node.ref = entry.ref;
+      if (entry.key) node.key = entry.key;
+      if (entry.sha256) node.sha256 = entry.sha256;
+      if (entry.mediaType) node.media_type = entry.mediaType;
+      return;
+    }
+    node.children ??= [];
+    siblings = node.children;
+  }
 }
 
 function inferLanguage(filePath: string): string {
@@ -362,6 +447,10 @@ function artifactPointerSha256(pointer: unknown): string | undefined {
   return isRecord(pointer) ? nonEmptyString(pointer.sha256) : undefined;
 }
 
+function artifactPointerMediaType(pointer: unknown): string | undefined {
+  return isRecord(pointer) ? nonEmptyString(pointer.media_type) : undefined;
+}
+
 function artifactPointerObjectVersion(pointer: unknown): string | undefined {
   return isRecord(pointer) ? nonEmptyString(pointer.object_version) : undefined;
 }
@@ -372,6 +461,7 @@ interface ResolvedArtifactPointer {
   readonly description?: string;
   readonly ref?: string;
   readonly sha256?: string;
+  readonly mediaType?: string;
   readonly objectVersion?: string;
   readonly unsupportedReason?: string;
 }
@@ -391,6 +481,7 @@ function resolveRecordArtifactPointer(
   const ref = artifactPointerRef(pointer);
   const key = artifactPointerKey(pointer);
   const sha256 = artifactPointerSha256(pointer);
+  const mediaType = artifactPointerMediaType(pointer);
   const objectVersion = artifactPointerObjectVersion(pointer);
   if ((kind === 'transcript' || kind === 'trace') && pointerPath) {
     return {
@@ -399,6 +490,7 @@ function resolveRecordArtifactPointer(
       ref,
       ...(key && { key }),
       ...(sha256 && { sha256 }),
+      ...(mediaType && { mediaType }),
       ...(objectVersion && { objectVersion }),
     };
   }
@@ -421,6 +513,7 @@ function resolveRecordArtifactPointer(
       ref,
       ...(key && { key }),
       ...(sha256 && { sha256 }),
+      ...(mediaType && { mediaType }),
       ...(objectVersion && { objectVersion }),
     };
   }
@@ -430,6 +523,7 @@ function resolveRecordArtifactPointer(
       ref,
       ...(key && { key }),
       ...(sha256 && { sha256 }),
+      ...(mediaType && { mediaType }),
       ...(objectVersion && { objectVersion }),
       unsupportedReason: description
         ? `${kind} artifact pointer does not include a local path (${description}).`
@@ -489,16 +583,6 @@ function resolveReadableRunArtifactFile(
   return { absolutePath: realArtifact };
 }
 
-function readOptionalRunArtifactText(
-  baseDir: string,
-  artifact: ResolvedArtifactPointer,
-): string | undefined {
-  if (!artifact.path) return undefined;
-  const resolved = resolveReadableRunArtifactFile(baseDir, artifact.path);
-  if (!resolved.absolutePath) return undefined;
-  return readFileSync(resolved.absolutePath, 'utf8');
-}
-
 function normalizeArtifactRelativePath(relativePath: string): string | undefined {
   const normalized = relativePath.split(path.sep).join('/');
   const segments = normalized.split('/').filter(Boolean);
@@ -512,6 +596,20 @@ function normalizeArtifactRelativePath(relativePath: string): string | undefined
   return segments.join('/');
 }
 
+function relativeRunPathFromNormalizedManifestPath(manifestPath: string): string | undefined {
+  const parts = manifestPath.split('/').filter(Boolean);
+  const runsIndex = parts.lastIndexOf('runs');
+  if (runsIndex === -1 || parts.at(-1) !== 'index.jsonl') {
+    return undefined;
+  }
+  const runParts = parts.slice(runsIndex + 1, -1);
+  return runParts.length > 0 ? runParts.join('/') : undefined;
+}
+
+function relativeRunPathFromManifestPath(manifestPath: string): string | undefined {
+  return relativeRunPathFromNormalizedManifestPath(manifestPath.split(path.sep).join('/'));
+}
+
 function relativeRunPathFromManifest(repoDir: string, manifestPath: string): string | undefined {
   const relativeManifestPath = path.relative(repoDir, manifestPath).split(path.sep).join('/');
   if (
@@ -522,13 +620,7 @@ function relativeRunPathFromManifest(repoDir: string, manifestPath: string): str
     return undefined;
   }
 
-  const parts = relativeManifestPath.split('/').filter(Boolean);
-  const runsIndex = parts.lastIndexOf('runs');
-  if (runsIndex === -1 || parts.at(-1) !== 'index.jsonl') {
-    return undefined;
-  }
-  const runParts = parts.slice(runsIndex + 1, -1);
-  return runParts.length > 0 ? runParts.join('/') : undefined;
+  return relativeRunPathFromNormalizedManifestPath(relativeManifestPath);
 }
 
 function sidecarArtifactKeyForPointer(
@@ -541,7 +633,7 @@ function sidecarArtifactKeyForPointer(
     return publishedKey;
   }
   if (!artifact.path) {
-    return undefined;
+    return publishedKey;
   }
   const relativeArtifactPath = normalizeArtifactRelativePath(artifact.path);
   const relativeRunPath = relativeRunPathFromManifest(repoDir, manifestPath);
@@ -577,6 +669,193 @@ async function readSidecarArtifactText(
     ...(artifact.objectVersion && { objectVersion: artifact.objectVersion }),
   });
   return bytes?.toString('utf8');
+}
+
+function addDirectArtifactCatalogEntry(
+  entries: ArtifactCatalogEntry[],
+  seen: Set<string>,
+  displayPath: string | undefined,
+  kind: ArtifactCatalogEntry['kind'],
+): void {
+  const normalized = displayPath ? normalizeArtifactRelativePath(displayPath) : undefined;
+  if (!normalized || seen.has(normalized)) return;
+  seen.add(normalized);
+  entries.push({
+    displayPath: normalized,
+    kind,
+    storage: 'local',
+    path: normalized,
+  });
+}
+
+function addPointerArtifactCatalogEntry(
+  entries: ArtifactCatalogEntry[],
+  seen: Set<string>,
+  artifact: ResolvedArtifactPointer,
+  kind: ArtifactCatalogEntry['kind'],
+  runPath?: string,
+): void {
+  const artifactPath = artifact.path ? normalizeArtifactRelativePath(artifact.path) : undefined;
+  const displayPath = artifactPath ?? displayPathFromArtifactKey(artifact.key, runPath);
+  if (!displayPath || seen.has(displayPath)) return;
+  seen.add(displayPath);
+  entries.push({
+    displayPath,
+    kind,
+    storage: artifact.ref ? 'git' : 'local',
+    ...(artifactPath && { path: artifactPath }),
+    ...(artifact.ref && { ref: artifact.ref }),
+    ...(artifact.key && { key: artifact.key }),
+    ...(artifact.sha256 && { sha256: artifact.sha256 }),
+    ...(artifact.mediaType && { mediaType: artifact.mediaType }),
+    ...(artifact.objectVersion && { objectVersion: artifact.objectVersion }),
+  });
+}
+
+function displayPathFromArtifactKey(key: string | undefined, runPath: string | undefined) {
+  const normalizedKey = key ? normalizeArtifactRelativePath(key) : undefined;
+  if (!normalizedKey) return undefined;
+  if (!runPath) return normalizedKey;
+  const runPrefix = `runs/${runPath}/`;
+  if (!normalizedKey.startsWith(runPrefix)) return normalizedKey;
+  return normalizeArtifactRelativePath(normalizedKey.slice(runPrefix.length)) ?? normalizedKey;
+}
+
+function buildResultArtifactCatalog(
+  record: ResultManifestRecord,
+  options?: { readonly runPath?: string },
+): ArtifactCatalogEntry[] {
+  const entries: ArtifactCatalogEntry[] = [];
+  const seen = new Set<string>();
+  const transcript = resolveRecordArtifactPointer(record, 'transcript');
+  const trace = resolveRecordArtifactPointer(record, 'trace');
+  const answer = resolveRecordArtifactPointer(record, 'answer');
+  const recordWithTrace = record as ResultManifestRecord & { readonly trace_path?: string };
+
+  addPointerArtifactCatalogEntry(entries, seen, transcript, 'transcript', options?.runPath);
+  addPointerArtifactCatalogEntry(entries, seen, trace, 'trace', options?.runPath);
+  addPointerArtifactCatalogEntry(entries, seen, answer, 'answer', options?.runPath);
+
+  addDirectArtifactCatalogEntry(entries, seen, record.grading_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.timing_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.input_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.output_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.response_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.answer_path, 'answer');
+  addDirectArtifactCatalogEntry(entries, seen, record.transcript_path, 'transcript');
+  addDirectArtifactCatalogEntry(entries, seen, recordWithTrace.trace_path, 'trace');
+  addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
+
+  return entries;
+}
+
+function resultArtifactTreeRootPaths(
+  record: ResultManifestRecord,
+  catalog: readonly ArtifactCatalogEntry[],
+): string[] {
+  return [
+    ...catalog.filter((entry) => entry.storage === 'local').map((entry) => entry.displayPath),
+    record.task_dir,
+    record.files_path,
+    record.graders_path,
+  ].filter((p, index, all): p is string => !!p && all.indexOf(p) === index);
+}
+
+function buildLocalResultArtifactTree(
+  baseDir: string,
+  record: ResultManifestRecord,
+  catalog: readonly ArtifactCatalogEntry[],
+): FileNode[] {
+  const knownPaths = resultArtifactTreeRootPaths(record, catalog);
+  if (knownPaths.length === 0) return [];
+
+  const artifactDirs = knownPaths.map((p) => path.dirname(p));
+  let commonDir = artifactDirs[0];
+  for (const dir of artifactDirs) {
+    while (!dir.startsWith(commonDir)) {
+      commonDir = path.dirname(commonDir);
+    }
+  }
+
+  return buildFileTree(path.join(baseDir, commonDir), baseDir);
+}
+
+function catalogEntryForDiscoveredLocalFile(
+  nodes: readonly FileNode[],
+  displayPath: string,
+): ArtifactCatalogEntry | undefined {
+  const normalized = normalizeArtifactRelativePath(displayPath);
+  if (!normalized) return undefined;
+  const file = flattenFileTree(nodes).find((node) => node.path === normalized);
+  return file
+    ? { displayPath: normalized, kind: 'artifact', storage: 'local', path: normalized }
+    : undefined;
+}
+
+function findArtifactCatalogEntry(
+  catalog: readonly ArtifactCatalogEntry[],
+  displayPath: string,
+): ArtifactCatalogEntry | undefined {
+  const normalized = normalizeArtifactRelativePath(displayPath);
+  return normalized
+    ? catalog.find((entry) => normalizeArtifactRelativePath(entry.displayPath) === normalized)
+    : undefined;
+}
+
+function findPointerArtifactCatalogEntry(
+  catalog: readonly ArtifactCatalogEntry[],
+  artifact: ResolvedArtifactPointer,
+  kind: ArtifactCatalogEntry['kind'],
+  runPath: string | undefined,
+): ArtifactCatalogEntry | undefined {
+  const displayPath =
+    (artifact.path ? normalizeArtifactRelativePath(artifact.path) : undefined) ??
+    displayPathFromArtifactKey(artifact.key, runPath);
+  if (displayPath) {
+    const entry = findArtifactCatalogEntry(catalog, displayPath);
+    if (entry) return entry;
+  }
+  return catalog.find(
+    (entry) =>
+      entry.kind === kind &&
+      artifact.key !== undefined &&
+      entry.key !== undefined &&
+      entry.key === artifact.key,
+  );
+}
+
+async function readArtifactCatalogEntryText(
+  searchDir: string,
+  projectId: string | undefined,
+  meta: SourcedResultFileMeta,
+  entry: ArtifactCatalogEntry,
+): Promise<{ content?: string; error?: string }> {
+  const baseDir = path.dirname(meta.path);
+  if (entry.storage === 'local') {
+    const resolved = resolveReadableRunArtifactFile(baseDir, entry.displayPath);
+    if (resolved.error) return { error: resolved.error };
+    if (!resolved.absolutePath) return {};
+    return { content: readFileSync(resolved.absolutePath, 'utf8') };
+  }
+
+  const localResolved = resolveReadableRunArtifactFile(baseDir, entry.displayPath);
+  if (localResolved.error) return { error: localResolved.error };
+  if (localResolved.absolutePath) {
+    return { content: readFileSync(localResolved.absolutePath, 'utf8') };
+  }
+
+  if (entry.ref !== AGENTV_RESULTS_ARTIFACTS_REF) {
+    return {};
+  }
+  const content = await readSidecarArtifactText(searchDir, projectId, meta, {
+    path: entry.path ?? entry.displayPath,
+    ref: entry.ref,
+    ...(entry.key && { key: entry.key }),
+    ...(entry.sha256 && { sha256: entry.sha256 }),
+    ...(entry.objectVersion && { objectVersion: entry.objectVersion }),
+  });
+  return { content };
 }
 
 function artifactFileContentResponse(c: C, filePath: string, fileContent: string) {
@@ -1292,37 +1571,16 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
     const baseDir = path.dirname(meta.path);
-    const transcriptArtifact = resolveRecordArtifactPointer(record, 'transcript');
-    const answerArtifact = resolveRecordArtifactPointer(record, 'answer');
-    const knownPaths = [
-      record.grading_path,
-      record.timing_path,
-      record.input_path,
-      record.output_path,
-      record.response_path,
-      record.answer_path,
-      record.transcript_path,
-      transcriptArtifact.path,
-      answerArtifact.path,
-      record.task_dir,
-      record.eval_path,
-      record.targets_path,
-      record.files_path,
-      record.graders_path,
-    ].filter((p, index, all): p is string => !!p && all.indexOf(p) === index);
-
-    if (knownPaths.length === 0) return c.json({ files: [] });
-
-    const artifactDirs = knownPaths.map((p) => path.dirname(p));
-    let commonDir = artifactDirs[0];
-    for (const dir of artifactDirs) {
-      while (!dir.startsWith(commonDir)) {
-        commonDir = path.dirname(commonDir);
+    const catalog = buildResultArtifactCatalog(record, {
+      runPath: relativeRunPathFromManifestPath(meta.path),
+    });
+    const files = buildLocalResultArtifactTree(baseDir, record, catalog);
+    const localFilePaths = new Set(flattenFileTree(files).map((file) => file.path));
+    for (const entry of catalog) {
+      if (entry.storage === 'git' || !localFilePaths.has(entry.displayPath)) {
+        ensureCatalogFileNode(files, entry);
       }
     }
-
-    const artifactAbsDir = path.join(baseDir, commonDir);
-    const files = buildFileTree(artifactAbsDir, baseDir);
     return c.json({ files });
   } catch {
     return c.json({ error: 'Failed to load file tree' }, 500);
@@ -1349,41 +1607,27 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
   if (!filePath) return c.json({ error: 'No file path specified' }, 400);
 
   await ensureRunReadable(searchDir, meta, projectId);
-  const baseDir = path.dirname(meta.path);
-  const resolvedFile = resolveReadableRunArtifactFile(baseDir, filePath);
-  if (resolvedFile.error) {
-    return c.json({ error: 'Path traversal not allowed' }, 403);
-  }
-  if (!resolvedFile.absolutePath) {
-    const records = parseResultManifest(readFileSync(meta.path, 'utf8'));
-    const record = records.find((r) => r.test_id === evalId);
-    if (record) {
-      const normalizedFilePath = normalizeArtifactRelativePath(filePath);
-      const artifact = [
-        resolveRecordArtifactPointer(record, 'trace'),
-        resolveRecordArtifactPointer(record, 'transcript'),
-      ].find((candidate) => {
-        const pointerPath = candidate.path
-          ? normalizeArtifactRelativePath(candidate.path)
-          : undefined;
-        return pointerPath !== undefined && pointerPath === normalizedFilePath;
-      });
-      if (artifact) {
-        const sidecarContent = await readSidecarArtifactText(searchDir, projectId, meta, artifact);
-        if (sidecarContent !== undefined) {
-          return artifactFileContentResponse(c, filePath, sidecarContent);
-        }
-      }
-    }
+  const records = parseResultManifest(readFileSync(meta.path, 'utf8'));
+  const record = records.find((r) => r.test_id === evalId);
+  if (!record) return c.json({ error: 'Eval not found' }, 404);
+  const catalog = buildResultArtifactCatalog(record, {
+    runPath: relativeRunPathFromManifestPath(meta.path),
+  });
+  const entry =
+    findArtifactCatalogEntry(catalog, filePath) ??
+    catalogEntryForDiscoveredLocalFile(
+      buildLocalResultArtifactTree(path.dirname(meta.path), record, catalog),
+      filePath,
+    );
+  if (!entry) {
     return c.json({ error: 'File not found' }, 404);
   }
-
-  try {
-    const fileContent = readFileSync(resolvedFile.absolutePath, 'utf8');
-    return artifactFileContentResponse(c, filePath, fileContent);
-  } catch {
-    return c.json({ error: 'Failed to read file' }, 500);
+  const resolved = await readArtifactCatalogEntryText(searchDir, projectId, meta, entry);
+  if (resolved.error) {
+    return c.json({ error: 'Path traversal not allowed' }, 403);
   }
+  if (resolved.content === undefined) return c.json({ error: 'File not found' }, 404);
+  return artifactFileContentResponse(c, entry.displayPath, resolved.content);
 }
 
 async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContext) {
@@ -1397,10 +1641,16 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
     const record = records.find((r) => r.test_id === evalId);
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
-    const baseDir = path.dirname(meta.path);
     const trace = resolveRecordArtifactPointer(record, 'trace');
+    const runPath = relativeRunPathFromManifestPath(meta.path);
+    const traceEntry = findPointerArtifactCatalogEntry(
+      buildResultArtifactCatalog(record, { runPath }),
+      trace,
+      'trace',
+      runPath,
+    );
 
-    if (!trace.path) {
+    if (!traceEntry && !trace.path) {
       return c.json(
         traceSessionArtifactResponse({
           status: trace.unsupportedReason ? 'unsupported' : 'missing',
@@ -1409,34 +1659,56 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
         }),
       );
     }
-
-    const resolvedTrace = resolveReadableRunArtifactFile(baseDir, trace.path);
-    if (resolvedTrace.error) {
+    if (trace.path && !normalizeArtifactRelativePath(trace.path)) {
       return c.json(
         traceSessionArtifactResponse({
           status: 'rejected',
           trace_path: trace.path,
-          message: resolvedTrace.error ?? 'Trace artifact path could not be resolved.',
+          message: 'Artifact path is outside the run workspace.',
           ...(trace.description && { pointer: trace.description }),
         }),
         403,
       );
     }
-
-    let content: string | undefined;
-    if (resolvedTrace.absolutePath) {
-      content = readFileSync(resolvedTrace.absolutePath, 'utf8');
-    } else {
-      content = await readSidecarArtifactText(searchDir, projectId, meta, trace);
+    if (!traceEntry) {
+      return c.json(
+        traceSessionArtifactResponse({
+          status: 'dangling',
+          ...(trace.path && { trace_path: trace.path }),
+          message: trace.unsupportedReason
+            ? trace.unsupportedReason
+            : `Trace artifact pointer is present, but ${trace.path} is not available in this run workspace.`,
+          ...(trace.description && { pointer: trace.description }),
+        }),
+      );
     }
+
+    const resolvedTrace = await readArtifactCatalogEntryText(
+      searchDir,
+      projectId,
+      meta,
+      traceEntry,
+    );
+    if (resolvedTrace.error) {
+      return c.json(
+        traceSessionArtifactResponse({
+          status: 'rejected',
+          trace_path: traceEntry.displayPath,
+          message: resolvedTrace.error,
+          ...(trace.description && { pointer: trace.description }),
+        }),
+        403,
+      );
+    }
+    const content = resolvedTrace.content;
 
     if (content === undefined) {
       const refMessage = trace.ref ? ` on ${trace.ref}` : '';
       return c.json(
         traceSessionArtifactResponse({
           status: 'dangling',
-          trace_path: trace.path,
-          message: `Trace artifact pointer${refMessage} is present, but ${trace.path} is not available in this run workspace.`,
+          trace_path: traceEntry.displayPath,
+          message: `Trace artifact pointer${refMessage} is present, but ${traceEntry.displayPath} is not available in this run workspace.`,
           ...(trace.description && { pointer: trace.description }),
         }),
       );
@@ -1447,7 +1719,7 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
       return c.json(
         traceSessionArtifactResponse({
           status: 'invalid',
-          trace_path: trace.path,
+          trace_path: traceEntry.displayPath,
           message: parsed.message,
           ...(trace.description && { pointer: trace.description }),
         }),
@@ -1459,14 +1731,14 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
       testId: record.test_id,
       suite: record.suite,
       target: record.target,
-      artifactPath: trace.path,
+      artifactPath: traceEntry.displayPath,
     });
 
     if (normalized.status === 'unsupported') {
       return c.json(
         traceSessionArtifactResponse({
           status: 'unsupported',
-          trace_path: trace.path,
+          trace_path: traceEntry.displayPath,
           message: normalized.message,
           ...(trace.description && { pointer: trace.description }),
         }),
@@ -1476,7 +1748,7 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
     return c.json(
       traceSessionArtifactResponse({
         status: 'ok',
-        trace_path: trace.path,
+        trace_path: traceEntry.displayPath,
         trace_session: normalized.traceSession,
         ...(trace.description && { pointer: trace.description }),
       }),
@@ -1497,53 +1769,71 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
     const record = records.find((r) => r.test_id === evalId);
     if (!record) return c.json({ error: 'Eval not found' }, 404);
 
-    const baseDir = path.dirname(meta.path);
     const transcript = resolveRecordArtifactPointer(record, 'transcript');
     const answer = resolveRecordArtifactPointer(record, 'answer');
+    const runPath = relativeRunPathFromManifestPath(meta.path);
+    const catalog = buildResultArtifactCatalog(record, { runPath });
+    const transcriptEntry = findPointerArtifactCatalogEntry(
+      catalog,
+      transcript,
+      'transcript',
+      runPath,
+    );
+    const answerEntry = findPointerArtifactCatalogEntry(catalog, answer, 'answer', runPath);
 
-    if (!transcript.path) {
+    if (!transcriptEntry && !transcript.path) {
       return c.json({
         status: transcript.unsupportedReason ? 'unsupported' : 'missing',
         message: transcript.unsupportedReason ?? missingTranscriptMessage(),
         ...(transcript.description && { pointer: transcript.description }),
       });
     }
-
-    const resolvedTranscript = resolveReadableRunArtifactFile(baseDir, transcript.path);
-    if (resolvedTranscript.error) {
+    if (!transcriptEntry) {
       return c.json({
         status: 'dangling',
-        transcript_path: transcript.path,
-        message: resolvedTranscript.error ?? 'Transcript artifact path could not be resolved.',
+        ...(transcript.path && { transcript_path: transcript.path }),
+        message: transcript.unsupportedReason
+          ? transcript.unsupportedReason
+          : `Transcript artifact pointer is present, but ${transcript.path} is not available in this run workspace.`,
         ...(transcript.description && { pointer: transcript.description }),
       });
     }
-
-    let content: string | undefined;
-    if (resolvedTranscript.absolutePath) {
-      content = readFileSync(resolvedTranscript.absolutePath, 'utf8');
-    } else {
-      content = await readSidecarArtifactText(searchDir, projectId, meta, transcript);
+    const resolvedTranscript = await readArtifactCatalogEntryText(
+      searchDir,
+      projectId,
+      meta,
+      transcriptEntry,
+    );
+    if (resolvedTranscript.error) {
+      return c.json({
+        status: 'dangling',
+        transcript_path: transcriptEntry.displayPath,
+        message: resolvedTranscript.error,
+        ...(transcript.description && { pointer: transcript.description }),
+      });
     }
+    const content = resolvedTranscript.content;
 
     if (content === undefined) {
       const refMessage = transcript.ref ? ` on ${transcript.ref}` : '';
       return c.json({
         status: 'dangling',
-        transcript_path: transcript.path,
-        message: `Transcript artifact pointer${refMessage} is present, but ${transcript.path} is not available in this run workspace.`,
+        transcript_path: transcriptEntry.displayPath,
+        message: `Transcript artifact pointer${refMessage} is present, but ${transcriptEntry.displayPath} is not available in this run workspace.`,
         ...(transcript.description && { pointer: transcript.description }),
       });
     }
 
-    const answerContent = readOptionalRunArtifactText(baseDir, answer);
+    const answerContent = answerEntry
+      ? (await readArtifactCatalogEntryText(searchDir, projectId, meta, answerEntry)).content
+      : undefined;
 
     return c.json({
       status: 'ok',
-      transcript_path: transcript.path,
+      transcript_path: transcriptEntry.displayPath,
       content,
-      language: inferLanguage(transcript.path),
-      ...(answer.path && { answer_path: answer.path }),
+      language: inferLanguage(transcriptEntry.displayPath),
+      ...(answerEntry && { answer_path: answerEntry.displayPath }),
       ...(answerContent !== undefined && { answer_content: answerContent }),
       ...(transcript.description && { pointer: transcript.description }),
     });

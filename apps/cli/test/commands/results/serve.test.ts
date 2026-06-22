@@ -3232,6 +3232,16 @@ describe('serve app', () => {
         answer_path: answerArtifactPath,
         answer_content: 'Hello, Alice!',
       });
+
+      const filesRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files`,
+      );
+      expect(filesRes.status).toBe(200);
+      const filesData = (await filesRes.json()) as { files: Array<Record<string, unknown>> };
+      const serializedFiles = JSON.stringify(filesData);
+      expect(serializedFiles).toContain(transcriptArtifactPath);
+      expect(serializedFiles).toContain(answerArtifactPath);
+      expect(serializedFiles).toContain('"storage":"local"');
     });
 
     it('loads pointer-shaped transcript metadata when it resolves to a local artifact path', async () => {
@@ -3318,18 +3328,14 @@ describe('serve app', () => {
         toJsonl({
           ...RESULT_A,
           experiment,
-          transcript_path: transcriptArtifactPath,
-          trace_path: traceArtifactPath,
           artifact_pointers: {
             trace: {
               ref: AGENTV_RESULTS_ARTIFACTS_REF,
               key: traceKey,
-              path: traceArtifactPath,
             },
             transcript: {
               ref: AGENTV_RESULTS_ARTIFACTS_REF,
               key: transcriptKey,
-              path: transcriptArtifactPath,
             },
           },
         }),
@@ -3396,6 +3402,17 @@ describe('serve app', () => {
       expect(existsSync(path.join(cloneDir, ...transcriptKey.split('/')))).toBe(false);
       expect(existsSync(path.join(cloneDir, ...traceKey.split('/')))).toBe(false);
 
+      const filesRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files`,
+      );
+      expect(filesRes.status).toBe(200);
+      const filesData = (await filesRes.json()) as { files: Array<Record<string, unknown>> };
+      const serializedFiles = JSON.stringify(filesData);
+      expect(serializedFiles).toContain(transcriptArtifactPath);
+      expect(serializedFiles).toContain(traceArtifactPath);
+      expect(serializedFiles).toContain(AGENTV_RESULTS_ARTIFACTS_REF);
+      expect(serializedFiles).toContain(transcriptKey);
+
       const transcriptRes = await app.request(
         `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript`,
       );
@@ -3425,6 +3442,14 @@ describe('serve app', () => {
       expect(traceSessionData.trace_session.run_id).toBe(runId);
       expect(traceSessionData.trace_session.spans[0]?.name).toBe('remote root');
       expect(existsSync(path.join(cloneDir, ...traceKey.split('/')))).toBe(false);
+
+      const transcriptRawRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${transcriptArtifactPath}?raw=1`,
+      );
+      expect(transcriptRawRes.status).toBe(200);
+      expect(transcriptRawRes.headers.get('content-type')).toContain('text/plain');
+      expect(await transcriptRawRes.text()).toBe(transcriptJsonl);
+      expect(existsSync(path.join(cloneDir, ...transcriptKey.split('/')))).toBe(false);
 
       const traceRes = await app.request(
         `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${traceArtifactPath}?raw=1`,

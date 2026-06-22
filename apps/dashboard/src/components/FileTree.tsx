@@ -11,6 +11,12 @@ export interface FileNode {
   name: string;
   path: string;
   type: 'file' | 'dir';
+  kind?: string;
+  storage?: string;
+  ref?: string;
+  key?: string;
+  sha256?: string;
+  media_type?: string;
   children?: FileNode[];
 }
 
@@ -36,6 +42,12 @@ function getFileIcon(name: string): string {
     default:
       return '\u{1F4C4}';
   }
+}
+
+function fileMetadataLabel(node: FileNode): string | undefined {
+  if (node.type !== 'file') return undefined;
+  if (node.storage === 'git' && node.ref) return node.ref;
+  return node.storage && node.storage !== 'local' ? node.storage : undefined;
 }
 
 function collectAllDirs(nodes: FileNode[]): string[] {
@@ -69,6 +81,7 @@ function TreeNode({
   const isDir = node.type === 'dir';
   const isOpen = openFolders.has(node.path);
   const isSelected = selectedPath === node.path;
+  const metadataLabel = fileMetadataLabel(node);
 
   return (
     <div>
@@ -92,6 +105,20 @@ function TreeNode({
           {isDir ? (isOpen ? '\u{1F4C2}' : '\u{1F4C1}') : getFileIcon(node.name)}
         </span>
         <span className="truncate">{node.name}</span>
+        {metadataLabel && (
+          <span
+            className="ml-auto max-w-32 flex-shrink-0 truncate rounded border border-gray-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-400"
+            title={[
+              node.kind ? `kind: ${node.kind}` : undefined,
+              node.ref ? `ref: ${node.ref}` : undefined,
+              node.key ? `key: ${node.key}` : undefined,
+            ]
+              .filter(Boolean)
+              .join('\n')}
+          >
+            {metadataLabel}
+          </span>
+        )}
       </button>
 
       {isDir && isOpen && node.children && (

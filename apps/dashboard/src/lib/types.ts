@@ -411,6 +411,12 @@ export interface FileNode {
   name: string;
   path: string;
   type: 'file' | 'dir';
+  kind?: string;
+  storage?: string;
+  ref?: string;
+  key?: string;
+  sha256?: string;
+  media_type?: string;
   children?: FileNode[];
 }
 
