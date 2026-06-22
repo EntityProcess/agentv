@@ -26,6 +26,7 @@ const RESULT_ROW_ALIASES = {
   durationMs: 'duration_ms',
   endTime: 'end_time',
   evalPath: 'eval_path',
+  metricsPath: 'metrics_path',
   executionStatus: 'execution_status',
   failureReasonCode: 'failure_reason_code',
   failureStage: 'failure_stage',

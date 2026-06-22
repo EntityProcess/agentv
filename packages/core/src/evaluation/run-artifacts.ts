@@ -19,6 +19,7 @@ import {
   toExternalTraceMetadataWire,
 } from './external-trace.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
+import { buildMetricsArtifact } from './metrics.js';
 import {
   type ExportDuplicatePolicy,
   type ProjectionIdentity,
@@ -31,6 +32,7 @@ import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import {
   AGENTV_RESULTS_ARTIFACTS_REF,
+  CANONICAL_METRICS_ARTIFACT_PATH,
   CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
   type ResultArtifactFamily,
@@ -50,10 +52,19 @@ import {
   toTraceEnvelopeWire,
   traceEnvelopeToTranscriptMessages,
 } from './trace-envelope.js';
-import { type TraceSummary, buildTraceFromMessages } from './trace.js';
+import { type TokenUsage, type TraceSummary, buildTraceFromMessages } from './trace.js';
 import type { EvalTest, EvaluationResult, GraderResult } from './types.js';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
+
+const TIMING_SOURCE_VALUES = [
+  'provider_reported',
+  'token_estimated',
+  'aggregate',
+  'unavailable',
+] as const;
+
+type TimingSource = (typeof TIMING_SOURCE_VALUES)[number];
 
 export function buildTestTargetKey(testId?: string, target?: string): string {
   return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
@@ -155,10 +166,17 @@ export interface TimingArtifact {
   readonly total_tokens: number;
   readonly duration_ms: number;
   readonly total_duration_seconds: number;
+  readonly cost_usd: number | null;
   readonly token_usage: {
     readonly input: number;
     readonly output: number;
     readonly reasoning: number;
+  };
+  readonly usage_sources: {
+    readonly token_usage: TimingSource;
+    readonly total_tokens: TimingSource;
+    readonly duration: TimingSource;
+    readonly cost: TimingSource;
   };
 }
 
@@ -226,6 +244,7 @@ export interface IndexArtifactEntry {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly metrics_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly raw_provider_log_path?: string;
   readonly input_path?: string;
@@ -523,34 +542,131 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
   };
 }
 
+function timingMetadataSource(
+  metadata: EvaluationResult['metadata'],
+  sourceKey: 'token_usage' | 'total_tokens' | 'duration' | 'cost',
+): TimingSource | undefined {
+  const usageSources = metadata?.usage_sources;
+  const usageSummary = metadata?.usage_summary;
+  const legacyKey =
+    sourceKey === 'duration'
+      ? 'duration_source'
+      : sourceKey === 'cost'
+        ? 'cost_source'
+        : 'token_usage_source';
+  const value = isRecord(usageSources)
+    ? usageSources[sourceKey]
+    : isRecord(usageSummary)
+      ? usageSummary[legacyKey]
+      : metadata?.[legacyKey];
+  return typeof value === 'string' && TIMING_SOURCE_VALUES.includes(value as TimingSource)
+    ? (value as TimingSource)
+    : undefined;
+}
+
+function sumMessageTokenUsage(messages: readonly Message[]): TokenUsage | undefined {
+  let sawUsage = false;
+  let input = 0;
+  let output = 0;
+  let reasoning = 0;
+
+  for (const message of messages) {
+    const usage = message.tokenUsage;
+    if (!usage) {
+      continue;
+    }
+    sawUsage = true;
+    input += usage.input ?? 0;
+    output += usage.output ?? 0;
+    reasoning += usage.reasoning ?? 0;
+  }
+
+  return sawUsage ? { input, output, reasoning } : undefined;
+}
+
+function combineTimingSources(
+  results: readonly EvaluationResult[],
+  sources: readonly TimingSource[],
+  hasValue: boolean,
+): TimingSource {
+  if (!hasValue) {
+    return 'unavailable';
+  }
+  if (results.length > 1) {
+    return 'aggregate';
+  }
+  return sources[0] ?? 'unavailable';
+}
+
 export function buildTimingArtifact(results: readonly EvaluationResult[]): TimingArtifact {
   let totalInput = 0;
   let totalOutput = 0;
   let totalReasoning = 0;
   let totalDurationMs = 0;
+  let totalCostUsd = 0;
+  let hasTokenUsage = false;
+  let hasDuration = false;
+  let hasCost = false;
+  const tokenUsageSources: TimingSource[] = [];
+  const durationSources: TimingSource[] = [];
+  const costSources: TimingSource[] = [];
 
   for (const result of results) {
-    const usage = result.tokenUsage as
-      | { input?: number; output?: number; reasoning?: number }
-      | undefined;
+    const providerUsage = result.tokenUsage ?? result.trace?.tokenUsage;
+    const aggregateUsage = providerUsage ? undefined : sumMessageTokenUsage(result.trace.messages);
+    const usage = providerUsage ?? aggregateUsage;
     if (usage) {
+      hasTokenUsage = true;
       totalInput += usage.input ?? 0;
       totalOutput += usage.output ?? 0;
       totalReasoning += usage.reasoning ?? 0;
+      tokenUsageSources.push(
+        timingMetadataSource(result.metadata, 'token_usage') ??
+          (providerUsage ? 'provider_reported' : 'aggregate'),
+      );
     }
-    if (result.durationMs != null) {
-      totalDurationMs += result.durationMs;
+    const durationMs = result.durationMs ?? result.trace?.durationMs ?? result.evalRun?.durationMs;
+    if (durationMs != null) {
+      hasDuration = true;
+      totalDurationMs += durationMs;
+      durationSources.push(
+        timingMetadataSource(result.metadata, 'duration') ??
+          (result.durationMs != null || result.trace?.durationMs != null
+            ? 'provider_reported'
+            : 'aggregate'),
+      );
+    }
+    const costUsd = result.costUsd ?? result.trace?.costUsd;
+    if (costUsd != null) {
+      hasCost = true;
+      totalCostUsd += costUsd;
+      costSources.push(
+        timingMetadataSource(result.metadata, 'cost') ??
+          (result.costUsd != null || result.trace?.costUsd != null
+            ? 'provider_reported'
+            : 'unavailable'),
+      );
     }
   }
+  const tokenUsageSource = combineTimingSources(results, tokenUsageSources, hasTokenUsage);
+  const durationSource = combineTimingSources(results, durationSources, hasDuration);
+  const costSource = combineTimingSources(results, costSources, hasCost);
 
   return {
     total_tokens: totalInput + totalOutput,
     duration_ms: totalDurationMs,
     total_duration_seconds: Math.round((totalDurationMs / 1000) * 1000) / 1000,
+    cost_usd: hasCost ? totalCostUsd : null,
     token_usage: {
       input: totalInput,
       output: totalOutput,
       reasoning: totalReasoning,
+    },
+    usage_sources: {
+      token_usage: tokenUsageSource,
+      total_tokens: tokenUsageSource,
+      duration: durationSource,
+      cost: costSource,
     },
   };
 }
@@ -816,6 +932,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
+      metrics_path: CANONICAL_METRICS_ARTIFACT_PATH,
       raw_provider_log_path: rawProviderLogSourcePath(params.result)
         ? 'outputs/raw/provider.log'
         : undefined,
@@ -912,6 +1029,7 @@ export function buildIndexArtifactEntry(
     outputPath?: string;
     answerPath?: string;
     transcriptPath?: string;
+    metricsPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     inputPath?: string;
@@ -953,6 +1071,9 @@ export function buildIndexArtifactEntry(
       : undefined,
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
+      : undefined,
+    metrics_path: options.metricsPath
+      ? toRelativeArtifactPath(options.outputDir, options.metricsPath)
       : undefined,
     raw_provider_log_path: options.rawProviderLogPath
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
@@ -1017,6 +1138,7 @@ export function buildResultIndexArtifact(
     transcript_path: hasTranscript
       ? path.posix.join(artifactSubdir, 'outputs', 'transcript.jsonl')
       : undefined,
+    metrics_path: path.posix.join(artifactSubdir, 'outputs', 'metrics.json'),
     raw_provider_log_path: hasRawProviderLog
       ? path.posix.join(artifactSubdir, 'outputs', 'raw', 'provider.log')
       : undefined,
@@ -1056,6 +1178,21 @@ async function writeTranscriptJsonl(
   const content =
     lines.length > 0 ? `${lines.map((line) => JSON.stringify(line)).join('\n')}\n` : '';
   await writeFile(filePath, content, 'utf8');
+}
+
+async function writeMetricsArtifact(params: {
+  readonly filePath: string;
+  readonly result: EvaluationResult;
+  readonly envelope: TraceEnvelope;
+  readonly transcriptPath?: string;
+}): Promise<void> {
+  const artifact = buildMetricsArtifact(params.result, params.envelope, {
+    tracePath: CANONICAL_TRACE_ARTIFACT_PATH,
+    transcriptPath: params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
+    gradingPath: 'grading.json',
+    timingPath: 'timing.json',
+  });
+  await writeFile(params.filePath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
 }
 
 function indexRecordKey(record: unknown): string | undefined {
@@ -1429,6 +1566,13 @@ export async function writePerTestArtifacts(
     if (transcriptPath) {
       await writeTranscriptJsonl(transcriptPath, result, envelope);
     }
+    const metricsPath = path.join(outputsDir, 'metrics.json');
+    await writeMetricsArtifact({
+      filePath: metricsPath,
+      result,
+      envelope,
+      transcriptPath,
+    });
     const artifactPointers = await buildArtifactPointers({
       outputDir,
       tracePath,
@@ -1512,6 +1656,7 @@ export async function writeArtifactsFromResults(
       ? path.join(outputsDir, 'transcript.jsonl')
       : undefined;
     const tracePath = path.join(outputsDir, 'trace.json');
+    const metricsPath = path.join(outputsDir, 'metrics.json');
     const rawProviderLogSource = rawProviderLogSourcePath(result);
     const rawProviderLogPath = rawProviderLogSource
       ? rawProviderLogArtifactPath(outputsDir)
@@ -1534,6 +1679,7 @@ export async function writeArtifactsFromResults(
       answerPath,
       responsePath,
       tracePath,
+      metricsPath,
       envelope,
       projectionIdentity,
       transcriptPath,
@@ -1595,6 +1741,12 @@ export async function writeArtifactsFromResults(
     if (plan.transcriptPath) {
       await writeTranscriptJsonl(plan.transcriptPath, result, envelope);
     }
+    await writeMetricsArtifact({
+      filePath: plan.metricsPath,
+      result,
+      envelope,
+      transcriptPath: plan.transcriptPath,
+    });
     const artifactPointers = await buildArtifactPointers({
       outputDir,
       tracePath: plan.tracePath,
@@ -1618,6 +1770,7 @@ export async function writeArtifactsFromResults(
         outputPath: plan.answerPath,
         answerPath: plan.answerPath,
         transcriptPath: plan.transcriptPath,
+        metricsPath: plan.metricsPath,
         artifactPointers,
         rawProviderLogPath: plan.rawProviderLogPath,
         inputPath: plan.inputPath,

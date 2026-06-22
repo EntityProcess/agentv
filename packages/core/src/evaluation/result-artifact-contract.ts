@@ -5,10 +5,14 @@
  * records. Local run workspaces still write their files under the existing
  * per-result artifact directories; these pointers describe where those same
  * AgentV-owned artifacts belong when projected to a results ref, sidecar ref,
- * or object store. Git remote publishing treats the configured results branch
- * as the metadata/control plane and stores transcript or trace payload bytes
- * whose `ref` is `agentv/artifacts/v1` on that artifact ref at the published
- * pointer `key` (`runs/<run-path>/<pointer.path>` for the git backend).
+ * or object store. Use pointers for large detached payload bytes, not as the
+ * discovery path for ordinary sidecars such as `outputs/metrics.json`; normal
+ * sidecars should use explicit path fields such as `metrics_path`.
+ *
+ * Git remote publishing treats the configured results branch as the
+ * metadata/control plane and stores transcript or trace payload bytes whose
+ * `ref` is `agentv/artifacts/v1` on that artifact ref at the published pointer
+ * `key` (`runs/<run-path>/<pointer.path>` for the git backend).
  */
 
 export const AGENTV_RESULTS_PRIMARY_REF = 'agentv/results/v1' as const;
@@ -23,10 +27,13 @@ export const AGENTV_RESULTS_REFS = {
 
 export const CANONICAL_TRACE_ARTIFACT_PATH = 'outputs/trace.json' as const;
 export const CANONICAL_TRANSCRIPT_ARTIFACT_PATH = 'outputs/transcript.jsonl' as const;
+export const CANONICAL_METRICS_ARTIFACT_PATH = 'outputs/metrics.json' as const;
 
 export const TRANSCRIPT_SCHEMA_VERSION = 'agentv.transcript.v1' as const;
+export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;
 export const TRANSCRIPT_JSONL_MEDIA_TYPE = 'application/x-ndjson' as const;
 export const TRACE_JSON_MEDIA_TYPE = 'application/vnd.agentv.trace.v1+json' as const;
+export const METRICS_JSON_MEDIA_TYPE = 'application/vnd.agentv.metrics.v1+json' as const;
 
 export type AgentVResultsRefName = (typeof AGENTV_RESULTS_REFS)[keyof typeof AGENTV_RESULTS_REFS];
 

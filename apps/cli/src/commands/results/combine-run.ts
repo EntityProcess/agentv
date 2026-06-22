@@ -317,6 +317,7 @@ const MANIFEST_PATH_FIELDS = [
   'output_path',
   'response_path',
   'transcript_path',
+  'metrics_path',
   'raw_provider_log_path',
   'task_dir',
   'eval_path',
@@ -414,7 +415,6 @@ function rewriteArtifactPointers(
   }
 
   return {
-    ...pointers,
     trace: rewriteArtifactPointer('trace', pointers.trace, sourceBaseDir, outputDir, sourceIndex),
     transcript: rewriteTranscriptArtifactPointer(
       pointers.transcript,

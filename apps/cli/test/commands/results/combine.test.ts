@@ -99,6 +99,7 @@ describe('results combine', () => {
       result({
         artifact_dir: 'demo/test-a',
         transcript_path: 'demo/test-a/outputs/transcript.jsonl',
+        metrics_path: 'demo/test-a/outputs/metrics.json',
         raw_provider_log_path: 'demo/test-a/outputs/raw/provider.log',
         artifact_pointers: {
           trace: {
@@ -141,6 +142,10 @@ describe('results combine', () => {
       })}\n`,
     );
     writeFileSync(
+      path.join(first, 'demo', 'test-a', 'outputs', 'metrics.json'),
+      '{"schema_version":"agentv.metrics.v1"}\n',
+    );
+    writeFileSync(
       path.join(first, 'demo', 'test-a', 'outputs', 'raw', 'provider.log'),
       '{"event":"provider-native"}\n',
     );
@@ -168,6 +173,7 @@ describe('results combine', () => {
     const [record] = readIndex(combined.manifestPath);
     expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
     expect(record.transcript_path).toBe('sources/source-1/demo/test-a/outputs/transcript.jsonl');
+    expect(record.metrics_path).toBe('sources/source-1/demo/test-a/outputs/metrics.json');
     expect(record.raw_provider_log_path).toBe(
       'sources/source-1/demo/test-a/outputs/raw/provider.log',
     );
@@ -181,6 +187,7 @@ describe('results combine', () => {
         path: 'sources/source-1/demo/test-a/outputs/transcript.jsonl',
       },
     });
+    expect(record.artifact_pointers).not.toHaveProperty('metrics');
     expect(
       existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/trace.json')),
     ).toBe(true);
@@ -188,6 +195,9 @@ describe('results combine', () => {
       existsSync(
         path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/transcript.jsonl'),
       ),
+    ).toBe(true);
+    expect(
+      existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/metrics.json')),
     ).toBe(true);
     expect(
       existsSync(
