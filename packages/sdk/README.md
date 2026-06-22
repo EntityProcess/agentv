@@ -1,6 +1,6 @@
 # @agentv/sdk
 
-Public lightweight SDK for AgentV - build YAML-aligned eval suites, custom graders, and prompt templates around the canonical AgentV eval model.
+Public lightweight SDK for AgentV - run evaluations programmatically, build YAML-aligned eval suites, and write custom graders and prompt templates around the canonical AgentV eval model.
 
 ## Installation
 
@@ -24,6 +24,38 @@ import { defineCodeGrader } from '@agentv/sdk';
 `@agentv/eval` was a temporary deprecated compatibility package for this SDK. It is no longer published from this repository. Use `@agentv/sdk` directly.
 
 ## Quick Start
+
+### evaluate (programmatic runs)
+
+```typescript
+import { evaluate } from '@agentv/sdk';
+
+const { results, summary } = await evaluate({
+  tests: [
+    {
+      id: 'greeting',
+      input: 'Say hello',
+      expectedOutput: 'Hello there!',
+      assert: [{ type: 'contains', value: 'Hello' }],
+    },
+  ],
+  task: async (input) => `Hello from: ${input}`,
+});
+
+console.log(`${summary.passed}/${summary.total} passed`);
+```
+
+Use `specFile` when you want library control around an existing YAML suite:
+
+```typescript
+import { evaluate } from '@agentv/sdk';
+
+const { summary } = await evaluate({
+  specFile: './evals/my-eval.eval.yaml',
+});
+```
+
+The `evaluate()` implementation is owned by `@agentv/core`; `@agentv/sdk` re-exports it as the user-facing SDK entrypoint.
 
 ### defineAssertion (simplest way)
 
@@ -197,6 +229,7 @@ Python workflows should emit canonical YAML/JSONL or implement code graders over
 
 ## Exports
 
+- `evaluate(config)` - Run evaluations programmatically from inline tests or an eval spec file
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
 - `defineCodeGrader(handler)` - Define a code grader (full score control)
 - `defineVitestWorkspaceGrader(options)` - Embed the Vitest workspace verifier adapter in a custom script
@@ -206,6 +239,7 @@ Python workflows should emit canonical YAML/JSONL or implement code graders over
 - `graders` - Catalog of built-in AgentV grader config helpers
 - `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `rubricsGrader`, `llmGrader`, `codeGrader` - Named grader helper functions
 - `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
+- `EvalConfig`, `EvalRunResult`, `EvalSummary`, `EvalTestInput`, `EvalAssertionInput` - Programmatic evaluation types
 - `AssertionContext`, `AssertionScore` - Assertion types
 - `CodeGraderInput`, `CodeGraderResult`, `Workspace`, `WorkspaceAssertion` - Grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types

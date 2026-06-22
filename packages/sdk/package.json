@@ -32,6 +32,7 @@
   },
   "files": ["dist", "README.md"],
   "dependencies": {
+    "@agentv/core": "workspace:*",
     "yaml": "^2.8.3",
     "zod": "^3.23.8"
   }

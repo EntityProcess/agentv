@@ -118,6 +118,18 @@ export {
 
 // Re-export YAML-aligned eval authoring helpers
 export {
+  evaluate,
+  type AssertEntry,
+  type ConversationTurnInput,
+  type EvalAssertionInput,
+  type EvalConfig,
+  type EvalRunArtifacts,
+  type EvalRunResult,
+  type EvalSummary,
+  type EvalTestInput,
+} from '@agentv/core';
+
+export {
   defineEval,
   evalSuite,
   serializeEvalYaml,
