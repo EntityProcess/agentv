@@ -1,0 +1,205 @@
+we currently have beds created to implement front end on top of Phoenix eventually we are going to get rid of Phoenix and replace traces with S3 storage. and we would use SQLite or elastic search to index the data. does a current direction support the future road map
+
+---
+
+if we use the last text search anyway then wouldn't it be an anti-pattern storing data in elastic search and also in S3. is a common enough practise to use elastic search as an index rather than a data store
+
+---
+
+So maybe it's better to start with sqlite than at elasticsearch
+
+---
+
+but that's just for search now if we want to collect traces like Phoenix does so we don't need the finished dependency do you think that's going to require much code
+
+---
+
+So at the moment we're just use Phoenix for collecting traces with an actually use any of the UI Is there like a lighter weight package that Phoenix provides
+
+---
+
+So I just want a otel collector and storage for agent v so we don't need Phoenix. we currently don't use Phoenix SDKs anyway we use the GraphQL directly. Can you reconsider this approach and let me know if it's feasible and won't bloat the code base
+
+---
+
+So is our Phoenix work with feature parody currently still valid. it would provide a good baseline so when we swap out with agent v native hotel we can ensure that no regression occurs and that guarantees that we are feature parity with Phoenix traces
+
+---
+
+Can you please review the beads and issues on agent v - beads repo and sure that it is aligned to this goa
+
+---
+
+what's the difference bweteen OTEL / OLTP and OpenInference
+
+---
+
+do we need a separate agentv package to do this. i think so
+
+---
+
+how do other frameworks name their paackages. refer to frameworks mentioned in tsoyang-org ai-research-wiki repo
+
+---
+
+can we remove agentv/eval as that's replaced by agentv/sdk. I agree with otlp-ingest.
+
+---
+
+i've marked it deprecated on npm. you can delete it, submit PR to delete this and merge
+
+---
+
+please continue coordinating work, and ensure local main is updated to remote
+
+---
+
+also ensure the oltp ingest package design has issue created in agentv-beads repo along with mentions of the reads so a human can understand the deliverable and check it's what was asked for.
+
+---
+
+spwan workmux agent to research  https://www.npmjs.com/package/@vercel/agent-eval . clone that repo and try to dogfood it and write some evals. identify downstream consumers such as https://github.com/vercel/next-evals-oss to understand how vercel agent-eval is being used. add research to ai-research-wiki using llm-wiki skill. investigate gaps in agentv in ensure agentv covers all features and usability of vercel agent-evals., then draft issue in agentv-beads repo on proposed changes. pay attention to how sandbox is done, and the contracts / schema that agentv can adopt to align more with bigger players such as vercel and rest of industry
+
+---
+
+also spawn agent to change GENT in AGENTV to light grey instead of white so A V stands out more than the other letters.
+
+---
+
+we were doing research on agent-evals from vercel but that research worker was killed can you resume them
+
+---
+
+i was in the middle of asking it to compare the schema with agentv schema. i want to takeover the research
+
+---
+
+we should delegate to workers where possible to complete e2e rather than killing them prematuraly
+
+---
+
+what's the name of the workmux worker, what's the name of the session/window
+
+---
+
+can you reopen it and ask it to merge the findings. also to research the schema of vercel agent eval plus https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx before mergingg
+
+---
+
+are phoenix workers done> can we merge
+
+---
+
+should merge 1460 as well
+
+---
+
+i'm going to start new session, anything in your working memory we should record for the new worker
+
+---
+
+als we should pull beads from dolt remote. there's an issue about separating acquissiton details from eval.yaml authoring spec
+
+---
+
+ensure anything that can be easily resolved to be resolved eg.. https://github.com/tsoyang-org/ai-research-wiki/pull/34/changes should be merged and conflicts resolved
+
+---
+
+note i've taken over the vercel research agent
+
+---
+
+whats the status of phoenix work
+
+---
+
+wait we have beads created from research on vercel agent evals, maybe we can pause phoenix for now and see how vercel agent evals can evaluate tool calls and calculate cost?
+
+---
+
+probably part of ai-research-wiki beads
+
+---
+
+so should we add issue to agentv-beads repo to use agent-eval research.
+
+---
+
+for the phoenix work did we do much so far.
+
+---
+
+do you think  we still need phoenix session/trace/span UI if we have transcripts
+
+---
+
+so does that mean we don't need to store data in openinference format
+
+---
+
+so we should align with vercel agentv evals then. did the addition of phoniex logic bloat our codebase much. should be simplify and make the bondaries clearer to ensure there's no increaed maintenance tax
+
+---
+
+we have a number of issues created for phoniex on agentv github, might want to close them if no longer relevant.
+
+---
+
+sowhat transcript format does vercel agent sdk use. is that industry standard.
+
+---
+
+what is o11y. should agenv adopt this format
+
+---
+
+so then agentv formats hould be superset. cany ou create beads for this and spawn worker to align the  shape. also advise what file this affects, is it transcript.jsonl
+
+---
+
+also agentv has benchmark.json already borrowed from agent skills standard. we need to analysie this along with existing patterns
+
+---
+
+see agent skills standard: https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx
+
+---
+
+give we put phoenix on hold what to do with the phoenix workmux worker. should we kill it and update the beads and PR
+
+---
+
+i noticed that https://github.com/EntityProcess/next-evals-oss-agentv/blob/main/vercel/evals/agentv-001-welcome-banner/EVAL.ts is very short, not a lot of code. Why does https://github.com/EntityProcess/next-evals-oss-agentv/blob/main/agentv/graders/verify-welcome-banner.mjs need so much code. seems to be a DX gap to me that needs to be addressed by agentv. If you are able to dtermine a solution then please create beads for it. Is it because we didn't use the agentv/sdk package or something else
+
+---
+
+we should create beads for this and issue in agentv-beads repo to track to improve DX of writing deterministic graders for agentv. Then spawn worker to implement improvement.
+
+---
+
+also ensure that docs and examles are updated with the deterministic graders. it looksl ike we don't need to reinvent any concepts and just use vitest same as vercel agent eval
+
+---
+
+btw do you think transcripts can be exported to phoenix openinference format so we don't even need otel collector ? we can reverse compute the turns and spans from the transcript?  that means we can also remove otel-ingest weork
+
+---
+
+we have research done on phoenix in ai-research-wiki already and probably have beads about it
+
+---
+
+does vercel agent evals transcript contian enough data to compute spans?
+
+---
+
+so it's still worth keeping UI on top of phoenix as an adapter in dashboard
+
+---
+
+have we written any code on OTLP
+
+---
+
+if not yes, please close that bead
