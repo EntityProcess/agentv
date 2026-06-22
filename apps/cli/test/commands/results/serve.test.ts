@@ -170,6 +170,47 @@ function git(command: string, cwd: string): string {
   return execSync(command, { cwd, encoding: 'utf8', env: cleanGitEnv() }).trim();
 }
 
+function writeResultsConfig(
+  projectDir: string,
+  params: {
+    readonly remote: string;
+    readonly path?: string;
+    readonly branch?: string;
+    readonly autoPush?: boolean;
+  },
+): void {
+  mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+  writeFileSync(
+    path.join(projectDir, '.agentv', 'config.yaml'),
+    `results:
+  repo:
+    remote: ${JSON.stringify(params.remote)}
+${params.branch ? `    branch: ${JSON.stringify(params.branch)}\n` : ''}${params.path ? `    path: ${JSON.stringify(params.path)}\n` : ''}${params.autoPush !== undefined ? `  sync:\n    auto_push: ${params.autoPush}\n` : ''}`,
+  );
+}
+
+function writeLegacyShorthandResultsConfig(projectDir: string, repo: string): void {
+  mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+  writeFileSync(
+    path.join(projectDir, '.agentv', 'config.yaml'),
+    `results:
+  mode: github
+  repo: ${repo}
+`,
+  );
+}
+
+function writeLegacyGlobalShorthandResultsConfig(homeDir: string, repo: string): void {
+  mkdirSync(homeDir, { recursive: true });
+  writeFileSync(
+    path.join(homeDir, 'config.yaml'),
+    `results:
+  mode: github
+  repo: ${repo}
+`,
+  );
+}
+
 function initializeRemoteRepo(rootDir: string): {
   remoteDir: string;
   cloneDir: string;
@@ -1363,14 +1404,7 @@ describe('serve app', () => {
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
 
       try {
-        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-        writeFileSync(
-          path.join(tempDir, '.agentv', 'config.yaml'),
-          `results:
-  mode: github
-  repo: EntityProcess/agentv-evals
-`,
-        );
+        writeLegacyShorthandResultsConfig(tempDir, 'EntityProcess/agentv-evals');
 
         const remoteRunDir = path.join(
           process.env.AGENTV_HOME,
@@ -1418,15 +1452,7 @@ describe('serve app', () => {
         RESULT_A,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
@@ -1478,16 +1504,11 @@ describe('serve app', () => {
         storageBranch,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  branch: ${storageBranch}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, {
+        remote: `file://${remoteDir}`,
+        branch: storageBranch,
+        path: cloneDir,
+      });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
@@ -1513,16 +1534,11 @@ describe('serve app', () => {
         RESULT_A,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  branch: agentv-results
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, {
+        remote: `file://${remoteDir}`,
+        branch: 'agentv-results',
+        path: cloneDir,
+      });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
@@ -1571,15 +1587,7 @@ describe('serve app', () => {
       );
       writeLocalRunArtifact(tempDir, 'green-uat', '2026-03-26T10-30-00-000Z', RESULT_A);
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
@@ -1607,15 +1615,7 @@ describe('serve app', () => {
       const runId = writeRemoteRunArtifact(cloneDir, experiment, timestamp, RESULT_A);
       writeLocalRunArtifact(tempDir, experiment, timestamp, RESULT_A);
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const putRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/tags`, {
@@ -1699,15 +1699,7 @@ describe('serve app', () => {
         failingResult,
       ]);
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
@@ -1747,15 +1739,7 @@ describe('serve app', () => {
         RESULT_A,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
       const runManifestPath = path.join(
         cloneDir,
@@ -1798,15 +1782,7 @@ describe('serve app', () => {
         RESULT_A,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${cloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
       const filename = `remote::${runId}`;
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
@@ -1898,15 +1874,10 @@ describe('serve app', () => {
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${path.join(tempDir, 'missing.git')}
-  path: ${plainResultsDir}
-`,
-      );
+      writeResultsConfig(tempDir, {
+        remote: `file://${path.join(tempDir, 'missing.git')}`,
+        path: plainResultsDir,
+      });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request(
@@ -1935,15 +1906,7 @@ describe('serve app', () => {
         RESULT_A,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${missingCloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: missingCloneDir });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
@@ -1966,15 +1929,7 @@ describe('serve app', () => {
         RESULT_A,
       );
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: file://${remoteDir}
-  path: ${missingCloneDir}
-`,
-      );
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: missingCloneDir });
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const previewRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/publish`);
@@ -2092,14 +2047,7 @@ describe('serve app', () => {
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home-status');
 
       try {
-        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-        writeFileSync(
-          path.join(tempDir, '.agentv', 'config.yaml'),
-          `results:
-  mode: github
-  repo: EntityProcess/agentv-evals
-`,
-        );
+        writeLegacyShorthandResultsConfig(tempDir, 'EntityProcess/agentv-evals');
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/remote/status');
@@ -2139,13 +2087,7 @@ describe('serve app', () => {
           path.join(projectDir, '.agentv', 'config.yaml'),
           'execution:\n  verbose: true\n',
         );
-        writeFileSync(
-          path.join(homeDir, 'config.yaml'),
-          `results:
-  mode: github
-  repo: EntityProcess/fallback-results
-`,
-        );
+        writeLegacyGlobalShorthandResultsConfig(homeDir, 'EntityProcess/fallback-results');
         saveProjectRegistry({
           projects: [
             {
@@ -2718,14 +2660,7 @@ describe('serve app', () => {
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
       try {
         const local = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A]);
-        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-        writeFileSync(
-          path.join(tempDir, '.agentv', 'config.yaml'),
-          `results:
-  mode: github
-  repo: EntityProcess/agentv-evals
-`,
-        );
+        writeLegacyShorthandResultsConfig(tempDir, 'EntityProcess/agentv-evals');
         const remoteRunDir = path.join(
           process.env.AGENTV_HOME,
           'results',
@@ -2846,14 +2781,7 @@ describe('serve app', () => {
       const previousHome = process.env.AGENTV_HOME;
       process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
       try {
-        mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-        writeFileSync(
-          path.join(tempDir, '.agentv', 'config.yaml'),
-          `results:
-  mode: github
-  repo: EntityProcess/agentv-evals
-`,
-        );
+        writeLegacyShorthandResultsConfig(tempDir, 'EntityProcess/agentv-evals');
         const remoteRunDir = path.join(
           process.env.AGENTV_HOME,
           'results',
@@ -3374,17 +3302,12 @@ describe('serve app', () => {
       git(`git push --quiet origin HEAD:${AGENTV_RESULTS_ARTIFACTS_REF}`, seedDir);
       git('git switch --quiet main', seedDir);
 
-      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
-      writeFileSync(
-        path.join(tempDir, '.agentv', 'config.yaml'),
-        `results:
-  mode: github
-  repo: ${JSON.stringify(`file://${remoteDir}`)}
-  branch: ${JSON.stringify(resultsBranch)}
-  path: ${JSON.stringify(cloneDir)}
-  auto_push: false
-`,
-      );
+      writeResultsConfig(tempDir, {
+        remote: `file://${remoteDir}`,
+        branch: resultsBranch,
+        path: cloneDir,
+        autoPush: false,
+      });
 
       const artifactRemoteRef = `refs/remotes/agentv-results/${AGENTV_RESULTS_ARTIFACTS_REF}`;
       const artifactRefLookup = () =>
