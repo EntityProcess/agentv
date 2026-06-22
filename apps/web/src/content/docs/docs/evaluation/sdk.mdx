@@ -15,7 +15,7 @@ AgentV currently provides two npm packages for programmatic use:
 ## Installation
 
 ```bash
-# Lightweight SDK (defineEval, graders, defineAssertion, defineCodeGrader)
+# Lightweight SDK (defineEval, graders, defineAssertion, defineCodeGrader, defineVitestWorkspaceGrader)
 npm install @agentv/sdk
 
 # Programmatic API (evaluate, defineConfig)
@@ -45,7 +45,7 @@ Use the simplest surface that matches the job:
 - **`defineEval()` / `evalSuite()`** when you want a `.eval.ts` file that mirrors YAML concepts and lowers back to the canonical snake_case contract.
 - **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
 - **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
-- **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
+- **`defineAssertion` / `defineCodeGrader` / `defineVitestWorkspaceGrader`** when the grading logic itself must execute code.
 
 There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
 
@@ -279,7 +279,41 @@ export default defineCodeGrader(({ output, traceSummary }) => ({
 }));
 ```
 
-`defineCodeGrader` graders are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+For deterministic workspace verifiers, prefer normal Vitest tests plus the thin SDK adapter:
+
+```typescript
+// workspace-template/verifiers/welcome-banner.test.ts
+import { readFileSync } from 'node:fs';
+import { expect, it } from 'vitest';
+
+it('links to the dashboard', () => {
+  const page = readFileSync('app/page.tsx', 'utf8');
+  expect(page).toMatch(/href=["']\/dashboard["']/);
+});
+```
+
+```typescript
+import { defineVitestWorkspaceGrader } from '@agentv/sdk';
+
+export default defineVitestWorkspaceGrader({
+  testFile: 'verifiers/welcome-banner.test.ts',
+});
+```
+
+Use `defineWorkspaceGrader` only for tiny one-off file checks or custom score shaping:
+
+```typescript
+import { defineWorkspaceGrader } from '@agentv/sdk';
+
+export default defineWorkspaceGrader(async ({ workspace }) => [
+  await workspace.file('app/page.tsx').contains('Status: All systems ready'),
+  await workspace.file('app/page.tsx').contains('Open dashboard'),
+  await workspace.file('app/page.tsx').matches(/href=["']\/dashboard["']/),
+  await workspace.file('app/page.tsx').notMatches(/TODO/i),
+]);
+```
+
+`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` graders are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
 For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/graders/code-graders/).
 

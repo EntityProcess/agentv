@@ -1,0 +1,8 @@
+{
+  "name": "agentv-example-vitest-workspace-grader",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agentv/sdk": "file:../../../packages/sdk"
+  }
+}

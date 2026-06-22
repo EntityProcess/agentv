@@ -187,7 +187,7 @@ assertions:
 
 ## TypeScript SDK
 
-The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` to skip boilerplate:
+The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` to skip protocol boilerplate:
 
 ```typescript
 #!/usr/bin/env bun
@@ -211,7 +211,72 @@ export default defineCodeGrader(({ output, criteria }) => {
 });
 ```
 
-**SDK exports:** `defineCodeGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`
+### Vitest Workspace Verifiers
+
+For deterministic workspace checks, prefer a normal Vitest verifier file. This matches the common hidden-verifier pattern: read files from the prepared workspace and use `expect(...)`.
+
+```typescript
+// workspace-template/verifiers/welcome-banner.test.ts
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+function readWorkspaceFile(relativePath: string) {
+  return readFileSync(join(process.env.AGENTV_WORKSPACE_PATH ?? process.cwd(), relativePath), 'utf8');
+}
+
+describe('welcome banner', () => {
+  const page = () => readWorkspaceFile('app/page.tsx');
+
+  it('shows ready status text', () => {
+    expect(page()).toContain('Status: All systems ready');
+  });
+
+  it('links the call to action to /dashboard', () => {
+    expect(page()).toMatch(/href=["']\/dashboard["']/);
+  });
+});
+```
+
+Then use the SDK adapter as the `code-grader` command. The adapter runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
+
+```typescript
+#!/usr/bin/env bun
+import { defineVitestWorkspaceGrader } from '@agentv/sdk';
+
+export default defineVitestWorkspaceGrader({
+  testFile: 'verifiers/welcome-banner.test.ts',
+});
+```
+
+```yaml
+assertions:
+  - name: vitest-welcome-banner
+    type: code-grader
+    command: [bun, run, ../graders/verify-welcome-banner.ts]
+```
+
+Use `defineVitestWorkspaceGrader({ command: ["bun", "run", "verify:workspace"], appendReporterArgs: true })` when the workspace already has a Vitest package script. See `examples/features/vitest-workspace-grader/` for a runnable example.
+
+### Lower-Level Workspace Helpers
+
+For tiny one-off file checks, `defineWorkspaceGrader` can resolve the workspace path, read files relative to the workspace, build assertions, and aggregate the score:
+
+```typescript
+#!/usr/bin/env bun
+import { defineWorkspaceGrader } from '@agentv/sdk';
+
+export default defineWorkspaceGrader(async ({ workspace }) => [
+  await workspace.file('app/page.tsx').contains('Status: All systems ready'),
+  await workspace.file('app/page.tsx').contains('Open dashboard'),
+  await workspace.file('app/page.tsx').matches(/href=["']\/dashboard["']/),
+  await workspace.file('app/page.tsx').notMatches(/TODO/i),
+]);
+```
+
+Prefer Vitest verifiers when the checks naturally fit `expect(...)`. Use `defineWorkspaceGrader` when you need a very small custom script, custom weighting, or details that do not map cleanly to individual test outcomes.
+
+**SDK exports:** `defineCodeGrader`, `defineVitestWorkspaceGrader`, `defineWorkspaceGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`, `Workspace`, `WorkspaceAssertion`
 
 ## Target Access
 

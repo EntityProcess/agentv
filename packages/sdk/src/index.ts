@@ -33,6 +33,29 @@
  * }));
  * ```
  *
+ * @example Vitest workspace verifier (preferred deterministic workspace checks)
+ * ```typescript
+ * #!/usr/bin/env bun
+ * import { defineVitestWorkspaceGrader } from '@agentv/sdk';
+ *
+ * export default defineVitestWorkspaceGrader({
+ *   testFile: 'verifiers/welcome-banner.test.ts',
+ * });
+ * ```
+ *
+ * @example Workspace grader (small file checks)
+ * ```typescript
+ * #!/usr/bin/env bun
+ * import { defineWorkspaceGrader } from '@agentv/sdk';
+ *
+ * export default defineWorkspaceGrader(async ({ workspace }) => [
+ *   await workspace.file('app/page.tsx').contains('Status: All systems ready'),
+ *   await workspace.file('app/page.tsx').contains('Open dashboard'),
+ *   await workspace.file('app/page.tsx').matches(/href=["']\/dashboard["']/),
+ *   await workspace.file('app/page.tsx').notMatches(/TODO/i),
+ * ]);
+ * ```
+ *
  * @packageDocumentation
  */
 
@@ -163,6 +186,29 @@ export {
   type TargetInvokeRequest,
   type TargetInvokeResponse,
 } from './target-client.js';
+
+// Re-export workspace grader helpers
+export {
+  createWorkspace,
+  defineWorkspaceGrader,
+  normalizeWorkspaceGraderResult,
+  runWorkspaceGrader,
+  type Workspace,
+  type WorkspaceAssertion,
+  type WorkspaceFile,
+  type WorkspaceFileAssertionOptions,
+  type WorkspaceGraderContext,
+  type WorkspaceGraderHandler,
+  type WorkspaceGraderReturn,
+} from './workspace.js';
+
+// Re-export Vitest workspace verifier adapter
+export {
+  defineVitestWorkspaceGrader,
+  runVitestWorkspaceGrader,
+  vitestReportToCodeGraderResult,
+  type VitestWorkspaceGraderOptions,
+} from './vitest.js';
 
 // Re-export Zod for typed config support
 export { z } from 'zod';
