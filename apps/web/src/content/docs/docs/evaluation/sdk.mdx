@@ -9,16 +9,16 @@ YAML remains AgentV's canonical, portable eval format. The SDK surfaces below ar
 
 AgentV currently provides two npm packages for programmatic use:
 
-- **`@agentv/sdk`** — YAML-aligned eval authoring, custom assertions, and code graders
-- **`@agentv/core`** — programmatic evaluation API and typed configuration
+- **`@agentv/sdk`** — user-facing SDK for `evaluate()`, YAML-aligned eval authoring, custom assertions, and code graders
+- **`@agentv/core`** — core implementation package and typed configuration
 
 ## Installation
 
 ```bash
-# Lightweight SDK (defineEval, graders, defineAssertion, defineCodeGrader)
+# User-facing SDK (evaluate, defineEval, graders, defineAssertion, defineCodeGrader)
 npm install @agentv/sdk
 
-# Programmatic API (evaluate, defineConfig)
+# Core configuration helpers (defineConfig)
 npm install @agentv/core
 ```
 
@@ -335,12 +335,12 @@ Raw grader stdin uses `snake_case` because it crosses a process boundary and may
 
 ## Programmatic API
 
-Use `evaluate()` from `@agentv/core` to run evaluations as a library. The most portable pattern is still to keep the suite in YAML and point `specFile` at it; inline tests are best when the eval is tightly coupled to application code.
+Use `evaluate()` from `@agentv/sdk` to run evaluations as a library. The implementation is owned by `@agentv/core`, but the SDK re-exports it as the user-facing entrypoint. The most portable pattern is still to keep the suite in YAML and point `specFile` at it; inline tests are best when the eval is tightly coupled to application code.
 
 ### Inline Test Definitions
 
 ```typescript
-import { evaluate } from '@agentv/core';
+import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
   tests: [
@@ -363,7 +363,7 @@ Auto-discovers the `default` target from `.agentv/targets.yaml` and `.env` crede
 Point to an existing YAML eval instead of inlining tests:
 
 ```typescript
-import { evaluate } from '@agentv/core';
+import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
   specFile: './evals/my-eval.eval.yaml',

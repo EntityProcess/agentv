@@ -137,6 +137,7 @@
       "name": "@agentv/sdk",
       "version": "4.42.4",
       "dependencies": {
+        "@agentv/core": "workspace:*",
         "yaml": "^2.8.3",
         "zod": "^3.23.8",
       },

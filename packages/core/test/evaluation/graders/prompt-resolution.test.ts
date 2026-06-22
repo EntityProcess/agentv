@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import {
   containsTemplateVariables,
@@ -90,15 +90,12 @@ describe('resolveCustomPrompt', () => {
   it('passes final answer as output and transcript through messages/trace to executable prompts', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'prompt-template-contract-'));
     const promptPath = path.join(tmpDir, 'prompt-template.ts');
-    const promptTemplateRuntime = pathToFileURL(
-      path.resolve(__dirname, '../../../../sdk/src/prompt-template.ts'),
-    ).href;
 
     writeFileSync(
       promptPath,
-      `import { definePromptTemplate } from ${JSON.stringify(promptTemplateRuntime)};
+      `import { readFileSync } from 'node:fs';
 
-definePromptTemplate((ctx) => {
+const ctx = JSON.parse(readFileSync(0, 'utf8'));
   if (typeof ctx.output !== 'string') {
     throw new Error('expected output to be the final answer string');
   }
@@ -115,8 +112,7 @@ definePromptTemplate((ctx) => {
     throw new Error('expected full trace with transcript messages');
   }
 
-  return \`Final: \${ctx.output}; messages: \${ctx.messages.length}; trace: \${ctx.trace.messages.length}\`;
-});
+console.log(\`Final: \${ctx.output}; messages: \${ctx.messages.length}; trace: \${ctx.trace.messages.length}\`);
 `,
     );
 

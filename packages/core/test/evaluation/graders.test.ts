@@ -1038,7 +1038,7 @@ describe('CodeGrader', () => {
     expect(failedAssertions[0].text).toContain('test-error');
   });
 
-  it('works with defineCodeGrader-based code grader', async () => {
+  it('works with code grader stdin/stdout contract', async () => {
     const graderProvider = new StubProvider(textResponse('Logging improvements applied'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
