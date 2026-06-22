@@ -76,7 +76,9 @@ ${STYLES}
 <body>
     <header class="header">
         <div class="header-left">
-            <h1 class="header-title">AgentV</h1>
+            <h1 class="header-title" aria-label="AgentV">
+                <span class="brand-letter" aria-hidden="true">A</span><span class="brand-middle" aria-hidden="true">GENT</span><span class="brand-letter" aria-hidden="true">V</span>
+            </h1>
             <span class="header-subtitle">Evaluation Report</span>
         </div>
         <div class="header-right">${liveIndicator}</div>
@@ -110,7 +112,7 @@ const STYLES = `
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
   --bg:#f6f8fa;--surface:#fff;--border:#d0d7de;--border-light:#e8ebee;
-  --text:#1f2328;--text-muted:#656d76;
+  --text:#1f2328;--text-muted:#656d76;--brand-middle:#656d76;
   --primary:#0969da;--primary-bg:#ddf4ff;
   --success:#1a7f37;--success-bg:#dafbe1;
   --danger:#cf222e;--danger-bg:#ffebe9;
@@ -126,6 +128,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 .header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
 .header-left{display:flex;align-items:baseline;gap:12px}
 .header-title{font-size:18px;font-weight:600}
+.brand-letter{color:var(--primary)}
+.brand-middle{color:var(--brand-middle)}
 .header-subtitle{font-size:14px;color:var(--text-muted)}
 .live-badge{color:var(--success);font-size:12px;font-weight:600;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}

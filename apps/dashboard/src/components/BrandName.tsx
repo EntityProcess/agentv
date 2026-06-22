@@ -7,11 +7,13 @@ export function BrandName({ appName }: { appName: string }) {
 
   return (
     <span className="av-brand-name" aria-label="AgentV">
-      <span className="text-cyan-400" aria-hidden="true">
+      <span className="av-brand-name__letter" aria-hidden="true">
         A
       </span>
-      <span aria-hidden="true">GENT</span>
-      <span className="text-cyan-400" aria-hidden="true">
+      <span className="av-brand-name__middle" aria-hidden="true">
+        GENT
+      </span>
+      <span className="av-brand-name__letter" aria-hidden="true">
         V
       </span>
     </span>
