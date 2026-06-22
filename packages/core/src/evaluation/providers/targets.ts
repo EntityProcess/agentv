@@ -425,6 +425,12 @@ export interface GeminiResolvedConfig {
 export interface CodexResolvedConfig {
   readonly model?: string;
   readonly modelReasoningEffort?: CodexModelReasoningEffort;
+  readonly modelVerbosity?: CodexModelVerbosity;
+  readonly baseUrl?: string;
+  readonly apiKey?: string;
+  readonly apiFormat?: ApiFormat;
+  readonly sandboxMode?: CodexSandboxMode;
+  readonly approvalPolicy?: CodexApprovalPolicy;
   readonly executable: string;
   readonly args?: readonly string[];
   readonly cwd?: string;
@@ -456,6 +462,8 @@ export interface CopilotCustomProviderConfig {
   readonly bearerToken?: string;
   readonly apiVersion?: string;
   readonly wireApi?: string;
+  readonly modelId?: string;
+  readonly wireModel?: string;
 }
 
 export interface CopilotSdkResolvedConfig {
@@ -610,9 +618,15 @@ const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['retryBackoffFactor', 'retry_backoff_factor'],
   ['retryStatusCodes', 'retry_status_codes'],
   ['modelReasoningEffort', 'model_reasoning_effort'],
+  ['modelVerbosity', 'model_verbosity'],
+  ['sandboxMode', 'sandbox_mode'],
+  ['approvalPolicy', 'approval_policy'],
 ]);
 
 export type CodexModelReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+export type CodexModelVerbosity = 'low' | 'medium' | 'high';
+export type CodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access';
+export type CodexApprovalPolicy = 'never' | 'on-request' | 'on-failure' | 'untrusted';
 
 const CODEX_MODEL_REASONING_EFFORT_VALUES = new Set<CodexModelReasoningEffort>([
   'minimal',
@@ -620,6 +634,21 @@ const CODEX_MODEL_REASONING_EFFORT_VALUES = new Set<CodexModelReasoningEffort>([
   'medium',
   'high',
   'xhigh',
+]);
+
+const CODEX_MODEL_VERBOSITY_VALUES = new Set<CodexModelVerbosity>(['low', 'medium', 'high']);
+
+const CODEX_SANDBOX_MODE_VALUES = new Set<CodexSandboxMode>([
+  'read-only',
+  'workspace-write',
+  'danger-full-access',
+]);
+
+const CODEX_APPROVAL_POLICY_VALUES = new Set<CodexApprovalPolicy>([
+  'never',
+  'on-request',
+  'on-failure',
+  'untrusted',
 ]);
 
 const DEPRECATED_HEALTHCHECK_CAMEL_CASE_FIELDS = new Map<string, string>([
@@ -1290,6 +1319,12 @@ function resolveCodexConfig(
 ): CodexResolvedConfig {
   const modelSource = target.model;
   const modelReasoningEffortSource = target.model_reasoning_effort;
+  const modelVerbositySource = target.model_verbosity;
+  const baseUrlSource = target.base_url ?? target.endpoint;
+  const apiKeySource = target.api_key;
+  const apiFormatSource = target.api_format;
+  const sandboxModeSource = target.sandbox_mode;
+  const approvalPolicySource = target.approval_policy;
   const executableSource = target.executable ?? target.command ?? target.binary;
   const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
@@ -1319,6 +1354,38 @@ function resolveCodexConfig(
       },
     ),
   );
+  const modelVerbosity = normalizeCodexModelVerbosity(
+    resolveOptionalString(modelVerbositySource, env, `${target.name} codex model verbosity`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+  );
+
+  const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} codex base URL`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} codex API key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
+
+  const apiFormat = resolveApiFormat({ ...target, api_format: apiFormatSource }, env, target.name);
+
+  const sandboxMode = normalizeCodexSandboxMode(
+    resolveOptionalString(sandboxModeSource, env, `${target.name} codex sandbox mode`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+  );
+
+  const approvalPolicy = normalizeCodexApprovalPolicy(
+    resolveOptionalString(approvalPolicySource, env, `${target.name} codex approval policy`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+  );
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
@@ -1347,6 +1414,12 @@ function resolveCodexConfig(
   return {
     model,
     modelReasoningEffort,
+    modelVerbosity,
+    baseUrl,
+    apiKey,
+    apiFormat,
+    sandboxMode,
+    approvalPolicy,
     executable,
     args,
     cwd,
@@ -1371,6 +1444,51 @@ function normalizeCodexModelReasoningEffort(
 
   throw new Error(
     `codex model_reasoning_effort must be one of: ${[...CODEX_MODEL_REASONING_EFFORT_VALUES].join(', ')}`,
+  );
+}
+
+function normalizeCodexModelVerbosity(value: string | undefined): CodexModelVerbosity | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (CODEX_MODEL_VERBOSITY_VALUES.has(normalized as CodexModelVerbosity)) {
+    return normalized as CodexModelVerbosity;
+  }
+
+  throw new Error(
+    `codex model_verbosity must be one of: ${[...CODEX_MODEL_VERBOSITY_VALUES].join(', ')}`,
+  );
+}
+
+function normalizeCodexSandboxMode(value: string | undefined): CodexSandboxMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (CODEX_SANDBOX_MODE_VALUES.has(normalized as CodexSandboxMode)) {
+    return normalized as CodexSandboxMode;
+  }
+
+  throw new Error(
+    `codex sandbox_mode must be one of: ${[...CODEX_SANDBOX_MODE_VALUES].join(', ')}`,
+  );
+}
+
+function normalizeCodexApprovalPolicy(value: string | undefined): CodexApprovalPolicy | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (CODEX_APPROVAL_POLICY_VALUES.has(normalized as CodexApprovalPolicy)) {
+    return normalized as CodexApprovalPolicy;
+  }
+
+  throw new Error(
+    `codex approval_policy must be one of: ${[...CODEX_APPROVAL_POLICY_VALUES].join(', ')}`,
   );
 }
 
@@ -1574,6 +1692,19 @@ function resolveCopilotFlatProviderConfig(
       optionalEnv: true,
     },
   );
+  const modelId = resolveOptionalString(target.model_id, env, `${target.name} copilot model ID`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const wireModel = resolveOptionalString(
+    target.wire_model,
+    env,
+    `${target.name} copilot wire model`,
+    {
+      allowLiteral: true,
+      optionalEnv: true,
+    },
+  );
 
   return {
     ...(type ? { type } : {}),
@@ -1582,6 +1713,8 @@ function resolveCopilotFlatProviderConfig(
     ...(bearerToken ? { bearerToken } : {}),
     ...(apiVersion ? { apiVersion } : {}),
     ...(apiFormat ? { wireApi: apiFormat } : {}),
+    ...(modelId ? { modelId } : {}),
+    ...(wireModel ? { wireModel } : {}),
   };
 }
 

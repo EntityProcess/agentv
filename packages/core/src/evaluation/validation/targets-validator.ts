@@ -99,8 +99,15 @@ const GEMINI_SETTINGS = new Set([
 
 const CODEX_SETTINGS = new Set([
   ...COMMON_SETTINGS,
+  'endpoint',
+  'base_url',
+  'api_key',
+  'api_format',
   'model',
   'model_reasoning_effort',
+  'model_verbosity',
+  'sandbox_mode',
+  'approval_policy',
   'executable',
   'command',
   'binary',
@@ -134,6 +141,8 @@ const COPILOT_SDK_SETTINGS = new Set([
   'bearer_token',
   'api_version',
   'api_format',
+  'model_id',
+  'wire_model',
 ]);
 
 const COPILOT_CLI_SETTINGS = new Set([
@@ -156,6 +165,8 @@ const COPILOT_CLI_SETTINGS = new Set([
   'bearer_token',
   'api_version',
   'api_format',
+  'model_id',
+  'wire_model',
 ]);
 
 const VSCODE_SETTINGS = new Set([

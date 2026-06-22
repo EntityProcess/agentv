@@ -129,16 +129,43 @@ describe('validateTargetsFile', () => {
       `targets:
   - name: copilot-sdk-custom-provider
     provider: copilot-sdk
+    model: gpt-5
     subprovider: openai
     base_url: \${{ OPENAI_ENDPOINT }}
     api_key: \${{ OPENAI_API_KEY }}
     api_format: responses
+    model_id: gpt-5
+    wire_model: \${{ OPENAI_MODEL }}
   - name: copilot-cli-custom-provider
     provider: copilot-cli
     subprovider: openai
     base_url: \${{ OPENAI_ENDPOINT }}
     api_key: \${{ OPENAI_API_KEY }}
     api_format: responses
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors.filter((error) => error.severity === 'warning')).toEqual([]);
+  });
+
+  it('accepts OpenAI-compatible endpoint fields on codex targets', async () => {
+    const filePath = path.join(tempDir, 'codex-openai-provider.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: codex-local-openai
+    provider: codex
+    model: \${{ CODEX_MODEL }}
+    model_reasoning_effort: medium
+    model_verbosity: medium
+    base_url: \${{ OPENAI_ENDPOINT }}
+    api_key: \${{ OPENAI_API_KEY }}
+    api_format: responses
+    sandbox_mode: danger-full-access
+    approval_policy: never
 `,
     );
 

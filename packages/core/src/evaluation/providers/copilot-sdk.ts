@@ -52,6 +52,38 @@ async function loadCopilotSdk(): Promise<typeof import('@github/copilot-sdk')> {
   return copilotSdkModule;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: SDK session type changes across versions
+async function abortCopilotSession(session: any): Promise<void> {
+  try {
+    if (typeof session?.abort === 'function') {
+      await session.abort();
+      return;
+    }
+    await cleanupCopilotSession(session);
+  } catch {
+    // Best-effort cancellation; preserve the original provider error/abort path.
+  }
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: SDK session type changes across versions
+async function cleanupCopilotSession(session: any): Promise<void> {
+  try {
+    if (typeof session?.disconnect === 'function') {
+      await session.disconnect();
+      return;
+    }
+    if (typeof session?.destroy === 'function') {
+      await session.destroy();
+      return;
+    }
+    if (typeof session?.[Symbol.asyncDispose] === 'function') {
+      await session[Symbol.asyncDispose]();
+    }
+  } catch {
+    // Cleanup should not mask the provider result or the primary failure.
+  }
+}
+
 interface ToolCallInProgress {
   readonly tool: string;
   readonly input?: unknown;
@@ -100,7 +132,7 @@ export class CopilotSdkProvider implements Provider {
     // Create a fresh session for this invocation
     // biome-ignore lint/suspicious/noExplicitAny: SDK session type is dynamically loaded
     const sessionOptions: any = {
-      onPermissionRequest: () => ({ kind: 'approved' }),
+      onPermissionRequest: sdk.approveAll ?? (() => ({ kind: 'approved' })),
     };
 
     if (this.config.model) {
@@ -138,6 +170,12 @@ export class CopilotSdkProvider implements Provider {
       }
       if (customProvider.wireApi) {
         provider.wireApi = customProvider.wireApi;
+      }
+      if (customProvider.modelId) {
+        provider.modelId = customProvider.modelId;
+      }
+      if (customProvider.wireModel) {
+        provider.wireModel = customProvider.wireModel;
       }
       if (providerType === 'azure' && customProvider.apiVersion) {
         provider.azure = { apiVersion: customProvider.apiVersion };
@@ -240,7 +278,7 @@ export class CopilotSdkProvider implements Provider {
       if (request.signal) {
         // Handle abort signal
         const abortHandler = () => {
-          session.destroy().catch(() => {});
+          void abortCopilotSession(session);
         };
         request.signal.addEventListener('abort', abortHandler, { once: true });
         try {
@@ -299,7 +337,7 @@ export class CopilotSdkProvider implements Provider {
     } finally {
       unsubscribe();
       await logger?.close();
-      await session.destroy().catch(() => {});
+      await cleanupCopilotSession(session);
     }
   }
 
@@ -309,21 +347,40 @@ export class CopilotSdkProvider implements Provider {
       // biome-ignore lint/suspicious/noExplicitAny: SDK constructor options are dynamic
       const clientOptions: any = {};
       if (this.config.cliUrl) {
-        clientOptions.cliUrl = this.config.cliUrl;
+        if (sdk.RuntimeConnection?.forUri) {
+          clientOptions.connection = sdk.RuntimeConnection.forUri(this.config.cliUrl);
+        } else {
+          clientOptions.cliUrl = this.config.cliUrl;
+        }
       }
-      if (this.config.cliPath) {
-        clientOptions.cliPath = this.config.cliPath;
+
+      if (!clientOptions.connection && (this.config.cliPath || this.config.args?.length)) {
+        if (sdk.RuntimeConnection?.forStdio) {
+          clientOptions.connection = sdk.RuntimeConnection.forStdio({
+            ...(this.config.cliPath ? { path: this.config.cliPath } : {}),
+            ...(this.config.args?.length ? { args: this.config.args } : {}),
+          });
+        } else if (this.config.cliPath) {
+          clientOptions.cliPath = this.config.cliPath;
+        }
       } else {
         // The SDK default getBundledCliPath() resolves to a JS entry that requires
         // node:sqlite (unavailable in Bun). Auto-resolve the platform-specific native
         // binary from @github/copilot-{platform}-{arch} when available.
         const nativePath = resolvePlatformCliPath();
-        if (nativePath) {
+        if (nativePath && sdk.RuntimeConnection?.forStdio && !clientOptions.connection) {
+          clientOptions.connection = sdk.RuntimeConnection.forStdio({
+            path: nativePath,
+            ...(this.config.args?.length ? { args: this.config.args } : {}),
+          });
+        } else if (nativePath) {
           clientOptions.cliPath = nativePath;
         }
       }
       // Set the subprocess cwd so --plugin-dir ./relative resolves from the eval workspace.
       const resolvedCwd = evalCwd ?? process.cwd();
+      clientOptions.workingDirectory = resolvedCwd;
+      // Backward compatibility for older @github/copilot-sdk releases.
       clientOptions.cwd = resolvedCwd;
 
       if (this.config.args && this.config.args.length > 0) {
@@ -331,6 +388,8 @@ export class CopilotSdkProvider implements Provider {
         clientOptions.cliArgs = [...this.config.args];
       }
       if (this.config.githubToken) {
+        clientOptions.gitHubToken = this.config.githubToken;
+        // Backward compatibility for older @github/copilot-sdk releases.
         clientOptions.githubToken = this.config.githubToken;
       }
       this.client = new sdk.CopilotClient(clientOptions);
