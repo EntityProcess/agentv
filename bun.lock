@@ -20,7 +20,7 @@
     },
     "apps/cli": {
       "name": "agentv",
-      "version": "4.41.1-next.1",
+      "version": "4.42.4",
       "bin": {
         "agentv": "./dist/cli.js",
       },
@@ -56,6 +56,7 @@
       "name": "@agentv/dashboard",
       "version": "0.0.1",
       "dependencies": {
+        "@agentv/core": "workspace:*",
         "@monaco-editor/react": "^4.7.0",
         "@tanstack/react-query": "^5.75.5",
         "@tanstack/react-router": "^1.120.3",
@@ -84,7 +85,7 @@
     },
     "packages/core": {
       "name": "@agentv/core",
-      "version": "4.41.1-next.1",
+      "version": "4.42.4",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@earendil-works/pi-ai": "^0.74.0",
@@ -119,7 +120,7 @@
     },
     "packages/eval": {
       "name": "@agentv/eval",
-      "version": "4.41.1-next.1",
+      "version": "4.42.4",
       "dependencies": {
         "@agentv/sdk": "workspace:*",
       },
@@ -140,7 +141,7 @@
     },
     "packages/sdk": {
       "name": "@agentv/sdk",
-      "version": "4.41.1-next.1",
+      "version": "4.42.4",
       "dependencies": {
         "yaml": "^2.8.3",
         "zod": "^3.23.8",

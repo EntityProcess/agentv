@@ -93,6 +93,69 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
+function traceSessionEnvelope(input?: {
+  runId?: string;
+  testId?: string;
+  target?: string;
+  spanName?: string;
+}): object {
+  const testId = input?.testId ?? 'test-greeting';
+  const target = input?.target ?? 'gpt-4o';
+  return {
+    schema_version: 'agentv.trace.v1',
+    artifact_id: `${testId}-trace`,
+    created_at: '2026-03-25T10:00:00.000Z',
+    eval: {
+      run_id: input?.runId ?? 'trace-run',
+      test_id: testId,
+      suite: 'demo',
+      target,
+    },
+    trace: {
+      format: 'otlp_openinference_spans',
+      trace_id: `${testId}-trace-id`,
+      root_span_id: 'root-span',
+      spans: [
+        {
+          trace_id: `${testId}-trace-id`,
+          span_id: 'root-span',
+          parent_span_id: null,
+          name: input?.spanName ?? 'invoke_agent gpt-4o',
+          kind: 'INTERNAL',
+          start_time_unix_nano: '1000000000',
+          end_time_unix_nano: '1500000000',
+          status: { code: 'OK' },
+          attributes: {
+            'gen_ai.usage.input_tokens': 7,
+            'gen_ai.usage.output_tokens': 5,
+          },
+          events: [
+            {
+              name: 'agentv.score',
+              time_unix_nano: '1400000000',
+              attributes: {
+                event_id: 'score-1',
+                score: 1,
+                text: 'Trace score',
+                passed: true,
+              },
+            },
+          ],
+        },
+      ],
+    },
+    source: {
+      kind: 'agentv_run',
+      provider: target,
+      format: 'agentv_result',
+      version: '1',
+    },
+    artifacts: {
+      trace_path: 'outputs/trace.json',
+    },
+  };
+}
+
 function cleanGitEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -3108,6 +3171,225 @@ describe('serve app', () => {
     });
   });
 
+  describe('GET /api/runs/:filename/evals/:evalId/trace-session', () => {
+    function writeLocalTraceRun(
+      projectDir: string,
+      experiment: string,
+      timestamp: string,
+      traceArtifactPath: string,
+      traceContent: string,
+      recordOverrides?: Record<string, unknown>,
+    ): string {
+      const runId = `${experiment}::${timestamp}`;
+      const runDir = path.join(projectDir, '.agentv', 'results', 'runs', experiment, timestamp);
+      const tracePath = path.join(runDir, traceArtifactPath);
+      mkdirSync(path.dirname(tracePath), { recursive: true });
+      writeFileSync(tracePath, traceContent);
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment,
+          trace_path: traceArtifactPath,
+          ...recordOverrides,
+        }),
+      );
+      return runId;
+    }
+
+    it('projects a local AgentV trace sidecar through the Dashboard read model', async () => {
+      const traceArtifactPath = 'demo/test-greeting/outputs/trace.json';
+      const runId = 'with-trace::2026-03-25T09-00-00-000Z';
+      writeLocalTraceRun(
+        tempDir,
+        'with-trace',
+        '2026-03-25T09-00-00-000Z',
+        traceArtifactPath,
+        `${JSON.stringify(traceSessionEnvelope({ runId, spanName: 'local root' }))}\n`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        schema_version: string;
+        status: string;
+        trace_path: string;
+        trace_session: {
+          schema_version: string;
+          run_id?: string;
+          test_id?: string;
+          spans: Array<{ name: string; token_usage?: { input?: number } }>;
+          events: Array<{ kind: string; score?: number }>;
+        };
+      };
+      expect(data.schema_version).toBe('agentv.dashboard.trace_artifact.v1');
+      expect(data.status).toBe('ok');
+      expect(data.trace_path).toBe(traceArtifactPath);
+      expect(data.trace_session).toMatchObject({
+        schema_version: 'agentv.dashboard.trace_session.v1',
+        run_id: runId,
+        test_id: 'test-greeting',
+      });
+      expect(data.trace_session.spans[0]).toMatchObject({
+        name: 'local root',
+        token_usage: { input: 7 },
+      });
+      expect(data.trace_session.events[0]).toMatchObject({ kind: 'score', score: 1 });
+    });
+
+    it('returns equivalent payloads for unscoped and project-scoped routes', async () => {
+      const homedirSpy = spyOn(os, 'homedir').mockReturnValue(path.join(tempDir, 'home'));
+      try {
+        const projectDir = path.join(tempDir, 'project-one');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        const project = addProject(projectDir);
+        const traceArtifactPath = 'demo/test-greeting/outputs/trace.json';
+        const runId = writeLocalTraceRun(
+          projectDir,
+          'project-trace',
+          '2026-03-25T09-30-00-000Z',
+          traceArtifactPath,
+          `${JSON.stringify(traceSessionEnvelope({ spanName: 'project root' }))}\n`,
+        );
+
+        const app = createApp([], projectDir, projectDir, undefined, { studioDir });
+        const unscoped = await app.request(
+          `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+        );
+        const scoped = await app.request(
+          `/api/projects/${project.id}/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+        );
+
+        expect(unscoped.status).toBe(200);
+        expect(scoped.status).toBe(200);
+        expect(await scoped.json()).toEqual(await unscoped.json());
+      } finally {
+        homedirSpy.mockRestore();
+      }
+    });
+
+    it('returns a typed missing state without breaking run detail', async () => {
+      const runId = writeLocalRunArtifact(
+        tempDir,
+        'missing-trace',
+        '2026-03-25T10-30-00-000Z',
+        RESULT_A,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const traceRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+      );
+      expect(traceRes.status).toBe(200);
+      const traceData = (await traceRes.json()) as {
+        schema_version: string;
+        status: string;
+        message: string;
+      };
+      expect(traceData.schema_version).toBe('agentv.dashboard.trace_artifact.v1');
+      expect(traceData.status).toBe('missing');
+      expect(traceData.message).toContain('outputs/trace.json');
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
+      expect(detailRes.status).toBe(200);
+      const detailData = (await detailRes.json()) as { results: Array<{ testId: string }> };
+      expect(detailData.results[0]?.testId).toBe('test-greeting');
+    });
+
+    it('returns a typed dangling state when the trace pointer cannot be read', async () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'dangling-trace');
+      const runId = 'dangling-trace::2026-03-25T10-45-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-45-00-000Z');
+      const artifactPath = 'demo/test-greeting/outputs/trace.json';
+
+      mkdirSync(timestampDir, { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'dangling-trace',
+          trace_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        trace_path: string;
+        message: string;
+      };
+      expect(data.status).toBe('dangling');
+      expect(data.trace_path).toBe(artifactPath);
+      expect(data.message).toContain('not available');
+    });
+
+    it('returns unsupported for trace artifacts that still need normalization', async () => {
+      const traceArtifactPath = 'demo/test-greeting/outputs/trace.json';
+      const runId = writeLocalTraceRun(
+        tempDir,
+        'unsupported-trace',
+        '2026-03-25T10-50-00-000Z',
+        traceArtifactPath,
+        `${JSON.stringify({ resourceSpans: [] })}\n`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        status: string;
+        trace_path: string;
+        message: string;
+      };
+      expect(data.status).toBe('unsupported');
+      expect(data.trace_path).toBe(traceArtifactPath);
+      expect(data.message).toContain('trace normalization pipeline');
+    });
+
+    it('rejects trace artifact paths that escape the run workspace', async () => {
+      const secret = 'outside trace secret';
+      writeFileSync(path.join(tempDir, 'outside-trace.json'), secret);
+      const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'escaped-trace');
+      const runId = 'escaped-trace::2026-03-25T11-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T11-00-00-000Z');
+      const artifactPath = '../../../../../outside-trace.json';
+
+      mkdirSync(timestampDir, { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'escaped-trace',
+          trace_path: artifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+      );
+
+      expect(res.status).toBe(403);
+      const text = await res.text();
+      expect(text).not.toContain(secret);
+      const data = JSON.parse(text) as { status: string; trace_path: string };
+      expect(data.status).toBe('rejected');
+      expect(data.trace_path).toBe(artifactPath);
+    });
+  });
+
   describe('GET /api/runs/:filename/evals/:evalId/transcript', () => {
     it('loads canonical transcript JSONL lazily from the manifest pointer', async () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'runs', 'with-transcript');
@@ -3226,11 +3508,14 @@ describe('serve app', () => {
         role: 'assistant',
         content: 'sidecar transcript body',
       })}\n`;
-      const traceJson = `${JSON.stringify({
-        schema_version: 'agentv.trace.v1',
-        test_id: 'test-greeting',
-        spans: [{ name: 'root' }],
-      })}\n`;
+      const traceJson = `${JSON.stringify(
+        traceSessionEnvelope({
+          runId,
+          testId: 'test-greeting',
+          target: 'gpt-4o',
+          spanName: 'remote root',
+        }),
+      )}\n`;
 
       git(`git switch --quiet --orphan ${resultsBranch}`, seedDir);
       git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
@@ -3333,6 +3618,21 @@ describe('serve app', () => {
       expect(transcriptData.content).toBe(transcriptJsonl);
       expect(artifactRefLookup()).toBe('present');
       expect(existsSync(path.join(cloneDir, ...transcriptKey.split('/')))).toBe(false);
+
+      const traceSessionRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/trace-session`,
+      );
+      expect(traceSessionRes.status).toBe(200);
+      const traceSessionData = (await traceSessionRes.json()) as {
+        status: string;
+        trace_path: string;
+        trace_session: { spans: Array<{ name: string }>; run_id?: string };
+      };
+      expect(traceSessionData.status).toBe('ok');
+      expect(traceSessionData.trace_path).toBe(traceArtifactPath);
+      expect(traceSessionData.trace_session.run_id).toBe(runId);
+      expect(traceSessionData.trace_session.spans[0]?.name).toBe('remote root');
+      expect(existsSync(path.join(cloneDir, ...traceKey.split('/')))).toBe(false);
 
       const traceRes = await app.request(
         `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${traceArtifactPath}?raw=1`,
@@ -3482,12 +3782,14 @@ describe('serve app', () => {
       expect(data.answer_content).toBeUndefined();
     });
 
-    it('does not read transcript bodies for list, detail, or aggregate routes', async () => {
+    it('does not read transcript or trace bodies for list, detail, or aggregate routes', async () => {
       const timestamp = '2026-03-25T14-00-00-000Z';
       const transcriptArtifactPath = 'demo/test-greeting/outputs/transcript.jsonl';
+      const traceArtifactPath = 'demo/test-greeting/outputs/trace.json';
       const runId = writeLocalRunArtifact(tempDir, 'lazy-guard', timestamp, {
         ...RESULT_A,
         transcript_path: transcriptArtifactPath,
+        trace_path: traceArtifactPath,
       });
       const timestampDir = path.join(
         tempDir,
@@ -3498,6 +3800,11 @@ describe('serve app', () => {
         timestamp,
       );
       mkdirSync(path.join(timestampDir, transcriptArtifactPath), { recursive: true });
+      mkdirSync(path.dirname(path.join(timestampDir, traceArtifactPath)), { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, traceArtifactPath),
+        'malformed trace body that list routes must not parse',
+      );
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
