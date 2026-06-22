@@ -56,12 +56,12 @@ export default defineCodeGrader(({ output, traceSummary }) => ({
 
 Both functions handle stdin/stdout parsing, snake_case conversion, Zod validation, and error handling automatically.
 
-### defineVitestWorkspaceGrader (preferred deterministic workspace checks)
+### Vitest workspace verifiers (preferred deterministic workspace checks)
 
 Use normal Vitest tests when deterministic workspace checks can be expressed with `expect(...)`:
 
 ```typescript
-// workspace-template/verifiers/welcome-banner.test.ts
+// graders/welcome-banner.test.ts
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 
@@ -71,18 +71,28 @@ it('links to the dashboard', () => {
 });
 ```
 
-Then wrap the verifier with AgentV's thin adapter:
+Then reference the verifier directly from eval YAML through AgentV's built-in code-grader adapter:
+
+```yaml
+assertions:
+  - name: vitest-welcome-banner
+    type: code-grader
+    command: [agentv, eval, vitest, graders/welcome-banner.test.ts]
+```
+
+The command reads the normal code-grader stdin payload, runs Vitest in `workspace_path`, maps each Vitest test to an AgentV assertion, and computes score as `passed / total`.
+
+Use `defineVitestWorkspaceGrader` when embedding this adapter in a custom script or when you need custom command options:
 
 ```typescript
 #!/usr/bin/env bun
 import { defineVitestWorkspaceGrader } from '@agentv/sdk';
 
 export default defineVitestWorkspaceGrader({
-  testFile: 'verifiers/welcome-banner.test.ts',
+  testFile: 'graders/welcome-banner.test.ts',
+  copyTestFilesToWorkspace: true,
 });
 ```
-
-Each Vitest test becomes an AgentV assertion and the score is `passed / total`.
 
 ### defineWorkspaceGrader (small file checks)
 
@@ -189,7 +199,7 @@ Python workflows should emit canonical YAML/JSONL or implement code graders over
 
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
 - `defineCodeGrader(handler)` - Define a code grader (full score control)
-- `defineVitestWorkspaceGrader(options)` - Run Vitest workspace verifiers and map tests to AgentV assertions
+- `defineVitestWorkspaceGrader(options)` - Embed the Vitest workspace verifier adapter in a custom script
 - `defineWorkspaceGrader(handler)` - Define a workspace-aware code grader with file assertion helpers
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite

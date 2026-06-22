@@ -124,6 +124,55 @@ process.exit(1);
     expect(argv.some((arg) => arg.startsWith('--outputFile='))).toBe(true);
   });
 
+  it('copies hidden verifier files into the workspace before running Vitest', async () => {
+    const testFileRoot = join(tmpDir, 'graders');
+    mkdirSync(testFileRoot, { recursive: true });
+    writeFileSync(
+      join(testFileRoot, 'welcome-banner.test.ts'),
+      'import { expect, it } from "vitest";\n',
+    );
+
+    const fakeVitest = join(tmpDir, 'fake-vitest-copy.ts');
+    writeFileSync(
+      fakeVitest,
+      `import { existsSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
+
+const args = process.argv.slice(2);
+const testFile = args[0];
+writeFileSync('vitest-test-file.json', JSON.stringify({
+  testFile,
+  exists: existsSync(join(process.cwd(), testFile)),
+  isAbsolute: isAbsolute(testFile),
+}));
+const outputArg = args.find((arg) => arg.startsWith('--outputFile='));
+if (!outputArg) throw new Error('missing outputFile arg');
+writeFileSync(outputArg.slice('--outputFile='.length), JSON.stringify(${JSON.stringify(mixedVitestReport)}));
+process.exit(1);
+`,
+    );
+
+    const result = await runVitestWorkspaceGrader(
+      {
+        vitestCommand: ['bun', fakeVitest],
+        testFile: 'welcome-banner.test.ts',
+        testFileRoot,
+        copyTestFilesToWorkspace: true,
+      },
+      buildInput({ workspacePath: tmpDir }),
+    );
+
+    expect(result.score).toBe(0.5);
+    const copied = JSON.parse(readFileSync(join(tmpDir, 'vitest-test-file.json'), 'utf8')) as {
+      testFile: string;
+      exists: boolean;
+      isAbsolute: boolean;
+    };
+    expect(copied.testFile).toMatch(/^\.agentv-vitest-.+\/0-welcome-banner\.test\.ts$/);
+    expect(copied.exists).toBe(true);
+    expect(copied.isAbsolute).toBe(false);
+  });
+
   it('runs a full Vitest command and parses JSON from stdout', async () => {
     const fakeVitest = join(tmpDir, 'fake-vitest-stdout.ts');
     writeFileSync(

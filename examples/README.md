@@ -53,7 +53,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 ### SDK
 
 - [code-grader-sdk](features/code-grader-sdk/) - TypeScript SDK for code graders using `defineCodeGrader()`
-- [vitest-workspace-grader](features/vitest-workspace-grader/) - TypeScript SDK adapter for Vitest workspace verifier files
+- [vitest-workspace-grader](features/vitest-workspace-grader/) - Built-in AgentV adapter for Vitest workspace verifier files
 - [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
 - [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
 - [sdk-eval-authoring](features/sdk-eval-authoring/) - YAML-aligned `.eval.ts` authoring using `defineEval()`

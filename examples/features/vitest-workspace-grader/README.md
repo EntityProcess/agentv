@@ -1,12 +1,11 @@
 # Vitest Workspace Grader
 
-Demonstrates the preferred deterministic workspace grader path: write normal Vitest tests with `expect(...)`, then use the thin `@agentv/sdk` adapter to map test results into AgentV assertions.
+Demonstrates the preferred deterministic workspace grader path: write normal Vitest tests with `expect(...)`, then let AgentV run the verifier and map test results into AgentV assertions.
 
 ## Files
 
-- `workspace-template/verifiers/welcome-banner.test.ts`: plain Vitest verifier that reads `app/page.tsx`
-- `graders/verify-welcome-banner.ts`: tiny AgentV wrapper using `defineVitestWorkspaceGrader`
-- `evals/dataset.eval.yaml`: eval case that runs the wrapper as a `code-grader`
+- `graders/welcome-banner.test.ts`: plain Vitest verifier that reads `app/page.tsx`
+- `evals/dataset.eval.yaml`: eval case that runs the verifier through `agentv eval vitest`
 - `.agentv/targets.yaml`: mock CLI target that updates the workspace
 
 ## Run
@@ -33,14 +32,15 @@ it('links to the dashboard', () => {
 });
 ```
 
-The AgentV-specific wrapper stays small:
+The eval YAML calls AgentV's built-in adapter directly:
 
-```ts
-import { defineVitestWorkspaceGrader } from '@agentv/sdk';
-
-export default defineVitestWorkspaceGrader({
-  testFile: 'verifiers/welcome-banner.test.ts',
-});
+```yaml
+assertions:
+  - name: vitest-welcome-banner
+    type: code-grader
+    command: [agentv, eval, vitest, graders/welcome-banner.test.ts]
 ```
+
+The local example uses a source-relative CLI path so it can run before the next AgentV package release. In a normal project, use the installed `agentv` binary form above.
 
 Use lower-level `defineCodeGrader` scripts when the grader needs custom scoring, multi-stage setup, external commands beyond a test runner, or structured `details` that do not map cleanly to individual test outcomes.

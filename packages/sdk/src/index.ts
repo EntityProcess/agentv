@@ -33,13 +33,14 @@
  * }));
  * ```
  *
- * @example Vitest workspace verifier (preferred deterministic workspace checks)
+ * @example Vitest workspace verifier adapter (custom wrapper form)
  * ```typescript
  * #!/usr/bin/env bun
  * import { defineVitestWorkspaceGrader } from '@agentv/sdk';
  *
  * export default defineVitestWorkspaceGrader({
- *   testFile: 'verifiers/welcome-banner.test.ts',
+ *   testFile: 'graders/welcome-banner.test.ts',
+ *   copyTestFilesToWorkspace: true,
  * });
  * ```
  *
@@ -225,6 +226,7 @@ import { type AssertionHandler, runAssertion } from './assertion.js';
 import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';
 import { type CodeGraderHandler, runCodeGrader } from './runtime.js';
 
+export { runCodeGrader };
 export type { CodeGraderHandler };
 export type { PromptTemplateHandler };
 

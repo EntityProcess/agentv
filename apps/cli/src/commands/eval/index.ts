@@ -4,6 +4,7 @@ import { evalAggregateCommand } from './commands/aggregate.js';
 import { evalAssertCommand } from './commands/assert.js';
 import { evalBundleCommand } from './commands/bundle.js';
 import { evalRunCommand } from './commands/run.js';
+import { evalVitestCommand } from './commands/vitest.js';
 
 export const evalCommand = subcommands({
   name: 'eval',
@@ -14,5 +15,6 @@ export const evalCommand = subcommands({
     assert: evalAssertCommand,
     aggregate: evalAggregateCommand,
     bundle: evalBundleCommand,
+    vitest: evalVitestCommand,
   },
 });

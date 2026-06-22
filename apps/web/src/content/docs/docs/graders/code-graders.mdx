@@ -216,7 +216,7 @@ export default defineCodeGrader(({ output, criteria }) => {
 For deterministic workspace checks, prefer a normal Vitest verifier file. This matches the common hidden-verifier pattern: read files from the prepared workspace and use `expect(...)`.
 
 ```typescript
-// workspace-template/verifiers/welcome-banner.test.ts
+// graders/welcome-banner.test.ts
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -238,25 +238,16 @@ describe('welcome banner', () => {
 });
 ```
 
-Then use the SDK adapter as the `code-grader` command. The adapter runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
-
-```typescript
-#!/usr/bin/env bun
-import { defineVitestWorkspaceGrader } from '@agentv/sdk';
-
-export default defineVitestWorkspaceGrader({
-  testFile: 'verifiers/welcome-banner.test.ts',
-});
-```
+Then use AgentV's built-in Vitest adapter as the `code-grader` command. The adapter copies verifier files into a temporary workspace-local path when needed, runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
 
 ```yaml
 assertions:
   - name: vitest-welcome-banner
     type: code-grader
-    command: [bun, run, ../graders/verify-welcome-banner.ts]
+    command: [agentv, eval, vitest, graders/welcome-banner.test.ts]
 ```
 
-Use `defineVitestWorkspaceGrader({ command: ["bun", "run", "verify:workspace"], appendReporterArgs: true })` when the workspace already has a Vitest package script. See `examples/features/vitest-workspace-grader/` for a runnable example.
+Use `agentv eval vitest --in-workspace verifiers/welcome-banner.test.ts` when the verifier file is already materialized inside the prepared workspace. Use the SDK's `defineVitestWorkspaceGrader()` only when embedding the adapter in a custom script or custom command. See `examples/features/vitest-workspace-grader/` for a runnable example.
 
 ### Lower-Level Workspace Helpers
 

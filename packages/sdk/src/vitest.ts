@@ -6,7 +6,7 @@
  * result contract.
  */
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -15,12 +15,24 @@ import { type CodeGraderInput, type CodeGraderResult, CodeGraderResultSchema } f
 
 export interface VitestWorkspaceGraderOptions {
   /**
-   * Vitest verifier file(s), relative to the prepared workspace.
+   * Vitest verifier file(s). By default these are relative to the prepared
+   * workspace. When `copyTestFilesToWorkspace` is true, relative paths resolve
+   * from `testFileRoot` instead.
    *
    * When provided without `command`, the adapter runs
    * `bunx vitest run <testFile> --reporter=json --outputFile <tmp>`.
    */
   readonly testFile?: string | readonly string[];
+  /**
+   * Copy `testFile` entries into a temporary directory inside the workspace
+   * before running Vitest. Use this for hidden verifier files that live beside
+   * the eval instead of inside the prepared workspace.
+   */
+  readonly copyTestFilesToWorkspace?: boolean;
+  /**
+   * Base directory for copied `testFile` entries. Defaults to `process.cwd()`.
+   */
+  readonly testFileRoot?: string;
   /**
    * Full command to run. Use this for package scripts such as
    * `["bun", "run", "verify:workspace"]`.
@@ -123,13 +135,16 @@ function normalizeTestFiles(testFile: string | readonly string[] | undefined): r
   return typeof testFile === 'string' ? [testFile] : [...testFile];
 }
 
-function buildCommand(options: VitestWorkspaceGraderOptions) {
+function buildCommand(
+  options: VitestWorkspaceGraderOptions,
+  testFiles: readonly string[] = normalizeTestFiles(options.testFile),
+) {
   if (options.command && options.command.length > 0) {
     return [...options.command];
   }
 
   const command = [...(options.vitestCommand ?? ['bunx', 'vitest', 'run'])];
-  command.push(...normalizeTestFiles(options.testFile));
+  command.push(...testFiles);
   return command;
 }
 
@@ -268,6 +283,38 @@ function runCommand(
   });
 }
 
+function resolveSourceTestFile(testFileRoot: string, testFile: string): string {
+  if (!testFile.trim()) {
+    throw new Error('testFile entries must not be empty.');
+  }
+
+  return nodePath.isAbsolute(testFile)
+    ? nodePath.resolve(testFile)
+    : nodePath.resolve(testFileRoot, testFile);
+}
+
+async function copyTestFilesIntoWorkspace(
+  testFiles: readonly string[],
+  options: Pick<VitestWorkspaceGraderOptions, 'testFileRoot'>,
+  cwd: string,
+): Promise<{ readonly testFiles: readonly string[]; readonly tempDir?: string }> {
+  if (testFiles.length === 0) {
+    return { testFiles };
+  }
+
+  const tempDir = await mkdtemp(nodePath.join(cwd, '.agentv-vitest-'));
+  const testFileRoot = nodePath.resolve(options.testFileRoot ?? process.cwd());
+  const copiedFiles = await Promise.all(
+    testFiles.map(async (testFile, index) => {
+      const sourcePath = resolveSourceTestFile(testFileRoot, testFile);
+      const destinationPath = nodePath.join(tempDir, `${index}-${nodePath.basename(testFile)}`);
+      await copyFile(sourcePath, destinationPath);
+      return nodePath.relative(cwd, destinationPath);
+    }),
+  );
+  return { testFiles: copiedFiles, tempDir };
+}
+
 async function readVitestReport(
   commandResult: CommandResult,
   outputFile: string | undefined,
@@ -299,19 +346,29 @@ export async function runVitestWorkspaceGrader(
     };
   }
 
-  let tempDir: string | undefined;
+  const tempDirs: string[] = [];
   try {
     const cwd = options.cwd
       ? resolveInsideWorkspace(workspacePath, options.cwd, 'cwd', { allowRoot: true })
       : workspacePath;
-    const command = buildCommand(options);
+    const testFiles = normalizeTestFiles(options.testFile);
+    const preparedTestFiles =
+      options.copyTestFilesToWorkspace === true
+        ? await copyTestFilesIntoWorkspace(testFiles, options, cwd)
+        : { testFiles };
+    if (preparedTestFiles.tempDir) {
+      tempDirs.push(preparedTestFiles.tempDir);
+    }
+
+    const command = buildCommand(options, preparedTestFiles.testFiles);
     const appendReporterArgs = options.appendReporterArgs ?? options.command === undefined;
     let outputFile = options.outputFile
       ? resolveInsideWorkspace(cwd, options.outputFile, 'outputFile')
       : undefined;
 
     if (appendReporterArgs) {
-      tempDir = await mkdtemp(nodePath.join(tmpdir(), 'agentv-vitest-'));
+      const tempDir = await mkdtemp(nodePath.join(tmpdir(), 'agentv-vitest-'));
+      tempDirs.push(tempDir);
       outputFile = nodePath.join(tempDir, 'results.json');
       command.push('--reporter=json', `--outputFile=${outputFile}`);
     }
@@ -340,7 +397,7 @@ export async function runVitestWorkspaceGrader(
       ],
     };
   } finally {
-    if (tempDir) {
+    for (const tempDir of tempDirs.reverse()) {
       await rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
   }
