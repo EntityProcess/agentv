@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { preprocessArgv, usesDeprecatedStudioAlias } from '../../src/index.js';
+import {
+  preprocessArgv,
+  shouldRunBeforeSessionHook,
+  usesDeprecatedStudioAlias,
+} from '../../src/index.js';
 
 describe('preprocessArgv', () => {
   describe('--eval-id convenience alias', () => {
@@ -28,6 +32,11 @@ describe('preprocessArgv', () => {
 
     it('does not insert `run` for eval bundle', () => {
       const argv = ['node', 'agentv', 'eval', 'bundle', 'evals/demo.eval.yaml', '--out', 'bundle'];
+      expect(preprocessArgv(argv)).toEqual(argv);
+    });
+
+    it('does not insert `run` for eval vitest', () => {
+      const argv = ['node', 'agentv', 'eval', 'vitest', 'graders/welcome-banner.test.ts'];
       expect(preprocessArgv(argv)).toEqual(argv);
     });
 
@@ -83,6 +92,26 @@ describe('preprocessArgv', () => {
     it('does not modify top-level `dashboard`', () => {
       const argv = ['node', 'agentv', 'dashboard', '--single'];
       expect(preprocessArgv(argv)).toEqual(argv);
+    });
+  });
+
+  describe('before_session hook guard', () => {
+    it('skips before_session hooks for the Vitest protocol adapter', () => {
+      expect(
+        shouldRunBeforeSessionHook([
+          'node',
+          'agentv',
+          'eval',
+          'vitest',
+          'graders/welcome-banner.test.ts',
+        ]),
+      ).toBe(false);
+    });
+
+    it('keeps before_session hooks for normal eval runs', () => {
+      expect(shouldRunBeforeSessionHook(['node', 'agentv', 'eval', 'run', 'evals/demo.yaml'])).toBe(
+        true,
+      );
     });
   });
 });

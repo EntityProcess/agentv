@@ -17,14 +17,14 @@
   "files": ["dist", "README.md"],
   "scripts": {
     "dev": "bun src/cli.ts",
-    "build": "tsup && bun run copy-readme",
+    "build": "(cd ../../packages/sdk && bun run build) && tsup && bun run copy-readme",
     "copy-readme": "bun -e \"import { cpSync } from 'fs'; cpSync('../../README.md', 'README.md')\"",
     "prepublishOnly": "node -e \"if(process.env.ALLOW_PUBLISH!=='1'){console.error('ERROR: Use bun run publish:next, then bun run promote:latest');process.exit(1)}\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "(cd ../../packages/sdk && bun run build) && tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
     "fix": "biome check --write .",
-    "test": "bun test",
+    "test": "(cd ../../packages/sdk && bun run build) && bun test",
     "test:watch": "bun test --watch"
   },
   "dependencies": {
@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@agentv/core": "workspace:*",
+    "@agentv/sdk": "workspace:*",
     "@types/semver": "^7.7.1",
     "execa": "^9.3.0"
   }

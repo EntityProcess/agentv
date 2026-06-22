@@ -47,11 +47,13 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [local-cli](features/local-cli/) - Local CLI targets
 - [compare](features/compare/) - Baseline comparison
 - [deterministic-graders](features/deterministic-graders/) - Deterministic assertions (contains, regex, JSON validation)
+- [vitest-workspace-grader](features/vitest-workspace-grader/) - Vitest-style deterministic workspace verifiers
 - [workspace-setup-script](features/workspace-setup-script/) - Multi-step workspace setup with `before_all` lifecycle hook
 
 ### SDK
 
 - [code-grader-sdk](features/code-grader-sdk/) - TypeScript SDK for code graders using `defineCodeGrader()`
+- [vitest-workspace-grader](features/vitest-workspace-grader/) - Built-in AgentV adapter for Vitest workspace verifier files
 - [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
 - [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
 - [sdk-eval-authoring](features/sdk-eval-authoring/) - YAML-aligned `.eval.ts` authoring using `defineEval()`

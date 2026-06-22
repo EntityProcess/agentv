@@ -61,7 +61,7 @@ export const app = subcommands({
  * Known eval subcommand names — used to decide whether to inject the
  * implicit `run` subcommand for backward-compatible `agentv eval <paths>`.
  */
-const EVAL_SUBCOMMANDS = new Set(['run', 'assert', 'aggregate', 'bundle']);
+const EVAL_SUBCOMMANDS = new Set(['run', 'assert', 'aggregate', 'bundle', 'vitest']);
 
 /**
  * Top-level CLI command names (excluding `eval` itself).
@@ -94,6 +94,10 @@ const TOP_LEVEL_COMMANDS = new Set([
 
 export function usesDeprecatedStudioAlias(argv: string[]): boolean {
   return argv[2] === 'studio';
+}
+
+export function shouldRunBeforeSessionHook(argv: string[]): boolean {
+  return !(argv[2] === 'eval' && argv[3] === 'vitest');
 }
 
 /**
@@ -162,14 +166,16 @@ export async function runCli(argv: string[] = process.argv): Promise<void> {
     );
   }
 
-  // Run before_session hook once at startup, before any command executes.
-  // Uses cwd as the search root for .agentv/config.yaml.
-  const cwd = process.cwd();
-  const repoRoot = await findRepoRoot(cwd);
-  const sessionConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
-  const beforeSessionCommand = sessionConfig?.hooks?.before_session;
-  if (beforeSessionCommand) {
-    runBeforeSessionHook(beforeSessionCommand);
+  if (shouldRunBeforeSessionHook(processedArgv)) {
+    // Run before_session hook once at startup, before any command executes.
+    // Uses cwd as the search root for .agentv/config.yaml.
+    const cwd = process.cwd();
+    const repoRoot = await findRepoRoot(cwd);
+    const sessionConfig = await loadConfig(path.join(cwd, '_'), repoRoot);
+    const beforeSessionCommand = sessionConfig?.hooks?.before_session;
+    if (beforeSessionCommand) {
+      runBeforeSessionHook(beforeSessionCommand);
+    }
   }
 
   await run(binary(app), processedArgv);
