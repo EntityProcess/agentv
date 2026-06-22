@@ -45,6 +45,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - For browser or screenshot UAT, keep evidence out of the public repo and publish reviewable artifacts to an `agentv-private` evidence branch. See [.agents/verification.md](.agents/verification.md).
 - Wire formats are `snake_case`; internal TypeScript is `camelCase`. Translate only at the boundary.
 - In AgentV, a `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite. Do not collapse those terms.
+- `artifact_pointers` are an offload indirection for large detached payload bytes, such as trace and transcript artifacts. Do not use them as the discovery path for ordinary per-case sidecars; expose those with explicit index/manifest path fields such as `metrics_path`.
 
 ## Repo Map
 
