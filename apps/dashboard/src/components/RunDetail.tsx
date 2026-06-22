@@ -22,11 +22,11 @@ import { Link } from '@tanstack/react-router';
 import type { EvalResult } from '~/lib/types';
 
 import { useRunLog, useStudioConfig } from '~/lib/api';
+import { findPhoenixExternalTraceUrl } from '~/lib/external-trace-link';
 import { summarizeQuality } from '~/lib/result-summary';
 import { formatCategoryDisplay } from '~/lib/run-detail-context';
 
 import { PassRatePill } from './PassRatePill';
-import { PhoenixLinkedSessionPanel } from './PhoenixLinkedSessionPanel';
 import { ResultTable } from './ResultTable';
 import { StatsCards } from './StatsCards';
 
@@ -114,6 +114,7 @@ function buildCategoryGroups(results: EvalResult[], passThreshold: number): Cate
 export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
+  const phoenixUrl = findPhoenixExternalTraceUrl(results);
 
   const total = results.length;
   const summary = summarizeQuality(results, passThreshold);
@@ -125,7 +126,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
     return (
       <div className="space-y-6">
         <StatsCards total={0} passed={0} failed={0} passRate={0} />
-        <PhoenixLinkedSessionPanel runId={runId} projectId={projectId} />
+        <ExternalTraceLink href={phoenixUrl} />
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
           <p className="text-lg text-gray-400">No evaluations found</p>
           <p className="mt-2 text-sm text-gray-500">This run has no results yet.</p>
@@ -145,7 +146,7 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
         totalCost={totalCost > 0 ? totalCost : undefined}
       />
 
-      <PhoenixLinkedSessionPanel runId={runId} projectId={projectId} />
+      <ExternalTraceLink href={phoenixUrl} />
 
       {/* Category Breakdown */}
       <div>
@@ -245,6 +246,29 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
       />
 
       <ConsoleLogSection runId={runId} projectId={projectId} />
+    </div>
+  );
+}
+
+function ExternalTraceLink({ href }: { href?: string }) {
+  if (!href) return null;
+
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-gray-200">External trace</h3>
+          <p className="mt-1 text-sm text-gray-500">Phoenix</p>
+        </div>
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-md border border-cyan-900/70 px-2.5 py-1 text-sm font-medium text-cyan-300 transition-colors hover:border-cyan-700 hover:bg-cyan-950/40 hover:text-cyan-200 hover:underline"
+        >
+          Open in Phoenix
+        </a>
+      </div>
     </div>
   );
 }

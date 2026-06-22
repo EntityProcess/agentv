@@ -11,7 +11,7 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 - Phoenix is optional external trace infrastructure only when Codex, Arize, or another hook already emitted spans independently; AgentV may correlate with those sessions but does not write AgentV artifacts into Phoenix.
 - Harbor stays an optional benchmark-grade runner boundary, not AgentV core.
 - AgentV YAML remains the authoring surface even when execution moves behind another runner; prefer a lightweight translation layer over duplicated specs.
-- Adapters, workers, and artifact projections are preferred over rebuilding adjacent platforms inside AgentV, except Phoenix: Phoenix integration is read-only correlation/read-through and not an AgentV-to-Phoenix projection path.
+- Adapters, workers, and artifact projections are preferred over rebuilding adjacent platforms inside AgentV, except Phoenix: Phoenix integration is link-out correlation only and not an AgentV-to-Phoenix projection path.
 
 ## Phase 1: Finish the artifact and local inspection foundation
 
@@ -19,12 +19,12 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 - Finish the vendor-neutral local export seams that let completed runs be re-read, compared, exported, and attached to non-Phoenix adapters without vendor-specific logic in core.
 - Keep OTLP/OpenInference mapping generic and reusable before building backend-specific upload or import paths.
 
-## Phase 2: Keep Phoenix read-only and externally owned
+## Phase 2: Keep Phoenix link-only and externally owned
 
 - Document the Phoenix boundary across public docs, CLI help, Dashboard copy, and AI-facing guides.
-- Allow optional read-only Phoenix session links or views through Phoenix GraphQL/API when safe `external_trace` metadata points at spans emitted independently by Codex, Arize, or another hook.
+- Allow optional Phoenix links when safe `external_trace` metadata points at spans emitted independently by Codex, Arize, or another hook.
 - Keep Phoenix from owning AgentV transcript, index, run, dataset, experiment, or storage state.
-- Keep Dashboard free of a Phoenix runtime dependency: no `px` CLI requirement and no direct reads from Phoenix database tables.
+- Keep Dashboard free of a Phoenix runtime dependency: no `px` CLI requirement, no Phoenix GraphQL/REST proxy, and no direct reads from Phoenix database tables.
 
 ## Phase 3: Strengthen the local cockpit and the product boundary
 
@@ -38,7 +38,7 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 - Harbor: move toward Harbor becoming the benchmark-grade runner behind a lightweight translation layer from AgentV YAML, while AgentV stays the authoring, gating, import, and comparison surface.
 - Harbor: in the near term, launch or import benchmark-grade runs through a runner boundary; over time, converge on Harbor as the execution layer for the suites it already owns.
 - Opik and similar systems: consume completed AgentV projection bundles as post-run adapters rather than as runtime owners.
-- Phoenix: remain excluded from AgentV post-run export/projection; use read-only correlation/read-through only.
+- Phoenix: remain excluded from AgentV post-run export/projection; use link-out correlation only.
 - Additional observability backends should reuse the same projection and export seams instead of adding new core product models.
 
 ## Not On This Roadmap

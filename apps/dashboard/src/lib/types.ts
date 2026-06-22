@@ -152,95 +152,25 @@ export interface SourceTraceability {
 
 export type ExternalTraceMetadata = CoreExternalTraceMetadata;
 
-export interface PhoenixLinkedSessionTokenUsage {
-  input?: number;
-  output?: number;
-  reasoning?: number;
-  cached?: number;
-  total?: number;
-}
-
-export interface PhoenixLinkedSessionAnnotation {
-  id?: string;
-  name?: string;
-  annotator_kind?: string;
-  label?: string;
-  score?: number;
-  explanation?: string;
-  target?: 'session' | 'trace' | 'span';
-  target_id?: string;
-  result?: unknown;
-}
-
-export interface PhoenixLinkedSessionSpan {
-  span_id: string;
-  trace_id?: string;
-  parent_span_id?: string;
-  name?: string;
-  span_kind?: string;
-  status?: string;
-  start_time?: string;
-  end_time?: string;
-  duration_ms?: number;
-  input?: unknown;
-  output?: unknown;
-  token_usage?: PhoenixLinkedSessionTokenUsage;
-  cost_usd?: number;
-  attributes?: Record<string, unknown>;
-  annotations?: PhoenixLinkedSessionAnnotation[];
-}
-
-export interface PhoenixLinkedSessionTraceNode extends PhoenixLinkedSessionSpan {
-  depth: number;
-  child_count: number;
-}
-
-export interface PhoenixLinkedSessionTurn {
-  index: number;
-  trace_id?: string;
-  start_time?: string;
-  end_time?: string;
-  duration_ms?: number;
-  status?: string;
-  root_span_id?: string;
-  input?: unknown;
-  output?: unknown;
-  token_usage?: PhoenixLinkedSessionTokenUsage;
-  cost_usd?: number;
-  annotations?: PhoenixLinkedSessionAnnotation[];
-}
-
-export interface PhoenixLinkedSessionSummary {
-  id?: string;
-  session_id?: string;
-  project_id?: string;
+export interface CamelExternalTraceMetadata {
+  provider?: string;
+  source?: string;
+  endpoint?: string;
+  profile?: string;
   project?: string;
-  start_time?: string;
-  end_time?: string;
-  duration_ms?: number;
-  trace_count: number;
-  token_usage?: PhoenixLinkedSessionTokenUsage;
-  cost_usd?: number;
-  annotations?: PhoenixLinkedSessionAnnotation[];
-}
-
-export interface PhoenixLinkedSessionResponse {
-  schema_version: 'agentv.dashboard.phoenix_session.v1';
-  status:
-    | 'ok'
-    | 'missing_external_trace'
-    | 'not_configured'
-    | 'unresolved'
-    | 'unreachable'
-    | 'schema_mismatch';
-  message?: string;
-  external_trace?: ExternalTraceMetadata;
-  open_in_phoenix_url?: string;
-  session?: PhoenixLinkedSessionSummary;
-  turns?: PhoenixLinkedSessionTurn[];
-  spans?: PhoenixLinkedSessionSpan[];
-  trace_tree?: PhoenixLinkedSessionTraceNode[];
-  annotations?: PhoenixLinkedSessionAnnotation[];
+  projectId?: string;
+  sessionId?: string;
+  sessionNodeId?: string;
+  traceId?: string;
+  traceNodeId?: string;
+  spanId?: string;
+  spanNodeId?: string;
+  traceparent?: string;
+  tracestate?: string;
+  uiUrl?: string;
+  runId?: string;
+  testId?: string;
+  target?: string;
 }
 
 export type TraceSessionTokenUsage = CoreTraceSessionTokenUsage;
@@ -276,6 +206,8 @@ export interface EvalResult {
   output?: string;
   _toolCalls?: Record<string, unknown>;
   _graderDurationMs?: number;
+  external_trace?: ExternalTraceMetadata;
+  externalTrace?: CamelExternalTraceMetadata;
   metadata?: Record<string, unknown>;
   source_traceability?: SourceTraceability;
 }

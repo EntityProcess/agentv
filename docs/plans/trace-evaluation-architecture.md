@@ -22,8 +22,8 @@ the read-only Phoenix correlation boundary in
 [docs/adr/2026-06-21-phoenix-read-only-correlation-boundary.md](../adr/2026-06-21-phoenix-read-only-correlation-boundary.md).
 Do not use this plan as current Phoenix product scope. AgentV does not export,
 import, or project completed runs, traces, transcripts, datasets, experiments,
-or indexes into Phoenix. Phoenix is optional read-only GraphQL/API
-correlation/read-through only when safe `external_trace` metadata points to
+or indexes into Phoenix. Phoenix is optional link-out correlation only when
+safe `external_trace` metadata points to
 spans already emitted independently by Codex, Arize, or another hook.
 
 ---
@@ -50,7 +50,7 @@ The best-practice direction is clear: larger players own trace stores, dashboard
 
 - R6. AgentV OTLP export must continue to emit standards-aligned GenAI spans, especially `invoke_agent`, `chat`, and `execute_tool` operations.
 - R7. AgentV must map trace artifacts to and from OTLP/OpenInference-style traces without making Phoenix-specific assumptions in core.
-- R8. Phoenix integration, if present, must be read-only correlation/read-through for externally emitted traces; Phoenix must not become the AgentV trace, dataset, experiment, transcript, or index backend.
+- R8. Phoenix integration, if present, must be link-out correlation for externally emitted traces; Phoenix must not become the AgentV trace, dataset, experiment, transcript, or index backend.
 - R9. Unsupported or lossy mappings must be explicit in conversion reports instead of silently approximated.
 
 **Post-Hoc Trace And Transcript Evaluation**
@@ -212,9 +212,9 @@ The exact schema belongs in implementation, but these concepts should be stable:
 ### U4. Phoenix Read-Only Correlation Path
 
 - **Goal:** Superseded for this plan by the 2026-06-21 Phoenix boundary ADR. Phoenix can be an external trace reference when spans were emitted independently, but it is not an AgentV trace, dataset, experiment, transcript, or index backend.
-- **Files:** Future read-through belongs outside core and should use Phoenix GraphQL/API plus safe `external_trace` metadata.
+- **Files:** Phoenix links belong outside core and should use safe `external_trace` metadata.
 - **Patterns:** Keep AgentV artifacts canonical. Do not add AgentV-to-Phoenix export/projection, direct Phoenix database access, `px` runtime requirements, or Phoenix-owned indexes.
-- **Test Scenarios:** Future read-through should prove missing Phoenix state degrades cleanly and that secrets are not surfaced from `external_trace` metadata.
+- **Test Scenarios:** Phoenix link-out should prove missing metadata degrades cleanly and that secrets are not surfaced from `external_trace` metadata.
 - **Verification:** Dashboard and AgentV result inspection must continue to work without Phoenix installed or running.
 
 ### U5. Pi Session Importer
@@ -346,7 +346,7 @@ Outside this product's identity:
 - **Lossy imports:** Some sources lack tool timing, outputs, status, or branch data. Mitigation: record provenance and warning metadata instead of fabricating precision.
 - **Artifact size:** Full trace artifacts can be large. Mitigation: keep compact summaries as default result metadata and store full trace artifacts as optional sidecar artifacts.
 - **Privacy mistakes:** Tool args/results may contain secrets or PII. Mitigation: default to redacted content and centralize capture policy.
-- **Phoenix scope creep:** It is tempting to mirror Phoenix concepts in core. Mitigation: keep Phoenix read-through outside core, read-only, and driven by safe `external_trace` metadata; do not add Phoenix dataset or experiment projection.
+- **Phoenix scope creep:** It is tempting to mirror Phoenix concepts in core. Mitigation: keep Phoenix link-out outside core and driven by safe `external_trace` metadata; do not add Phoenix dataset or experiment projection.
 
 ---
 

@@ -6,9 +6,9 @@ Status: Superseded in part by [2026-06-21 Phoenix read-only correlation boundary
 
 This ADR remains useful for the narrower point that Phoenix-specific behavior
 does not belong in `packages/core`. Its earlier allowance for Phoenix dataset,
-experiment, trace import/export helpers is superseded: Phoenix is now read-only
-correlation/read-through for externally emitted traces, not an AgentV artifact
-projection target.
+experiment, trace import/export helpers is superseded: Phoenix is now link-out
+correlation for externally emitted traces, not an AgentV artifact projection
+target or Dashboard Phoenix-runtime dependency.
 
 ## Context
 
@@ -39,7 +39,7 @@ Phoenix integration should live outside core behind an adapter boundary, current
 
 - a Phoenix OTel backend resolver;
 - Phoenix/OpenInference span-kind mapping;
-- read-only Phoenix GraphQL/API helpers for externally emitted trace/session correlation;
+- link-out helpers for externally emitted trace/session correlation;
 - explicit unsupported/lossy mapping reports.
 
 ## Minimal extension seam
@@ -47,7 +47,7 @@ Phoenix integration should live outside core behind an adapter boundary, current
 Historical note: this ADR originally considered a first-class `--otel-backend phoenix`
 ergonomics path. That must not be used to make Phoenix a Dashboard dependency or
 an AgentV-owned artifact destination. Any future Phoenix work should be framed as
-read-only correlation/read-through for externally emitted spans.
+link-out correlation for externally emitted spans.
 
 A resolver should be approximately:
 
@@ -82,7 +82,7 @@ The earlier prototype exposed a resolver, for example `phoenixOtelBackend`, so u
    - `--otel-file` for offline OTLP JSON export
 2. Add a tiny backend resolver seam only if ergonomic backend names are needed.
 3. Implement Phoenix endpoint/header/project routing in the Phoenix adapter boundary, not in core.
-4. Keep any Phoenix read-through behavior outside core and behind Phoenix GraphQL/API.
+4. Keep Phoenix out of Dashboard runtime fetch paths; use safe external links instead.
 5. Consider moving existing vendor-specific core presets to the same resolver model later, but do not couple that cleanup to the Phoenix decision unless the implementation already touches the preset registry.
 
 ## Consequences
@@ -91,7 +91,7 @@ Positive:
 
 - Keeps core aligned with AgentV's lightweight-core and composition principles.
 - Prevents Phoenix concepts from leaking into the generic trace model.
-- Gives Phoenix users a read-only correlation path without blocking generic OTLP users.
+- Gives Phoenix users a link-out correlation path without blocking generic OTLP users.
 - Reuses AgentV's existing pattern of narrow registries and convention-based local discovery.
 
 Negative:
@@ -102,7 +102,7 @@ Negative:
 
 ## Tracker impact
 
-- `av-vwa.6` remains valid only for generic trace artifacts and OTLP/OpenInference shapes. Phoenix-specific read-through stays outside core and must not become AgentV-to-Phoenix artifact projection.
+- `av-vwa.6` remains valid only for generic trace artifacts and OTLP/OpenInference shapes. Phoenix-specific link-out metadata must not become AgentV-to-Phoenix artifact projection or Dashboard runtime fetching.
 - `av-vwa.6.1` is superseded as a Phoenix preset/resolver task unless it is reframed under the read-only external-trace correlation boundary.
 
 ## Open questions

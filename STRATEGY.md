@@ -40,7 +40,7 @@ _Why it serves the approach:_ Portable artifacts let local runs, CI, static repo
 
 ### Adapter-led integrations
 
-Add Phoenix, Harbor, Opik, Langfuse, and similar systems through narrow correlation, runner, adapter, or export boundaries rather than copying their product models into core. For Phoenix specifically, the supported boundary is read-only correlation/read-through from safe `external_trace` metadata; AgentV does not export or project completed runs, traces, transcripts, datasets, experiments, or indexes into Phoenix.
+Add Phoenix, Harbor, Opik, Langfuse, and similar systems through narrow correlation, runner, adapter, or export boundaries rather than copying their product models into core. For Phoenix specifically, the supported boundary is link-out correlation from safe `external_trace` metadata; AgentV does not read through, export, or project completed runs, traces, transcripts, datasets, experiments, or indexes into Phoenix.
 
 _Why it serves the approach:_ This expands AgentV's reach without turning it into a hosted observability stack, benchmark platform, or integration kitchen sink.
 

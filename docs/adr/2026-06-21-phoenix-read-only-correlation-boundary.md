@@ -27,15 +27,17 @@ AgentV-owned run artifacts and the local Dashboard remain the supported
 zero-infra inspection path for AgentV run, trace, session, transcript, and
 comparison data.
 
-Phoenix integration, when present, is read-only correlation/read-through:
+Phoenix integration, when present, is link-out correlation:
 
 - AgentV artifacts may carry safe `external_trace` metadata that identifies an
   external Phoenix trace or session.
-- Dashboard or CLI features may use Phoenix GraphQL/API to read that external
-  session in a future follow-up.
+- Dashboard may expose an `Open in Phoenix` link when that metadata includes a
+  safe UI URL.
 - Phoenix does not own AgentV transcript, index, run, dataset, experiment, or
   storage state.
 - Dashboard must not require the `px` CLI at runtime.
+- Dashboard must not proxy Phoenix GraphQL/REST or duplicate Phoenix sessions,
+  traces, or spans in AgentV UI.
 - Dashboard must not query Phoenix database tables directly.
 - The local Dashboard path must work without any Phoenix runtime dependency.
 
@@ -50,8 +52,8 @@ Positive:
 
 - Keeps AgentV's source of truth portable across local development and CI.
 - Avoids a second write path for run, transcript, trace, and index state.
-- Leaves room for optional Phoenix read-through without coupling Dashboard to a
-  Phoenix runtime, database schema, or CLI.
+- Keeps Phoenix useful as an external viewer without coupling Dashboard to a
+  Phoenix runtime, database schema, API, or CLI.
 
 Negative:
 
@@ -61,8 +63,9 @@ Negative:
 
 ## Follow-up
 
-`av-kve.7` may add read-only Phoenix GraphQL/API read-through for externally
-emitted sessions that are already referenced by `external_trace` metadata. That
-work must not add AgentV-to-Phoenix export/projection, direct Phoenix database
-access, `px` runtime requirements, Phoenix-owned indexes, or Phoenix transcript
-ingestion.
+`av-2il.5` removes the Dashboard Phoenix runtime fetch path and keeps only a
+link-out affordance for externally emitted sessions that are already referenced
+by safe `external_trace` metadata. Future work must not add AgentV-to-Phoenix
+export/projection, direct Phoenix database access, `px` runtime requirements,
+Phoenix-owned indexes, Phoenix transcript ingestion, or embedded Phoenix
+session/span UI.

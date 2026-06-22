@@ -10,7 +10,6 @@
  *   - GET /api/runs   — list available run workspaces with metadata
  *   - GET /api/runs/:filename — load results from a specific run workspace
  *   - GET /api/runs/:filename/log — stream the captured console.log for a run
- *   - GET /api/runs/:filename/phoenix-session — read linked Phoenix session data
  *   - GET /api/runs/:filename/evals/:evalId/files/* — read artifact files as JSON,
  *     or as raw/downloadable text with ?raw=1 / ?download=1
  *   - GET /api/runs/:filename/evals/:evalId/trace-session — read an AgentV
@@ -64,6 +63,7 @@ import {
   loadConfig,
   loadProjectRegistry,
   normalizeTraceArtifactToTraceSessionResponse,
+  omitExternalTraceMetadataKeys,
   readGitResultArtifact,
   removeProject,
   syncProjects,
@@ -92,7 +92,6 @@ import {
   loadManifestResults,
   parseResultManifest,
 } from './manifest.js';
-import { readPhoenixLinkedSession } from './phoenix-readthrough.js';
 import {
   type SourcedResultFileMeta,
   clearRemoteRunTags,
@@ -663,12 +662,19 @@ function parseTraceArtifactJson(content: string): { value?: unknown; message?: s
 
 function stripHeavyFields(results: readonly EvaluationResult[]) {
   return results.map((r) => {
-    const { requests, trace, ...rest } = r as EvaluationResult & Record<string, unknown>;
+    const {
+      requests,
+      trace,
+      metadata: rawMetadata,
+      ...rest
+    } = r as EvaluationResult & Record<string, unknown>;
+    const metadata = omitExternalTraceMetadataKeys(rawMetadata as Record<string, unknown>);
     const toolCalls =
       trace?.toolCalls && Object.keys(trace.toolCalls).length > 0 ? trace.toolCalls : undefined;
     const graderDurationMs = (r.scores ?? []).reduce((sum, s) => sum + (s.durationMs ?? 0), 0);
     return {
       ...rest,
+      ...(metadata && { metadata }),
       ...(toolCalls && { _toolCalls: toolCalls }),
       ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
     };
@@ -1050,6 +1056,7 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
     // Surface run_dir + suite_filter for local runs so the UI can launch a
     // Dashboard-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
@@ -1057,7 +1064,7 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
     const tagFields = await readRunTagFields(searchDir, meta, projectId);
     return c.json({
-      results: stripHeavyFields(loaded),
+      results: attachExternalTraceFields(stripHeavyFields(loaded), records),
       source: meta.source,
       source_label: meta.displayName,
       ...tagFields,
@@ -1069,67 +1076,38 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
   }
 }
 
-interface ExternalTraceSelection {
-  readonly metadata: ExternalTraceMetadata;
-  readonly wire: ExternalTraceMetadataWire;
-}
-
 function isPhoenixExternalTrace(metadata: ExternalTraceMetadata): boolean {
   const provider = metadata.provider?.toLowerCase();
   return provider === undefined || provider === 'phoenix';
 }
 
-function externalTraceFromManifestRecord(
-  record: ResultManifestRecord,
-): ExternalTraceSelection | undefined {
-  const topLevel = record.external_trace
-    ? externalTraceMetadataFromRecord({ external_trace: record.external_trace })
-    : undefined;
-  const fromMetadata = externalTraceMetadataFromRecord(record.metadata);
-  const metadata = topLevel ?? fromMetadata;
+function externalTraceWireFromManifestRecord(
+  record: ResultManifestRecord | undefined,
+): ExternalTraceMetadataWire | undefined {
+  if (!record) {
+    return undefined;
+  }
+  const metadata =
+    externalTraceMetadataFromRecord(record as unknown as Record<string, unknown>) ??
+    externalTraceMetadataFromRecord(record.metadata);
   if (!metadata || !isPhoenixExternalTrace(metadata)) {
     return undefined;
   }
   try {
-    return {
-      metadata,
-      wire: toExternalTraceMetadataWire(metadata),
-    };
+    return toExternalTraceMetadataWire(metadata);
   } catch {
     return undefined;
   }
 }
 
-function findExternalTrace(
+function attachExternalTraceFields<T extends Record<string, unknown>>(
+  results: readonly T[],
   records: readonly ResultManifestRecord[],
-): ExternalTraceSelection | undefined {
-  for (const record of records) {
-    const externalTrace = externalTraceFromManifestRecord(record);
-    if (externalTrace) {
-      return externalTrace;
-    }
-  }
-  return undefined;
-}
-
-async function handlePhoenixSession(c: C, { searchDir, projectId }: DataContext) {
-  const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename, projectId);
-  if (!meta) return c.json({ error: 'Run not found' }, 404);
-
-  try {
-    const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const externalTrace = findExternalTrace(records);
-    return c.json(await readPhoenixLinkedSession(externalTrace?.metadata, externalTrace?.wire));
-  } catch (error) {
-    return c.json({
-      schema_version: 'agentv.dashboard.phoenix_session.v1',
-      status: 'schema_mismatch',
-      message: `Failed to inspect AgentV run metadata: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    });
-  }
+): T[] {
+  return results.map((result, index) => {
+    const externalTrace = externalTraceWireFromManifestRecord(records[index]);
+    return externalTrace ? { ...result, external_trace: externalTrace } : result;
+  });
 }
 
 /**
@@ -2606,7 +2584,6 @@ export function createApp(
     return handleRunDelete(c, defaultCtx);
   });
   app.get('/api/runs/:filename', (c) => handleRunDetail(c, defaultCtx));
-  app.get('/api/runs/:filename/phoenix-session', (c) => handlePhoenixSession(c, defaultCtx));
   app.get('/api/runs/:filename/log', (c) => handleRunLog(c, defaultCtx));
   app.get('/api/runs/:filename/suites', (c) => handleRunSuites(c, defaultCtx));
   app.get('/api/runs/:filename/categories', (c) => handleRunCategories(c, defaultCtx));
@@ -2727,9 +2704,6 @@ export function createApp(
     return withProject(c, handleRunDelete);
   });
   app.get('/api/projects/:projectId/runs/:filename', (c) => withProject(c, handleRunDetail));
-  app.get('/api/projects/:projectId/runs/:filename/phoenix-session', (c) =>
-    withProject(c, handlePhoenixSession),
-  );
   app.get('/api/projects/:projectId/runs/:filename/log', (c) => withProject(c, handleRunLog));
   app.get('/api/projects/:projectId/runs/:filename/suites', (c) => withProject(c, handleRunSuites));
   app.get('/api/projects/:projectId/runs/:filename/categories', (c) =>

@@ -50,19 +50,11 @@ service.
 
 If a trace artifact includes safe `external_trace` metadata for spans that were
 already emitted to Phoenix by Codex, Arize, or another hook, Dashboard may show
-that external reference and, when the Dashboard server has a Phoenix endpoint
-configured, read the linked Phoenix session through Phoenix GraphQL/API. The
-run detail page renders this as optional external context with session summary,
-turns, trace IDs, root span input/output, timing, token usage, costs,
-annotations, trace tree, selected span details, and an **Open in Phoenix** link.
-
-Phoenix endpoint and auth configuration stay on the server process
-(`AGENTV_PHOENIX_ENDPOINT`, `PHOENIX_HOST`, `AGENTV_PHOENIX_API_KEY`,
-`AGENTV_PHOENIX_AUTHORIZATION`, or `PHOENIX_CLIENT_HEADERS`). API keys,
-authorization headers, cookies, and tokens are not written to AgentV artifacts
-or sent to the browser. AgentV still treats the local/Git-backed run artifacts
-as canonical and does not export or project completed runs, transcripts,
-datasets, experiments, or indexes into Phoenix.
+that external reference as an **Open in Phoenix** link. Dashboard does not
+proxy Phoenix GraphQL/REST or embed Phoenix session, trace, or span views.
+AgentV still treats the local/Git-backed run artifacts as canonical and does
+not export or project completed runs, transcripts, datasets, experiments, or
+indexes into Phoenix.
 
 ## Options
 
