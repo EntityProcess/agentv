@@ -17,9 +17,11 @@ publication export, an append-only mutable-operation log, and an S3-compatible
 object-storage tier.
 
 The canonical AgentV run artifacts stay `benchmark.json`, `index.jsonl`, per-test
-grading/timing files, `outputs/trace.json`, and derived transcript artifacts. GitHub,
-Backblaze B2, Phoenix, Hugging Face, and Dashboard are projections, viewers, or storage
-backends over those artifacts.
+grading/timing files, `outputs/trace.json`, and derived transcript artifacts.
+GitHub and Backblaze B2 are storage/publication targets over those artifacts.
+Dashboard and Hugging Face are viewers or publication surfaces. Phoenix is only
+a link-out viewer when safe `external_trace` metadata points at independently
+emitted spans; it is not an AgentV artifact projection or storage backend.
 
 ---
 
@@ -58,7 +60,7 @@ without creating another hosted results platform inside AgentV.
 - Implementing storage backends, S3, oplog, retention, or export code in this bead.
 - Adding GitHub issues or tracker runtime state.
 - Creating windowed branches, per-run branches, or a hosted Dashboard replacement.
-- Making Phoenix, Hugging Face, B2, or GitHub the canonical results model.
+- Making Phoenix canonical, making Phoenix an AgentV artifact projection target, or making Hugging Face, B2, or GitHub the canonical results model.
 
 ### Deferred to Follow-Up Work
 
@@ -852,8 +854,9 @@ results:
 - [ ] The artifact sidecar is called `artifacts`, not `artifact-blobs` or `blob`.
 - [ ] The plan has no windowed or per-run branches.
 - [ ] Path sharding is deferred until realistic measurement proves need.
-- [ ] AgentV artifacts remain canonical; Dashboard, Hugging Face, Phoenix, B2, and
-  GitHub are projections/viewers/storage backends.
+- [ ] AgentV artifacts remain canonical; Dashboard and Hugging Face are viewers
+  or publication surfaces, B2 and GitHub are storage/publication targets, and
+  Phoenix is link-out correlation only when safe external trace metadata exists.
 - [ ] File/function-level implementation guidance names current result repo, remote,
   serve, export, artifact-writer, and Dashboard surfaces.
 - [ ] Test plan covers core, CLI, Dashboard, and docs-facing behavior.
