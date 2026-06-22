@@ -3332,14 +3332,48 @@ describe('serve app', () => {
       expect(data.message).toContain('not available');
     });
 
-    it('returns unsupported for trace artifacts that still need normalization', async () => {
+    it('normalizes supported OTLP trace artifacts instead of returning unsupported', async () => {
       const traceArtifactPath = 'demo/test-greeting/outputs/trace.json';
       const runId = writeLocalTraceRun(
         tempDir,
-        'unsupported-trace',
+        'otlp-trace',
         '2026-03-25T10-50-00-000Z',
         traceArtifactPath,
-        `${JSON.stringify({ resourceSpans: [] })}\n`,
+        `${JSON.stringify({
+          resourceSpans: [
+            {
+              resource: {
+                attributes: [{ key: 'service.name', value: { stringValue: 'agentv' } }],
+              },
+              scopeSpans: [
+                {
+                  spans: [
+                    {
+                      traceId: 'trace-otlp',
+                      spanId: 'root',
+                      name: 'invoke_agent codex',
+                      startTimeUnixNano: '1000000000',
+                      endTimeUnixNano: '2000000000',
+                      attributes: [
+                        {
+                          key: 'gen_ai.operation.name',
+                          value: { stringValue: 'invoke_agent' },
+                        },
+                      ],
+                      events: [
+                        {
+                          name: 'agentv.score',
+                          timeUnixNano: '1900000000',
+                          attributes: [{ key: 'agentv.grader.score', value: { doubleValue: 0.9 } }],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        })}\n`,
       );
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
@@ -3351,11 +3385,30 @@ describe('serve app', () => {
       const data = (await res.json()) as {
         status: string;
         trace_path: string;
-        message: string;
+        trace_session: {
+          test_id?: string;
+          target?: string;
+          resource_attributes?: Record<string, unknown>;
+          artifact_links?: Array<{ name: string; path: string }>;
+          spans: Array<{ span_id: string; name: string }>;
+          events: Array<{ kind: string; score?: number }>;
+        };
       };
-      expect(data.status).toBe('unsupported');
+      expect(data.status).toBe('ok');
       expect(data.trace_path).toBe(traceArtifactPath);
-      expect(data.message).toContain('trace normalization pipeline');
+      expect(data.trace_session).toMatchObject({
+        test_id: 'test-greeting',
+        target: 'gpt-4o',
+        resource_attributes: { 'service.name': 'agentv' },
+      });
+      expect(data.trace_session.artifact_links).toEqual([
+        { name: 'raw_trace_path', path: traceArtifactPath },
+      ]);
+      expect(data.trace_session.spans[0]).toMatchObject({
+        span_id: 'root',
+        name: 'invoke_agent codex',
+      });
+      expect(data.trace_session.events[0]).toMatchObject({ kind: 'score', score: 0.9 });
     });
 
     it('rejects trace artifact paths that escape the run workspace', async () => {

@@ -63,12 +63,12 @@ import {
   getProject,
   loadConfig,
   loadProjectRegistry,
+  normalizeTraceArtifactToTraceSessionResponse,
   readGitResultArtifact,
   removeProject,
   syncProjects,
   toExternalTraceMetadataWire,
   touchProject,
-  traceEnvelopeToTraceSessionResponse,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -659,15 +659,6 @@ function parseTraceArtifactJson(content: string): { value?: unknown; message?: s
       }`,
     };
   }
-}
-
-function supportedTraceSessionEnvelope(value: unknown): value is Record<string, unknown> {
-  if (!isRecord(value)) {
-    return false;
-  }
-  const schemaVersion = nonEmptyString(value.schema_version);
-  const trace = isRecord(value.trace) ? value.trace : undefined;
-  return schemaVersion === 'agentv.trace.v1' && Array.isArray(trace?.spans);
 }
 
 function stripHeavyFields(results: readonly EvaluationResult[]) {
@@ -1468,13 +1459,20 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
       );
     }
 
-    if (!supportedTraceSessionEnvelope(parsed.value)) {
+    const normalized = normalizeTraceArtifactToTraceSessionResponse(parsed.value, {
+      runId: filename,
+      testId: record.test_id,
+      suite: record.suite,
+      target: record.target,
+      artifactPath: trace.path,
+    });
+
+    if (normalized.status === 'unsupported') {
       return c.json(
         traceSessionArtifactResponse({
           status: 'unsupported',
           trace_path: trace.path,
-          message:
-            'Trace artifact is not an agentv.trace.v1 envelope with trace.spans. Normalization is handled by the trace normalization pipeline.',
+          message: normalized.message,
           ...(trace.description && { pointer: trace.description }),
         }),
       );
@@ -1484,10 +1482,7 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
       traceSessionArtifactResponse({
         status: 'ok',
         trace_path: trace.path,
-        trace_session: traceEnvelopeToTraceSessionResponse(parsed.value, {
-          runId: filename,
-          artifactPath: trace.path,
-        }),
+        trace_session: normalized.traceSession,
         ...(trace.description && { pointer: trace.description }),
       }),
     );

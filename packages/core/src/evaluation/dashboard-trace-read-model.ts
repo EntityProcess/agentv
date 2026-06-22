@@ -52,6 +52,7 @@ export interface TraceSessionSpan {
   end_time?: string;
   duration_ms?: number;
   token_usage?: TraceSessionTokenUsage;
+  resource_attributes?: Record<string, unknown>;
   attributes?: Record<string, unknown>;
   events?: TraceSessionEvent[];
 }
@@ -116,6 +117,7 @@ export interface TraceSessionResponse {
   source?: TraceSessionSource;
   external_trace?: ExternalTraceMetadataWire;
   artifact_links?: TraceSessionArtifactLink[];
+  resource_attributes?: Record<string, unknown>;
   conversion_warnings?: TraceSessionConversionWarning[];
   spans: TraceSessionSpan[];
   events: TraceSessionEvent[];
@@ -337,9 +339,13 @@ function eventKind(
   const lowerName = name.toLowerCase();
   if (
     lowerName.includes('score') ||
-    finiteNumber(attributes?.score) !== undefined ||
-    finiteNumber(attributes?.['agentv.score']) !== undefined ||
-    finiteNumber(attributes?.['agentv.grader.score']) !== undefined
+    numberFromAttributes(attributes ?? {}, [
+      'score',
+      'agentv.score',
+      'agentv.grader.score',
+      'gen_ai.evaluation.score.value',
+      'openinference.evaluation.score',
+    ]) !== undefined
   ) {
     return 'score';
   }
@@ -364,7 +370,9 @@ function scoreFromEvent(attributes: Record<string, unknown> | undefined): number
   return (
     finiteNumber(attributes.score) ??
     finiteNumber(attributes['agentv.score']) ??
-    finiteNumber(attributes['agentv.grader.score'])
+    finiteNumber(attributes['agentv.grader.score']) ??
+    finiteNumber(attributes['gen_ai.evaluation.score.value']) ??
+    finiteNumber(attributes['openinference.evaluation.score'])
   );
 }
 
@@ -376,6 +384,8 @@ function textFromEvent(attributes: Record<string, unknown> | undefined): string 
     stringValue(attributes.text) ??
     stringValue(attributes.annotation) ??
     stringValue(attributes['agentv.annotation.text']) ??
+    stringValue(attributes['gen_ai.evaluation.explanation']) ??
+    stringValue(attributes['gen_ai.evaluation.score.label']) ??
     stringValue(attributes['exception.message'])
   );
 }
@@ -384,7 +394,12 @@ function passedFromEvent(attributes: Record<string, unknown> | undefined): boole
   if (!attributes) {
     return undefined;
   }
-  return boolValue(attributes.passed) ?? boolValue(attributes['agentv.annotation.passed']);
+  return (
+    boolValue(attributes.passed) ??
+    boolValue(attributes['agentv.annotation.passed']) ??
+    boolValue(attributes['agentv.grader.passed']) ??
+    boolValue(attributes['gen_ai.evaluation.passed'])
+  );
 }
 
 function eventId(
@@ -460,6 +475,7 @@ function projectSpan(span: unknown, index: number): TraceSessionSpan | undefined
     end_time: unixNanoToIso(endTimeUnixNano),
     duration_ms: durationMsFromNanos(startTimeUnixNano, endTimeUnixNano),
     token_usage: tokenUsageFromAttributes(attributes),
+    resource_attributes: sanitizeAttributeMap(asRecord(record.resource_attributes)),
     attributes: safeAttributes,
     events: events.length > 0 ? events : undefined,
   });
@@ -770,6 +786,7 @@ export function traceEnvelopeToTraceSessionResponse(
   const envelope = asRecord(input) ?? {};
   const evaluation = asRecord(envelope.eval);
   const trace = asRecord(envelope.trace);
+  const traceResource = asRecord(trace?.resource);
   const spans = asArray(trace?.spans)
     .map(projectSpan)
     .filter((span): span is TraceSessionSpan => span !== undefined);
@@ -788,6 +805,7 @@ export function traceEnvelopeToTraceSessionResponse(
     source: sourceFromEnvelope(asRecord(envelope.source), options.artifactPath),
     external_trace: externalTraceFromEnvelope(envelope),
     artifact_links: projectArtifactLinks(envelope.artifacts),
+    resource_attributes: sanitizeAttributeMap(asRecord(traceResource?.attributes)),
     conversion_warnings: projectConversionWarnings(envelope.conversion_warnings),
     spans,
     events,
