@@ -69,25 +69,32 @@
     }
   },
   "definitions": {
-    "repoBlock": {
+    "sourceRepoBlock": {
       "type": "object",
-      "description": "Nested repository block. Source project repos use url for Git URLs. Results repos use remote for the Git endpoint URL. Use path for local checkout or clone paths and branch for the checked-out/storage branch.",
+      "description": "Source project repository block. Use url for the Git endpoint, path for the local checkout path, and branch for the checkout branch.",
       "properties": {
         "url": {
           "type": "string",
-          "description": "Source Git remote URL. For results repos, accepted as a compatibility alias for remote.",
+          "description": "Source Git remote URL.",
           "examples": ["https://github.com/example/repo.git", "git@github.com:example/repo.git"]
         },
         "path": {
           "type": "string",
-          "description": "Local checkout path. For results repos, this is an existing local repo when url is omitted, or the managed clone path when url is set.",
-          "examples": ["/srv/agentv/my-evals", ".", "~/data/agentv-results"]
+          "description": "Local source checkout path.",
+          "examples": ["/srv/agentv/my-evals"]
         },
         "branch": {
           "type": "string",
-          "description": "Source checkout branch or results storage branch.",
-          "examples": ["main", "agentv/results/v1"]
-        },
+          "description": "Source checkout branch.",
+          "examples": ["main"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "resultsRepoBlock": {
+      "type": "object",
+      "description": "Results repository block. Use remote for the Git endpoint URL, path for an existing local results checkout or managed clone path, and branch for the storage branch.",
+      "properties": {
         "remote": {
           "type": "string",
           "description": "Results Git remote endpoint URL used for fetching and pushing.",
@@ -95,6 +102,16 @@
             "https://github.com/example/results.git",
             "git@github.com:example/results.git"
           ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Existing local results checkout path when remote is omitted, or managed results clone path when remote is set.",
+          "examples": [".", "/srv/agentv/results", "~/data/agentv-results"]
+        },
+        "branch": {
+          "type": "string",
+          "description": "Results storage branch.",
+          "examples": ["agentv/results/v1"]
         }
       },
       "additionalProperties": false
@@ -104,7 +121,7 @@
       "description": "Git-backed results repo configuration. Canonical form uses a nested repo block.",
       "properties": {
         "repo": {
-          "$ref": "#/definitions/repoBlock"
+          "$ref": "#/definitions/resultsRepoBlock"
         },
         "sync": {
           "type": "object",
@@ -139,7 +156,7 @@
           "type": "string"
         },
         "repo": {
-          "$ref": "#/definitions/repoBlock"
+          "$ref": "#/definitions/sourceRepoBlock"
         },
         "results": {
           "$ref": "#/definitions/resultsConfig"

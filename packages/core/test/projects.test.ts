@@ -255,6 +255,40 @@ describe('projects registry', () => {
     expect(yamlOnDisk).not.toContain('requirePush:');
   });
 
+  it('preserves legacy flat results remote aliases through YAML', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `projects:
+  - id: legacy-results-remote
+    name: Legacy Results Remote
+    path: /srv/agentv/repo
+    results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: upstream
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadProjectRegistry();
+    expect(registry.projects[0].results).toEqual({
+      repoPath: '.',
+      branch: 'agentv/results/v1',
+      remote: 'upstream',
+    });
+
+    saveProjectRegistry(registry);
+    const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('repo_path: .');
+    expect(yamlOnDisk).toContain('branch: agentv/results/v1');
+    expect(yamlOnDisk).toContain('remote: upstream');
+    expect(yamlOnDisk).not.toContain('results:\n      repo:\n');
+  });
+
   it('preserves unrelated global config keys when saving projects', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });

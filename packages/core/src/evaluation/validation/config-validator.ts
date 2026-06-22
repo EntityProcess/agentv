@@ -554,7 +554,6 @@ function warnFlatResultsMigration(
     repo_url: `${location}.repo.remote`,
     repo_path: `${location}.repo.path`,
     branch: `${location}.repo.branch`,
-    remote: `${location}.repo.remote`,
     path: `${location}.repo.path`,
     auto_push: `${location}.sync.auto_push`,
     mode: '(remove this field)',
@@ -569,6 +568,15 @@ function warnFlatResultsMigration(
         `Field '${location}.${field}' is deprecated. Use '${replacement}' in the nested results repo schema.`,
       );
     }
+  }
+
+  if (resultsRecord.remote !== undefined) {
+    addWarning(
+      errors,
+      filePath,
+      `${location}.remote`,
+      `Field '${location}.remote' is a legacy local Git remote-name override. Prefer omitting it; nested '${location}.repo.remote' is the portable Git remote URL and AgentV manages local aliases automatically.`,
+    );
   }
 }
 

@@ -421,7 +421,7 @@ This repo is configured to push evaluation results to \`${params.resultsRepo}\`.
   const config = readYamlObject(configPath);
   config.results = {
     repo: {
-      url: repoUrl(params.resultsRepo),
+      remote: repoUrl(params.resultsRepo),
       path: params.resultsPath,
     },
     sync: {

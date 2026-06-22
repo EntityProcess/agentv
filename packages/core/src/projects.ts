@@ -227,6 +227,35 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
     last_opened_at: entry.lastOpenedAt,
   };
   if (entry.results) {
+    const resultsSync =
+      entry.results.sync?.autoPush !== undefined || entry.results.sync?.requirePush !== undefined
+        ? {
+            sync: {
+              ...(entry.results.sync?.autoPush !== undefined && {
+                auto_push: entry.results.sync.autoPush,
+              }),
+              ...(entry.results.sync?.requirePush !== undefined && {
+                require_push: entry.results.sync.requirePush,
+              }),
+            },
+          }
+        : {};
+    const branchPrefix =
+      entry.results.branchPrefix !== undefined ? { branch_prefix: entry.results.branchPrefix } : {};
+
+    if (entry.results.remote !== undefined) {
+      yaml.results = {
+        ...(entry.results.repoUrl !== undefined && { repo_url: entry.results.repoUrl }),
+        ...(entry.results.repoPath !== undefined && { repo_path: entry.results.repoPath }),
+        ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
+        remote: entry.results.remote,
+        ...(entry.results.path !== undefined && { path: entry.results.path }),
+        ...resultsSync,
+        ...branchPrefix,
+      };
+      return yaml;
+    }
+
     const resultsRepo: ProjectResultsRepoYaml = {
       ...(entry.results.repoUrl !== undefined && { remote: entry.results.repoUrl }),
       ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
@@ -239,20 +268,8 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
     };
     yaml.results = {
       repo: resultsRepo,
-      ...((entry.results.sync?.autoPush !== undefined ||
-        entry.results.sync?.requirePush !== undefined) && {
-        sync: {
-          ...(entry.results.sync?.autoPush !== undefined && {
-            auto_push: entry.results.sync.autoPush,
-          }),
-          ...(entry.results.sync?.requirePush !== undefined && {
-            require_push: entry.results.sync.requirePush,
-          }),
-        },
-      }),
-      ...(entry.results.branchPrefix !== undefined && {
-        branch_prefix: entry.results.branchPrefix,
-      }),
+      ...resultsSync,
+      ...branchPrefix,
     };
   }
   return yaml;
