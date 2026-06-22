@@ -43,7 +43,7 @@ Use these as design references, not as feature mandates:
 - Margin and Terminal-Bench: filesystem-native benchmark packaging, conventional task files, setup scripts, scoring scripts, and immutable artifacts. AgentV should document and template this shape instead of adding `workspace`, `oracle`, `variants`, or `expected_artifacts` as broad core fields.
 - Pi coding agent: skills and extensions separate agent-facing procedural guidance from runtime code. Its docs show skills as portable `SKILL.md` directories with scripts/assets, and extensions as typed runtime hooks. AgentV should copy the progressive-disclosure authoring pattern for eval builders.
 - Composio Agent Orchestrator: swappable TypeScript plugin interfaces for narrow responsibilities. Its plugin-slot model is useful as a boundary pattern, but AgentV should avoid a general orchestrator plugin host until concrete runtime extension gaps appear.
-- Phoenix: official TypeScript packages (`@arizeai/phoenix-client`, `@arizeai/phoenix-evals`, `@arizeai/phoenix-otel`) make it a good private export/conversion target for result and trace integration.
+- Phoenix: official TypeScript packages (`@arizeai/phoenix-client`, `@arizeai/phoenix-evals`, `@arizeai/phoenix-otel`) remain useful peer-framework research material, but the 2026-06-20 product boundary supersedes AgentV-to-Phoenix result or trace export.
 - promptfoo: Node package and JavaScript assertion/provider hooks make it a good private conversion target, especially for YAML matrix configs and JS assertion migration.
 - Braintrust: TypeScript SDK and `Eval(data, task, scores)` model make it a good private conversion target for dataset/task/score loops, experiment metadata, trial counts, and hosted result upload.
 
@@ -113,7 +113,7 @@ Source-backed findings from the initial code analysis:
 - promptfoo can mirror simple AgentV rubric examples with `llm-rubric` and script assertions. AgentV `tool-trajectory` is the largest parity gap because promptfoo trace/trajectory assertions depend on promptfoo trace conventions rather than AgentV `Message[].toolCalls`; a custom provider/metadata adapter is required.
 - Braintrust TypeScript `Eval(name, { data, task, scores })` maps cleanly to AgentV's case/task/score model. The lossy point is that AgentV rich assertion arrays with evidence/verdict/type become Braintrust score metadata unless a deeper adapter is built.
 - Phoenix TypeScript is split across dataset creation, experiment running, evaluators, and OTel. It is strong for persisted datasets/experiments and traces, but less direct for local YAML wrapping because normal `runExperiment` flow expects a Phoenix dataset/server round trip.
-- AgentV already has a Phoenix adapter package, but its support matrix is intentionally narrow and deterministic. Private experiments should use that as evidence, not widen public scope prematurely.
+- AgentV previously carried a private Phoenix adapter experiment with an intentionally narrow and deterministic support matrix. Treat that as historical evidence, not a reason to widen public scope.
 
 Workspace/container findings from Terminal-Bench, Harbor, and Margin:
 
@@ -139,7 +139,10 @@ Extend the existing `agentv create` scaffolding into reusable templates:
 - `agentv create eval --template terminal-task`
 - `agentv create eval --template promptfoo-adapter`
 - `agentv create eval --template braintrust-export`
-- `agentv create eval --template phoenix-export`
+
+Do not add a Phoenix export template. The later Phoenix read-only correlation
+boundary supersedes AgentV-to-Phoenix dataset, experiment, result, or trace
+export templates.
 
 The first implementation can stay static and local, similar to the current `EVAL_TEMPLATES` object in `apps/cli/src/commands/create/commands.ts`. Do not introduce remote template registries, package installation, trust prompts, or plugin loading yet.
 
@@ -185,7 +188,9 @@ Likely docs locations:
 
 Add private examples, not core adapters, for:
 
-- Phoenix: export AgentV results/traces into Phoenix using the TS packages.
+- Phoenix: compare peer-framework DX around independently emitted traces and
+  safe `external_trace` link-out metadata. Do not export AgentV-owned results,
+  traces, transcripts, datasets, experiments, or indexes into Phoenix.
 - promptfoo: convert promptfoo-style YAML or JS assertions into ordinary AgentV evals/assertions where feasible.
 - Braintrust: export AgentV cases/results into Braintrust's TypeScript `Eval(data, task, scores)` shape.
 
@@ -257,7 +262,7 @@ framework-parity/
     run-phoenix.ts
 ```
 
-This subtree should be clearly marked private/internal and should not be mirrored into public AgentV examples until findings are scrubbed.
+This subtree should be clearly marked private/internal and should not be mirrored into public AgentV examples until findings are scrubbed. Any Phoenix files in this historical peer-framework research tree must stay outside the supported AgentV product path and must not become AgentV-to-Phoenix artifact export guidance.
 
 Initial reference evals to consider:
 
@@ -390,7 +395,7 @@ For private conversion work:
 
 - Which AgentV evals should be mirrored first: one simple text/rubric eval plus one workspace/tool-trajectory eval, or only WTG-relevant prompt evals?
 - Should promptfoo import/export be a CLI command later, or stay as documented conversion scripts until demand is proven?
-- Should Phoenix/Braintrust integrations be examples only, or wrappers that consume AgentV JSONL output?
+- Should Braintrust integrations be examples only, or wrappers that consume AgentV JSONL output? Phoenix work is superseded by the read-only external-trace correlation boundary.
 
 ## Decision
 
@@ -404,7 +409,7 @@ Proceed as a plan, not a brainstorm, because the product question is now concret
 - `av-r0s.5.6` - analysis(private): compare peer native ports against AgentV
 - `av-r0s.5.8` - design(private): minimal AgentV workspace/container primitive
 - `av-r0s.5.1` - tooling(private): extract promptfoo exporter requirements after hand ports
-- `av-r0s.5.2` - tooling(private): prototype Braintrust and Phoenix replay adapters
+- `av-r0s.5.2` - tooling(private): prototype Braintrust replay adapters and historical Phoenix peer-framework research only
 - `av-r0s.5.3` - docs(agentv): decide sanitized promotion path from private parity experiments
 - `av-r0s.5.4` - closed as superseded by source-specific hand-port beads
 - `av-w9p` - closed as superseded by `av-r0s.1`

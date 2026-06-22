@@ -20,7 +20,7 @@ Relevant existing seams already point in this direction:
 
 - Provider and grader registries support narrow registration points.
 - `.agentv/providers/`, `.agentv/assertions/`, and `.agentv/graders/` use convention-based local discovery instead of a broad plugin host.
-- Earlier `packages/phoenix-adapter/` experiments kept Phoenix-specific behavior outside core and reported unsupported mappings explicitly. That experiment is not the supported product path for AgentV completed runs or transcripts.
+- Earlier Phoenix adapter experiments kept Phoenix-specific behavior outside core and reported unsupported mappings explicitly. Those experiments are not the supported product path for AgentV completed runs or transcripts.
 - The trace evaluation plan requires generic OTLP/OpenInference mapping without Phoenix-specific assumptions in core.
 
 ## Decision
@@ -35,7 +35,10 @@ AgentV core should own:
 - generic OTLP/OpenInference import/export mapping where it is backend-neutral;
 - small registry/discovery primitives for extension points.
 
-Phoenix integration should live outside core behind an adapter boundary, currently `packages/phoenix-adapter/`. The first implementation does not need package loading or package naming; a local resolver module is enough. The adapter boundary may expose:
+Phoenix integration should live outside core behind a narrow local adapter or
+resolver boundary when needed. No maintained workspace package currently owns
+that boundary. The first implementation does not need package loading or package
+naming; a local resolver module is enough. Such a custom boundary may expose:
 
 - a Phoenix OTel backend resolver;
 - Phoenix/OpenInference span-kind mapping;
@@ -72,7 +75,9 @@ Registration/discovery should remain boring and local-first. In this ADR, "plugi
 - keep `execution.otel_backend: <name>` and `--otel-backend <name>` as the user-facing selectors;
 - do not add package names, package auto-installation, a remote marketplace, trust prompts, or a general-purpose plugin host for this need.
 
-The earlier prototype exposed a resolver, for example `phoenixOtelBackend`, so users could opt in from project config or a local `.agentv/otel-backends/phoenix.mjs` file. Treat that as a custom/legacy path, not as the supported AgentV-to-Phoenix product boundary.
+The earlier prototype exposed a resolver so users could opt in from project config
+or a local `.agentv/otel-backends/phoenix.mjs` file. Treat that as a
+custom/legacy path, not as the supported AgentV-to-Phoenix product boundary.
 
 ## Migration path for Phoenix
 
@@ -81,7 +86,7 @@ The earlier prototype exposed a resolver, for example `phoenixOtelBackend`, so u
    - `OTEL_EXPORTER_OTLP_HEADERS`
    - `--otel-file` for offline OTLP JSON export
 2. Add a tiny backend resolver seam only if ergonomic backend names are needed.
-3. Implement Phoenix endpoint/header/project routing in the Phoenix adapter boundary, not in core.
+3. Keep any custom Phoenix endpoint/header/project routing outside core and outside the supported AgentV artifact path.
 4. Keep Phoenix out of Dashboard runtime fetch paths; use safe external links instead.
 5. Consider moving existing vendor-specific core presets to the same resolver model later, but do not couple that cleanup to the Phoenix decision unless the implementation already touches the preset registry.
 

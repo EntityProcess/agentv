@@ -32,7 +32,7 @@ AgentV already has the beginning of a git-native results store. `packages/core/s
 
 The next storage beads need one reviewed contract before implementation splits across retention, object storage, publication export, path-sharding assessment, and mutable operations. Without that contract, each bead could accidentally create its own branch layout, backend abstraction, transcript boundary, or dashboard read model.
 
-The product boundary stays unchanged: AgentV remains the repo-native and workspace-native source of truth for run artifacts. Phoenix, object storage, SQLite, and publication exports are adapters, projections, caches, or storage tiers over AgentV artifacts. A `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite, and the per-run `benchmark.json` artifact keeps that artifact name.
+The product boundary stays unchanged: AgentV remains the repo-native and workspace-native source of truth for run artifacts. Object storage, SQLite, and publication exports are storage tiers, caches, or derived projections over AgentV artifacts. Phoenix is link-out correlation only when safe `external_trace` metadata points at independently emitted spans; it is not an AgentV artifact projection or storage tier. A `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite, and the per-run `benchmark.json` artifact keeps that artifact name.
 
 ---
 
@@ -90,7 +90,7 @@ The product boundary stays unchanged: AgentV remains the repo-native and workspa
 - KTD8. Blob-native mode uses object storage as the store of record, including run manifests and oplog segments. It should share logical pointer and manifest shapes with git-backed modes, but it should not emulate git refs.
 - KTD9. Backblaze B2 is used through a standard S3-compatible client with endpoint, region, bucket, prefix, and env/config credential sourcing.
 - KTD10. SQLite is a local rebuildable projection only. av-7uu may consume the storage listing contract, but SQLite must stay deletable and non-canonical.
-- KTD11. Phoenix/KVE work remains adapter-owned. Dashboard list routes should consume storage listing or manifest contracts, not duplicate backend storage implementation.
+- KTD11. Phoenix/KVE work remains link-out/read-model-only when safe external trace metadata exists. Dashboard list routes should consume storage listing or manifest contracts, not duplicate backend storage implementation.
 
 ---
 
@@ -153,7 +153,7 @@ flowchart TB
 
 ## 1. Storage Backend Abstraction And Modes
 
-**Decision:** Introduce a narrow results storage abstraction while preserving the existing git code as the `git-native` adapter. The abstraction should cover publish, list, materialize/read run detail, resolve artifact bytes, sync/status, retention hooks, and raw oplog segment IO. It should not make Dashboard, Phoenix, or SQLite own backend-specific storage logic.
+**Decision:** Introduce a narrow results storage abstraction while preserving the existing git code as the `git-native` adapter. The abstraction should cover publish, list, materialize/read run detail, resolve artifact bytes, sync/status, retention hooks, and raw oplog segment IO. It should not make Dashboard or SQLite own backend-specific storage logic, and it must not make Phoenix a storage backend or AgentV artifact projection target.
 
 **File and function-level implementation plan:**
 
@@ -501,9 +501,9 @@ Object keys should be content-addressed, such as `sha256/<hash>` under an AgentV
 
 ---
 
-## 8. SQLite Index And Dashboard/Phoenix Boundaries
+## 8. SQLite Index, Dashboard, And Phoenix Boundaries
 
-**Decision:** av-7uu may build a local rebuildable SQLite projection over canonical storage listings and manifests, but SQLite is not canonical. av-kve.5/Phoenix KVE work should consume manifest/listing contracts and stay out of storage backend implementation.
+**Decision:** av-7uu may build a local rebuildable SQLite projection over canonical storage listings and manifests, but SQLite is not canonical. av-kve.5 Dashboard work should consume manifest/listing contracts and stay out of storage backend implementation. Phoenix work is limited to safe link-out correlation from external trace metadata; it must not consume AgentV storage as a projection/export target.
 
 **File and function-level implementation plan:**
 
@@ -514,9 +514,9 @@ Object keys should be content-addressed, such as `sha256/<hash>` under an AgentV
 - av-kve.5 likely files:
   - `apps/cli/src/commands/results/serve.ts` list/aggregate handlers.
   - `apps/dashboard/src/components/RunList.tsx`, `AnalyticsTab.tsx`, and related list/compare views only when UI behavior changes.
-- Phoenix/KVE coordinator owned files:
-  - Phoenix/KVE adapter and read-model files remain outside this spec's ownership.
-  - Any Dashboard trace/session read model stays a projection over AgentV run artifacts.
+- Phoenix boundary:
+  - Phoenix-specific link helpers remain outside this spec's ownership.
+  - Any Dashboard trace/session read model stays a projection over AgentV run artifacts and may only link out to Phoenix through safe `external_trace` UI URLs.
 
 **Contract for av-7uu:**
 
@@ -525,19 +525,19 @@ Object keys should be content-addressed, such as `sha256/<hash>` under an AgentV
 - SQLite must not be pushed as the canonical result store.
 - SQLite must not parse full transcripts in foreground list paths.
 
-**Contract for av-kve.5 and Phoenix/KVE:**
+**Contract for av-kve.5 and Phoenix link-out correlation:**
 
 - Dashboard list views should stay on benchmark/index manifests, compact derived exports, storage listing contracts, or the rebuildable SQLite projection.
 - Detail routes can lazily resolve transcript, trace, and arbitrary artifact payloads.
-- Phoenix/KVE should reference AgentV artifact IDs, pointers, and external trace links rather than reimplement storage backends.
+- Phoenix link-out code should reference safe external trace links only. It must not reimplement storage backends or export AgentV artifacts into Phoenix.
 
 **Acceptance criteria:**
 
 - av-7uu can consume this spec without changing canonical storage.
 - av-kve.5 can improve Dashboard list routes without creating a second backend.
-- Phoenix/KVE work remains adapter/projection work and does not alter the AgentV storage contract.
+- Phoenix work remains link-out correlation only and does not alter the AgentV storage contract.
 
-**Downstream beads:** av-7uu, av-kve.5, and Phoenix/KVE coordinator.
+**Downstream beads:** av-7uu and av-kve.5.
 
 ---
 
@@ -551,7 +551,7 @@ Object keys should be content-addressed, such as `sha256/<hash>` under an AgentV
 - **B2-native APIs:** Rejected because Backblaze B2's S3-compatible endpoint lets AgentV use standard S3 clients, MinIO CI, and portable user configuration.
 - **Vercel Blob as a dependency:** Rejected because it is provider-specific and weaker than the desired content-addressed private bucket model.
 - **SQLite as canonical storage:** Rejected because it would move AgentV away from portable run artifacts. SQLite is a rebuildable projection only.
-- **Dashboard or Phoenix owning storage backends:** Rejected because it duplicates core storage behavior and blurs adapter boundaries.
+- **Dashboard or Phoenix owning storage backends:** Rejected because it duplicates core storage behavior and blurs adapter boundaries. Phoenix is additionally excluded from AgentV artifact projection by the read-only correlation boundary.
 
 ---
 
@@ -598,5 +598,5 @@ For downstream implementation beads:
 - The spec defines compact derived publication export for av-kxa without required `eval.txt`.
 - The spec defines per-actor append-only oplog, add-wins tags, tombstones/restores, materialized state, and watermark semantics for av-8un.
 - The spec defines Backblaze B2 through S3-compatible API, standard S3 SDK/client, BWS/env/config credentials, content-addressed pointers, checksum/size verification, presigned/lazy reads, real B2 dogfood, and MinIO-compatible CI for av-dsc.
-- The spec keeps SQLite non-canonical for av-7uu and keeps Dashboard/Phoenix/KVE on manifest/listing/projection boundaries.
+- The spec keeps SQLite non-canonical for av-7uu, keeps Dashboard on manifest/listing/projection boundaries, and keeps Phoenix limited to safe external-trace link-out correlation.
 - No TypeScript source, CLI implementation, Dashboard implementation, tests, package files, generated artifacts, tracker runtime state, or evidence files are changed by this PR.
