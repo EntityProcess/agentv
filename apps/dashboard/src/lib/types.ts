@@ -1,3 +1,18 @@
+import type {
+  ExternalTraceMetadataWire as CoreExternalTraceMetadata,
+  TraceSessionArtifactLink as CoreTraceSessionArtifactLink,
+  TraceSessionConversionWarning as CoreTraceSessionConversionWarning,
+  TraceSessionEvent as CoreTraceSessionEvent,
+  TraceSessionEventKind as CoreTraceSessionEventKind,
+  TraceSessionResponse as CoreTraceSessionResponse,
+  TraceSessionScore as CoreTraceSessionScore,
+  TraceSessionSource as CoreTraceSessionSource,
+  TraceSessionSourceRef as CoreTraceSessionSourceRef,
+  TraceSessionSpan as CoreTraceSessionSpan,
+  TraceSessionSpanStatus as CoreTraceSessionSpanStatus,
+  TraceSessionTokenUsage as CoreTraceSessionTokenUsage,
+} from '@agentv/core';
+
 /**
  * TypeScript types for the AgentV Dashboard API responses.
  *
@@ -135,30 +150,7 @@ export interface SourceTraceability {
   referenced_files?: SourceReferencedFile[];
 }
 
-export interface ExternalTraceMetadata {
-  /**
-   * Optional external viewer reference only. AgentV run artifacts remain the
-   * canonical source of truth for Dashboard trace/session details.
-   */
-  provider?: string;
-  source?: string;
-  endpoint?: string;
-  profile?: string;
-  project?: string;
-  project_id?: string;
-  session_id?: string;
-  session_node_id?: string;
-  trace_id?: string;
-  trace_node_id?: string;
-  span_id?: string;
-  span_node_id?: string;
-  traceparent?: string;
-  tracestate?: string;
-  ui_url?: string;
-  run_id?: string;
-  test_id?: string;
-  target?: string;
-}
+export type ExternalTraceMetadata = CoreExternalTraceMetadata;
 
 export interface PhoenixLinkedSessionTokenUsage {
   input?: number;
@@ -251,117 +243,17 @@ export interface PhoenixLinkedSessionResponse {
   annotations?: PhoenixLinkedSessionAnnotation[];
 }
 
-export interface TraceSessionTokenUsage {
-  input?: number;
-  output?: number;
-  reasoning?: number;
-  cached?: number;
-  total?: number;
-}
-
-export interface TraceSessionSpanStatus {
-  code?: string;
-  message?: string;
-}
-
-export type TraceSessionEventKind = 'annotation' | 'exception' | 'event' | 'score';
-
-export interface TraceSessionEvent {
-  event_id: string;
-  span_id: string;
-  name: string;
-  kind: TraceSessionEventKind;
-  time_unix_nano?: string;
-  timestamp?: string;
-  score?: number;
-  text?: string;
-  passed?: boolean;
-  attributes?: Record<string, unknown>;
-}
-
-export interface TraceSessionSpan {
-  id: string;
-  trace_id?: string;
-  span_id: string;
-  parent_span_id?: string | null;
-  name: string;
-  kind?: string;
-  status?: TraceSessionSpanStatus;
-  start_time_unix_nano?: string;
-  end_time_unix_nano?: string;
-  start_time?: string;
-  end_time?: string;
-  duration_ms?: number;
-  token_usage?: TraceSessionTokenUsage;
-  attributes?: Record<string, unknown>;
-  events?: TraceSessionEvent[];
-}
-
-export interface TraceSessionScore {
-  name: string;
-  type?: string;
-  score: number;
-  weight?: number;
-  verdict?: string;
-  source?: string;
-  evaluated_at?: string;
-  target_span_id?: string;
-  evidence?: Record<string, unknown>;
-}
-
-export interface TraceSessionSource {
-  kind?: string;
-  path?: string;
-  provider?: string;
-  format?: string;
-  version?: string;
-  artifact_path?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface TraceSessionArtifactLink {
-  name: string;
-  path: string;
-}
-
-export interface TraceSessionSourceRef {
-  event_id?: string;
-  message_id?: string;
-  span_id?: string;
-  trace_id?: string;
-  raw_kind?: string;
-  path?: string;
-  line?: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface TraceSessionConversionWarning {
-  code: string;
-  severity?: 'info' | 'warning' | 'error' | string;
-  span_id?: string;
-  source_ref?: TraceSessionSourceRef;
-  message: string;
-  details?: Record<string, unknown>;
-}
-
-export interface TraceSessionResponse {
-  schema_version: 'agentv.dashboard.trace_session.v1';
-  artifact_id?: string;
-  created_at?: string;
-  run_id?: string;
-  test_id?: string;
-  suite?: string;
-  target?: string;
-  trace_id?: string;
-  root_span_id?: string;
-  source?: TraceSessionSource;
-  external_trace?: ExternalTraceMetadata;
-  artifact_links?: TraceSessionArtifactLink[];
-  conversion_warnings?: TraceSessionConversionWarning[];
-  spans: TraceSessionSpan[];
-  events: TraceSessionEvent[];
-  scores?: TraceSessionScore[];
-}
+export type TraceSessionTokenUsage = CoreTraceSessionTokenUsage;
+export type TraceSessionSpanStatus = CoreTraceSessionSpanStatus;
+export type TraceSessionEventKind = CoreTraceSessionEventKind;
+export type TraceSessionEvent = CoreTraceSessionEvent;
+export type TraceSessionSpan = CoreTraceSessionSpan;
+export type TraceSessionScore = CoreTraceSessionScore;
+export type TraceSessionSource = CoreTraceSessionSource;
+export type TraceSessionArtifactLink = CoreTraceSessionArtifactLink;
+export type TraceSessionSourceRef = CoreTraceSessionSourceRef;
+export type TraceSessionConversionWarning = CoreTraceSessionConversionWarning;
+export type TraceSessionResponse = CoreTraceSessionResponse;
 
 export interface EvalResult {
   testId: string;

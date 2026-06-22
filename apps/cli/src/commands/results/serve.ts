@@ -13,6 +13,8 @@
  *   - GET /api/runs/:filename/phoenix-session — read linked Phoenix session data
  *   - GET /api/runs/:filename/evals/:evalId/files/* — read artifact files as JSON,
  *     or as raw/downloadable text with ?raw=1 / ?download=1
+ *   - GET /api/runs/:filename/evals/:evalId/trace-session — read an AgentV
+ *     trace sidecar through the Dashboard trace/session read model
  *   - GET /api/feedback  — read feedback reviews
  *   - POST /api/feedback — write feedback reviews
  *   - GET /api/projects  — list registered projects
@@ -55,6 +57,7 @@ import {
   type EvaluationResult,
   type ExternalTraceMetadata,
   type ExternalTraceMetadataWire,
+  type TraceSessionResponse,
   addProject,
   externalTraceMetadataFromRecord,
   getProject,
@@ -65,6 +68,7 @@ import {
   syncProjects,
   toExternalTraceMetadataWire,
   touchProject,
+  traceEnvelopeToTraceSessionResponse,
 } from '@agentv/core';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
@@ -596,6 +600,74 @@ function missingTranscriptMessage(): string {
     'This result does not include canonical outputs/transcript.jsonl metadata.',
     'Dashboard does not parse response.md or markdown transcripts for this view.',
   ].join(' ');
+}
+
+const TRACE_SESSION_ARTIFACT_RESPONSE_SCHEMA_VERSION =
+  'agentv.dashboard.trace_artifact.v1' as const;
+
+type TraceSessionArtifactStatus =
+  | 'ok'
+  | 'missing'
+  | 'unsupported'
+  | 'dangling'
+  | 'invalid'
+  | 'rejected';
+
+type TraceSessionArtifactResponse =
+  | {
+      schema_version: typeof TRACE_SESSION_ARTIFACT_RESPONSE_SCHEMA_VERSION;
+      status: 'ok';
+      trace_path: string;
+      trace_session: TraceSessionResponse;
+      pointer?: string;
+    }
+  | {
+      schema_version: typeof TRACE_SESSION_ARTIFACT_RESPONSE_SCHEMA_VERSION;
+      status: Exclude<TraceSessionArtifactStatus, 'ok'>;
+      message: string;
+      trace_path?: string;
+      pointer?: string;
+    };
+
+type TraceSessionArtifactResponseInput =
+  | Omit<Extract<TraceSessionArtifactResponse, { status: 'ok' }>, 'schema_version'>
+  | Omit<Exclude<TraceSessionArtifactResponse, { status: 'ok' }>, 'schema_version'>;
+
+function traceSessionArtifactResponse(
+  response: TraceSessionArtifactResponseInput,
+): TraceSessionArtifactResponse {
+  return {
+    schema_version: TRACE_SESSION_ARTIFACT_RESPONSE_SCHEMA_VERSION,
+    ...response,
+  } as TraceSessionArtifactResponse;
+}
+
+function missingTraceMessage(): string {
+  return [
+    'This result does not include canonical outputs/trace.json metadata.',
+    'Dashboard trace sessions require an agentv.trace.v1 sidecar artifact.',
+  ].join(' ');
+}
+
+function parseTraceArtifactJson(content: string): { value?: unknown; message?: string } {
+  try {
+    return { value: JSON.parse(content) };
+  } catch (error) {
+    return {
+      message: `Trace artifact is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+
+function supportedTraceSessionEnvelope(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const schemaVersion = nonEmptyString(value.schema_version);
+  const trace = isRecord(value.trace) ? value.trace : undefined;
+  return schemaVersion === 'agentv.trace.v1' && Array.isArray(trace?.spans);
 }
 
 function stripHeavyFields(results: readonly EvaluationResult[]) {
@@ -1325,6 +1397,102 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
     return artifactFileContentResponse(c, filePath, fileContent);
   } catch {
     return c.json({ error: 'Failed to read file' }, 500);
+  }
+}
+
+async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContext) {
+  const filename = c.req.param('filename') ?? '';
+  const evalId = c.req.param('evalId');
+  const meta = await findRunById(searchDir, filename, projectId);
+  if (!meta) return c.json({ error: 'Run not found' }, 404);
+
+  try {
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
+    const record = records.find((r) => r.test_id === evalId);
+    if (!record) return c.json({ error: 'Eval not found' }, 404);
+
+    const baseDir = path.dirname(meta.path);
+    const trace = resolveRecordArtifactPointer(record, 'trace');
+
+    if (!trace.path) {
+      return c.json(
+        traceSessionArtifactResponse({
+          status: trace.unsupportedReason ? 'unsupported' : 'missing',
+          message: trace.unsupportedReason ?? missingTraceMessage(),
+          ...(trace.description && { pointer: trace.description }),
+        }),
+      );
+    }
+
+    const resolvedTrace = resolveReadableRunArtifactFile(baseDir, trace.path);
+    if (resolvedTrace.error) {
+      return c.json(
+        traceSessionArtifactResponse({
+          status: 'rejected',
+          trace_path: trace.path,
+          message: resolvedTrace.error ?? 'Trace artifact path could not be resolved.',
+          ...(trace.description && { pointer: trace.description }),
+        }),
+        403,
+      );
+    }
+
+    let content: string | undefined;
+    if (resolvedTrace.absolutePath) {
+      content = readFileSync(resolvedTrace.absolutePath, 'utf8');
+    } else {
+      content = await readSidecarArtifactText(searchDir, projectId, meta, trace);
+    }
+
+    if (content === undefined) {
+      const refMessage = trace.ref ? ` on ${trace.ref}` : '';
+      return c.json(
+        traceSessionArtifactResponse({
+          status: 'dangling',
+          trace_path: trace.path,
+          message: `Trace artifact pointer${refMessage} is present, but ${trace.path} is not available in this run workspace.`,
+          ...(trace.description && { pointer: trace.description }),
+        }),
+      );
+    }
+
+    const parsed = parseTraceArtifactJson(content);
+    if (parsed.message) {
+      return c.json(
+        traceSessionArtifactResponse({
+          status: 'invalid',
+          trace_path: trace.path,
+          message: parsed.message,
+          ...(trace.description && { pointer: trace.description }),
+        }),
+      );
+    }
+
+    if (!supportedTraceSessionEnvelope(parsed.value)) {
+      return c.json(
+        traceSessionArtifactResponse({
+          status: 'unsupported',
+          trace_path: trace.path,
+          message:
+            'Trace artifact is not an agentv.trace.v1 envelope with trace.spans. Normalization is handled by the trace normalization pipeline.',
+          ...(trace.description && { pointer: trace.description }),
+        }),
+      );
+    }
+
+    return c.json(
+      traceSessionArtifactResponse({
+        status: 'ok',
+        trace_path: trace.path,
+        trace_session: traceEnvelopeToTraceSessionResponse(parsed.value, {
+          runId: filename,
+          artifactPath: trace.path,
+        }),
+        ...(trace.description && { pointer: trace.description }),
+      }),
+    );
+  } catch {
+    return c.json({ error: 'Failed to load trace artifact' }, 500);
   }
 }
 
@@ -2451,6 +2619,9 @@ export function createApp(
     handleCategorySuites(c, defaultCtx),
   );
   app.get('/api/runs/:filename/evals/:evalId', (c) => handleEvalDetail(c, defaultCtx));
+  app.get('/api/runs/:filename/evals/:evalId/trace-session', (c) =>
+    handleEvalTraceSession(c, defaultCtx),
+  );
   app.get('/api/runs/:filename/evals/:evalId/transcript', (c) =>
     handleEvalTranscript(c, defaultCtx),
   );
@@ -2574,6 +2745,9 @@ export function createApp(
   );
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId', (c) =>
     withProject(c, handleEvalDetail),
+  );
+  app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/trace-session', (c) =>
+    withProject(c, handleEvalTraceSession),
   );
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/transcript', (c) =>
     withProject(c, handleEvalTranscript),
