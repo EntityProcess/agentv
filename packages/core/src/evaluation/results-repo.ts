@@ -868,6 +868,44 @@ async function fastForwardStorageBranchRef(
   });
 }
 
+async function getDirtyPathsChangedUpstream(
+  repoDir: string,
+  normalized: StorageBranchResultsConfig,
+  dirtyPaths: readonly string[],
+  upstream: string,
+): Promise<string[]> {
+  const safeDirtyPaths = [...new Set(dirtyPaths.filter(isSafeResultsRepoPath))].sort();
+  if (safeDirtyPaths.length === 0) {
+    return [];
+  }
+
+  const localRef = `refs/heads/${normalized.branch}`;
+  const localExists = await gitRefExists(repoDir, localRef);
+  let changedPaths: string[];
+  if (localExists) {
+    const { stdout } = await runGit(['diff', '--name-only', `${localRef}..${upstream}`], {
+      cwd: repoDir,
+      check: false,
+    });
+    changedPaths = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter(isSafeResultsRepoPath)
+      .sort();
+  } else {
+    changedPaths = [];
+    for (const dirtyPath of safeDirtyPaths) {
+      if ((await readGitText(repoDir, upstream, dirtyPath)) !== undefined) {
+        changedPaths.push(dirtyPath);
+      }
+    }
+  }
+
+  const dirtySet = new Set(safeDirtyPaths);
+  return [...new Set(changedPaths.filter((changedPath) => dirtySet.has(changedPath)))].sort();
+}
+
 async function hasInProgressGitConflict(repoDir: string): Promise<boolean> {
   const markers = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD'];
   for (const marker of markers) {
@@ -1282,6 +1320,34 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         }
 
         if ((inspection.behind ?? 0) > 0) {
+          if (inspection.upstream && normalized.branch) {
+            const changedDirtyPaths = await getDirtyPathsChangedUpstream(
+              repoDir,
+              { ...normalized, branch: normalized.branch },
+              inspection.dirtyPaths,
+              inspection.upstream,
+            );
+            if (changedDirtyPaths.length > 0) {
+              const conflictInspection: ResultsRepoGitInspection = {
+                ...inspection,
+                syncStatus: 'conflicted',
+                conflictedPaths: [
+                  ...new Set([...inspection.conflictedPaths, ...changedDirtyPaths]),
+                ].sort(),
+              };
+              const status = withGitInspection(
+                getResultsRepoStatus(normalized),
+                conflictInspection,
+              );
+              const reason = `Results repo local metadata changes conflict with upstream changes: ${changedDirtyPaths.join(', ')}`;
+              updateStatusFile(normalized, { last_error: reason });
+              return withBlockedStatus(status, reason, {
+                pullPerformed,
+                pushPerformed,
+                commitCreated,
+              });
+            }
+          }
           const blockedStatus = await fastForwardBehindStorageBranch();
           if (blockedStatus) {
             return blockedStatus;

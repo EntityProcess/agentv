@@ -855,6 +855,56 @@ describe('results repo write path', () => {
     expect(git('git branch --show-current', projectDir)).toBe('main');
   }, 20000);
 
+  it('blocks repo_path metadata sync when upstream changed the same dirty path', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const projectDir = path.join(rootDir, 'source-project-repo-path-dirty-ff-conflict');
+    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+    git(
+      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
+      projectDir,
+    );
+
+    const metadataPath = 'metadata/runs/shared/2026-06-22T03-00-00-000Z/tags.json';
+    git(`git switch --quiet ${storageBranch}`, seedDir);
+    const remoteTagPath = path.join(seedDir, ...metadataPath.split('/'));
+    mkdirSync(path.dirname(remoteTagPath), { recursive: true });
+    writeFileSync(remoteTagPath, `${JSON.stringify({ tags: ['remote'] }, null, 2)}\n`);
+    git('git add metadata && git commit --quiet -m "remote shared tag metadata"', seedDir);
+    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
+
+    const localTagPath = path.join(projectDir, ...metadataPath.split('/'));
+    mkdirSync(path.dirname(localTagPath), { recursive: true });
+    writeFileSync(localTagPath, `${JSON.stringify({ tags: ['local'] }, null, 2)}\n`);
+
+    const status = await syncResultsRepoForProject({
+      repo_path: projectDir,
+      branch: storageBranch,
+      remote: 'origin',
+      sync: { auto_push: true },
+    });
+
+    expect(status).toMatchObject({
+      sync_status: 'conflicted',
+      pull_performed: false,
+      push_performed: false,
+      commit_created: false,
+      blocked: true,
+      branch: storageBranch,
+      upstream: `origin/${storageBranch}`,
+      dirty_paths: [metadataPath],
+      conflicted_paths: [metadataPath],
+    });
+    expect(status.block_reason).toContain(metadataPath);
+    expect(
+      git(`git --git-dir "${remoteDir}" show ${storageBranch}:${metadataPath}`, rootDir),
+    ).toContain('"remote"');
+    expect(readFileSync(localTagPath, 'utf8')).toContain('"local"');
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+  }, 20000);
+
   it('reports repo_path metadata push rejection without dropping the local commit', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
