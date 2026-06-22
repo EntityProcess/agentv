@@ -99,6 +99,7 @@ describe('results combine', () => {
       result({
         artifact_dir: 'demo/test-a',
         transcript_path: 'demo/test-a/outputs/transcript.jsonl',
+        execution_summary_path: 'demo/test-a/outputs/execution_summary.json',
         raw_provider_log_path: 'demo/test-a/outputs/raw/provider.log',
         artifact_pointers: {
           trace: {
@@ -123,6 +124,17 @@ describe('results combine', () => {
             media_type: 'application/x-ndjson',
             family: 'transcripts',
           },
+          execution_summary: {
+            ref: 'agentv/artifacts/v1',
+            key: 'execution-summaries/demo/test-a/outputs/execution_summary.json',
+            object_version: 'sha256:execution-summary',
+            path: 'demo/test-a/outputs/execution_summary.json',
+            sha256: 'execution-summary',
+            size: 180,
+            schema_version: 'agentv.execution_summary.v1',
+            media_type: 'application/vnd.agentv.execution_summary.v1+json',
+            family: 'execution-summaries',
+          },
         },
       }),
     ]);
@@ -139,6 +151,10 @@ describe('results combine', () => {
         content: 'Pointer-backed transcript',
         source: { provider: 'mock', session_id: 'session-a' },
       })}\n`,
+    );
+    writeFileSync(
+      path.join(first, 'demo', 'test-a', 'outputs', 'execution_summary.json'),
+      '{"schema_version":"agentv.execution_summary.v1"}\n',
     );
     writeFileSync(
       path.join(first, 'demo', 'test-a', 'outputs', 'raw', 'provider.log'),
@@ -168,6 +184,9 @@ describe('results combine', () => {
     const [record] = readIndex(combined.manifestPath);
     expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
     expect(record.transcript_path).toBe('sources/source-1/demo/test-a/outputs/transcript.jsonl');
+    expect(record.execution_summary_path).toBe(
+      'sources/source-1/demo/test-a/outputs/execution_summary.json',
+    );
     expect(record.raw_provider_log_path).toBe(
       'sources/source-1/demo/test-a/outputs/raw/provider.log',
     );
@@ -180,6 +199,10 @@ describe('results combine', () => {
         key: 'transcripts/sources/source-1/demo/test-a/outputs/transcript.jsonl',
         path: 'sources/source-1/demo/test-a/outputs/transcript.jsonl',
       },
+      execution_summary: {
+        key: 'execution-summaries/sources/source-1/demo/test-a/outputs/execution_summary.json',
+        path: 'sources/source-1/demo/test-a/outputs/execution_summary.json',
+      },
     });
     expect(
       existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/trace.json')),
@@ -187,6 +210,11 @@ describe('results combine', () => {
     expect(
       existsSync(
         path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/transcript.jsonl'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(combined.runDir, 'sources/source-1/demo/test-a/outputs/execution_summary.json'),
       ),
     ).toBe(true);
     expect(

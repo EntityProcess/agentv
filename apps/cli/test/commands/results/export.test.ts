@@ -354,6 +354,7 @@ describe('results export', () => {
       output_path: 'privacy/test-private/outputs/answer.md',
       answer_path: 'privacy/test-private/outputs/answer.md',
       response_path: 'privacy/test-private/outputs/response.md',
+      execution_summary_path: 'privacy/test-private/outputs/execution_summary.json',
       trace_path: 'privacy/test-private/outputs/trace.json',
     });
     expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/outputs/trace.json');

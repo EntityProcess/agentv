@@ -2,6 +2,7 @@ export * from './evaluation/content.js';
 export * from './evaluation/types.js';
 export * from './evaluation/trace.js';
 export * from './evaluation/trace-envelope.js';
+export * from './evaluation/execution-summary.js';
 export * from './evaluation/dashboard-trace-read-model.js';
 export * from './evaluation/trace-normalization.js';
 export * from './evaluation/external-trace.js';

@@ -94,6 +94,7 @@ export type ProjectionBundleArtifactRefs = Partial<
     | 'answer_path'
     | 'response_path'
     | 'transcript_path'
+    | 'execution_summary_path'
     | 'task_dir'
     | 'eval_path'
     | 'targets_path'
@@ -176,6 +177,7 @@ function artifactRefs(
     answer_path: indexEntry.answer_path,
     response_path: indexEntry.response_path,
     transcript_path: indexEntry.transcript_path,
+    execution_summary_path: indexEntry.execution_summary_path,
     trace_path: tracePathFor(indexEntry),
     task_dir: indexEntry.task_dir,
     eval_path: indexEntry.eval_path,

@@ -317,6 +317,7 @@ const MANIFEST_PATH_FIELDS = [
   'output_path',
   'response_path',
   'transcript_path',
+  'execution_summary_path',
   'raw_provider_log_path',
   'task_dir',
   'eval_path',
@@ -328,6 +329,7 @@ const MANIFEST_PATH_FIELDS = [
 const POINTER_FAMILIES = {
   trace: 'traces',
   transcript: 'transcripts',
+  execution_summary: 'execution-summaries',
 } as const;
 
 function isSafeRelativeArtifactPath(relativePath: string): boolean {
@@ -422,6 +424,13 @@ function rewriteArtifactPointers(
       outputDir,
       sourceIndex,
     ),
+    execution_summary: rewriteArtifactPointer(
+      'execution_summary',
+      pointers.execution_summary,
+      sourceBaseDir,
+      outputDir,
+      sourceIndex,
+    ) as ResultArtifactPointersWire['execution_summary'],
   };
 }
 
@@ -449,6 +458,13 @@ function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManife
     artifactPointers?.transcript?.path
   ) {
     rewritten.transcript_path = artifactPointers.transcript.path;
+  }
+  if (
+    row.record.execution_summary_path &&
+    rewritten.execution_summary_path === row.record.execution_summary_path &&
+    artifactPointers?.execution_summary?.path
+  ) {
+    rewritten.execution_summary_path = artifactPointers.execution_summary.path;
   }
   return rewritten as unknown as ResultManifestRecord;
 }

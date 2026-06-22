@@ -26,6 +26,7 @@ const RESULT_ROW_ALIASES = {
   durationMs: 'duration_ms',
   endTime: 'end_time',
   evalPath: 'eval_path',
+  executionSummaryPath: 'execution_summary_path',
   executionStatus: 'execution_status',
   failureReasonCode: 'failure_reason_code',
   failureStage: 'failure_stage',
@@ -48,6 +49,8 @@ const RESULT_ROW_ALIASES = {
 
 const NEW_SNAKE_CASE_ONLY_FIELDS = {
   artifactPointers: 'artifact_pointers',
+  executionSummary: 'execution_summary',
+  usageSummary: 'usage_summary',
 } as const;
 
 const TRACE_SUMMARY_ALIASES = {

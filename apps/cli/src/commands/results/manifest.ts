@@ -45,6 +45,7 @@ export interface ResultManifestRecord {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly execution_summary_path?: string;
   readonly raw_provider_log_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly external_trace?: ExternalTraceMetadataWire;

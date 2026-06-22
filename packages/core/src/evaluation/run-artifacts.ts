@@ -12,6 +12,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { traceEnvelopeToTranscriptJsonLines } from '../import/types.js';
+import { buildExecutionSummaryArtifact } from './execution-summary.js';
 import {
   type ExternalTraceMetadataWire,
   externalTraceMetadataForResult,
@@ -31,8 +32,11 @@ import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import {
   AGENTV_RESULTS_ARTIFACTS_REF,
+  CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH,
   CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
+  EXECUTION_SUMMARY_JSON_MEDIA_TYPE,
+  EXECUTION_SUMMARY_SCHEMA_VERSION,
   type ResultArtifactFamily,
   type ResultArtifactPointerWire,
   type ResultArtifactPointersWire,
@@ -226,6 +230,7 @@ export interface IndexArtifactEntry {
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly transcript_path?: string;
+  readonly execution_summary_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly raw_provider_log_path?: string;
   readonly input_path?: string;
@@ -816,6 +821,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
+      execution_summary_path: CANONICAL_EXECUTION_SUMMARY_ARTIFACT_PATH,
       raw_provider_log_path: rawProviderLogSourcePath(params.result)
         ? 'outputs/raw/provider.log'
         : undefined,
@@ -889,15 +895,38 @@ async function buildTranscriptPointer(
   return pointer as TranscriptArtifactPointerWire;
 }
 
+async function buildExecutionSummaryPointer(
+  outputDir: string,
+  executionSummaryPath: string,
+): Promise<NonNullable<ResultArtifactPointersWire['execution_summary']>> {
+  const pointer = await buildArtifactPointer({
+    filePath: executionSummaryPath,
+    runRelativePath: toRelativeArtifactPath(outputDir, executionSummaryPath),
+    family: 'execution-summaries',
+    schemaVersion: EXECUTION_SUMMARY_SCHEMA_VERSION,
+    mediaType: EXECUTION_SUMMARY_JSON_MEDIA_TYPE,
+  });
+  return pointer as NonNullable<ResultArtifactPointersWire['execution_summary']>;
+}
+
 async function buildArtifactPointers(params: {
   readonly outputDir: string;
   readonly tracePath: string;
   readonly transcriptPath?: string;
+  readonly executionSummaryPath?: string;
 }): Promise<ResultArtifactPointersWire> {
   return {
     trace: await buildTracePointer(params.outputDir, params.tracePath),
     ...(params.transcriptPath
       ? { transcript: await buildTranscriptPointer(params.outputDir, params.transcriptPath) }
+      : {}),
+    ...(params.executionSummaryPath
+      ? {
+          execution_summary: await buildExecutionSummaryPointer(
+            params.outputDir,
+            params.executionSummaryPath,
+          ),
+        }
       : {}),
   };
 }
@@ -912,6 +941,7 @@ export function buildIndexArtifactEntry(
     outputPath?: string;
     answerPath?: string;
     transcriptPath?: string;
+    executionSummaryPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     inputPath?: string;
@@ -953,6 +983,9 @@ export function buildIndexArtifactEntry(
       : undefined,
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
+      : undefined,
+    execution_summary_path: options.executionSummaryPath
+      ? toRelativeArtifactPath(options.outputDir, options.executionSummaryPath)
       : undefined,
     raw_provider_log_path: options.rawProviderLogPath
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
@@ -1017,6 +1050,7 @@ export function buildResultIndexArtifact(
     transcript_path: hasTranscript
       ? path.posix.join(artifactSubdir, 'outputs', 'transcript.jsonl')
       : undefined,
+    execution_summary_path: path.posix.join(artifactSubdir, 'outputs', 'execution_summary.json'),
     raw_provider_log_path: hasRawProviderLog
       ? path.posix.join(artifactSubdir, 'outputs', 'raw', 'provider.log')
       : undefined,
@@ -1056,6 +1090,21 @@ async function writeTranscriptJsonl(
   const content =
     lines.length > 0 ? `${lines.map((line) => JSON.stringify(line)).join('\n')}\n` : '';
   await writeFile(filePath, content, 'utf8');
+}
+
+async function writeExecutionSummaryArtifact(params: {
+  readonly filePath: string;
+  readonly result: EvaluationResult;
+  readonly envelope: TraceEnvelope;
+  readonly transcriptPath?: string;
+}): Promise<void> {
+  const artifact = buildExecutionSummaryArtifact(params.result, params.envelope, {
+    tracePath: CANONICAL_TRACE_ARTIFACT_PATH,
+    transcriptPath: params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
+    gradingPath: 'grading.json',
+    timingPath: 'timing.json',
+  });
+  await writeFile(params.filePath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
 }
 
 function indexRecordKey(record: unknown): string | undefined {
@@ -1429,10 +1478,18 @@ export async function writePerTestArtifacts(
     if (transcriptPath) {
       await writeTranscriptJsonl(transcriptPath, result, envelope);
     }
+    const executionSummaryPath = path.join(outputsDir, 'execution_summary.json');
+    await writeExecutionSummaryArtifact({
+      filePath: executionSummaryPath,
+      result,
+      envelope,
+      transcriptPath,
+    });
     const artifactPointers = await buildArtifactPointers({
       outputDir,
       tracePath,
       transcriptPath,
+      executionSummaryPath,
     });
 
     const extraIndexFields = await collectAdditionalIndexFields(
@@ -1512,6 +1569,7 @@ export async function writeArtifactsFromResults(
       ? path.join(outputsDir, 'transcript.jsonl')
       : undefined;
     const tracePath = path.join(outputsDir, 'trace.json');
+    const executionSummaryPath = path.join(outputsDir, 'execution_summary.json');
     const rawProviderLogSource = rawProviderLogSourcePath(result);
     const rawProviderLogPath = rawProviderLogSource
       ? rawProviderLogArtifactPath(outputsDir)
@@ -1534,6 +1592,7 @@ export async function writeArtifactsFromResults(
       answerPath,
       responsePath,
       tracePath,
+      executionSummaryPath,
       envelope,
       projectionIdentity,
       transcriptPath,
@@ -1595,10 +1654,17 @@ export async function writeArtifactsFromResults(
     if (plan.transcriptPath) {
       await writeTranscriptJsonl(plan.transcriptPath, result, envelope);
     }
+    await writeExecutionSummaryArtifact({
+      filePath: plan.executionSummaryPath,
+      result,
+      envelope,
+      transcriptPath: plan.transcriptPath,
+    });
     const artifactPointers = await buildArtifactPointers({
       outputDir,
       tracePath: plan.tracePath,
       transcriptPath: plan.transcriptPath,
+      executionSummaryPath: plan.executionSummaryPath,
     });
 
     const extraIndexFields = await collectAdditionalIndexFields(
@@ -1618,6 +1684,7 @@ export async function writeArtifactsFromResults(
         outputPath: plan.answerPath,
         answerPath: plan.answerPath,
         transcriptPath: plan.transcriptPath,
+        executionSummaryPath: plan.executionSummaryPath,
         artifactPointers,
         rawProviderLogPath: plan.rawProviderLogPath,
         inputPath: plan.inputPath,
