@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "3c162d1d8ad4",
+  "strategy": "manual-commit",
+  "branch": "docs/contract-design-standards",
+  "checkpoints_count": 45,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/162d1d8ad4/0/metadata.json",
+      "transcript": "/3c/162d1d8ad4/0/full.jsonl",
+      "content_hash": "/3c/162d1d8ad4/0/content_hash.txt",
+      "prompt": "/3c/162d1d8ad4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4004167,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 87619584,
+    "output_tokens": 326399,
+    "api_call_count": 760
+  }
+}
