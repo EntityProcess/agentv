@@ -115,6 +115,8 @@ EOF
 
 write_project_config() {
   mkdir -p "$project_dir/.agentv/results/runs"
+  local results_url
+  results_url="$(repo_to_url "$results_repo")"
   if [[ -f "$source_dir/.agentv/targets.yaml" ]]; then
     cp "$source_dir/.agentv/targets.yaml" "$project_dir/.agentv/targets.yaml"
   fi
@@ -127,11 +129,12 @@ eval_patterns:
   - "examples/**/dataset*.yaml"
 
 results:
-  mode: github
-  repo: $results_repo
+  repo_url: $results_url
+  branch: agentv/results/v1
   path: /data/results/agentv-evalresults
-  auto_push: false
-  branch_prefix: eval-results
+  sync:
+    auto_push: false
+    require_push: false
 
 dashboard:
   project_dashboard: true
@@ -161,11 +164,13 @@ const nextEntry = {
   name: "AgentV Examples",
   path: "/data/projects/agentv-examples",
   results: {
-    mode: "github",
-    repo: resultsRepo,
+    repo_url: resultsRepo,
+    branch: "agentv/results/v1",
     path: "/data/results/agentv-evalresults",
-    auto_push: false,
-    branch_prefix: "eval-results",
+    sync: {
+      auto_push: false,
+      require_push: false,
+    },
   },
   added_at:
     existingEntry && typeof existingEntry.added_at === "string" ? existingEntry.added_at : now,
@@ -175,7 +180,7 @@ config.projects = [...projects.filter((project) => {
   return !(project && typeof project === "object" && project.id === "agentv-examples");
 }), nextEntry];
 writeFileSync(configPath, stringify(config), "utf8");
-' "$home_dir/config.yaml" "$now" "$results_repo"
+' "$home_dir/config.yaml" "$now" "$(repo_to_url "$results_repo")"
 }
 
 stage_examples_project() {

@@ -199,9 +199,12 @@ function resolveRemoteRunMetadataPaths(
   };
 }
 
-function readRemoteRunTagsContext(repoDir: string, manifestPath: string): RemoteRunTagsContext {
+function readRemoteRunTagsContext(
+  repoDir: string,
+  manifestPath: string,
+  comparisonRef = resolveComparisonRef(repoDir),
+): RemoteRunTagsContext {
   const paths = resolveRemoteRunMetadataPaths(repoDir, manifestPath);
-  const comparisonRef = resolveComparisonRef(repoDir);
   const artifactTags =
     readTagsFile(paths.artifactTagsPath) ??
     readTagsFromGit(repoDir, comparisonRef, paths.artifactTagsGitPath);
@@ -258,8 +261,12 @@ export function isResultsRepoWorktreeDirty(repoDir: string): boolean {
   return status !== undefined && status.trim().length > 0;
 }
 
-export function readRemoteRunTags(repoDir: string, manifestPath: string): RemoteRunTagState {
-  const context = readRemoteRunTagsContext(repoDir, manifestPath);
+export function readRemoteRunTags(
+  repoDir: string,
+  manifestPath: string,
+  comparisonRef?: string,
+): RemoteRunTagState {
+  const context = readRemoteRunTagsContext(repoDir, manifestPath, comparisonRef);
   return toRemoteRunTagState(context);
 }
 
@@ -267,11 +274,12 @@ export function writeRemoteRunTags(
   repoDir: string,
   manifestPath: string,
   tags: readonly string[],
+  comparisonRef?: string,
 ): RemoteRunTagState {
   assertWritableResultsRepo(repoDir);
 
   const cleaned = normalizeTags(tags);
-  const context = readRemoteRunTagsContext(repoDir, manifestPath);
+  const context = readRemoteRunTagsContext(repoDir, manifestPath, comparisonRef);
   const remoteTags = context.baseOverlayTags?.tags ?? context.artifactTags?.tags ?? [];
 
   if (
@@ -296,9 +304,13 @@ export function writeRemoteRunTags(
   };
   mkdirSync(path.dirname(context.paths.overlayTagsPath), { recursive: true });
   writeFileSync(context.paths.overlayTagsPath, `${JSON.stringify(entry, null, 2)}\n`, 'utf8');
-  return readRemoteRunTags(repoDir, manifestPath);
+  return readRemoteRunTags(repoDir, manifestPath, comparisonRef);
 }
 
-export function deleteRemoteRunTags(repoDir: string, manifestPath: string): RemoteRunTagState {
-  return writeRemoteRunTags(repoDir, manifestPath, []);
+export function deleteRemoteRunTags(
+  repoDir: string,
+  manifestPath: string,
+  comparisonRef?: string,
+): RemoteRunTagState {
+  return writeRemoteRunTags(repoDir, manifestPath, [], comparisonRef);
 }

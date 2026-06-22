@@ -688,6 +688,226 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
+  it('commits repo_path metadata overlays to the configured storage branch during sync', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const projectDir = path.join(rootDir, 'source-project-metadata-sync');
+    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+    git(`git fetch --quiet origin ${storageBranch}`, projectDir);
+
+    const tagPath = path.join(
+      projectDir,
+      'metadata',
+      'runs',
+      'default',
+      '2026-06-22T00-19-03-060Z',
+      'tags.json',
+    );
+    mkdirSync(path.dirname(tagPath), { recursive: true });
+    writeFileSync(
+      tagPath,
+      `${JSON.stringify({ tags: ['dogfood'], updated_at: '2026-06-22T00:00:00.000Z' }, null, 2)}\n`,
+    );
+
+    const config: ResultsConfig = {
+      repo_path: projectDir,
+      branch: storageBranch,
+      remote: 'origin',
+      sync: { auto_push: true },
+    };
+
+    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
+      sync_status: 'dirty',
+      dirty_paths: ['metadata/runs/default/2026-06-22T00-19-03-060Z/tags.json'],
+    });
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      commit_created: true,
+      push_performed: true,
+      blocked: false,
+      branch: storageBranch,
+      upstream: `origin/${storageBranch}`,
+    });
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
+    ).toContain('metadata/runs/default/2026-06-22T00-19-03-060Z/tags.json');
+    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
+      sync_status: 'clean',
+      dirty_paths: [],
+    });
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+  }, 20000);
+
+  it('fast-forwards a clean repo_path storage branch during project sync', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const projectDir = path.join(rootDir, 'source-project-repo-path-ff');
+    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
+    git(
+      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
+      projectDir,
+    );
+
+    git(`git switch --quiet ${storageBranch}`, seedDir);
+    const remoteTagPath = path.join(
+      seedDir,
+      'metadata',
+      'runs',
+      'remote-only',
+      '2026-06-22T00-00-00-000Z',
+      'tags.json',
+    );
+    mkdirSync(path.dirname(remoteTagPath), { recursive: true });
+    writeFileSync(remoteTagPath, `${JSON.stringify({ tags: ['remote'] }, null, 2)}\n`);
+    git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
+    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
+
+    const config: ResultsConfig = {
+      repo_path: projectDir,
+      branch: storageBranch,
+      remote: 'origin',
+      sync: { auto_push: false },
+    };
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      pull_performed: true,
+      push_performed: false,
+      commit_created: false,
+      blocked: false,
+      branch: storageBranch,
+      upstream: `origin/${storageBranch}`,
+    });
+    expect(git(`git rev-parse ${storageBranch}`, projectDir)).toBe(
+      git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir),
+    );
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+  }, 20000);
+
+  it('fast-forwards repo_path metadata overlays before committing and pushing them', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const projectDir = path.join(rootDir, 'source-project-repo-path-dirty-ff');
+    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+    git(
+      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
+      projectDir,
+    );
+
+    git(`git switch --quiet ${storageBranch}`, seedDir);
+    const remoteTagPath = path.join(
+      seedDir,
+      'metadata',
+      'runs',
+      'remote-only',
+      '2026-06-22T00-00-00-000Z',
+      'tags.json',
+    );
+    mkdirSync(path.dirname(remoteTagPath), { recursive: true });
+    writeFileSync(remoteTagPath, `${JSON.stringify({ tags: ['remote'] }, null, 2)}\n`);
+    git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
+    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
+
+    const localTagPath = path.join(
+      projectDir,
+      'metadata',
+      'runs',
+      'local',
+      '2026-06-22T01-00-00-000Z',
+      'tags.json',
+    );
+    mkdirSync(path.dirname(localTagPath), { recursive: true });
+    writeFileSync(localTagPath, `${JSON.stringify({ tags: ['local'] }, null, 2)}\n`);
+
+    const config: ResultsConfig = {
+      repo_path: projectDir,
+      branch: storageBranch,
+      remote: 'origin',
+      sync: { auto_push: true },
+    };
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status).toMatchObject({
+      sync_status: 'clean',
+      pull_performed: true,
+      push_performed: true,
+      commit_created: true,
+      blocked: false,
+      branch: storageBranch,
+      upstream: `origin/${storageBranch}`,
+    });
+    const remoteFiles = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
+      rootDir,
+    );
+    expect(remoteFiles).toContain('metadata/runs/remote-only/2026-06-22T00-00-00-000Z/tags.json');
+    expect(remoteFiles).toContain('metadata/runs/local/2026-06-22T01-00-00-000Z/tags.json');
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+  }, 20000);
+
+  it('reports repo_path metadata push rejection without dropping the local commit', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const projectDir = path.join(rootDir, 'source-project-repo-path-rejected-push');
+    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+    git(
+      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
+      projectDir,
+    );
+
+    const tagPath = path.join(
+      projectDir,
+      'metadata',
+      'runs',
+      'local',
+      '2026-06-22T02-00-00-000Z',
+      'tags.json',
+    );
+    mkdirSync(path.dirname(tagPath), { recursive: true });
+    writeFileSync(tagPath, `${JSON.stringify({ tags: ['local'] }, null, 2)}\n`);
+
+    const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
+    writeFileSync(hookPath, '#!/usr/bin/env sh\necho "reject metadata push" >&2\nexit 1\n');
+    chmodSync(hookPath, 0o755);
+
+    const status = await syncResultsRepoForProject({
+      repo_path: projectDir,
+      branch: storageBranch,
+      remote: 'origin',
+      sync: { auto_push: true },
+    });
+
+    expect(status).toMatchObject({
+      sync_status: 'ahead',
+      pull_performed: false,
+      push_performed: false,
+      commit_created: true,
+      blocked: true,
+      branch: storageBranch,
+      upstream: `origin/${storageBranch}`,
+    });
+    expect(status.block_reason).toContain('Results repo push was rejected');
+    expect(git(`git ls-tree -r --name-only ${storageBranch}`, projectDir)).toContain(
+      'metadata/runs/local/2026-06-22T02-00-00-000Z/tags.json',
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
+    ).not.toContain('metadata/runs/local/2026-06-22T02-00-00-000Z/tags.json');
+    expect(git('git branch --show-current', projectDir)).toBe('main');
+  }, 20000);
+
   it('publishes to an explicit external local repo path', async () => {
     const projectDir = path.join(rootDir, 'project');
     const resultsRepoDir = path.join(rootDir, 'local-results-repo');

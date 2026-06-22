@@ -1595,6 +1595,86 @@ describe('serve app', () => {
       });
     }, 15000);
 
+    it('edits synced local run tags through the remote metadata overlay', async () => {
+      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+      const experiment = 'green-uat';
+      const timestamp = '2026-03-26T10-45-00-000Z';
+      const runId = writeRemoteRunArtifact(cloneDir, experiment, timestamp, RESULT_A);
+      writeLocalRunArtifact(tempDir, experiment, timestamp, RESULT_A);
+
+      mkdirSync(path.join(tempDir, '.agentv'), { recursive: true });
+      writeFileSync(
+        path.join(tempDir, '.agentv', 'config.yaml'),
+        `results:
+  mode: github
+  repo: file://${remoteDir}
+  path: ${cloneDir}
+`,
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const putRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/tags`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: ['needs-review'] }),
+      });
+
+      expect(putRes.status).toBe(200);
+      const putData = (await putRes.json()) as {
+        tags: string[];
+        remote_tags: string[];
+        pending_tags: string[];
+        metadata_dirty: boolean;
+      };
+      expect(putData).toMatchObject({
+        tags: ['needs-review'],
+        remote_tags: [],
+        pending_tags: ['needs-review'],
+        metadata_dirty: true,
+      });
+
+      const localTagsPath = path.join(
+        tempDir,
+        '.agentv',
+        'results',
+        'runs',
+        experiment,
+        timestamp,
+        'tags.json',
+      );
+      const overlayTagsPath = path.join(
+        cloneDir,
+        'metadata',
+        'runs',
+        experiment,
+        timestamp,
+        'tags.json',
+      );
+      expect(existsSync(localTagsPath)).toBe(false);
+      expect(existsSync(overlayTagsPath)).toBe(true);
+
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{
+          filename: string;
+          source: string;
+          on_remote: boolean;
+          tags: string[];
+          pending_tags: string[];
+          metadata_dirty: boolean;
+        }>;
+      };
+      expect(listData.runs[0]).toMatchObject({
+        filename: runId,
+        source: 'local',
+        on_remote: true,
+        tags: ['needs-review'],
+        pending_tags: ['needs-review'],
+        metadata_dirty: true,
+      });
+    }, 15000);
+
     it('computes git-native remote run list totals from materialized index rows', async () => {
       const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
       const secondPass = {

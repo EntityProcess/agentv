@@ -722,6 +722,23 @@ async function readRunTagFields(
   meta: SourcedResultFileMeta,
   projectId?: string,
 ): Promise<RunTagFields> {
+  if (meta.on_remote) {
+    const state = await readRemoteRunTagState(searchDir, meta, projectId);
+    if (state) {
+      return {
+        tags: state.tags,
+        remote_tags: state.remoteTags,
+        metadata_dirty: state.dirty,
+        ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
+        ...materializeRunState({
+          tags: state.tags,
+          watermark: state.oplogWatermark,
+          updatedAt: state.updatedAt,
+        }),
+      };
+    }
+  }
+
   if (meta.source === 'local') {
     const tagsEntry = readRunTags(meta.path);
     const runState = materializeRunState({
@@ -2093,7 +2110,7 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
     return c.json({ error: 'Missing tags array' }, 400);
   }
   try {
-    if (meta.source === 'remote') {
+    if (meta.on_remote) {
       const state = await setRemoteRunTags(searchDir, meta, tags as string[], projectId);
       return c.json(remoteTagMutationResponse(state));
     }
@@ -2119,7 +2136,7 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
-    if (meta.source === 'remote') {
+    if (meta.on_remote) {
       const state = await clearRemoteRunTags(searchDir, meta, projectId);
       return c.json({
         ok: true,

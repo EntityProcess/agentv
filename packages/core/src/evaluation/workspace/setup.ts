@@ -396,6 +396,7 @@ export async function prepareSharedWorkspaceSetup(
       setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
       poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
       const poolRepoManager = new RepoManager(verbose);
+      repoManager = poolRepoManager;
 
       for (let i = 0; i < slotsNeeded; i++) {
         const slot = await poolManager.acquireWorkspace({
@@ -457,9 +458,15 @@ export async function prepareSharedWorkspaceSetup(
     const needsPerRepoCheck =
       hasReposToMaterialize && useStaticWorkspace && !staticMaterialised && isYamlConfiguredPath;
     repoManager =
-      needsRepoMaterialisation || needsPerRepoCheck ? new RepoManager(verbose) : undefined;
+      repoManager ??
+      (needsRepoMaterialisation || needsPerRepoCheck ? new RepoManager(verbose) : undefined);
 
-    if (repoManager && sharedWorkspacePath && suiteWorkspace?.repos) {
+    if (
+      (needsRepoMaterialisation || needsPerRepoCheck) &&
+      repoManager &&
+      sharedWorkspacePath &&
+      suiteWorkspace?.repos
+    ) {
       try {
         if (needsPerRepoCheck) {
           for (const repo of suiteWorkspace.repos) {

@@ -734,6 +734,67 @@ async function getAheadBehindForRefs(
   };
 }
 
+async function readGitText(
+  repoDir: string,
+  ref: string | undefined,
+  gitPath: string,
+): Promise<string | undefined> {
+  if (!ref) {
+    return undefined;
+  }
+  const { stdout } = await runGit(['show', `${ref}:${gitPath}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  return stdout.length > 0 ? stdout : undefined;
+}
+
+async function getStorageBranchWorktreeDirtyPaths(
+  repoDir: string,
+  config: NormalizedResultsConfig & { readonly branch: string },
+): Promise<{ dirtyPaths: string[]; conflictedPaths: string[] }> {
+  const { stdout: porcelain } = await runGit(
+    ['status', '--porcelain=v1', '--untracked-files=all'],
+    {
+      cwd: repoDir,
+      check: false,
+    },
+  );
+  const parsed = parseGitPorcelainPaths(porcelain);
+  const safeDirtyPaths = parsed.dirtyPaths.filter(isSafeResultsRepoPath);
+  const conflictedPaths = parsed.conflictedPaths.filter(isSafeResultsRepoPath);
+  if (safeDirtyPaths.length === 0) {
+    return { dirtyPaths: [], conflictedPaths };
+  }
+
+  const localRef = `refs/heads/${config.branch}`;
+  const remoteRef = remoteBranchRef(config.branch, config.remote);
+  const comparisonRef = (await gitRefExists(repoDir, localRef))
+    ? localRef
+    : (await gitRefExists(repoDir, remoteRef))
+      ? remoteRef
+      : undefined;
+  const dirtyPaths: string[] = [];
+
+  for (const gitPath of safeDirtyPaths) {
+    const absolutePath = path.join(repoDir, ...gitPath.split('/'));
+    if (!existsSync(absolutePath)) {
+      if ((await readGitText(repoDir, comparisonRef, gitPath)) !== undefined) {
+        dirtyPaths.push(gitPath);
+      }
+      continue;
+    }
+
+    const localContent = readFileSync(absolutePath, 'utf8');
+    const branchContent = await readGitText(repoDir, comparisonRef, gitPath);
+    if (branchContent === undefined || localContent !== branchContent) {
+      dirtyPaths.push(gitPath);
+    }
+  }
+
+  return { dirtyPaths: dirtyPaths.sort(), conflictedPaths };
+}
+
 async function inspectResultsStorageBranchGit(
   repoDir: string,
   config: NormalizedResultsConfig,
@@ -749,6 +810,10 @@ async function inspectResultsStorageBranchGit(
   const upstream = remoteBranchRef(config.branch, config.remote);
   const localExists = await gitRefExists(repoDir, localRef);
   const remoteExists = await gitRefExists(repoDir, upstream);
+  const worktree = await getStorageBranchWorktreeDirtyPaths(repoDir, {
+    ...config,
+    branch: config.branch,
+  });
   const { ahead = 0, behind = 0 } =
     localExists && remoteExists
       ? await getAheadBehindForRefs(repoDir, localRef, upstream)
@@ -758,7 +823,11 @@ async function inspectResultsStorageBranchGit(
         };
 
   let syncStatus: ResultsRepoSyncStatus = 'clean';
-  if (ahead > 0 && behind > 0) {
+  if (worktree.conflictedPaths.length > 0) {
+    syncStatus = 'conflicted';
+  } else if (worktree.dirtyPaths.length > 0) {
+    syncStatus = 'dirty';
+  } else if (ahead > 0 && behind > 0) {
     syncStatus = 'diverged';
   } else if (behind > 0) {
     syncStatus = 'behind';
@@ -772,9 +841,31 @@ async function inspectResultsStorageBranchGit(
     ...(remoteExists && { upstream }),
     ahead,
     behind,
-    dirtyPaths: [],
-    conflictedPaths: [],
+    dirtyPaths: worktree.dirtyPaths,
+    conflictedPaths: worktree.conflictedPaths,
   };
+}
+
+async function fastForwardStorageBranchRef(
+  repoDir: string,
+  normalized: StorageBranchResultsConfig,
+  upstream: string,
+): Promise<void> {
+  await assertValidResultsBranchName(repoDir, normalized.branch);
+  await ensureResultsBranchNotCheckedOut(repoDir, normalized);
+
+  const localRef = `refs/heads/${normalized.branch}`;
+  const localExists = await gitRefExists(repoDir, localRef);
+  const updateArgs = ['update-ref', localRef, upstream];
+  if (localExists) {
+    const { stdout: localSha } = await runGit(['rev-parse', localRef], { cwd: repoDir });
+    updateArgs.push(localSha.trim());
+  }
+  await runGit(updateArgs, { cwd: repoDir });
+  await runGit(['branch', '--set-upstream-to', upstream, normalized.branch], {
+    cwd: repoDir,
+    check: false,
+  });
 }
 
 async function hasInProgressGitConflict(repoDir: string): Promise<boolean> {
@@ -1105,6 +1196,116 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
           throw error;
         }
       }
+      let inspection = await inspectResultsStorageBranchGit(repoDir, normalized);
+      const fastForwardBehindStorageBranch = async (): Promise<ResultsRepoStatus | undefined> => {
+        if ((inspection.behind ?? 0) <= 0 || (inspection.ahead ?? 0) > 0) {
+          return undefined;
+        }
+
+        if (!inspection.upstream) {
+          const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+          updateStatusFile(normalized, {
+            last_error: 'Results repo has no upstream branch to pull from',
+          });
+          return withBlockedStatus(status, 'Results repo has no upstream branch to pull from', {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
+
+        if (!normalized.branch) {
+          return undefined;
+        }
+
+        try {
+          await fastForwardStorageBranchRef(
+            repoDir,
+            { ...normalized, branch: normalized.branch },
+            inspection.upstream,
+          );
+          pullPerformed = true;
+          inspection = await inspectResultsStorageBranchGit(repoDir, normalized);
+          return undefined;
+        } catch (error) {
+          inspection = await inspectResultsStorageBranchGit(repoDir, normalized);
+          const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+          const reason = `Results repo could not be fast-forwarded: ${getStatusMessage(error)}`;
+          updateStatusFile(normalized, { last_error: reason });
+          return withBlockedStatus(status, reason, {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
+      };
+
+      if (inspection.syncStatus === 'conflicted') {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        updateStatusFile(normalized, {
+          last_error: 'Results repo has unresolved git conflicts',
+        });
+        return withBlockedStatus(status, 'Results repo has unresolved git conflicts', {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      if ((inspection.ahead ?? 0) > 0 && (inspection.behind ?? 0) > 0) {
+        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+        updateStatusFile(normalized, {
+          last_error: 'Results repo local and remote histories have diverged',
+        });
+        return withBlockedStatus(status, 'Results repo local and remote histories have diverged', {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+
+      if (inspection.syncStatus === 'dirty') {
+        if (!normalized.auto_push && !normalized.require_push) {
+          const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+          updateStatusFile(normalized, {
+            last_error: 'Results repo has uncommitted changes and auto_push is disabled',
+          });
+          return withBlockedStatus(
+            status,
+            'Results repo has uncommitted changes and auto_push is disabled',
+            {
+              pullPerformed,
+              pushPerformed,
+              commitCreated,
+            },
+          );
+        }
+
+        if ((inspection.behind ?? 0) > 0) {
+          const blockedStatus = await fastForwardBehindStorageBranch();
+          if (blockedStatus) {
+            return blockedStatus;
+          }
+        }
+
+        if (normalized.branch) {
+          commitCreated = await commitStorageBranchWorktreePaths({
+            normalized: { ...normalized, branch: normalized.branch },
+            repoDir,
+            paths: inspection.dirtyPaths,
+            commitMessage: 'chore(results): sync local result metadata',
+          });
+          inspection = await inspectResultsStorageBranchGit(repoDir, normalized);
+        }
+      }
+
+      if ((inspection.behind ?? 0) > 0 && (inspection.ahead ?? 0) === 0) {
+        const blockedStatus = await fastForwardBehindStorageBranch();
+        if (blockedStatus) {
+          return blockedStatus;
+        }
+      }
+
       if (normalized.auto_push || normalized.require_push) {
         if (normalized.branch) {
           const localRef = `refs/heads/${normalized.branch}`;
@@ -1120,12 +1321,18 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
                 { cwd: repoDir },
               );
               pushPerformed = true;
+              await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
+                () => undefined,
+              );
             } catch (error) {
               updateStatusFile(normalized, { last_error: getStatusMessage(error) });
               if (normalized.require_push) {
                 throw error;
               }
-              const status = await getResultsRepoSyncStatus(normalized);
+              const status = withGitInspection(
+                getResultsRepoStatus(normalized),
+                await inspectResultsStorageBranchGit(repoDir, normalized),
+              );
               return withBlockedStatus(
                 status,
                 `Results repo push was rejected: ${getStatusMessage(error)}`,
@@ -1143,11 +1350,11 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         last_synced_at: new Date().toISOString(),
         last_error: undefined,
       });
-      return withActionFlags(await getResultsRepoSyncStatus(normalized), {
-        pullPerformed,
-        pushPerformed,
-        commitCreated,
-      });
+      const status = withGitInspection(
+        getResultsRepoStatus(normalized),
+        await inspectResultsStorageBranchGit(repoDir, normalized),
+      );
+      return withActionFlags(status, { pullPerformed, pushPerformed, commitCreated });
     }
     await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
     await checkoutConfiguredResultsBranch(repoDir, normalized);
@@ -1844,6 +2051,111 @@ async function ensureResultsBranchNotCheckedOut(
     );
   }
   await runGit(['checkout', '--detach'], { cwd: repoDir });
+}
+
+async function commitStorageBranchWorktreePaths(params: {
+  readonly normalized: StorageBranchResultsConfig;
+  readonly repoDir: string;
+  readonly paths: readonly string[];
+  readonly commitMessage: string;
+}): Promise<boolean> {
+  const { normalized } = params;
+  const paths = [...new Set(params.paths.filter(isSafeResultsRepoPath))].sort();
+  if (paths.length === 0) {
+    return false;
+  }
+
+  await assertValidResultsBranchName(params.repoDir, normalized.branch);
+  await ensureResultsBranchNotCheckedOut(params.repoDir, normalized);
+
+  let base = await resolveStorageBranchBase({
+    repoDir: params.repoDir,
+    normalized,
+  });
+  if (!base.baseRef) {
+    await createOrphanResultsBranch(params.repoDir, normalized.branch);
+    base = await resolveStorageBranchBase({
+      repoDir: params.repoDir,
+      normalized,
+    });
+  }
+
+  const indexRoot = await mkdtemp(path.join(os.tmpdir(), 'agentv-results-index-'));
+  const indexFile = path.join(indexRoot, 'index');
+  const indexEnv = { GIT_INDEX_FILE: indexFile };
+
+  try {
+    if (base.baseRef) {
+      await runGit(['read-tree', base.baseRef], { cwd: params.repoDir, env: indexEnv });
+    } else {
+      await runGit(['read-tree', '--empty'], { cwd: params.repoDir, env: indexEnv });
+    }
+
+    for (const gitPath of paths) {
+      const sourcePath = path.join(params.repoDir, ...gitPath.split('/'));
+      if (!existsSync(sourcePath)) {
+        await runGit(['update-index', '--force-remove', '--', gitPath], {
+          cwd: params.repoDir,
+          env: indexEnv,
+          check: false,
+        });
+        continue;
+      }
+
+      const fileStat = await lstat(sourcePath);
+      let mode = fileStat.mode & 0o111 ? '100755' : '100644';
+      if (fileStat.isSymbolicLink()) {
+        mode = '120000';
+      }
+      const { stdout: blob } = await runGit(['hash-object', '-w', '--no-filters', sourcePath], {
+        cwd: params.repoDir,
+      });
+      await runGit(['update-index', '--add', '--cacheinfo', `${mode},${blob.trim()},${gitPath}`], {
+        cwd: params.repoDir,
+        env: indexEnv,
+      });
+    }
+
+    const { stdout: newTreeStdout } = await runGit(['write-tree'], {
+      cwd: params.repoDir,
+      env: indexEnv,
+    });
+    const newTree = newTreeStdout.trim();
+    if (base.baseTree && newTree === base.baseTree) {
+      return false;
+    }
+
+    await ensureResultsRepoCommitIdentity(params.repoDir);
+    const commitArgs = [
+      'commit-tree',
+      newTree,
+      ...(base.baseCommit ? ['-p', base.baseCommit] : []),
+      '-m',
+      params.commitMessage,
+    ];
+    const { stdout: commitStdout } = await runGit(commitArgs, { cwd: params.repoDir });
+    const commitSha = commitStdout.trim();
+    await runGit(
+      [
+        'update-ref',
+        `refs/heads/${normalized.branch}`,
+        commitSha,
+        ...(base.localExists ? [base.baseCommit ?? ''] : []),
+      ].filter(Boolean),
+      { cwd: params.repoDir },
+    );
+
+    if (base.remoteExists) {
+      await runGit(['branch', '--set-upstream-to', base.remoteRef, normalized.branch], {
+        cwd: params.repoDir,
+        check: false,
+      });
+    }
+
+    return true;
+  } finally {
+    await rm(indexRoot, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 async function commitResultsRunWithTemporaryIndex(params: {
