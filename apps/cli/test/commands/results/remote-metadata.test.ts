@@ -115,6 +115,37 @@ describe('remote metadata tags', () => {
     expect(reloaded.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
   });
 
+  it('preserves the storage ref when unchanged remote artifact tags clear a local overlay', () => {
+    git('git init --quiet', repoDir);
+    git('git config user.email "test@example.com"', repoDir);
+    git('git config user.name "Test User"', repoDir);
+    writeFileSync(path.join(repoDir, 'README.md'), '# source branch\n');
+    git('git add README.md', repoDir);
+    git('git commit --quiet -m "seed source branch"', repoDir);
+    git('git branch -M main', repoDir);
+
+    git('git checkout --quiet -b agentv/results/v1', repoDir);
+    const runDir = path.join(repoDir, 'runs', 'default', RUN_TIMESTAMP);
+    mkdirSync(runDir, { recursive: true });
+    writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha","score":1}\n');
+    writeFileSync(
+      path.join(runDir, 'tags.json'),
+      `${JSON.stringify({ tags: ['remote'], updated_at: '2026-06-06T09:00:00.000Z' }, null, 2)}\n`,
+    );
+    git('git add runs', repoDir);
+    git('git commit --quiet -m "seed result artifact"', repoDir);
+    git('git checkout --quiet main', repoDir);
+
+    const manifestPath = path.join(runDir, 'index.jsonl');
+    const state = writeRemoteRunTags(repoDir, manifestPath, ['remote'], 'agentv/results/v1');
+
+    expect(state.tags).toEqual(['remote']);
+    expect(state.remoteTags).toEqual(['remote']);
+    expect(state.pendingTags).toBeUndefined();
+    expect(state.dirty).toBe(false);
+    expect(existsSync(state.metadataPath)).toBe(false);
+  });
+
   it('persists clearing remote tags as an empty pending overlay', () => {
     const manifestPath = seedRepo(repoDir);
 

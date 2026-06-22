@@ -45,6 +45,16 @@
       },
       "additionalProperties": false
     },
+    "results": {
+      "$ref": "#/definitions/resultsConfig"
+    },
+    "projects": {
+      "type": "array",
+      "description": "Global Dashboard project registry entries. Only valid in $AGENTV_HOME/config.yaml.",
+      "items": {
+        "$ref": "#/definitions/projectEntry"
+      }
+    },
     "hooks": {
       "type": "object",
       "description": "Lifecycle hooks that run at specific points during agentv execution.",
@@ -55,6 +65,110 @@
           "examples": ["bun scripts/load-secrets.ts", "eval $(aws ssm get-parameters-by-path ...)"]
         }
       },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "sourceRepoBlock": {
+      "type": "object",
+      "description": "Source project repository block. Use url for the Git endpoint, path for the local checkout path, and branch for the checkout branch.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Source Git remote URL.",
+          "examples": ["https://github.com/example/repo.git", "git@github.com:example/repo.git"]
+        },
+        "path": {
+          "type": "string",
+          "description": "Local source checkout path.",
+          "examples": ["/srv/agentv/my-evals"]
+        },
+        "branch": {
+          "type": "string",
+          "description": "Source checkout branch.",
+          "examples": ["main"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "resultsRepoBlock": {
+      "type": "object",
+      "description": "Results repository block. Use remote for the Git endpoint URL, path for an existing local results checkout or managed clone path, and branch for the storage branch.",
+      "properties": {
+        "remote": {
+          "type": "string",
+          "description": "Results Git remote endpoint URL used for fetching and pushing.",
+          "examples": [
+            "https://github.com/example/results.git",
+            "git@github.com:example/results.git"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "description": "Existing local results checkout path when remote is omitted, or managed results clone path when remote is set.",
+          "examples": [".", "/srv/agentv/results", "~/data/agentv-results"]
+        },
+        "branch": {
+          "type": "string",
+          "description": "Results storage branch.",
+          "examples": ["agentv/results/v1"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "resultsConfig": {
+      "type": "object",
+      "description": "Git-backed results repo configuration. Canonical form uses a nested repo block.",
+      "properties": {
+        "repo": {
+          "$ref": "#/definitions/resultsRepoBlock"
+        },
+        "sync": {
+          "type": "object",
+          "properties": {
+            "auto_push": {
+              "type": "boolean",
+              "description": "Push result commits best-effort after each completed run."
+            },
+            "require_push": {
+              "type": "boolean",
+              "description": "Fail the command if a configured push fails after writing local artifacts."
+            }
+          },
+          "additionalProperties": false
+        },
+        "branch_prefix": {
+          "type": "string",
+          "description": "Prefix for temporary result branch names; this is not the storage branch."
+        }
+      },
+      "required": ["repo"],
+      "additionalProperties": false
+    },
+    "projectEntry": {
+      "type": "object",
+      "description": "Dashboard project registry entry.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "repo": {
+          "$ref": "#/definitions/sourceRepoBlock"
+        },
+        "results": {
+          "$ref": "#/definitions/resultsConfig"
+        },
+        "added_at": {
+          "type": "string"
+        },
+        "last_opened_at": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "name", "repo"],
       "additionalProperties": false
     }
   },

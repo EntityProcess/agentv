@@ -43,7 +43,12 @@ const gitRunsCache = new Map<string, { data: Promise<GitListedRun[]>; expiresAt:
 const GIT_RUNS_CACHE_TTL_MS = 60_000;
 
 function getResultsStorageRef(config: NormalizedResultsConfig): string | undefined {
-  return config.branch;
+  if (!config.branch) {
+    return undefined;
+  }
+  return config.storageBranchWorktree
+    ? `refs/remotes/${config.remote}/${config.branch}`
+    : config.branch;
 }
 
 function cachedListGitRuns(repoDir: string, ref?: string) {
@@ -116,6 +121,38 @@ export type RemoteExportStatus = 'disabled' | 'published' | 'already_published' 
 
 export interface RemoteResultsStatus extends ResultsRepoStatus {
   readonly run_count: number;
+}
+
+function relativeLocalRunPath(cwd: string, manifestPath: string): string | undefined {
+  const runsRoot = path.resolve(cwd, '.agentv', 'results', 'runs');
+  const manifestDir = path.resolve(path.dirname(manifestPath));
+  const relativeRunPath = path.relative(runsRoot, manifestDir);
+  if (
+    relativeRunPath.length === 0 ||
+    relativeRunPath.startsWith('..') ||
+    path.isAbsolute(relativeRunPath)
+  ) {
+    return undefined;
+  }
+  return relativeRunPath.split(path.sep).join(path.posix.sep);
+}
+
+function remoteMetadataManifestPath(
+  cwd: string,
+  config: NormalizedResultsConfig,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
+): string | undefined {
+  if (meta.source === 'remote') {
+    return meta.path;
+  }
+  if (!meta.on_remote) {
+    return undefined;
+  }
+  const relativeRunPath = relativeLocalRunPath(cwd, meta.path);
+  if (!relativeRunPath) {
+    return undefined;
+  }
+  return path.join(config.path, 'runs', ...relativeRunPath.split('/'), 'index.jsonl');
 }
 
 export interface ResultsPublishOverrides {
@@ -488,15 +525,17 @@ export async function ensureRemoteRunAvailable(
 
 export async function readRemoteRunTagState(
   cwd: string,
-  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   projectId?: string,
 ): Promise<RemoteRunTagState | undefined> {
-  if (meta.source !== 'remote') return undefined;
+  if (meta.source !== 'remote' && !meta.on_remote) return undefined;
   const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) return undefined;
+  const manifestPath = remoteMetadataManifestPath(cwd, config, meta);
+  if (!manifestPath) return undefined;
 
   try {
-    return readRemoteRunTags(config.path, meta.path);
+    return readRemoteRunTags(config.path, manifestPath, getResultsStorageRef(config));
   } catch {
     return undefined;
   }
@@ -504,35 +543,43 @@ export async function readRemoteRunTagState(
 
 export async function setRemoteRunTags(
   cwd: string,
-  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   tags: readonly string[],
   projectId?: string,
 ): Promise<RemoteRunTagState> {
-  if (meta.source !== 'remote') {
+  if (meta.source !== 'remote' && !meta.on_remote) {
     throw new Error('Remote metadata can only be set on remote runs');
   }
   const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) {
     throw new Error('Writable results repo is not configured for remote metadata');
   }
+  const manifestPath = remoteMetadataManifestPath(cwd, config, meta);
+  if (!manifestPath) {
+    throw new Error('Remote metadata can only be set on remote runs');
+  }
   assertWritableResultsRepo(config.path);
-  return writeRemoteRunTags(config.path, meta.path, tags);
+  return writeRemoteRunTags(config.path, manifestPath, tags, getResultsStorageRef(config));
 }
 
 export async function clearRemoteRunTags(
   cwd: string,
-  meta: Pick<SourcedResultFileMeta, 'source' | 'path'>,
+  meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   projectId?: string,
 ): Promise<RemoteRunTagState> {
-  if (meta.source !== 'remote') {
+  if (meta.source !== 'remote' && !meta.on_remote) {
     throw new Error('Remote metadata can only be removed from remote runs');
   }
   const config = await loadNormalizedResultsConfig(cwd, projectId);
   if (!config) {
     throw new Error('Writable results repo is not configured for remote metadata');
   }
+  const manifestPath = remoteMetadataManifestPath(cwd, config, meta);
+  if (!manifestPath) {
+    throw new Error('Remote metadata can only be removed from remote runs');
+  }
   assertWritableResultsRepo(config.path);
-  return deleteRemoteRunTags(config.path, meta.path);
+  return deleteRemoteRunTags(config.path, manifestPath, getResultsStorageRef(config));
 }
 
 export async function maybeAutoExportRunArtifacts(

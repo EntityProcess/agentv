@@ -16,14 +16,15 @@
  *   projects:
  *     - id: my-app
  *       name: My App
- *       repo_url: https://github.com/example/my-app.git
- *       path: /home/user/projects/my-app
- *       ref: main
+ *       repo:
+ *         url: https://github.com/example/my-app.git
+ *         branch: main
+ *         path: /home/user/projects/my-app
  *       results:
- *         repo_path: .
- *         branch: agentv/results/v1
- *         remote: origin
- *         path: /srv/agentv/results/my-app
+ *         repo:
+ *           remote: https://github.com/example/my-app.git
+ *           path: .
+ *           branch: agentv/results/v1
  *         sync:
  *           auto_push: true
  *           require_push: false
@@ -106,6 +107,7 @@ interface ProjectResultsSyncYaml {
 }
 
 interface ProjectResultsYaml {
+  repo?: ProjectResultsRepoYaml;
   repo_url?: string;
   repo_path?: string;
   branch?: string;
@@ -115,58 +117,84 @@ interface ProjectResultsYaml {
   branch_prefix?: string;
 }
 
+interface ProjectRepoYaml {
+  url?: string;
+  branch?: string;
+  path?: string;
+}
+
+interface ProjectResultsRepoYaml {
+  url?: string;
+  path?: string;
+  branch?: string;
+  remote?: string;
+}
+
 interface ProjectEntryYaml {
   id: string;
   name: string;
+  repo?: ProjectRepoYaml;
   repo_url?: string;
-  path: string;
+  path?: string;
   ref?: string;
   added_at: string;
   last_opened_at: string;
   results?: ProjectResultsYaml;
 }
 
+function readTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 function fromYaml(raw: unknown): ProjectEntry | null {
   if (!raw || typeof raw !== 'object') return null;
   const e = raw as Partial<ProjectEntryYaml>;
-  if (typeof e.id !== 'string' || typeof e.name !== 'string' || typeof e.path !== 'string') {
+  const repo = e.repo && typeof e.repo === 'object' ? e.repo : undefined;
+  const sourcePath = readTrimmedString(repo?.path) ?? readTrimmedString(e.path);
+  if (typeof e.id !== 'string' || typeof e.name !== 'string' || !sourcePath) {
     return null;
   }
   const entry: ProjectEntry = {
     id: e.id,
     name: e.name,
-    path: e.path,
+    path: sourcePath,
     addedAt: typeof e.added_at === 'string' ? e.added_at : '',
     lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
   };
-  if (typeof e.repo_url === 'string' && e.repo_url.trim().length > 0) {
-    entry.repoUrl = e.repo_url.trim();
+  const repoUrl = readTrimmedString(repo?.url) ?? readTrimmedString(e.repo_url);
+  if (repoUrl) {
+    entry.repoUrl = repoUrl;
   }
-  if (typeof e.ref === 'string' && e.ref.trim().length > 0) {
-    entry.ref = e.ref.trim();
+  const branch = readTrimmedString(repo?.branch) ?? readTrimmedString(e.ref);
+  if (branch) {
+    entry.ref = branch;
   }
   if (e.results && typeof e.results === 'object') {
     const r = e.results as Partial<ProjectResultsYaml>;
+    const resultsRepo =
+      r.repo && typeof r.repo === 'object' && !Array.isArray(r.repo) ? r.repo : undefined;
     const repoUrl =
-      typeof r.repo_url === 'string' && r.repo_url.trim().length > 0
-        ? r.repo_url.trim()
-        : undefined;
-    const repoPath =
-      typeof r.repo_path === 'string' && r.repo_path.trim().length > 0
-        ? r.repo_path.trim()
-        : undefined;
+      readTrimmedString(resultsRepo?.remote) ??
+      readTrimmedString(resultsRepo?.url) ??
+      readTrimmedString(r.repo_url);
+    const repoPath = repoUrl
+      ? undefined
+      : (readTrimmedString(resultsRepo?.path) ?? readTrimmedString(r.repo_path));
+    const clonePath = repoUrl
+      ? (readTrimmedString(resultsRepo?.path) ?? readTrimmedString(r.path))
+      : readTrimmedString(r.path);
+    const resultsBranch = readTrimmedString(resultsRepo?.branch) ?? readTrimmedString(r.branch);
+    const resultsRemote = resultsRepo ? undefined : readTrimmedString(r.remote);
     if (repoUrl || repoPath) {
       const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
       entry.results = {
         ...(repoUrl ? { repoUrl } : {}),
         ...(repoPath ? { repoPath } : {}),
-        ...(typeof r.branch === 'string' && r.branch.trim().length > 0
-          ? { branch: r.branch.trim() }
-          : {}),
-        ...(typeof r.remote === 'string' && r.remote.trim().length > 0
-          ? { remote: r.remote.trim() }
-          : {}),
-        ...(typeof r.path === 'string' && r.path.trim().length > 0 ? { path: r.path.trim() } : {}),
+        ...(resultsBranch ? { branch: resultsBranch } : {}),
+        ...(resultsRemote ? { remote: resultsRemote } : {}),
+        ...(clonePath ? { path: clonePath } : {}),
         ...(sync && (typeof sync.auto_push === 'boolean' || typeof sync.require_push === 'boolean')
           ? {
               sync: {
@@ -190,33 +218,58 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   const yaml: ProjectEntryYaml = {
     id: entry.id,
     name: entry.name,
-    ...(entry.repoUrl !== undefined && { repo_url: entry.repoUrl }),
-    path: entry.path,
-    ...(entry.ref !== undefined && { ref: entry.ref }),
+    repo: {
+      ...(entry.repoUrl !== undefined && { url: entry.repoUrl }),
+      ...(entry.ref !== undefined && { branch: entry.ref }),
+      path: entry.path,
+    },
     added_at: entry.addedAt,
     last_opened_at: entry.lastOpenedAt,
   };
   if (entry.results) {
-    yaml.results = {
-      ...(entry.results.repoUrl !== undefined && { repo_url: entry.results.repoUrl }),
-      ...(entry.results.repoPath !== undefined && { repo_path: entry.results.repoPath }),
+    const resultsSync =
+      entry.results.sync?.autoPush !== undefined || entry.results.sync?.requirePush !== undefined
+        ? {
+            sync: {
+              ...(entry.results.sync?.autoPush !== undefined && {
+                auto_push: entry.results.sync.autoPush,
+              }),
+              ...(entry.results.sync?.requirePush !== undefined && {
+                require_push: entry.results.sync.requirePush,
+              }),
+            },
+          }
+        : {};
+    const branchPrefix =
+      entry.results.branchPrefix !== undefined ? { branch_prefix: entry.results.branchPrefix } : {};
+
+    if (entry.results.remote !== undefined) {
+      yaml.results = {
+        ...(entry.results.repoUrl !== undefined && { repo_url: entry.results.repoUrl }),
+        ...(entry.results.repoPath !== undefined && { repo_path: entry.results.repoPath }),
+        ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
+        remote: entry.results.remote,
+        ...(entry.results.path !== undefined && { path: entry.results.path }),
+        ...resultsSync,
+        ...branchPrefix,
+      };
+      return yaml;
+    }
+
+    const resultsRepo: ProjectResultsRepoYaml = {
+      ...(entry.results.repoUrl !== undefined && { remote: entry.results.repoUrl }),
       ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
-      ...(entry.results.remote !== undefined && { remote: entry.results.remote }),
-      ...(entry.results.path !== undefined && { path: entry.results.path }),
-      ...((entry.results.sync?.autoPush !== undefined ||
-        entry.results.sync?.requirePush !== undefined) && {
-        sync: {
-          ...(entry.results.sync?.autoPush !== undefined && {
-            auto_push: entry.results.sync.autoPush,
-          }),
-          ...(entry.results.sync?.requirePush !== undefined && {
-            require_push: entry.results.sync.requirePush,
-          }),
-        },
-      }),
-      ...(entry.results.branchPrefix !== undefined && {
-        branch_prefix: entry.results.branchPrefix,
-      }),
+      ...(entry.results.repoUrl &&
+        entry.results.path !== undefined && {
+          path: entry.results.path,
+        }),
+      ...(entry.results.repoUrl === undefined &&
+        entry.results.repoPath !== undefined && { path: entry.results.repoPath }),
+    };
+    yaml.results = {
+      repo: resultsRepo,
+      ...resultsSync,
+      ...branchPrefix,
     };
   }
   return yaml;

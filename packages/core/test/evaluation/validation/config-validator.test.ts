@@ -51,10 +51,12 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `results:
-  mode: github
-  repo: EntityProcess/agentv-evals
-  branch: agentv-results
-  auto_push: true
+  repo:
+    remote: https://github.com/EntityProcess/agentv-evals.git
+    branch: agentv-results
+    path: ~/data/agentv-results
+  sync:
+    auto_push: true
   branch_prefix: eval-results
 `,
     );
@@ -87,13 +89,15 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    repo_url: https://github.com/EntityProcess/agentv.git
-    path: /srv/agentv
-    ref: main
+    repo:
+      url: https://github.com/EntityProcess/agentv.git
+      branch: main
+      path: /srv/agentv
     results:
-      repo_url: git@github.com:EntityProcess/agentv-results.git
-      branch: agentv-results
-      path: /srv/agentv-results
+      repo:
+        remote: git@github.com:EntityProcess/agentv-results.git
+        branch: agentv-results
+        path: /srv/agentv-results
       sync:
         auto_push: true
       branch_prefix: eval-results
@@ -106,18 +110,21 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('accepts branch-backed repo_path results in global project config', async () => {
+  it('accepts URL-backed source storage branch results in global project config', async () => {
     const filePath = path.join(tempDir, 'global-config-repo-path.yaml');
     await writeFile(
       filePath,
       `projects:
   - id: agentv
     name: AgentV
-    path: /srv/agentv
+    repo:
+      url: https://github.com/EntityProcess/agentv.git
+      path: /srv/agentv
     results:
-      repo_path: .
-      branch: agentv/results/v1
-      remote: origin
+      repo:
+        remote: https://github.com/EntityProcess/agentv.git
+        path: .
+        branch: agentv/results/v1
       sync:
         auto_push: false
         require_push: true
@@ -130,6 +137,43 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('keeps flat project repo fields compatible with migration warnings', async () => {
+    const filePath = path.join(tempDir, 'global-config-flat-project.yaml');
+    await writeFile(
+      filePath,
+      `projects:
+  - id: agentv
+    name: AgentV
+    repo_url: https://github.com/EntityProcess/agentv.git
+    path: /srv/agentv
+    ref: main
+    results:
+      repo_url: git@github.com:EntityProcess/agentv-results.git
+      branch: agentv-results
+      path: /srv/agentv-results
+      sync:
+        auto_push: true
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: 'warning', location: 'projects[0].repo_url' }),
+        expect.objectContaining({ severity: 'warning', location: 'projects[0].path' }),
+        expect.objectContaining({ severity: 'warning', location: 'projects[0].ref' }),
+        expect.objectContaining({
+          severity: 'warning',
+          location: 'projects[0].results.repo_url',
+        }),
+        expect.objectContaining({ severity: 'warning', location: 'projects[0].results.branch' }),
+        expect.objectContaining({ severity: 'warning', location: 'projects[0].results.path' }),
+      ]),
+    );
+  });
+
   it('infers AGENTV_HOME config.yaml as global even when the home dir is named .agentv', async () => {
     const fakeHome = path.join(tempDir, 'fake-user-home');
     const homeConfigDir = path.join(fakeHome, '.agentv');
@@ -140,7 +184,8 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    path: /srv/agentv
+    repo:
+      path: /srv/agentv
 `,
     );
 
@@ -186,14 +231,15 @@ describe('validateConfigFile', () => {
       `projects:
   - id: ""
     name: 42
-    repo_url: EntityProcess/agentv
-    path:
-    ref: ""
-    results:
-      repo_url: EntityProcess/results
+    repo:
+      url: EntityProcess/agentv
+      path:
       branch: ""
-      remote: ""
-      path: repo/subdir
+    results:
+      repo:
+        remote: EntityProcess/results
+        branch: ""
+        path: repo/subdir
       sync:
         auto_push: yes
       branch_prefix: ""
@@ -208,13 +254,17 @@ describe('validateConfigFile', () => {
       expect.arrayContaining([
         expect.objectContaining({ severity: 'error', location: 'projects[0].id' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].name' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].repo_url' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].ref' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.repo_url' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.branch' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.remote' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].results.path' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].repo.url' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].repo.path' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].repo.branch' }),
+        expect.objectContaining({
+          severity: 'error',
+          location: 'projects[0].results.repo.branch',
+        }),
+        expect.objectContaining({
+          severity: 'error',
+          location: 'projects[0].results.repo.remote',
+        }),
         expect.objectContaining({
           severity: 'error',
           location: 'projects[0].results.sync.auto_push',
@@ -233,7 +283,7 @@ describe('validateConfigFile', () => {
       field: 'repository',
       yaml: 'repository: example/repo',
       location: 'projects[0].repository',
-      migration: 'repo_url',
+      migration: 'repo.url',
     },
     {
       field: 'source',
@@ -254,24 +304,25 @@ describe('validateConfigFile', () => {
     {
       field: 'results.repo',
       yaml: `results:
-      repo_url: https://github.com/example/results.git
       repo: example/legacy-results`,
       location: 'projects[0].results.repo',
-      migration: 'Use',
+      migration: 'repo.remote',
     },
 
     {
       field: 'results.repository',
       yaml: `results:
-      repo_url: https://github.com/example/results.git
+      repo:
+        remote: https://github.com/example/results.git
       repository: example/results`,
       location: 'projects[0].results.repository',
-      migration: 'repo_url',
+      migration: 'repo.remote',
     },
     {
       field: 'results.local_path',
       yaml: `results:
-      repo_url: https://github.com/example/results.git
+      repo:
+        remote: https://github.com/example/results.git
       local_path: /srv/results`,
       location: 'projects[0].results.local_path',
       migration: 'path',
@@ -279,7 +330,8 @@ describe('validateConfigFile', () => {
     {
       field: 'results.auto_push',
       yaml: `results:
-      repo_url: https://github.com/example/results.git
+      repo:
+        remote: https://github.com/example/results.git
       auto_push: true`,
       location: 'projects[0].results.auto_push',
       migration: 'sync.auto_push',
@@ -291,9 +343,10 @@ describe('validateConfigFile', () => {
       `projects:
   - id: legacy
     name: Legacy
-    repo_url: https://github.com/example/repo.git
-    path: /srv/legacy
-    ref: main
+    repo:
+      url: https://github.com/example/repo.git
+      path: /srv/legacy
+      branch: main
     ${legacy.yaml}
 `,
     );
@@ -354,7 +407,9 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `results:
-  repo: EntityProcess/agentv-evals
+  repo:
+    path: .
+    branch: agentv/results/v1
 `,
     );
 
@@ -362,6 +417,31 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('keeps flat top-level results compatible with migration warnings', async () => {
+    const filePath = path.join(tempDir, 'config-results-flat-compatible.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  repo_url: https://github.com/EntityProcess/agentv-evals.git
+  branch: agentv-results
+  path: ~/data/agentv-results
+  sync:
+    auto_push: true
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: 'warning', location: 'results.repo_url' }),
+        expect.objectContaining({ severity: 'warning', location: 'results.branch' }),
+        expect.objectContaining({ severity: 'warning', location: 'results.path' }),
+      ]),
+    );
   });
 
   it('errors on old-style subdirectory path', async () => {

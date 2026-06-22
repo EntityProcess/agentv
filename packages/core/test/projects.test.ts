@@ -133,6 +133,34 @@ describe('projects registry', () => {
     expect(entry.ref).toBe('main');
   });
 
+  it('round-trips nested source repo fields through YAML', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `projects:
+  - id: nested-source
+    name: Nested Source
+    repo:
+      url: git@github.com:example/repo.git
+      branch: main
+      path: /srv/agentv/repo
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadProjectRegistry();
+    expect(registry.projects).toHaveLength(1);
+    const entry = registry.projects[0];
+    expect(entry).toMatchObject({
+      repoUrl: 'git@github.com:example/repo.git',
+      ref: 'main',
+      path: '/srv/agentv/repo',
+    });
+  });
+
   it('round-trips project results config through YAML', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
@@ -166,10 +194,15 @@ describe('projects registry', () => {
 
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('repo:');
+    expect(yamlOnDisk).toContain(
+      'remote: https://github.com/EntityProcess/results-project-runs.git',
+    );
     expect(yamlOnDisk).toContain('branch: agentv-results');
     expect(yamlOnDisk).toContain('path: /srv/agentv/results/results-project');
     expect(yamlOnDisk).toContain('auto_push: true');
     expect(yamlOnDisk).toContain('branch_prefix: eval-results');
+    expect(yamlOnDisk).not.toContain('repo_url:');
     expect(yamlOnDisk).not.toContain('localPath:');
     expect(yamlOnDisk).not.toContain('local_path:');
     expect(yamlOnDisk).not.toContain('autoPush:');
@@ -184,11 +217,14 @@ describe('projects registry', () => {
       `projects:
   - id: branch-results
     name: Branch Results
-    path: /srv/agentv/repo
+    repo:
+      url: git@github.com:example/source.git
+      path: /srv/agentv/repo
     results:
-      repo_path: .
-      branch: agentv/results/v1
-      remote: origin
+      repo:
+        remote: git@github.com:example/source.git
+        path: .
+        branch: agentv/results/v1
       sync:
         auto_push: false
         require_push: true
@@ -200,21 +236,57 @@ describe('projects registry', () => {
 
     const registry = loadProjectRegistry();
     expect(registry.projects[0].results).toEqual({
+      repoUrl: 'git@github.com:example/source.git',
+      path: '.',
+      branch: 'agentv/results/v1',
+      sync: { autoPush: false, requirePush: true },
+    });
+
+    saveProjectRegistry(registry);
+    const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+    expect(yamlOnDisk).toContain('repo:');
+    expect(yamlOnDisk).toContain('remote: git@github.com:example/source.git');
+    expect(yamlOnDisk).toContain('path: .');
+    expect(yamlOnDisk).toContain('branch: agentv/results/v1');
+    expect(yamlOnDisk).toContain('auto_push: false');
+    expect(yamlOnDisk).toContain('require_push: true');
+    expect(yamlOnDisk).not.toContain('repo_path:');
+    expect(yamlOnDisk).not.toContain('repoPath:');
+    expect(yamlOnDisk).not.toContain('requirePush:');
+  });
+
+  it('preserves legacy flat results remote aliases through YAML', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      registryPath,
+      `projects:
+  - id: legacy-results-remote
+    name: Legacy Results Remote
+    path: /srv/agentv/repo
+    results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: upstream
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadProjectRegistry();
+    expect(registry.projects[0].results).toEqual({
       repoPath: '.',
       branch: 'agentv/results/v1',
-      remote: 'origin',
-      sync: { autoPush: false, requirePush: true },
+      remote: 'upstream',
     });
 
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
     expect(yamlOnDisk).toContain('repo_path: .');
     expect(yamlOnDisk).toContain('branch: agentv/results/v1');
-    expect(yamlOnDisk).toContain('remote: origin');
-    expect(yamlOnDisk).toContain('auto_push: false');
-    expect(yamlOnDisk).toContain('require_push: true');
-    expect(yamlOnDisk).not.toContain('repoPath:');
-    expect(yamlOnDisk).not.toContain('requirePush:');
+    expect(yamlOnDisk).toContain('remote: upstream');
+    expect(yamlOnDisk).not.toContain('results:\n      repo:\n');
   });
 
   it('preserves unrelated global config keys when saving projects', () => {

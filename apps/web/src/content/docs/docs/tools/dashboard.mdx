@@ -209,15 +209,16 @@ folder path, and select a directory that contains `.agentv/`.
 
 Each path must contain a `.agentv/` directory. Registered projects are stored under `projects:` in `$AGENTV_HOME/config.yaml`, or `~/.agentv/config.yaml` when `AGENTV_HOME` is unset.
 
-To register a remote repo and keep it synced automatically, add `repo_url` and `ref` to the entry in `$AGENTV_HOME/config.yaml`. `repo_url` is the Git remote URL AgentV passes to `git clone`, so it can be HTTPS or SSH:
+To register a remote repo and keep it synced automatically, add a nested `repo` block to the entry in `$AGENTV_HOME/config.yaml`. `repo.url` is the Git remote URL AgentV passes to `git clone`, so it can be HTTPS or SSH. `repo.branch` is the branch or ref to check out, and `repo.path` is the local checkout path:
 
 ```yaml
 projects:
   - id: my-evals
     name: My Evals
-    repo_url: https://github.com/example/my-evals.git
-    path: /srv/agentv/my-evals
-    ref: main
+    repo:
+      url: https://github.com/example/my-evals.git
+      branch: main
+      path: /srv/agentv/my-evals
 ```
 
 On each Dashboard startup, AgentV clones the repo if the path is empty (`git clone --depth 1`) or pulls the latest if a clone already exists (`git pull --ff-only`). You can also trigger a sync manually from the Dashboard UI's **Sync** button.
@@ -249,6 +250,8 @@ AGENTV_HOME=/tmp/agentv-home-a agentv dashboard --port 3117
 AGENTV_HOME=/tmp/agentv-home-b agentv dashboard --port 3118
 ```
 
+For local Docker development, prefer building from the latest AgentV checkout and running `bun` inside that image instead of depending on a globally installed or npm-installed `agentv` binary. A setup script should mount a writable `AGENTV_HOME`, project checkouts, and any results repo paths, publish the dashboard port on `0.0.0.0` when Tailscale access is needed, then start the dashboard with the local build, for example `bun apps/cli/dist/cli.js dashboard`. Keep this Docker path separate from Kubernetes or Helm deployment assets unless those assets are actually needed to model the local runtime.
+
 The landing page shows a card for each project with run count, pass rate, and last run time.
 
 <Image src={studioProjectsMulti} alt="AgentV Dashboard projects dashboard showing project cards with pass rates" />
@@ -275,44 +278,49 @@ For a registered project, put results repo settings on that project's entry in `
 projects:
   - id: agentv
     name: AgentV
-    repo_url: https://github.com/EntityProcess/agentv.git
-    path: /home/entity/projects/EntityProcess/agentv
-    ref: main
+    repo:
+      url: https://github.com/EntityProcess/agentv.git
+      branch: main
+      path: /home/entity/projects/EntityProcess/agentv
     results:
-      repo_path: .
-      branch: agentv/results/v1
-      remote: origin
+      repo:
+        remote: https://github.com/EntityProcess/agentv.git
+        path: .
+        branch: agentv/results/v1
       sync:
         auto_push: false
         require_push: false
 ```
 
-`results.repo_path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. The name is intentionally `repo_path`, not `repo`: in AgentV, `workspace.repos[].repo` means a portable repository identity such as a clone URL or `org/name`, while `results.repo_path` means an existing local Git checkout whose object database and refs AgentV should write to. The branch defaults to `agentv/results/v1` for `repo_path` configs. AgentV creates the branch automatically on first publish and commits only `.agentv/results/**` paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. `sync.require_push: true` is for CI workflows where a push failure should fail the command after local artifacts are written.
+`results.repo.remote` is the Git remote URL AgentV fetches and pushes. `results.repo.path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. AgentV manages the local Git remote alias for that URL, so the normal config stays portable across machines. When `results.repo.remote` is omitted, `results.repo.path` means an existing local Git checkout whose object database and refs AgentV should write to, and the branch defaults to `agentv/results/v1`. AgentV creates the branch automatically on first publish and commits only AgentV result paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. `sync.require_push: true` is for CI workflows where a push failure should fail the command after local artifacts are written.
 
-For a separate results repository, use `repo_url` and an optional managed clone `path`:
+For a separate results repository, use `results.repo.remote` and an optional managed clone `results.repo.path`:
 
 ```yaml
 projects:
   - id: agentv
     name: AgentV
-    path: /home/entity/projects/EntityProcess/agentv
+    repo:
+      path: /home/entity/projects/EntityProcess/agentv
     results:
-      repo_url: git@github.com:EntityProcess/agentv-examples-eval-results.git
-      branch: agentv/results/v1
-      path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
+      repo:
+        remote: git@github.com:EntityProcess/agentv-examples-eval-results.git
+        branch: agentv/results/v1
+        path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
       sync:
         auto_push: true
 ```
 
-`results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured. `results.path` is the filesystem location of the local clone AgentV manages for that remote results repo. Use `repo_path` only when the results store is an already-existing local checkout such as `.`.
+`results.repo.remote` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured. When `results.repo.remote` is set, `results.repo.path` is the filesystem location of the local clone AgentV manages for that remote results repo. Omit `results.repo.remote` only when `results.repo.path` points at an already-existing local checkout such as `.`.
 
 You can also set a top-level global fallback in the same file. This is used when the current project is not registered or its registry entry has no `results` block:
 
 ```yaml
 results:
-  repo_path: .
-  branch: agentv/results/v1
-  remote: origin
+  repo:
+    remote: https://github.com/EntityProcess/agentv.git
+    path: .
+    branch: agentv/results/v1
   sync:
     auto_push: false
     require_push: false
@@ -320,10 +328,10 @@ results:
 
 Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
 
-The project `repo_url` and the `results` block sync different repositories:
+The project `repo` block and the `results` block sync different repositories:
 
-- `projects[].repo_url` is the eval source project remote. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
-- `projects[].results.repo_url` is the git-backed results store remote. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in that results repo clone.
+- `projects[].repo.url` is the eval source project remote. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
+- `projects[].results.repo.remote` is the git-backed results store remote URL. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in the local checkout at `projects[].results.repo.path`.
 
 #### Migration from the legacy project schema
 
@@ -350,18 +358,20 @@ After:
 projects:
   - id: agentv
     name: AgentV
-    repo_url: https://github.com/EntityProcess/agentv.git
-    path: /home/entity/projects/EntityProcess/agentv
-    ref: main
+    repo:
+      url: https://github.com/EntityProcess/agentv.git
+      branch: main
+      path: /home/entity/projects/EntityProcess/agentv
     results:
-      repo_url: https://github.com/EntityProcess/agentv-eval-results.git
-      branch: agentv/results/v1
-      path: /home/entity/projects/EntityProcess/agentv-eval-results
+      repo:
+        remote: https://github.com/EntityProcess/agentv-eval-results.git
+        branch: agentv/results/v1
+        path: /home/entity/projects/EntityProcess/agentv-eval-results
       sync:
         auto_push: true
 ```
 
-Legacy project fields (`source`, `repository`, `results.mode`, `results.repo`, `results.repository`, `results.local_path`, and `results.auto_push`) fail validation with migration guidance.
+Current flat fields (`path`, `repo_url`, `ref`, `results.repo_url`, `results.repo_path`, `results.branch`, `results.remote`, and `results.path`) still load with migration warnings and are written back in nested form the next time AgentV saves the project registry. Older removed fields (`source`, `repository`, `results.mode`, `results.repo` as a string, `results.repository`, `results.local_path`, and `results.auto_push`) fail validation with migration guidance.
 
 Use project-level **Sync Project** as the results exchange workflow. It handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
 

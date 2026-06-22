@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/core/package.json packages/core/
 COPY packages/sdk/package.json packages/sdk/
+COPY packages/phoenix-adapter/package.json packages/phoenix-adapter/
 COPY apps/cli/package.json apps/cli/
 COPY apps/dashboard/package.json apps/dashboard/
 COPY apps/web/package.json apps/web/
@@ -49,8 +50,8 @@ RUN addgroup --system agentv && adduser --system --ingroup agentv agentv
 # Install uv + Python to a shared location (not user-specific)
 COPY --from=ghcr.io/astral-sh/uv:0.6.12 /uv /usr/local/bin/uv
 ENV UV_PYTHON_INSTALL_DIR=/opt/python
-RUN uv python install 3.12
-ENV PATH="/opt/python/cpython-3.12.9-linux-aarch64-gnu/bin:${PATH}"
+RUN uv python install 3.12 && ln -s /opt/python/cpython-3.12.9-linux-*-gnu /opt/python/current
+ENV PATH="/opt/python/current/bin:${PATH}"
 
 # Copy pruned node_modules and built artifacts
 COPY --from=build /app/package.json /app/bun.lock ./
@@ -59,6 +60,8 @@ COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/core/package.json ./packages/core/
 COPY --from=build /app/packages/sdk/dist ./packages/sdk/dist
 COPY --from=build /app/packages/sdk/package.json ./packages/sdk/
+COPY --from=build /app/packages/phoenix-adapter/dist ./packages/phoenix-adapter/dist
+COPY --from=build /app/packages/phoenix-adapter/package.json ./packages/phoenix-adapter/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist
 COPY --from=build /app/apps/cli/package.json ./apps/cli/
 COPY --from=build /app/apps/cli/node_modules ./apps/cli/node_modules
