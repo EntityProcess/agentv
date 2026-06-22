@@ -23,7 +23,7 @@ Prior research on `av-r0s` found that AgentV already has the right low-level com
 - Custom assertions are discovered from `.agentv/assertions/` in `packages/core/src/evaluation/registry/assertion-discovery.ts`.
 - Custom graders are discovered from `.agentv/graders/` in `packages/core/src/evaluation/registry/grader-discovery.ts`.
 - `agentv create` already scaffolds evals, assertions, and providers in `apps/cli/src/commands/create/commands.ts`.
-- The lightweight SDK contract lives in `packages/eval/src/assertion.ts`.
+- The lightweight SDK contract lives in `packages/sdk/src/assertion.ts`.
 
 The main ceremony problem is not that the schema cannot represent tasks. It is that users must repeatedly hand-write the same layout, provenance metadata, adapter scripts, and integration glue.
 

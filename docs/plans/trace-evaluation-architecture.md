@@ -188,7 +188,7 @@ The exact schema belongs in implementation, but these concepts should be stable:
 ### U1. Trace Artifact Model
 
 - **Goal:** Introduce the core TypeScript model, Zod validation, and snake_case boundary conversion for trace artifacts.
-- **Files:** `packages/core/src/evaluation/trace.ts`, `packages/core/src/evaluation/types.ts`, `packages/eval/src/schemas.ts`, new focused files under `packages/core/src/evaluation/trace/` if the existing file becomes too large.
+- **Files:** `packages/core/src/evaluation/trace.ts`, `packages/core/src/evaluation/types.ts`, `packages/sdk/src/schemas.ts`, new focused files under `packages/core/src/evaluation/trace/` if the existing file becomes too large.
 - **Patterns:** Follow the existing `TraceSummary`, `TokenUsage`, and project boundary conversion conventions. Keep internal fields camelCase and persisted fields snake_case.
 - **Test Scenarios:** Add tests that validate round-trip conversion, missing optional content, inferred duration flags, branch metadata, and raw evidence handles.
 - **Verification:** Unit tests should prove summaries can be derived from trace artifacts without changing current summary behavior, and that trace artifacts do not embed a separate summary payload.
@@ -268,7 +268,7 @@ The exact schema belongs in implementation, but these concepts should be stable:
 ### U7. Grader Context Upgrade
 
 - **Goal:** Let built-in and code graders receive trace artifacts in addition to compact summaries and output messages.
-- **Files:** `packages/core/src/evaluation/graders/types.ts`, `packages/core/src/evaluation/graders/tool-trajectory.ts`, `packages/core/src/evaluation/graders/execution-metrics.ts`, `packages/core/src/evaluation/graders/code-grader.ts`, `packages/eval/src/index.ts`, `packages/eval/src/schemas.ts`.
+- **Files:** `packages/core/src/evaluation/graders/types.ts`, `packages/core/src/evaluation/graders/tool-trajectory.ts`, `packages/core/src/evaluation/graders/execution-metrics.ts`, `packages/core/src/evaluation/graders/code-grader.ts`, `packages/sdk/src/index.ts`, `packages/sdk/src/schemas.ts`.
 - **Patterns:** Keep existing graders that only read `trace` or `output` working. Trace-aware graders use the richer object.
 - **Test Scenarios:** Existing `tool-trajectory` modes should pass from live output and from trace artifact input. Argument matching, ordering, latency, status/error matching, and evidence text should be covered.
 - **Verification:** `trace score` should run `tool-trajectory` against imported traces, not only metrics-only graders.

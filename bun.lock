@@ -118,13 +118,6 @@
         "@earendil-works/pi-coding-agent",
       ],
     },
-    "packages/eval": {
-      "name": "@agentv/eval",
-      "version": "4.42.4",
-      "dependencies": {
-        "@agentv/sdk": "workspace:*",
-      },
-    },
     "packages/phoenix-adapter": {
       "name": "@agentv/phoenix-adapter",
       "version": "4.31.4-next.1",
@@ -154,8 +147,6 @@
     "@agentv/core": ["@agentv/core@workspace:packages/core"],
 
     "@agentv/dashboard": ["@agentv/dashboard@workspace:apps/dashboard"],
-
-    "@agentv/eval": ["@agentv/eval@workspace:packages/eval"],
 
     "@agentv/phoenix-adapter": ["@agentv/phoenix-adapter@workspace:packages/phoenix-adapter"],
 

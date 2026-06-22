@@ -25,7 +25,7 @@ if (requestedTag !== undefined && requestedTag !== 'next') {
 const npmTag = requestedTag ?? 'latest';
 const publishArgs = ['--tag', npmTag, '--access', 'public'];
 
-const PACKAGES = ['packages/core', 'packages/sdk', 'packages/eval', 'apps/cli'];
+const PACKAGES = ['packages/core', 'packages/sdk', 'apps/cli'];
 
 interface PackageJson {
   name: string;

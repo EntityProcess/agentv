@@ -21,7 +21,7 @@ npm install @agentv/sdk
 import { defineCodeGrader } from '@agentv/sdk';
 ```
 
-`@agentv/eval` remains only as a temporary deprecated compatibility package that re-exports this SDK for existing consumers. New docs, examples, scaffolds, and skills should not import from it.
+`@agentv/eval` was a temporary deprecated compatibility package for this SDK. It is no longer published from this repository. Use `@agentv/sdk` directly.
 
 ## Quick Start
 

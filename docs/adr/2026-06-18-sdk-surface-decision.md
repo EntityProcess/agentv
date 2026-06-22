@@ -4,6 +4,10 @@ Date: 2026-06-18
 
 Status: Accepted
 
+Update 2026-06-22: `@agentv/eval` has been deprecated on npm and removed from
+this repository. `@agentv/sdk` is the only lightweight TypeScript SDK package
+published by the release workflow.
+
 Supersedes: the earlier 2026-06-18 decision in this file that rejected a
 separate `@agentv/sdk` package.
 
@@ -61,13 +65,14 @@ For this package rename, npm evidence changes the compatibility choice:
   2026-05-19 through 2026-06-17.
 - `@agentv/sdk` is not yet published at the time of this decision.
 
-Therefore `@agentv/eval` remains only as a thin deprecated compatibility
-package that re-exports `@agentv/sdk` for existing consumers. It should not be
-used by new docs, examples, scaffolds, or skills except when explaining the
-migration.
+Therefore `@agentv/eval` was kept temporarily as a thin deprecated
+compatibility package that re-exported `@agentv/sdk` for existing consumers. It
+must not be used by new docs, examples, scaffolds, or skills except when
+explaining the migration.
 
-Future removal of `@agentv/eval` requires an explicit release/migration
-decision. The compatibility package must not grow new API surface.
+After npm deprecation, the explicit removal decision was made on 2026-06-22.
+The compatibility package is no longer part of the workspace, release script,
+publish script, or runtime Docker image.
 
 ## Non-Goals
 
@@ -95,15 +100,12 @@ Positive:
 
 Negative:
 
-- one temporary compatibility package remains until a later removal decision
-- release scripts and examples need to carry both package paths during the
-  migration window
+- users of the deprecated package must migrate imports to `@agentv/sdk`
 
 ## Tracker Impact
 
 - `av-bv4.11`: this ADR supersedes the previous no-new-sdk decision and records
   the new package-boundary decision.
-- `av-bv4.12`: implementation should move the SDK surface to `packages/sdk` /
-  `@agentv/sdk`, keep `@agentv/eval` only as a deprecated shim because it was
-  already published, and update repo references so the old name is not taught as
-  primary.
+- `av-bv4.12`: implementation moved the SDK surface to `packages/sdk` /
+  `@agentv/sdk`. The deprecated shim has since been removed after npm
+  deprecation.
