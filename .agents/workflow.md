@@ -19,7 +19,7 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 - When working in the primary checkout, stage explicit paths only. Do not commit another agent's files, project-local coordination config, generated evidence, or unrelated tracker or doc state.
 - Use a dedicated git worktree based on the latest `origin/main` for non-trivial, risky, cross-cutting, long-running, or parallel implementation, or whenever the primary checkout is stale or dirty in paths you need.
 - Before starting implementation in a dedicated worktree, verify its `HEAD` is based on the current `origin/main` commit.
-- Before Beads bootstrap, copy `.beads/config.yaml.example` to `.beads/config.yaml` and run `bun run beads:check`. Keep `.beads/metadata.json` tracked; it preserves AgentV's `av` embedded Dolt identity. See [docs/runbooks/beads-worktree-recovery.md](../docs/runbooks/beads-worktree-recovery.md).
+- In worktrees, use plain `bd` commands and let Beads share the primary checkout database through native worktree discovery. Do not use `--db .beads/embeddeddolt` or bootstrap a worktree-local Beads database unless the primary checkout has no hydrated database. Keep `.beads/metadata.json` tracked; it preserves AgentV's `av` embedded Dolt identity. See [docs/runbooks/beads-worktree-recovery.md](../docs/runbooks/beads-worktree-recovery.md).
 
 Manual setup:
 
@@ -35,9 +35,13 @@ cd ../agentv.worktrees/<type>-<short-desc>
 ```bash
 bun install
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
+bun run beads:check
+bd worktree info
+bd where
 ```
 
-- Both steps are required before running builds, tests, or evals in the worktree.
+- These setup steps are required before running builds, tests, evals, or tracker
+  updates in the worktree.
 - If you discover you are on a stale base or have uncoordinated dirty files, stop and fix that before changing code.
 - Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` or `bun.lock`, run `bun install` before building or testing.
 
