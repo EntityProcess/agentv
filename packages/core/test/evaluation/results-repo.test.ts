@@ -194,6 +194,64 @@ function writeRunArtifactsWithPointers(
   );
 }
 
+const GIT_COMMIT_IDENTITY_ENV_KEYS = [
+  'GIT_AUTHOR_NAME',
+  'GIT_AUTHOR_EMAIL',
+  'GIT_COMMITTER_NAME',
+  'GIT_COMMITTER_EMAIL',
+] as const;
+
+async function withGitCommitIdentityEnv<T>(
+  identity: Partial<Record<(typeof GIT_COMMIT_IDENTITY_ENV_KEYS)[number], string | undefined>>,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const previous: Partial<Record<(typeof GIT_COMMIT_IDENTITY_ENV_KEYS)[number], string>> = {};
+  for (const key of GIT_COMMIT_IDENTITY_ENV_KEYS) {
+    previous[key] = process.env[key];
+    const value = identity[key];
+    if (value === undefined) {
+      process.env[key] = undefined;
+    } else {
+      process.env[key] = value;
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const key of GIT_COMMIT_IDENTITY_ENV_KEYS) {
+      const value = previous[key];
+      if (value === undefined) {
+        process.env[key] = undefined;
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+async function withIsolatedGitHome<T>(rootDir: string, fn: () => Promise<T>): Promise<T> {
+  const previousHome = process.env.HOME;
+  const previousXdgConfigHome = process.env.XDG_CONFIG_HOME;
+  const homeDir = path.join(rootDir, 'isolated-home');
+  mkdirSync(path.join(homeDir, '.config'), { recursive: true });
+  process.env.HOME = homeDir;
+  process.env.XDG_CONFIG_HOME = path.join(homeDir, '.config');
+  try {
+    return await fn();
+  } finally {
+    if (previousHome === undefined) {
+      process.env.HOME = undefined;
+    } else {
+      process.env.HOME = previousHome;
+    }
+    if (previousXdgConfigHome === undefined) {
+      process.env.XDG_CONFIG_HOME = undefined;
+    } else {
+      process.env.XDG_CONFIG_HOME = previousXdgConfigHome;
+    }
+  }
+}
+
 describe('listGitRuns', () => {
   let repoDir: string;
 
@@ -477,6 +535,157 @@ describe('results repo write path', () => {
     expect(branchFiles).not.toContain('README.md');
     expect(branchFiles).not.toContain('UNRELATED.txt');
     expect(git('git status --short --branch', projectDir)).toContain('## main');
+  }, 20000);
+
+  it('uses the configured git identity for result commits without overwriting it', async () => {
+    const projectDir = path.join(rootDir, 'source-project-human-author');
+    mkdirSync(projectDir, { recursive: true });
+    git('git init --initial-branch=main --quiet', projectDir);
+    git('git config user.email "human@example.com"', projectDir);
+    git('git config user.name "Human Author"', projectDir);
+    writeFileSync(path.join(projectDir, 'README.md'), '# source project\n');
+    git('git add README.md && git commit --quiet -m "seed source"', projectDir);
+
+    const runTimestamp = '2026-06-17T10-05-00-000Z';
+    const runDir = path.join(
+      projectDir,
+      '.agentv',
+      'results',
+      'runs',
+      'human-author',
+      runTimestamp,
+    );
+    writeRunArtifacts(runDir, 'human-author', '2026-06-17T10:05:00.000Z');
+
+    const published = await directPushResults({
+      config: {
+        repo_path: projectDir,
+        branch: DEFAULT_RESULTS_BRANCH,
+        sync: { auto_push: false },
+      },
+      sourceDir: runDir,
+      destinationPath: path.join('human-author', runTimestamp),
+      commitMessage: 'feat(results): human-author - 1/1 PASS (1.000)',
+    });
+
+    expect(published).toBe(true);
+    expect(git('git config --local user.name', projectDir)).toBe('Human Author');
+    expect(git('git config --local user.email', projectDir)).toBe('human@example.com');
+    expect(git(`git log -1 --format="%an <%ae>" ${DEFAULT_RESULTS_BRANCH}`, projectDir)).toBe(
+      'Human Author <human@example.com>',
+    );
+  }, 20000);
+
+  it('uses git identity from the environment without writing local config', async () => {
+    await withIsolatedGitHome(rootDir, async () => {
+      await withGitCommitIdentityEnv(
+        {
+          GIT_AUTHOR_NAME: 'Env Author',
+          GIT_AUTHOR_EMAIL: 'env-author@example.com',
+          GIT_COMMITTER_NAME: 'Env Committer',
+          GIT_COMMITTER_EMAIL: 'env-committer@example.com',
+        },
+        async () => {
+          const projectDir = path.join(rootDir, 'source-project-env-author');
+          mkdirSync(projectDir, { recursive: true });
+          git('git init --initial-branch=main --quiet', projectDir);
+          writeFileSync(path.join(projectDir, 'README.md'), '# source project\n');
+          git(
+            'git -c user.email=seed@example.com -c user.name="Seed Author" add README.md',
+            projectDir,
+          );
+          git(
+            'git -c user.email=seed@example.com -c user.name="Seed Author" commit --quiet -m "seed source"',
+            projectDir,
+          );
+
+          const runTimestamp = '2026-06-17T10-07-00-000Z';
+          const runDir = path.join(
+            projectDir,
+            '.agentv',
+            'results',
+            'runs',
+            'env-author',
+            runTimestamp,
+          );
+          writeRunArtifacts(runDir, 'env-author', '2026-06-17T10:07:00.000Z');
+
+          const published = await directPushResults({
+            config: {
+              repo_path: projectDir,
+              branch: DEFAULT_RESULTS_BRANCH,
+              sync: { auto_push: false },
+            },
+            sourceDir: runDir,
+            destinationPath: path.join('env-author', runTimestamp),
+            commitMessage: 'feat(results): env-author - 1/1 PASS (1.000)',
+          });
+
+          expect(published).toBe(true);
+          expect(git('git config --local --get user.name || true', projectDir)).toBe('');
+          expect(git('git config --local --get user.email || true', projectDir)).toBe('');
+          expect(
+            git(`git log -1 --format="%an <%ae>|%cn <%ce>" ${DEFAULT_RESULTS_BRANCH}`, projectDir),
+          ).toBe('Env Author <env-author@example.com>|Env Committer <env-committer@example.com>');
+        },
+      );
+    });
+  }, 20000);
+
+  it('falls back to AgentV identity only when git has no configured identity', async () => {
+    await withGitCommitIdentityEnv(
+      {
+        GIT_AUTHOR_NAME: undefined,
+        GIT_AUTHOR_EMAIL: undefined,
+        GIT_COMMITTER_NAME: undefined,
+        GIT_COMMITTER_EMAIL: undefined,
+      },
+      async () => {
+        await withIsolatedGitHome(rootDir, async () => {
+          const projectDir = path.join(rootDir, 'source-project-fallback-author');
+          mkdirSync(projectDir, { recursive: true });
+          git('git init --initial-branch=main --quiet', projectDir);
+          writeFileSync(path.join(projectDir, 'README.md'), '# source project\n');
+          git(
+            'git -c user.email=seed@example.com -c user.name="Seed Author" add README.md',
+            projectDir,
+          );
+          git(
+            'git -c user.email=seed@example.com -c user.name="Seed Author" commit --quiet -m "seed source"',
+            projectDir,
+          );
+
+          const runTimestamp = '2026-06-17T10-10-00-000Z';
+          const runDir = path.join(
+            projectDir,
+            '.agentv',
+            'results',
+            'runs',
+            'fallback-author',
+            runTimestamp,
+          );
+          writeRunArtifacts(runDir, 'fallback-author', '2026-06-17T10:10:00.000Z');
+
+          const published = await directPushResults({
+            config: {
+              repo_path: projectDir,
+              branch: DEFAULT_RESULTS_BRANCH,
+              sync: { auto_push: false },
+            },
+            sourceDir: runDir,
+            destinationPath: path.join('fallback-author', runTimestamp),
+            commitMessage: 'feat(results): fallback-author - 1/1 PASS (1.000)',
+          });
+
+          expect(published).toBe(true);
+          expect(git('git config --local --get user.name || true', projectDir)).toBe('');
+          expect(git('git config --local --get user.email || true', projectDir)).toBe('');
+          expect(git(`git log -1 --format="%an <%ae>" ${DEFAULT_RESULTS_BRANCH}`, projectDir)).toBe(
+            'AgentV Results <agentv@results-repo>',
+          );
+        });
+      },
+    );
   }, 20000);
 
   it('publishes to an explicit external local repo path', async () => {
