@@ -43,7 +43,12 @@ const gitRunsCache = new Map<string, { data: Promise<GitListedRun[]>; expiresAt:
 const GIT_RUNS_CACHE_TTL_MS = 60_000;
 
 function getResultsStorageRef(config: NormalizedResultsConfig): string | undefined {
-  return config.branch;
+  if (!config.branch) {
+    return undefined;
+  }
+  return config.storageBranchWorktree
+    ? `refs/remotes/${config.remote}/${config.branch}`
+    : config.branch;
 }
 
 function cachedListGitRuns(repoDir: string, ref?: string) {

@@ -262,19 +262,20 @@ async function runCommand(
   executable: string,
   args: readonly string[],
   options?: { cwd?: string; check?: boolean; env?: NodeJS.ProcessEnv },
-): Promise<{ stdout: string; stderr: string }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   try {
     const { stdout, stderr } = await execFileAsync(executable, [...args], {
       cwd: options?.cwd,
       env: options?.env ?? process.env,
     });
-    return { stdout, stderr };
+    return { stdout, stderr, exitCode: 0 };
   } catch (error) {
     if (options?.check === false && error && typeof error === 'object') {
-      const execError = error as { stdout?: string; stderr?: string };
+      const execError = error as { code?: unknown; stdout?: string; stderr?: string };
       return {
         stdout: execError.stdout ?? '',
         stderr: execError.stderr ?? '',
+        exitCode: typeof execError.code === 'number' ? execError.code : 1,
       };
     }
     throw withFriendlyGitHubAuthError(error);
@@ -295,14 +296,14 @@ function getGitEnv(): NodeJS.ProcessEnv {
 async function runGit(
   args: readonly string[],
   options?: { cwd?: string; check?: boolean; env?: NodeJS.ProcessEnv },
-): Promise<{ stdout: string; stderr: string }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return runCommand('git', args, { ...options, env: { ...getGitEnv(), ...options?.env } });
 }
 
 async function runGh(
   args: readonly string[],
   options?: { cwd?: string },
-): Promise<{ stdout: string; stderr: string }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return runCommand('gh', args, options);
 }
 
@@ -412,15 +413,27 @@ async function fetchResultsRepo(
   await runGit(['fetch', remote, '--prune'], { cwd: repoDir });
 }
 
+function isMissingRemoteBranchFetch(stderr: string): boolean {
+  const lower = stderr.toLowerCase();
+  return lower.includes("couldn't find remote ref") || lower.includes('could not find remote ref');
+}
+
 async function fetchResultsBranchRef(
   repoDir: string,
   remote: string,
   branch: string,
 ): Promise<void> {
-  await runGit(['fetch', remote, `+refs/heads/${branch}:refs/remotes/${remote}/${branch}`], {
-    cwd: repoDir,
-    check: false,
-  });
+  const { exitCode, stderr } = await runGit(
+    ['fetch', remote, `+refs/heads/${branch}:refs/remotes/${remote}/${branch}`],
+    {
+      cwd: repoDir,
+      check: false,
+    },
+  );
+  const fetchError = stderr.trim();
+  if (exitCode !== 0 && !isMissingRemoteBranchFetch(fetchError)) {
+    throw new Error(fetchError);
+  }
 }
 
 async function fetchResultsArtifactRef(

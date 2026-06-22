@@ -1542,8 +1542,13 @@ describe('serve app', () => {
         run_count: 0,
       });
       expect(statusData.last_error).toBeUndefined();
-      expect(git('git branch --show-current', cloneDir)).toBe('agentv-results');
-      expect(git('git ls-tree -r --name-only agentv-results', cloneDir)).toBe('');
+      expect(git('git branch --show-current', cloneDir)).toBe('main');
+      expect(
+        git(
+          'git show-ref --verify --quiet refs/remotes/agentv-results/agentv-results && echo present || true',
+          cloneDir,
+        ),
+      ).toBe('');
 
       const listRes = await app.request('/api/runs');
       expect(listRes.status).toBe(200);
@@ -2333,7 +2338,8 @@ describe('serve app', () => {
       process.env.AGENTV_HOME = homeDir;
 
       try {
-        const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
+        const { cloneDir } = initializeRemoteRepo(tempDir);
+        const missingRemoteUrl = `file://${path.join(tempDir, 'missing-results-remote.git')}`;
         const projectDir = path.join(tempDir, 'source-project-sync-offline');
         mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
         mkdirSync(homeDir, { recursive: true });
@@ -2344,7 +2350,7 @@ describe('serve app', () => {
               name: 'Project Sync Offline',
               path: projectDir,
               results: {
-                repoUrl: `file://${remoteDir}`,
+                repoUrl: missingRemoteUrl,
                 path: cloneDir,
                 sync: { autoPush: true },
               },
@@ -2359,8 +2365,6 @@ describe('serve app', () => {
           '2026-03-26T12-30-00-000Z',
           RESULT_A,
         );
-        git('git remote set-url origin "file:///tmp/agentv-missing-results-remote.git"', cloneDir);
-
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/projects/project-sync-offline/remote/sync', {
           method: 'POST',
@@ -3382,7 +3386,7 @@ describe('serve app', () => {
 `,
       );
 
-      const artifactRemoteRef = `refs/remotes/origin/${AGENTV_RESULTS_ARTIFACTS_REF}`;
+      const artifactRemoteRef = `refs/remotes/agentv-results/${AGENTV_RESULTS_ARTIFACTS_REF}`;
       const artifactRefLookup = () =>
         git(
           `git -C "${cloneDir}" show-ref --verify --quiet ${artifactRemoteRef} && echo present || true`,
