@@ -54,7 +54,13 @@ import {
   traceEnvelopeToTranscriptMessages,
 } from './trace-envelope.js';
 import { type TokenUsage, type TraceSummary, buildTraceFromMessages } from './trace.js';
-import type { EvalTest, EvaluationResult, GraderResult } from './types.js';
+import type {
+  EvalTest,
+  EvaluationResult,
+  GraderResult,
+  TrialAggregation,
+  TrialResult,
+} from './types.js';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
 
@@ -167,7 +173,41 @@ export interface GradingArtifact {
     readonly turns: number;
     readonly conversation_id: string;
   };
+  readonly trials?: readonly TrialResultArtifact[];
+  readonly aggregation?: TrialAggregationArtifact;
 }
+
+export type TrialResultArtifact = {
+  readonly attempt: number;
+  readonly score: number;
+  readonly verdict: string;
+  readonly scores?: IndexArtifactEntry['scores'];
+  readonly error?: string;
+  readonly cost_usd?: number;
+  readonly execution_status?: string;
+  readonly failure_stage?: string;
+  readonly failure_reason_code?: string;
+};
+
+export type TrialAggregationArtifact =
+  | {
+      readonly strategy: 'pass_at_k';
+      readonly passed_attempts: number;
+      readonly total_attempts: number;
+    }
+  | {
+      readonly strategy: 'mean';
+      readonly mean: number;
+      readonly min: number;
+      readonly max: number;
+    }
+  | {
+      readonly strategy: 'confidence_interval';
+      readonly mean: number;
+      readonly ci95_lower: number;
+      readonly ci95_upper: number;
+      readonly stddev: number;
+    };
 
 export interface TimingArtifact {
   readonly total_tokens: number;
@@ -241,6 +281,8 @@ export interface IndexArtifactEntry {
   readonly start_time?: string;
   readonly end_time?: string;
   readonly scores?: readonly Record<string, unknown>[];
+  readonly trials?: readonly TrialResultArtifact[];
+  readonly aggregation?: TrialAggregationArtifact;
   readonly execution_status?: string;
   readonly error?: string;
   readonly failure_stage?: string;
@@ -425,6 +467,56 @@ function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifa
   return scores?.map(toIndexScore) as IndexArtifactEntry['scores'];
 }
 
+function toTrialArtifacts(
+  trials: readonly TrialResult[] | undefined,
+): readonly TrialResultArtifact[] | undefined {
+  if (!trials || trials.length === 0) {
+    return undefined;
+  }
+  return trials.map((trial) => ({
+    attempt: trial.attempt,
+    score: trial.score,
+    verdict: trial.verdict,
+    scores: toIndexScores(trial.scores),
+    error: trial.error,
+    cost_usd: trial.costUsd,
+    execution_status: trial.executionStatus,
+    failure_stage: trial.failureStage,
+    failure_reason_code: trial.failureReasonCode,
+  }));
+}
+
+function toTrialAggregationArtifact(
+  aggregation: TrialAggregation | undefined,
+): TrialAggregationArtifact | undefined {
+  if (!aggregation) {
+    return undefined;
+  }
+  switch (aggregation.strategy) {
+    case 'pass_at_k':
+      return {
+        strategy: aggregation.strategy,
+        passed_attempts: aggregation.passedAttempts,
+        total_attempts: aggregation.totalAttempts,
+      };
+    case 'mean':
+      return {
+        strategy: aggregation.strategy,
+        mean: aggregation.mean,
+        min: aggregation.min,
+        max: aggregation.max,
+      };
+    case 'confidence_interval':
+      return {
+        strategy: aggregation.strategy,
+        mean: aggregation.mean,
+        ci95_lower: aggregation.ci95Lower,
+        ci95_upper: aggregation.ci95Upper,
+        stddev: aggregation.stddev,
+      };
+  }
+}
+
 function dropUndefined(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
 }
@@ -548,6 +640,8 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
           conversation_id: result.conversationId,
         }
       : undefined,
+    trials: toTrialArtifacts(result.trials),
+    aggregation: toTrialAggregationArtifact(result.aggregation),
   };
 }
 
@@ -1065,6 +1159,8 @@ export function buildIndexArtifactEntry(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
+    trials: toTrialArtifacts(result.trials),
+    aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
     failure_stage: result.failureStage,
@@ -1139,6 +1235,8 @@ export function buildResultIndexArtifact(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
+    trials: toTrialArtifacts(result.trials),
+    aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
     failure_stage: result.failureStage,

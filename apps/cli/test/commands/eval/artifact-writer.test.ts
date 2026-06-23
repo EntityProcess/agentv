@@ -142,6 +142,56 @@ describe('buildGradingArtifact', () => {
     });
   });
 
+  it('preserves repeat trial metadata', () => {
+    const result = makeResult({
+      trials: [
+        {
+          attempt: 0,
+          score: 0.4,
+          verdict: 'fail',
+          executionStatus: 'quality_failure',
+          failureStage: 'evaluator',
+          failureReasonCode: 'threshold_not_met',
+        },
+        {
+          attempt: 1,
+          score: 1,
+          verdict: 'pass',
+          costUsd: 0.03,
+        },
+      ],
+      aggregation: {
+        strategy: 'pass_at_k',
+        passedAttempts: 1,
+        totalAttempts: 2,
+      },
+    });
+
+    const grading = buildGradingArtifact(result);
+
+    expect(grading.trials).toEqual([
+      {
+        attempt: 0,
+        score: 0.4,
+        verdict: 'fail',
+        execution_status: 'quality_failure',
+        failure_stage: 'evaluator',
+        failure_reason_code: 'threshold_not_met',
+      },
+      {
+        attempt: 1,
+        score: 1,
+        verdict: 'pass',
+        cost_usd: 0.03,
+      },
+    ]);
+    expect(grading.aggregation).toEqual({
+      strategy: 'pass_at_k',
+      passed_attempts: 1,
+      total_attempts: 2,
+    });
+  });
+
   it('uses top-level assertions when no grader scores', () => {
     const result = makeResult({
       assertions: [
@@ -563,6 +613,40 @@ describe('buildIndexArtifactEntry', () => {
       input_path: 'alpha/input.md',
     });
   });
+
+  it('includes repeat trial metadata', () => {
+    const entry = buildIndexArtifactEntry(
+      makeResult({
+        testId: 'alpha',
+        trials: [
+          { attempt: 0, score: 0.8, verdict: 'pass' },
+          { attempt: 1, score: 0.6, verdict: 'fail', error: 'missing token' },
+        ],
+        aggregation: {
+          strategy: 'mean',
+          mean: 0.7,
+          min: 0.6,
+          max: 0.8,
+        },
+      }),
+      {
+        outputDir: '/tmp/artifacts',
+        gradingPath: '/tmp/artifacts/alpha/grading.json',
+        timingPath: '/tmp/artifacts/alpha/timing.json',
+      },
+    );
+
+    expect(entry.trials).toEqual([
+      { attempt: 0, score: 0.8, verdict: 'pass' },
+      { attempt: 1, score: 0.6, verdict: 'fail', error: 'missing token' },
+    ]);
+    expect(entry.aggregation).toEqual({
+      strategy: 'mean',
+      mean: 0.7,
+      min: 0.6,
+      max: 0.8,
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -817,6 +901,50 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines[0]?.trace_path).toBe('alpha/trace.json');
     expect(indexLines[0]?.transcript_path).toBe('alpha/transcript.jsonl');
     expect(indexLines[0]?.metrics_path).toBe('alpha/metrics.json');
+  });
+
+  it('writes repeat trial metadata to grading and index artifacts', async () => {
+    const results = [
+      makeResult({
+        testId: 'repeat-case',
+        score: 1,
+        trials: [
+          { attempt: 0, score: 0.25, verdict: 'fail' },
+          { attempt: 1, score: 1, verdict: 'pass' },
+        ],
+        aggregation: {
+          strategy: 'confidence_interval',
+          mean: 0.625,
+          ci95Lower: 0.1,
+          ci95Upper: 1,
+          stddev: 0.53,
+        },
+      }),
+    ];
+
+    const paths = await writeArtifactsFromResults(results, testDir);
+
+    const grading: GradingArtifact = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
+    );
+    expect(grading.trials).toEqual([
+      { attempt: 0, score: 0.25, verdict: 'fail' },
+      { attempt: 1, score: 1, verdict: 'pass' },
+    ]);
+    expect(grading.aggregation).toEqual({
+      strategy: 'confidence_interval',
+      mean: 0.625,
+      ci95_lower: 0.1,
+      ci95_upper: 1,
+      stddev: 0.53,
+    });
+
+    const [indexEntry] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    expect(indexEntry?.trials).toEqual(grading.trials);
+    expect(indexEntry?.aggregation).toEqual(grading.aggregation);
   });
 
   it('handles empty results array', async () => {
