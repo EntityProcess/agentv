@@ -31,6 +31,7 @@ interface RepoManagerOptions {
   readonly progress?: boolean;
   readonly heartbeatMs?: number;
   readonly timeoutMs?: number;
+  readonly projectConfigDir?: string;
 }
 
 interface AcquisitionSource {
@@ -114,12 +115,14 @@ export class RepoManager {
   private readonly progress: boolean;
   private readonly heartbeatMs: number;
   private readonly timeoutMs: number;
+  private readonly projectConfigDir?: string;
 
   constructor(verbose = false, options: RepoManagerOptions = {}) {
     this.verbose = verbose;
     this.progress = options.progress ?? true;
     this.heartbeatMs = options.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.projectConfigDir = options.projectConfigDir;
   }
 
   private async runGit(args: string[], opts?: GitRunOptions): Promise<string> {
@@ -241,8 +244,7 @@ export class RepoManager {
     });
   }
 
-  private loadConfiguredMirrors(): Record<string, string> {
-    const filePath = configPath();
+  private loadConfiguredMirrorsFrom(filePath: string): Record<string, string> {
     if (!existsSync(filePath)) return {};
     try {
       const parsed = parseYamlValue(readFileSync(filePath, 'utf-8')) as unknown;
@@ -262,6 +264,36 @@ export class RepoManager {
     } catch {
       return {};
     }
+  }
+
+  private findProjectConfigPath(): string | undefined {
+    if (!this.projectConfigDir) return undefined;
+
+    let current = path.resolve(this.projectConfigDir);
+    while (true) {
+      const candidate = path.join(current, '.agentv', 'config.yaml');
+      if (existsSync(candidate)) return candidate;
+
+      const reachedRepoRoot = existsSync(path.join(current, '.git'));
+      const parent = path.dirname(current);
+      if (reachedRepoRoot || parent === current) return undefined;
+      current = parent;
+    }
+  }
+
+  private loadConfiguredMirrors(): Record<string, string> {
+    const globalMirrors = this.loadConfiguredMirrorsFrom(configPath());
+    const projectConfigPath = this.findProjectConfigPath();
+    if (!projectConfigPath) return globalMirrors;
+
+    const projectMirrors = this.loadConfiguredMirrorsFrom(projectConfigPath);
+    const projectRepoIdentities = new Set(Object.keys(projectMirrors).map(normalizeRepoIdentity));
+    const globalWithoutProjectOverrides = Object.fromEntries(
+      Object.entries(globalMirrors).filter(
+        ([repo]) => !projectRepoIdentities.has(normalizeRepoIdentity(repo)),
+      ),
+    );
+    return { ...globalWithoutProjectOverrides, ...projectMirrors };
   }
 
   private findConfiguredMirror(repoIdentity: string): string | undefined {

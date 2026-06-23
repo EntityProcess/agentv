@@ -71,6 +71,30 @@ function cachePathFor(repo: string): string {
   return path.join(dataDir, 'git-cache', hash);
 }
 
+function writeMirrorConfig(configFilePath: string, mirrors: Record<string, string>): void {
+  mkdirSync(path.dirname(configFilePath), { recursive: true });
+  writeFileSync(
+    configFilePath,
+    [
+      'git_cache:',
+      '  mirrors:',
+      ...Object.entries(mirrors).map(
+        ([repo, localPath]) => `    ${JSON.stringify(repo)}: ${JSON.stringify(localPath)}`,
+      ),
+      '',
+    ].join('\n'),
+  );
+}
+
+function findConfiguredMirrorFor(manager: RepoManager, repo: string): string | undefined {
+  const findConfiguredMirror = (
+    manager as unknown as {
+      findConfiguredMirror(repoIdentity: string): string | undefined;
+    }
+  ).findConfiguredMirror.bind(manager);
+  return findConfiguredMirror(normalizeRepoIdentity(repo));
+}
+
 describe('RepoManager', () => {
   let tmpDir: string;
   let workspaceDir: string;
@@ -101,6 +125,98 @@ describe('RepoManager', () => {
       process.env.AGENTV_DATA_DIR = savedAgentvDataDir;
     }
     await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  describe('configured mirrors', () => {
+    it('loads project-local mirrors only when projectConfigDir is set', () => {
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals', 'cases');
+      const mirrorDir = path.join(tmpDir, 'project-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(mirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.yaml'), {
+        'https://github.com/example/project-only.git': mirrorDir,
+      });
+
+      expect(
+        findConfiguredMirrorFor(manager, 'https://github.com/example/project-only.git'),
+      ).toBeUndefined();
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/project-only.git'),
+      ).toBe(mirrorDir);
+    });
+
+    it('prefers project-local mirrors over global mirrors for the same normalized repo key', () => {
+      const homeDir = process.env.AGENTV_HOME;
+      if (!homeDir) throw new Error('AGENTV_HOME not set');
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const globalMirrorDir = path.join(tmpDir, 'global-mirror');
+      const projectMirrorDir = path.join(tmpDir, 'project-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(globalMirrorDir, { recursive: true });
+      mkdirSync(projectMirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(homeDir, 'config.yaml'), {
+        'https://github.com/example/shared.git': globalMirrorDir,
+      });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.yaml'), {
+        'git@github.com:example/shared.git': projectMirrorDir,
+      });
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(findConfiguredMirrorFor(projectManager, 'https://github.com/example/shared.git')).toBe(
+        projectMirrorDir,
+      );
+    });
+
+    it('merges different project-local and global mirror entries', () => {
+      const homeDir = process.env.AGENTV_HOME;
+      if (!homeDir) throw new Error('AGENTV_HOME not set');
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const globalMirrorDir = path.join(tmpDir, 'global-only-mirror');
+      const projectMirrorDir = path.join(tmpDir, 'project-only-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(globalMirrorDir, { recursive: true });
+      mkdirSync(projectMirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(homeDir, 'config.yaml'), {
+        'https://github.com/example/global-only.git': globalMirrorDir,
+      });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.yaml'), {
+        'https://github.com/example/project-only.git': projectMirrorDir,
+      });
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/global-only.git'),
+      ).toBe(globalMirrorDir);
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/project-only.git'),
+      ).toBe(projectMirrorDir);
+    });
+
+    it('does not load project-local config above the .git repo-root boundary', () => {
+      const outerDir = path.join(tmpDir, 'outer');
+      const projectDir = path.join(outerDir, 'repo');
+      const evalDir = path.join(projectDir, 'evals');
+      const outerMirrorDir = path.join(tmpDir, 'outer-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(outerMirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(outerDir, '.agentv', 'config.yaml'), {
+        'https://github.com/example/outer.git': outerMirrorDir,
+      });
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/outer.git'),
+      ).toBeUndefined();
+    });
   });
 
   describe('materialize', () => {
