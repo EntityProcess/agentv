@@ -120,6 +120,18 @@ bun apps/cli/src/cli.ts eval examples/features/rubric/evals/dataset.eval.yaml --
 4. Update baseline files if output format changes. Baselines live next to eval YAML files as `*.baseline.jsonl`.
 5. `--dry-run` returns schema-valid mock responses, but the scores are not meaningful. Use it only for plumbing and harness checks.
 
+## Live Dogfood for Eval and Experiment Changes
+
+Use live dogfood before marking PRs ready when they affect eval execution, experiments, repeat runs, targets, providers, graders, or artifact provenance.
+
+- Live means both sides are real: a live agent/provider target and a live grader target. Do not count `mock`, `--dry-run`, or deterministic-only assertions as dogfood for these changes.
+- Prefer the smallest realistic eval: one or two cases, bounded timeouts, and `workers: 1` for heavyweight agent providers.
+- For native experiment changes, run through `agentv eval run ... --experiment <experiment.yaml|ts>` so resolution, setup, scripts, target selection, run knobs, and artifact metadata are exercised together.
+- For repeat-run changes, use an experiment-level repeat config with `count >= 2`, `early_exit: false` when validating all attempts are persisted, and inspect both `index.jsonl` and per-test `grading.json` for `trials[]` and `aggregation`.
+- For local OpenAI-compatible grading through the OAuth proxy, use `endpoint: http://127.0.0.1:10531/v1`, but still route `api_key` and `model` through environment references such as `${{ LOCAL_OPENAI_PROXY_API_KEY }}` and `${{ LOCAL_OPENAI_PROXY_MODEL }}`. Literal secrets and literal model values are intentionally rejected by target validation unless a resolver explicitly allows them.
+- Preserve review evidence in `agentv-private` on an `evidence/<bead-or-feature-slug>` branch. Include the run bundle, source eval/experiment/targets files, a short README, an artifact tree, and screenshots when folder structure or UI behavior is under review.
+- If comparing against an external convention such as Vercel `agent-eval`, state whether AgentV matches the physical folder layout or only the semantic provenance contract. Do not imply `run-N` directory parity unless the artifacts actually use that layout.
+
 ## Checking Grader Score Ranges
 
 Use `scripts/check-grader-scores.ts` as a post-processor after an eval run.
