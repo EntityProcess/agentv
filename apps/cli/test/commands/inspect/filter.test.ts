@@ -149,7 +149,6 @@ describe('inspect filter', () => {
         tempDir,
         '.agentv',
         'results',
-        'runs',
         'my-experiment',
         '2026-04-01T10-00-00-000Z',
       );

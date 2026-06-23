@@ -449,7 +449,7 @@ function initializeResultsRepo(params: {
 
 Shared AgentV evaluation results repository.
 
-AgentV stores run artifacts under \`.agentv/results/runs/\` and syncs them through normal git fetch/push operations.
+AgentV stores run artifacts under \`.agentv/results/\` and syncs them through normal git fetch/push operations.
 `;
     changed =
       writeFileIfChanged(path.join(params.repoDir, 'README.md'), readme, params.dryRun) || changed;
@@ -457,7 +457,7 @@ AgentV stores run artifacts under \`.agentv/results/runs/\` and syncs them throu
 
   changed =
     writeFileIfChanged(
-      path.join(params.repoDir, '.agentv', 'results', 'runs', '.gitkeep'),
+      path.join(params.repoDir, '.agentv', 'results', 'default', '.gitkeep'),
       '',
       params.dryRun,
     ) || changed;

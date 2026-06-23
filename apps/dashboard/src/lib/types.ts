@@ -50,10 +50,10 @@ export interface RunMeta {
   pending_tags?: string[];
   /** True when local editable metadata differs from the fetched remote metadata. */
   metadata_dirty?: boolean;
-  /** Materialized final run state consumed by readers instead of folding raw operations. */
+  /** Materialized final run state from the result bundle and tag sidecar. */
   final_state?: RunFinalState;
-  /** Operation-log watermark for the materialized final state. */
-  oplog_watermark?: RunOplogWatermark;
+  /** Optimistic-concurrency token for mutable tag state. */
+  tag_revision?: string;
   /**
    * Live execution status. Only present for Dashboard-launched runs that are
    * still being tracked in-memory — used to render a spinner in RunList
@@ -61,12 +61,6 @@ export interface RunMeta {
    * results have been written yet.
    */
   status?: 'starting' | 'running' | 'finished' | 'failed';
-}
-
-export interface RunOplogWatermark {
-  ref: string;
-  operation_id?: string;
-  updated_at?: string;
 }
 
 export interface RunFinalState {
@@ -217,7 +211,7 @@ export interface RunDetailResponse {
   source: 'local' | 'remote';
   source_label?: string;
   final_state?: RunFinalState;
-  oplog_watermark?: RunOplogWatermark;
+  tag_revision?: string;
   /** Live execution status when this run is still tracked in-memory by Dashboard. */
   status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
@@ -343,7 +337,7 @@ export interface CompareRunEntry {
   pending_tags?: string[];
   metadata_dirty?: boolean;
   final_state?: RunFinalState;
-  oplog_watermark?: RunOplogWatermark;
+  tag_revision?: string;
   source: 'local' | 'remote';
   eval_count: number;
   quality_count?: number;
@@ -368,7 +362,7 @@ export interface RunTagsResponse {
   pending_tags?: string[];
   metadata_dirty?: boolean;
   final_state?: RunFinalState;
-  oplog_watermark?: RunOplogWatermark;
+  tag_revision: string;
   updated_at: string;
 }
 
@@ -387,6 +381,7 @@ export interface CombineRunsResponse {
   ok: true;
   run_id: string;
   display_name: string;
+  experiment: string;
   combined_from_run_ids: string[];
   duplicate_conflicts?: CombineDuplicateConflict[];
   tags?: string[];

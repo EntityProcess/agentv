@@ -48,8 +48,8 @@ agentv eval evals/bug-fixes.eval.yaml \
 
 ```bash
 agentv compare \
-  .agentv/results/runs/<baseline-timestamp>/index.jsonl \
-  .agentv/results/runs/<superpowers-timestamp>/index.jsonl
+  .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<superpowers-timestamp>/index.jsonl
 ```
 
 ## Test Case: Issue #912

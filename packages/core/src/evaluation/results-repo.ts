@@ -24,7 +24,7 @@ import {
 const execFileAsync = promisify(execFile);
 // Local working-tree run workspace inside the eval repo. Local commands
 // (`agentv eval` default --output, inspect/trend/export/combine/serve) read and
-// write runs here. This is NOT the on-branch layout — see resolveResultsRepoRunsDir.
+// write runs here. This is NOT the on-branch layout — see RESULTS_REPO_RUNS_DIR.
 const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
 // On-branch / results-repo-clone storage layout. The results branch (e.g.
 // agentv/results/v1) already namespaces results, so runs are stored flat at
@@ -1726,7 +1726,7 @@ export async function stageResultsArtifacts(params: {
 
 export function resolveResultsRepoRunsDir(config: ResultsConfig): string {
   const normalized = normalizeResultsConfig(config);
-  return path.join(normalized.path, RESULTS_REPO_RESULTS_DIR, 'runs');
+  return path.join(normalized.path, RESULTS_REPO_RESULTS_DIR);
 }
 
 export async function directorySizeBytes(targetPath: string): Promise<number> {

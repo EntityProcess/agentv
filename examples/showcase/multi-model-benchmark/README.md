@@ -55,16 +55,16 @@ The eval produces a canonical run workspace with `target` in each `index.jsonl` 
 
 ```bash
 # N-way matrix — see all models at once
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl
+agentv compare .agentv/results/default/<timestamp>/index.jsonl
 
 # Designate a baseline for CI regression gating
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline copilot
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline copilot
 
 # Pairwise: compare two specific targets
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --baseline copilot --candidate claude
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline copilot --candidate claude
 
 # JSON output for CI integration
-agentv compare .agentv/results/runs/<timestamp>/index.jsonl --json
+agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
 ```
 
 ### Expected Output
@@ -154,7 +154,7 @@ benchmark.eval.yaml
 └────────┬────────────────┘
          │
          ▼
-  .agentv/results/runs/<timestamp>/
+  .agentv/results/default/<timestamp>/
            index.jsonl
          │
          ▼

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
-import { addProjectApi, browseFilesystemApi, removeProjectApi } from './api';
+import { addProjectApi, browseFilesystemApi, combineRunsApi, removeProjectApi } from './api';
 
 const originalFetch = globalThis.fetch;
 
@@ -87,5 +87,36 @@ describe('dashboard API boundary mapping', () => {
     stubJsonResponse({ error: 'Project not found' }, 404);
 
     await expect(removeProjectApi('missing')).rejects.toThrow('Project not found');
+  });
+
+  it('sends explicit experiment names for cross-experiment combine requests', async () => {
+    const calls = stubJsonResponse({
+      ok: true,
+      run_id: 'smoke-regression::2026-06-01T10-00-00-000Z',
+      display_name: 'Combined run',
+      experiment: 'smoke-regression',
+      combined_from_run_ids: ['smoke::run-a', 'regression::run-b'],
+    });
+
+    await combineRunsApi(
+      ['smoke::run-a', 'regression::run-b'],
+      'latest',
+      'demo project',
+      undefined,
+      'smoke-regression',
+    );
+
+    expect(calls[0]).toEqual({
+      url: '/api/projects/demo%20project/runs/combine',
+      init: {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          run_ids: ['smoke::run-a', 'regression::run-b'],
+          duplicate_policy: 'latest',
+          experiment: 'smoke-regression',
+        }),
+      },
+    });
   });
 });

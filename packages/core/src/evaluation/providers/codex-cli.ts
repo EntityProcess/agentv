@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 
 import { trackChild } from '../../runtime/child-tracker.js';
 import { recordCodexLogEntry } from './codex-log-tracker.js';
+import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
 import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
@@ -202,7 +203,7 @@ export class CodexCliProvider implements Provider {
     }
   }
 
-  private resolveLogDirectory(): string | undefined {
+  private resolveLogDirectory(request: ProviderRequest): string | undefined {
     const disabled = isCodexLogStreamingDisabled();
     if (disabled || this.config.streamLog === false) {
       return undefined;
@@ -210,13 +211,13 @@ export class CodexCliProvider implements Provider {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'codex');
+    return resolveDefaultProviderLogDir('codex', request);
   }
 
   private async createStreamLogger(
     request: ProviderRequest,
   ): Promise<CodexStreamLogger | undefined> {
-    const logDir = this.resolveLogDirectory();
+    const logDir = this.resolveLogDirectory(request);
     if (!logDir) {
       return undefined;
     }

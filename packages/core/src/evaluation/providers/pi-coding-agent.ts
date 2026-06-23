@@ -18,6 +18,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { getAgentvDataDir } from '../../paths.js';
+import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
 import {
   normalizeAzureSdkBaseUrl,
@@ -590,15 +591,15 @@ export class PiCodingAgentProvider implements Provider {
     return selected.length > 0 ? (selected as any[]) : sdk.codingTools;
   }
 
-  private resolveLogDirectory(): string | undefined {
+  private resolveLogDirectory(request: ProviderRequest): string | undefined {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'pi-coding-agent');
+    return resolveDefaultProviderLogDir('pi-coding-agent', request);
   }
 
   private async createStreamLogger(request: ProviderRequest): Promise<PiStreamLogger | undefined> {
-    const logDir = this.resolveLogDirectory();
+    const logDir = this.resolveLogDirectory(request);
     if (!logDir) {
       return undefined;
     }

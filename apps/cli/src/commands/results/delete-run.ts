@@ -2,16 +2,20 @@
  * Shared local run deletion primitive for `agentv results delete` and the
  * Dashboard API.
  *
- * Deletes exactly one local run workspace directory under
- * `.agentv/results/runs/`. Callers may pass a run ID, run workspace directory,
- * or `index.jsonl` path. Remote runs and paths outside the local results tree
- * are rejected before anything is removed.
+ * Deletes exactly one local run workspace directory under `.agentv/results/`.
+ * Callers may pass a run ID, run workspace directory, or `index.jsonl` path.
+ * Remote runs and paths outside the local results tree are rejected before
+ * anything is removed.
  */
 
 import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
-import { RESULT_INDEX_FILENAME, resolveRunManifestPath } from '../eval/result-layout.js';
+import {
+  RESULT_INDEX_FILENAME,
+  relativeRunPathFromCwd,
+  resolveRunManifestPath,
+} from '../eval/result-layout.js';
 import { listResultFiles } from '../inspect/utils.js';
 import { resolveResultSourcePath } from './manifest.js';
 import { isRemoteRunId } from './remote.js';
@@ -26,10 +30,6 @@ export interface DeleteRunResult extends DeleteRunTarget {
   readonly deleted: true;
 }
 
-function localRunsRoot(cwd: string): string {
-  return path.resolve(cwd, '.agentv', 'results', 'runs');
-}
-
 function assertLocalRunManifest(cwd: string, manifestPath: string, runId: string): DeleteRunTarget {
   const resolvedManifestPath = path.resolve(manifestPath);
   if (path.basename(resolvedManifestPath) !== RESULT_INDEX_FILENAME) {
@@ -37,9 +37,7 @@ function assertLocalRunManifest(cwd: string, manifestPath: string, runId: string
   }
 
   const runDir = path.dirname(resolvedManifestPath);
-  const runsRoot = localRunsRoot(cwd);
-  const relativeRunDir = path.relative(runsRoot, runDir);
-  if (relativeRunDir === '' || relativeRunDir.startsWith('..') || path.isAbsolute(relativeRunDir)) {
+  if (!relativeRunPathFromCwd(cwd, runDir)) {
     throw new Error('Run workspace is outside the local results directory');
   }
   if (!existsSync(resolvedManifestPath)) {

@@ -56,14 +56,14 @@ Before proceeding to the next iteration, log the decision and rationale so the u
 Iteration 2: KEEP
   wins=3, losses=1, ties=6, meanDelta=+0.05
   Rationale: candidate wins outweigh losses (3 > 1)
-  Baseline promoted: .agentv/results/runs/20250101-120000/index.jsonl
+  Baseline promoted: .agentv/results/default/20250101-120000/index.jsonl
 ```
 
 ```
 Iteration 3: DISCARD
   wins=1, losses=2, ties=7, meanDelta=-0.03
   Rationale: candidate losses outweigh wins (2 > 1)
-  Reverted to baseline: .agentv/results/runs/20250101-110000/index.jsonl
+  Reverted to baseline: .agentv/results/default/20250101-110000/index.jsonl
   Next: try a different mutation
 ```
 
@@ -124,7 +124,7 @@ Shell out to `agentv eval <eval-path> --experiment autoresearch-<name>` via the 
 Each cycle is a standard eval run. Autoresearch session metadata lives in `_autoresearch/` within the experiment directory:
 
 ```
-.agentv/results/runs/<experiment>/
+.agentv/results/<experiment>/
   _autoresearch/
     iterations.jsonl               # one line per cycle — data for chart + mutator
     trajectory.html                # live-updating score trajectory chart
@@ -187,7 +187,7 @@ Follow this step-by-step procedure to execute autoresearch:
 1. Determine the **artifact path** (file or directory to optimize) and **eval path** (EVAL.yaml or evals.json).
 2. Detect **artifact mode**: `file` if the artifact path is a file, `directory` if it's a directory.
 3. Derive the **experiment name**: `autoresearch-<name>` from the artifact filename/dirname, or use a user-provided name.
-4. Set the experiment directory: `.agentv/results/runs/<experiment>/`.
+4. Set the experiment directory: `.agentv/results/<experiment>/`.
 5. Create the `_autoresearch/` subdirectory inside the experiment directory.
 6. Record `initial_sha=$(git rev-parse HEAD)` — the commit before any mutations.
 7. Copy `scripts/trajectory.html` to `_autoresearch/trajectory.html`.

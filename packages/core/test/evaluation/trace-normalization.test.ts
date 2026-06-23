@@ -297,9 +297,9 @@ describe('Dashboard trace artifact normalization', () => {
             message: 'Preserved warning',
           },
         ],
-        artifacts: { trace_path: 'outputs/trace.json' },
+        artifacts: { trace_path: 'trace.json' },
       },
-      { runId: 'run-agentv', artifactPath: 'demo/agentv/outputs/trace.json' },
+      { runId: 'run-agentv', artifactPath: 'demo/agentv/trace.json' },
     );
 
     expect(result.status).toBe('ok');
@@ -313,7 +313,7 @@ describe('Dashboard trace artifact normalization', () => {
       expect.objectContaining({ code: 'source_warning', message: 'Preserved warning' }),
     ]);
     expect(result.traceSession.artifact_links).toEqual([
-      { name: 'trace_path', path: 'outputs/trace.json' },
+      { name: 'trace_path', path: 'trace.json' },
     ]);
   });
 });

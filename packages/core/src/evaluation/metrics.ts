@@ -2,10 +2,10 @@
  * AgentV metrics v1.
  *
  * This is a derived per-case executor metrics projection over `EvaluationResult`
- * and `agentv.trace.v1`. It aligns with Agent Skills `outputs/metrics.json`
+ * and `agentv.trace.v1`. It aligns with AgentV's case-local `metrics.json`
  * while carrying the compact Vercel-style observability fields. It is not the
- * canonical trace store; full detail stays in `outputs/trace.json`, ordered
- * transcript compatibility rows stay in `outputs/transcript.jsonl`, and
+ * canonical trace store; full detail stays in `trace.json`, ordered
+ * transcript compatibility rows stay in `transcript.jsonl`, and
  * duration/token/cost usage stays in `timing.json`.
  */
 

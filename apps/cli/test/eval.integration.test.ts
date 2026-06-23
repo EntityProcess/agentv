@@ -406,7 +406,7 @@ describe('agentv eval CLI', () => {
       await expectFileExists(path.join(outputDir, 'benchmark.json'));
       await expectFileExists(path.join(outputDir, 'timing.json'));
       for (const row of canonicalResults) {
-        expect(row.transcript_path).toMatch(/outputs\/transcript\.jsonl$/);
+        expect(row.transcript_path).toMatch(/transcript\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
       }
     } finally {

@@ -29,7 +29,7 @@ import { command, flag, oneOf, option, optional, positional, string } from 'cmd-
 import type { EvaluationResult, ExportDuplicatePolicy, IndexArtifactEntry } from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
-import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
+import { RESULT_INDEX_FILENAME, isReservedResultsNamespace } from '../eval/result-layout.js';
 import { loadManifestResults } from './manifest.js';
 import {
   type ProjectionBundle,
@@ -72,9 +72,12 @@ export function deriveOutputDir(cwd: string, sourceFile: string): string {
 
   const runDir = path.dirname(sourceFile);
   const segments = path.normalize(runDir).split(path.sep).filter(Boolean);
-  const runsIndex = segments.lastIndexOf('runs');
-  if (runsIndex >= 0 && runsIndex < segments.length - 1) {
-    return path.join(cwd, '.agentv', 'results', 'export', ...segments.slice(runsIndex + 1));
+  const resultsIndex = segments.lastIndexOf('results');
+  if (resultsIndex >= 0 && resultsIndex < segments.length - 2) {
+    const runSegments = segments.slice(resultsIndex + 1);
+    if (!isReservedResultsNamespace(runSegments[0])) {
+      return path.join(cwd, '.agentv', 'results', 'export', ...runSegments);
+    }
   }
 
   const parentDir = path.basename(runDir);
@@ -140,7 +143,7 @@ export const resultsExportCommand = command({
       type: optional(string),
       displayName: 'source',
       description:
-        'Run workspace directory or index.jsonl manifest to export (defaults to most recent in .agentv/results/runs/)',
+        'Run workspace directory or index.jsonl manifest to export (defaults to most recent in .agentv/results/)',
     }),
     out: option({
       type: optional(string),

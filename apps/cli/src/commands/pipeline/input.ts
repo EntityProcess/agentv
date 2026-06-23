@@ -58,7 +58,7 @@ export const evalInputCommand = command({
       type: optional(string),
       long: 'out',
       description:
-        'Output directory for extracted inputs (default: .agentv/results/runs/<experiment>/<timestamp>)',
+        'Output directory for extracted inputs (default: .agentv/results/<experiment>/<timestamp>)',
     }),
     experiment: option({
       type: optional(string),

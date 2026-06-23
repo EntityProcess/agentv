@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { extractTextContent, toContentArray } from './claude-content.js';
 import { recordClaudeLogEntry } from './claude-log-tracker.js';
+import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { ClaudeResolvedConfig } from './targets.js';
 import type {
@@ -229,7 +230,7 @@ export class ClaudeProvider implements Provider {
     return undefined;
   }
 
-  private resolveLogDirectory(): string | undefined {
+  private resolveLogDirectory(request: ProviderRequest): string | undefined {
     const disabled = isClaudeLogStreamingDisabled();
     if (disabled) {
       return undefined;
@@ -237,13 +238,13 @@ export class ClaudeProvider implements Provider {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'claude');
+    return resolveDefaultProviderLogDir('claude', request);
   }
 
   private async createStreamLogger(
     request: ProviderRequest,
   ): Promise<ClaudeStreamLogger | undefined> {
-    const logDir = this.resolveLogDirectory();
+    const logDir = this.resolveLogDirectory(request);
     if (!logDir) {
       return undefined;
     }

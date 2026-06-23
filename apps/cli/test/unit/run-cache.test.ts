@@ -30,7 +30,7 @@ describe('resolveCachedRunDir', () => {
 
   it('returns the cached run dir when it exists on disk', async () => {
     const cwd = setupCwd();
-    const runDir = path.join(cwd, '.agentv', 'results', 'runs', 'default', '2026-01-01');
+    const runDir = path.join(cwd, '.agentv', 'results', 'default', '2026-01-01');
     mkdirSync(runDir, { recursive: true });
     writeCache(cwd, runDir);
 
@@ -53,7 +53,7 @@ describe('resolveCachedRunDir', () => {
 
   it('returns undefined when the cached dir has been deleted', async () => {
     const cwd = setupCwd();
-    const staleDir = path.join(cwd, '.agentv', 'results', 'runs', 'default', '2026-01-01');
+    const staleDir = path.join(cwd, '.agentv', 'results', 'default', '2026-01-01');
     writeCache(cwd, staleDir);
 
     expect(await resolveCachedRunDir(cwd)).toBeUndefined();

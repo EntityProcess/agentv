@@ -1,7 +1,7 @@
 /**
  * `agentv inspect filter` — filter evaluation results by metadata criteria.
  *
- * Scans JSONL index files in `.agentv/results/runs/` and applies filters
+ * Scans JSONL index files in `.agentv/results/` and applies filters
  * such as target name, experiment name, score thresholds, execution status,
  * and tool usage. Outputs matching test IDs with summary info.
  *
@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
+import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { normalizeResultRow } from '../results/result-row-schema.js';
 import { c, formatScore, padLeft, padRight } from './utils.js';
 
@@ -41,6 +42,26 @@ function collectIndexFiles(dir: string): string[] {
     const entries = readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...collectIndexFiles(fullPath));
+      } else if (entry.name === 'index.jsonl') {
+        files.push(fullPath);
+      }
+    }
+  } catch {
+    // Directory may not exist
+  }
+  return files;
+}
+
+function collectCurrentResultIndexFiles(cwd: string): string[] {
+  const resultsDir = path.join(cwd, '.agentv', 'results');
+  const files: string[] = [];
+  try {
+    const entries = readdirSync(resultsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (isReservedResultsNamespace(entry.name)) continue;
+      const fullPath = path.join(resultsDir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectIndexFiles(fullPath));
       } else if (entry.name === 'index.jsonl') {
@@ -92,6 +113,22 @@ function extractToolNames(record: Record<string, unknown>): string[] {
   return [...tools];
 }
 
+function inferExperimentFromPath(filePath: string): string | undefined {
+  const parts = filePath.split(path.sep);
+  const resultsIdx = parts.lastIndexOf('results');
+  if (resultsIdx === -1) return undefined;
+
+  const runPath = parts.slice(resultsIdx + 1, -1);
+  if (isReservedResultsNamespace(runPath[0])) return undefined;
+  if (runPath.length < 2) return undefined;
+
+  const candidate = runPath[0];
+  if (candidate && !/^\d{4}-\d{2}-\d{2}T/.test(candidate)) {
+    return candidate;
+  }
+  return undefined;
+}
+
 /**
  * Parse a single JSONL index file into filterable records.
  */
@@ -119,17 +156,7 @@ export function parseFilterableRecords(filePath: string): FilterableRecord[] {
     // Determine experiment from record or from directory path
     let experiment = typeof raw.experiment === 'string' ? raw.experiment : undefined;
     if (!experiment) {
-      // Infer from path: .agentv/results/runs/<experiment>/<timestamp>/index.jsonl
-      const parts = filePath.split(path.sep);
-      const runsIdx = parts.indexOf('runs');
-      // If there are 2+ segments between "runs" and the file, the first is the experiment
-      if (runsIdx !== -1 && parts.length - runsIdx >= 3) {
-        const candidate = parts[runsIdx + 1];
-        // "default" experiment or named experiments; skip if it looks like a timestamp
-        if (candidate && !/^\d{4}-\d{2}-\d{2}T/.test(candidate)) {
-          experiment = candidate;
-        }
-      }
+      experiment = inferExperimentFromPath(filePath);
     }
 
     records.push({
@@ -208,7 +235,7 @@ function discoverFilterSources(searchPath: string | undefined, cwd: string): str
     return [resolved];
   }
 
-  return collectIndexFiles(path.join(cwd, '.agentv', 'results', 'runs'));
+  return collectCurrentResultIndexFiles(cwd);
 }
 
 function formatFilterTable(records: FilterableRecord[]): string {
@@ -268,7 +295,7 @@ export const inspectFilterCommand = command({
     path: positional({
       type: optional(string),
       displayName: 'path',
-      description: 'Directory or file to filter (default: .agentv/results/runs/)',
+      description: 'Directory or file to filter (default: .agentv/results/)',
     }),
     target: option({
       type: optional(string),

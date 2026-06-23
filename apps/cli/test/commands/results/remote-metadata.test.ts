@@ -11,7 +11,6 @@ import {
   readRemoteRunTags,
   writeRemoteRunTags,
 } from '../../../src/commands/results/remote-metadata.js';
-import { RUN_OPLOG_REF } from '../../../src/commands/results/run-oplog.js';
 
 const RUN_TIMESTAMP = '2026-06-06T10-00-00-000Z';
 
@@ -83,8 +82,7 @@ describe('remote metadata tags', () => {
     expect(state.remoteTags).toEqual(['remote-baseline']);
     expect(state.pendingTags).toEqual(['pending', 'remote-baseline']);
     expect(state.dirty).toBe(true);
-    expect(state.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
-    expect(state.oplogWatermark.operation_id).toBeString();
+    expect(state.tagRevision).toStartWith('sha256:');
     expect(state.metadataPath).toContain(
       path.join('metadata', 'runs', 'default', RUN_TIMESTAMP, 'tags.json'),
     );
@@ -96,7 +94,7 @@ describe('remote metadata tags', () => {
     expect(reloaded.tags).toEqual(['pending', 'remote-baseline']);
     expect(reloaded.pendingTags).toEqual(['pending', 'remote-baseline']);
     expect(reloaded.dirty).toBe(true);
-    expect(reloaded.oplogWatermark.operation_id).toBe(state.oplogWatermark.operation_id);
+    expect(reloaded.tagRevision).toBe(state.tagRevision);
   });
 
   it('uses committed metadata overlays as the clean remote baseline', () => {
@@ -112,7 +110,7 @@ describe('remote metadata tags', () => {
     expect(reloaded.remoteTags).toEqual(['accepted']);
     expect(reloaded.pendingTags).toBeUndefined();
     expect(reloaded.dirty).toBe(false);
-    expect(reloaded.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
+    expect(reloaded.tagRevision).toBe(state.tagRevision);
   });
 
   it('preserves the storage ref when unchanged remote artifact tags clear a local overlay', () => {
@@ -158,23 +156,35 @@ describe('remote metadata tags', () => {
     expect(readFileSync(state.metadataPath, 'utf8')).toContain('"tags": []');
   });
 
-  it('records an explicit clear watermark when the remote baseline is already empty', () => {
+  it('records an explicit clear revision when the remote baseline is already empty', () => {
     const manifestPath = seedRepo(repoDir, { artifactTags: [] });
 
     const state = writeRemoteRunTags(repoDir, manifestPath, []);
     const metadata = JSON.parse(readFileSync(state.metadataPath, 'utf8')) as {
       tags: string[];
-      oplog_watermark: { ref: string; operation_id?: string; updated_at?: string };
+      tag_revision: string;
     };
 
     expect(state.tags).toEqual([]);
     expect(state.remoteTags).toEqual([]);
     expect(state.pendingTags).toEqual([]);
     expect(state.dirty).toBe(true);
-    expect(state.oplogWatermark.ref).toBe(RUN_OPLOG_REF);
-    expect(state.oplogWatermark.operation_id).toBeString();
+    expect(state.tagRevision).toStartWith('sha256:');
     expect(metadata.tags).toEqual([]);
-    expect(metadata.oplog_watermark.operation_id).toBe(state.oplogWatermark.operation_id);
+    expect(metadata.tag_revision).toBe(state.tagRevision);
+  });
+
+  it('rejects stale tag revisions before writing an overlay', () => {
+    const manifestPath = seedRepo(repoDir);
+    const before = readRemoteRunTags(repoDir, manifestPath);
+
+    expect(() =>
+      writeRemoteRunTags(repoDir, manifestPath, ['stale'], undefined, 'sha256:stale'),
+    ).toThrow('Run tags changed. Refresh the run and try again.');
+
+    const after = readRemoteRunTags(repoDir, manifestPath);
+    expect(after.tagRevision).toBe(before.tagRevision);
+    expect(after.tags).toEqual(before.tags);
   });
 
   it('rejects writes when the configured results path is not a git checkout', () => {

@@ -119,9 +119,9 @@ export const traceSessionEnvelopeFixture = {
     },
   },
   artifacts: {
-    trace_path: 'outputs/trace.json',
+    trace_path: 'trace.json',
     answer_path: 'outputs/answer.md',
-    transcript_path: 'outputs/transcript.jsonl',
+    transcript_path: 'transcript.jsonl',
     secret_token_path: 'outputs/secret-token.txt',
     unsafe_url_path: 'https://phoenix.example/artifacts/trace.json?api_key=secret',
     traversal_path: '../outside/trace.json',

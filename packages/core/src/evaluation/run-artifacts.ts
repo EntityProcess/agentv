@@ -243,6 +243,7 @@ export interface IndexArtifactEntry {
   readonly timing_path: string;
   readonly output_path?: string;
   readonly answer_path?: string;
+  readonly trace_path?: string;
   readonly transcript_path?: string;
   readonly metrics_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
@@ -894,12 +895,12 @@ function rawProviderLogSourcePath(result: EvaluationResult): string | undefined 
   return sourcePath ? sourcePath : undefined;
 }
 
-function rawProviderLogArtifactPath(outputsDir: string): string {
-  return path.join(outputsDir, 'raw', 'provider.log');
+function rawProviderLogArtifactPath(testDir: string): string {
+  return path.join(testDir, 'provider.log');
 }
 
-async function copyRawProviderLogArtifact(sourcePath: string, outputsDir: string): Promise<string> {
-  const destinationPath = rawProviderLogArtifactPath(outputsDir);
+async function copyRawProviderLogArtifact(sourcePath: string, testDir: string): Promise<string> {
+  const destinationPath = rawProviderLogArtifactPath(testDir);
   if (path.resolve(sourcePath) === path.resolve(destinationPath)) {
     return destinationPath;
   }
@@ -912,7 +913,7 @@ async function copyRawProviderLogArtifact(sourcePath: string, outputsDir: string
 interface TraceEnvelopeSidecarParams {
   readonly result: EvaluationResult;
   readonly outputDir: string;
-  readonly outputsDir: string;
+  readonly testDir: string;
   readonly evalPath?: string;
   readonly experiment?: string;
   readonly runId?: string;
@@ -933,9 +934,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
       response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
       metrics_path: CANONICAL_METRICS_ARTIFACT_PATH,
-      raw_provider_log_path: rawProviderLogSourcePath(params.result)
-        ? 'outputs/raw/provider.log'
-        : undefined,
+      raw_provider_log_path: rawProviderLogSourcePath(params.result) ? 'provider.log' : undefined,
     },
     duplicatePolicy: params.duplicatePolicy,
   });
@@ -946,7 +945,7 @@ async function writeTraceEnvelopeSidecar(
 ): Promise<TraceEnvelope> {
   const envelope = buildTraceEnvelopeSidecar(params);
   await writeFile(
-    path.join(params.outputsDir, 'trace.json'),
+    path.join(params.testDir, CANONICAL_TRACE_ARTIFACT_PATH),
     `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
     'utf8',
   );
@@ -1028,6 +1027,7 @@ export function buildIndexArtifactEntry(
     timingPath: string;
     outputPath?: string;
     answerPath?: string;
+    tracePath?: string;
     transcriptPath?: string;
     metricsPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
@@ -1068,6 +1068,9 @@ export function buildIndexArtifactEntry(
       : undefined,
     answer_path: options.answerPath
       ? toRelativeArtifactPath(options.outputDir, options.answerPath)
+      : undefined,
+    trace_path: options.tracePath
+      ? toRelativeArtifactPath(options.outputDir, options.tracePath)
       : undefined,
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
@@ -1135,12 +1138,13 @@ export function buildResultIndexArtifact(
     input_path: input ? path.posix.join(artifactSubdir, 'input.md') : undefined,
     output_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
     answer_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
+    trace_path: path.posix.join(artifactSubdir, CANONICAL_TRACE_ARTIFACT_PATH),
     transcript_path: hasTranscript
-      ? path.posix.join(artifactSubdir, 'outputs', 'transcript.jsonl')
+      ? path.posix.join(artifactSubdir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
       : undefined,
-    metrics_path: path.posix.join(artifactSubdir, 'outputs', 'metrics.json'),
+    metrics_path: path.posix.join(artifactSubdir, CANONICAL_METRICS_ARTIFACT_PATH),
     raw_provider_log_path: hasRawProviderLog
-      ? path.posix.join(artifactSubdir, 'outputs', 'raw', 'provider.log')
+      ? path.posix.join(artifactSubdir, 'provider.log')
       : undefined,
     artifact_pointers: options?.artifactPointers,
     response_path: hasAnswer
@@ -1548,25 +1552,25 @@ export async function writePerTestArtifacts(
     }
     const rawProviderLogSource = rawProviderLogSourcePath(result);
     if (rawProviderLogSource) {
-      await copyRawProviderLogArtifact(rawProviderLogSource, outputsDir);
+      await copyRawProviderLogArtifact(rawProviderLogSource, testDir);
     }
-    const tracePath = path.join(outputsDir, 'trace.json');
+    const tracePath = path.join(testDir, CANONICAL_TRACE_ARTIFACT_PATH);
     const envelope = await writeTraceEnvelopeSidecar({
       result,
       outputDir,
-      outputsDir,
+      testDir,
       evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
       experiment: options?.experiment,
       runId: options?.runId,
       duplicatePolicy,
     });
     const transcriptPath = hasTranscriptProjection(result, envelope)
-      ? path.join(outputsDir, 'transcript.jsonl')
+      ? path.join(testDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
       : undefined;
     if (transcriptPath) {
       await writeTranscriptJsonl(transcriptPath, result, envelope);
     }
-    const metricsPath = path.join(outputsDir, 'metrics.json');
+    const metricsPath = path.join(testDir, CANONICAL_METRICS_ARTIFACT_PATH);
     await writeMetricsArtifact({
       filePath: metricsPath,
       result,
@@ -1646,20 +1650,20 @@ export async function writeArtifactsFromResults(
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
-      outputsDir,
+      testDir,
       evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
       experiment: options?.experiment,
       runId: options?.runId,
       duplicatePolicy,
     });
     const transcriptPath = hasTranscriptProjection(result, envelope)
-      ? path.join(outputsDir, 'transcript.jsonl')
+      ? path.join(testDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
       : undefined;
-    const tracePath = path.join(outputsDir, 'trace.json');
-    const metricsPath = path.join(outputsDir, 'metrics.json');
+    const tracePath = path.join(testDir, CANONICAL_TRACE_ARTIFACT_PATH);
+    const metricsPath = path.join(testDir, CANONICAL_METRICS_ARTIFACT_PATH);
     const rawProviderLogSource = rawProviderLogSourcePath(result);
     const rawProviderLogPath = rawProviderLogSource
-      ? rawProviderLogArtifactPath(outputsDir)
+      ? rawProviderLogArtifactPath(testDir)
       : undefined;
     const projectionIdentity = envelope.projectionIdentity;
     if (!projectionIdentity) {
@@ -1731,7 +1735,7 @@ export async function writeArtifactsFromResults(
       await writeFile(plan.responsePath, result.output, 'utf8');
     }
     if (plan.rawProviderLogSource) {
-      await copyRawProviderLogArtifact(plan.rawProviderLogSource, plan.outputsDir);
+      await copyRawProviderLogArtifact(plan.rawProviderLogSource, plan.testDir);
     }
     await writeFile(
       plan.tracePath,
@@ -1769,6 +1773,7 @@ export async function writeArtifactsFromResults(
         timingPath: plan.perTestTimingPath,
         outputPath: plan.answerPath,
         answerPath: plan.answerPath,
+        tracePath: plan.tracePath,
         transcriptPath: plan.transcriptPath,
         metricsPath: plan.metricsPath,
         artifactPointers,

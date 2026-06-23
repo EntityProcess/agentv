@@ -66,13 +66,13 @@ describe('buildResumeRequestBody', () => {
     expect(
       buildResumeRequestBody({
         mode: 'resume',
-        runDir: '.agentv/results/runs/2026-05-06T00-00-00-000Z',
+        runDir: '.agentv/results/default/2026-05-06T00-00-00-000Z',
         suiteFilter: 'examples/demo.eval.yaml',
         target: 'gpt-4o',
       }),
     ).toEqual({
       suite_filter: 'examples/demo.eval.yaml',
-      output: '.agentv/results/runs/2026-05-06T00-00-00-000Z',
+      output: '.agentv/results/default/2026-05-06T00-00-00-000Z',
       target: 'gpt-4o',
       resume: true,
     });

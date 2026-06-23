@@ -7,7 +7,7 @@ Demonstrates using `evaluate()` from `@agentv/sdk` to run evaluations as a libra
 1. Imports `evaluate()` from `@agentv/sdk`
 2. Defines tests inline with `assert`
 3. Runs the evaluation and prints summary statistics
-4. Writes canonical AgentV run artifacts under `.agentv/results/runs/...`
+4. Writes canonical AgentV run artifacts under `.agentv/results/...`
 
 ## How to Run
 

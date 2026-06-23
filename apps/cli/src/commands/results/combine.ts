@@ -12,6 +12,7 @@ import { command, oneOf, option, optional, restPositionals, string } from 'cmd-t
 
 import {
   type CombineDuplicatePolicy,
+  type CombineRunSource,
   buildCombineRunSources,
   combineRunSources,
   inspectRunSourceDuplicates,
@@ -72,6 +73,22 @@ function parseDuplicatePolicy(policy: string | undefined): CombineDuplicatePolic
   return undefined;
 }
 
+function uniqueSourceExperiments(sources: readonly CombineRunSource[]): string[] {
+  return [...new Set(sources.map((source) => source.experiment))].sort();
+}
+
+async function promptExperimentName(experiments: readonly string[]): Promise<string | undefined> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(
+      `Source runs span experiments (${experiments.join(', ')}). New experiment name: `,
+    );
+    return answer.trim() || undefined;
+  } finally {
+    rl.close();
+  }
+}
+
 export const resultsCombineCommand = command({
   name: 'combine',
   description: 'Combine two or more partial local run workspaces into a new run workspace',
@@ -86,7 +103,13 @@ export const resultsCombineCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Output run workspace directory (defaults to .agentv/results/runs/combined/<earliest-source-time>)',
+        'Output run workspace directory (defaults to .agentv/results/<experiment>/<earliest-source-time>)',
+    }),
+    experiment: option({
+      type: optional(string),
+      long: 'experiment',
+      description:
+        'Experiment namespace for the combined run. Required when sources span multiple experiments.',
     }),
     displayName: option({
       type: optional(string),
@@ -108,6 +131,22 @@ export const resultsCombineCommand = command({
 
     const cwd = process.cwd();
     const sources = buildCombineRunSources(args.sources, cwd);
+    const sourceExperiments = uniqueSourceExperiments(sources);
+    let experiment = args.experiment;
+    if (
+      !experiment &&
+      sourceExperiments.length > 1 &&
+      process.stdin.isTTY &&
+      process.stdout.isTTY
+    ) {
+      experiment = await promptExperimentName(sourceExperiments);
+    }
+    if (!experiment && sourceExperiments.length > 1) {
+      console.error(
+        `Error: combining runs from multiple experiments requires --experiment <name>. Source experiments: ${sourceExperiments.join(', ')}`,
+      );
+      process.exit(1);
+    }
     const duplicatePolicy = defaultDuplicatePolicy(parseDuplicatePolicy(args.duplicatePolicy));
     let promptChoices: Map<string, 'keep' | 'replace'> | undefined;
 
@@ -129,6 +168,7 @@ export const resultsCombineCommand = command({
         cwd,
         sources,
         outputDir: args.output,
+        experiment,
         displayName: args.displayName,
         duplicatePolicy,
         promptChoices,

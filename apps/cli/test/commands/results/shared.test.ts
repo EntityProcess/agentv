@@ -22,7 +22,7 @@ describe('results shared source resolution', () => {
   });
 
   it('resolves an explicit run workspace directory to index.jsonl', async () => {
-    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', '2026-03-25T10-00-00-000Z');
+    const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
     writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"t1","score":1}\n');
 
@@ -36,14 +36,14 @@ describe('results shared source resolution', () => {
       tempDir,
       '.agentv',
       'results',
-      'runs',
+      'default',
       '2026-03-24T10-00-00-000Z',
     );
     const newerRunDir = path.join(
       tempDir,
       '.agentv',
       'results',
-      'runs',
+      'default',
       '2026-03-25T10-00-00-000Z',
     );
     mkdirSync(olderRunDir, { recursive: true });
@@ -80,9 +80,9 @@ describe('results shared source resolution', () => {
   });
 
   it('hydrates transcripts from artifact pointers when transcript_path is absent', () => {
-    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', '2026-03-25T10-00-00-000Z');
-    const transcriptRelativePath = 'pointer-case/outputs/transcript.jsonl';
-    mkdirSync(path.join(runDir, 'pointer-case', 'outputs'), { recursive: true });
+    const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
+    const transcriptRelativePath = 'pointer-case/transcript.jsonl';
+    mkdirSync(path.join(runDir, 'pointer-case'), { recursive: true });
     writeFileSync(
       path.join(runDir, transcriptRelativePath),
       `${JSON.stringify({
@@ -108,7 +108,7 @@ describe('results shared source resolution', () => {
         artifact_pointers: {
           transcript: {
             ref: 'agentv/artifacts/v1',
-            key: 'transcripts/pointer-case/outputs/transcript.jsonl',
+            key: 'transcripts/pointer-case/transcript.jsonl',
             object_version: 'sha256:test',
             path: transcriptRelativePath,
             sha256: 'test',
@@ -129,7 +129,7 @@ describe('results shared source resolution', () => {
   });
 
   it('rejects eval-case-only rows with migration guidance', () => {
-    const runDir = path.join(tempDir, '.agentv', 'results', 'runs', '2026-03-25T10-00-00-000Z');
+    const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
     const indexPath = path.join(runDir, 'index.jsonl');
     writeFileSync(indexPath, '{"id":"case-a","prompt":"What is 2 + 2?"}\n');

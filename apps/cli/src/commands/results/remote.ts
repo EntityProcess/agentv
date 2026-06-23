@@ -22,6 +22,7 @@ import {
   syncResultsRepoForProject,
 } from '@agentv/core';
 
+import { relativeRunPathFromCwd } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import {
   type ResultFileMeta,
@@ -124,17 +125,8 @@ export interface RemoteResultsStatus extends ResultsRepoStatus {
 }
 
 function relativeLocalRunPath(cwd: string, manifestPath: string): string | undefined {
-  const runsRoot = path.resolve(cwd, '.agentv', 'results', 'runs');
   const manifestDir = path.resolve(path.dirname(manifestPath));
-  const relativeRunPath = path.relative(runsRoot, manifestDir);
-  if (
-    relativeRunPath.length === 0 ||
-    relativeRunPath.startsWith('..') ||
-    path.isAbsolute(relativeRunPath)
-  ) {
-    return undefined;
-  }
-  return relativeRunPath.split(path.sep).join(path.posix.sep);
+  return relativeRunPathFromCwd(cwd, manifestDir);
 }
 
 function remoteMetadataManifestPath(
@@ -180,14 +172,14 @@ function statusForResult(result: EvaluationResult): 'PASS' | 'FAIL' | 'ERROR' {
 }
 
 export function getRelativeRunPath(cwd: string, runDir: string): string {
-  const relative = path.relative(path.join(cwd, '.agentv', 'results', 'runs'), runDir);
-  if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+  const relative = relativeRunPathFromCwd(cwd, runDir);
+  if (relative) {
     return relative;
   }
 
-  const experiment = path.basename(path.dirname(runDir));
-  const runName = path.basename(runDir);
-  return experiment && experiment !== runName ? path.join(experiment, runName) : runName;
+  throw new Error(
+    `Run workspace must use .agentv/results/<experiment>/<timestamp>: ${path.resolve(runDir)}`,
+  );
 }
 
 function buildCommitTitle(payload: RemoteExportPayload): string {
@@ -546,6 +538,7 @@ export async function setRemoteRunTags(
   meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   tags: readonly string[],
   projectId?: string,
+  expectedTagRevision?: string,
 ): Promise<RemoteRunTagState> {
   if (meta.source !== 'remote' && !meta.on_remote) {
     throw new Error('Remote metadata can only be set on remote runs');
@@ -559,13 +552,20 @@ export async function setRemoteRunTags(
     throw new Error('Remote metadata can only be set on remote runs');
   }
   assertWritableResultsRepo(config.path);
-  return writeRemoteRunTags(config.path, manifestPath, tags, getResultsStorageRef(config));
+  return writeRemoteRunTags(
+    config.path,
+    manifestPath,
+    tags,
+    getResultsStorageRef(config),
+    expectedTagRevision,
+  );
 }
 
 export async function clearRemoteRunTags(
   cwd: string,
   meta: Pick<SourcedResultFileMeta, 'source' | 'path' | 'on_remote'>,
   projectId?: string,
+  expectedTagRevision?: string,
 ): Promise<RemoteRunTagState> {
   if (meta.source !== 'remote' && !meta.on_remote) {
     throw new Error('Remote metadata can only be removed from remote runs');
@@ -579,7 +579,12 @@ export async function clearRemoteRunTags(
     throw new Error('Remote metadata can only be removed from remote runs');
   }
   assertWritableResultsRepo(config.path);
-  return deleteRemoteRunTags(config.path, manifestPath, getResultsStorageRef(config));
+  return deleteRemoteRunTags(
+    config.path,
+    manifestPath,
+    getResultsStorageRef(config),
+    expectedTagRevision,
+  );
 }
 
 export async function maybeAutoExportRunArtifacts(

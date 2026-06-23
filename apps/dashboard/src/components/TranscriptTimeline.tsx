@@ -1,5 +1,5 @@
 /**
- * Structured transcript viewer for canonical `outputs/transcript.jsonl` files.
+ * Structured transcript viewer for canonical `transcript.jsonl` files.
  *
  * The component intentionally reads only transcript JSONL rows derived from
  * AgentV trace data. It does not parse `response.md` or markdown transcripts;
@@ -175,7 +175,7 @@ function findFilePathBySuffix(
 }
 
 export function findTranscriptPath(nodes: readonly FileNode[]): string | undefined {
-  return findFilePathBySuffix(nodes, ['outputs/transcript.jsonl']);
+  return findFilePathBySuffix(nodes, ['transcript.jsonl']);
 }
 
 export function findAnswerPath(nodes: readonly FileNode[]): string | undefined {

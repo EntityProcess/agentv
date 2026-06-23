@@ -43,7 +43,7 @@ even in subagent mode.
 
 For evals with CLI targets, `pipeline run` handles input extraction, target invocation, and
 code grading in one step. When `--out` is omitted, the output directory defaults to
-`.agentv/results/runs/<timestamp>` (same convention as `agentv eval`):
+`.agentv/results/default/<timestamp>` (same convention as `agentv eval`):
 
 ```bash
 # Extract inputs and invoke all CLI targets in parallel:
@@ -69,7 +69,7 @@ opted out via `subagent_mode_allowed: false` in `.agentv/targets.yaml`), fall ba
 ### Step 1: Extract inputs
 
 ```bash
-# Defaults to .agentv/results/runs/<timestamp>
+# Defaults to .agentv/results/default/<timestamp>
 agentv pipeline input evals/repro.eval.yaml
 ```
 
@@ -116,7 +116,7 @@ LLM grading → merge and validate).
 Use individual commands when you need control over each step with CLI targets:
 
 ```bash
-# Step 1: Extract inputs (defaults to .agentv/results/runs/<timestamp>)
+# Step 1: Extract inputs (defaults to .agentv/results/default/<timestamp>)
 agentv pipeline input evals/repro.eval.yaml
 
 # Step 2: run_tests.py invokes CLI targets (or use pipeline run instead)
@@ -162,7 +162,7 @@ The path hierarchy mirrors the CLI mode: `<evalset-name>` comes from the `name` 
 the eval.yaml. The target is recorded in `manifest.json` — one run = one target.
 
 ```
-.agentv/results/runs/<experiment>/<timestamp>/
+.agentv/results/<experiment>/<timestamp>/
 ├── manifest.json                    ← eval metadata, target, test_ids
 ├── index.jsonl                      ← per-test scores
 ├── benchmark.json                   ← aggregate statistics

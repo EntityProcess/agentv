@@ -75,6 +75,7 @@ import { Hono } from 'hono';
 
 import { enforceRequiredVersion } from '../../version-check.js';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
+import { relativeRunPathFromCwd } from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { listResultFiles } from '../inspect/utils.js';
@@ -106,10 +107,11 @@ import {
 } from './remote.js';
 import {
   type RunFinalState,
-  type RunOplogWatermark,
   type RunReadStateFields,
+  TagRevisionConflictError,
+  assertExpectedTagRevision,
   materializeRunState,
-} from './run-oplog.js';
+} from './run-state.js';
 import { readRunTags, writeRunTags } from './run-tags.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
@@ -117,13 +119,13 @@ import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-
 
 /**
  * Dashboard has one run source per project: the project's
- * `.agentv/results/runs/` tree plus any `results:` repo configured for that
+ * `.agentv/results/` tree plus any `results:` repo configured for that
  * project. Direct run workspaces and index manifests are supported by
  * `agentv results report`, not the live Dashboard server.
  */
 const DIRECT_DASHBOARD_SOURCE_GUIDANCE = [
   'Dashboard reads configured project run sources only.',
-  'Run it from a project root, or pass --dir so Dashboard uses <project>/.agentv/results/runs/:',
+  'Run it from a project root, or pass --dir so Dashboard uses <project>/.agentv/results/:',
   '  agentv dashboard --dir <project-dir>',
   'To browse external results, configure results.repo.remote or results.repo.path in config YAML.',
   'For a one-off run bundle, use: agentv results report <run-workspace-or-index.jsonl>',
@@ -149,14 +151,18 @@ export async function resolveSourceFile(source: string | undefined, cwd: string)
   // Prefer cache pointer, fall back to directory scan
   const cache = await loadRunCache(cwd);
   const cachedFile = cache ? resolveRunCacheFile(cache) : '';
-  if (cachedFile && existsSync(cachedFile)) {
+  if (
+    cachedFile &&
+    existsSync(cachedFile) &&
+    relativeRunPathFromCwd(cwd, path.dirname(cachedFile))
+  ) {
     return cachedFile;
   }
 
   const metas = listResultFiles(cwd, 10);
   if (metas.length === 0) {
     throw new Error(
-      'No run workspaces found in .agentv/results/runs/\nRun an evaluation first: agentv eval <eval-file>',
+      'No run workspaces found in .agentv/results/\nRun an evaluation first: agentv eval <eval-file>',
     );
   }
   if (metas.length > 1) {
@@ -875,7 +881,7 @@ function artifactFileContentResponse(c: C, filePath: string, fileContent: string
 
 function missingTranscriptMessage(): string {
   return [
-    'This result does not include canonical outputs/transcript.jsonl metadata.',
+    'This result does not include canonical transcript.jsonl metadata.',
     'Dashboard does not parse response.md or markdown transcripts for this view.',
   ].join(' ');
 }
@@ -922,7 +928,7 @@ function traceSessionArtifactResponse(
 
 function missingTraceMessage(): string {
   return [
-    'This result does not include canonical outputs/trace.json metadata.',
+    'This result does not include canonical trace.json metadata.',
     'Dashboard trace sessions require an agentv.trace.v1 sidecar artifact.',
   ].join(' ');
 }
@@ -978,7 +984,7 @@ interface RunTagFields {
   readonly pending_tags?: string[];
   readonly metadata_dirty?: boolean;
   readonly final_state: RunFinalState;
-  readonly oplog_watermark: RunOplogWatermark;
+  readonly tag_revision: string;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -1011,7 +1017,7 @@ async function readRunTagFields(
         ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
         ...materializeRunState({
           tags: state.tags,
-          watermark: state.oplogWatermark,
+          tagRevision: state.tagRevision,
           updatedAt: state.updatedAt,
         }),
       };
@@ -1022,7 +1028,7 @@ async function readRunTagFields(
     const tagsEntry = readRunTags(meta.path);
     const runState = materializeRunState({
       tags: tagsEntry?.tags ?? [],
-      watermark: tagsEntry?.oplog_watermark,
+      tagRevision: tagsEntry?.tag_revision,
       updatedAt: tagsEntry?.updated_at || undefined,
     });
     return {
@@ -1048,7 +1054,7 @@ async function readRunTagFields(
     ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
     ...materializeRunState({
       tags: state.tags,
-      watermark: state.oplogWatermark,
+      tagRevision: state.tagRevision,
       updatedAt: state.updatedAt,
     }),
   };
@@ -1060,7 +1066,7 @@ function remoteTagMutationResponse(state: {
   readonly pendingTags?: string[];
   readonly dirty: boolean;
   readonly updatedAt?: string;
-  readonly oplogWatermark: RunOplogWatermark;
+  readonly tagRevision: string;
 }) {
   return {
     tags: state.tags,
@@ -1069,7 +1075,7 @@ function remoteTagMutationResponse(state: {
     ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
     ...materializeRunState({
       tags: state.tags,
-      watermark: state.oplogWatermark,
+      tagRevision: state.tagRevision,
       updatedAt: state.updatedAt,
     }),
     updated_at: state.updatedAt ?? new Date().toISOString(),
@@ -1079,16 +1085,19 @@ function remoteTagMutationResponse(state: {
 function localTagMutationResponse(input: {
   readonly tags: readonly string[];
   readonly updatedAt?: string;
-  readonly watermark?: RunOplogWatermark;
+  readonly tagRevision?: string;
 }): RunReadStateFields {
   return materializeRunState({
     tags: input.tags,
-    watermark: input.watermark,
+    tagRevision: input.tagRevision,
     updatedAt: input.updatedAt,
   });
 }
 
 function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
+  if (error instanceof TagRevisionConflictError) {
+    return 409;
+  }
   const message = error instanceof Error ? error.message : String(error);
   if (
     message.includes('not configured') ||
@@ -1098,6 +1107,36 @@ function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
     return 409;
   }
   return 400;
+}
+
+function tagMutationErrorBody(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (error instanceof TagRevisionConflictError) {
+    return {
+      error: message,
+      expected_tag_revision: error.expectedRevision,
+      current_tag_revision: error.currentRevision,
+    };
+  }
+  return { error: message };
+}
+
+function expectedTagRevisionFromRecord(record: Record<string, unknown>): string | undefined {
+  const raw = record.expected_tag_revision ?? record.tag_revision ?? record.etag;
+  if (raw === undefined) return undefined;
+  if (typeof raw !== 'string') {
+    throw new Error('expected_tag_revision must be a string');
+  }
+  return raw;
+}
+
+function currentLocalTagRevision(manifestPath: string): string {
+  const tagsEntry = readRunTags(manifestPath);
+  return materializeRunState({
+    tags: tagsEntry?.tags ?? [],
+    tagRevision: tagsEntry?.tag_revision,
+    updatedAt: tagsEntry?.updated_at || undefined,
+  }).tag_revision;
 }
 
 async function ensureRunReadable(
@@ -1958,7 +1997,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     pending_tags?: string[];
     metadata_dirty?: boolean;
     final_state: RunFinalState;
-    oplog_watermark: RunOplogWatermark;
+    tag_revision: string;
     source: 'local' | 'remote';
     eval_count: number;
     quality_count: number;
@@ -2399,17 +2438,30 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
   if (!Array.isArray(tags)) {
     return c.json({ error: 'Missing tags array' }, 400);
   }
+  let expectedTagRevision: string | undefined;
+  try {
+    expectedTagRevision = expectedTagRevisionFromRecord(body as Record<string, unknown>);
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 400);
+  }
   try {
     if (meta.on_remote) {
-      const state = await setRemoteRunTags(searchDir, meta, tags as string[], projectId);
+      const state = await setRemoteRunTags(
+        searchDir,
+        meta,
+        tags as string[],
+        projectId,
+        expectedTagRevision,
+      );
       return c.json(remoteTagMutationResponse(state));
     }
 
+    assertExpectedTagRevision(expectedTagRevision, currentLocalTagRevision(meta.path));
     const entry = writeRunTags(meta.path, tags as string[]);
     const responseState = localTagMutationResponse({
       tags: entry?.tags ?? [],
       updatedAt: entry?.updated_at,
-      watermark: entry?.oplog_watermark,
+      tagRevision: entry?.tag_revision,
     });
     return c.json({
       tags: entry?.tags ?? [],
@@ -2417,7 +2469,7 @@ async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
       updated_at: entry?.updated_at ?? new Date().toISOString(),
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));
+    return c.json(tagMutationErrorBody(err), remoteMetadataErrorStatus(err));
   }
 }
 
@@ -2425,20 +2477,37 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
+  let expectedTagRevision: string | undefined;
+  try {
+    const text = await c.req.text();
+    if (text.trim().length > 0) {
+      const body = JSON.parse(text) as unknown;
+      if (!body || typeof body !== 'object') {
+        return c.json({ error: 'Invalid payload' }, 400);
+      }
+      expectedTagRevision = expectedTagRevisionFromRecord(body as Record<string, unknown>);
+    }
+  } catch (err) {
+    return c.json(
+      { error: err instanceof SyntaxError ? 'Invalid JSON' : (err as Error).message },
+      400,
+    );
+  }
   try {
     if (meta.on_remote) {
-      const state = await clearRemoteRunTags(searchDir, meta, projectId);
+      const state = await clearRemoteRunTags(searchDir, meta, projectId, expectedTagRevision);
       return c.json({
         ok: true,
         ...remoteTagMutationResponse(state),
       });
     }
 
+    assertExpectedTagRevision(expectedTagRevision, currentLocalTagRevision(meta.path));
     const entry = writeRunTags(meta.path, []);
     const responseState = localTagMutationResponse({
       tags: entry.tags,
       updatedAt: entry.updated_at,
-      watermark: entry.oplog_watermark,
+      tagRevision: entry.tag_revision,
     });
     return c.json({
       ok: true,
@@ -2447,7 +2516,7 @@ async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) 
       updated_at: entry.updated_at,
     });
   } catch (err) {
-    return c.json({ error: (err as Error).message }, remoteMetadataErrorStatus(err));
+    return c.json(tagMutationErrorBody(err), remoteMetadataErrorStatus(err));
   }
 }
 
@@ -2470,10 +2539,6 @@ async function handleRunDelete(c: C, { searchDir, projectId }: DataContext) {
   }
 }
 
-function getLocalRunsRoot(searchDir: string): string {
-  return path.join(searchDir, '.agentv', 'results', 'runs');
-}
-
 function validateLocalCompletedRun(
   searchDir: string,
   meta: SourcedResultFileMeta,
@@ -2492,8 +2557,7 @@ function validateLocalCompletedRun(
   }
 
   const runDir = path.dirname(manifestPath);
-  const runsRoot = path.resolve(getLocalRunsRoot(searchDir));
-  if (runDir !== runsRoot && runDir.startsWith(`${runsRoot}${path.sep}`) && existsSync(runDir)) {
+  if (relativeRunPathFromCwd(searchDir, runDir) && existsSync(runDir)) {
     return { ok: true };
   }
   return { error: 'Run workspace is outside the local results directory', status: 400 };
@@ -2526,6 +2590,10 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
   if (displayNameValue !== undefined && typeof displayNameValue !== 'string') {
     return c.json({ error: 'display_name must be a string' }, 400);
   }
+  const experimentValue = payload.experiment;
+  if (experimentValue !== undefined && typeof experimentValue !== 'string') {
+    return c.json({ error: 'experiment must be a string' }, 400);
+  }
   const duplicatePolicyValue = payload.duplicate_policy;
   const duplicatePolicy =
     duplicatePolicyValue === undefined ? 'error' : String(duplicatePolicyValue);
@@ -2534,6 +2602,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
   }
 
   const displayName = displayNameValue?.trim();
+  const experiment = experimentValue?.trim() || undefined;
   const metas: SourcedResultFileMeta[] = [];
 
   for (const runId of runIds) {
@@ -2557,6 +2626,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
     const combined = combineRunSources({
       cwd: searchDir,
       sources,
+      experiment,
       displayName,
       duplicatePolicy: duplicatePolicy as Exclude<CombineDuplicatePolicy, 'prompt'>,
     });
@@ -2567,6 +2637,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
         ok: true,
         run_id: combined.runId,
         display_name: combined.displayName,
+        experiment: combined.experiment,
         combined_from_run_ids: combined.combinedFromRunIds,
         duplicate_conflicts: combined.duplicateConflicts,
         ...(tagEntry && { tags: tagEntry.tags }),
@@ -2577,7 +2648,16 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
     if (err instanceof CombineDuplicateError) {
       return c.json({ error: err.message, duplicates: err.conflicts }, 409);
     }
-    return c.json({ error: (err as Error).message }, 500);
+    const message = err instanceof Error ? err.message : String(err);
+    if (
+      message.includes('requires an experiment name') ||
+      message.includes('must inherit') ||
+      message.includes('must match combined experiment') ||
+      message.includes('Invalid experiment name')
+    ) {
+      return c.json({ error: message }, 400);
+    }
+    return c.json({ error: message }, 500);
   }
 }
 
@@ -2782,7 +2862,7 @@ export function createApp(
       pending_tags?: string[];
       metadata_dirty?: boolean;
       final_state: RunFinalState;
-      oplog_watermark: RunOplogWatermark;
+      tag_revision: string;
       source: 'local' | 'remote';
       project_id: string;
       project_name: string;
@@ -3253,7 +3333,11 @@ export const resultsServeCommand = command({
         // Auto-discover: run cache -> directory scan -> empty state
         const cache = await loadRunCache(cwd);
         const cachedFile = cache ? resolveRunCacheFile(cache) : '';
-        if (cachedFile && existsSync(cachedFile)) {
+        if (
+          cachedFile &&
+          existsSync(cachedFile) &&
+          relativeRunPathFromCwd(cwd, path.dirname(cachedFile))
+        ) {
           sourceFile = cachedFile;
           results = loadManifestResults(cachedFile, { hydrateTranscriptTrace: false });
         } else {

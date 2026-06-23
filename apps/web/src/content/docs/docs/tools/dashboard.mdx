@@ -31,7 +31,7 @@ The `dashboard` command launches a web-based dashboard for browsing evaluation r
 agentv dashboard
 ```
 
-Dashboard auto-discovers run workspaces from `.agentv/results/runs/` in the current directory and opens at `http://localhost:3117`.
+Dashboard auto-discovers run workspaces from `.agentv/results/<experiment>/<timestamp>/` in the current directory and opens at `http://localhost:3117`. Runs without an explicit experiment use `.agentv/results/default/<timestamp>/`.
 
 To open a different project, pass the project root with `--dir`:
 
@@ -39,7 +39,7 @@ To open a different project, pass the project root with `--dir`:
 agentv dashboard --dir /path/to/project
 ```
 
-Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/runs/` tree, plus an external results repository or run directory configured under `results:` in YAML. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
+Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/` tree, plus an external results repository or run directory configured under `results:` in YAML. The old `.agentv/results/runs/**` layout is not a Dashboard-visible layout. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
 
 ## Data boundary
 
@@ -109,7 +109,7 @@ In the per-test results table, click a test ID to open its checks, transcript, s
 
 ## Run management
 
-In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
+In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. If all selected runs are from one experiment, the combined run inherits that experiment, including `default`; if selected runs span experiments, Dashboard asks for a new experiment name before creating the combined run. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
 
 The same deletion primitive is available from the CLI:
 
@@ -161,9 +161,9 @@ Select 2+ rows with the checkboxes and click the sticky **Compare N** action to 
 
 ### Retroactive tags
 
-Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); local tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to record an empty tag state with an operation watermark.
+Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); local tags are stored in a `tags.json` sidecar next to `index.jsonl` in the timestamped result folder, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to record an empty tag state. The sidecar includes a `tag_revision`; if a stale browser tab submits tags after the run's tags changed, Dashboard rejects the write and asks you to refresh before retrying.
 
-Remote run payloads stay immutable, but their tags are editable. Dashboard writes remote tag changes as metadata overlays under `.agentv/results/metadata/runs/.../tags.json` in the configured results repo clone. Until those overlays are synced, the run and project show a dirty state; **Sync Project** commits and pushes them when it is safe to do so.
+Remote run payloads stay immutable, but their tags are editable. Dashboard writes remote tag changes as metadata overlays under `metadata/runs/.../tags.json` in the configured results repo clone/branch. That overlay path is a remote-results implementation detail, not part of the local `.agentv/results/<experiment>/<timestamp>/` layout. Remote tag overlays use the same `tag_revision` stale-write check as local tags. Until those overlays are synced, the run and project show a dirty state; **Sync Project** commits and pushes them when it is safe to do so.
 
 Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
 
@@ -381,7 +381,7 @@ Each run writes to a unique timestamped directory, so concurrent pushes from mul
 
 ### What happens to existing local runs?
 
-Existing runs already present under `.agentv/results/runs/` stay exactly where they are and continue to appear in Dashboard as **local** runs.
+Existing runs already present under `.agentv/results/<experiment>/<timestamp>/` stay exactly where they are and continue to appear in Dashboard as **local** runs. Runs in the removed `.agentv/results/runs/**` layout are not discovered by Dashboard.
 
 Adding a `results` block does **not** backfill those historical runs into the results branch automatically. Result publishing only affects runs created after the results repo is configured. `sync.auto_push` controls network push and best-effort WIP checkpoints for in-progress `agentv eval` runs.
 
@@ -417,7 +417,7 @@ After sync, newly fetched remote runs appear in the list with a **remote** sourc
 **Sync Project** fetches the results repo and only changes the clone when Git says it is safe:
 
 - A clean clone that is behind the remote is fast-forwarded.
-- Safe uncommitted changes under `.agentv/results/**`, such as remote tag metadata overlays, are committed and pushed when `sync.auto_push: true`.
+- Safe uncommitted changes under the configured results repo's owned result and metadata paths, such as remote tag overlays under `metadata/runs/**`, are committed and pushed when `sync.auto_push: true`.
 - A local results repo that is ahead is pushed when `sync.auto_push: true` and the committed paths are all under `.agentv/results/**`.
 - Dirty non-results files, dirty metadata plus remote changes, diverged history, unresolved conflicts, missing upstream branches, non-results commits ahead, and rejected pushes are blocked instead of reset.
 

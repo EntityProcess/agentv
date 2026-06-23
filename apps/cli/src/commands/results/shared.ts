@@ -23,7 +23,7 @@ export const sourceArg = positional({
   type: optional(string),
   displayName: 'source',
   description:
-    'Run workspace directory or index.jsonl manifest (defaults to most recent in .agentv/results/runs/)',
+    'Run workspace directory or index.jsonl manifest (defaults to most recent in .agentv/results/)',
 });
 
 /**
@@ -50,7 +50,7 @@ export async function resolveSourceFile(
     } else {
       const metas = listResultFiles(cwd, 1);
       if (metas.length === 0) {
-        console.error('Error: No run workspaces found in .agentv/results/runs/');
+        console.error('Error: No run workspaces found in .agentv/results/');
         console.error('Run an evaluation first: agentv eval <eval-file>');
         process.exit(1);
       }

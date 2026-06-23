@@ -43,7 +43,7 @@ describe('TranscriptTimeline', () => {
 
   it('finds canonical transcript and answer artifacts without selecting response.md', () => {
     expect(findTranscriptPath(structuredTranscriptFiles)).toBe(
-      'final-json-answer__codex/outputs/transcript.jsonl',
+      'final-json-answer__codex/transcript.jsonl',
     );
     expect(findAnswerPath(structuredTranscriptFiles)).toBe(
       'final-json-answer__codex/outputs/answer.md',
@@ -57,7 +57,7 @@ describe('TranscriptTimeline', () => {
         entries={parsed.entries}
         finalAnswer={'{"answer":42,"source":"src/app.ts"}'}
         answerPath="final-json-answer__codex/outputs/answer.md"
-        transcriptPath="final-json-answer__codex/outputs/transcript.jsonl"
+        transcriptPath="final-json-answer__codex/transcript.jsonl"
         answerHref="/api/raw-answer"
         transcriptHref="/api/raw-transcript"
         transcriptDownloadHref="/api/download-transcript"

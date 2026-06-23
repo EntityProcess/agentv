@@ -20,6 +20,7 @@ import {
   resolveCopilotTimeoutMs,
   resolvePlatformCliPath,
 } from './copilot-utils.js';
+import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CopilotCliResolvedConfig, CopilotCustomProviderConfig } from './targets.js';
@@ -541,21 +542,21 @@ export class CopilotCliProvider implements Provider {
     return 'copilot';
   }
 
-  private resolveLogDirectory(): string | undefined {
+  private resolveLogDirectory(request: ProviderRequest): string | undefined {
     if (isLogStreamingDisabled('AGENTV_COPILOT_CLI_STREAM_LOGS')) {
       return undefined;
     }
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }
-    return path.join(process.cwd(), '.agentv', 'logs', 'copilot-cli');
+    return resolveDefaultProviderLogDir('copilot-cli', request);
   }
 
   private async createStreamLogger(
     request: ProviderRequest,
     mode: 'acp' | 'prompt',
   ): Promise<CopilotStreamLogger | undefined> {
-    const logDir = this.resolveLogDirectory();
+    const logDir = this.resolveLogDirectory(request);
     if (!logDir) {
       return undefined;
     }

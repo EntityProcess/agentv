@@ -55,7 +55,11 @@ import { loadEnvFromHierarchy } from './env.js';
 import { resolveOtelBackend } from './otel-backends.js';
 import { type OutputWriter, createOutputWriter } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
-import { buildDefaultRunDir, normalizeExperimentName } from './result-layout.js';
+import {
+  buildDefaultRunDirFromName,
+  createRunDirName,
+  normalizeExperimentName,
+} from './result-layout.js';
 import {
   buildExclusionFilter,
   loadErrorTestIds,
@@ -540,8 +544,12 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   }
 }
 
-function buildDefaultOutputPathForExperiment(cwd: string, experiment?: string): string {
-  const runDir = buildDefaultRunDir(cwd, experiment);
+function buildDefaultOutputPathForExperiment(
+  cwd: string,
+  experiment: string | undefined,
+  runDirName: string,
+): string {
+  const runDir = buildDefaultRunDirFromName(cwd, experiment, runDirName);
   mkdirSync(runDir, { recursive: true });
   return path.join(runDir, 'index.jsonl');
 }
@@ -1132,14 +1140,6 @@ export async function runEvalCommand(
 ): Promise<RunEvalResult | undefined> {
   const cwd = process.cwd();
 
-  // Set AGENTV_RUN_TIMESTAMP so CLI targets can group artifacts under the same run folder.
-  if (!process.env.AGENTV_RUN_TIMESTAMP) {
-    process.env.AGENTV_RUN_TIMESTAMP = new Date()
-      .toISOString()
-      .replace(/:/g, '-')
-      .replace(/\./g, '-');
-  }
-
   // Load agentv.config.ts (if present) for default values
   let config: Awaited<ReturnType<typeof loadTsConfig>> = null;
   try {
@@ -1296,16 +1296,21 @@ export async function runEvalCommand(
   const explicitDir = options.outputDir;
   let runDir: string;
   let outputPath: string;
+  const runDirName = process.env.AGENTV_RUN_TIMESTAMP?.trim() || createRunDirName();
 
   if (explicitDir) {
     runDir = path.resolve(explicitDir);
     mkdirSync(runDir, { recursive: true });
     outputPath = path.join(runDir, 'index.jsonl');
   } else {
-    // Default: .agentv/results/runs/<experiment>/<timestamp>/
-    outputPath = buildDefaultOutputPathForExperiment(cwd, options.experiment);
+    // Default: .agentv/results/<experiment>/<timestamp>/, using "default" when unspecified.
+    outputPath = buildDefaultOutputPathForExperiment(cwd, options.experiment, runDirName);
     runDir = path.dirname(outputPath);
   }
+  if (!process.env.AGENTV_RUN_TIMESTAMP) {
+    process.env.AGENTV_RUN_TIMESTAMP = path.basename(runDir);
+  }
+  process.env.AGENTV_RUN_DIR = runDir;
 
   // Initialize OTel exporter if --export-otel or --otel-file is set
   let otelExporter: OtelTraceExporterType | null = null;
