@@ -266,13 +266,18 @@ export class RepoManager {
     }
   }
 
-  private findProjectConfigPath(): string | undefined {
+  private findProjectAgentvDir(): string | undefined {
     if (!this.projectConfigDir) return undefined;
 
     let current = path.resolve(this.projectConfigDir);
     while (true) {
-      const candidate = path.join(current, '.agentv', 'config.yaml');
-      if (existsSync(candidate)) return candidate;
+      const candidateDir = path.join(current, '.agentv');
+      if (
+        existsSync(path.join(candidateDir, 'config.yaml')) ||
+        existsSync(path.join(candidateDir, 'config.override.yaml'))
+      ) {
+        return candidateDir;
+      }
 
       const reachedRepoRoot = existsSync(path.join(current, '.git'));
       const parent = path.dirname(current);
@@ -281,19 +286,42 @@ export class RepoManager {
     }
   }
 
+  private mergeConfiguredMirrorLayers(
+    layers: Array<Record<string, string>>,
+  ): Record<string, string> {
+    const mirrorsByRepo = new Map<string, string>();
+    const repoByIdentity = new Map<string, string>();
+
+    for (const layer of layers) {
+      for (const [repo, localPath] of Object.entries(layer)) {
+        const repoIdentity = normalizeRepoIdentity(repo);
+        const previousRepo = repoByIdentity.get(repoIdentity);
+        if (previousRepo) mirrorsByRepo.delete(previousRepo);
+
+        repoByIdentity.set(repoIdentity, repo);
+        mirrorsByRepo.set(repo, localPath);
+      }
+    }
+
+    return Object.fromEntries(mirrorsByRepo);
+  }
+
   private loadConfiguredMirrors(): Record<string, string> {
     const globalMirrors = this.loadConfiguredMirrorsFrom(configPath());
-    const projectConfigPath = this.findProjectConfigPath();
-    if (!projectConfigPath) return globalMirrors;
+    const projectAgentvDir = this.findProjectAgentvDir();
+    if (!projectAgentvDir) return globalMirrors;
 
-    const projectMirrors = this.loadConfiguredMirrorsFrom(projectConfigPath);
-    const projectRepoIdentities = new Set(Object.keys(projectMirrors).map(normalizeRepoIdentity));
-    const globalWithoutProjectOverrides = Object.fromEntries(
-      Object.entries(globalMirrors).filter(
-        ([repo]) => !projectRepoIdentities.has(normalizeRepoIdentity(repo)),
-      ),
+    const projectMirrors = this.loadConfiguredMirrorsFrom(
+      path.join(projectAgentvDir, 'config.yaml'),
     );
-    return { ...globalWithoutProjectOverrides, ...projectMirrors };
+    const projectOverrideMirrors = this.loadConfiguredMirrorsFrom(
+      path.join(projectAgentvDir, 'config.override.yaml'),
+    );
+    return this.mergeConfiguredMirrorLayers([
+      globalMirrors,
+      projectMirrors,
+      projectOverrideMirrors,
+    ]);
   }
 
   private findConfiguredMirror(repoIdentity: string): string | undefined {

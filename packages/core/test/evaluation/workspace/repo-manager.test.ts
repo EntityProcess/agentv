@@ -173,6 +173,77 @@ describe('RepoManager', () => {
       );
     });
 
+    it('loads project-local override mirrors without a committed project config', () => {
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const overrideMirrorDir = path.join(tmpDir, 'override-only-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(overrideMirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.override.yaml'), {
+        'https://github.com/example/override-only.git': overrideMirrorDir,
+      });
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/override-only.git'),
+      ).toBe(overrideMirrorDir);
+    });
+
+    it('prefers override mirrors over committed and global mirrors for the same normalized repo key', () => {
+      const homeDir = process.env.AGENTV_HOME;
+      if (!homeDir) throw new Error('AGENTV_HOME not set');
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const globalMirrorDir = path.join(tmpDir, 'global-mirror');
+      const projectMirrorDir = path.join(tmpDir, 'project-mirror');
+      const overrideMirrorDir = path.join(tmpDir, 'override-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(globalMirrorDir, { recursive: true });
+      mkdirSync(projectMirrorDir, { recursive: true });
+      mkdirSync(overrideMirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(homeDir, 'config.yaml'), {
+        'https://github.com/example/shared.git': globalMirrorDir,
+      });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.yaml'), {
+        'git@github.com:example/shared.git': projectMirrorDir,
+      });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.override.yaml'), {
+        'https://github.com/Example/Shared': overrideMirrorDir,
+      });
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(findConfiguredMirrorFor(projectManager, 'https://github.com/example/shared.git')).toBe(
+        overrideMirrorDir,
+      );
+    });
+
+    it('merges override mirrors with different committed project mirror entries', () => {
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const projectMirrorDir = path.join(tmpDir, 'project-only-mirror');
+      const overrideMirrorDir = path.join(tmpDir, 'override-only-mirror');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(projectMirrorDir, { recursive: true });
+      mkdirSync(overrideMirrorDir, { recursive: true });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.yaml'), {
+        'https://github.com/example/project-only.git': projectMirrorDir,
+      });
+      writeMirrorConfig(path.join(projectDir, '.agentv', 'config.override.yaml'), {
+        'https://github.com/example/override-only.git': overrideMirrorDir,
+      });
+
+      const projectManager = new RepoManager(false, { progress: false, projectConfigDir: evalDir });
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/project-only.git'),
+      ).toBe(projectMirrorDir);
+      expect(
+        findConfiguredMirrorFor(projectManager, 'https://github.com/example/override-only.git'),
+      ).toBe(overrideMirrorDir);
+    });
+
     it('merges different project-local and global mirror entries', () => {
       const homeDir = process.env.AGENTV_HOME;
       if (!homeDir) throw new Error('AGENTV_HOME not set');
