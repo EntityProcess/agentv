@@ -8,6 +8,7 @@ export type ProjectSyncState =
   | 'ahead'
   | 'dirty'
   | 'conflicted'
+  | 'push_conflict'
   | 'syncing';
 
 export type ProjectSyncTone = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
@@ -121,6 +122,23 @@ export function getProjectSyncView(
   }
 
   const state = status.sync_status ?? 'clean';
+  if (state === 'push_conflict') {
+    return {
+      state: 'push_conflict',
+      label: 'Push conflict',
+      actionLabel: 'Sync Project',
+      tone: 'danger',
+      summary:
+        status.block_reason ??
+        'The remote results branch changed before local results could be pushed.',
+      nextAction:
+        status.push_conflict_policy === 'backup_and_force_push'
+          ? 'Sync stopped before changing the results branch. Refresh status, then retry if this server should replace the remote branch.'
+          : 'Sync stopped before changing the results branch. Opt in to backup_and_force_push only if this server should replace the remote branch.',
+      canSync: false,
+    };
+  }
+
   if (state === 'conflicted' || state === 'diverged') {
     return {
       state: 'conflicted',
@@ -240,7 +258,12 @@ export function buildProjectSyncFeedback(status: RemoteStatusResponse): {
   kind: 'success' | 'warning';
   message: string;
 } {
-  if (status.blocked || status.sync_status === 'conflicted' || status.sync_status === 'diverged') {
+  if (
+    status.blocked ||
+    status.sync_status === 'conflicted' ||
+    status.sync_status === 'diverged' ||
+    status.sync_status === 'push_conflict'
+  ) {
     const repo = status.repo ? ` for ${status.repo}` : '';
     const reason = status.block_reason ?? 'Sync stopped before changing the results repo.';
     return {

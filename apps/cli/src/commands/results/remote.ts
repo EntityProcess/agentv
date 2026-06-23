@@ -8,7 +8,7 @@ import {
   type NormalizedResultsConfig,
   type ResultsConfig,
   type ResultsRepoStatus,
-  directPushResults,
+  directPushResultsWithDetails,
   directorySizeBytes,
   getProject,
   getProjectForPath,
@@ -155,6 +155,7 @@ export interface ResultsPublishOverrides {
   readonly remote?: string;
   readonly auto_push?: boolean;
   readonly require_push?: boolean;
+  readonly push_conflict_policy?: 'block' | 'backup_and_force_push';
 }
 
 const REMOTE_RUN_PREFIX = 'remote::';
@@ -224,13 +225,17 @@ export async function loadNormalizedResultsConfig(
         ...(project.results.remote !== undefined && { remote: project.results.remote }),
         ...(project.results.path !== undefined && { path: project.results.path }),
         ...((project.results.sync?.autoPush !== undefined ||
-          project.results.sync?.requirePush !== undefined) && {
+          project.results.sync?.requirePush !== undefined ||
+          project.results.sync?.pushConflictPolicy !== undefined) && {
           sync: {
             ...(project.results.sync?.autoPush !== undefined && {
               auto_push: project.results.sync.autoPush,
             }),
             ...(project.results.sync?.requirePush !== undefined && {
               require_push: project.results.sync.requirePush,
+            }),
+            ...(project.results.sync?.pushConflictPolicy !== undefined && {
+              push_conflict_policy: project.results.sync.pushConflictPolicy,
             }),
           },
         }),
@@ -284,14 +289,19 @@ export async function loadNormalizedResultsConfig(
       : {}),
     ...((overrides.auto_push !== undefined ||
       overrides.require_push !== undefined ||
+      overrides.push_conflict_policy !== undefined ||
       baseConfig?.auto_push !== undefined ||
-      baseConfig?.require_push !== undefined) && {
+      baseConfig?.require_push !== undefined ||
+      baseConfig?.push_conflict_policy !== undefined) && {
       sync: {
         ...((overrides.auto_push ?? baseConfig?.auto_push) !== undefined && {
           auto_push: overrides.auto_push ?? baseConfig?.auto_push,
         }),
         ...((overrides.require_push ?? baseConfig?.require_push) !== undefined && {
           require_push: overrides.require_push ?? baseConfig?.require_push,
+        }),
+        ...((overrides.push_conflict_policy ?? baseConfig?.push_conflict_policy) !== undefined && {
+          push_conflict_policy: overrides.push_conflict_policy ?? baseConfig?.push_conflict_policy,
         }),
       },
     }),
@@ -605,14 +615,22 @@ export async function maybeAutoExportRunArtifacts(
     const relativeRunPath = getRelativeRunPath(payload.cwd, payload.run_dir);
     const commitTitle = buildCommitTitle(payload);
 
-    const pushed = await directPushResults({
+    const pushResult = await directPushResultsWithDetails({
       config,
       sourceDir: payload.run_dir,
       destinationPath: relativeRunPath,
       commitMessage: commitTitle,
     });
 
-    if (!pushed) {
+    if (pushResult.blocked) {
+      if (config.require_push) {
+        throw new Error(pushResult.block_reason ?? 'Results branch push conflict');
+      }
+      console.warn(`Warning: skipping results export: ${pushResult.block_reason}`);
+      return 'failed';
+    }
+
+    if (!pushResult.changed) {
       console.warn('Warning: results export produced no git changes.');
       return 'already_published';
     }
@@ -621,6 +639,11 @@ export async function maybeAutoExportRunArtifacts(
     console.log(
       `Results ${pushLabel} to ${config.repo} (${config.branch ?? 'default branch'}:${relativeRunPath})`,
     );
+    if (pushResult.backup_ref) {
+      console.log(
+        `Backed up previous remote ${pushResult.target_branch ?? config.branch ?? 'results branch'} at ${pushResult.backup_ref}`,
+      );
+    }
     return 'published';
   } catch (error) {
     if (config.require_push) {

@@ -15,11 +15,13 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { getAgentvDataDir } from '../paths.js';
-import type { ResultsConfig } from './loaders/config-loader.js';
+import type { ResultPushConflictPolicy, ResultsConfig } from './loaders/config-loader.js';
 import {
   AGENTV_RESULTS_ARTIFACTS_REF,
   AGENTV_RESULTS_PRIMARY_REF,
 } from './result-artifact-contract.js';
+
+export type { ResultPushConflictPolicy } from './loaders/config-loader.js';
 
 const execFileAsync = promisify(execFile);
 // Local working-tree run workspace inside the eval repo. Local commands
@@ -78,6 +80,7 @@ export type ResultsRepoSyncStatus =
   | 'diverged'
   | 'dirty'
   | 'conflicted'
+  | 'push_conflict'
   | 'syncing';
 
 export interface ResultsRepoStatus {
@@ -88,6 +91,7 @@ export interface ResultsRepoStatus {
   readonly path?: string;
   readonly auto_push?: boolean;
   readonly require_push?: boolean;
+  readonly push_conflict_policy?: ResultPushConflictPolicy;
   readonly branch_prefix?: string;
   readonly local_dir?: string;
   readonly last_synced_at?: string;
@@ -106,6 +110,14 @@ export interface ResultsRepoStatus {
   readonly pull_performed?: boolean;
   readonly push_performed?: boolean;
   readonly commit_created?: boolean;
+  readonly target_branch?: string;
+  readonly remote_commit?: string;
+  readonly local_commit?: string;
+  readonly backup_ref?: string;
+  readonly backup_commit?: string;
+  readonly previous_remote_commit?: string;
+  readonly force_pushed_commit?: string;
+  readonly lease_commit?: string;
 }
 
 export interface NormalizedResultsConfig {
@@ -118,12 +130,29 @@ export interface NormalizedResultsConfig {
   readonly path: string;
   readonly auto_push: boolean;
   readonly require_push: boolean;
+  readonly push_conflict_policy: ResultPushConflictPolicy;
   readonly branch_prefix: string;
   /** @internal Runtime mode; not part of YAML wire format. */
   readonly storageBranchWorktree: boolean;
 }
 
 type StorageBranchResultsConfig = NormalizedResultsConfig & { readonly branch: string };
+
+export interface DirectPushResultsResult {
+  readonly changed: boolean;
+  readonly blocked?: boolean;
+  readonly block_reason?: string;
+  readonly sync_status?: ResultsRepoSyncStatus;
+  readonly push_conflict_policy: ResultPushConflictPolicy;
+  readonly target_branch?: string;
+  readonly remote_commit?: string;
+  readonly local_commit?: string;
+  readonly backup_ref?: string;
+  readonly backup_commit?: string;
+  readonly previous_remote_commit?: string;
+  readonly force_pushed_commit?: string;
+  readonly lease_commit?: string;
+}
 
 export interface CheckedOutResultsRepoBranch {
   readonly branchName: string;
@@ -200,6 +229,7 @@ export function normalizeResultsConfig(
     (repoUrl && useStorageBranchWorktree ? MANAGED_RESULTS_REMOTE : 'origin');
   const autoPush = config.sync?.auto_push ?? config.auto_push === true;
   const requirePush = config.sync?.require_push === true;
+  const pushConflictPolicy = config.sync?.push_conflict_policy ?? 'block';
   const resolvedRepoPath = repoPath ? resolveLocalPath(repoPath, baseDir) : undefined;
   const resolvedPath = explicitClonePath
     ? resolveLocalPath(explicitClonePath, baseDir)
@@ -216,6 +246,7 @@ export function normalizeResultsConfig(
     path: resolvedPath,
     auto_push: autoPush,
     require_push: requirePush,
+    push_conflict_policy: pushConflictPolicy,
     branch_prefix: config.branch_prefix?.trim() || 'eval-results',
     storageBranchWorktree: useStorageBranchWorktree,
   };
@@ -668,6 +699,7 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
     path: normalized.path,
     auto_push: normalized.auto_push,
     require_push: normalized.require_push,
+    push_conflict_policy: normalized.push_conflict_policy,
     branch_prefix: normalized.branch_prefix,
     local_dir: normalized.path,
     last_synced_at: persisted.last_synced_at,
@@ -1086,6 +1118,70 @@ function lastErrorForGitInspection(
   return undefined;
 }
 
+type ResultsBranchPushDetails = {
+  readonly pushConflictPolicy: ResultPushConflictPolicy;
+  readonly targetBranch: string;
+  readonly remoteCommit?: string;
+  readonly localCommit?: string;
+  readonly backupRef?: string;
+  readonly backupCommit?: string;
+  readonly previousRemoteCommit?: string;
+  readonly forcePushedCommit?: string;
+  readonly leaseCommit?: string;
+};
+
+type ResultsBranchPushOutcome =
+  | {
+      readonly blocked: false;
+      readonly details?: ResultsBranchPushDetails;
+    }
+  | {
+      readonly blocked: true;
+      readonly blockReason: string;
+      readonly details: ResultsBranchPushDetails;
+    };
+
+class ResultsBranchPushConflictError extends Error {
+  constructor(readonly result: DirectPushResultsResult) {
+    super(result.block_reason ?? 'Results branch push conflict');
+    this.name = 'ResultsBranchPushConflictError';
+  }
+}
+
+function pushDetailsToWire(
+  details?: ResultsBranchPushDetails,
+): Pick<
+  ResultsRepoStatus,
+  | 'push_conflict_policy'
+  | 'target_branch'
+  | 'remote_commit'
+  | 'local_commit'
+  | 'backup_ref'
+  | 'backup_commit'
+  | 'previous_remote_commit'
+  | 'force_pushed_commit'
+  | 'lease_commit'
+> {
+  if (!details) {
+    return {};
+  }
+  return {
+    push_conflict_policy: details.pushConflictPolicy,
+    target_branch: details.targetBranch,
+    ...(details.remoteCommit !== undefined && { remote_commit: details.remoteCommit }),
+    ...(details.localCommit !== undefined && { local_commit: details.localCommit }),
+    ...(details.backupRef !== undefined && { backup_ref: details.backupRef }),
+    ...(details.backupCommit !== undefined && { backup_commit: details.backupCommit }),
+    ...(details.previousRemoteCommit !== undefined && {
+      previous_remote_commit: details.previousRemoteCommit,
+    }),
+    ...(details.forcePushedCommit !== undefined && {
+      force_pushed_commit: details.forcePushedCommit,
+    }),
+    ...(details.leaseCommit !== undefined && { lease_commit: details.leaseCommit }),
+  };
+}
+
 function withBlockedStatus(
   status: ResultsRepoStatus,
   blockReason: string,
@@ -1093,10 +1189,12 @@ function withBlockedStatus(
     readonly pullPerformed?: boolean;
     readonly pushPerformed?: boolean;
     readonly commitCreated?: boolean;
+    readonly pushDetails?: ResultsBranchPushDetails;
   },
 ): ResultsRepoStatus {
   return {
     ...status,
+    ...pushDetailsToWire(flags?.pushDetails),
     blocked: true,
     block_reason: blockReason,
     ...(flags?.pullPerformed !== undefined && { pull_performed: flags.pullPerformed }),
@@ -1105,16 +1203,41 @@ function withBlockedStatus(
   };
 }
 
-function withActionFlags(
+function withPushConflictStatus(
   status: ResultsRepoStatus,
+  blockReason: string,
+  details: ResultsBranchPushDetails,
   flags: {
     readonly pullPerformed: boolean;
     readonly pushPerformed: boolean;
     readonly commitCreated: boolean;
   },
 ): ResultsRepoStatus {
+  return withBlockedStatus(
+    {
+      ...status,
+      sync_status: 'push_conflict',
+    },
+    blockReason,
+    {
+      ...flags,
+      pushDetails: details,
+    },
+  );
+}
+
+function withActionFlags(
+  status: ResultsRepoStatus,
+  flags: {
+    readonly pullPerformed: boolean;
+    readonly pushPerformed: boolean;
+    readonly commitCreated: boolean;
+    readonly pushDetails?: ResultsBranchPushDetails;
+  },
+): ResultsRepoStatus {
   return {
     ...status,
+    ...pushDetailsToWire(flags.pushDetails),
     blocked: false,
     pull_performed: flags.pullPerformed,
     push_performed: flags.pushPerformed,
@@ -1174,6 +1297,151 @@ function getPushTargetBranch(
 ): string {
   const prefix = `${remote}/`;
   return upstream?.startsWith(prefix) ? upstream.slice(prefix.length) : baseBranch;
+}
+
+function timestampForBackupRef(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(
+    date.getUTCHours(),
+  )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
+}
+
+function slugifyBackupTargetBranch(branch: string): string {
+  return (
+    branch
+      .trim()
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'results'
+  );
+}
+
+function buildResultsBackupRef(targetBranch: string, remoteCommit: string): string {
+  return `agentv/backups/${timestampForBackupRef()}-${slugifyBackupTargetBranch(
+    targetBranch,
+  )}-${remoteCommit.slice(0, 7)}`;
+}
+
+async function getCommitSha(repoDir: string, ref: string | undefined): Promise<string | undefined> {
+  if (!ref) {
+    return undefined;
+  }
+  const { stdout } = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], {
+    cwd: repoDir,
+    check: false,
+  });
+  const sha = stdout.trim();
+  return sha.length > 0 ? sha : undefined;
+}
+
+function isNonFastForwardPushError(error: unknown): boolean {
+  const text = gitErrorText(error);
+  return (
+    text.includes('non-fast-forward') ||
+    text.includes('fetch first') ||
+    text.includes('tip is behind its remote') ||
+    text.includes('note about fast-forwards') ||
+    text.includes('stale info')
+  );
+}
+
+function formatShortSha(sha: string | undefined): string {
+  return sha ? sha.slice(0, 12) : 'unknown';
+}
+
+function buildBlockedPushConflictReason(details: ResultsBranchPushDetails): string {
+  return `Results branch push conflict on ${details.targetBranch}: remote ${formatShortSha(
+    details.remoteCommit,
+  )}, local ${formatShortSha(details.localCommit)}. Configure results.sync.push_conflict_policy: backup_and_force_push to back up the remote ref before replacing it.`;
+}
+
+async function resolveResultBranchPushConflict(params: {
+  readonly normalized: StorageBranchResultsConfig;
+  readonly repoDir: string;
+  readonly targetBranch: string;
+  readonly sourceRef: string;
+}): Promise<ResultsBranchPushOutcome> {
+  await fetchResultsRepo(params.repoDir, params.normalized.remote, params.targetBranch);
+  const remoteRef = remoteBranchRef(params.targetBranch, params.normalized.remote);
+  const remoteCommit = await getCommitSha(params.repoDir, remoteRef);
+  const localCommit = await getCommitSha(params.repoDir, params.sourceRef);
+  const baseDetails: ResultsBranchPushDetails = {
+    pushConflictPolicy: params.normalized.push_conflict_policy,
+    targetBranch: params.targetBranch,
+    ...(remoteCommit !== undefined && {
+      remoteCommit,
+      previousRemoteCommit: remoteCommit,
+      leaseCommit: remoteCommit,
+    }),
+    ...(localCommit !== undefined && { localCommit }),
+  };
+
+  if (!remoteCommit) {
+    return {
+      blocked: true,
+      blockReason: `Results branch push conflict on ${params.targetBranch}: remote commit could not be resolved after fetch`,
+      details: baseDetails,
+    };
+  }
+
+  if (params.normalized.push_conflict_policy === 'block') {
+    return {
+      blocked: true,
+      blockReason: buildBlockedPushConflictReason(baseDetails),
+      details: baseDetails,
+    };
+  }
+
+  const backupRef = buildResultsBackupRef(params.targetBranch, remoteCommit);
+  const backupDetails: ResultsBranchPushDetails = {
+    ...baseDetails,
+    backupRef,
+    backupCommit: remoteCommit,
+  };
+
+  try {
+    await assertValidResultsBranchName(params.repoDir, backupRef);
+    await runGit(
+      ['push', '--porcelain', params.normalized.remote, `${remoteCommit}:refs/heads/${backupRef}`],
+      { cwd: params.repoDir },
+    );
+  } catch (error) {
+    return {
+      blocked: true,
+      blockReason: `Results branch backup creation failed for ${params.targetBranch} at ${formatShortSha(
+        remoteCommit,
+      )}: ${getStatusMessage(error)}`,
+      details: backupDetails,
+    };
+  }
+
+  try {
+    await runGit(
+      [
+        'push',
+        '--porcelain',
+        `--force-with-lease=refs/heads/${params.targetBranch}:${remoteCommit}`,
+        params.normalized.remote,
+        `${params.sourceRef}:refs/heads/${params.targetBranch}`,
+      ],
+      { cwd: params.repoDir },
+    );
+  } catch (error) {
+    return {
+      blocked: true,
+      blockReason: `Results branch force push lease failed for ${params.targetBranch}; remote changed after backup ${backupRef} was created with lease ${formatShortSha(
+        remoteCommit,
+      )}: ${getStatusMessage(error)}`,
+      details: backupDetails,
+    };
+  }
+
+  return {
+    blocked: false,
+    details: {
+      ...backupDetails,
+      ...(localCommit !== undefined && { forcePushedCommit: localCommit }),
+    },
+  };
 }
 
 async function statusFromInspection(
@@ -1278,6 +1546,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
   let pullPerformed = false;
   let pushPerformed = false;
   let commitCreated = false;
+  let pushDetails: ResultsBranchPushDetails | undefined;
 
   try {
     const repoDir = await ensureResultsRepoClone(normalized);
@@ -1347,14 +1616,53 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
 
       if ((inspection.ahead ?? 0) > 0 && (inspection.behind ?? 0) > 0) {
         const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
-        updateStatusFile(normalized, {
-          last_error: 'Results repo local and remote histories have diverged',
+        if (!normalized.branch) {
+          updateStatusFile(normalized, {
+            last_error: 'Results repo local and remote histories have diverged',
+          });
+          return withBlockedStatus(
+            status,
+            'Results repo local and remote histories have diverged',
+            {
+              pullPerformed,
+              pushPerformed,
+              commitCreated,
+            },
+          );
+        }
+        const localRef = `refs/heads/${normalized.branch}`;
+        const aheadPaths = await getAheadPaths(repoDir, inspection.upstream, localRef);
+        if (!inspection.upstream || !areSafeResultsRepoPaths(aheadPaths)) {
+          const reason = !inspection.upstream
+            ? 'Results repo has no upstream branch to push to'
+            : 'Results repo has non-results committed changes';
+          updateStatusFile(normalized, { last_error: reason });
+          return withBlockedStatus(status, reason, {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
+        const outcome = await resolveResultBranchPushConflict({
+          normalized: { ...normalized, branch: normalized.branch },
+          repoDir,
+          targetBranch: normalized.branch,
+          sourceRef: localRef,
         });
-        return withBlockedStatus(status, 'Results repo local and remote histories have diverged', {
-          pullPerformed,
-          pushPerformed,
-          commitCreated,
-        });
+        pushDetails = outcome.details;
+        if (outcome.blocked) {
+          updateStatusFile(normalized, { last_error: outcome.blockReason });
+          return withPushConflictStatus(status, outcome.blockReason, outcome.details, {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
+        pushPerformed = true;
+        await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
+          () => undefined,
+        );
+        inspection = await inspectResultsStorageBranchGit(repoDir, normalized);
       }
 
       if (inspection.syncStatus === 'dirty') {
@@ -1446,23 +1754,51 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
                 () => undefined,
               );
             } catch (error) {
-              updateStatusFile(normalized, { last_error: getStatusMessage(error) });
-              if (normalized.require_push) {
-                throw error;
+              if (isNonFastForwardPushError(error)) {
+                const outcome = await resolveResultBranchPushConflict({
+                  normalized: { ...normalized, branch: normalized.branch },
+                  repoDir,
+                  targetBranch: normalized.branch,
+                  sourceRef: localRef,
+                });
+                pushDetails = outcome.details;
+                if (!outcome.blocked) {
+                  pushPerformed = true;
+                  await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
+                    () => undefined,
+                  );
+                  inspection = await inspectResultsStorageBranchGit(repoDir, normalized);
+                } else {
+                  updateStatusFile(normalized, { last_error: outcome.blockReason });
+                  const status = withGitInspection(
+                    getResultsRepoStatus(normalized),
+                    await inspectResultsStorageBranchGit(repoDir, normalized),
+                  );
+                  return withPushConflictStatus(status, outcome.blockReason, outcome.details, {
+                    pullPerformed,
+                    pushPerformed,
+                    commitCreated,
+                  });
+                }
+              } else {
+                updateStatusFile(normalized, { last_error: getStatusMessage(error) });
+                if (normalized.require_push) {
+                  throw error;
+                }
+                const status = withGitInspection(
+                  getResultsRepoStatus(normalized),
+                  await inspectResultsStorageBranchGit(repoDir, normalized),
+                );
+                return withBlockedStatus(
+                  status,
+                  `Results repo push was rejected: ${getStatusMessage(error)}`,
+                  {
+                    pullPerformed,
+                    pushPerformed,
+                    commitCreated,
+                  },
+                );
               }
-              const status = withGitInspection(
-                getResultsRepoStatus(normalized),
-                await inspectResultsStorageBranchGit(repoDir, normalized),
-              );
-              return withBlockedStatus(
-                status,
-                `Results repo push was rejected: ${getStatusMessage(error)}`,
-                {
-                  pullPerformed,
-                  pushPerformed,
-                  commitCreated,
-                },
-              );
             }
           }
         }
@@ -1475,7 +1811,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         getResultsRepoStatus(normalized),
         await inspectResultsStorageBranchGit(repoDir, normalized),
       );
-      return withActionFlags(status, { pullPerformed, pushPerformed, commitCreated });
+      return withActionFlags(status, { pullPerformed, pushPerformed, commitCreated, pushDetails });
     }
     await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
     await checkoutConfiguredResultsBranch(repoDir, normalized);
@@ -1556,14 +1892,38 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
 
     if (inspection.syncStatus === 'diverged') {
       const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
-      updateStatusFile(normalized, {
-        last_error: 'Results repo local and remote histories have diverged',
+      const aheadPaths = await getAheadPaths(repoDir, inspection.upstream);
+      if (!inspection.upstream || !areSafeResultsRepoPaths(aheadPaths)) {
+        const reason = !inspection.upstream
+          ? 'Results repo has no upstream branch to push to'
+          : 'Results repo has non-results committed changes';
+        updateStatusFile(normalized, { last_error: reason });
+        return withBlockedStatus(status, reason, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+      const baseBranch = normalized.branch ?? (await resolveDefaultBranch(repoDir));
+      const targetBranch = getPushTargetBranch(inspection.upstream, baseBranch, normalized.remote);
+      const outcome = await resolveResultBranchPushConflict({
+        normalized: { ...normalized, branch: targetBranch },
+        repoDir,
+        targetBranch,
+        sourceRef: 'HEAD',
       });
-      return withBlockedStatus(status, 'Results repo local and remote histories have diverged', {
-        pullPerformed,
-        pushPerformed,
-        commitCreated,
-      });
+      pushDetails = outcome.details;
+      if (outcome.blocked) {
+        updateStatusFile(normalized, { last_error: outcome.blockReason });
+        return withPushConflictStatus(status, outcome.blockReason, outcome.details, {
+          pullPerformed,
+          pushPerformed,
+          commitCreated,
+        });
+      }
+      pushPerformed = true;
+      await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
+      inspection = await inspectResultsRepoGit(repoDir, normalized);
     }
 
     if ((inspection.behind ?? 0) > 0 && (inspection.ahead ?? 0) === 0) {
@@ -1628,18 +1988,45 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
         await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
         inspection = await inspectResultsRepoGit(repoDir, normalized);
       } catch (error) {
-        await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
-          () => undefined,
-        );
-        inspection = await inspectResultsRepoGit(repoDir, normalized);
-        const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
-        const reason = `Results repo push was rejected: ${getStatusMessage(error)}`;
-        updateStatusFile(normalized, { last_error: reason });
-        return withBlockedStatus(status, reason, {
-          pullPerformed,
-          pushPerformed,
-          commitCreated,
-        });
+        if (isNonFastForwardPushError(error)) {
+          const outcome = await resolveResultBranchPushConflict({
+            normalized: { ...normalized, branch: targetBranch },
+            repoDir,
+            targetBranch,
+            sourceRef: 'HEAD',
+          });
+          pushDetails = outcome.details;
+          if (!outcome.blocked) {
+            pushPerformed = true;
+            await fetchResultsRepo(repoDir, normalized.remote, normalized.branch);
+            inspection = await inspectResultsRepoGit(repoDir, normalized);
+          } else {
+            await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
+              () => undefined,
+            );
+            inspection = await inspectResultsRepoGit(repoDir, normalized);
+            const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+            updateStatusFile(normalized, { last_error: outcome.blockReason });
+            return withPushConflictStatus(status, outcome.blockReason, outcome.details, {
+              pullPerformed,
+              pushPerformed,
+              commitCreated,
+            });
+          }
+        } else {
+          await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(
+            () => undefined,
+          );
+          inspection = await inspectResultsRepoGit(repoDir, normalized);
+          const status = withGitInspection(getResultsRepoStatus(normalized), inspection);
+          const reason = `Results repo push was rejected: ${getStatusMessage(error)}`;
+          updateStatusFile(normalized, { last_error: reason });
+          return withBlockedStatus(status, reason, {
+            pullPerformed,
+            pushPerformed,
+            commitCreated,
+          });
+        }
       }
     }
 
@@ -1652,6 +2039,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       pullPerformed,
       pushPerformed,
       commitCreated,
+      pushDetails,
     });
   } catch (error) {
     updateStatusFile(normalized, {
@@ -1808,8 +2196,6 @@ export async function createDraftResultsPr(params: {
   return stdout.trim();
 }
 
-const DIRECT_PUSH_MAX_RETRIES = 3;
-
 async function hasUnpushedCommits(
   repoDir: string,
   upstreamRef: string,
@@ -1820,19 +2206,6 @@ async function hasUnpushedCommits(
     check: false,
   });
   return Number.parseInt(stdout.trim(), 10) > 0;
-}
-
-async function countUnpushedCommits(
-  repoDir: string,
-  upstreamRef: string,
-  branch: string,
-): Promise<number> {
-  const { stdout } = await runGit(['rev-list', '--count', `${upstreamRef}..refs/heads/${branch}`], {
-    cwd: repoDir,
-    check: false,
-  });
-  const count = Number.parseInt(stdout.trim(), 10);
-  return Number.isFinite(count) ? count : 0;
 }
 
 async function assertValidResultsBranchName(repoDir: string, branch: string): Promise<void> {
@@ -2424,61 +2797,98 @@ async function commitResultsRunWithTemporaryIndex(params: {
   }
 }
 
+function buildDirectPushResult(
+  normalized: NormalizedResultsConfig,
+  changed: boolean,
+  outcome?: ResultsBranchPushOutcome,
+): DirectPushResultsResult {
+  const details = outcome?.details;
+  return {
+    changed,
+    push_conflict_policy: normalized.push_conflict_policy,
+    ...(outcome?.blocked === true && {
+      blocked: true,
+      block_reason: outcome.blockReason,
+      sync_status: 'push_conflict' as const,
+    }),
+    ...pushDetailsToWire(details),
+  };
+}
+
+function mergeDirectPushResults(
+  normalized: NormalizedResultsConfig,
+  results: readonly DirectPushResultsResult[],
+): DirectPushResultsResult {
+  const blocked = results.find((result) => result.blocked);
+  if (blocked) {
+    return blocked;
+  }
+  const detailed = [...results].reverse().find((result) => result.backup_ref !== undefined);
+  return {
+    changed: results.some((result) => result.changed),
+    push_conflict_policy: normalized.push_conflict_policy,
+    ...(detailed?.backup_ref !== undefined && {
+      backup_ref: detailed.backup_ref,
+    }),
+    ...(detailed?.target_branch !== undefined && { target_branch: detailed.target_branch }),
+    ...(detailed?.remote_commit !== undefined && { remote_commit: detailed.remote_commit }),
+    ...(detailed?.local_commit !== undefined && { local_commit: detailed.local_commit }),
+    ...(detailed?.backup_commit !== undefined && { backup_commit: detailed.backup_commit }),
+    ...(detailed?.previous_remote_commit !== undefined && {
+      previous_remote_commit: detailed.previous_remote_commit,
+    }),
+    ...(detailed?.force_pushed_commit !== undefined && {
+      force_pushed_commit: detailed.force_pushed_commit,
+    }),
+    ...(detailed?.lease_commit !== undefined && { lease_commit: detailed.lease_commit }),
+  };
+}
+
 async function pushDirectResultsToStorageBranch(params: {
   readonly normalized: StorageBranchResultsConfig;
   readonly repoDir: string;
   readonly storageBranch: string;
-  readonly upstreamRef?: string;
-  readonly sourceDir: string;
-  readonly destinationPath: string;
-  readonly commitMessage: string;
-  readonly targetRunId: string;
-}): Promise<void> {
-  for (let attempt = 1; attempt <= DIRECT_PUSH_MAX_RETRIES; attempt++) {
-    try {
-      await runGit(
-        [
-          'push',
-          '--porcelain',
-          params.normalized.remote,
-          `refs/heads/${params.storageBranch}:refs/heads/${params.storageBranch}`,
-        ],
-        { cwd: params.repoDir },
-      );
-      updateStatusFile(params.normalized, {
-        last_synced_at: new Date().toISOString(),
-        last_error: undefined,
-      });
-      await fetchResultsRepo(params.repoDir, params.normalized.remote, params.storageBranch).catch(
-        () => undefined,
-      );
-      return;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt < DIRECT_PUSH_MAX_RETRIES && message.includes('non-fast-forward')) {
-        await fetchResultsRepo(params.repoDir, params.normalized.remote, params.storageBranch);
-        const remoteRef = remoteBranchRef(params.storageBranch, params.normalized.remote);
-        const localOnlyCount = (await gitRefExists(params.repoDir, remoteRef))
-          ? await countUnpushedCommits(params.repoDir, remoteRef, params.storageBranch)
-          : 0;
-        if (localOnlyCount > 1) {
-          throw new Error(
-            `Results branch has ${localOnlyCount} local commits and remote advanced; push manually after reconciling ${params.storageBranch}`,
-          );
-        }
-        await commitResultsRunWithTemporaryIndex({
-          normalized: params.normalized,
-          repoDir: params.repoDir,
-          sourceDir: params.sourceDir,
-          destinationPath: params.destinationPath,
-          commitMessage: params.commitMessage,
-          targetRunId: params.targetRunId,
-          preferRemoteBase: true,
-        });
-      } else {
-        throw error;
-      }
+}): Promise<ResultsBranchPushOutcome | undefined> {
+  try {
+    await runGit(
+      [
+        'push',
+        '--porcelain',
+        params.normalized.remote,
+        `refs/heads/${params.storageBranch}:refs/heads/${params.storageBranch}`,
+      ],
+      { cwd: params.repoDir },
+    );
+    updateStatusFile(params.normalized, {
+      last_synced_at: new Date().toISOString(),
+      last_error: undefined,
+    });
+    await fetchResultsRepo(params.repoDir, params.normalized.remote, params.storageBranch).catch(
+      () => undefined,
+    );
+    return undefined;
+  } catch (error) {
+    if (!isNonFastForwardPushError(error)) {
+      throw error;
     }
+    const outcome = await resolveResultBranchPushConflict({
+      normalized: params.normalized,
+      repoDir: params.repoDir,
+      targetBranch: params.storageBranch,
+      sourceRef: `refs/heads/${params.storageBranch}`,
+    });
+    if (outcome.blocked) {
+      updateStatusFile(params.normalized, { last_error: outcome.blockReason });
+      return outcome;
+    }
+    updateStatusFile(params.normalized, {
+      last_synced_at: new Date().toISOString(),
+      last_error: undefined,
+    });
+    await fetchResultsRepo(params.repoDir, params.normalized.remote, params.storageBranch).catch(
+      () => undefined,
+    );
+    return outcome;
   }
 }
 
@@ -2490,7 +2900,7 @@ async function commitAndMaybePushRunTree(params: {
   readonly commitMessage: string;
   readonly targetRunId: string;
   readonly shouldPush: boolean;
-}): Promise<boolean> {
+}): Promise<DirectPushResultsResult> {
   const result = await commitResultsRunWithTemporaryIndex({
     normalized: params.normalized,
     repoDir: params.repoDir,
@@ -2502,7 +2912,7 @@ async function commitAndMaybePushRunTree(params: {
 
   if (!params.shouldPush) {
     updateStatusFile(params.normalized, { last_error: undefined });
-    return result.commitCreated;
+    return buildDirectPushResult(params.normalized, result.commitCreated);
   }
 
   if (!result.commitCreated) {
@@ -2516,7 +2926,7 @@ async function commitAndMaybePushRunTree(params: {
         : false
       : localBranchExists;
     if (!hasUnpushed) {
-      return false;
+      return buildDirectPushResult(params.normalized, false);
     }
 
     const aheadPaths = result.upstreamRef
@@ -2531,35 +2941,25 @@ async function commitAndMaybePushRunTree(params: {
       updateStatusFile(params.normalized, { last_error: error.message });
       throw error;
     }
-    await pushDirectResultsToStorageBranch({
+    const outcome = await pushDirectResultsToStorageBranch({
       normalized: params.normalized,
       repoDir: params.repoDir,
       storageBranch: params.normalized.branch,
-      upstreamRef: result.upstreamRef,
-      sourceDir: params.sourceDir,
-      destinationPath: params.destinationPath,
-      commitMessage: params.commitMessage,
-      targetRunId: params.targetRunId,
     });
-    return true;
+    return buildDirectPushResult(params.normalized, !outcome?.blocked, outcome);
   }
 
-  await pushDirectResultsToStorageBranch({
+  const outcome = await pushDirectResultsToStorageBranch({
     normalized: params.normalized,
     repoDir: params.repoDir,
     storageBranch: params.normalized.branch,
-    upstreamRef: result.upstreamRef,
-    sourceDir: params.sourceDir,
-    destinationPath: params.destinationPath,
-    commitMessage: params.commitMessage,
-    targetRunId: params.targetRunId,
   });
-  return true;
+  return buildDirectPushResult(params.normalized, !outcome?.blocked, outcome);
 }
 
 /**
  * Push results directly to the configured storage branch of the results repo.
- * Handles non-fast-forward conflicts by fetching, rebasing, and retrying.
+ * Handles non-fast-forward conflicts with the configured push conflict policy.
  * Returns true if artifacts were pushed, false if no changes were detected.
  */
 export async function directPushResults(params: {
@@ -2568,6 +2968,19 @@ export async function directPushResults(params: {
   readonly destinationPath: string;
   readonly commitMessage: string;
 }): Promise<boolean> {
+  const result = await directPushResultsWithDetails(params);
+  if (result.blocked) {
+    throw new ResultsBranchPushConflictError(result);
+  }
+  return result.changed;
+}
+
+export async function directPushResultsWithDetails(params: {
+  readonly config: ResultsConfig;
+  readonly sourceDir: string;
+  readonly destinationPath: string;
+  readonly commitMessage: string;
+}): Promise<DirectPushResultsResult> {
   const normalized = normalizeResultsConfig(params.config);
   const repoDir = await ensureResultsRepoClone(normalized);
   await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch((error) => {
@@ -2596,7 +3009,7 @@ export async function directPushResults(params: {
       pointers: sidecarPointers,
     });
 
-    let sidecarChanged = false;
+    const pushResults: DirectPushResultsResult[] = [];
     if (sidecar) {
       await fetchResultsRepo(repoDir, normalized.remote, AGENTV_RESULTS_ARTIFACTS_REF).catch(
         (error) => {
@@ -2605,7 +3018,7 @@ export async function directPushResults(params: {
           }
         },
       );
-      sidecarChanged = await commitAndMaybePushRunTree({
+      const sidecarResult = await commitAndMaybePushRunTree({
         normalized: {
           ...normalized,
           branch: AGENTV_RESULTS_ARTIFACTS_REF,
@@ -2617,18 +3030,24 @@ export async function directPushResults(params: {
         targetRunId,
         shouldPush,
       });
+      pushResults.push(sidecarResult);
+      if (sidecarResult.blocked) {
+        return sidecarResult;
+      }
     }
 
-    const primaryChanged = await commitAndMaybePushRunTree({
-      normalized: storageConfig,
-      repoDir,
-      sourceDir: publishedResultsSource?.sourceDir ?? params.sourceDir,
-      destinationPath: params.destinationPath,
-      commitMessage: params.commitMessage,
-      targetRunId,
-      shouldPush,
-    });
-    return primaryChanged || sidecarChanged;
+    pushResults.push(
+      await commitAndMaybePushRunTree({
+        normalized: storageConfig,
+        repoDir,
+        sourceDir: publishedResultsSource?.sourceDir ?? params.sourceDir,
+        destinationPath: params.destinationPath,
+        commitMessage: params.commitMessage,
+        targetRunId,
+        shouldPush,
+      }),
+    );
+    return mergeDirectPushResults(normalized, pushResults);
   } finally {
     await publishedResultsSource?.cleanup().catch(() => undefined);
     await sidecar?.cleanup().catch(() => undefined);

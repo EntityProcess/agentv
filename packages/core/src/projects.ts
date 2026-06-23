@@ -63,6 +63,7 @@ import { getAgentvConfigDir } from './paths.js';
 export interface ProjectResultsSyncConfig {
   autoPush?: boolean;
   requirePush?: boolean;
+  pushConflictPolicy?: 'block' | 'backup_and_force_push';
 }
 
 export interface ProjectResultsConfig {
@@ -104,6 +105,7 @@ export function getProjectsRegistryPath(): string {
 interface ProjectResultsSyncYaml {
   auto_push?: boolean;
   require_push?: boolean;
+  push_conflict_policy?: 'block' | 'backup_and_force_push';
 }
 
 interface ProjectResultsYaml {
@@ -195,12 +197,20 @@ function fromYaml(raw: unknown): ProjectEntry | null {
         ...(resultsBranch ? { branch: resultsBranch } : {}),
         ...(resultsRemote ? { remote: resultsRemote } : {}),
         ...(clonePath ? { path: clonePath } : {}),
-        ...(sync && (typeof sync.auto_push === 'boolean' || typeof sync.require_push === 'boolean')
+        ...(sync &&
+        (typeof sync.auto_push === 'boolean' ||
+          typeof sync.require_push === 'boolean' ||
+          sync.push_conflict_policy === 'block' ||
+          sync.push_conflict_policy === 'backup_and_force_push')
           ? {
               sync: {
                 ...(typeof sync.auto_push === 'boolean' ? { autoPush: sync.auto_push } : {}),
                 ...(typeof sync.require_push === 'boolean'
                   ? { requirePush: sync.require_push }
+                  : {}),
+                ...(sync.push_conflict_policy === 'block' ||
+                sync.push_conflict_policy === 'backup_and_force_push'
+                  ? { pushConflictPolicy: sync.push_conflict_policy }
                   : {}),
               },
             }
@@ -228,7 +238,9 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   };
   if (entry.results) {
     const resultsSync =
-      entry.results.sync?.autoPush !== undefined || entry.results.sync?.requirePush !== undefined
+      entry.results.sync?.autoPush !== undefined ||
+      entry.results.sync?.requirePush !== undefined ||
+      entry.results.sync?.pushConflictPolicy !== undefined
         ? {
             sync: {
               ...(entry.results.sync?.autoPush !== undefined && {
@@ -236,6 +248,9 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
               }),
               ...(entry.results.sync?.requirePush !== undefined && {
                 require_push: entry.results.sync.requirePush,
+              }),
+              ...(entry.results.sync?.pushConflictPolicy !== undefined && {
+                push_conflict_policy: entry.results.sync.pushConflictPolicy,
               }),
             },
           }

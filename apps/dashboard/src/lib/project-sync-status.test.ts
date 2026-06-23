@@ -85,6 +85,23 @@ describe('getProjectSyncView', () => {
       canSync: false,
     });
   });
+
+  it('surfaces result branch push conflicts without resolution controls', () => {
+    expect(
+      getProjectSyncView({
+        configured: true,
+        available: true,
+        sync_status: 'push_conflict',
+        push_conflict_policy: 'block',
+        block_reason: 'Results branch push conflict on agentv/results/v1',
+      }),
+    ).toMatchObject({
+      state: 'push_conflict',
+      label: 'Push conflict',
+      tone: 'danger',
+      canSync: false,
+    });
+  });
 });
 
 describe('buildProjectSyncFeedback', () => {
@@ -138,6 +155,18 @@ describe('buildProjectSyncFeedback', () => {
       message:
         'Sync stopped: Results repo has unresolved git conflicts. The remote results cache remains available. Resolve the results repo issue, then sync remote results again.',
     });
+  });
+
+  it('keeps push conflict feedback explicit', () => {
+    expect(
+      buildProjectSyncFeedback({
+        configured: true,
+        available: true,
+        sync_status: 'push_conflict',
+        blocked: true,
+        block_reason: 'Results branch push conflict on agentv/results/v1',
+      }).message,
+    ).toContain('Sync stopped: Results branch push conflict on agentv/results/v1.');
   });
 
   it('builds actionable sync failure feedback without hiding cached remote runs', () => {
