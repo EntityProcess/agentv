@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "db325365b92c",
+  "strategy": "manual-commit",
+  "branch": "fix/copilot-sdk-epipe",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "packages/core/src/evaluation/providers/copilot-sdk.ts",
+    "packages/core/src/evaluation/providers/pi-coding-agent.ts",
+    "packages/core/test/evaluation/providers/copilot-sdk.test.ts",
+    "packages/core/test/evaluation/providers/pi-coding-agent.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/db/325365b92c/0/metadata.json",
+      "transcript": "/db/325365b92c/0/full.jsonl",
+      "content_hash": "/db/325365b92c/0/content_hash.txt",
+      "prompt": "/db/325365b92c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 1
+  }
+}
