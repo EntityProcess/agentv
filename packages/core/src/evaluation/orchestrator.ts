@@ -2330,7 +2330,11 @@ async function runEvalCaseWithTrials(
     }
 
     // pass_at_k early exit: short-circuit after first passing trial
-    if (trialsConfig.strategy === 'pass_at_k' && trialVerdict === 'pass') {
+    if (
+      trialsConfig.strategy === 'pass_at_k' &&
+      trialsConfig.earlyExit !== false &&
+      trialVerdict === 'pass'
+    ) {
       break;
     }
   }

@@ -1,0 +1,14 @@
+name: multi-model-benchmark
+targets:
+  - copilot
+  - claude
+  - gemini-llm
+evals:
+  - factual-geography
+  - factual-science
+  - analytical-comparison
+  - creative-explanation
+  - structured-list
+runs: 2
+early_exit: true
+budget_usd: 2.00

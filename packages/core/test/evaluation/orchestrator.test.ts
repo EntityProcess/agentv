@@ -1801,8 +1801,7 @@ describe('runEvaluation with trials', () => {
   it('count=1: no trial metadata in result (handled by orchestrator)', async () => {
     const provider = new MultiCallProvider();
 
-    // count=1 should not produce trials metadata — extractTrialsConfig returns
-    // undefined for count=1, so trials option won't be set. Verify normal behavior.
+    // Single-run callers should omit trials entirely. Verify normal behavior.
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
       repoRoot: 'in-memory',

@@ -518,6 +518,83 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('runs a native experiment file with eval selection and run knobs', async () => {
+    const fixture = await createFixture();
+    try {
+      const experimentsDir = path.join(fixture.suiteDir, 'experiments');
+      await mkdir(experimentsDir, { recursive: true });
+      await writeFile(
+        path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
+        'eval_patterns:\n  - sample.test.yaml\n',
+        'utf8',
+      );
+      const experimentPath = path.join(experimentsDir, 'default.yaml');
+      await writeFile(
+        experimentPath,
+        [
+          'name: native-exp',
+          'target: cli-target',
+          'evals: case-alpha',
+          'timeout_seconds: 12',
+          'workers: 4',
+          'runs: 2',
+          'early_exit: false',
+          'setup:',
+          '  - script: "printf setup > ../experiment-setup.txt"',
+          'scripts:',
+          '  - script: "printf script > ../experiment-script.txt"',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        '--experiment',
+        'experiments/default.yaml',
+      ]);
+
+      expect(exitCode).toBe(0);
+      const outputPath = extractOutputPath(stdout);
+      expect(outputPath).toContain(`${path.sep}native-exp${path.sep}`);
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        target: 'cli-target',
+        agentTimeoutMs: 12000,
+        maxConcurrency: 4,
+        trials: {
+          count: 2,
+          strategy: 'pass_at_k',
+          earlyExit: false,
+        },
+      });
+
+      await expectFileExists(path.join(fixture.suiteDir, 'experiment-setup.txt'));
+      await expectFileExists(path.join(fixture.suiteDir, 'experiment-script.txt'));
+
+      const benchmark = JSON.parse(
+        await readFile(path.join(path.dirname(outputPath), 'benchmark.json'), 'utf8'),
+      ) as { metadata?: Record<string, unknown> };
+      expect(benchmark.metadata?.experiment).toBe('native-exp');
+      expect(benchmark.metadata?.experiment_config).toMatchObject({
+        name: 'native-exp',
+        source_path: experimentPath,
+        target: 'cli-target',
+        evals: 'case-alpha',
+        runs: 2,
+        early_exit: false,
+        timeout_seconds: 12,
+        workers: 4,
+      });
+      expect(
+        (benchmark.metadata?.experiment_config as Record<string, unknown>).fingerprint,
+      ).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('honors agentv.config.ts cache.path when response cache is enabled there', async () => {
     const fixture = await createFixture();
     try {

@@ -56,6 +56,8 @@ export type ExperimentConfigWire = {
   readonly runs?: number;
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
+  readonly workers?: number;
+  readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
   readonly workspace?: Record<string, unknown>;
   readonly setup?: readonly ExperimentScriptWire[] | ExperimentSetupFn;
@@ -73,11 +75,30 @@ export type ExperimentConfig = {
   readonly runs?: number;
   readonly earlyExit?: boolean;
   readonly timeoutSeconds?: number;
+  readonly workers?: number;
+  readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
   readonly workspace?: Record<string, unknown>;
   readonly setup?: ExperimentSetup;
   readonly sourcePath?: string;
   readonly fingerprint?: string;
+};
+
+export type ExperimentArtifactMetadata = {
+  readonly name?: string;
+  readonly source_path?: string;
+  readonly fingerprint?: string;
+  readonly agent?: string;
+  readonly target?: string;
+  readonly targets?: readonly string[];
+  readonly model?: string;
+  readonly evals?: string | readonly string[];
+  readonly runs?: number;
+  readonly early_exit?: boolean;
+  readonly timeout_seconds?: number;
+  readonly workers?: number;
+  readonly budget_usd?: number;
+  readonly sandbox?: ExperimentSandbox;
 };
 
 type NormalizeOptions = {
@@ -148,6 +169,11 @@ export function normalizeExperimentConfig(
     rawConfig.timeout_seconds ?? rawConfig.timeoutSeconds,
     'timeout_seconds',
   );
+  const workers = readOptionalPositiveInteger(rawConfig.workers, 'workers');
+  const budgetUsd = readOptionalPositiveNumber(
+    rawConfig.budget_usd ?? rawConfig.budgetUsd,
+    'budget_usd',
+  );
   const sandbox = readOptionalSandbox(rawConfig.sandbox);
   const workspace = readOptionalRecord(rawConfig.workspace);
   const setup = readSetup(rawConfig.setup);
@@ -164,6 +190,8 @@ export function normalizeExperimentConfig(
     ...(runs !== undefined && { runs }),
     ...(earlyExit !== undefined && { earlyExit }),
     ...(timeoutSeconds !== undefined && { timeoutSeconds }),
+    ...(workers !== undefined && { workers }),
+    ...(budgetUsd !== undefined && { budgetUsd }),
     ...(sandbox !== undefined && { sandbox }),
     ...(workspace !== undefined && { workspace }),
     ...(setup !== undefined && { setup }),
@@ -179,6 +207,33 @@ export function normalizeExperimentConfig(
 export function fingerprintExperimentConfig(config: ExperimentConfig): string {
   const stablePayload = toStableJsonValue(config);
   return createHash('sha256').update(JSON.stringify(stablePayload)).digest('hex');
+}
+
+export function buildExperimentArtifactMetadata(
+  config: ExperimentConfig | undefined,
+): ExperimentArtifactMetadata | undefined {
+  if (!config) {
+    return undefined;
+  }
+  const targets = config.targets
+    ?.map((target) => (typeof target === 'string' ? target : target.name))
+    .filter((target) => target.trim().length > 0);
+  return {
+    ...(config.name !== undefined && { name: config.name }),
+    ...(config.sourcePath !== undefined && { source_path: config.sourcePath }),
+    ...(config.fingerprint !== undefined && { fingerprint: config.fingerprint }),
+    ...(config.agent !== undefined && { agent: config.agent }),
+    ...(config.target !== undefined && { target: config.target }),
+    ...(targets && targets.length > 0 && { targets }),
+    ...(config.model !== undefined && { model: config.model }),
+    ...(config.evals !== undefined && { evals: config.evals }),
+    ...(config.runs !== undefined && { runs: config.runs }),
+    ...(config.earlyExit !== undefined && { early_exit: config.earlyExit }),
+    ...(config.timeoutSeconds !== undefined && { timeout_seconds: config.timeoutSeconds }),
+    ...(config.workers !== undefined && { workers: config.workers }),
+    ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
+    ...(config.sandbox !== undefined && { sandbox: config.sandbox }),
+  };
 }
 
 function readTargets(raw: unknown): readonly ExperimentTargetRef[] | undefined {
@@ -274,7 +329,11 @@ function readOptionalCommand(raw: unknown, location: string): readonly string[] 
     }
     return ['sh', '-c', command];
   }
-  if (Array.isArray(raw) && raw.every((entry) => typeof entry === 'string' && entry.trim())) {
+  if (
+    Array.isArray(raw) &&
+    raw.length > 0 &&
+    raw.every((entry) => typeof entry === 'string' && entry.trim())
+  ) {
     return raw.map((entry) => entry.trim());
   }
   throw new Error(`Experiment ${location} must be a string or string array.`);
@@ -294,7 +353,11 @@ function readOptionalStringOrStringArray(
     }
     return trimmed;
   }
-  if (Array.isArray(raw) && raw.every((entry) => typeof entry === 'string' && entry.trim())) {
+  if (
+    Array.isArray(raw) &&
+    raw.length > 0 &&
+    raw.every((entry) => typeof entry === 'string' && entry.trim())
+  ) {
     return raw.map((entry) => entry.trim());
   }
   throw new Error(`Experiment ${location} must be a string or string array.`);

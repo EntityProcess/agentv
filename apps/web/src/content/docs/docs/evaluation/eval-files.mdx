@@ -11,7 +11,7 @@ YAML is the canonical portable model. TypeScript helpers, generated fixtures, an
 
 ## Suites
 
-An eval file is a **suite**: it binds test cases to execution context (workspace, hooks, targets, trials). Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
+An eval file is a **suite**: it binds test cases to task context, assertions, and reusable fixtures. Runtime choices such as target matrices, setup, and run counts belong in experiments. Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
 
 ## YAML Format
 

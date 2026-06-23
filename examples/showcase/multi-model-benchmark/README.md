@@ -118,19 +118,28 @@ assertions:
 
 Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
-### 3. Trials
+### 3. Experiment runs
 
-Each test runs twice. The `pass_at_k` strategy means a test passes if **any** trial succeeds:
+Each test runs twice through the committed experiment. `early_exit: true`
+matches pass@k ergonomics: a case can stop once any run succeeds.
 
 ```yaml
-execution:
-  trials:
-    count: 2
-    strategy: pass_at_k
-    cost_limit_usd: 2.00
+targets:
+  - copilot
+  - claude
+  - gemini-llm
+evals:
+  - factual-*
+  - analytical-comparison
+  - creative-explanation
+  - structured-list
+runs: 2
+early_exit: true
+budget_usd: 2.00
 ```
 
-This surfaces non-determinism — if a model passes on trial 1 but fails on trial 2, that signals inconsistency worth investigating.
+This surfaces non-determinism — if a model passes on run 1 but fails on run 2,
+that signals inconsistency worth investigating.
 
 ### 4. Compare
 
@@ -191,20 +200,18 @@ assertions:
     weight: 4.0    # Highest priority
 ```
 
-### Adjusting trial count
+### Adjusting run count
 
-Increase `trials.count` for more variability data (at proportional cost):
+Increase experiment `runs` for more variability data (at proportional cost):
 
 ```yaml
-execution:
-  trials:
-    count: 5          # 5 trials for higher-confidence results
-    cost_limit_usd: 5.00
+runs: 5          # 5 runs for higher-confidence results
+budget_usd: 5.00
 ```
 
 ## See Also
 
 - [`examples/features/matrix-evaluation/`](../../features/matrix-evaluation/) — minimal targets matrix example
 - [`examples/features/weighted-graders/`](../../features/weighted-graders/) — per-grader weight patterns
-- [`examples/features/trials/`](../../features/trials/) — trial strategy configuration
+- [`examples/features/trials/`](../../features/trials/) — experiment run-count configuration
 - [`examples/features/compare/`](../../features/compare/) — baseline vs candidate comparison

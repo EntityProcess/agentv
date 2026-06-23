@@ -1065,6 +1065,8 @@ export interface TrialsConfig {
   readonly count: number;
   readonly strategy: TrialStrategy;
   readonly costLimitUsd?: number;
+  /** When false, pass_at_k runs all configured attempts instead of stopping at first pass. */
+  readonly earlyExit?: boolean;
 }
 
 /**

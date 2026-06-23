@@ -1,20 +1,27 @@
+import { spawn } from 'node:child_process';
 import { constants, existsSync, mkdirSync } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  DEFAULT_EVAL_PATTERNS,
   DEFAULT_THRESHOLD,
+  type EvalTargetRef,
   type EvalTest,
   type EvaluationCache,
   type EvaluationResult,
   type ExecutionDefaults,
+  type ExperimentArtifactMetadata,
+  type ExperimentConfig,
+  type ExperimentScript,
   type FailOnError,
   type OtelTraceExporter as OtelTraceExporterType,
   type ResolvedTarget,
   ResponseCache,
   RunBudgetTracker,
   type TrialsConfig,
+  buildExperimentArtifactMetadata,
   buildTraceFromMessages,
   runEvaluation as defaultRunEvaluation,
   deriveCategory,
@@ -71,7 +78,7 @@ import {
   loadNonErrorResults,
 } from './retry-errors.js';
 import { resolveCachedRunDir, saveRunCache } from './run-cache.js';
-import { findRepoRoot } from './shared.js';
+import { findRepoRoot, resolveEvalPaths } from './shared.js';
 import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
@@ -145,6 +152,10 @@ interface NormalizedOptions {
   readonly recordReplay?: string;
   readonly recordReplayVariant?: string;
   readonly experiment?: string;
+  readonly experimentConfig?: ExperimentConfig;
+  readonly experimentMetadata?: ExperimentArtifactMetadata;
+  readonly experimentTargetRefs?: readonly EvalTargetRef[];
+  readonly experimentTrialsConfig?: TrialsConfig;
   readonly budgetUsd?: number;
   readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
   readonly resultsOverrides?: ResultsPublishOverrides;
@@ -566,30 +577,298 @@ function normalizeTsDefaultExperiment(
   );
 }
 
-async function resolveExperimentNameForRun(params: {
+type ResolvedExperimentForRun = {
+  readonly name?: string;
+  readonly config?: ExperimentConfig;
+};
+
+async function resolveExperimentForRun(params: {
   readonly cwd: string;
   readonly explicitExperiment?: string;
   readonly yamlDefaultExperiment?: string;
   readonly tsDefaultExperiment?: string;
-}): Promise<string | undefined> {
+}): Promise<ResolvedExperimentForRun> {
   const experimentRef =
     params.explicitExperiment ?? params.yamlDefaultExperiment ?? params.tsDefaultExperiment;
   if (!experimentRef) {
+    return {};
+  }
+
+  const experimentPath = resolveExperimentFilePath(params.cwd, experimentRef);
+  if (!experimentPath) {
+    if (isExperimentFileReference(experimentRef)) {
+      throw new Error(`Experiment file not found: ${experimentRef}`);
+    }
+    return { name: experimentRef };
+  }
+
+  const config = await loadExperimentConfig(experimentPath);
+  return {
+    name: config.name ?? deriveExperimentNameFromPath(experimentPath),
+    config,
+  };
+}
+
+function resolveExperimentFilePath(cwd: string, experimentRef: string): string | undefined {
+  if (isExperimentFileReference(experimentRef)) {
+    const experimentPath = path.isAbsolute(experimentRef)
+      ? experimentRef
+      : path.resolve(cwd, experimentRef);
+    return existsSync(experimentPath) ? experimentPath : undefined;
+  }
+
+  for (const ext of ['yaml', 'yml', 'ts', 'js', 'mts', 'mjs']) {
+    const candidate = path.resolve(cwd, 'experiments', `${experimentRef}.${ext}`);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function applyExperimentOptions(
+  options: NormalizedOptions,
+  experiment: ExperimentConfig | undefined,
+): NormalizedOptions {
+  if (!experiment) {
+    return options;
+  }
+
+  const experimentTargetRefs = buildExperimentTargetRefs(experiment);
+  const experimentTargetNames = experimentTargetRefs?.map((target) => target.name) ?? [];
+  const experimentTarget =
+    experiment.target && experiment.target.trim().length > 0 ? experiment.target : undefined;
+  const nextCliTargets =
+    options.cliTargets.length > 0
+      ? options.cliTargets
+      : experimentTargetNames.length > 0
+        ? experimentTargetNames
+        : experimentTarget
+          ? [experimentTarget]
+          : options.cliTargets;
+
+  const workspaceMode =
+    options.workspaceMode ?? readExperimentWorkspaceMode(experiment.workspace?.mode);
+  const workspacePath = options.workspacePath ?? readExperimentWorkspacePath(experiment.workspace);
+  const experimentFilter = normalizeExperimentCaseFilter(experiment.evals);
+
+  return {
+    ...options,
+    target: options.target ?? (nextCliTargets.length === 1 ? nextCliTargets[0] : undefined),
+    cliTargets: nextCliTargets,
+    agentTimeoutSeconds: options.agentTimeoutSeconds ?? experiment.timeoutSeconds,
+    workers: options.workers ?? experiment.workers,
+    workspaceMode: workspacePath ? 'static' : workspaceMode,
+    workspacePath,
+    filter: options.filter ?? experimentFilter,
+    budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
+    experimentConfig: experiment,
+    experimentMetadata: buildExperimentArtifactMetadata(experiment),
+    experimentTargetRefs: options.cliTargets.length === 0 ? experimentTargetRefs : undefined,
+    experimentTrialsConfig: buildExperimentTrialsConfig(experiment),
+  };
+}
+
+function buildExperimentTargetRefs(
+  experiment: ExperimentConfig,
+): readonly EvalTargetRef[] | undefined {
+  if (!experiment.targets || experiment.targets.length === 0) {
     return undefined;
   }
-  if (!isExperimentFileReference(experimentRef)) {
-    return experimentRef;
+  return experiment.targets.map((target) => {
+    if (typeof target === 'string') {
+      return { name: target };
+    }
+    return {
+      name: target.name,
+      ...(target.useTarget !== undefined && { use_target: target.useTarget }),
+      ...(target.hooks !== undefined && {
+        hooks: target.hooks as EvalTargetRef['hooks'],
+      }),
+    };
+  });
+}
+
+function buildExperimentTrialsConfig(experiment: ExperimentConfig): TrialsConfig | undefined {
+  if (!experiment.runs || experiment.runs <= 1) {
+    return undefined;
+  }
+  return {
+    count: experiment.runs,
+    strategy: 'pass_at_k',
+    earlyExit: experiment.earlyExit ?? false,
+  };
+}
+
+function readExperimentWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
+  return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
+}
+
+function readExperimentWorkspacePath(
+  workspace: Record<string, unknown> | undefined,
+): string | undefined {
+  const value = workspace?.path;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function normalizeExperimentCaseFilter(
+  evals: ExperimentConfig['evals'] | undefined,
+): NormalizedOptions['filter'] {
+  if (typeof evals === 'string') {
+    return evals;
+  }
+  if (!Array.isArray(evals)) {
+    return undefined;
+  }
+  return evals.length === 1 ? evals[0] : [...evals];
+}
+
+async function runExperimentSteps(params: {
+  readonly label: 'setup' | 'script';
+  readonly steps: readonly ExperimentScript[] | undefined;
+  readonly cwd: string;
+  readonly experimentConfig?: ExperimentConfig;
+}): Promise<void> {
+  const steps = params.steps ?? [];
+  if (steps.length === 0) {
+    return;
   }
 
-  const experimentPath = path.isAbsolute(experimentRef)
-    ? experimentRef
-    : path.resolve(params.cwd, experimentRef);
-  if (!existsSync(experimentPath)) {
-    throw new Error(`Experiment file not found: ${experimentRef}`);
+  for (let index = 0; index < steps.length; index++) {
+    const step = steps[index];
+    const command = buildExperimentStepCommand(step);
+    const cwd = resolveExperimentStepCwd(params.cwd, params.experimentConfig, step.cwd);
+    console.log(`Experiment ${params.label} ${index + 1}/${steps.length}: ${command.display}`);
+    await runExperimentCommand(command.argv, {
+      cwd,
+      env: step.env,
+      timeoutMs: step.timeoutSeconds ? step.timeoutSeconds * 1000 : undefined,
+      label: `experiment ${params.label}`,
+    });
+  }
+}
+
+async function runExperimentSetup(params: {
+  readonly config: ExperimentConfig | undefined;
+  readonly cwd: string;
+  readonly runDir: string;
+}): Promise<void> {
+  const setup = params.config?.setup;
+  if (typeof setup === 'function') {
+    console.log('Experiment setup: running TypeScript setup()');
+    await setup({
+      cwd: params.cwd,
+      runDir: params.runDir,
+      experiment: params.config,
+      env: process.env,
+    });
+    return;
+  }
+  await runExperimentSteps({
+    label: 'setup',
+    steps: setup,
+    cwd: params.cwd,
+    experimentConfig: params.config,
+  });
+}
+
+function buildExperimentStepCommand(step: ExperimentScript): {
+  readonly argv: readonly string[];
+  readonly display: string;
+} {
+  if (step.command && step.command.length > 0) {
+    return { argv: step.command, display: step.command.join(' ') };
+  }
+  if (typeof step.script === 'string' && step.script.trim().length > 0) {
+    return {
+      argv: shellCommand(step.script),
+      display: step.script,
+    };
+  }
+  if (Array.isArray(step.script) && step.script.length > 0) {
+    return { argv: step.script, display: step.script.join(' ') };
+  }
+  throw new Error('Experiment step must define command or script.');
+}
+
+function shellCommand(script: string): readonly string[] {
+  return process.platform === 'win32' ? ['cmd', '/c', script] : ['sh', '-c', script];
+}
+
+function resolveExperimentStepCwd(
+  cwd: string,
+  experimentConfig: ExperimentConfig | undefined,
+  stepCwd: string | undefined,
+): string {
+  const base = experimentConfig?.sourcePath ? path.dirname(experimentConfig.sourcePath) : cwd;
+  if (!stepCwd) {
+    return base;
+  }
+  return path.isAbsolute(stepCwd) ? stepCwd : path.resolve(base, stepCwd);
+}
+
+async function runExperimentCommand(
+  argv: readonly string[],
+  options: {
+    readonly cwd: string;
+    readonly env?: Record<string, string>;
+    readonly timeoutMs?: number;
+    readonly label: string;
+  },
+): Promise<void> {
+  if (argv.length === 0) {
+    throw new Error(`${options.label} command must not be empty.`);
   }
 
-  const experiment = await loadExperimentConfig(experimentPath);
-  return experiment.name ?? deriveExperimentNameFromPath(experimentPath);
+  await new Promise<void>((resolve, reject) => {
+    const cmd = argv[0];
+    if (!cmd) {
+      reject(new Error(`${options.label} command must not be empty.`));
+      return;
+    }
+    const args = argv.slice(1);
+    const child = spawn(cmd, args, {
+      cwd: options.cwd,
+      env: options.env ? { ...process.env, ...options.env } : process.env,
+      stdio: 'inherit',
+    });
+    let completed = false;
+    const timeout =
+      options.timeoutMs !== undefined
+        ? setTimeout(() => {
+            if (!completed) {
+              completed = true;
+              child.kill('SIGKILL');
+              reject(new Error(`${options.label} timed out after ${options.timeoutMs}ms`));
+            }
+          }, options.timeoutMs)
+        : undefined;
+
+    child.on('error', (error) => {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      reject(error);
+    });
+    child.on('exit', (code) => {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`${options.label} exited with code ${code ?? 'unknown'}`));
+      }
+    });
+  });
 }
 
 type ProgressReporter = {
@@ -814,18 +1093,23 @@ async function prepareFileMetadata(params: {
     const cliTargets = options.cliTargets;
     const suiteTargets = suite.targets;
     const suiteTargetRefs = suite.targetRefs;
+    const experimentTargetRefs = options.experimentTargetRefs;
 
-    // Resolve which target names to use (precedence: CLI > suite YAML targets > default)
+    // Resolve which target names to use (precedence: CLI/experiment > suite YAML targets > default)
     let targetNames: readonly string[];
+    let targetRefs: readonly EvalTargetRef[] | undefined;
     if (cliTargets.length > 0) {
       targetNames = cliTargets;
+      targetRefs = experimentTargetRefs;
     } else if (suiteTargets && suiteTargets.length > 0) {
       targetNames = suiteTargets;
+      targetRefs = suiteTargetRefs;
     } else {
       targetNames = [];
+      targetRefs = undefined;
     }
 
-    if (targetNames.length > 1) {
+    if (targetNames.length > 1 || (targetNames.length === 1 && targetRefs)) {
       // Matrix mode: multiple targets
       const multiSelections = await selectMultipleTargets({
         testFilePath,
@@ -838,7 +1122,7 @@ async function prepareFileMetadata(params: {
         dryRunDelayMax: options.dryRunDelayMax,
         env: process.env,
         targetNames,
-        targetRefs: suiteTargetRefs,
+        targetRefs,
       });
 
       selections = multiSelections.map((sel) => ({
@@ -861,9 +1145,7 @@ async function prepareFileMetadata(params: {
       });
 
       // Attach target hooks from eval file if available
-      const singleTargetHooks = suiteTargetRefs?.find(
-        (ref) => ref.name === selection.targetName,
-      )?.hooks;
+      const singleTargetHooks = targetRefs?.find((ref) => ref.name === selection.targetName)?.hooks;
       const augmentedSelection: TargetSelection = singleTargetHooks
         ? { ...selection, targetHooks: singleTargetHooks }
         : selection;
@@ -884,7 +1166,7 @@ async function prepareFileMetadata(params: {
     testIds,
     testCases: suite.tests,
     selections,
-    trialsConfig: suite.trials,
+    trialsConfig: options.experimentTrialsConfig,
     suiteTargets,
     yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
@@ -1205,15 +1487,30 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  const resolvedExperiment = await resolveExperimentForRun({
+    cwd,
+    explicitExperiment: options.experiment,
+    yamlDefaultExperiment: resolveDefaultExperimentReference(yamlConfig),
+    tsDefaultExperiment: normalizeTsDefaultExperiment(config),
+  });
   options = {
-    ...options,
-    experiment: await resolveExperimentNameForRun({
-      cwd,
-      explicitExperiment: options.experiment,
-      yamlDefaultExperiment: resolveDefaultExperimentReference(yamlConfig),
-      tsDefaultExperiment: normalizeTsDefaultExperiment(config),
-    }),
+    ...applyExperimentOptions(options, resolvedExperiment.config),
+    experiment: resolvedExperiment.name,
   };
+
+  const evalPathInputs =
+    input.testFiles.length > 0
+      ? [...input.testFiles]
+      : options.experimentConfig?.evals !== undefined
+        ? [...(yamlConfig?.eval_patterns ?? DEFAULT_EVAL_PATTERNS)]
+        : [];
+  if (evalPathInputs.length === 0 && process.stdin.isTTY) {
+    const { launchInteractiveWizard } = await import('./interactive.js');
+    await launchInteractiveWizard();
+    return undefined;
+  }
+  const resolvedTestFiles = await resolveEvalPaths(evalPathInputs, cwd);
+
   if (!process.env.AGENTV_EXPERIMENT) {
     process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
   }
@@ -1429,8 +1726,13 @@ export async function runEvalCommand(
 
   console.log(`Artifact directory: ${runDir}`);
 
+  await runExperimentSetup({
+    config: options.experimentConfig,
+    cwd,
+    runDir,
+  });
+
   // Log file export paths
-  const resolvedTestFiles = input.testFiles.map((file) => path.resolve(file));
   if (options.otelFile) {
     console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
   }
@@ -1675,6 +1977,7 @@ export async function runEvalCommand(
       evalFile,
       plannedTestCount: totalEvalCount,
       experiment: normalizeExperimentName(options.experiment),
+      experimentMetadata: options.experimentMetadata,
     });
   }
 
@@ -1930,7 +2233,11 @@ export async function runEvalCommand(
         });
         const { benchmarkPath: workspaceBenchmarkPath, timingPath } = await aggregateRunDir(
           runDir,
-          { evalFile, experiment: normalizeExperimentName(options.experiment) },
+          {
+            evalFile,
+            experiment: normalizeExperimentName(options.experiment),
+            experimentMetadata: options.experimentMetadata,
+          },
         );
         const indexPath = path.join(runDir, 'index.jsonl');
         console.log(`Artifact workspace updated: ${runDir}`);
@@ -1947,6 +2254,7 @@ export async function runEvalCommand(
         } = await writeArtifactsFromResults(allResults, runDir, {
           evalFile,
           experiment: normalizeExperimentName(options.experiment),
+          experimentMetadata: options.experimentMetadata,
           cwd,
           repoRoot,
           sourceTests,
@@ -2048,6 +2356,13 @@ export async function runEvalCommand(
       wipCleanedUp = true;
       await wipLoop.stopAndDeleteWipBranch();
     }
+
+    await runExperimentSteps({
+      label: 'script',
+      steps: options.experimentConfig?.scripts,
+      cwd,
+      experimentConfig: options.experimentConfig,
+    });
 
     return {
       executionErrorCount: summary.executionErrorCount,

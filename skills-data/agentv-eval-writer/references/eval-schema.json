@@ -5144,27 +5144,7 @@
                         "type": "boolean"
                       },
                       "trials": {
-                        "type": "object",
-                        "properties": {
-                          "count": {
-                            "type": "integer",
-                            "minimum": 1
-                          },
-                          "strategy": {
-                            "type": "string",
-                            "enum": ["pass_at_k", "mean", "confidence_interval"]
-                          },
-                          "cost_limit_usd": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "costLimitUsd": {
-                            "type": "number",
-                            "minimum": 0
-                          }
-                        },
-                        "required": ["count"],
-                        "additionalProperties": false
+                        "not": {}
                       },
                       "budget_usd": {
                         "type": "number",
@@ -11736,27 +11716,7 @@
                         "type": "boolean"
                       },
                       "trials": {
-                        "type": "object",
-                        "properties": {
-                          "count": {
-                            "type": "integer",
-                            "minimum": 1
-                          },
-                          "strategy": {
-                            "type": "string",
-                            "enum": ["pass_at_k", "mean", "confidence_interval"]
-                          },
-                          "cost_limit_usd": {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          "costLimitUsd": {
-                            "type": "number",
-                            "minimum": 0
-                          }
-                        },
-                        "required": ["count"],
-                        "additionalProperties": false
+                        "not": {}
                       },
                       "budget_usd": {
                         "type": "number",
@@ -15858,27 +15818,7 @@
               "type": "boolean"
             },
             "trials": {
-              "type": "object",
-              "properties": {
-                "count": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "strategy": {
-                  "type": "string",
-                  "enum": ["pass_at_k", "mean", "confidence_interval"]
-                },
-                "cost_limit_usd": {
-                  "type": "number",
-                  "minimum": 0
-                },
-                "costLimitUsd": {
-                  "type": "number",
-                  "minimum": 0
-                }
-              },
-              "required": ["count"],
-              "additionalProperties": false
+              "not": {}
             },
             "budget_usd": {
               "type": "number",

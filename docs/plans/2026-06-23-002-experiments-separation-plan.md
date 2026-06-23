@@ -13,7 +13,7 @@ AgentV should separate eval task definitions from experiment run definitions.
 Eval YAML stays the canonical authoring layer for prompts, datasets, assertions,
 and task fixtures. Experiments become first-class committed files that select the
 agent or target under test, model, harness options, setup injection, run knobs,
-and eval filter.
+and case filter.
 
 This should ship in phases. Phase 1 adds the non-breaking foundation:
 experiment contract types, default experiment resolution, and artifact
@@ -83,8 +83,9 @@ runtime dependency for this change.
   while docs teach the nested form.
 - KTD4. Experiment `target` and `targets` refer to existing AgentV target names
   and target refs. Provider settings stay in `targets.yaml`.
-- KTD5. `eval.yaml execution` remains valid in Phase 1 and becomes deprecated
-  only after examples and docs have a working experiment equivalent.
+- KTD5. Legacy `eval.yaml execution` remains valid for released fields while
+  examples migrate. The prerelease `execution.trials` field is hard-removed
+  with no alias; run count placement belongs to experiments.
 - KTD6. AgentV adopts Vercel's experiment structure, not the package dependency,
   until a direct adapter has a smaller, reviewed boundary.
 - KTD7. Full experiment fingerprints should include the experiment file contents,
@@ -106,7 +107,7 @@ agent: codex
 model: openai/gpt-5.5
 agent_options:
   reasoning_effort: high
-evals: "evals/**/*.eval.yaml"
+evals: "agent-042-*"
 scripts:
   - build
   - script: bun test
@@ -168,7 +169,9 @@ Later CLI phases should add:
 - `agentv eval --experiment baseline` resolving `experiments/baseline.yaml`
   before falling back to a label.
 - `agentv eval --experiments "experiments/*.yaml"` for matrices.
-- Experiment `evals` filters when no eval paths are provided.
+- Experiment `evals` filters AgentV case IDs. When no eval paths are provided,
+  file discovery uses `.agentv/config.yaml eval_patterns` or AgentV's default
+  eval patterns.
 
 ## Migration Strategy
 
@@ -284,15 +287,17 @@ Files:
 Approach:
 
 Apply experiment fields in precedence order: CLI overrides, explicit experiment,
-legacy eval `execution`, project config defaults. Reuse existing target
-resolution and workspace setup paths. Move setup-owned behavior out of eval docs
-before adding warnings.
+legacy eval `execution` for still-supported fields, project config defaults.
+Reuse existing target resolution and workspace setup paths. Move setup-owned
+behavior out of eval docs before adding warnings. Do not retain
+`execution.trials`; experiments are the only public input path for run counts.
 
 Test Scenarios:
 
 - Experiment `target` selects an existing target from `targets.yaml`.
 - Experiment `targets` drives matrix evaluation.
-- Experiment `evals` selects eval files when no positional eval paths are given.
+- Experiment `evals` selects case IDs; eval file discovery still comes from
+  positional paths, configured `eval_patterns`, or default eval patterns.
 - Experiment setup runs before agent execution and can inject an `AGENTS.md`
   file.
 - Legacy `eval.yaml execution.target` still works when no experiment target is
@@ -338,22 +343,27 @@ Test Scenarios:
 
 - Docs examples use `snake_case` wire fields.
 - Example default experiment runs without explicit `--experiment`.
-- Existing examples continue to run through the compatibility path.
+- Existing examples continue to run through the compatibility path except
+  prerelease `execution.trials`, which is migrated to experiments in this PR.
 
 ## Phase 1 Scope
 
-Phase 1 includes U1, U2, and U3 only.
+The first PR originally targeted U1, U2, and U3. Owner review expanded this
+branch to include native U4/U5 support for experiment resolution, eval
+selection, run knobs, setup/scripts, target reuse, artifact provenance, and the
+pre-stable hard removal of `execution.trials`.
 
-Phase 1 explicitly does not apply `setup`, `scripts`, `runs`, `early_exit`,
-`timeout_seconds`, `target`, `targets`, or `evals` to execution behavior. Those
-fields are parsed and ready for later phases, but current runner semantics stay
-unchanged except for resolving the experiment name.
+The branch now applies `setup`, `scripts`, `runs`, `early_exit`,
+`timeout_seconds`, `target`, `targets`, and `evals` to execution behavior. Matrix
+execution via multiple experiment files remains a later phase.
 
 ## Non-Goals
 
 - Do not replace AgentV's engine with `@vercel/agent-eval`.
 - Do not bulk-edit all examples in the first PR.
-- Do not remove or error on legacy `eval.yaml execution` fields.
+- Do not remove or error on released legacy `eval.yaml execution` fields in this
+  branch. `execution.trials` is intentionally excluded because it is prerelease
+  and has moved to experiments.
 - Do not add a new provider schema inside experiments.
 - Do not implement experiment matrix execution in Phase 1.
 - Do not project AgentV experiments into Phoenix or another external store.

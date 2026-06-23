@@ -12,6 +12,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { traceEnvelopeToTranscriptJsonLines } from '../import/types.js';
+import type { ExperimentArtifactMetadata } from './experiment.js';
 import {
   type ExternalTraceMetadataWire,
   externalTraceMetadataForResult,
@@ -89,7 +90,12 @@ export function deduplicateByTestIdTarget(
 
 export async function aggregateRunDir(
   runDir: string,
-  options?: { evalFile?: string; experiment?: string; plannedTestCount?: number },
+  options?: {
+    evalFile?: string;
+    experiment?: string;
+    plannedTestCount?: number;
+    experimentMetadata?: ExperimentArtifactMetadata;
+  },
 ): Promise<{ benchmarkPath: string; timingPath: string; testCount: number; targetCount: number }> {
   const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
   const content = await readFile(indexPath, 'utf8');
@@ -108,6 +114,7 @@ export async function aggregateRunDir(
     options?.evalFile,
     options?.experiment,
     plannedTestCount,
+    options?.experimentMetadata,
   );
   const benchmarkPath = path.join(runDir, 'benchmark.json');
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
@@ -187,6 +194,7 @@ export interface BenchmarkArtifact {
     readonly targets: readonly string[];
     readonly tests_run: readonly string[];
     readonly experiment?: string;
+    readonly experiment_config?: ExperimentArtifactMetadata;
     readonly planned_test_count?: number;
   };
   readonly run_summary: Record<
@@ -677,6 +685,7 @@ export function buildBenchmarkArtifact(
   evalFile = '',
   experiment?: string,
   plannedTestCount?: number,
+  experimentMetadata?: ExperimentArtifactMetadata,
 ): BenchmarkArtifact {
   const targetSet = new Set<string>();
   const testIdSet = new Set<string>();
@@ -767,6 +776,7 @@ export function buildBenchmarkArtifact(
       targets,
       tests_run: testIds,
       experiment,
+      experiment_config: experimentMetadata,
       planned_test_count: plannedTestCount,
     },
     run_summary: runSummary,
@@ -781,6 +791,7 @@ export async function writeInitialBenchmarkArtifact(
     evalFile: string;
     plannedTestCount: number;
     experiment?: string;
+    experimentMetadata?: ExperimentArtifactMetadata;
   },
 ): Promise<void> {
   await mkdir(runDir, { recursive: true });
@@ -789,6 +800,7 @@ export async function writeInitialBenchmarkArtifact(
     options.evalFile,
     options.experiment,
     options.plannedTestCount,
+    options.experimentMetadata,
   );
   const benchmarkPath = path.join(runDir, 'benchmark.json');
   await writeFile(benchmarkPath, `${JSON.stringify(stub, null, 2)}\n`, 'utf8');
@@ -1610,6 +1622,7 @@ export async function writeArtifactsFromResults(
   options?: {
     evalFile?: string;
     experiment?: string;
+    experimentMetadata?: ExperimentArtifactMetadata;
     plannedTestCount?: number;
     runId?: string;
     duplicatePolicy?: ExportDuplicatePolicy;
@@ -1808,6 +1821,7 @@ export async function writeArtifactsFromResults(
     options?.evalFile,
     options?.experiment,
     plannedTestCount,
+    options?.experimentMetadata,
   );
   await writeFile(benchmarkPath, `${JSON.stringify(benchmark, null, 2)}\n`, 'utf8');
 

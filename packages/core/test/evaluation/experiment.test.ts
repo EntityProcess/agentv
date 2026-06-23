@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  buildExperimentArtifactMetadata,
   deriveExperimentNameFromPath,
   isExperimentFileReference,
   loadExperimentConfig,
@@ -23,6 +24,8 @@ describe('experiment config', () => {
       runs: 3,
       early_exit: false,
       timeout_seconds: 900,
+      workers: 4,
+      budget_usd: 1.25,
       sandbox: 'auto',
       setup: [{ script: 'bun install' }],
     });
@@ -38,6 +41,8 @@ describe('experiment config', () => {
       runs: 3,
       earlyExit: false,
       timeoutSeconds: 900,
+      workers: 4,
+      budgetUsd: 1.25,
       sandbox: 'auto',
       setup: [{ script: 'bun install' }],
     });
@@ -77,6 +82,36 @@ describe('experiment config', () => {
   it('rejects invalid run counts and sandbox values', () => {
     expect(() => normalizeExperimentConfig({ runs: 0 })).toThrow(/runs/);
     expect(() => normalizeExperimentConfig({ sandbox: 'host' })).toThrow(/sandbox/);
+  });
+
+  it('builds safe snake_case artifact metadata', () => {
+    const config = normalizeExperimentConfig({
+      name: 'baseline',
+      target: 'codex',
+      agent_options: { secret: 'not persisted' },
+      setup: [{ script: 'bun install' }],
+      scripts: [{ script: 'bun test' }],
+      runs: 2,
+      early_exit: true,
+      timeout_seconds: 120,
+      workers: 3,
+      budget_usd: 0.5,
+    });
+
+    const metadata = buildExperimentArtifactMetadata(config);
+
+    expect(metadata).toMatchObject({
+      name: 'baseline',
+      target: 'codex',
+      runs: 2,
+      early_exit: true,
+      timeout_seconds: 120,
+      workers: 3,
+      budget_usd: 0.5,
+    });
+    expect(metadata).not.toHaveProperty('agent_options');
+    expect(metadata).not.toHaveProperty('setup');
+    expect(metadata).not.toHaveProperty('scripts');
   });
 
   it('detects experiment file references separately from labels', () => {

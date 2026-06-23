@@ -17,7 +17,7 @@ That conflates two concerns:
   required by the task, and assertions or graders.
 - The experiment is the run contract: which agent or target is under test, which
   model and harness are used, how many runs to execute, what setup is injected,
-  and which evals are selected.
+  and which eval cases are selected.
 
 The public Vercel `agent-eval` ecosystem is a useful reference point. The
 `vercel/next.js` evals keep task fixtures under `evals/`, while experiments are
@@ -44,7 +44,7 @@ criteria belong here.
 
 An experiment is a committed or generated run definition. It declares which
 agent, target, provider, model, harness options, setup steps, run count, timeout,
-sandbox, and eval selector are used. Setup that changes the system under test,
+sandbox, and case selector are used. Setup that changes the system under test,
 such as installing dependencies or dropping an `AGENTS.md` or skill file, belongs
 here because it is an A/B variable.
 
@@ -70,7 +70,7 @@ as the power-user escape hatch:
 name: copilot-gpt55-withskill
 target: copilot-gpt55
 model: openai/gpt-5.5
-evals: "evals/**/*.eval.yaml"
+evals: "agent-042-*"
 scripts:
   - build
 runs: 3
@@ -95,15 +95,15 @@ uses the `default` experiment label. Existing `eval.yaml`-only repositories
 remain valid.
 
 Legacy `eval.yaml execution` fields that select targets, targets matrices,
-workers, cache, trials, budget, thresholds, and workspace runtime behavior will
-continue to parse. The migration path is additive first: experiment config
-becomes the preferred source, while legacy fields remain a compatibility shim
-until docs and examples have moved.
+workers, cache, budget, thresholds, and workspace runtime behavior will
+continue to parse as a compatibility shim until docs and examples have moved.
+The prerelease `execution.trials` surface is hard-removed with no alias: run
+counts live on the experiment as `runs`/`early_exit`.
 
 AgentV should adopt Vercel's structure and lowest-common-denominator contract
 ideas, not depend on `@vercel/agent-eval` as core infrastructure in this phase.
 The package's `ExperimentConfig` shape is a strong public reference for
-experiment vocabulary: agent, model, agent options, eval filter, scripts, runs,
+experiment vocabulary: agent, model, agent options, case filter, scripts, runs,
 early exit, timeout, sandbox, and setup. A direct dependency would force AgentV
 to absorb Vercel's fixture model, sandbox assumptions, result caching semantics,
 and TypeScript-first authoring story before those boundaries are stable for

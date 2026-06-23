@@ -20,7 +20,6 @@ import {
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
-  extractTrialsConfig,
   extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
@@ -56,7 +55,6 @@ import type {
   RepoConfig,
   TestMessage,
   TestMessageContent,
-  TrialsConfig,
   TurnFailurePolicy,
   WorkspaceConfig,
   WorkspaceEnvConfig,
@@ -79,7 +77,6 @@ export {
   extractTargetsFromSuite,
   extractTargetsFromTestCase,
   extractThreshold,
-  extractTrialsConfig,
   extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
@@ -237,7 +234,6 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
   target?: string;
   targets?: readonly string[];
   targetRefs?: readonly import('./types.js').EvalTargetRef[];
-  trials?: TrialsConfig;
 }> {
   try {
     const absolutePath = path.resolve(testFilePath);
@@ -252,7 +248,6 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
       target: extractTargetFromSuite(parsed),
       targets: extractTargetsFromSuite(parsed),
       targetRefs: extractTargetRefsFromSuite(parsed),
-      trials: extractTrialsConfig(parsed),
     };
   } catch {
     return {};
@@ -265,7 +260,6 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
  */
 export type EvalSuiteResult = {
   readonly tests: readonly EvalTest[];
-  readonly trials?: TrialsConfig;
   /** Suite-level targets from execution.targets (matrix evaluation) */
   readonly targets?: readonly string[];
   /** Suite-level target refs with hooks from execution.targets (object form) */
@@ -736,7 +730,6 @@ function buildEvalSuiteResult(
 
   return {
     tests,
-    trials: extractTrialsConfig(parsed),
     targets: extractTargetsFromSuite(parsed),
     targetRefs: extractTargetRefsFromSuite(parsed),
     workers: extractWorkersFromSuite(parsed),
