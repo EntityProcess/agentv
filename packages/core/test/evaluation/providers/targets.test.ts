@@ -1406,6 +1406,65 @@ describe('createProvider', () => {
     expect(resolved.config.apiKey).toBe('azure-secret');
   });
 
+  it('normalizes pi-cli openai base_url targets to azure for PI CLI compatibility', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-cli-openai-compatible',
+        provider: 'pi-cli',
+        subprovider: 'openai',
+        base_url: 'http://127.0.0.1:10531/v1',
+        api_key: '${{ OPENAI_API_KEY }}',
+        model: 'gpt-5.3-codex-spark',
+      },
+      { OPENAI_API_KEY: 'local-key' },
+    );
+
+    expect(resolved.kind).toBe('pi-cli');
+    if (resolved.kind !== 'pi-cli') throw new Error('expected pi-cli');
+    expect(resolved.config.subprovider).toBe('azure');
+    expect(resolved.config.baseUrl).toBe('http://127.0.0.1:10531/v1');
+    expect(resolved.config.apiKey).toBe('local-key');
+  });
+
+  it('defaults pi-cli base_url targets to azure when subprovider is omitted', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-cli-local-endpoint',
+        provider: 'pi-cli',
+        base_url: '${{ AGENTV_OPENAI_BASE_URL }}',
+        api_key: '${{ AGENTV_OPENAI_API_KEY }}',
+        model: 'gpt-5.3-codex-spark',
+      },
+      {
+        AGENTV_OPENAI_BASE_URL: 'http://127.0.0.1:10531/v1',
+        AGENTV_OPENAI_API_KEY: 'local-key',
+      },
+    );
+
+    expect(resolved.kind).toBe('pi-cli');
+    if (resolved.kind !== 'pi-cli') throw new Error('expected pi-cli');
+    expect(resolved.config.subprovider).toBe('azure');
+    expect(resolved.config.baseUrl).toBe('http://127.0.0.1:10531/v1');
+  });
+
+  it('keeps pi-cli openai targets on openai when no base_url is configured', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-cli-openai',
+        provider: 'pi-cli',
+        subprovider: 'openai',
+        api_key: '${{ OPENAI_API_KEY }}',
+        model: 'gpt-4o',
+      },
+      { OPENAI_API_KEY: 'real-openai-key' },
+    );
+
+    expect(resolved.kind).toBe('pi-cli');
+    if (resolved.kind !== 'pi-cli') throw new Error('expected pi-cli');
+    expect(resolved.config.subprovider).toBe('openai');
+    expect(resolved.config.baseUrl).toBeUndefined();
+  });
+
   it('resolves pi-cli thinking level from env-backed config', () => {
     const resolved = resolveTargetDefinition(
       {

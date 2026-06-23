@@ -1940,6 +1940,7 @@ function resolvePiCliConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
+  const piCliSubprovider = normalizePiCliSubprovider(subprovider, baseUrl);
 
   const tools = resolveOptionalString(toolsSource, env, `${target.name} pi-cli tools`, {
     allowLiteral: true,
@@ -1976,7 +1977,7 @@ function resolvePiCliConfig(
 
   return {
     executable,
-    subprovider,
+    subprovider: piCliSubprovider,
     model,
     apiKey,
     baseUrl,
@@ -1990,6 +1991,20 @@ function resolvePiCliConfig(
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
+}
+
+function normalizePiCliSubprovider(
+  subprovider: string | undefined,
+  baseUrl: string | undefined,
+): string | undefined {
+  if (!baseUrl) return subprovider;
+  if (!subprovider || subprovider.toLowerCase() === 'openai') {
+    // PI CLI's OpenAI provider treats --api-key as a real OpenAI key path.
+    // OpenAI-compatible endpoints work reliably through its Azure provider,
+    // which accepts full endpoint URLs via AZURE_OPENAI_BASE_URL.
+    return 'azure';
+  }
+  return subprovider;
 }
 
 function resolveClaudeConfig(

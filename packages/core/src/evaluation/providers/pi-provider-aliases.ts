@@ -9,8 +9,10 @@
  * (openai-responses) since v1 endpoints don't accept api-version params.
  * Without base_url, uses the native azure-openai-responses provider.
  *
- * **pi CLI:** Always uses azure-openai-responses with AZURE_OPENAI_RESOURCE_NAME.
- * The CLI's azure provider builds the correct URL internally.
+ * **pi CLI:** Uses azure-openai-responses for Azure and OpenAI-compatible
+ * endpoint overrides. The CLI's Azure provider accepts full endpoint URLs via
+ * AZURE_OPENAI_BASE_URL, while its OpenAI provider treats --api-key as the
+ * hosted OpenAI path.
  */
 
 /** Short alias → pi-ai SDK provider name (when no base_url override). */
