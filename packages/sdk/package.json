@@ -1,6 +1,6 @@
 {
   "name": "@agentv/sdk",
-  "version": "4.42.4",
+  "version": "4.43.0-next.1",
   "description": "Evaluation SDK for AgentV - build custom code judges",
   "type": "module",
   "repository": {
@@ -33,7 +33,7 @@
   },
   "files": ["dist", "README.md"],
   "dependencies": {
-    "@agentv/core": "4.42.4",
+    "@agentv/core": "4.43.0-next.1",
     "yaml": "^2.8.3",
     "zod": "^3.23.8"
   }
