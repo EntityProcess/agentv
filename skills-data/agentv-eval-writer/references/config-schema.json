@@ -66,6 +66,22 @@
         }
       },
       "additionalProperties": false
+    },
+    "git_cache": {
+      "type": "object",
+      "description": "Local mirror configuration for workspace repo materialization. Mirrors are an optimization: when a repo's mirror path exists locally, AgentV materializes the pinned commit from it instead of cloning from GitHub. Resolvable from three layers, highest precedence first: the project-local '.agentv/config.override.yaml' (intended to be gitignored, for machine-specific paths), the committed project '.agentv/config.yaml', then the user-global '$AGENTV_HOME/config.yaml'. Higher layers override lower ones by normalized repo identity.",
+      "properties": {
+        "mirrors": {
+          "type": "object",
+          "description": "Map of repo identity (full clone URL or 'org/name' shorthand) to a local clone path used as a mirror. If the path is absent at runtime, AgentV falls back to cloning from GitHub with configured credentials.",
+          "additionalProperties": {
+            "type": "string",
+            "description": "Local path to a clone of the repo (supports '~' home expansion)."
+          },
+          "examples": [{ "https://github.com/org/repo.git": "/path/to/local/repo" }]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "definitions": {

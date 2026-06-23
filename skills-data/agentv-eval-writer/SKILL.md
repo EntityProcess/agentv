@@ -318,7 +318,7 @@ For SWE-bench-style evals, keep operational checkout state under `workspace.repo
 
 ### Repository Lifecycle
 
-Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from registered projects, `git_cache.mirrors`, its mirror cache, then remote clone. For shared repo workspaces, pooling is the default:
+Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from registered projects, `git_cache.mirrors`, its mirror cache, then remote clone. `git_cache.mirrors` may be defined in `$AGENTV_HOME/config.yaml`, the project's committed `.agentv/config.yaml`, or a gitignored `.agentv/config.override.yaml` (highest precedence) — use the override for machine-specific local clone paths without editing tracked or user-global config. For shared repo workspaces, pooling is the default:
 
 ```yaml
 workspace:

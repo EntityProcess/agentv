@@ -395,7 +395,7 @@ export async function prepareSharedWorkspaceSetup(
       const slotsNeeded = workers;
       setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
       poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
-      const poolRepoManager = new RepoManager(verbose);
+      const poolRepoManager = new RepoManager(verbose, { projectConfigDir: evalDir });
       repoManager = poolRepoManager;
 
       for (let i = 0; i < slotsNeeded; i++) {
@@ -459,7 +459,9 @@ export async function prepareSharedWorkspaceSetup(
       hasReposToMaterialize && useStaticWorkspace && !staticMaterialised && isYamlConfiguredPath;
     repoManager =
       repoManager ??
-      (needsRepoMaterialisation || needsPerRepoCheck ? new RepoManager(verbose) : undefined);
+      (needsRepoMaterialisation || needsPerRepoCheck
+        ? new RepoManager(verbose, { projectConfigDir: evalDir })
+        : undefined);
 
     if (
       (needsRepoMaterialisation || needsPerRepoCheck) &&
@@ -857,7 +859,7 @@ export async function prepareEvalCaseWorkspace(
     }
 
     if (evalCase.workspace?.repos?.length && workspacePath) {
-      const perCaseRepoManager = new RepoManager(setupDebug);
+      const perCaseRepoManager = new RepoManager(setupDebug, { projectConfigDir: evalDir });
       try {
         if (setupDebug) {
           console.log(
