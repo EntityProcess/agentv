@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import type { TrialStrategy } from './types.js';
 import { parseYamlValue } from './yaml-loader.js';
 
 export type ExperimentSandbox = 'auto' | 'docker' | 'vercel';
@@ -44,6 +45,19 @@ export type ExperimentScript = {
 export type ExperimentSetupFn = (sandbox: unknown) => void | Promise<void>;
 export type ExperimentSetup = readonly ExperimentScript[] | ExperimentSetupFn;
 
+export type ExperimentRepeatWire = {
+  readonly count?: number;
+  readonly strategy?: TrialStrategy;
+  readonly cost_limit_usd?: number;
+  readonly costLimitUsd?: number;
+};
+
+export type ExperimentRepeat = {
+  readonly count: number;
+  readonly strategy: TrialStrategy;
+  readonly costLimitUsd?: number;
+};
+
 export type ExperimentConfigWire = {
   readonly name?: string;
   readonly agent?: string;
@@ -53,6 +67,7 @@ export type ExperimentConfigWire = {
   readonly agent_options?: Record<string, unknown>;
   readonly evals?: string | readonly string[];
   readonly scripts?: readonly ExperimentScriptWire[];
+  readonly repeat?: ExperimentRepeatWire;
   readonly runs?: number;
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
@@ -72,6 +87,7 @@ export type ExperimentConfig = {
   readonly agentOptions?: Record<string, unknown>;
   readonly evals?: string | readonly string[];
   readonly scripts?: readonly ExperimentScript[];
+  readonly repeat?: ExperimentRepeat;
   readonly runs?: number;
   readonly earlyExit?: boolean;
   readonly timeoutSeconds?: number;
@@ -93,6 +109,11 @@ export type ExperimentArtifactMetadata = {
   readonly targets?: readonly string[];
   readonly model?: string;
   readonly evals?: string | readonly string[];
+  readonly repeat?: {
+    readonly count: number;
+    readonly strategy: TrialStrategy;
+    readonly cost_limit_usd?: number;
+  };
   readonly runs?: number;
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
@@ -107,6 +128,11 @@ type NormalizeOptions = {
 
 const EXPERIMENT_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.ts', '.js', '.mts', '.mjs']);
 const VALID_SANDBOXES: ReadonlySet<string> = new Set(['auto', 'docker', 'vercel']);
+const VALID_REPEAT_STRATEGIES: ReadonlySet<string> = new Set([
+  'pass_at_k',
+  'mean',
+  'confidence_interval',
+]);
 
 export function isExperimentFileReference(value: string): boolean {
   const trimmed = value.trim();
@@ -163,7 +189,11 @@ export function normalizeExperimentConfig(
   const agentOptions = readOptionalRecord(rawConfig.agent_options ?? rawConfig.agentOptions);
   const evals = readOptionalStringOrStringArray(rawConfig.evals, 'evals');
   const scripts = readScriptArray(rawConfig.scripts, 'scripts');
+  const repeat = readRepeat(rawConfig.repeat);
   const runs = readOptionalPositiveInteger(rawConfig.runs, 'runs');
+  if (repeat !== undefined && runs !== undefined) {
+    throw new Error('Experiment repeat and runs cannot both be set. Use repeat for AgentV config.');
+  }
   const earlyExit = readOptionalBoolean(rawConfig.early_exit ?? rawConfig.earlyExit, 'early_exit');
   const timeoutSeconds = readOptionalPositiveNumber(
     rawConfig.timeout_seconds ?? rawConfig.timeoutSeconds,
@@ -187,6 +217,7 @@ export function normalizeExperimentConfig(
     ...(agentOptions !== undefined && { agentOptions }),
     ...(evals !== undefined && { evals }),
     ...(scripts !== undefined && { scripts }),
+    ...(repeat !== undefined && { repeat }),
     ...(runs !== undefined && { runs }),
     ...(earlyExit !== undefined && { earlyExit }),
     ...(timeoutSeconds !== undefined && { timeoutSeconds }),
@@ -227,12 +258,42 @@ export function buildExperimentArtifactMetadata(
     ...(targets && targets.length > 0 && { targets }),
     ...(config.model !== undefined && { model: config.model }),
     ...(config.evals !== undefined && { evals: config.evals }),
+    ...(config.repeat !== undefined && {
+      repeat: {
+        count: config.repeat.count,
+        strategy: config.repeat.strategy,
+        ...(config.repeat.costLimitUsd !== undefined && {
+          cost_limit_usd: config.repeat.costLimitUsd,
+        }),
+      },
+    }),
     ...(config.runs !== undefined && { runs: config.runs }),
     ...(config.earlyExit !== undefined && { early_exit: config.earlyExit }),
     ...(config.timeoutSeconds !== undefined && { timeout_seconds: config.timeoutSeconds }),
     ...(config.workers !== undefined && { workers: config.workers }),
     ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
     ...(config.sandbox !== undefined && { sandbox: config.sandbox }),
+  };
+}
+
+function readRepeat(raw: unknown): ExperimentRepeat | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!isRecord(raw)) {
+    throw new Error('Experiment repeat must be an object.');
+  }
+  const count = readRequiredPositiveInteger(raw.count, 'repeat.count');
+  const strategy = readOptionalRepeatStrategy(raw.strategy);
+  const costLimitUsd = readOptionalNonNegativeNumber(
+    raw.cost_limit_usd ?? raw.costLimitUsd,
+    'repeat.cost_limit_usd',
+  );
+
+  return {
+    count,
+    strategy: strategy ?? 'pass_at_k',
+    ...(costLimitUsd !== undefined && { costLimitUsd }),
   };
 }
 
@@ -381,6 +442,14 @@ function readRequiredString(raw: unknown, location: string): string {
   return value;
 }
 
+function readRequiredPositiveInteger(raw: unknown, location: string): number {
+  const value = readOptionalPositiveInteger(raw, location);
+  if (value === undefined) {
+    throw new Error(`Experiment ${location} is required.`);
+  }
+  return value;
+}
+
 function readOptionalBoolean(raw: unknown, location: string): boolean | undefined {
   if (raw === undefined) {
     return undefined;
@@ -391,12 +460,34 @@ function readOptionalBoolean(raw: unknown, location: string): boolean | undefine
   return raw;
 }
 
+function readOptionalRepeatStrategy(raw: unknown): TrialStrategy | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== 'string' || !VALID_REPEAT_STRATEGIES.has(raw)) {
+    throw new Error(
+      "Experiment repeat.strategy must be one of 'pass_at_k', 'mean', or 'confidence_interval'.",
+    );
+  }
+  return raw as TrialStrategy;
+}
+
 function readOptionalPositiveInteger(raw: unknown, location: string): number | undefined {
   if (raw === undefined) {
     return undefined;
   }
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1) {
     throw new Error(`Experiment ${location} must be a positive integer.`);
+  }
+  return raw;
+}
+
+function readOptionalNonNegativeNumber(raw: unknown, location: string): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+    throw new Error(`Experiment ${location} must be a non-negative number.`);
   }
   return raw;
 }

@@ -82,7 +82,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [matrix-evaluation](matrix-evaluation/) | Run the same tests against multiple targets and display a score matrix |
 | [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv compare` cross-model score matrix |
-| [trials](trials/) | Repeat each test N times with `pass@k` strategy to handle non-determinism |
+| [trials](trials/) | Configure experiment-level repeat runs with `pass_at_k`, `mean`, or `confidence_interval` |
 | [trial-output-consistency](trial-output-consistency/) | Measure output consistency across trials using pairwise cosine similarity |
 | [compare](compare/) | Compare a run against a stored baseline |
 

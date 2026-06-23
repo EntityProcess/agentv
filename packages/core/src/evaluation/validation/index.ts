@@ -3,6 +3,7 @@
  */
 
 export { detectFileType, isValidSchema, getExpectedSchema } from './file-type.js';
+export { ExperimentFileSchema } from './experiment-file.schema.js';
 export { validateEvalFile } from './eval-validator.js';
 export { validateCasesFile } from './cases-validator.js';
 export { validateTargetsFile } from './targets-validator.js';

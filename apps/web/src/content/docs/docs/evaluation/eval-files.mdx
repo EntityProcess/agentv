@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, targets, and graders for an evaluation run. AgentV supports two formats: YAML and JSONL.
+Evaluation files define the test cases and graders for an evaluation run. Runtime choices such as target matrices, setup, scripts, and repeat runs belong in [experiments](/docs/evaluation/experiments/). AgentV supports two eval formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 

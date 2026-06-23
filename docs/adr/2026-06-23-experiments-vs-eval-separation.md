@@ -73,7 +73,10 @@ model: openai/gpt-5.5
 evals: "agent-042-*"
 scripts:
   - build
-runs: 3
+repeat:
+  count: 3
+  strategy: pass_at_k
+  cost_limit_usd: 2.00
 early_exit: false
 timeout_seconds: 900
 sandbox: auto
@@ -98,7 +101,8 @@ Legacy `eval.yaml execution` fields that select targets, targets matrices,
 workers, cache, budget, thresholds, and workspace runtime behavior will
 continue to parse as a compatibility shim until docs and examples have moved.
 The prerelease `execution.trials` surface is hard-removed with no alias: run
-counts live on the experiment as `runs`/`early_exit`.
+counts live on the experiment as canonical `repeat` config, with Vercel-style
+`runs`/`early_exit` accepted as shorthand for `pass_at_k`.
 
 AgentV should adopt Vercel's structure and lowest-common-denominator contract
 ideas, not depend on `@vercel/agent-eval` as core infrastructure in this phase.

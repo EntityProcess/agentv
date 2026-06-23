@@ -690,13 +690,26 @@ function buildExperimentTargetRefs(
 }
 
 function buildExperimentTrialsConfig(experiment: ExperimentConfig): TrialsConfig | undefined {
+  if (experiment.repeat) {
+    if (experiment.repeat.count <= 1) {
+      return undefined;
+    }
+    return {
+      count: experiment.repeat.count,
+      strategy: experiment.repeat.strategy,
+      ...(experiment.repeat.costLimitUsd !== undefined && {
+        costLimitUsd: experiment.repeat.costLimitUsd,
+      }),
+      ...(experiment.earlyExit !== undefined && { earlyExit: experiment.earlyExit }),
+    };
+  }
   if (!experiment.runs || experiment.runs <= 1) {
     return undefined;
   }
   return {
     count: experiment.runs,
     strategy: 'pass_at_k',
-    earlyExit: experiment.earlyExit ?? false,
+    ...(experiment.earlyExit !== undefined && { earlyExit: experiment.earlyExit }),
   };
 }
 

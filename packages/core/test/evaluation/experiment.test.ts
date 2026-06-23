@@ -49,6 +49,37 @@ describe('experiment config', () => {
     expect(config.fingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('normalizes experiment-level repeat config with legacy trial strategy parity', () => {
+    const config = normalizeExperimentConfig({
+      repeat: {
+        count: 4,
+        strategy: 'confidence_interval',
+        cost_limit_usd: 0,
+      },
+    });
+
+    expect(config.repeat).toEqual({
+      count: 4,
+      strategy: 'confidence_interval',
+      costLimitUsd: 0,
+    });
+  });
+
+  it('accepts the prerelease trials costLimitUsd spelling only inside repeat', () => {
+    const config = normalizeExperimentConfig({
+      repeat: {
+        count: 2,
+        costLimitUsd: 1.5,
+      },
+    });
+
+    expect(config.repeat).toEqual({
+      count: 2,
+      strategy: 'pass_at_k',
+      costLimitUsd: 1.5,
+    });
+  });
+
   it('loads a YAML experiment file', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-experiment-'));
     try {
@@ -81,6 +112,16 @@ describe('experiment config', () => {
 
   it('rejects invalid run counts and sandbox values', () => {
     expect(() => normalizeExperimentConfig({ runs: 0 })).toThrow(/runs/);
+    expect(() => normalizeExperimentConfig({ repeat: {} })).toThrow(/repeat.count/);
+    expect(() =>
+      normalizeExperimentConfig({ repeat: { count: 2, strategy: 'median' } }),
+    ).toThrow(/repeat.strategy/);
+    expect(() =>
+      normalizeExperimentConfig({ repeat: { count: 2, cost_limit_usd: -1 } }),
+    ).toThrow(/repeat.cost_limit_usd/);
+    expect(() => normalizeExperimentConfig({ repeat: { count: 2 }, runs: 2 })).toThrow(
+      /repeat and runs/,
+    );
     expect(() => normalizeExperimentConfig({ sandbox: 'host' })).toThrow(/sandbox/);
   });
 
@@ -91,11 +132,10 @@ describe('experiment config', () => {
       agent_options: { secret: 'not persisted' },
       setup: [{ script: 'bun install' }],
       scripts: [{ script: 'bun test' }],
-      runs: 2,
+      repeat: { count: 2, strategy: 'mean', cost_limit_usd: 0.5 },
       early_exit: true,
       timeout_seconds: 120,
       workers: 3,
-      budget_usd: 0.5,
     });
 
     const metadata = buildExperimentArtifactMetadata(config);
@@ -103,11 +143,14 @@ describe('experiment config', () => {
     expect(metadata).toMatchObject({
       name: 'baseline',
       target: 'codex',
-      runs: 2,
+      repeat: {
+        count: 2,
+        strategy: 'mean',
+        cost_limit_usd: 0.5,
+      },
       early_exit: true,
       timeout_seconds: 120,
       workers: 3,
-      budget_usd: 0.5,
     });
     expect(metadata).not.toHaveProperty('agent_options');
     expect(metadata).not.toHaveProperty('setup');

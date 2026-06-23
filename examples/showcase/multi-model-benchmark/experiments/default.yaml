@@ -9,6 +9,7 @@ evals:
   - analytical-comparison
   - creative-explanation
   - structured-list
-runs: 2
-early_exit: true
-budget_usd: 2.00
+repeat:
+  count: 2
+  strategy: pass_at_k
+  cost_limit_usd: 2.00

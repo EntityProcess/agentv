@@ -153,7 +153,7 @@ Public docs and implementation notes must not reference non-public sources. If a
 - KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json` and `run-N/` directories so existing aggregate consumers do not inflate case counts.
 - KTD4. Single-run cases keep direct case-local files instead of always nesting under `run-1`. This preserves the simple default artifact shape and makes `.agentv/results/<experiment>/<timestamp>/<case-id>/grading.json` easy to inspect. Repeat-enabled cases use `run-1/`, `run-2/`, and so on under the case directory.
 - KTD5. Write `summary.json` for every case after the artifact-layout migration. In a single-run case it summarizes the direct files; in a repeat-run case it summarizes the `run-N/` children.
-- KTD6. Default repeat reporting uses full sampling with no early exit. Early exit saves cost but biases reliability statistics, so it should be explicit and recorded.
+- KTD6. `pass_at_k` keeps the existing AgentV/Vercel ergonomics: early exit is enabled unless explicitly disabled. Full reliability sampling requires `early_exit: false` on the experiment and should be recorded because it changes cost and statistics.
 - KTD7. Do not inherit Vercel's implicit CI ambiguity. All policies that can make one failed plus one passed attempt count as passing must be visible in config and artifacts.
 - KTD8. Reuse current failure classification fields before adding new enums. Add aggregate classification fields only after mapping from `execution_status`, `failure_stage`, and `failure_reason_code` proves insufficient.
 - KTD9. Do not reuse `pass_rate` for attempt success frequency. AgentV uses `attempt_success_rate` for repeat-run reliability and reserves `pass_rate` for assertion or expectation pass rate.
@@ -187,42 +187,45 @@ The runner executes the configured attempts, writes attempt artifacts, computes 
 Preferred v1 shape:
 
 ```yaml
-execution:
-  repeat:
-    runs: 3
-    seed: 1234
-    max_parallel_attempts: 1
-    timeout_ms: 300000
-    budget_usd: 5
-    early_exit: never
-    retry:
-      max_attempts: 1
-      on:
-        - verifier_error
-        - infrastructure_error
-        - timeout
-    gate:
-      policy: attempt_success_rate_at_least
-      threshold: 0.8
+repeat:
+  count: 3
+  strategy: pass_at_k
+  cost_limit_usd: 5
+  seed: 1234
+  max_parallel_attempts: 1
+  timeout_ms: 300000
+  early_exit: never
+  retry:
+    max_attempts: 1
+    on:
+      - verifier_error
+      - infrastructure_error
+      - timeout
+  gate:
+    policy: attempt_success_rate_at_least
+    threshold: 0.8
 ```
 
 Field notes:
 
-- `runs` is the planned reliability sample count. Missing or `1` means normal single-run behavior.
-- `max_attempts` belongs to retry handling, not reliability sampling. For example, `runs: 3` with `retry.max_attempts: 1` may write up to six physical attempts, but only the three counted attempts feed reliability stats.
-- `early_exit` starts with `never`, `on_gate_satisfied`, and `on_gate_failed`. Reliability reports should default to `never`.
+- `count` is the planned reliability sample count. Missing repeat config or `count: 1` means normal single-run behavior.
+- `strategy` starts with the existing AgentV aggregation strategies: `pass_at_k`, `mean`, and `confidence_interval`.
+- `max_attempts` belongs to retry handling, not reliability sampling. For example, `count: 3` with `retry.max_attempts: 1` may write up to six physical attempts, but only the three counted attempts feed reliability stats.
+- `early_exit` should be represented by the experiment-level boolean in the native experiments branch. Future gate-aware modes such as `never`, `on_gate_satisfied`, and `on_gate_failed` remain non-goals until gate policies are implemented.
 - `seed` is best effort. Providers that support deterministic seeds receive a per-attempt seed derived from the base seed and attempt number; providers that do not support seeds record `seed_unsupported`.
-- `budget_usd` composes with existing run-level budget controls and stops new attempts when the budget is exhausted.
+- `cost_limit_usd` composes with existing run-level budget controls and stops new attempts when the repeat budget is exhausted.
 
 Migration from `execution.trials` (hard removal, no alias):
 
 `execution.trials` is removed from `eval.yaml` outright; the repeat block lives on the experiment instead. Existing semantics map as follows so any prerelease evals can be ported by hand:
 
-- `trials.count` maps to the experiment repeat `runs`.
-- `trials.cost_limit_usd` maps to repeat `budget_usd`.
-- `trials.strategy: pass_at_k` maps to repeat `gate.policy: any_attempt_successful` (with `early_exit: on_gate_satisfied`).
-- `trials.strategy: mean` maps to `mean_score_at_least` only when a threshold is present; otherwise it is report-only aggregation.
-- `trials.strategy: confidence_interval` remains report-only until AgentV has a reviewed CI policy for confidence bounds.
+- `trials.count` maps to `repeat.count`.
+- `trials.cost_limit_usd` maps to `repeat.cost_limit_usd`.
+- `trials.costLimitUsd` is accepted only as `repeat.costLimitUsd` for prerelease parity; new YAML should use `cost_limit_usd`.
+- `trials.strategy: pass_at_k` maps to `repeat.strategy: pass_at_k`.
+- `trials.strategy: mean` maps to `repeat.strategy: mean`.
+- `trials.strategy: confidence_interval` maps to `repeat.strategy: confidence_interval`.
+- Existing gate-policy ideas remain future work; do not overload `strategy` to imply CI policy.
 
 ---
 
@@ -432,13 +435,13 @@ Search behavior:
 
 Repeat runs can multiply provider spend. V1 should ship with conservative controls:
 
-- `runs` and retry `max_attempts` must be bounded by validation.
+- `repeat.count` and retry `max_attempts` must be bounded by validation.
 - `max_parallel_attempts` limits per-case concurrent attempts; it composes with existing eval workers and provider-specific concurrency guidance.
 - Agent-provider targets should keep the existing "limit concurrency to 3 targets" operational guidance.
-- `budget_usd` stops scheduling new attempts when exceeded and records `budget_exceeded`.
+- `repeat.cost_limit_usd` stops scheduling new attempts when exceeded and records `budget_exceeded`.
 - `timeout_ms` applies per attempt; existing top-level agent timeout remains the default if no repeat timeout is set.
-- `early_exit` must be explicit and recorded in `summary.json`.
-- Cache should be disabled or scoped by attempt when repeat runs measure stochastic behavior. Existing code already disables cache for `trials.count > 1`; keep that principle.
+- `early_exit` must be recorded in `summary.json` when it differs from the default.
+- Cache should be disabled or scoped by attempt when repeat runs measure stochastic behavior. Existing code already disables cache for repeated attempts; keep that principle.
 - Provider seed support is best effort and must be recorded per attempt so deterministic and stochastic runs are distinguishable.
 
 ---
@@ -453,17 +456,17 @@ Repeat runs can multiply provider spend. V1 should ship with conservative contro
 
 **Bead:** `av-i0l.1`.
 
-**Files:** `packages/core/src/evaluation/types.ts`, `packages/core/src/evaluation/loaders/config-loader.ts`, `packages/core/src/evaluation/validation/eval-file.schema.ts`, `packages/core/scripts/generate-eval-schema.ts`, `packages/core/test/evaluation/loaders/config-loader.test.ts`, `packages/core/test/evaluation/validation/eval-file-schema.test.ts`.
+**Files:** `packages/core/src/evaluation/types.ts`, `packages/core/src/evaluation/experiment.ts`, `packages/core/src/evaluation/validation/experiment-file.schema.ts`, `packages/core/scripts/generate-eval-schema.ts`, `packages/core/test/evaluation/experiment.test.ts`, `packages/core/test/evaluation/validation/eval-schema-sync.test.ts`.
 
 **Approach:** Add the repeat block as a narrow schema on the **experiment** surface (delivered by `av-991`) and normalize it into internal camelCase. **Hard-remove** `execution.trials` from `eval.yaml` as prerelease cleanup (no legacy alias); port any existing usage by hand using the mapping above.
 
 **Test Scenarios:**
 
-- Valid `repeat.runs: 3` parses into internal repeat config with no gate policy.
-- Invalid `runs`, `threshold`, `max_parallel_attempts`, and retry values are rejected or warned consistently with existing config parsing.
+- Valid `repeat.count: 3` parses into internal repeat config with no gate policy.
+- Invalid `repeat.count`, `threshold`, `max_parallel_attempts`, and retry values are rejected or warned consistently with existing config parsing.
 - `all_attempts_successful`, `any_attempt_successful`, `attempt_success_rate_at_least`, and `mean_pass_rate_at_least` validate; `mean_score_at_least` validates only if included in v1.
-- Legacy `trials` input maps or fails according to the chosen compatibility decision.
-- Generated eval schema stays in sync.
+- Legacy eval-level `trials` input fails; the compatibility path is explicit hand migration to experiment `repeat`.
+- Generated experiment schema stays in sync.
 
 **Verification:** Schema tests pass and docs/examples can reference the accepted YAML shape.
 
@@ -564,8 +567,8 @@ Repeat runs can multiply provider spend. V1 should ship with conservative contro
 | --- | --- |
 | Hidden CI behavior diverges across commands | Route every repeat-run gate through one policy evaluator and test CLI command paths against the same cases |
 | Repeat attempts inflate run counts in trend/compare views | Keep one aggregate row per case/target in top-level `index.jsonl` |
-| Early exit biases reliability reports | Default to `early_exit: never`, record early-exit mode, and label incomplete samples |
-| Existing `trials` behavior conflicts with the new contract | Decide compatibility first in `av-i0l.1`; do not keep two public names with different semantics |
+| Early exit biases reliability reports | Keep pass-at-k early exit compatible by default, require `early_exit: false` for full sampling, and label incomplete samples |
+| Existing `trials` behavior conflicts with the new contract | Hard-remove eval-level `execution.trials`; preserve its strategies and cost cap only through experiment `repeat` |
 | Attempt artifacts make rows too large | Keep only compact attempt references in `index.jsonl`; move large attempt indexes to case-local sidecars |
 | Artifact-layout migration lands concurrently | Depend on shared layout helpers and do not edit the `artifact-results-layout` branch from this worktree |
 

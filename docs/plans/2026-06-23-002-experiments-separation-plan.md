@@ -85,12 +85,12 @@ runtime dependency for this change.
   and target refs. Provider settings stay in `targets.yaml`.
 - KTD5. Legacy `eval.yaml execution` remains valid for released fields while
   examples migrate. The prerelease `execution.trials` field is hard-removed
-  with no alias; run count placement belongs to experiments.
+  with no alias; repeat/run-count placement belongs to experiments.
 - KTD6. AgentV adopts Vercel's experiment structure, not the package dependency,
   until a direct adapter has a smaller, reviewed boundary.
 - KTD7. Full experiment fingerprints should include the experiment file contents,
-  selected eval source, setup-relevant fields, scripts, runs, timeout, sandbox,
-  and target references.
+  selected eval source, setup-relevant fields, scripts, repeat config, timeout,
+  sandbox, and target references.
 
 ## Experiment Contract
 
@@ -112,7 +112,10 @@ scripts:
   - build
   - script: bun test
     timeout_seconds: 120
-runs: 3
+repeat:
+  count: 3
+  strategy: pass_at_k
+  cost_limit_usd: 2.00
 early_exit: false
 timeout_seconds: 900
 sandbox: auto
@@ -135,6 +138,11 @@ interface ExperimentConfig {
   agentOptions?: Record<string, unknown>;
   evals?: string | readonly string[];
   scripts?: readonly ExperimentScript[];
+  repeat?: {
+    count: number;
+    strategy: 'pass_at_k' | 'mean' | 'confidence_interval';
+    costLimitUsd?: number;
+  };
   runs?: number;
   earlyExit?: boolean;
   timeoutSeconds?: number;
@@ -183,8 +191,8 @@ Phase 2 moves examples to committed `experiments/default.yaml` files while
 leaving existing `eval.yaml execution` fields in place.
 
 Phase 3 applies experiment runtime fields in the runner: target selection, eval
-filters, timeout, runs, early exit, sandbox/workspace mode, setup steps, and
-scripts.
+filters, timeout, repeat/runs, early exit, sandbox/workspace mode, setup steps,
+and scripts.
 
 Phase 4 warns when new eval files use experiment-owned `execution` fields and
 documents the replacement.
@@ -244,9 +252,10 @@ loader independent of runner behavior.
 Test Scenarios:
 
 - YAML experiment with `agent_options`, `early_exit`, `timeout_seconds`, setup,
-  and scripts normalizes to camelCase.
+  `repeat`, and scripts normalizes to camelCase.
 - TypeScript experiment default export loads and normalizes.
-- Invalid `runs`, `timeout_seconds`, or `sandbox` fails with a targeted error.
+- Invalid `repeat.count`, `runs`, `timeout_seconds`, or `sandbox` fails with a
+  targeted error.
 - `.agentv/config.yaml` parses `experiments.default`.
 - `.agentv/config.yaml` accepts top-level `default_experiment`.
 
@@ -282,7 +291,7 @@ Files:
 - `packages/core/src/evaluation/evaluate.ts`
 - `packages/core/src/evaluation/yaml-parser.ts`
 - `packages/core/src/evaluation/loaders/config-loader.ts`
-- `packages/core/src/evaluation/validation/eval-file.schema.ts`
+- `packages/core/src/evaluation/validation/experiment-file.schema.ts`
 
 Approach:
 
@@ -353,7 +362,7 @@ branch to include native U4/U5 support for experiment resolution, eval
 selection, run knobs, setup/scripts, target reuse, artifact provenance, and the
 pre-stable hard removal of `execution.trials`.
 
-The branch now applies `setup`, `scripts`, `runs`, `early_exit`,
+The branch now applies `setup`, `scripts`, `repeat`, `runs`, `early_exit`,
 `timeout_seconds`, `target`, `targets`, and `evals` to execution behavior. Matrix
 execution via multiple experiment files remains a later phase.
 

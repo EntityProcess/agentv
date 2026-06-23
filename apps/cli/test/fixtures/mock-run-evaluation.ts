@@ -22,6 +22,7 @@ interface RunEvaluationOptionsLike {
   readonly trials?: {
     readonly count: number;
     readonly strategy: string;
+    readonly costLimitUsd?: number;
     readonly earlyExit?: boolean;
   };
   readonly budgetUsd?: number;
