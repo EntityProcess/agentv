@@ -113,12 +113,12 @@ describe('experiment config', () => {
   it('rejects invalid run counts and sandbox values', () => {
     expect(() => normalizeExperimentConfig({ runs: 0 })).toThrow(/runs/);
     expect(() => normalizeExperimentConfig({ repeat: {} })).toThrow(/repeat.count/);
-    expect(() =>
-      normalizeExperimentConfig({ repeat: { count: 2, strategy: 'median' } }),
-    ).toThrow(/repeat.strategy/);
-    expect(() =>
-      normalizeExperimentConfig({ repeat: { count: 2, cost_limit_usd: -1 } }),
-    ).toThrow(/repeat.cost_limit_usd/);
+    expect(() => normalizeExperimentConfig({ repeat: { count: 2, strategy: 'median' } })).toThrow(
+      /repeat.strategy/,
+    );
+    expect(() => normalizeExperimentConfig({ repeat: { count: 2, cost_limit_usd: -1 } })).toThrow(
+      /repeat.cost_limit_usd/,
+    );
     expect(() => normalizeExperimentConfig({ repeat: { count: 2 }, runs: 2 })).toThrow(
       /repeat and runs/,
     );
