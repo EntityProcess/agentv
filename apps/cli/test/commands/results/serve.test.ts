@@ -4107,7 +4107,7 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          output: 'runs/r1',
+          output: '.agentv/results/default/r1',
           resume: true,
           tags: ['baseline'],
         }),
