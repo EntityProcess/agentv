@@ -5,7 +5,6 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/core/package.json packages/core/
 COPY packages/sdk/package.json packages/sdk/
-COPY packages/phoenix-adapter/package.json packages/phoenix-adapter/
 COPY apps/cli/package.json apps/cli/
 COPY apps/dashboard/package.json apps/dashboard/
 COPY apps/web/package.json apps/web/
@@ -60,8 +59,6 @@ COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/core/package.json ./packages/core/
 COPY --from=build /app/packages/sdk/dist ./packages/sdk/dist
 COPY --from=build /app/packages/sdk/package.json ./packages/sdk/
-COPY --from=build /app/packages/phoenix-adapter/dist ./packages/phoenix-adapter/dist
-COPY --from=build /app/packages/phoenix-adapter/package.json ./packages/phoenix-adapter/
 COPY --from=build /app/apps/cli/dist ./apps/cli/dist
 COPY --from=build /app/apps/cli/package.json ./apps/cli/
 COPY --from=build /app/apps/cli/node_modules ./apps/cli/node_modules
