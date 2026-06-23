@@ -242,6 +242,7 @@ describe('validateConfigFile', () => {
         path: repo/subdir
       sync:
         auto_push: yes
+        push_conflict_policy: overwrite
       branch_prefix: ""
   - not-an-object
 `,
@@ -268,6 +269,10 @@ describe('validateConfigFile', () => {
         expect.objectContaining({
           severity: 'error',
           location: 'projects[0].results.sync.auto_push',
+        }),
+        expect.objectContaining({
+          severity: 'error',
+          location: 'projects[0].results.sync.push_conflict_policy',
         }),
         expect.objectContaining({
           severity: 'error',

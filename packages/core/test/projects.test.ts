@@ -176,6 +176,7 @@ describe('projects registry', () => {
       path: /srv/agentv/results/results-project
       sync:
         auto_push: true
+        push_conflict_policy: backup_and_force_push
       branch_prefix: eval-results
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
@@ -188,7 +189,7 @@ describe('projects registry', () => {
       repoUrl: 'https://github.com/EntityProcess/results-project-runs.git',
       branch: 'agentv-results',
       path: '/srv/agentv/results/results-project',
-      sync: { autoPush: true },
+      sync: { autoPush: true, pushConflictPolicy: 'backup_and_force_push' },
       branchPrefix: 'eval-results',
     });
 
@@ -201,6 +202,7 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('branch: agentv-results');
     expect(yamlOnDisk).toContain('path: /srv/agentv/results/results-project');
     expect(yamlOnDisk).toContain('auto_push: true');
+    expect(yamlOnDisk).toContain('push_conflict_policy: backup_and_force_push');
     expect(yamlOnDisk).toContain('branch_prefix: eval-results');
     expect(yamlOnDisk).not.toContain('repo_url:');
     expect(yamlOnDisk).not.toContain('localPath:');
@@ -228,6 +230,7 @@ describe('projects registry', () => {
       sync:
         auto_push: false
         require_push: true
+        push_conflict_policy: block
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
 `,
@@ -239,7 +242,7 @@ describe('projects registry', () => {
       repoUrl: 'git@github.com:example/source.git',
       path: '.',
       branch: 'agentv/results/v1',
-      sync: { autoPush: false, requirePush: true },
+      sync: { autoPush: false, requirePush: true, pushConflictPolicy: 'block' },
     });
 
     saveProjectRegistry(registry);
@@ -250,6 +253,7 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('branch: agentv/results/v1');
     expect(yamlOnDisk).toContain('auto_push: false');
     expect(yamlOnDisk).toContain('require_push: true');
+    expect(yamlOnDisk).toContain('push_conflict_policy: block');
     expect(yamlOnDisk).not.toContain('repo_path:');
     expect(yamlOnDisk).not.toContain('repoPath:');
     expect(yamlOnDisk).not.toContain('requirePush:');

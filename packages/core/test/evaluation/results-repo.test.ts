@@ -21,6 +21,7 @@ import {
   buildWipBranchName,
   deleteWipBranch,
   directPushResults,
+  directPushResultsWithDetails,
   ensureResultsRepoClone,
   getResultsRepoSyncStatus,
   listGitRuns,
@@ -107,6 +108,59 @@ function initializeRemoteStorageBranch(seedDir: string, branch = 'agentv-results
   git(`git push --quiet origin HEAD:${branch}`, seedDir);
   git('git switch --quiet main', seedDir);
   return branch;
+}
+
+async function createStaleResultBranchPushFixture(params: {
+  readonly rootDir: string;
+  readonly remoteDir: string;
+  readonly seedDir: string;
+  readonly cloneDir: string;
+  readonly storageBranch: string;
+}): Promise<{
+  readonly localSourceDir: string;
+  readonly localDestinationPath: string;
+  readonly remoteAdvancedCommit: string;
+  readonly config: ResultsConfig;
+}> {
+  const config: ResultsConfig = {
+    repo: `file://${params.remoteDir}`,
+    path: params.cloneDir,
+    branch: params.storageBranch,
+    sync: { auto_push: false },
+  };
+  const firstSourceDir = path.join(params.rootDir, `${path.basename(params.cloneDir)}-local-1`);
+  writeRunArtifacts(firstSourceDir, 'local-stale', '2026-06-23T09:00:00.000Z');
+  await directPushResults({
+    config,
+    sourceDir: firstSourceDir,
+    destinationPath: path.join('local-stale', '2026-06-23T09-00-00-000Z'),
+    commitMessage: 'feat(results): local stale base',
+  });
+
+  git(`git switch --quiet ${params.storageBranch}`, params.seedDir);
+  const remoteOnlyPath = path.join(
+    params.seedDir,
+    'runs',
+    'remote-only',
+    '2026-06-23T09-30-00-000Z',
+  );
+  writeRunArtifacts(remoteOnlyPath, 'remote-only', '2026-06-23T09:30:00.000Z');
+  git('git add runs && git commit --quiet -m "remote result wins race"', params.seedDir);
+  git(`git push --quiet origin HEAD:${params.storageBranch}`, params.seedDir);
+  git('git switch --quiet main', params.seedDir);
+
+  const localSourceDir = path.join(params.rootDir, `${path.basename(params.cloneDir)}-local-2`);
+  writeRunArtifacts(localSourceDir, 'local-conflict', '2026-06-23T10:00:00.000Z');
+
+  return {
+    localSourceDir,
+    localDestinationPath: path.join('local-conflict', '2026-06-23T10-00-00-000Z'),
+    remoteAdvancedCommit: git(
+      `git --git-dir "${params.remoteDir}" rev-parse ${params.storageBranch}`,
+      params.rootDir,
+    ),
+    config,
+  };
 }
 
 function writeRunArtifacts(runDir: string, experiment: string, timestamp: string): void {
@@ -1121,6 +1175,202 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
+  it('blocks non-fast-forward direct result branch pushes by default', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-block');
+    const fixture = await createStaleResultBranchPushFixture({
+      rootDir,
+      remoteDir,
+      seedDir,
+      cloneDir,
+      storageBranch,
+    });
+
+    const result = await directPushResultsWithDetails({
+      config: { ...fixture.config, sync: { auto_push: true } },
+      sourceDir: fixture.localSourceDir,
+      destinationPath: fixture.localDestinationPath,
+      commitMessage: 'feat(results): blocked push conflict',
+    });
+
+    expect(result).toMatchObject({
+      changed: false,
+      blocked: true,
+      sync_status: 'push_conflict',
+      push_conflict_policy: 'block',
+      target_branch: DEFAULT_RESULTS_BRANCH,
+      remote_commit: fixture.remoteAdvancedCommit,
+      previous_remote_commit: fixture.remoteAdvancedCommit,
+      lease_commit: fixture.remoteAdvancedCommit,
+    });
+    expect(result.local_commit).toMatch(/^[0-9a-f]{40}$/);
+    expect(result.block_reason).toContain('Results branch push conflict');
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
+      fixture.remoteAdvancedCommit,
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
+    ).not.toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+  }, 30000);
+
+  it('backs up the remote result branch before force-pushing with an explicit policy', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-backup');
+    const fixture = await createStaleResultBranchPushFixture({
+      rootDir,
+      remoteDir,
+      seedDir,
+      cloneDir,
+      storageBranch,
+    });
+
+    const result = await directPushResultsWithDetails({
+      config: {
+        ...fixture.config,
+        sync: { auto_push: true, push_conflict_policy: 'backup_and_force_push' },
+      },
+      sourceDir: fixture.localSourceDir,
+      destinationPath: fixture.localDestinationPath,
+      commitMessage: 'feat(results): backup force push conflict',
+    });
+
+    expect(result).toMatchObject({
+      changed: true,
+      push_conflict_policy: 'backup_and_force_push',
+      target_branch: DEFAULT_RESULTS_BRANCH,
+      backup_commit: fixture.remoteAdvancedCommit,
+      previous_remote_commit: fixture.remoteAdvancedCommit,
+      lease_commit: fixture.remoteAdvancedCommit,
+    });
+    expect(result.backup_ref).toMatch(
+      /^agentv\/backups\/\d{8}T\d{6}Z-agentv-results-v1-[0-9a-f]{7}$/,
+    );
+    expect(result.force_pushed_commit).toMatch(/^[0-9a-f]{40}$/);
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
+      result.force_pushed_commit,
+    );
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${result.backup_ref}`, rootDir)).toBe(
+      fixture.remoteAdvancedCommit,
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
+    ).toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${result.backup_ref}`, rootDir),
+    ).toContain('runs/remote-only/2026-06-23T09-30-00-000Z/benchmark.json');
+  }, 30000);
+
+  it('aborts backup-and-force-push when creating the backup ref fails', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-backup-fails');
+    const fixture = await createStaleResultBranchPushFixture({
+      rootDir,
+      remoteDir,
+      seedDir,
+      cloneDir,
+      storageBranch,
+    });
+    const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
+    writeFileSync(
+      hookPath,
+      [
+        '#!/usr/bin/env sh',
+        'while read _old _new ref; do',
+        '  case "$ref" in',
+        '    refs/heads/agentv/backups/*) echo "reject backup ref" >&2; exit 1 ;;',
+        '  esac',
+        'done',
+      ].join('\n'),
+    );
+    chmodSync(hookPath, 0o755);
+
+    const result = await directPushResultsWithDetails({
+      config: {
+        ...fixture.config,
+        sync: { auto_push: true, push_conflict_policy: 'backup_and_force_push' },
+      },
+      sourceDir: fixture.localSourceDir,
+      destinationPath: fixture.localDestinationPath,
+      commitMessage: 'feat(results): backup creation fails',
+    });
+
+    expect(result).toMatchObject({
+      changed: false,
+      blocked: true,
+      sync_status: 'push_conflict',
+      backup_commit: fixture.remoteAdvancedCommit,
+      previous_remote_commit: fixture.remoteAdvancedCommit,
+    });
+    expect(result.block_reason).toContain('backup creation failed');
+    expect(result.backup_ref).toMatch(/^agentv\/backups\//);
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
+      fixture.remoteAdvancedCommit,
+    );
+    expect(git(`git --git-dir "${remoteDir}" branch --list "${result.backup_ref}"`, rootDir)).toBe(
+      '',
+    );
+  }, 30000);
+
+  it('surfaces a stale lease when the target update is rejected after backup creation', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-lease');
+    const fixture = await createStaleResultBranchPushFixture({
+      rootDir,
+      remoteDir,
+      seedDir,
+      cloneDir,
+      storageBranch,
+    });
+
+    const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
+    writeFileSync(
+      hookPath,
+      [
+        '#!/usr/bin/env sh',
+        'while read _old _new ref; do',
+        '  case "$ref" in',
+        `    refs/heads/${storageBranch}) echo "stale info" >&2; exit 1 ;;`,
+        '  esac',
+        'done',
+      ].join('\n'),
+    );
+    chmodSync(hookPath, 0o755);
+
+    const result = await directPushResultsWithDetails({
+      config: {
+        ...fixture.config,
+        sync: { auto_push: true, push_conflict_policy: 'backup_and_force_push' },
+      },
+      sourceDir: fixture.localSourceDir,
+      destinationPath: fixture.localDestinationPath,
+      commitMessage: 'feat(results): stale lease fails',
+    });
+
+    expect(result).toMatchObject({
+      changed: false,
+      blocked: true,
+      sync_status: 'push_conflict',
+      backup_commit: fixture.remoteAdvancedCommit,
+      previous_remote_commit: fixture.remoteAdvancedCommit,
+      lease_commit: fixture.remoteAdvancedCommit,
+    });
+    expect(result.block_reason).toContain('force push lease failed');
+    expect(result.backup_ref).toMatch(/^agentv\/backups\//);
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${result.backup_ref}`, rootDir)).toBe(
+      fixture.remoteAdvancedCommit,
+    );
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
+      fixture.remoteAdvancedCommit,
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
+    ).not.toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+  }, 30000);
+
   it('commits pushed runs into the configured clone with an AgentV-Run trailer', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
@@ -1660,7 +1910,7 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
-  it('blocks diverged committed histories with diff summary', async () => {
+  it('blocks diverged committed histories as push conflicts with diff summary', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
@@ -1673,17 +1923,20 @@ describe('results repo write path', () => {
     writeRunArtifacts(runDir, 'local-only', '2026-05-25T10:00:00.000Z');
     git('git add runs && git commit --quiet -m "local result"', cloneDir);
 
-    writeFileSync(path.join(seedDir, 'REMOTE.md'), 'remote update\n');
-    git('git add REMOTE.md && git commit --quiet -m "remote update"', seedDir);
+    const remoteRunDir = path.join(seedDir, 'runs', 'remote-only', '2026-05-25T11-00-00-000Z');
+    writeRunArtifacts(remoteRunDir, 'remote-only', '2026-05-25T11:00:00.000Z');
+    git('git add runs && git commit --quiet -m "remote result"', seedDir);
     git('git push --quiet origin main', seedDir);
 
     const status = await syncResultsRepoForProject(config);
 
-    expect(status.sync_status).toBe('diverged');
+    expect(status.sync_status).toBe('push_conflict');
     expect(status.blocked).toBe(true);
-    expect(status.block_reason).toContain('diverged');
+    expect(status.block_reason).toContain('Results branch push conflict');
+    expect(status.target_branch).toBe('main');
+    expect(status.remote_commit).toBe(git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir));
+    expect(status.local_commit).toMatch(/^[0-9a-f]{40}$/);
     expect(status.git_status).toContain('[ahead 1, behind 1]');
-    expect(status.git_diff_summary).toContain('local-only');
     expect(status.git_diff_summary).toContain('benchmark.json');
   }, 20000);
 

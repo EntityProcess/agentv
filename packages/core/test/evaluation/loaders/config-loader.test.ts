@@ -310,6 +310,7 @@ describe('parseResultsConfig', () => {
         sync: {
           auto_push: false,
           require_push: true,
+          push_conflict_policy: 'backup_and_force_push',
         },
       },
       '/tmp/.agentv/config.yaml',
@@ -323,6 +324,7 @@ describe('parseResultsConfig', () => {
       sync: {
         auto_push: false,
         require_push: true,
+        push_conflict_policy: 'backup_and_force_push',
       },
     });
   });

@@ -448,6 +448,18 @@ function validateResultsSyncAndBranchPrefix(
           `Field '${location}.sync.require_push' must be a boolean`,
         );
       }
+      if (
+        syncRecord.push_conflict_policy !== undefined &&
+        syncRecord.push_conflict_policy !== 'block' &&
+        syncRecord.push_conflict_policy !== 'backup_and_force_push'
+      ) {
+        addError(
+          errors,
+          filePath,
+          `${location}.sync.push_conflict_policy`,
+          `Field '${location}.sync.push_conflict_policy' must be 'block' or 'backup_and_force_push'`,
+        );
+      }
     }
   }
 
