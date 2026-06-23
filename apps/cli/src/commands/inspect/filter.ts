@@ -13,8 +13,8 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
+import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { normalizeResultRow } from '../results/result-row-schema.js';
 import { c, formatScore, padLeft, padRight } from './utils.js';
 

@@ -15,9 +15,9 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
+import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { c, padRight } from './utils.js';
 
 /** A single search match within a JSONL line. */
