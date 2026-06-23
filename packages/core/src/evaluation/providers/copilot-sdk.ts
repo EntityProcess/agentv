@@ -356,7 +356,12 @@ export class CopilotSdkProvider implements Provider {
       }
 
       if (!clientOptions.connection && (this.config.cliPath || this.config.args?.length)) {
-        if (sdk.RuntimeConnection?.forStdio) {
+        if (sdk.RuntimeConnection?.forTcp) {
+          clientOptions.connection = sdk.RuntimeConnection.forTcp({
+            ...(this.config.cliPath ? { path: this.config.cliPath } : {}),
+            ...(this.config.args?.length ? { args: this.config.args } : {}),
+          });
+        } else if (sdk.RuntimeConnection?.forStdio) {
           clientOptions.connection = sdk.RuntimeConnection.forStdio({
             ...(this.config.cliPath ? { path: this.config.cliPath } : {}),
             ...(this.config.args?.length ? { args: this.config.args } : {}),
@@ -369,7 +374,16 @@ export class CopilotSdkProvider implements Provider {
         // node:sqlite (unavailable in Bun). Auto-resolve the platform-specific native
         // binary from @github/copilot-{platform}-{arch} when available.
         const nativePath = resolvePlatformCliPath();
-        if (nativePath && sdk.RuntimeConnection?.forStdio && !clientOptions.connection) {
+        if (nativePath && sdk.RuntimeConnection?.forTcp && !clientOptions.connection) {
+          // Prefer the SDK's supported TCP transport for owned runtimes. In
+          // @github/copilot-sdk@1.0.3 the stdio transport can rethrow child
+          // stdin EPIPE as an uncaughtException when the runtime exits outside
+          // forceStop(); see github/copilot-sdk#1427.
+          clientOptions.connection = sdk.RuntimeConnection.forTcp({
+            path: nativePath,
+            ...(this.config.args?.length ? { args: this.config.args } : {}),
+          });
+        } else if (nativePath && sdk.RuntimeConnection?.forStdio && !clientOptions.connection) {
           clientOptions.connection = sdk.RuntimeConnection.forStdio({
             path: nativePath,
             ...(this.config.args?.length ? { args: this.config.args } : {}),
