@@ -14,7 +14,9 @@ import {
   extractTrialsConfig,
   loadConfig,
   parseExecutionDefaults,
+  parseExperimentsConfig,
   parseResultsConfig,
+  resolveDefaultExperimentReference,
   resolveResultsConfigForProject,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
@@ -123,6 +125,55 @@ describe('loadConfig', () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+  it('loads configured default experiment references', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-default-experiment-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        'experiments:\n  default: experiments/default.yaml\n',
+      );
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.experiments?.default).toBe('experiments/default.yaml');
+      expect(resolveDefaultExperimentReference(config)).toBe('experiments/default.yaml');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('supports top-level default_experiment as a compatibility shorthand', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-default-experiment-alias-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(path.join(localConfigDir, 'config.yaml'), 'default_experiment: smoke\n');
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.default_experiment).toBe('smoke');
+      expect(resolveDefaultExperimentReference(config)).toBe('smoke');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('parseExperimentsConfig', () => {
+  it('parses experiments.default', () => {
+    expect(parseExperimentsConfig({ default: 'experiments/default.yaml' }, 'config.yaml')).toEqual({
+      default: 'experiments/default.yaml',
+    });
   });
 });
 

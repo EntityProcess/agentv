@@ -66,9 +66,17 @@ export type HooksConfig = {
   readonly before_session?: string;
 };
 
+export type ExperimentsConfig = {
+  /** Default experiment label or path used when `agentv eval` omits --experiment. */
+  readonly default?: string;
+};
+
 export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
+  /** Compatibility shorthand for experiments.default. */
+  readonly default_experiment?: string;
+  readonly experiments?: ExperimentsConfig;
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
@@ -140,12 +148,22 @@ async function readConfigFile(configPath: string): Promise<AgentVConfig | null> 
       (parsed as Record<string, unknown>).execution,
       configPath,
     );
+    const defaultExperiment = parseDefaultExperiment(
+      (parsed as Record<string, unknown>).default_experiment,
+      configPath,
+    );
+    const experiments = parseExperimentsConfig(
+      (parsed as Record<string, unknown>).experiments,
+      configPath,
+    );
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
 
     return {
       required_version: requiredVersion as string | undefined,
       eval_patterns: evalPatterns as readonly string[] | undefined,
+      ...(defaultExperiment && { default_experiment: defaultExperiment }),
+      ...(experiments && { experiments }),
       execution: executionDefaults,
       results,
       ...(hooks && { hooks }),
@@ -591,6 +609,46 @@ export function parseExecutionDefaults(
   }
 
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
+}
+
+export function resolveDefaultExperimentReference(
+  config: AgentVConfig | null | undefined,
+): string | undefined {
+  return config?.experiments?.default ?? config?.default_experiment;
+}
+
+function parseDefaultExperiment(raw: unknown, configPath: string): string | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  const value = readTrimmedString(raw);
+  if (!value) {
+    logWarning(`Invalid default_experiment in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+  return value;
+}
+
+export function parseExperimentsConfig(
+  raw: unknown,
+  configPath: string,
+): ExperimentsConfig | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid experiments in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const defaultExperiment = readTrimmedString(obj.default);
+  if (obj.default !== undefined && !defaultExperiment) {
+    logWarning(`Invalid experiments.default in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+
+  return defaultExperiment ? { default: defaultExperiment } : undefined;
 }
 
 function isFilesystemPath(p: string): boolean {

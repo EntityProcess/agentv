@@ -18,10 +18,14 @@ import {
   buildTraceFromMessages,
   runEvaluation as defaultRunEvaluation,
   deriveCategory,
+  deriveExperimentNameFromPath,
   ensureVSCodeSubagents,
+  isExperimentFileReference,
   loadConfig,
+  loadExperimentConfig,
   loadTestSuite,
   loadTsConfig,
+  resolveDefaultExperimentReference,
   resolveTargetDefinition,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
@@ -552,6 +556,40 @@ function buildDefaultOutputPathForExperiment(
   const runDir = buildDefaultRunDirFromName(cwd, experiment, runDirName);
   mkdirSync(runDir, { recursive: true });
   return path.join(runDir, 'index.jsonl');
+}
+
+function normalizeTsDefaultExperiment(
+  config: Awaited<ReturnType<typeof loadTsConfig>> | null,
+): string | undefined {
+  return (
+    normalizeString(config?.experiments?.default) ?? normalizeString(config?.defaultExperiment)
+  );
+}
+
+async function resolveExperimentNameForRun(params: {
+  readonly cwd: string;
+  readonly explicitExperiment?: string;
+  readonly yamlDefaultExperiment?: string;
+  readonly tsDefaultExperiment?: string;
+}): Promise<string | undefined> {
+  const experimentRef =
+    params.explicitExperiment ?? params.yamlDefaultExperiment ?? params.tsDefaultExperiment;
+  if (!experimentRef) {
+    return undefined;
+  }
+  if (!isExperimentFileReference(experimentRef)) {
+    return experimentRef;
+  }
+
+  const experimentPath = path.isAbsolute(experimentRef)
+    ? experimentRef
+    : path.resolve(params.cwd, experimentRef);
+  if (!existsSync(experimentPath)) {
+    throw new Error(`Experiment file not found: ${experimentRef}`);
+  }
+
+  const experiment = await loadExperimentConfig(experimentPath);
+  return experiment.name ?? deriveExperimentNameFromPath(experimentPath);
 }
 
 type ProgressReporter = {
@@ -1167,6 +1205,15 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
+  options = {
+    ...options,
+    experiment: await resolveExperimentNameForRun({
+      cwd,
+      explicitExperiment: options.experiment,
+      yamlDefaultExperiment: resolveDefaultExperimentReference(yamlConfig),
+      tsDefaultExperiment: normalizeTsDefaultExperiment(config),
+    }),
+  };
   if (!process.env.AGENTV_EXPERIMENT) {
     process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
   }

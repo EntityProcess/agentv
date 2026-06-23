@@ -15,6 +15,7 @@ export {
 } from './evaluation/result-row-schema.js';
 export * from './evaluation/result-artifact-contract.js';
 export { parseYamlValue } from './evaluation/yaml-loader.js';
+export * from './evaluation/experiment.js';
 export * from './evaluation/yaml-parser.js';
 export {
   isAgentSkillsFormat,
@@ -22,8 +23,10 @@ export {
 } from './evaluation/loaders/agent-skills-parser.js';
 export {
   loadConfig,
+  resolveDefaultExperimentReference,
   resolveResultsConfigForProject,
   type AgentVConfig as AgentVYamlConfig,
+  type ExperimentsConfig,
   type ResultsConfig,
 } from './evaluation/loaders/config-loader.js';
 export {
