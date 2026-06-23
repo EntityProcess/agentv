@@ -525,7 +525,21 @@ describe('agentv eval CLI', () => {
       await mkdir(experimentsDir, { recursive: true });
       await writeFile(
         path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
-        'eval_patterns:\n  - sample.test.yaml\n',
+        'eval_patterns:\n  - sample.test.yaml\n  - unused.test.yaml\n',
+        'utf8',
+      );
+      await writeFile(
+        path.join(fixture.suiteDir, 'unused.test.yaml'),
+        [
+          'description: unmatched eval file should not resolve targets',
+          'target: missing-target',
+          'tests:',
+          '  - id: case-unused',
+          '    criteria: System responds with unused',
+          '    input: unused',
+          '    expected_output: unused',
+          '',
+        ].join('\n'),
         'utf8',
       );
       const experimentPath = path.join(experimentsDir, 'default.yaml');

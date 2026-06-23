@@ -1016,6 +1016,24 @@ async function prepareFileMetadata(params: {
   const testIds = suite.tests.map((value) => value.id);
   const suiteTargets = suite.targets;
 
+  if (suite.tests.length === 0) {
+    return {
+      testIds,
+      testCases: suite.tests,
+      selections: [],
+      trialsConfig: options.experimentTrialsConfig,
+      suiteTargets,
+      yamlWorkers: suite.workers,
+      yamlCache: suite.cacheConfig?.enabled,
+      yamlCachePath: suite.cacheConfig?.cachePath,
+      budgetUsd: suite.budgetUsd,
+      failOnError: suite.failOnError,
+      threshold: suite.threshold,
+      tags: suite.metadata?.tags,
+      providerFactory: suite.providerFactory,
+    };
+  }
+
   let selections: { selection: TargetSelection; inlineTargetLabel: string }[];
 
   if (options.transcript) {
