@@ -154,6 +154,7 @@ export function RunList({
     [enableCombine, runs],
   );
   const selectedSet = new Set(selectedRunIds);
+  const runsById = useMemo(() => new Map(runs.map((run) => [run.filename, run])), [runs]);
 
   useEffect(() => {
     if (!isFetchingNextPage) {
@@ -217,12 +218,34 @@ export function RunList({
   async function handleCombine() {
     if (selectedRunIds.length < 2 || combineInFlight) return;
     const sourceRunIds = [...selectedRunIds];
+    const selectedExperiments = [
+      ...new Set(
+        sourceRunIds
+          .map((runId) => runsById.get(runId)?.experiment?.trim() || 'default')
+          .filter(Boolean),
+      ),
+    ].sort();
+    let experiment: string | undefined;
+    if (selectedExperiments.length > 1) {
+      const answer = window.prompt(
+        `Selected runs span experiments (${selectedExperiments.join(', ')}). Enter a new experiment name for the combined run:`,
+      );
+      if (answer === null) return;
+      experiment = answer.trim();
+      if (!experiment) {
+        setActionFeedback({
+          kind: 'error',
+          message: 'Experiment name is required to combine runs from multiple experiments.',
+        });
+        return;
+      }
+    }
     setActionFeedback(null);
     setCombineInFlight(true);
     try {
       let result: CombineRunsResponse;
       try {
-        result = await combineRunsApi(sourceRunIds, 'error', projectId);
+        result = await combineRunsApi(sourceRunIds, 'error', projectId, undefined, experiment);
       } catch (err) {
         if (!(err instanceof CombineRunsApiError) || err.status !== 409) {
           throw err;
@@ -232,7 +255,7 @@ export function RunList({
           `${count} duplicate (test_id, target) pair${count === 1 ? '' : 's'} found. Replace duplicates with the latest timestamp?`,
         );
         if (!confirmed) return;
-        result = await combineRunsApi(sourceRunIds, 'latest', projectId);
+        result = await combineRunsApi(sourceRunIds, 'latest', projectId, undefined, experiment);
       }
       setSelectedRunIds([]);
       setActionFeedback({

@@ -2549,9 +2549,12 @@ describe('serve app', () => {
       const data = (await res.json()) as {
         run_id: string;
         display_name: string;
+        experiment: string;
         combined_from_run_ids: string[];
       };
       expect(data.display_name).toBe('Combined Smoke');
+      expect(data.experiment).toBe('default');
+      expect(data.run_id).toBe('2026-03-18T10-00-01-000Z');
       expect(data.combined_from_run_ids).toEqual([first.runId, second.runId]);
 
       const detailRes = await app.request(`/api/runs/${encodeURIComponent(data.run_id)}`);
@@ -2571,7 +2574,58 @@ describe('serve app', () => {
       };
       expect(benchmark.metadata.combined_from_run_ids).toEqual([first.runId, second.runId]);
       expect(benchmark.metadata.display_name).toBe('Combined Smoke');
+      expect(benchmark.metadata).toMatchObject({ experiment: 'default' });
       expect(benchmark.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
+    });
+
+    it('requires an explicit experiment when combining runs across experiments', async () => {
+      const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A], {
+        experiment: 'smoke',
+      });
+      const second = seedRun('2026-06-01T11-00-00-000Z', [RESULT_B], {
+        experiment: 'regression',
+      });
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const rejected = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: [first.runId, second.runId] }),
+      });
+      expect(rejected.status).toBe(400);
+      const rejectedData = (await rejected.json()) as { error: string };
+      expect(rejectedData.error).toContain(
+        'Combining runs from multiple experiments requires an experiment name',
+      );
+
+      const accepted = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          run_ids: [first.runId, second.runId],
+          experiment: 'smoke-regression',
+        }),
+      });
+      expect(accepted.status).toBe(201);
+      const acceptedData = (await accepted.json()) as { run_id: string; experiment: string };
+      expect(acceptedData.experiment).toBe('smoke-regression');
+      expect(acceptedData.run_id).toStartWith('smoke-regression::');
+      expect(existsSync(localRunDirFromRunId(tempDir, acceptedData.run_id))).toBe(true);
+
+      const detailRes = await app.request(`/api/runs/${encodeURIComponent(acceptedData.run_id)}`);
+      expect(detailRes.status).toBe(200);
+      await detailRes.json();
+      const records = readFileSync(
+        path.join(localRunDirFromRunId(tempDir, acceptedData.run_id), 'index.jsonl'),
+        'utf8',
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line) as { experiment?: string });
+      expect(records.map((result) => result.experiment)).toEqual([
+        'smoke-regression',
+        'smoke-regression',
+      ]);
     });
 
     it('generates a display name when combine omits display_name', async () => {
@@ -2631,6 +2685,16 @@ describe('serve app', () => {
         }),
       });
       expect(invalidPolicy.status).toBe(400);
+
+      const invalidExperiment = await app.request('/api/runs/combine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          run_ids: [first.runId, 'missing-run'],
+          experiment: 123,
+        }),
+      });
+      expect(invalidExperiment.status).toBe(400);
     });
 
     it('rejects duplicate rows by default and combines with explicit latest policy', async () => {

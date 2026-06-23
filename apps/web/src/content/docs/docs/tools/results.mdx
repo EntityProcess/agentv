@@ -26,6 +26,8 @@ Remote result repository exchange is intentionally not part of `agentv results`.
 | `results show` | Display case-level rows from a run workspace |
 | `results validate` | Validate that a workspace or manifest resolves correctly |
 
+`results combine` writes the new run under the source experiment when every selected source run belongs to the same experiment, including `default`. If the source runs span multiple experiments, pass `--experiment <name>` for the new combined run; AgentV does not silently write mixed-experiment combines under a `combined` namespace.
+
 ## `results report`
 
 The `results report` command turns an existing run workspace or `index.jsonl` manifest into a self-contained HTML report for sharing, inspection, and human review.

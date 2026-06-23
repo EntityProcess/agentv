@@ -651,6 +651,7 @@ export async function combineRunsApi(
   duplicatePolicy: 'error' | 'latest',
   projectId?: string,
   displayName?: string,
+  experiment?: string,
 ): Promise<CombineRunsResponse> {
   const url = projectId ? `${projectApiBase(projectId)}/runs/combine` : '/api/runs/combine';
   const res = await fetch(url, {
@@ -660,6 +661,7 @@ export async function combineRunsApi(
       run_ids: runIds,
       duplicate_policy: duplicatePolicy,
       ...(displayName?.trim() ? { display_name: displayName.trim() } : {}),
+      ...(experiment?.trim() ? { experiment: experiment.trim() } : {}),
     }),
   });
   if (!res.ok) {

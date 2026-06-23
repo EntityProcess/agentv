@@ -109,7 +109,7 @@ In the per-test results table, click a test ID to open its checks, transcript, s
 
 ## Run management
 
-In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
+In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. If all selected runs are from one experiment, the combined run inherits that experiment, including `default`; if selected runs span experiments, Dashboard asks for a new experiment name before creating the combined run. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
 
 The same deletion primitive is available from the CLI:
 

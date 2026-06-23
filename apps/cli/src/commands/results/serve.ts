@@ -2590,6 +2590,10 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
   if (displayNameValue !== undefined && typeof displayNameValue !== 'string') {
     return c.json({ error: 'display_name must be a string' }, 400);
   }
+  const experimentValue = payload.experiment;
+  if (experimentValue !== undefined && typeof experimentValue !== 'string') {
+    return c.json({ error: 'experiment must be a string' }, 400);
+  }
   const duplicatePolicyValue = payload.duplicate_policy;
   const duplicatePolicy =
     duplicatePolicyValue === undefined ? 'error' : String(duplicatePolicyValue);
@@ -2598,6 +2602,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
   }
 
   const displayName = displayNameValue?.trim();
+  const experiment = experimentValue?.trim() || undefined;
   const metas: SourcedResultFileMeta[] = [];
 
   for (const runId of runIds) {
@@ -2621,6 +2626,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
     const combined = combineRunSources({
       cwd: searchDir,
       sources,
+      experiment,
       displayName,
       duplicatePolicy: duplicatePolicy as Exclude<CombineDuplicatePolicy, 'prompt'>,
     });
@@ -2631,6 +2637,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
         ok: true,
         run_id: combined.runId,
         display_name: combined.displayName,
+        experiment: combined.experiment,
         combined_from_run_ids: combined.combinedFromRunIds,
         duplicate_conflicts: combined.duplicateConflicts,
         ...(tagEntry && { tags: tagEntry.tags }),
@@ -2641,7 +2648,16 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
     if (err instanceof CombineDuplicateError) {
       return c.json({ error: err.message, duplicates: err.conflicts }, 409);
     }
-    return c.json({ error: (err as Error).message }, 500);
+    const message = err instanceof Error ? err.message : String(err);
+    if (
+      message.includes('requires an experiment name') ||
+      message.includes('must inherit') ||
+      message.includes('must match combined experiment') ||
+      message.includes('Invalid experiment name')
+    ) {
+      return c.json({ error: message }, 400);
+    }
+    return c.json({ error: message }, 500);
   }
 }
 

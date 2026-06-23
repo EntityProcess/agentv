@@ -381,6 +381,7 @@ export interface CombineRunsResponse {
   ok: true;
   run_id: string;
   display_name: string;
+  experiment: string;
   combined_from_run_ids: string[];
   duplicate_conflicts?: CombineDuplicateConflict[];
   tags?: string[];

@@ -36,6 +36,7 @@ import {
 import {
   buildDefaultRunDirFromName,
   createRunDirName,
+  normalizeExperimentName,
   relativeRunPathFromCwd,
   resolveRunManifestPath,
 } from '../eval/result-layout.js';
@@ -53,6 +54,7 @@ export interface CombineRunSource {
   readonly id: string;
   readonly displayName: string;
   readonly manifestPath: string;
+  readonly experiment: string;
   readonly tags?: readonly string[];
 }
 
@@ -91,6 +93,7 @@ export interface CombineRunOptions {
   readonly cwd: string;
   readonly sources: readonly CombineRunSource[];
   readonly outputDir?: string;
+  readonly experiment?: string;
   readonly displayName?: string;
   readonly duplicatePolicy: CombineDuplicatePolicy;
   readonly promptChoices?: ReadonlyMap<string, PromptDuplicateChoice>;
@@ -103,6 +106,7 @@ export interface CombineRunResult {
   readonly benchmarkPath: string;
   readonly timingPath: string;
   readonly displayName: string;
+  readonly experiment: string;
   readonly combinedFromRunIds: readonly string[];
   readonly duplicateConflicts: readonly DuplicateConflict[];
   readonly testCount: number;
@@ -286,13 +290,17 @@ function defaultDisplayName(sources: readonly LoadedSource[]): string {
   return `Combined run (${sources.map((source) => source.displayName).join(' + ')})`;
 }
 
-function defaultCombinedRunDir(cwd: string, startedAt: string | undefined): string {
+function defaultCombinedRunDirForExperiment(
+  cwd: string,
+  experiment: string,
+  startedAt: string | undefined,
+): string {
   const parsed = startedAt ? new Date(startedAt) : undefined;
   const timestamp =
     parsed && !Number.isNaN(parsed.getTime())
       ? createRunDirName(parsed)
       : sanitizePathSegment(startedAt ?? 'unknown-time');
-  return buildDefaultRunDirFromName(cwd, 'combined', timestamp);
+  return buildDefaultRunDirFromName(cwd, experiment, timestamp);
 }
 
 function uniqueRunDir(baseDir: string): string {
@@ -310,7 +318,47 @@ function toRunId(cwd: string, runDir: string): string {
     return path.basename(runDir);
   }
   const parts = relative.split(path.posix.sep);
-  return parts.length > 1 ? `${parts[0]}::${parts.slice(1).join(path.posix.sep)}` : relative;
+  if (parts.length <= 1) {
+    return relative;
+  }
+  const experiment = parts[0];
+  const timestamp = parts.slice(1).join(path.posix.sep);
+  return experiment === 'default' ? timestamp : `${experiment}::${timestamp}`;
+}
+
+function experimentFromRelativeRunPath(relativeRunPath: string): string {
+  const experiment = relativeRunPath.split(path.posix.sep).filter(Boolean)[0];
+  return normalizeExperimentName(experiment);
+}
+
+function resolveCombinedExperiment(
+  sources: readonly LoadedSource[],
+  requestedExperiment: string | undefined,
+): string {
+  const experiments = [...new Set(sources.map((source) => source.experiment))];
+  const normalizedRequested = requestedExperiment?.trim()
+    ? normalizeExperimentName(requestedExperiment)
+    : undefined;
+  if (experiments.length === 1) {
+    const sourceExperiment = experiments[0];
+    if (normalizedRequested === undefined) {
+      return sourceExperiment;
+    }
+    if (normalizedRequested !== sourceExperiment) {
+      throw new Error(`Combined runs from the same experiment must inherit "${sourceExperiment}".`);
+    }
+    return sourceExperiment;
+  }
+
+  if (normalizedRequested !== undefined) {
+    return normalizedRequested;
+  }
+
+  throw new Error(
+    `Combining runs from multiple experiments requires an experiment name. Source experiments: ${experiments
+      .sort()
+      .join(', ')}`,
+  );
 }
 
 const MANIFEST_PATH_FIELDS = [
@@ -430,9 +478,14 @@ function rewriteArtifactPointers(
   };
 }
 
-function rewriteAndCopyRecord(row: SelectedRow, outputDir: string): ResultManifestRecord {
+function rewriteAndCopyRecord(
+  row: SelectedRow,
+  outputDir: string,
+  experiment: string,
+): ResultManifestRecord {
   const sourceBaseDir = path.dirname(row.source.manifestPath);
   const rewritten: Record<string, unknown> = { ...row.record };
+  rewritten.experiment = experiment;
   for (const field of MANIFEST_PATH_FIELDS) {
     rewritten[field] = copyReferencedArtifact(
       sourceBaseDir,
@@ -489,7 +542,8 @@ export function buildCombineRunSources(
   return sourcePaths.map((sourcePath, index) => {
     const manifestPath = resolveResultSourcePath(sourcePath, cwd);
     const runDir = path.dirname(resolveRunManifestPath(manifestPath));
-    if (!relativeRunPathFromCwd(cwd, runDir)) {
+    const relativeRunPath = relativeRunPathFromCwd(cwd, runDir);
+    if (!relativeRunPath) {
       throw new Error(
         `Run workspace is outside the canonical results layout: ${runDir}. Expected .agentv/results/<experiment>/<timestamp>`,
       );
@@ -498,6 +552,7 @@ export function buildCombineRunSources(
       id: options?.ids?.[index] ?? toRunId(cwd, runDir),
       displayName: options?.displayNames?.[index] ?? path.basename(runDir),
       manifestPath,
+      experiment: experimentFromRelativeRunPath(relativeRunPath),
       tags: options?.tags?.[index],
     };
   });
@@ -510,15 +565,23 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
 
   const loadedSources = loadSources(options.sources);
   const startedAt = earliestTimestamp(loadedSources.map((source) => source.startedAt));
+  const experiment = resolveCombinedExperiment(loadedSources, options.experiment);
   const displayName = options.displayName?.trim() || defaultDisplayName(loadedSources);
   const runDir = uniqueRunDir(
     options.outputDir
       ? path.resolve(options.cwd, options.outputDir)
-      : defaultCombinedRunDir(options.cwd, startedAt),
+      : defaultCombinedRunDirForExperiment(options.cwd, experiment, startedAt),
   );
-  if (!relativeRunPathFromCwd(options.cwd, runDir)) {
+  const relativeOutputRunPath = relativeRunPathFromCwd(options.cwd, runDir);
+  if (!relativeOutputRunPath) {
     throw new Error(
       `Output run workspace must use .agentv/results/<experiment>/<timestamp>: ${runDir}`,
+    );
+  }
+  const outputExperiment = experimentFromRelativeRunPath(relativeOutputRunPath);
+  if (outputExperiment !== experiment) {
+    throw new Error(
+      `Output run workspace experiment "${outputExperiment}" must match combined experiment "${experiment}".`,
     );
   }
   const { rows, conflicts } = selectRows(
@@ -535,7 +598,7 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
     });
 
   mkdirSync(runDir, { recursive: true });
-  const records = rows.map((row) => rewriteAndCopyRecord(row, runDir));
+  const records = rows.map((row) => rewriteAndCopyRecord(row, runDir, experiment));
   const manifestPath = path.join(runDir, 'index.jsonl');
   writeJsonl(manifestPath, records);
 
@@ -549,6 +612,7 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
       display_name: string;
       combined_from_run_ids: readonly string[];
       combined_from_display_names: readonly string[];
+      experiment: string;
       duplicate_policy: Exclude<CombineDuplicatePolicy, 'prompt'> | 'prompt';
     };
   } = {
@@ -557,6 +621,7 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
       ...benchmark.metadata,
       timestamp: startedAt ?? benchmark.metadata.timestamp,
       display_name: displayName,
+      experiment,
       combined_from_run_ids: loadedSources.map((source) => source.id),
       combined_from_display_names: loadedSources.map((source) => source.displayName),
       duplicate_policy: options.duplicatePolicy,
@@ -573,6 +638,7 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
     benchmarkPath,
     timingPath,
     displayName,
+    experiment,
     combinedFromRunIds: loadedSources.map((source) => source.id),
     duplicateConflicts: conflicts,
     testCount: rows.length,

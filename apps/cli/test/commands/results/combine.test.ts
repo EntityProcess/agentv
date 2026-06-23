@@ -44,8 +44,8 @@ describe('results combine', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  function seedRun(name: string, records: object[]): string {
-    const runDir = path.join(tempDir, '.agentv', 'results', 'default', name);
+  function seedRun(name: string, records: object[], experiment = 'default'): string {
+    const runDir = path.join(tempDir, '.agentv', 'results', experiment, name);
     mkdirSync(path.join(runDir, 'demo', 'test-a'), { recursive: true });
     writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records), 'utf8');
     writeFileSync(path.join(runDir, 'demo', 'test-a', 'grading.json'), '{"assertions":[]}\n');
@@ -79,11 +79,13 @@ describe('results combine', () => {
       duplicatePolicy: 'error',
     });
 
-    expect(combined.runId).toBe('combined::2026-06-01T10-00-00-000Z');
+    expect(combined.runId).toBe('2026-06-01T10-00-00-000Z');
+    expect(combined.experiment).toBe('default');
     expect(combined.testCount).toBe(2);
     const index = readFileSync(combined.manifestPath, 'utf8');
     expect(index).toContain('"test_id":"test-a"');
     expect(index).toContain('"test_id":"test-b"');
+    expect(index).toContain('"experiment":"default"');
     expect(index).toContain('"grading_path":"sources/source-1/demo/test-a/grading.json"');
     expect(
       existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/grading.json')),
@@ -92,6 +94,94 @@ describe('results combine', () => {
       metadata: { timestamp: string };
     };
     expect(benchmark.metadata.timestamp).toBe('2026-06-01T10:00:00.000Z');
+  });
+
+  it('inherits a shared non-default source experiment', () => {
+    const first = seedRun('run-a', [result()], 'smoke');
+    const second = seedRun(
+      'run-b',
+      [
+        result({
+          timestamp: '2026-06-01T11:00:00.000Z',
+          test_id: 'test-b',
+        }),
+      ],
+      'smoke',
+    );
+
+    const combined = combineRunSources({
+      cwd: tempDir,
+      sources: buildCombineRunSources([first, second], tempDir),
+      duplicatePolicy: 'error',
+    });
+
+    expect(combined.experiment).toBe('smoke');
+    expect(combined.runId).toBe('smoke::2026-06-01T10-00-00-000Z');
+    expect(combined.runDir).toContain(path.join('.agentv', 'results', 'smoke'));
+    expect(readIndex(combined.manifestPath).map((record) => record.experiment)).toEqual([
+      'smoke',
+      'smoke',
+    ]);
+  });
+
+  it('rejects overriding a shared source experiment', () => {
+    const first = seedRun('run-a', [result()], 'smoke');
+    const second = seedRun(
+      'run-b',
+      [
+        result({
+          timestamp: '2026-06-01T11:00:00.000Z',
+          test_id: 'test-b',
+        }),
+      ],
+      'smoke',
+    );
+
+    expect(() =>
+      combineRunSources({
+        cwd: tempDir,
+        sources: buildCombineRunSources([first, second], tempDir),
+        experiment: 'other',
+        duplicatePolicy: 'error',
+      }),
+    ).toThrow('Combined runs from the same experiment must inherit "smoke"');
+  });
+
+  it('requires an explicit experiment when source experiments differ', () => {
+    const first = seedRun('run-a', [result()], 'smoke');
+    const second = seedRun(
+      'run-b',
+      [
+        result({
+          timestamp: '2026-06-01T11:00:00.000Z',
+          test_id: 'test-b',
+        }),
+      ],
+      'regression',
+    );
+    const sources = buildCombineRunSources([first, second], tempDir);
+
+    expect(() =>
+      combineRunSources({
+        cwd: tempDir,
+        sources,
+        duplicatePolicy: 'error',
+      }),
+    ).toThrow('Combining runs from multiple experiments requires an experiment name');
+
+    const combined = combineRunSources({
+      cwd: tempDir,
+      sources,
+      experiment: 'smoke-regression',
+      duplicatePolicy: 'error',
+    });
+
+    expect(combined.experiment).toBe('smoke-regression');
+    expect(combined.runId).toBe('smoke-regression::2026-06-01T10-00-00-000Z');
+    expect(readIndex(combined.manifestPath).map((record) => record.experiment)).toEqual([
+      'smoke-regression',
+      'smoke-regression',
+    ]);
   });
 
   it('copies and rewrites artifact pointers when combining runs', () => {
