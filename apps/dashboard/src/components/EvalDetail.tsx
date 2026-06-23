@@ -76,7 +76,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
   };
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full min-h-full flex-col">
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
       <div className="border-b border-gray-800">
         <div className="flex gap-1 px-4">
