@@ -148,7 +148,7 @@ Public docs and implementation notes must not reference non-public sources. If a
 
 ## Key Technical Decisions
 
-- KTD1. Prefer `execution.repeat` as the durable public config surface. The existing `execution.trials` code path mixes attempt aggregation and gate behavior; implementation should either hard-correct it before stable release or keep it as a compatibility alias with explicit mapping and warnings.
+- KTD1. The repeat config attaches to the **experiment** surface, not to `eval.yaml` `execution`, per the experiments-separation decision (epic `av-991`, recorded on `av-991.1`). This aligns with Vercel agent-eval, where `runs`/`earlyExit` are experiment-level. This epic (`av-i0l`) owns the repeat **mechanics** (schema shape, gate policies, attempt aggregation, flake classification, and the run-N artifact layout); `av-991` owns **placement** (the experiment contract the repeat block lives on). The existing `execution.trials` code path is **hard-removed** (no compatibility alias) because usage is rare; its behavior is replaced by the experiment-level repeat block. Because the experiment surface is delivered by `av-991`, the schema work in `av-i0l.1` depends on that contract landing.
 - KTD2. Keep one-run CI as the default. Repeat runs are for reliability evidence unless `repeat.gate` says they are a CI gate.
 - KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json` and `run-N/` directories so existing aggregate consumers do not inflate case counts.
 - KTD4. Single-run cases keep direct case-local files instead of always nesting under `run-1`. This preserves the simple default artifact shape and makes `.agentv/results/<experiment>/<timestamp>/<case-id>/grading.json` easy to inspect. Repeat-enabled cases use `run-1/`, `run-2/`, and so on under the case directory.
@@ -165,7 +165,7 @@ Public docs and implementation notes must not reference non-public sources. If a
 
 ```mermaid
 flowchart TB
-  Config[Eval config execution.repeat] --> Runner[Eval runner]
+  Config[Experiment repeat config] --> Runner[Eval runner]
   Runner --> Attempt1[Attempt run-1]
   Runner --> Attempt2[Attempt run-2]
   Runner --> AttemptN[Attempt run-N]
@@ -214,15 +214,15 @@ Field notes:
 - `seed` is best effort. Providers that support deterministic seeds receive a per-attempt seed derived from the base seed and attempt number; providers that do not support seeds record `seed_unsupported`.
 - `budget_usd` composes with existing run-level budget controls and stops new attempts when the budget is exhausted.
 
-Compatibility with `execution.trials`:
+Migration from `execution.trials` (hard removal, no alias):
 
-- If `trials` is still prerelease-only, replace it with `repeat` and migrate tests/docs.
-- If `trials` has external consumers, keep it as an alias:
-  - `trials.count` maps to `repeat.runs`.
-  - `trials.cost_limit_usd` maps to `repeat.budget_usd`.
-  - `trials.strategy: pass_at_k` maps to `repeat.gate.policy: any_attempt_successful`.
-  - `trials.strategy: mean` maps to `mean_score_at_least` only when a threshold is present; otherwise it is report-only aggregation.
-  - `trials.strategy: confidence_interval` remains report-only until AgentV has a reviewed CI policy for confidence bounds.
+`execution.trials` is removed from `eval.yaml` outright; the repeat block lives on the experiment instead. Existing semantics map as follows so any prerelease evals can be ported by hand:
+
+- `trials.count` maps to the experiment repeat `runs`.
+- `trials.cost_limit_usd` maps to repeat `budget_usd`.
+- `trials.strategy: pass_at_k` maps to repeat `gate.policy: any_attempt_successful` (with `early_exit: on_gate_satisfied`).
+- `trials.strategy: mean` maps to `mean_score_at_least` only when a threshold is present; otherwise it is report-only aggregation.
+- `trials.strategy: confidence_interval` remains report-only until AgentV has a reviewed CI policy for confidence bounds.
 
 ---
 
@@ -455,7 +455,7 @@ Repeat runs can multiply provider spend. V1 should ship with conservative contro
 
 **Files:** `packages/core/src/evaluation/types.ts`, `packages/core/src/evaluation/loaders/config-loader.ts`, `packages/core/src/evaluation/validation/eval-file.schema.ts`, `packages/core/scripts/generate-eval-schema.ts`, `packages/core/test/evaluation/loaders/config-loader.test.ts`, `packages/core/test/evaluation/validation/eval-file-schema.test.ts`.
 
-**Approach:** Add `execution.repeat` with a narrow schema and normalize it into internal camelCase. Decide whether `execution.trials` is removed as prerelease cleanup or retained as a legacy alias with explicit mapping.
+**Approach:** Add the repeat block as a narrow schema on the **experiment** surface (delivered by `av-991`) and normalize it into internal camelCase. **Hard-remove** `execution.trials` from `eval.yaml` as prerelease cleanup (no legacy alias); port any existing usage by hand using the mapping above.
 
 **Test Scenarios:**
 
