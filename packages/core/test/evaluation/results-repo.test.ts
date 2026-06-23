@@ -29,6 +29,7 @@ import {
   normalizeResultsConfig,
   pushWipCheckpoint,
   readGitResultArtifact,
+  resolveResultsRepoUrl,
   setupWipWorktree,
   syncResultsRepo,
   syncResultsRepoForProject,
@@ -529,6 +530,32 @@ describe('listGitRuns', () => {
 
     await materializeGitRun(repoDir, 'branch-only/2026-06-12T10-00-00-000Z', 'agentv-results');
     expect(readFileSync(path.join(runDir, 'attachments.txt'), 'utf8')).toBe('from branch\n');
+  });
+});
+
+describe('resolveResultsRepoUrl', () => {
+  it('expands genuine GitHub owner/repo shorthand to a clone URL', () => {
+    expect(resolveResultsRepoUrl('EntityProcess/agentv')).toBe(
+      'https://github.com/EntityProcess/agentv.git',
+    );
+  });
+
+  it('returns explicit remote URLs unchanged', () => {
+    expect(resolveResultsRepoUrl('https://github.com/example/source.git')).toBe(
+      'https://github.com/example/source.git',
+    );
+    expect(resolveResultsRepoUrl('git@github.com:example/source.git')).toBe(
+      'git@github.com:example/source.git',
+    );
+    expect(resolveResultsRepoUrl('file:///tmp/results.git')).toBe('file:///tmp/results.git');
+  });
+
+  it('never synthesizes a GitHub URL from a local path like "."', () => {
+    // Regression: same-repo results (`repo_path: .`) previously produced the
+    // malformed remote `https://github.com/..git` and overrode the project's
+    // correct origin. A local path must be returned unchanged.
+    expect(resolveResultsRepoUrl('.')).toBe('.');
+    expect(resolveResultsRepoUrl('/data/repos/WTG.AI.Prompts')).toBe('/data/repos/WTG.AI.Prompts');
   });
 });
 
