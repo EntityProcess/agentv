@@ -252,11 +252,27 @@ export function normalizeResultsConfig(
   };
 }
 
+// GitHub `owner/repo` shorthand: exactly two non-empty path segments and no
+// scheme, host, or extra slashes. A bare local path like `.` does not match
+// (no `/`), so it is never expanded into a clone URL.
+const GITHUB_OWNER_REPO_SHORTHAND = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
+function isExplicitRemoteUrl(value: string): boolean {
+  return value.includes('://') || value.startsWith('git@');
+}
+
 export function resolveResultsRepoUrl(repo: string): string {
-  if (repo.includes('://') || repo.startsWith('git@')) {
-    return repo;
+  const trimmed = repo.trim();
+  if (isExplicitRemoteUrl(trimmed)) {
+    return trimmed;
   }
-  return `https://github.com/${repo}.git`;
+  // Only genuine GitHub `owner/repo` shorthand is expanded to a clone URL.
+  // Local paths (including `.`) and other non-URL values are returned unchanged
+  // so we never synthesize a bogus URL such as `https://github.com/..git`.
+  if (GITHUB_OWNER_REPO_SHORTHAND.test(trimmed)) {
+    return `https://github.com/${trimmed}.git`;
+  }
+  return trimmed;
 }
 
 export function getResultsRepoLocalPaths(repo: string): ResultsRepoLocalPaths {
@@ -606,6 +622,13 @@ async function ensureResultsRepoRemote(
   }
 
   const remoteUrl = resolveResultsRepoUrl(config.repo_url);
+  // Same-repo results push to the project's existing remote (typically
+  // `origin`). Never rewrite that remote to a value that is not a real Git
+  // remote URL (e.g. a local results path or `.`), which would otherwise
+  // clobber a correct origin with a synthesized URL.
+  if (!isExplicitRemoteUrl(remoteUrl)) {
+    return;
+  }
   const { stdout } = await runGit(['remote', 'get-url', config.remote], {
     cwd: repoDir,
     check: false,
