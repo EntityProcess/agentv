@@ -15,6 +15,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { c, padRight } from './utils.js';
@@ -62,7 +63,7 @@ function collectCurrentResultJsonlFiles(cwd: string): string[] {
   try {
     const entries = readdirSync(resultsDir, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.name === 'runs') continue;
+      if (isReservedResultsNamespace(entry.name)) continue;
       const fullPath = path.join(resultsDir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectJsonlFiles(fullPath));

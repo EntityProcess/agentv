@@ -457,7 +457,7 @@ AgentV stores run artifacts under \`.agentv/results/\` and syncs them through no
 
   changed =
     writeFileIfChanged(
-      path.join(params.repoDir, '.agentv', 'results', 'runs', '.gitkeep'),
+      path.join(params.repoDir, '.agentv', 'results', 'default', '.gitkeep'),
       '',
       params.dryRun,
     ) || changed;

@@ -5,6 +5,7 @@ import { DEFAULT_THRESHOLD, toCamelCaseDeep, toSnakeCaseDeep } from '@agentv/cor
 import {
   RESULT_INDEX_FILENAME,
   buildResultsRootDir,
+  isReservedResultsNamespace,
   resolveExistingRunPrimaryPath,
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
@@ -622,7 +623,7 @@ function listResultFilesFromRoot(
     const entries = readdirSync(runsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (options?.skipTopLevelDirs?.has(entry.name)) {
+        if (options?.skipTopLevelDirs?.has(entry.name) || isReservedResultsNamespace(entry.name)) {
           continue;
         }
         collectRunManifestPaths(runsDir, path.join(runsDir, entry.name), files);
@@ -674,12 +675,13 @@ function listResultFilesFromRoot(
 /**
  * Enumerate canonical run manifests in `.agentv/results/`.
  *
- * Reserved local namespaces such as `.agentv/results/runs/` and
- * `.agentv/results/metadata/` are intentionally skipped by default discovery.
+ * Reserved local namespaces such as `.agentv/results/runs/`,
+ * `.agentv/results/metadata/`, and `.agentv/results/export/` are intentionally
+ * skipped by default discovery.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
   const metas = listResultFilesFromRoot(buildResultsRootDir(cwd), {
-    skipTopLevelDirs: new Set(['metadata', 'runs']),
+    skipTopLevelDirs: new Set(['export', 'metadata', 'runs']),
   }).sort((a, b) => {
     const byTimestamp = b.timestamp.localeCompare(a.timestamp);
     return byTimestamp !== 0 ? byTimestamp : b.displayName.localeCompare(a.displayName);
@@ -690,7 +692,7 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
 export function listResultFilesFromRunsDir(runsDir: string, limit?: number): ResultFileMeta[] {
   return listResultFilesFromRoot(runsDir, {
     limit,
-    skipTopLevelDirs: new Set(['metadata', 'runs']),
+    skipTopLevelDirs: new Set(['export', 'metadata', 'runs']),
   });
 }
 

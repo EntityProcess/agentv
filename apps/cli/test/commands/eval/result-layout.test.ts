@@ -24,14 +24,16 @@ describe('result layout', () => {
     );
   });
 
-  it('reserves the deprecated runs namespace', () => {
-    expect(() => normalizeExperimentName('runs')).toThrow('reserved');
-    expect(
-      relativeRunPathFromCwd(
-        '/repo',
-        path.join('/repo', '.agentv', 'results', 'runs', 'default', '2026-run'),
-      ),
-    ).toBeUndefined();
+  it('reserves non-run namespaces at the results root', () => {
+    for (const namespace of ['export', 'metadata', 'runs']) {
+      expect(() => normalizeExperimentName(namespace)).toThrow('reserved');
+      expect(
+        relativeRunPathFromCwd(
+          '/repo',
+          path.join('/repo', '.agentv', 'results', namespace, 'default', '2026-run'),
+        ),
+      ).toBeUndefined();
+    }
     expect(
       relativeRunPathFromCwd(
         '/repo',

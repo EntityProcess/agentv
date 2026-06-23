@@ -221,7 +221,6 @@ describe('results export', () => {
         tempDir,
         '.agentv',
         'results',
-        'runs',
         'with-skills',
         '2026-03-18T10-00-00-000Z',
         'index.jsonl',

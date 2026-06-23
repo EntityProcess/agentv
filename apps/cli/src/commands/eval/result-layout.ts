@@ -4,7 +4,11 @@ import path from 'node:path';
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RESULTS_DIRNAME = 'results';
 export const DEFAULT_EXPERIMENT_NAME = 'default';
-const RESERVED_EXPERIMENT_NAMES = new Set(['runs']);
+export const RESERVED_RESULTS_NAMESPACES = new Set(['export', 'metadata', 'runs']);
+
+export function isReservedResultsNamespace(value: string | undefined): boolean {
+  return value !== undefined && RESERVED_RESULTS_NAMESPACES.has(value);
+}
 
 export function normalizeExperimentName(experiment?: string): string {
   const trimmed = experiment?.trim();
@@ -16,7 +20,7 @@ export function normalizeExperimentName(experiment?: string): string {
       `Invalid experiment name "${trimmed}". Use only letters, numbers, ".", "_" and "-".`,
     );
   }
-  if (RESERVED_EXPERIMENT_NAMES.has(trimmed)) {
+  if (isReservedResultsNamespace(trimmed)) {
     throw new Error(`Invalid experiment name "${trimmed}". This results namespace is reserved.`);
   }
   return trimmed;
@@ -114,7 +118,7 @@ export function relativeRunPathFromCwd(cwd: string, runDir: string): string | un
   }
 
   const parts = relative.split(path.sep).filter(Boolean);
-  if (parts.length < 2 || RESERVED_EXPERIMENT_NAMES.has(parts[0] ?? '')) {
+  if (parts.length < 2 || isReservedResultsNamespace(parts[0])) {
     return undefined;
   }
 

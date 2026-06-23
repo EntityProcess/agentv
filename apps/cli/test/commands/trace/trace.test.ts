@@ -331,6 +331,17 @@ describe('trace utils', () => {
       expect(metas).toEqual([]);
     });
 
+    it('should skip local export workspaces by default', () => {
+      const exportDir = path.join(tempDir, '.agentv', 'results', 'export');
+      const runDir = path.join(exportDir, 'default', '2026-02-20T21-38-05-833Z');
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
+
+      const metas = listResultFiles(tempDir);
+
+      expect(metas).toEqual([]);
+    });
+
     it('should respect limit', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results', 'default');
       mkdirSync(runsDir, { recursive: true });

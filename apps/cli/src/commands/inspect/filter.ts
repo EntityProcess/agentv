@@ -13,6 +13,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { isReservedResultsNamespace } from '../eval/result-layout.js';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
 import { normalizeResultRow } from '../results/result-row-schema.js';
 import { c, formatScore, padLeft, padRight } from './utils.js';
@@ -59,7 +60,7 @@ function collectCurrentResultIndexFiles(cwd: string): string[] {
   try {
     const entries = readdirSync(resultsDir, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.name === 'runs') continue;
+      if (isReservedResultsNamespace(entry.name)) continue;
       const fullPath = path.join(resultsDir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectIndexFiles(fullPath));
@@ -118,7 +119,7 @@ function inferExperimentFromPath(filePath: string): string | undefined {
   if (resultsIdx === -1) return undefined;
 
   const runPath = parts.slice(resultsIdx + 1, -1);
-  if (runPath[0] === 'runs') return undefined;
+  if (isReservedResultsNamespace(runPath[0])) return undefined;
   if (runPath.length < 2) return undefined;
 
   const candidate = runPath[0];
