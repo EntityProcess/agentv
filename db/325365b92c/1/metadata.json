@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "db325365b92c",
+  "session_id": "8e081e35-999d-4d47-a3a7-3303b75eb299",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-23T05:19:17.749028736Z",
+  "branch": "fix/copilot-sdk-epipe",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "packages/core/src/evaluation/providers/copilot-sdk.ts",
+    "packages/core/test/evaluation/providers/copilot-sdk.test.ts"
+  ],
+  "agent": "Copilot CLI",
+  "model": "",
+  "turn_id": "8a555eed40dc",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-23T05:19:17.725533902Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 75,
+    "human_modified": 14,
+    "human_removed": 0,
+    "total_committed": 75,
+    "total_lines_changed": 117,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 208,
+      "user_lines_removed": 14,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".workmux/PROMPT-dashboard-vercel-playground-ux.md": 70,
+        "packages/core/src/evaluation/providers/copilot-sdk.ts": 79,
+        "packages/core/test/evaluation/providers/copilot-sdk.test.ts": 59
+      },
+      "user_removed_per_file": {
+        "packages/core/src/evaluation/providers/copilot-sdk.ts": 1,
+        "packages/core/test/evaluation/providers/copilot-sdk.test.ts": 13
+      }
+    }
+  ]
+}
