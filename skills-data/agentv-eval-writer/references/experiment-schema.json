@@ -44,9 +44,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "required": [
-                  "name"
-                ],
+                "required": ["name"],
                 "additionalProperties": false
               }
             ]
@@ -151,11 +149,7 @@
             },
             "strategy": {
               "type": "string",
-              "enum": [
-                "pass_at_k",
-                "mean",
-                "confidence_interval"
-              ]
+              "enum": ["pass_at_k", "mean", "confidence_interval"]
             },
             "cost_limit_usd": {
               "type": "number",
@@ -166,9 +160,7 @@
               "minimum": 0
             }
           },
-          "required": [
-            "count"
-          ],
+          "required": ["count"],
           "additionalProperties": false
         },
         "runs": {
@@ -194,11 +186,7 @@
         },
         "sandbox": {
           "type": "string",
-          "enum": [
-            "auto",
-            "docker",
-            "vercel"
-          ]
+          "enum": ["auto", "docker", "vercel"]
         },
         "workspace": {
           "type": "object",
