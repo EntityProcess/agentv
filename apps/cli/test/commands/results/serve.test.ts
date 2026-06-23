@@ -4026,6 +4026,33 @@ describe('serve app', () => {
       expect(data.command).toContain('--output .agentv/results/default/r1');
     });
 
+    it('builds a selected experiment output path and writes initial tags beside the new run', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          experiment: 'smoke',
+          tags: [' baseline ', 'baseline', 'prompt-v2'],
+        }),
+      });
+
+      expect(res.status).toBe(202);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--experiment smoke');
+      expect(data.command).toContain(path.join('.agentv', 'results', 'smoke'));
+      const outputDir = data.command.match(/--output ([^\s]+)/)?.[1];
+      expect(outputDir).toBeString();
+
+      const tagFile = JSON.parse(
+        readFileSync(path.join(outputDir as string, 'tags.json'), 'utf8'),
+      ) as {
+        tags: string[];
+      };
+      expect(tagFile.tags).toEqual(['baseline', 'prompt-v2']);
+    });
+
     it('builds --retry-errors <path> from the request', async () => {
       const app = makeAppForRun();
       const res = await app.request('/api/eval/run', {
@@ -4071,6 +4098,23 @@ describe('serve app', () => {
         }),
       });
       expect(res.status).toBe(400);
+    });
+
+    it('rejects initial tags when resuming an existing run', async () => {
+      const app = makeAppForRun();
+      const res = await app.request('/api/eval/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          output: '.agentv/results/default/r1',
+          resume: true,
+          tags: ['baseline'],
+        }),
+      });
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toContain('creating a new run');
     });
 
     it('returns 403 in read-only mode for unscoped /api/eval/run', async () => {
@@ -4204,6 +4248,44 @@ describe('serve app', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as { command: string };
       expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
+    });
+
+    it('emits --experiment for selected experiment requests', async () => {
+      const app = createApp([], tempDir, undefined, undefined, { studioDir });
+      const res = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          experiment: 'smoke',
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).toContain('--experiment smoke');
+    });
+
+    it('rejects invalid experiment and tag values', async () => {
+      const app = createApp([], tempDir, undefined, undefined, { studioDir });
+      const badExperiment = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          experiment: 'bad/name',
+        }),
+      });
+      expect(badExperiment.status).toBe(400);
+
+      const badTag = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          tags: ['good', 'bad\nvalue'],
+        }),
+      });
+      expect(badTag.status).toBe(400);
     });
   });
 

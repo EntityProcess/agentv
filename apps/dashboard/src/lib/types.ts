@@ -564,6 +564,8 @@ export interface RunEvalRequest {
   suite_filter?: string;
   test_ids?: string[];
   target?: string;
+  experiment?: string;
+  tags?: string[];
   threshold?: number;
   workers?: number;
   dry_run?: boolean;
