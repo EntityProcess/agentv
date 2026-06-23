@@ -19,6 +19,7 @@ export type ProviderKind =
   | 'anthropic'
   | 'gemini'
   | 'codex'
+  | 'ai-sdk-agent'
   | 'copilot-sdk'
   | 'copilot-cli'
   | 'copilot-log'
@@ -45,6 +46,7 @@ export type ProviderKind =
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
+  'ai-sdk-agent',
   'copilot-sdk',
   'copilot-cli',
   'pi-coding-agent',
@@ -85,6 +87,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'anthropic',
   'gemini',
   'codex',
+  'ai-sdk-agent',
   'copilot-sdk',
   'copilot-cli',
   'copilot-log',
@@ -394,6 +397,8 @@ export interface TargetDefinition {
   // Common fields
   readonly temperature?: number | unknown | undefined;
   readonly max_output_tokens?: number | unknown | undefined;
+  readonly max_steps?: number | unknown | undefined;
+  readonly tools?: string | unknown | undefined;
   // Codex fields
   readonly executable?: string | unknown | undefined;
   readonly command?: string | unknown | undefined;
@@ -412,7 +417,7 @@ export interface TargetDefinition {
   readonly log_output_format?: string | unknown | undefined;
   /** New stream_log field — replaces log_format. false=no stream log, 'raw'=per-event, 'summary'=consolidated. */
   readonly stream_log?: string | boolean | unknown | undefined;
-  // System prompt (codex, copilot, claude, pi-coding-agent)
+  // System prompt (codex, copilot, claude, pi-coding-agent, ai-sdk-agent)
   readonly system_prompt?: string | unknown | undefined;
   // Claude Agent SDK fields
   readonly max_turns?: number | unknown | undefined;

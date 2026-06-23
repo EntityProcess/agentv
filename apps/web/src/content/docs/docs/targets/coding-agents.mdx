@@ -227,6 +227,46 @@ targets:
     grader_target: azure-base
 ```
 
+## AI SDK Agent
+
+`provider: ai-sdk-agent` is experimental. It uses Vercel AI SDK model and
+tool-calling primitives with AgentV-owned coding tools and a bounded tool loop.
+It is not a one-shot LLM target.
+
+```yaml
+targets:
+  - name: ai-sdk-agent
+    provider: ai-sdk-agent
+    base_url: ${{ AGENTV_OPENAI_BASE_URL }}
+    api_key: ${{ AGENTV_OPENAI_API_KEY }}
+    model: ${{ AGENTV_CODEX_MODEL }}
+    max_steps: 20
+    tools: read,bash,edit,write
+    grader_target: azure-base
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `base_url` | No | OpenAI-compatible base URL. Defaults to `https://api.openai.com/v1`. |
+| `api_key` | Yes | OpenAI-compatible API key. Prefer `${{ ENV_VAR }}` references. |
+| `model` | Yes | Chat-completions model id. |
+| `temperature` | No | Model temperature. |
+| `max_steps` | No | Agent loop step limit. Defaults to `20`. |
+| `tools` | No | Comma-separated allowlist from `read,bash,edit,write`. Defaults to all four. |
+| `system_prompt` | No | Extra system instructions appended to AgentV's coding-agent prompt. |
+| `cwd` | No | Working directory override. |
+| `timeout_seconds` | No | Per-case model-call timeout. |
+| `grader_target` | Yes | LLM target for evaluation. |
+
+The first slice includes minimal repo-owned tools: `read` and `write` operate on
+UTF-8 files relative to the eval workspace, `edit` performs exact string
+replacement, and `bash` runs shell commands in the workspace with timeout and
+bounded stdout/stderr capture.
+
+AgentV loads `ai` and `@ai-sdk/openai` only when this provider is invoked. If
+they are not installed locally, AgentV uses a managed dependency directory under
+`~/.agentv/deps/ai-sdk-agent`.
+
 ## VS Code
 
 ```yaml

@@ -1,4 +1,5 @@
 import { AgentvProvider } from './agentv-provider.js';
+import { AiSdkAgentProvider } from './ai-sdk-agent.js';
 import { ClaudeCliProvider } from './claude-cli.js';
 import { ClaudeSdkProvider } from './claude-sdk.js';
 import { ClaudeProvider } from './claude.js';
@@ -46,6 +47,7 @@ export { extractLastAssistantContent } from './types.js';
 
 export type {
   AgentVResolvedConfig,
+  AiSdkAgentResolvedConfig,
   AnthropicResolvedConfig,
   ApiFormat,
   AzureResolvedConfig,
@@ -106,6 +108,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
 
   registry
     .register('openai', (t) => new OpenAIProvider(t.name, t.config as never))
+    .register('ai-sdk-agent', (t) => new AiSdkAgentProvider(t.name, t.config as never))
     .register('openrouter', (t) => new OpenRouterProvider(t.name, t.config as never))
     .register('azure', (t) => new AzureProvider(t.name, t.config as never))
     .register('anthropic', (t) => new AnthropicProvider(t.name, t.config as never))

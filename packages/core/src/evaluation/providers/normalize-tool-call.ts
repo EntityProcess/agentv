@@ -125,6 +125,12 @@ const TOOL_NAME_MAP = new Map<string, CanonicalTool>([
   ['codex::command_execution', 'Bash'],
   ['codex::file_change', 'Edit'],
 
+  // --- AI SDK Agent ---
+  ['ai-sdk-agent::read', 'Read'],
+  ['ai-sdk-agent::write', 'Write'],
+  ['ai-sdk-agent::edit', 'Edit'],
+  ['ai-sdk-agent::bash', 'Bash'],
+
   // --- Pi ---
   ['pi-coding-agent::read', 'Read'],
   ['pi-coding-agent::bash', 'Bash'],

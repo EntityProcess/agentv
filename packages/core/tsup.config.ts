@@ -22,6 +22,8 @@ export default defineConfig({
     '@opentelemetry/semantic-conventions',
     '@earendil-works/pi-coding-agent',
     '@earendil-works/pi-ai',
+    'ai',
+    '@ai-sdk/openai',
   ],
   outExtension({ format }) {
     return {

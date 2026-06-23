@@ -21,6 +21,8 @@ export default defineConfig({
     '@github/copilot-sdk',
     '@openai/codex-sdk',
     '@anthropic-ai/claude-agent-sdk',
+    'ai',
+    '@ai-sdk/openai',
   ],
   // Provide a real require() for bundled CJS modules (e.g. debug) that need Node.js builtins like tty
   banner: {

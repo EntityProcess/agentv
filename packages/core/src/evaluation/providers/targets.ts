@@ -388,6 +388,18 @@ export interface OpenAIResolvedConfig {
   readonly retry?: RetryConfig;
 }
 
+export interface AiSdkAgentResolvedConfig {
+  readonly baseURL: string;
+  readonly apiKey: string;
+  readonly model: string;
+  readonly temperature?: number;
+  readonly maxSteps: number;
+  readonly tools?: string;
+  readonly systemPrompt?: string;
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+}
+
 /**
  * OpenRouter settings used by the Vercel AI SDK provider.
  */
@@ -593,6 +605,7 @@ const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['deploymentName', 'model'],
   ['thinkingBudget', 'thinking_budget'],
   ['maxTokens', 'max_output_tokens'],
+  ['maxSteps', 'max_steps'],
   ['apiFormat', 'api_format'],
   ['timeoutSeconds', 'timeout_seconds'],
   ['logDir', 'log_dir'],
@@ -751,6 +764,10 @@ interface ResolvedTargetBase {
 
 export type ResolvedTarget =
   | (ResolvedTargetBase & { readonly kind: 'openai'; readonly config: OpenAIResolvedConfig })
+  | (ResolvedTargetBase & {
+      readonly kind: 'ai-sdk-agent';
+      readonly config: AiSdkAgentResolvedConfig;
+    })
   | (ResolvedTargetBase & {
       readonly kind: 'openrouter';
       readonly config: OpenRouterResolvedConfig;
@@ -978,6 +995,12 @@ export function resolveTargetDefinition(
         kind: 'openai',
         ...base,
         config: resolveOpenAIConfig(parsed, env),
+      };
+    case 'ai-sdk-agent':
+      return {
+        kind: 'ai-sdk-agent',
+        ...base,
+        config: resolveAiSdkAgentConfig(parsed, env, evalFilePath),
       };
     case 'openrouter':
       return {
@@ -1240,6 +1263,75 @@ function resolveOpenAIConfig(
     temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
     maxOutputTokens: resolveOptionalNumber(maxTokensSource, `${target.name} max output tokens`),
     retry,
+  };
+}
+
+function resolveAiSdkAgentConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  _evalFilePath?: string,
+): AiSdkAgentResolvedConfig {
+  const baseUrlSource = target.base_url ?? target.endpoint;
+  const apiKeySource = target.api_key;
+  const modelSource = target.model ?? target.deployment ?? target.variant;
+  const temperatureSource = target.temperature;
+  const maxStepsSource = target.max_steps;
+  const toolsSource = target.tools;
+  const systemPromptSource = target.system_prompt;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds;
+
+  const baseURL = normalizeOpenAIBaseUrl(
+    resolveOptionalString(baseUrlSource, env, `${target.name} ai-sdk-agent base URL`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+  );
+  const apiKey = resolveString(apiKeySource, env, `${target.name} ai-sdk-agent API key`);
+  const model = resolveOptionalString(modelSource, env, `${target.name} ai-sdk-agent model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  if (!model) {
+    throw new Error(`${target.name} ai-sdk-agent model is required`);
+  }
+
+  const maxStepsRaw = resolveOptionalNumber(
+    maxStepsSource,
+    `${target.name} ai-sdk-agent max steps`,
+  );
+  const maxSteps = maxStepsRaw === undefined ? 20 : maxStepsRaw;
+  if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 100) {
+    throw new Error(`${target.name} ai-sdk-agent max_steps must be an integer from 1 to 100`);
+  }
+
+  const tools = resolveOptionalString(toolsSource, env, `${target.name} ai-sdk-agent tools`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} ai-sdk-agent cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} ai-sdk-agent timeout`);
+
+  return {
+    baseURL,
+    apiKey,
+    model,
+    temperature: resolveOptionalNumber(temperatureSource, `${target.name} temperature`),
+    maxSteps,
+    tools,
+    systemPrompt,
+    cwd,
+    timeoutMs,
   };
 }
 

@@ -1332,6 +1332,75 @@ describe('createProvider', () => {
     });
   });
 
+  it('resolves ai-sdk-agent OpenAI-compatible target config', () => {
+    const env = {
+      AGENTV_OPENAI_BASE_URL: 'http://127.0.0.1:10531/v1',
+      AGENTV_OPENAI_API_KEY: 'dummy',
+      AGENTV_CODEX_MODEL: 'gpt-5.3-codex-spark',
+    } satisfies Record<string, string>;
+
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'ai-sdk-coding-agent',
+        provider: 'ai-sdk-agent',
+        base_url: '${{ AGENTV_OPENAI_BASE_URL }}',
+        api_key: '${{ AGENTV_OPENAI_API_KEY }}',
+        model: '${{ AGENTV_CODEX_MODEL }}',
+        temperature: 0.1,
+        max_steps: 12,
+        tools: 'read,bash,edit,write',
+        system_prompt: 'Use the repo instructions.',
+        grader_target: 'grader',
+      },
+      env,
+    );
+
+    expect(resolved.kind).toBe('ai-sdk-agent');
+    if (resolved.kind !== 'ai-sdk-agent') throw new Error('expected ai-sdk-agent');
+    expect(resolved.graderTarget).toBe('grader');
+    expect(resolved.config).toEqual({
+      baseURL: 'http://127.0.0.1:10531/v1',
+      apiKey: 'dummy',
+      model: 'gpt-5.3-codex-spark',
+      temperature: 0.1,
+      maxSteps: 12,
+      tools: 'read,bash,edit,write',
+      systemPrompt: 'Use the repo instructions.',
+      cwd: undefined,
+      timeoutMs: undefined,
+    });
+  });
+
+  it('validates ai-sdk-agent max_steps bounds', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'ai-sdk-coding-agent',
+          provider: 'ai-sdk-agent',
+          api_key: '${{ AGENTV_OPENAI_API_KEY }}',
+          model: 'gpt-test',
+          max_steps: 0,
+        },
+        { AGENTV_OPENAI_API_KEY: 'dummy' },
+      ),
+    ).toThrow('max_steps must be an integer from 1 to 100');
+  });
+
+  it('creates an ai-sdk-agent provider from resolved target config', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'ai-sdk-coding-agent',
+        provider: 'ai-sdk-agent',
+        api_key: '${{ AGENTV_OPENAI_API_KEY }}',
+        model: 'gpt-test',
+      },
+      { AGENTV_OPENAI_API_KEY: 'dummy' },
+    );
+    const provider = createProvider(resolved);
+    expect(provider.kind).toBe('ai-sdk-agent');
+    expect(provider.targetName).toBe('ai-sdk-coding-agent');
+  });
+
   it('resolves pi-coding-agent with azure subprovider and base_url', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://my-resource.openai.azure.com',

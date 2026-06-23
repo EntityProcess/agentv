@@ -63,6 +63,22 @@ const OPENAI_SETTINGS = new Set([
   'max_output_tokens',
 ]);
 
+const AI_SDK_AGENT_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'endpoint',
+  'base_url',
+  'api_key',
+  'model',
+  'deployment',
+  'variant',
+  'temperature',
+  'max_steps',
+  'tools',
+  'system_prompt',
+  'cwd',
+  'timeout_seconds',
+]);
+
 const OPENROUTER_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   ...RETRY_SETTINGS,
@@ -222,6 +238,8 @@ function getKnownSettings(provider: string): Set<string> | null {
   switch (normalizedProvider) {
     case 'openai':
       return OPENAI_SETTINGS;
+    case 'ai-sdk-agent':
+      return AI_SDK_AGENT_SETTINGS;
     case 'openrouter':
       return OPENROUTER_SETTINGS;
     case 'azure':
