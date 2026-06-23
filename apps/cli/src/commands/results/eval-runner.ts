@@ -27,10 +27,11 @@ import { listTargetNames, readTargetDefinitions } from '@agentv/core';
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
 
-import { TARGET_FILE_CANDIDATES, discoverTargetsFile } from '../../utils/targets.js';
+import { TARGET_FILE_CANDIDATES } from '../../utils/targets.js';
 import { discoverEvalFiles } from '../eval/discover.js';
-import { buildDefaultRunDir } from '../eval/result-layout.js';
+import { buildDefaultRunDir, normalizeExperimentName } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
+import { normalizeTags, writeRunTags } from './run-tags.js';
 
 // ── In-memory run tracker ────────────────────────────────────────────────
 
@@ -140,6 +141,8 @@ interface RunEvalRequest {
   suite_filter?: string;
   test_ids?: string[];
   target?: string;
+  experiment?: string;
+  tags?: string[];
   threshold?: number;
   workers?: number;
   dry_run?: boolean;
@@ -170,7 +173,27 @@ function validateResumeOptions(req: RunEvalRequest): string | undefined {
   return undefined;
 }
 
-function buildCliArgs(req: RunEvalRequest): string[] {
+function parseInitialTags(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error('tags must be an array of strings');
+  }
+  return normalizeTags(value);
+}
+
+function normalizeRunMetadata(req: RunEvalRequest): { experiment: string; tags: string[] } {
+  const experiment = normalizeExperimentName(req.experiment);
+  const tags = parseInitialTags(req.tags);
+  if ((req.resume || req.rerun_failed) && req.experiment?.trim()) {
+    throw new Error('experiment cannot be changed when resuming an existing run');
+  }
+  if ((req.resume || req.rerun_failed) && tags.length > 0) {
+    throw new Error('initial tags can only be set when creating a new run');
+  }
+  return { experiment, tags };
+}
+
+function buildCliArgs(req: RunEvalRequest, experiment?: string): string[] {
   const args: string[] = ['eval'];
 
   // Suite filter (eval paths/globs)
@@ -194,6 +217,10 @@ function buildCliArgs(req: RunEvalRequest): string[] {
   // Target override
   if (req.target?.trim()) {
     args.push('--target', req.target.trim());
+  }
+
+  if (experiment && req.experiment?.trim()) {
+    args.push('--experiment', experiment);
   }
 
   // Threshold
@@ -306,6 +333,12 @@ function openConsoleLogStream(outputDir: string): WriteStream | undefined {
   }
 }
 
+function writeInitialRunTags(outputDir: string, tags: readonly string[]): void {
+  if (tags.length === 0) return;
+  mkdirSync(outputDir, { recursive: true });
+  writeRunTags(path.join(outputDir, 'index.jsonl'), tags);
+}
+
 // ── Route registration ───────────────────────────────────────────────────
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -369,12 +402,19 @@ export function registerEvalRoutes(
       return c.json({ error: resumeError }, 400);
     }
 
+    let metadata: { experiment: string; tags: string[] };
+    try {
+      metadata = normalizeRunMetadata(body);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+
     const cliPaths = resolveCliPath(cwd);
     if (!cliPaths) {
       return c.json({ error: 'Cannot locate agentv CLI entry point' }, 500);
     }
 
-    const args = buildCliArgs(body);
+    const args = buildCliArgs(body, metadata.experiment);
     // Determine the output directory for this run. When the caller provides
     // an explicit --output (resume/rerun), use that path. Otherwise generate
     // the default path now so we can pass it via --output and later correlate
@@ -382,7 +422,7 @@ export function registerEvalRoutes(
     // target in the sidebar before any results have been written).
     const outputDir = body.output?.trim()
       ? path.resolve(cwd, body.output.trim())
-      : buildDefaultRunDir(cwd);
+      : buildDefaultRunDir(cwd, metadata.experiment);
     if (!body.output?.trim()) {
       args.push('--output', outputDir);
     }
@@ -402,6 +442,7 @@ export function registerEvalRoutes(
     activeRuns.set(runId, run);
 
     try {
+      writeInitialRunTags(outputDir, metadata.tags);
       const child = spawn(cliPaths.binPath, [...cliPaths.args, ...args], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -537,7 +578,14 @@ export function registerEvalRoutes(
       return c.json({ error: 'Invalid JSON body' }, 400);
     }
 
-    const args = buildCliArgs(body);
+    let metadata: { experiment: string; tags: string[] };
+    try {
+      metadata = normalizeRunMetadata(body);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+
+    const args = buildCliArgs(body, metadata.experiment);
     return c.json({ command: buildCliPreview(args) });
   });
 
@@ -590,15 +638,22 @@ export function registerEvalRoutes(
       return c.json({ error: resumeError }, 400);
     }
 
+    let metadata: { experiment: string; tags: string[] };
+    try {
+      metadata = normalizeRunMetadata(body);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+
     const cliPaths = resolveCliPath(cwd);
     if (!cliPaths) {
       return c.json({ error: 'Cannot locate agentv CLI entry point' }, 500);
     }
 
-    const args = buildCliArgs(body);
+    const args = buildCliArgs(body, metadata.experiment);
     const outputDir = body.output?.trim()
       ? path.resolve(cwd, body.output.trim())
-      : buildDefaultRunDir(cwd);
+      : buildDefaultRunDir(cwd, metadata.experiment);
     if (!body.output?.trim()) {
       args.push('--output', outputDir);
     }
@@ -618,6 +673,7 @@ export function registerEvalRoutes(
     activeRuns.set(runId, run);
 
     try {
+      writeInitialRunTags(outputDir, metadata.tags);
       const child = spawn(cliPaths.binPath, [...cliPaths.args, ...args], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -721,7 +777,13 @@ export function registerEvalRoutes(
     } catch {
       return c.json({ error: 'Invalid JSON body' }, 400);
     }
-    const args = buildCliArgs(body);
+    let metadata: { experiment: string; tags: string[] };
+    try {
+      metadata = normalizeRunMetadata(body);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+    const args = buildCliArgs(body, metadata.experiment);
     return c.json({ command: buildCliPreview(args) });
   });
 }

@@ -27,6 +27,8 @@ describe('buildRunEvalRequest', () => {
         suiteFilter: 'evals/**/*.eval.yaml',
         testIds: [],
         target: '',
+        experiment: '',
+        tags: [],
         thresholdInput: '',
         studioThreshold: 0.75,
         workers: '',
@@ -44,6 +46,8 @@ describe('buildRunEvalRequest', () => {
         suiteFilter: 'evals/**/*.eval.yaml',
         testIds: [],
         target: '',
+        experiment: '',
+        tags: [],
         thresholdInput: '0.9',
         studioThreshold: 0.75,
         workers: '',
@@ -52,6 +56,27 @@ describe('buildRunEvalRequest', () => {
     ).toEqual({
       suite_filter: 'evals/**/*.eval.yaml',
       threshold: 0.9,
+    });
+  });
+
+  it('submits launch metadata when experiment and tags are set', () => {
+    expect(
+      buildRunEvalRequest({
+        suiteFilter: 'evals/**/*.eval.yaml',
+        testIds: [],
+        target: '',
+        experiment: 'smoke',
+        tags: ['baseline', 'prompt-v2'],
+        thresholdInput: '',
+        studioThreshold: 0.75,
+        workers: '',
+        dryRun: false,
+      }),
+    ).toEqual({
+      suite_filter: 'evals/**/*.eval.yaml',
+      experiment: 'smoke',
+      tags: ['baseline', 'prompt-v2'],
+      threshold: 0.75,
     });
   });
 });
