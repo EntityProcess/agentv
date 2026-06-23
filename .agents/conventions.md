@@ -27,7 +27,7 @@ When spawning a subprocess with an explicit `cwd`, pass user-supplied `args` thr
 
 - Do not rewrite arg arrays with `startsWith('./')` or `!path.isAbsolute()` heuristics.
 - Those heuristics miss bare relative paths such as `plugins/foo`, can corrupt flag-value pairs such as `--config=./x`, and duplicate behavior the subprocess already handles.
-- See `docs/learnings/best-practices/trust-subprocess-cwd-for-relative-path-resolution.md`.
+- See `docs/solutions/best-practices/trust-subprocess-cwd-for-relative-path-resolution.md`.
 
 ## Naming: Project vs Benchmark
 

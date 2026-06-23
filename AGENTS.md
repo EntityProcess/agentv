@@ -57,7 +57,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - `examples/`: examples that double as reference material and integration coverage.
 - `docs/adr/`: durable product and architecture boundary decisions.
 - `docs/plans/`: implementation plans and temporary design artifacts.
-- `docs/learnings/`: primary learning store for captured fixes and decisions.
+- `docs/solutions/`: documented fixes, decisions, and best practices, organized by category.
 - `CONCEPTS.md`: shared domain vocabulary.
 
 ## Routing
