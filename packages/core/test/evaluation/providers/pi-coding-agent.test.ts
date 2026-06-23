@@ -80,4 +80,15 @@ describe('PiCodingAgentProvider', () => {
     const { sep } = require('node:path');
     expect(_internal.findAgentvRoot().endsWith(`packages${sep}core`)).toBe(true);
   });
+
+  it('passes PI built-in tool allowlists as SDK tool names', () => {
+    expect(_internal.resolvePiToolNames(' read, BASH, edit, write ')).toEqual([
+      'read',
+      'bash',
+      'edit',
+      'write',
+    ]);
+    expect(_internal.resolvePiToolNames('unknown, nope')).toBeUndefined();
+    expect(_internal.resolvePiToolNames()).toBeUndefined();
+  });
 });

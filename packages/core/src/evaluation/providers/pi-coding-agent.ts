@@ -44,6 +44,8 @@ let piCodingAgentModule: typeof import('@earendil-works/pi-coding-agent') | null
 let piAiModule: typeof import('@earendil-works/pi-ai') | null = null;
 let loadingPromise: Promise<void> | null = null;
 
+const PI_BUILT_IN_TOOL_NAMES = new Set(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls']);
+
 async function promptInstall(): Promise<boolean> {
   if (!process.stdout.isTTY) return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -240,19 +242,8 @@ async function loadSdkModules() {
   // After doLoadSdkModules resolves, both modules are guaranteed non-null.
   const piSdk = piCodingAgentModule as NonNullable<typeof piCodingAgentModule>;
   const piAi = piAiModule as NonNullable<typeof piAiModule>;
-  const toolMap: Record<string, unknown> = {
-    read: piSdk.readTool,
-    bash: piSdk.bashTool,
-    edit: piSdk.editTool,
-    write: piSdk.writeTool,
-    grep: piSdk.grepTool,
-    find: piSdk.findTool,
-    ls: piSdk.lsTool,
-  };
   return {
     createAgentSession: piSdk.createAgentSession,
-    codingTools: piSdk.codingTools,
-    toolMap,
     SessionManager: piSdk.SessionManager,
     getModel: piAi.getModel,
     // biome-ignore lint/suspicious/noExplicitAny: registerBuiltInApiProviders exists at runtime but not in type defs
@@ -337,7 +328,7 @@ export class PiCodingAgentProvider implements Provider {
       }
 
       // Select tools based on config
-      const tools = this.resolveTools(sdk);
+      const tools = resolvePiToolNames(this.config.tools);
 
       // Create agent session using the SDK
       const { session } = await sdk.createAgentSession({
@@ -575,22 +566,6 @@ export class PiCodingAgentProvider implements Provider {
     return process.cwd();
   }
 
-  private resolveTools(sdk: Awaited<ReturnType<typeof loadSdkModules>>) {
-    if (!this.config.tools) {
-      return sdk.codingTools;
-    }
-
-    const toolNames = this.config.tools.split(',').map((t) => t.trim().toLowerCase());
-    const selected = [];
-    for (const name of toolNames) {
-      if (name in sdk.toolMap) {
-        selected.push(sdk.toolMap[name]);
-      }
-    }
-    // biome-ignore lint/suspicious/noExplicitAny: tools are typed dynamically from SDK
-    return selected.length > 0 ? (selected as any[]) : sdk.codingTools;
-  }
-
   private resolveLogDirectory(request: ProviderRequest): string | undefined {
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
@@ -689,6 +664,18 @@ class PiStreamLogger {
       this.stream.end(() => resolve());
     });
   }
+}
+
+function resolvePiToolNames(configTools?: string): readonly string[] | undefined {
+  if (!configTools) return undefined;
+
+  const selected = configTools
+    .split(',')
+    .map((tool) => tool.trim().toLowerCase())
+    .filter((tool) => PI_BUILT_IN_TOOL_NAMES.has(tool));
+
+  // Passing undefined lets the SDK use its default built-ins.
+  return selected.length > 0 ? selected : undefined;
 }
 
 function summarizeSdkEvent(event: unknown): string | undefined {
@@ -846,4 +833,5 @@ export const _internal = {
   findAgentvRoot,
   findManagedSdkInstallRoot,
   resolveGlobalNpmRoot,
+  resolvePiToolNames,
 };

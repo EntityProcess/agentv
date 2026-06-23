@@ -80,6 +80,20 @@ function mockCopilotSdk(client: MockClient) {
     CopilotClient: mock(function CopilotClient() {
       return client;
     }),
+    RuntimeConnection: {
+      forTcp: mock((options?: Record<string, unknown>) => ({
+        kind: 'tcp',
+        ...options,
+      })),
+      forStdio: mock((options?: Record<string, unknown>) => ({
+        kind: 'stdio',
+        ...options,
+      })),
+      forUri: mock((url: string) => ({
+        kind: 'uri',
+        url,
+      })),
+    },
   };
 }
 
@@ -144,17 +158,21 @@ describe('CopilotSdkProvider', () => {
     expect(sessionOptions.model).toBe('gpt-5');
   });
 
-  it('passes cliUrl to CopilotClient constructor', async () => {
+  it('passes cliUrl through RuntimeConnection.forUri', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
     const client = createMockClient(session);
+    const forUri = mock((url: string) => ({ kind: 'uri', url }));
 
     const CopilotClientMock = mock(function CopilotClient() {
       return client;
     });
     mock.module('@github/copilot-sdk', () => ({
       CopilotClient: CopilotClientMock,
+      RuntimeConnection: {
+        forUri,
+      },
     }));
 
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
@@ -166,20 +184,29 @@ describe('CopilotSdkProvider', () => {
     await provider.invoke({ question: 'Test' });
 
     const constructorArgs = CopilotClientMock.mock.calls[0][0];
-    expect(constructorArgs.cliUrl).toBe('http://localhost:9999');
+    expect(forUri).toHaveBeenCalledWith('http://localhost:9999');
+    expect(constructorArgs.connection).toEqual({
+      kind: 'uri',
+      url: 'http://localhost:9999',
+    });
+    expect(session.disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('passes args as cliArgs to CopilotClient constructor', async () => {
+  it('passes args to the local TCP runtime and legacy cliArgs constructor option', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
     const client = createMockClient(session);
+    const forTcp = mock((options?: Record<string, unknown>) => ({ kind: 'tcp', ...options }));
 
     const CopilotClientMock = mock(function CopilotClient() {
       return client;
     });
     mock.module('@github/copilot-sdk', () => ({
       CopilotClient: CopilotClientMock,
+      RuntimeConnection: {
+        forTcp,
+      },
     }));
 
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
@@ -191,6 +218,11 @@ describe('CopilotSdkProvider', () => {
     await provider.invoke({ question: 'Test' });
 
     const constructorArgs = CopilotClientMock.mock.calls[0][0];
+    expect(forTcp).toHaveBeenCalledWith({ args: ['--verbose', 'enabled'] });
+    expect(constructorArgs.connection).toEqual({
+      kind: 'tcp',
+      args: ['--verbose', 'enabled'],
+    });
     expect(constructorArgs.cliArgs).toEqual(['--verbose', 'enabled']);
   });
 
@@ -199,12 +231,16 @@ describe('CopilotSdkProvider', () => {
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
     const client = createMockClient(session);
+    const forTcp = mock((options?: Record<string, unknown>) => ({ kind: 'tcp', ...options }));
 
     const CopilotClientMock = mock(function CopilotClient() {
       return client;
     });
     mock.module('@github/copilot-sdk', () => ({
       CopilotClient: CopilotClientMock,
+      RuntimeConnection: {
+        forTcp,
+      },
     }));
 
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
@@ -219,6 +255,10 @@ describe('CopilotSdkProvider', () => {
     // cwd is set so the subprocess resolves relative paths itself — args are NOT pre-resolved
     expect(constructorArgs.cwd).toBe(path.resolve(fixturesRoot));
     expect(constructorArgs.workingDirectory).toBe(path.resolve(fixturesRoot));
+    expect(constructorArgs.connection).toEqual({
+      kind: 'tcp',
+      args: ['--plugin-dir', './plugins', '--shared-dir', '../shared', '--mode', 'agent'],
+    });
     expect(constructorArgs.cliArgs).toEqual([
       '--plugin-dir',
       './plugins',
@@ -302,22 +342,28 @@ describe('CopilotSdkProvider', () => {
     );
   });
 
-  it('reuses client across multiple invocations', async () => {
+  it('reuses external client across multiple invocations', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
     const client = createMockClient(session);
+    const forUri = mock((url: string) => ({ kind: 'uri', url }));
 
     const CopilotClientMock = mock(function CopilotClient() {
       return client;
     });
     mock.module('@github/copilot-sdk', () => ({
       CopilotClient: CopilotClientMock,
+      RuntimeConnection: {
+        forUri,
+      },
     }));
 
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
-    const provider = new CopilotSdkProvider('test-target', {});
+    const provider = new CopilotSdkProvider('test-target', {
+      cliUrl: 'http://localhost:9999',
+    });
 
     await provider.invoke({ question: 'First' });
     await provider.invoke({ question: 'Second' });
@@ -326,16 +372,26 @@ describe('CopilotSdkProvider', () => {
     expect(CopilotClientMock).toHaveBeenCalledTimes(1);
     // But createSession should be called twice (fresh session per invocation)
     expect(client.createSession).toHaveBeenCalledTimes(2);
+    expect(session.disconnect).toHaveBeenCalledTimes(2);
+    expect(forUri).toHaveBeenCalledTimes(1);
   });
 
-  it('creates fresh session per invocation', async () => {
+  it('reuses local TCP client across multiple invocations', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
     });
     const client = createMockClient(session);
-    const sdkMock = mockCopilotSdk(client);
+    const forTcp = mock((options?: Record<string, unknown>) => ({ kind: 'tcp', ...options }));
 
-    mock.module('@github/copilot-sdk', () => sdkMock);
+    const CopilotClientMock = mock(function CopilotClient() {
+      return client;
+    });
+    mock.module('@github/copilot-sdk', () => ({
+      CopilotClient: CopilotClientMock,
+      RuntimeConnection: {
+        forTcp,
+      },
+    }));
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
     const provider = new CopilotSdkProvider('test-target', {});
@@ -343,12 +399,14 @@ describe('CopilotSdkProvider', () => {
     await provider.invoke({ question: 'First' });
     await provider.invoke({ question: 'Second' });
 
-    // Session should be disconnected after each invocation
-    expect(session.disconnect).toHaveBeenCalledTimes(2);
+    expect(CopilotClientMock).toHaveBeenCalledTimes(1);
     expect(client.createSession).toHaveBeenCalledTimes(2);
+    expect(session.disconnect).toHaveBeenCalledTimes(2);
+    expect(forTcp).toHaveBeenCalledTimes(1);
+    expect(CopilotClientMock.mock.calls[0][0].connection.kind).toBe('tcp');
   });
 
-  it('falls back to destroy for older SDK sessions', async () => {
+  it('falls back to destroy for older external SDK sessions', async () => {
     const session = createMockSession({
       events: [{ type: 'assistant.message', data: { content: 'response' } }],
       legacyDestroyOnly: true,
@@ -359,7 +417,9 @@ describe('CopilotSdkProvider', () => {
     mock.module('@github/copilot-sdk', () => sdkMock);
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
-    const provider = new CopilotSdkProvider('test-target', {});
+    const provider = new CopilotSdkProvider('test-target', {
+      cliUrl: 'http://localhost:9999',
+    });
 
     await provider.invoke({ question: 'Test' });
 
