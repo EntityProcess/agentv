@@ -4041,7 +4041,7 @@ describe('serve app', () => {
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
       expect(data.command).toContain('--experiment smoke');
-      expect(data.command).toContain(path.join('.agentv', 'results', 'runs', 'smoke'));
+      expect(data.command).toContain(path.join('.agentv', 'results', 'smoke'));
       const outputDir = data.command.match(/--output ([^\s]+)/)?.[1];
       expect(outputDir).toBeString();
 
