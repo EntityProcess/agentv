@@ -9,6 +9,7 @@ export type ProjectSyncState =
   | 'dirty'
   | 'conflicted'
   | 'push_conflict'
+  | 'needs_human_merge'
   | 'syncing';
 
 export type ProjectSyncTone = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
@@ -122,6 +123,20 @@ export function getProjectSyncView(
   }
 
   const state = status.sync_status ?? 'clean';
+  if (state === 'needs_human_merge') {
+    return {
+      state: 'needs_human_merge',
+      label: 'Needs human merge',
+      actionLabel: 'Sync Project',
+      tone: 'danger',
+      summary:
+        status.block_reason ??
+        'The results branch diverged and a genuine content conflict could not be auto-merged.',
+      nextAction:
+        'The remote branch is unchanged and no history was rewritten. Resolve the conflict with a GitHub pull request, then sync again.',
+      canSync: false,
+    };
+  }
   if (state === 'push_conflict') {
     return {
       state: 'push_conflict',
@@ -132,9 +147,7 @@ export function getProjectSyncView(
         status.block_reason ??
         'The remote results branch changed before local results could be pushed.',
       nextAction:
-        status.push_conflict_policy === 'backup_and_force_push'
-          ? 'Sync stopped before changing the results branch. Refresh status, then retry if this server should replace the remote branch.'
-          : 'Sync stopped before changing the results branch. Opt in to backup_and_force_push only if this server should replace the remote branch.',
+        'Sync stopped before changing the results branch. Refresh status, then retry — results sync auto-merges concurrent writes and never force-pushes.',
       canSync: false,
     };
   }

@@ -1202,10 +1202,10 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
-  it('blocks non-fast-forward direct result branch pushes by default', async () => {
+  it('auto-merges diverged direct result branch pushes without force or backup', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-block');
+    const cloneDir = path.join(rootDir, 'results-clone-push-automerge');
     const fixture = await createStaleResultBranchPushFixture({
       rootDir,
       remoteDir,
@@ -1218,33 +1218,46 @@ describe('results repo write path', () => {
       config: { ...fixture.config, sync: { auto_push: true } },
       sourceDir: fixture.localSourceDir,
       destinationPath: fixture.localDestinationPath,
-      commitMessage: 'feat(results): blocked push conflict',
+      commitMessage: 'feat(results): auto-merge push conflict',
     });
 
-    expect(result).toMatchObject({
-      changed: false,
-      blocked: true,
-      sync_status: 'push_conflict',
-      push_conflict_policy: 'block',
-      target_branch: DEFAULT_RESULTS_BRANCH,
-      remote_commit: fixture.remoteAdvancedCommit,
-      previous_remote_commit: fixture.remoteAdvancedCommit,
-      lease_commit: fixture.remoteAdvancedCommit,
-    });
-    expect(result.local_commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(result.block_reason).toContain('Results branch push conflict');
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
-      fixture.remoteAdvancedCommit,
+    expect(result.changed).toBe(true);
+    expect(result.blocked).toBeFalsy();
+    expect(result.backup_ref).toBeUndefined();
+    expect(result.force_pushed_commit).toBeUndefined();
+
+    const finalTip = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
+    // The auto-merge produced a real merge commit (two parents), proving the
+    // remote and local histories were reconciled rather than force-overwritten.
+    const parents = git(
+      `git --git-dir "${remoteDir}" rev-list --parents -n 1 ${storageBranch}`,
+      rootDir,
+    ).split(/\s+/);
+    expect(parents).toHaveLength(3);
+    // The previous remote tip is an ancestor of the new tip: no history rewrite.
+    expect(() =>
+      git(
+        `git --git-dir "${remoteDir}" merge-base --is-ancestor ${fixture.remoteAdvancedCommit} ${finalTip}`,
+        rootDir,
+      ),
+    ).not.toThrow();
+
+    const remoteFiles = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
+      rootDir,
     );
+    expect(remoteFiles).toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+    expect(remoteFiles).toContain('runs/remote-only/2026-06-23T09-30-00-000Z/benchmark.json');
+    // No backup ref was ever created in the merge path.
     expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).not.toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
   }, 30000);
 
-  it('backs up the remote result branch before force-pushing with an explicit policy', async () => {
+  it('deprecates backup_and_force_push by auto-merging instead of force pushing', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-backup');
+    const cloneDir = path.join(rootDir, 'results-clone-push-deprecated-policy');
     const fixture = await createStaleResultBranchPushFixture({
       rootDir,
       remoteDir,
@@ -1260,142 +1273,106 @@ describe('results repo write path', () => {
       },
       sourceDir: fixture.localSourceDir,
       destinationPath: fixture.localDestinationPath,
-      commitMessage: 'feat(results): backup force push conflict',
+      commitMessage: 'feat(results): deprecated force policy auto-merges',
     });
 
-    expect(result).toMatchObject({
-      changed: true,
-      push_conflict_policy: 'backup_and_force_push',
-      target_branch: DEFAULT_RESULTS_BRANCH,
-      backup_commit: fixture.remoteAdvancedCommit,
-      previous_remote_commit: fixture.remoteAdvancedCommit,
-      lease_commit: fixture.remoteAdvancedCommit,
-    });
-    expect(result.backup_ref).toMatch(
-      /^agentv\/backups\/\d{8}T\d{6}Z-agentv-results-v1-[0-9a-f]{7}$/,
-    );
-    expect(result.force_pushed_commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
-      result.force_pushed_commit,
-    );
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${result.backup_ref}`, rootDir)).toBe(
-      fixture.remoteAdvancedCommit,
-    );
+    expect(result.changed).toBe(true);
+    expect(result.blocked).toBeFalsy();
+    // The deprecated policy no longer force-pushes or backs anything up.
+    expect(result.backup_ref).toBeUndefined();
+    expect(result.force_pushed_commit).toBeUndefined();
     expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
-    expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${result.backup_ref}`, rootDir),
-    ).toContain('runs/remote-only/2026-06-23T09-30-00-000Z/benchmark.json');
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
+
+    const finalTip = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
+    expect(() =>
+      git(
+        `git --git-dir "${remoteDir}" merge-base --is-ancestor ${fixture.remoteAdvancedCommit} ${finalTip}`,
+        rootDir,
+      ),
+    ).not.toThrow();
+    const remoteFiles = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
+      rootDir,
+    );
+    expect(remoteFiles).toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+    expect(remoteFiles).toContain('runs/remote-only/2026-06-23T09-30-00-000Z/benchmark.json');
   }, 30000);
 
-  it('aborts backup-and-force-push when creating the backup ref fails', async () => {
+  it('retries a benign push race without force', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-backup-fails');
-    const fixture = await createStaleResultBranchPushFixture({
-      rootDir,
-      remoteDir,
-      seedDir,
-      cloneDir,
-      storageBranch,
-    });
+    const cloneDir = path.join(rootDir, 'results-clone-push-race');
+    const config: ResultsConfig = {
+      repo: `file://${remoteDir}`,
+      path: cloneDir,
+      branch: storageBranch,
+      sync: { auto_push: true },
+    };
+    const baseTip = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
+
+    // Simulate a concurrent writer: the first push attempt is rejected as a
+    // non-fast-forward AND the remote is advanced with a disjoint commit, so the
+    // loop must re-fetch, re-merge, and push again — all without force.
     const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
     writeFileSync(
       hookPath,
       [
         '#!/usr/bin/env sh',
-        'while read _old _new ref; do',
-        '  case "$ref" in',
-        '    refs/heads/agentv/backups/*) echo "reject backup ref" >&2; exit 1 ;;',
-        '  esac',
-        'done',
+        'unset GIT_QUARANTINE_PATH GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES',
+        'export GIT_AUTHOR_NAME=Race',
+        'export GIT_AUTHOR_EMAIL=race@example.com',
+        'export GIT_COMMITTER_NAME=Race',
+        'export GIT_COMMITTER_EMAIL=race@example.com',
+        'read old new ref',
+        'marker="agentv-race-marker"',
+        'if [ ! -f "$marker" ]; then',
+        '  : > "$marker"',
+        `  base=$(git rev-parse "refs/heads/${storageBranch}")`,
+        '  blob=$(printf "concurrent\\n" | git hash-object -w --stdin)',
+        '  GIT_INDEX_FILE=./agentv-race-index git read-tree "$base"',
+        '  GIT_INDEX_FILE=./agentv-race-index git update-index --add --cacheinfo "100644,$blob,RACE.md"',
+        '  tree=$(GIT_INDEX_FILE=./agentv-race-index git write-tree)',
+        '  newcommit=$(printf "concurrent writer\\n" | git commit-tree "$tree" -p "$base")',
+        `  git update-ref "refs/heads/${storageBranch}" "$newcommit"`,
+        '  echo "non-fast-forward" >&2',
+        '  exit 1',
+        'fi',
+        'exit 0',
       ].join('\n'),
     );
     chmodSync(hookPath, 0o755);
 
+    const sourceDir = path.join(rootDir, 'race-local');
+    writeRunArtifacts(sourceDir, 'race-local', '2026-06-24T10:00:00.000Z');
     const result = await directPushResultsWithDetails({
-      config: {
-        ...fixture.config,
-        sync: { auto_push: true, push_conflict_policy: 'backup_and_force_push' },
-      },
-      sourceDir: fixture.localSourceDir,
-      destinationPath: fixture.localDestinationPath,
-      commitMessage: 'feat(results): backup creation fails',
+      config,
+      sourceDir,
+      destinationPath: path.join('race-local', '2026-06-24T10-00-00-000Z'),
+      commitMessage: 'feat(results): push race',
     });
 
-    expect(result).toMatchObject({
-      changed: false,
-      blocked: true,
-      sync_status: 'push_conflict',
-      backup_commit: fixture.remoteAdvancedCommit,
-      previous_remote_commit: fixture.remoteAdvancedCommit,
-    });
-    expect(result.block_reason).toContain('backup creation failed');
-    expect(result.backup_ref).toMatch(/^agentv\/backups\//);
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
-      fixture.remoteAdvancedCommit,
-    );
-    expect(git(`git --git-dir "${remoteDir}" branch --list "${result.backup_ref}"`, rootDir)).toBe(
-      '',
-    );
-  }, 30000);
+    expect(result.changed).toBe(true);
+    expect(result.blocked).toBeFalsy();
+    expect(result.backup_ref).toBeUndefined();
+    expect(result.force_pushed_commit).toBeUndefined();
 
-  it('surfaces a stale lease when the target update is rejected after backup creation', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const cloneDir = path.join(rootDir, 'results-clone-push-conflict-lease');
-    const fixture = await createStaleResultBranchPushFixture({
+    const finalTip = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
+    // Both the original base and the concurrent writer's commit are ancestors of
+    // the final tip — nothing was overwritten.
+    expect(() =>
+      git(`git --git-dir "${remoteDir}" merge-base --is-ancestor ${baseTip} ${finalTip}`, rootDir),
+    ).not.toThrow();
+    const remoteFiles = git(
+      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
-      remoteDir,
-      seedDir,
-      cloneDir,
-      storageBranch,
-    });
-
-    const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
-    writeFileSync(
-      hookPath,
-      [
-        '#!/usr/bin/env sh',
-        'while read _old _new ref; do',
-        '  case "$ref" in',
-        `    refs/heads/${storageBranch}) echo "stale info" >&2; exit 1 ;;`,
-        '  esac',
-        'done',
-      ].join('\n'),
     );
-    chmodSync(hookPath, 0o755);
-
-    const result = await directPushResultsWithDetails({
-      config: {
-        ...fixture.config,
-        sync: { auto_push: true, push_conflict_policy: 'backup_and_force_push' },
-      },
-      sourceDir: fixture.localSourceDir,
-      destinationPath: fixture.localDestinationPath,
-      commitMessage: 'feat(results): stale lease fails',
-    });
-
-    expect(result).toMatchObject({
-      changed: false,
-      blocked: true,
-      sync_status: 'push_conflict',
-      backup_commit: fixture.remoteAdvancedCommit,
-      previous_remote_commit: fixture.remoteAdvancedCommit,
-      lease_commit: fixture.remoteAdvancedCommit,
-    });
-    expect(result.block_reason).toContain('force push lease failed');
-    expect(result.backup_ref).toMatch(/^agentv\/backups\//);
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${result.backup_ref}`, rootDir)).toBe(
-      fixture.remoteAdvancedCommit,
-    );
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir)).toBe(
-      fixture.remoteAdvancedCommit,
-    );
+    expect(remoteFiles).toContain('RACE.md');
+    expect(remoteFiles).toContain('runs/race-local/2026-06-24T10-00-00-000Z/benchmark.json');
     expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).not.toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
   }, 30000);
 
   it('commits pushed runs into the configured clone with an AgentV-Run trailer', async () => {
@@ -1937,7 +1914,7 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
-  it('blocks diverged committed histories as push conflicts with diff summary', async () => {
+  it('auto-merges diverged committed histories without force', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
@@ -1953,18 +1930,174 @@ describe('results repo write path', () => {
     const remoteRunDir = path.join(seedDir, 'runs', 'remote-only', '2026-05-25T11-00-00-000Z');
     writeRunArtifacts(remoteRunDir, 'remote-only', '2026-05-25T11:00:00.000Z');
     git('git add runs && git commit --quiet -m "remote result"', seedDir);
+    const remoteBefore = git('git rev-parse HEAD', seedDir);
     git('git push --quiet origin main', seedDir);
 
     const status = await syncResultsRepoForProject(config);
 
-    expect(status.sync_status).toBe('push_conflict');
+    expect(status.sync_status).toBe('clean');
+    expect(status.blocked).toBe(false);
+    expect(status.push_performed).toBe(true);
+
+    const finalTip = git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir);
+    const parents = git(`git --git-dir "${remoteDir}" rev-list --parents -n 1 main`, rootDir).split(
+      /\s+/,
+    );
+    expect(parents).toHaveLength(3);
+    expect(() =>
+      git(
+        `git --git-dir "${remoteDir}" merge-base --is-ancestor ${remoteBefore} ${finalTip}`,
+        rootDir,
+      ),
+    ).not.toThrow();
+    const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
+    expect(remoteFiles).toContain('runs/local-only/2026-05-25T10-00-00-000Z/benchmark.json');
+    expect(remoteFiles).toContain('runs/remote-only/2026-05-25T11-00-00-000Z/benchmark.json');
+    expect(
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
+  }, 20000);
+
+  it('union-merges concurrent appends to the same run index without conflict', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+    const indexRel = path.join('runs', 'shared', '2026-05-25T12-00-00-000Z', 'index.jsonl');
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    // Seed a shared run index on the remote and pull it into the clone.
+    const seedIndex = path.join(seedDir, indexRel);
+    mkdirSync(path.dirname(seedIndex), { recursive: true });
+    writeFileSync(seedIndex, '{"test_id":"base"}\n');
+    git('git add runs && git commit --quiet -m "seed shared index"', seedDir);
+    git('git push --quiet origin main', seedDir);
+    git('git pull --ff-only --quiet', cloneDir);
+
+    // Local appends one line; the remote concurrently appends a different line.
+    const localIndex = path.join(cloneDir, indexRel);
+    writeFileSync(localIndex, '{"test_id":"base"}\n{"test_id":"local"}\n');
+    git('git add runs && git commit --quiet -m "local index append"', cloneDir);
+    writeFileSync(seedIndex, '{"test_id":"base"}\n{"test_id":"remote"}\n');
+    git('git add runs && git commit --quiet -m "remote index append"', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status.sync_status).toBe('clean');
+    expect(status.blocked).toBe(false);
+    expect(status.push_performed).toBe(true);
+
+    const merged = git(`git --git-dir "${remoteDir}" show main:${indexRel}`, rootDir);
+    expect(merged).toContain('"test_id":"local"');
+    expect(merged).toContain('"test_id":"remote"');
+  }, 20000);
+
+  it('auto-merges overlay tag additions from both sides via the agentv-json driver', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+    const tagsRel = path.join(
+      'metadata',
+      'runs',
+      'overlay',
+      '2026-05-26T10-00-00-000Z',
+      'tags.json',
+    );
+    const writeTags = (repoDir: string, tags: string[], revision: string) => {
+      const tagPath = path.join(repoDir, tagsRel);
+      mkdirSync(path.dirname(tagPath), { recursive: true });
+      writeFileSync(
+        tagPath,
+        `${JSON.stringify({ tags, updated_at: '2026-05-26T10:00:00.000Z', tag_revision: revision }, null, 2)}\n`,
+      );
+    };
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    writeTags(seedDir, ['base'], 'r0');
+    git('git add metadata && git commit --quiet -m "seed tags"', seedDir);
+    git('git push --quiet origin main', seedDir);
+    git('git pull --ff-only --quiet', cloneDir);
+
+    writeTags(cloneDir, ['base', 'local-tag'], 'r1');
+    git('git add metadata && git commit --quiet -m "local tag add"', cloneDir);
+    writeTags(seedDir, ['base', 'remote-tag'], 'r2');
+    git('git add metadata && git commit --quiet -m "remote tag add"', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status.sync_status).toBe('clean');
+    expect(status.blocked).toBe(false);
+    expect(status.push_performed).toBe(true);
+
+    const mergedTags = JSON.parse(
+      git(`git --git-dir "${remoteDir}" show main:${tagsRel}`, rootDir),
+    );
+    expect(mergedTags.tags).toContain('base');
+    expect(mergedTags.tags).toContain('local-tag');
+    expect(mergedTags.tags).toContain('remote-tag');
+    // The content-derived concurrency token must NOT survive a real set merge as
+    // either side's pre-merge value; otherwise a stale client holding that token
+    // would bypass the optimistic-concurrency check and overwrite the union.
+    expect(mergedTags.tag_revision).not.toBe('r1');
+    expect(mergedTags.tag_revision).not.toBe('r2');
+    expect(
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
+  }, 20000);
+
+  it('returns needs_human_merge on a genuine overlay conflict without changing the remote', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const cloneDir = path.join(rootDir, 'results-clone');
+    const config = createResultsConfig(remoteDir, cloneDir);
+    const tagsRel = path.join(
+      'metadata',
+      'runs',
+      'conflict',
+      '2026-05-27T10-00-00-000Z',
+      'tags.json',
+    );
+    const writeOverlay = (repoDir: string, rating: number) => {
+      const tagPath = path.join(repoDir, tagsRel);
+      mkdirSync(path.dirname(tagPath), { recursive: true });
+      writeFileSync(tagPath, `${JSON.stringify({ tags: ['keep'], rating }, null, 2)}\n`);
+    };
+
+    await ensureResultsRepoClone(config);
+    git('git config user.email "test@example.com"', cloneDir);
+    git('git config user.name "Test User"', cloneDir);
+
+    writeOverlay(seedDir, 1);
+    git('git add metadata && git commit --quiet -m "seed overlay"', seedDir);
+    git('git push --quiet origin main', seedDir);
+    git('git pull --ff-only --quiet', cloneDir);
+
+    // Both sides set a genuinely conflicting non-tag scalar field.
+    writeOverlay(cloneDir, 3);
+    git('git add metadata && git commit --quiet -m "local overlay scalar"', cloneDir);
+    writeOverlay(seedDir, 5);
+    git('git add metadata && git commit --quiet -m "remote overlay scalar"', seedDir);
+    const remoteBefore = git('git rev-parse HEAD', seedDir);
+    git('git push --quiet origin main', seedDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status.sync_status).toBe('needs_human_merge');
     expect(status.blocked).toBe(true);
-    expect(status.block_reason).toContain('Results branch push conflict');
-    expect(status.target_branch).toBe('main');
-    expect(status.remote_commit).toBe(git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir));
-    expect(status.local_commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(status.git_status).toContain('[ahead 1, behind 1]');
-    expect(status.git_diff_summary).toContain('benchmark.json');
+    expect(status.block_reason).not.toMatch(/force/i);
+    // The remote branch is untouched: no merge commit, no force, no backup.
+    expect(git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir)).toBe(remoteBefore);
+    expect(
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
+    // The local checkout is clean (the failed merge was aborted).
+    expect(git('git status --porcelain', cloneDir)).toBe('');
   }, 20000);
 
   it('supersedes stale sync errors with the current conflicted status', async () => {
@@ -1978,17 +2111,17 @@ describe('results repo write path', () => {
       '2026-05-26T10-00-00-000Z',
       'tags.json',
     );
-    const writeTags = (repoDir: string, tags: string[]) => {
+    const writeTags = (repoDir: string, rating: number) => {
       const tagPath = path.join(repoDir, relativeMetadataPath);
       mkdirSync(path.dirname(tagPath), { recursive: true });
-      writeFileSync(tagPath, `${JSON.stringify({ tags }, null, 2)}\n`);
+      writeFileSync(tagPath, `${JSON.stringify({ tags: ['keep'], rating }, null, 2)}\n`);
     };
 
     await ensureResultsRepoClone(config);
     git('git config user.email "test@example.com"', cloneDir);
     git('git config user.name "Test User"', cloneDir);
 
-    writeTags(cloneDir, ['dirty']);
+    writeTags(cloneDir, 0);
     const dirtyStatus = await syncResultsRepoForProject(config);
     expect(dirtyStatus.sync_status).toBe('dirty');
     expect(dirtyStatus.block_reason).toContain('auto_push is disabled');
@@ -1996,14 +2129,16 @@ describe('results repo write path', () => {
     git('git reset --hard --quiet', cloneDir);
     git('git clean -fd --quiet metadata', cloneDir);
 
-    writeTags(seedDir, ['base']);
+    writeTags(seedDir, 1);
     git('git add metadata && git commit --quiet -m "seed tag metadata"', seedDir);
     git('git push --quiet origin main', seedDir);
     git('git pull --ff-only --quiet', cloneDir);
 
-    writeTags(cloneDir, ['local']);
+    // Both sides set a genuinely conflicting scalar so the agentv-json driver
+    // leaves the overlay conflicted instead of auto-merging it.
+    writeTags(cloneDir, 3);
     git('git add metadata && git commit --quiet -m "local tag metadata"', cloneDir);
-    writeTags(seedDir, ['remote']);
+    writeTags(seedDir, 5);
     git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
     git('git push --quiet origin main', seedDir);
     git('git fetch --quiet origin --prune', cloneDir);

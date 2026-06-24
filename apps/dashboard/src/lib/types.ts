@@ -470,6 +470,7 @@ export interface RemoteStatusResponse {
     | 'dirty'
     | 'conflicted'
     | 'push_conflict'
+    | 'needs_human_merge'
     | 'syncing';
   branch?: string;
   upstream?: string;

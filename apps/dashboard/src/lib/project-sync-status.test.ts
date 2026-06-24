@@ -102,6 +102,23 @@ describe('getProjectSyncView', () => {
       canSync: false,
     });
   });
+
+  it('surfaces a needs-human-merge conflict without suggesting force push', () => {
+    const view = getProjectSyncView({
+      configured: true,
+      available: true,
+      sync_status: 'needs_human_merge',
+      block_reason: 'Results branch agentv/results/v1 diverged and could not be auto-merged',
+    });
+    expect(view).toMatchObject({
+      state: 'needs_human_merge',
+      label: 'Needs human merge',
+      tone: 'danger',
+      canSync: false,
+    });
+    expect(view.nextAction).not.toMatch(/force/i);
+    expect(view.nextAction).toMatch(/pull request/i);
+  });
 });
 
 describe('buildProjectSyncFeedback', () => {
