@@ -742,6 +742,8 @@ function buildResultArtifactCatalog(
   addPointerArtifactCatalogEntry(entries, seen, trace, 'trace', options?.runPath);
   addPointerArtifactCatalogEntry(entries, seen, answer, 'answer', options?.runPath);
 
+  addDirectArtifactCatalogEntry(entries, seen, record.benchmark_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.summary_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.grading_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.timing_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.input_path, 'artifact');

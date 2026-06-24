@@ -20,6 +20,12 @@ import type { TraceEvent } from './trace.js';
 import type { EvaluationResult } from './types.js';
 
 const TOOL_STATUS_VALUES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
+const TIMING_SOURCE_VALUES = [
+  'provider_reported',
+  'token_estimated',
+  'aggregate',
+  'unavailable',
+] as const;
 
 const FILE_READ_KEY_SET = new Set([
   'file',
@@ -113,6 +119,30 @@ const ReasoningBlockWireSchema = z
   })
   .strict();
 
+const MetricsTimingWireSchema = z
+  .object({
+    total_tokens: z.number().int().nonnegative(),
+    duration_ms: z.number().nonnegative(),
+    total_duration_seconds: z.number().nonnegative(),
+    cost_usd: z.number().nonnegative().nullable(),
+    token_usage: z
+      .object({
+        input: z.number().int().nonnegative(),
+        output: z.number().int().nonnegative(),
+        reasoning: z.number().int().nonnegative(),
+      })
+      .strict(),
+    usage_sources: z
+      .object({
+        token_usage: z.enum(TIMING_SOURCE_VALUES),
+        total_tokens: z.enum(TIMING_SOURCE_VALUES),
+        duration: z.enum(TIMING_SOURCE_VALUES),
+        cost: z.enum(TIMING_SOURCE_VALUES),
+      })
+      .strict(),
+  })
+  .strict();
+
 export const MetricsWireSchema = z
   .object({
     tool_calls: z.record(z.string(), z.number().int().nonnegative()),
@@ -163,6 +193,7 @@ export const MetricsArtifactWireSchema = z
       })
       .strict(),
     metrics: MetricsWireSchema,
+    timing: MetricsTimingWireSchema.optional(),
   })
   .strict();
 

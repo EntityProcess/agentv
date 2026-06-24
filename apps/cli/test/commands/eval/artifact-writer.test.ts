@@ -903,7 +903,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines[0]?.metrics_path).toBe('alpha/metrics.json');
   });
 
-  it('writes repeat trial metadata to grading and index artifacts', async () => {
+  it('writes repeat runs in Vercel-compatible case and run folders', async () => {
     const results = [
       makeResult({
         testId: 'repeat-case',
@@ -917,6 +917,7 @@ describe('writeArtifactsFromResults', () => {
               testId: 'repeat-case',
               score: 0.25,
               output: 'first attempt',
+              durationMs: 2000,
               executionStatus: 'quality_failure',
             }),
           },
@@ -928,6 +929,7 @@ describe('writeArtifactsFromResults', () => {
               testId: 'repeat-case',
               score: 1,
               output: 'second attempt',
+              durationMs: 4000,
             }),
           },
         ],
@@ -943,39 +945,68 @@ describe('writeArtifactsFromResults', () => {
 
     const paths = await writeArtifactsFromResults(results, testDir);
 
-    const grading: GradingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
-    );
-    expect(grading.trials).toEqual([
+    const [indexEntry] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    expect(indexEntry?.trials).toEqual([
       { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
       { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
     ]);
-    expect(grading.aggregation).toEqual({
+    expect(indexEntry?.aggregation).toEqual({
       strategy: 'confidence_interval',
       mean: 0.625,
       ci95_lower: 0.1,
       ci95_upper: 1,
       stddev: 0.53,
     });
-
-    const [indexEntry] = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line) as IndexArtifactEntry);
-    expect(indexEntry?.trials).toEqual(grading.trials);
-    expect(indexEntry?.aggregation).toEqual(grading.aggregation);
+    expect(indexEntry?.artifact_dir).toBe('repeat-case');
+    expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
+    expect(indexEntry?.benchmark_path).toBeUndefined();
+    expect(indexEntry?.grading_path).toBe('repeat-case/grading.json');
+    expect(indexEntry?.timing_path).toBe('repeat-case/timing.json');
+    expect(indexEntry?.metrics_path).toBeUndefined();
 
     const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
     expect(repeatEntries.sort()).toEqual([
       'grading.json',
-      'metrics.json',
-      'outputs',
       'run-1',
       'run-2',
+      'summary.json',
       'timing.json',
-      'trace.json',
-      'transcript.jsonl',
     ]);
+
+    const caseSummary = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(caseSummary).toEqual({
+      totalRuns: 2,
+      passedRuns: 1,
+      passRate: '50%',
+      meanDuration: 3,
+      fingerprint: expect.any(String),
+    });
+
+    const aggregateGrading: GradingArtifact = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
+    );
+    expect(aggregateGrading.trials).toEqual(indexEntry?.trials);
+    expect(aggregateGrading.aggregation).toEqual(indexEntry?.aggregation);
+
+    const aggregateTiming = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'timing.json'), 'utf8'),
+    ) as TimingArtifact;
+    expect(aggregateTiming.duration_ms).toBe(6000);
+    expect(aggregateTiming.mean_duration_seconds).toBe(3);
+    expect(aggregateTiming.duration_stats).toEqual({
+      count: 2,
+      mean_ms: 3000,
+      mean_seconds: 3,
+      stddev_ms: 1000,
+      stddev_seconds: 1,
+      min_ms: 2000,
+      max_ms: 4000,
+    });
 
     for (const runDir of ['run-1', 'run-2']) {
       const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
@@ -984,11 +1015,8 @@ describe('writeArtifactsFromResults', () => {
         'metrics.json',
         'outputs',
         'result.json',
-        'summary.json',
-        'timing.json',
-        'trace.json',
         'transcript-raw.jsonl',
-        'transcript.jsonl',
+        'transcript.json',
       ]);
     }
 
@@ -998,14 +1026,38 @@ describe('writeArtifactsFromResults', () => {
         'utf8',
       ),
     ) as Record<string, unknown>;
-    expect(runOneResult.run_id).toBe('run-1');
-    expect(runOneResult.score).toBe(0.25);
+    expect(runOneResult).toMatchObject({
+      status: 'failed',
+      duration: 2,
+      model: 'test-target',
+      transcriptPath: './transcript.json',
+      transcriptRawPath: './transcript-raw.jsonl',
+      outputPaths: { eval: './outputs/eval.txt' },
+    });
 
     const runTwoAnswer = await readFile(
-      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'answer.md'),
+      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'eval.txt'),
       'utf8',
     );
     expect(runTwoAnswer).toBe('second attempt');
+
+    const runTwoMetrics = JSON.parse(
+      await readFile(
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'metrics.json'),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    expect(runTwoMetrics).toMatchObject({
+      source_artifacts: {
+        trace_path: 'transcript.json',
+        transcript_path: 'transcript-raw.jsonl',
+        grading_path: 'grading.json',
+      },
+      timing: {
+        duration_ms: 4000,
+      },
+    });
+    expect((runTwoMetrics.source_artifacts as Record<string, unknown>).timing_path).toBeUndefined();
   });
 
   it('handles empty results array', async () => {

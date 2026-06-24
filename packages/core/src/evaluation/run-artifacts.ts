@@ -214,6 +214,17 @@ export interface TimingArtifact {
   readonly total_tokens: number;
   readonly duration_ms: number;
   readonly total_duration_seconds: number;
+  readonly mean_duration_ms?: number;
+  readonly mean_duration_seconds?: number;
+  readonly duration_stats?: {
+    readonly count: number;
+    readonly mean_ms: number;
+    readonly mean_seconds: number;
+    readonly stddev_ms: number;
+    readonly stddev_seconds: number;
+    readonly min_ms: number;
+    readonly max_ms: number;
+  };
   readonly cost_usd: number | null;
   readonly token_usage: {
     readonly input: number;
@@ -290,8 +301,10 @@ export interface IndexArtifactEntry {
   readonly failure_reason_code?: string;
   readonly workspace_path?: string;
   readonly artifact_dir?: string;
-  readonly grading_path: string;
-  readonly timing_path: string;
+  readonly grading_path?: string;
+  readonly timing_path?: string;
+  readonly benchmark_path?: string;
+  readonly summary_path?: string;
   readonly output_path?: string;
   readonly answer_path?: string;
   readonly trace_path?: string;
@@ -336,6 +349,37 @@ export interface AdditionalResultArtifactsContext {
   readonly testDir: string;
   readonly sourceTest?: EvalTest;
   readonly sourceTestsById: ReadonlyMap<string, EvalTest>;
+}
+
+export interface VercelRunResultArtifact {
+  readonly status: 'passed' | 'failed' | 'error';
+  readonly duration: number;
+  readonly model: string;
+  readonly transcriptPath?: string;
+  readonly transcriptRawPath?: string;
+  readonly o11y: {
+    readonly totalTurns: number;
+    readonly toolCalls: Record<string, number>;
+    readonly totalToolCalls: number;
+    readonly webFetches: readonly unknown[];
+    readonly filesRead: readonly string[];
+    readonly filesModified: readonly string[];
+    readonly shellCommands: readonly unknown[];
+    readonly errors: readonly unknown[];
+    readonly thinkingBlocks: number;
+  };
+  readonly outputPaths?: {
+    readonly eval?: string;
+    readonly scripts?: Record<string, string>;
+  };
+}
+
+export interface VercelEvalSummaryArtifact {
+  readonly totalRuns: number;
+  readonly passedRuns: number;
+  readonly passRate: string;
+  readonly meanDuration: number;
+  readonly fingerprint: string;
 }
 
 export type AdditionalResultArtifactsWriter = (
@@ -472,6 +516,10 @@ function trialRunDirName(attempt: number): string {
   return `run-${attempt + 1}`;
 }
 
+function hasPersistedTrialRuns(result: EvaluationResult): boolean {
+  return (result.trials ?? []).some((trial) => trial.result !== undefined);
+}
+
 function toTrialArtifacts(
   trials: readonly TrialResult[] | undefined,
 ): readonly TrialResultArtifact[] | undefined {
@@ -547,6 +595,151 @@ function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined
   });
 }
 
+function resultDurationSeconds(result: EvaluationResult): number {
+  const durationMs =
+    result.durationMs ?? result.trace?.durationMs ?? result.evalRun?.durationMs ?? 0;
+  return Math.round((durationMs / 1000) * 1000) / 1000;
+}
+
+function resultDurationMs(result: EvaluationResult): number | undefined {
+  const durationMs = result.durationMs ?? result.trace?.durationMs ?? result.evalRun?.durationMs;
+  return typeof durationMs === 'number' && Number.isFinite(durationMs) ? durationMs : undefined;
+}
+
+function roundMillis(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function roundSecondsFromMs(value: number): number {
+  return Math.round((value / 1000) * 1000) / 1000;
+}
+
+function repeatAttemptResults(result: EvaluationResult): readonly EvaluationResult[] {
+  const trialResults = (result.trials ?? [])
+    .map((trial) => trial.result)
+    .filter((trialResult): trialResult is EvaluationResult => trialResult !== undefined);
+  return trialResults.length > 0 ? trialResults : [result];
+}
+
+function buildRepeatAggregateTimingArtifact(result: EvaluationResult): TimingArtifact {
+  const attemptResults = repeatAttemptResults(result);
+  const timing = buildTimingArtifact(attemptResults);
+  const durationsMs = attemptResults
+    .map(resultDurationMs)
+    .filter((durationMs): durationMs is number => durationMs !== undefined);
+  if (durationsMs.length === 0) {
+    return timing;
+  }
+
+  const stats = computeStats(durationsMs);
+  const minMs = Math.min(...durationsMs);
+  const maxMs = Math.max(...durationsMs);
+  return {
+    ...timing,
+    mean_duration_ms: stats.mean,
+    mean_duration_seconds: roundSecondsFromMs(stats.mean),
+    duration_stats: {
+      count: durationsMs.length,
+      mean_ms: stats.mean,
+      mean_seconds: roundSecondsFromMs(stats.mean),
+      stddev_ms: stats.stddev,
+      stddev_seconds: roundSecondsFromMs(stats.stddev),
+      min_ms: roundMillis(minMs),
+      max_ms: roundMillis(maxMs),
+    },
+  };
+}
+
+function formatVercelPassRate(passedRuns: number, totalRuns: number): string {
+  if (totalRuns === 0) {
+    return '0%';
+  }
+  const percent = Math.round((passedRuns / totalRuns) * 1000) / 10;
+  return `${Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1)}%`;
+}
+
+function fallbackRepeatFingerprint(result: EvaluationResult): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        test_id: result.testId ?? 'unknown',
+        target: result.target ?? 'unknown',
+        trial_count: result.trials?.length ?? 0,
+        aggregation: result.aggregation,
+      }),
+    )
+    .digest('hex');
+}
+
+function buildVercelEvalSummaryArtifact(
+  result: EvaluationResult,
+  fingerprint?: string,
+): VercelEvalSummaryArtifact {
+  const trials = result.trials ?? [];
+  const totalRuns = trials.length;
+  const passedRuns = trials.filter((trial) => trial.verdict === 'pass').length;
+  const durations = repeatAttemptResults(result).map(resultDurationSeconds);
+  const meanDuration =
+    durations.length === 0
+      ? 0
+      : Math.round(
+          (durations.reduce((sum, duration) => sum + duration, 0) / durations.length) * 1000,
+        ) / 1000;
+
+  return {
+    totalRuns,
+    passedRuns,
+    passRate: formatVercelPassRate(passedRuns, totalRuns),
+    meanDuration,
+    fingerprint: fingerprint ?? fallbackRepeatFingerprint(result),
+  };
+}
+
+function toVercelRunStatus(
+  trial: TrialResult,
+  result: EvaluationResult,
+): VercelRunResultArtifact['status'] {
+  if (trial.executionStatus === 'execution_error' || result.executionStatus === 'execution_error') {
+    return 'error';
+  }
+  return trial.verdict === 'pass' ? 'passed' : 'failed';
+}
+
+function toFilePathList(entries: readonly unknown[]): readonly string[] {
+  return entries
+    .map((entry) => (isRecord(entry) && typeof entry.path === 'string' ? entry.path : undefined))
+    .filter((entry): entry is string => entry !== undefined);
+}
+
+function buildVercelRunResultArtifact(params: {
+  readonly trial: TrialResult;
+  readonly result: EvaluationResult;
+  readonly metricsArtifact: ReturnType<typeof buildMetricsArtifact>;
+  readonly hasTranscript: boolean;
+  readonly hasOutput: boolean;
+}): VercelRunResultArtifact {
+  const metrics = params.metricsArtifact.metrics;
+  return dropUndefined({
+    status: toVercelRunStatus(params.trial, params.result),
+    duration: resultDurationSeconds(params.result),
+    model: params.result.target ?? 'unknown',
+    transcriptPath: params.hasTranscript ? './transcript.json' : undefined,
+    transcriptRawPath: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
+    o11y: {
+      totalTurns: metrics.total_turns,
+      toolCalls: metrics.tool_calls,
+      totalToolCalls: metrics.total_tool_calls,
+      webFetches: metrics.web_fetches,
+      filesRead: toFilePathList(metrics.files_read),
+      filesModified: toFilePathList(metrics.files_modified),
+      shellCommands: metrics.shell_commands,
+      errors: metrics.errors,
+      thinkingBlocks: metrics.thinking_blocks,
+    },
+    outputPaths: params.hasOutput ? { eval: './outputs/eval.txt' } : undefined,
+  }) as unknown as VercelRunResultArtifact;
+}
+
 async function writeTrialRunArtifacts(params: {
   readonly trial: TrialResult;
   readonly parentTestDir: string;
@@ -566,13 +759,9 @@ async function writeTrialRunArtifacts(params: {
   const runDir = path.join(params.parentTestDir, runDirName);
   const grading = buildGradingArtifact(result);
   const timing = buildTimingArtifact([result]);
-  const input = extractInput(result);
   const gradingPath = path.join(runDir, 'grading.json');
-  const timingPath = path.join(runDir, 'timing.json');
-  const inputPath = input ? path.join(runDir, 'input.md') : undefined;
   const outputsDir = path.join(runDir, 'outputs');
-  const answerPath = result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
-  const responsePath = result.output.length > 0 ? path.join(outputsDir, 'response.md') : undefined;
+  const evalOutputPath = result.output.length > 0 ? path.join(outputsDir, 'eval.txt') : undefined;
   const attemptRunId = params.runId
     ? `${params.runId}:${runDirName}`
     : `${result.testId}:${result.target}:${runDirName}`;
@@ -585,96 +774,46 @@ async function writeTrialRunArtifacts(params: {
     runId: attemptRunId,
     duplicatePolicy: params.duplicatePolicy,
   });
-  const tracePath = path.join(runDir, CANONICAL_TRACE_ARTIFACT_PATH);
-  const transcriptPath = hasTranscriptProjection(result, envelope)
-    ? path.join(runDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
-    : undefined;
+  const hasTranscript = hasTranscriptProjection(result, envelope);
+  const transcriptPath = hasTranscript ? path.join(runDir, 'transcript.json') : undefined;
+  const transcriptRawPath = hasTranscript ? path.join(runDir, 'transcript-raw.jsonl') : undefined;
   const metricsPath = path.join(runDir, CANONICAL_METRICS_ARTIFACT_PATH);
-  const rawProviderLogSource = rawProviderLogSourcePath(result);
-  const rawProviderLogPath = rawProviderLogSource ? rawProviderLogArtifactPath(runDir) : undefined;
 
   await mkdir(runDir, { recursive: true });
   await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
-  await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
-
-  if (inputPath && input) {
-    await writeFile(inputPath, input, 'utf8');
-  }
 
   await mkdir(outputsDir, { recursive: true });
-  if (answerPath && responsePath) {
-    await writeFile(answerPath, result.output, 'utf8');
-    await writeFile(responsePath, result.output, 'utf8');
+  if (evalOutputPath) {
+    await writeFile(evalOutputPath, result.output, 'utf8');
   }
-  if (rawProviderLogSource) {
-    await copyRawProviderLogArtifact(rawProviderLogSource, runDir);
-  }
-  await writeFile(tracePath, `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`, 'utf8');
-  if (transcriptPath) {
-    await writeTranscriptJsonl(transcriptPath, result, envelope);
+  if (transcriptPath && transcriptRawPath) {
     await writeFile(
-      path.join(runDir, 'transcript-raw.jsonl'),
-      await readFile(transcriptPath, 'utf8'),
+      transcriptPath,
+      `${JSON.stringify(traceEnvelopeToTranscriptMessages(envelope), null, 2)}\n`,
       'utf8',
     );
+    await writeTranscriptJsonl(transcriptRawPath, result, envelope);
   }
-  await writeMetricsArtifact({
+  const metricsArtifact = await writeMetricsArtifact({
     filePath: metricsPath,
     result,
     envelope,
-    transcriptPath,
+    traceArtifactPath: 'transcript.json',
+    transcriptArtifactPath: transcriptRawPath ? 'transcript-raw.jsonl' : undefined,
+    timingArtifactPath: null,
+    timing,
   });
 
-  const artifactPointers = await buildArtifactPointers({
-    outputDir: params.outputDir,
-    tracePath,
-    transcriptPath,
-  });
-  const resultArtifact = {
-    ...buildIndexArtifactEntry(result, {
-      outputDir: params.outputDir,
-      artifactDir: runDir,
-      gradingPath,
-      timingPath,
-      outputPath: answerPath,
-      answerPath,
-      tracePath,
-      transcriptPath,
-      metricsPath,
-      artifactPointers,
-      rawProviderLogPath,
-      inputPath,
-      responsePath,
-      projectionIdentity: envelope.projectionIdentity,
-      duplicatePolicy: params.duplicatePolicy,
-    }),
-    attempt: params.trial.attempt,
-    run: params.trial.attempt + 1,
-    run_id: runDirName,
-    experiment: params.experiment,
-  };
   await writeFile(
     path.join(runDir, 'result.json'),
-    `${JSON.stringify(resultArtifact, null, 2)}\n`,
-    'utf8',
-  );
-  await writeFile(
-    path.join(runDir, 'summary.json'),
     `${JSON.stringify(
-      {
-        attempt: params.trial.attempt,
-        run: params.trial.attempt + 1,
-        run_id: runDirName,
-        test_id: result.testId,
-        target: result.target,
-        score: result.score,
-        verdict: params.trial.verdict,
-        execution_status: result.executionStatus,
-        error: result.error,
-        cost_usd: result.costUsd,
-        duration_ms: result.durationMs,
-        token_usage: result.tokenUsage,
-      },
+      buildVercelRunResultArtifact({
+        trial: params.trial,
+        result,
+        metricsArtifact,
+        hasTranscript,
+        hasOutput: result.output.length > 0,
+      }),
       null,
       2,
     )}\n`,
@@ -1270,8 +1409,10 @@ export function buildIndexArtifactEntry(
   options: {
     outputDir: string;
     artifactDir?: string;
-    gradingPath: string;
-    timingPath: string;
+    gradingPath?: string;
+    timingPath?: string;
+    benchmarkPath?: string;
+    summaryPath?: string;
     outputPath?: string;
     answerPath?: string;
     tracePath?: string;
@@ -1310,8 +1451,18 @@ export function buildIndexArtifactEntry(
     artifact_dir: options.artifactDir
       ? toRelativeArtifactPath(options.outputDir, options.artifactDir)
       : undefined,
-    grading_path: toRelativeArtifactPath(options.outputDir, options.gradingPath),
-    timing_path: toRelativeArtifactPath(options.outputDir, options.timingPath),
+    grading_path: options.gradingPath
+      ? toRelativeArtifactPath(options.outputDir, options.gradingPath)
+      : undefined,
+    timing_path: options.timingPath
+      ? toRelativeArtifactPath(options.outputDir, options.timingPath)
+      : undefined,
+    benchmark_path: options.benchmarkPath
+      ? toRelativeArtifactPath(options.outputDir, options.benchmarkPath)
+      : undefined,
+    summary_path: options.summaryPath
+      ? toRelativeArtifactPath(options.outputDir, options.summaryPath)
+      : undefined,
     output_path: options.outputPath
       ? toRelativeArtifactPath(options.outputDir, options.outputPath)
       : undefined,
@@ -1440,14 +1591,24 @@ async function writeMetricsArtifact(params: {
   readonly result: EvaluationResult;
   readonly envelope: TraceEnvelope;
   readonly transcriptPath?: string;
-}): Promise<void> {
+  readonly traceArtifactPath?: string;
+  readonly transcriptArtifactPath?: string;
+  readonly gradingArtifactPath?: string;
+  readonly timingArtifactPath?: string | null;
+  readonly timing?: TimingArtifact;
+}): Promise<ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact }> {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
-    tracePath: CANONICAL_TRACE_ARTIFACT_PATH,
-    transcriptPath: params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
-    gradingPath: 'grading.json',
-    timingPath: 'timing.json',
+    tracePath: params.traceArtifactPath ?? CANONICAL_TRACE_ARTIFACT_PATH,
+    transcriptPath:
+      params.transcriptArtifactPath ??
+      (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
+    gradingPath: params.gradingArtifactPath ?? 'grading.json',
+    timingPath:
+      params.timingArtifactPath === null ? undefined : (params.timingArtifactPath ?? 'timing.json'),
   });
-  await writeFile(params.filePath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+  const artifactWithTiming = params.timing ? { ...artifact, timing: params.timing } : artifact;
+  await writeFile(params.filePath, `${JSON.stringify(artifactWithTiming, null, 2)}\n`, 'utf8');
+  return artifactWithTiming;
 }
 
 function indexRecordKey(record: unknown): string | undefined {
@@ -1974,6 +2135,60 @@ export async function writeArtifactsFromResults(
     }
 
     await mkdir(plan.testDir, { recursive: true });
+
+    if (hasPersistedTrialRuns(result)) {
+      const aggregateTiming = buildRepeatAggregateTimingArtifact(result);
+      const summaryPath = path.join(plan.testDir, 'summary.json');
+      const summary = buildVercelEvalSummaryArtifact(
+        result,
+        options?.experimentMetadata?.fingerprint ?? plan.projectionIdentity.id,
+      );
+      await writeFile(plan.gradingPath, `${JSON.stringify(plan.grading, null, 2)}\n`, 'utf8');
+      await writeFile(
+        plan.perTestTimingPath,
+        `${JSON.stringify(aggregateTiming, null, 2)}\n`,
+        'utf8',
+      );
+      await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+      for (const trial of result.trials ?? []) {
+        await writeTrialRunArtifacts({
+          trial,
+          parentTestDir: plan.testDir,
+          outputDir,
+          evalFile: options?.evalFile,
+          experiment: options?.experiment,
+          runId: options?.runId,
+          duplicatePolicy,
+          testByTestId,
+        });
+      }
+
+      const nextRecord = {
+        ...buildIndexArtifactEntry(result, {
+          outputDir,
+          artifactDir: plan.testDir,
+          gradingPath: plan.gradingPath,
+          timingPath: plan.perTestTimingPath,
+          summaryPath,
+          projectionIdentity: plan.projectionIdentity,
+          duplicatePolicy,
+        }),
+        experiment: options?.experiment,
+      };
+      if (duplicatePolicy === 'update' && emittedIdentityIds.has(identityId)) {
+        const existingIndex = indexRecords.findIndex(
+          (record) => projectionIdentityRecordKey(record) === identityId,
+        );
+        if (existingIndex >= 0) {
+          indexRecords[existingIndex] = nextRecord;
+        }
+      } else {
+        indexRecords.push(nextRecord);
+      }
+      emittedIdentityIds.add(identityId);
+      continue;
+    }
+
     await writeFile(plan.gradingPath, `${JSON.stringify(plan.grading, null, 2)}\n`, 'utf8');
     await writeFile(plan.perTestTimingPath, `${JSON.stringify(plan.timing, null, 2)}\n`, 'utf8');
 

@@ -112,12 +112,17 @@ Duplicate policy is explicit:
 
 ### Metrics sidecar
 
-Each per-case artifact directory includes `metrics.json`
+Each direct per-case artifact directory includes `metrics.json`
 (`schema_version: "agentv.metrics.v1"`). This is an AgentV-owned
 derived projection over `trace.json`, the result row, and
 `grading.json`. It is the compact executor behavior summary for dashboards,
 comparison exports, and metric-style graders; it is not canonical trace storage
 and does not carry token/cost usage.
+
+Repeat-enabled cases use aggregate `summary.json`, `grading.json`, and
+`timing.json`, then store attempt details under `run-N/`. Each `run-N/` contains Vercel-compatible
+`result.json`, `transcript.json`, `transcript-raw.jsonl`, and `outputs/eval.txt`,
+plus AgentV `grading.json` and `metrics.json` with embedded timing.
 
 `transcript.jsonl` remains the ordered conversational/log compatibility
 projection. Full trace detail stays in `trace.json`
