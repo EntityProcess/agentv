@@ -347,25 +347,28 @@ export interface AdditionalResultArtifactsContext {
 
 export interface VercelRunResultArtifact {
   readonly status: 'passed' | 'failed' | 'error';
-  readonly duration: number;
+  readonly duration_ms?: number;
+  readonly duration_seconds: number;
   readonly model: string;
-  readonly transcriptPath?: string;
-  readonly transcriptRawPath?: string;
+  readonly grading_path: string;
+  readonly transcript_path?: string;
+  readonly transcript_raw_path?: string;
   readonly o11y: {
-    readonly totalTurns: number;
-    readonly toolCalls: Record<string, number>;
-    readonly totalToolCalls: number;
-    readonly webFetches: readonly unknown[];
-    readonly filesRead: readonly string[];
-    readonly filesModified: readonly string[];
-    readonly shellCommands: readonly unknown[];
+    readonly total_turns: number;
+    readonly tool_calls: Record<string, number>;
+    readonly total_tool_calls: number;
+    readonly web_fetches: readonly unknown[];
+    readonly files_read: readonly string[];
+    readonly files_modified: readonly string[];
+    readonly shell_commands: readonly unknown[];
     readonly errors: readonly unknown[];
-    readonly thinkingBlocks: number;
+    readonly thinking_blocks: number;
   };
-  readonly outputPaths?: {
+  readonly output_paths?: {
     readonly answer?: string;
     readonly scripts?: Record<string, string>;
   };
+  readonly timing?: TimingArtifact;
 }
 
 export interface RepeatCaseSummaryArtifact {
@@ -720,29 +723,34 @@ function toFilePathList(entries: readonly unknown[]): readonly string[] {
 function buildVercelRunResultArtifact(params: {
   readonly trial: TrialResult;
   readonly result: EvaluationResult;
-  readonly metricsArtifact: ReturnType<typeof buildMetricsArtifact>;
+  readonly metricsArtifact: ReturnType<typeof buildMetricsArtifact> & {
+    readonly timing?: TimingArtifact;
+  };
   readonly hasTranscript: boolean;
   readonly hasOutput: boolean;
 }): VercelRunResultArtifact {
   const metrics = params.metricsArtifact.metrics;
   return dropUndefined({
     status: toVercelRunStatus(params.trial, params.result),
-    duration: resultDurationSeconds(params.result),
+    duration_ms: resultDurationMs(params.result),
+    duration_seconds: resultDurationSeconds(params.result),
     model: params.result.target ?? 'unknown',
-    transcriptPath: params.hasTranscript ? './transcript.json' : undefined,
-    transcriptRawPath: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
+    grading_path: './grading.json',
+    transcript_path: params.hasTranscript ? './transcript.json' : undefined,
+    transcript_raw_path: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
     o11y: {
-      totalTurns: metrics.total_turns,
-      toolCalls: metrics.tool_calls,
-      totalToolCalls: metrics.total_tool_calls,
-      webFetches: metrics.web_fetches,
-      filesRead: toFilePathList(metrics.files_read),
-      filesModified: toFilePathList(metrics.files_modified),
-      shellCommands: metrics.shell_commands,
+      total_turns: metrics.total_turns,
+      tool_calls: metrics.tool_calls,
+      total_tool_calls: metrics.total_tool_calls,
+      web_fetches: metrics.web_fetches,
+      files_read: toFilePathList(metrics.files_read),
+      files_modified: toFilePathList(metrics.files_modified),
+      shell_commands: metrics.shell_commands,
       errors: metrics.errors,
-      thinkingBlocks: metrics.thinking_blocks,
+      thinking_blocks: metrics.thinking_blocks,
     },
-    outputPaths: params.hasOutput ? { answer: './outputs/answer.md' } : undefined,
+    output_paths: params.hasOutput ? { answer: './outputs/answer.md' } : undefined,
+    timing: params.metricsArtifact.timing,
   }) as unknown as VercelRunResultArtifact;
 }
 
@@ -784,7 +792,6 @@ async function writeTrialRunArtifacts(params: {
   const hasTranscript = hasTranscriptProjection(result, envelope);
   const transcriptPath = hasTranscript ? path.join(runDir, 'transcript.json') : undefined;
   const transcriptRawPath = hasTranscript ? path.join(runDir, 'transcript-raw.jsonl') : undefined;
-  const metricsPath = path.join(runDir, CANONICAL_METRICS_ARTIFACT_PATH);
 
   await mkdir(runDir, { recursive: true });
   await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
@@ -801,8 +808,7 @@ async function writeTrialRunArtifacts(params: {
     );
     await writeTranscriptJsonl(transcriptRawPath, result, envelope);
   }
-  const metricsArtifact = await writeMetricsArtifact({
-    filePath: metricsPath,
+  const metricsArtifact = buildMetricsArtifactPayload({
     result,
     envelope,
     traceArtifactPath: 'transcript.json',
@@ -1614,6 +1620,28 @@ async function writeTranscriptJsonl(
   await writeFile(filePath, content, 'utf8');
 }
 
+function buildMetricsArtifactPayload(params: {
+  readonly result: EvaluationResult;
+  readonly envelope: TraceEnvelope;
+  readonly transcriptPath?: string;
+  readonly traceArtifactPath?: string;
+  readonly transcriptArtifactPath?: string;
+  readonly gradingArtifactPath?: string;
+  readonly timingArtifactPath?: string | null;
+  readonly timing?: TimingArtifact;
+}): ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact } {
+  const artifact = buildMetricsArtifact(params.result, params.envelope, {
+    tracePath: params.traceArtifactPath ?? CANONICAL_TRACE_ARTIFACT_PATH,
+    transcriptPath:
+      params.transcriptArtifactPath ??
+      (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
+    gradingPath: params.gradingArtifactPath ?? 'grading.json',
+    timingPath:
+      params.timingArtifactPath === null ? undefined : (params.timingArtifactPath ?? 'timing.json'),
+  });
+  return params.timing ? { ...artifact, timing: params.timing } : artifact;
+}
+
 async function writeMetricsArtifact(params: {
   readonly filePath: string;
   readonly result: EvaluationResult;
@@ -1625,16 +1653,7 @@ async function writeMetricsArtifact(params: {
   readonly timingArtifactPath?: string | null;
   readonly timing?: TimingArtifact;
 }): Promise<ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact }> {
-  const artifact = buildMetricsArtifact(params.result, params.envelope, {
-    tracePath: params.traceArtifactPath ?? CANONICAL_TRACE_ARTIFACT_PATH,
-    transcriptPath:
-      params.transcriptArtifactPath ??
-      (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
-    gradingPath: params.gradingArtifactPath ?? 'grading.json',
-    timingPath:
-      params.timingArtifactPath === null ? undefined : (params.timingArtifactPath ?? 'timing.json'),
-  });
-  const artifactWithTiming = params.timing ? { ...artifact, timing: params.timing } : artifact;
+  const artifactWithTiming = buildMetricsArtifactPayload(params);
   await writeFile(params.filePath, `${JSON.stringify(artifactWithTiming, null, 2)}\n`, 'utf8');
   return artifactWithTiming;
 }

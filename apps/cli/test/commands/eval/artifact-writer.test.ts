@@ -1041,7 +1041,6 @@ describe('writeArtifactsFromResults', () => {
       const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
       expect(runEntries.sort()).toEqual([
         'grading.json',
-        'metrics.json',
         'outputs',
         'result.json',
         'transcript-raw.jsonl',
@@ -1057,11 +1056,16 @@ describe('writeArtifactsFromResults', () => {
     ) as Record<string, unknown>;
     expect(runOneResult).toMatchObject({
       status: 'failed',
-      duration: 2,
+      duration_ms: 2000,
+      duration_seconds: 2,
       model: 'test-target',
-      transcriptPath: './transcript.json',
-      transcriptRawPath: './transcript-raw.jsonl',
-      outputPaths: { answer: './outputs/answer.md' },
+      grading_path: './grading.json',
+      transcript_path: './transcript.json',
+      transcript_raw_path: './transcript-raw.jsonl',
+      output_paths: { answer: './outputs/answer.md' },
+      timing: {
+        duration_ms: 2000,
+      },
     });
 
     const runTwoAnswer = await readFile(
@@ -1070,23 +1074,20 @@ describe('writeArtifactsFromResults', () => {
     );
     expect(runTwoAnswer).toBe('second attempt');
 
-    const runTwoMetrics = JSON.parse(
+    const runTwoResult = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'metrics.json'),
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'result.json'),
         'utf8',
       ),
     ) as Record<string, unknown>;
-    expect(runTwoMetrics).toMatchObject({
-      source_artifacts: {
-        trace_path: 'transcript.json',
-        transcript_path: 'transcript-raw.jsonl',
-        grading_path: 'grading.json',
-      },
+    expect(runTwoResult).toMatchObject({
+      grading_path: './grading.json',
+      transcript_path: './transcript.json',
+      transcript_raw_path: './transcript-raw.jsonl',
       timing: {
         duration_ms: 4000,
       },
     });
-    expect((runTwoMetrics.source_artifacts as Record<string, unknown>).timing_path).toBeUndefined();
   });
 
   it('handles empty results array', async () => {

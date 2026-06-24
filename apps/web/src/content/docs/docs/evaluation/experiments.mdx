@@ -89,12 +89,13 @@ provenance:
 <run-dir>/<suite>/<case-id>/run-1/transcript-raw.jsonl
 <run-dir>/<suite>/<case-id>/run-1/outputs/answer.md
 <run-dir>/<suite>/<case-id>/run-1/grading.json
-<run-dir>/<suite>/<case-id>/run-1/metrics.json
 ```
 
 The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
 fingerprint, and flattened snake_case timing fields such as
 `mean_duration_ms`, and `grading.json` for compact trial/aggregation verdicts.
+Each `run-N/result.json` is the per-attempt manifest and includes
+`grading_path`, transcript/output paths, and embedded timing/o11y metrics.
 Root `index.jsonl` and root `benchmark.json` remain stable for existing CI
 summary scripts and uploaded artifact consumers.
 

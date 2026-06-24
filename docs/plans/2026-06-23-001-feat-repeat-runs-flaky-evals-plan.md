@@ -263,17 +263,20 @@ Repeat-run cases use attempt directories:
 .agentv/results/<experiment>/<timestamp>/<case-id>/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript-raw.jsonl
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/outputs/answer.md
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/grading.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/metrics.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript-raw.jsonl
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/outputs/answer.md
 ```
+
+Each `run-N/result.json` is the per-attempt manifest. It carries paths such as
+`grading_path`, `transcript_path`, `transcript_raw_path`, `output_paths.answer`,
+plus embedded timing/o11y metrics so repeat attempts do not need a separate
+`metrics.json` sidecar.
 
 `<case-id>` should reuse the sanitized artifact key produced by the current artifact writer, including suite disambiguation where needed. Attempt directories are one-indexed because users naturally inspect `run-1`, `run-2`, and this matches the Vercel comparison.
 

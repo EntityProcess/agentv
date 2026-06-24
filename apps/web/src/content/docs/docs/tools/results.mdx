@@ -121,9 +121,11 @@ and does not carry token/cost usage.
 
 Repeat-enabled cases use aggregate `summary.json` with flattened snake_case
 timing fields plus aggregate `grading.json`, then store attempt details under
-`run-N/`. Each `run-N/` contains Vercel-compatible
+`run-N/`. Each `run-N/` contains a compact per-attempt manifest
 `result.json`, `transcript.json`, `transcript-raw.jsonl`, and `outputs/answer.md`,
-plus AgentV `grading.json` and `metrics.json` with embedded timing.
+plus AgentV `grading.json`. The `result.json` file carries `grading_path`,
+transcript/output paths, and embedded timing/o11y metrics; repeat attempts do
+not write a separate `metrics.json` sidecar.
 
 `transcript.jsonl` remains the ordered conversational/log compatibility
 projection. Full trace detail stays in `trace.json`
