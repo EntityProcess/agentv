@@ -136,4 +136,51 @@ describe('result-table model', () => {
     expect(model.state.grader).toBe('rubric');
     expect(model.visibleColumns.map((column) => column.id)).toEqual(['grader:rubric']);
   });
+
+  it('builds repeat attempt groups from hydrated trial metadata', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'repeat-case',
+          score: 1,
+          trials: [
+            {
+              attempt: 0,
+              run_path: 'run-1',
+              score: 0.2,
+              verdict: 'fail',
+              duration_ms: 1000,
+              total_tool_calls: 2,
+              metrics_path: 'repeat-case/run-1/metrics.json',
+            },
+            {
+              attempt: 1,
+              run_path: 'run-2',
+              score: 1,
+              verdict: 'pass',
+              duration_ms: 3000,
+              total_tool_calls: 4,
+              timing_path: 'repeat-case/run-2/timing.json',
+              grading_path: 'repeat-case/run-2/grading.json',
+            },
+          ],
+        }),
+        result({ testId: 'single-case', score: 1 }),
+      ],
+    });
+
+    expect(model.repeatGroups).toHaveLength(1);
+    expect(model.repeatGroups[0]).toMatchObject({
+      attemptCount: 2,
+      passedAttempts: 1,
+      failedAttempts: 1,
+      passRate: 0.5,
+      meanScore: 0.6,
+      meanDurationMs: 2000,
+      totalToolCalls: 6,
+      artifactCount: 3,
+    });
+    expect(model.filteredRepeatGroups.map((group) => group.row.testId)).toEqual(['repeat-case']);
+  });
 });

@@ -171,7 +171,12 @@ Good assertions are *discriminating* — they pass when the agent genuinely succ
 
 ### As runs complete, capture timing data
 
-When each subagent task completes, you receive a notification containing `total_tokens` and `duration_ms`. **Save this data immediately** to `timing.json` in the run directory. See `references/schemas.md` for the timing.json schema.
+When each subagent task completes, you receive a notification containing
+`total_tokens` and `duration_ms`. **Save this data immediately** to
+`timing.json` in that test directory. See `references/schemas.md` for the
+timing.json schema. The executor subagent should also write flattened
+`metrics.json`; if it does not, create a sparse metrics file with zero counts
+and the response character count.
 
 This is the only opportunity to capture this data — it comes through the task notification and isn't persisted elsewhere. Process each notification as it arrives.
 
@@ -250,10 +255,15 @@ agentv results validate <run-dir>
 
 All artifacts use established schemas — see `references/schemas.md` for the full definitions. Do not modify the structure. Key artifacts per run:
 - **grading.json**: per-test assertions with `{text, passed, evidence}`, plus summary
-- **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
-- **summary.json**: per-target aggregate `{pass_rate, time_seconds, tokens}`
+- **metrics.json**: flattened per-attempt execution metrics such as `tool_calls`, `total_tool_calls`, `files_created`, and `errors_encountered`
+- **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}` plus optional `token_usage` and `cost_usd`
+- **summary.json**: run-level aggregate and metadata, including `timing_summary`
 
-Write artifacts to `.agentv/artifacts/` or the iteration directory.
+Strict CLI eval runs store attempts under `run-N/` as `metrics.json`,
+`timing.json`, and AgentV `grading.json`. The subagent pipeline uses per-test
+workspace directories while the run is in progress; `pipeline bench` writes
+root `index.jsonl` and `summary.json` so `agentv results validate` and the
+Dashboard can read the run.
 
 ### Workspace features (EVAL.yaml only)
 
@@ -426,7 +436,7 @@ The `references/` directory has additional documentation:
 - `references/subagent-pipeline.md` — Detailed subagent-mode pipeline commands and output structure
 - `references/description-optimization.md` — Skill description optimization workflow
 - `references/environment-adaptation.md` — Provider-specific notes and CI/headless behavior
-- `references/schemas.md` — JSON schemas for all artifacts (grading.json, summary.json, etc.)
+- `references/schemas.md` — JSON schemas for all artifacts (grading.json, metrics.json, timing.json, summary.json, etc.)
 - `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
 
 ---

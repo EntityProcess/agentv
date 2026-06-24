@@ -1,32 +1,22 @@
 /**
  * AgentV metrics v1.
  *
- * This is a derived per-case executor metrics projection over `EvaluationResult`
- * and `agentv.trace.v1`. It aligns with AgentV's case-local `metrics.json`
- * while carrying the compact Vercel-style observability fields. It is not the
- * canonical trace store; full detail stays in `trace.json`, ordered
- * transcript compatibility rows stay in `transcript.jsonl`, and
- * duration/token/cost usage stays in `timing.json`.
+ * This is a derived per-attempt executor metrics projection over
+ * `EvaluationResult` and `agentv.trace.v1`. It combines the Anthropic
+ * skill-eval `metrics.json` counters with the compact Vercel observability
+ * counters. It is not the canonical trace store; full detail stays in
+ * `trace.json`, ordered transcript compatibility rows stay in transcript
+ * artifacts, and duration/token/cost usage stays in `timing.json`.
  */
 
 import { z } from 'zod';
 import type { Message, ToolCall } from './providers/types.js';
-import {
-  CANONICAL_TRACE_ARTIFACT_PATH,
-  METRICS_SCHEMA_VERSION,
-} from './result-artifact-contract.js';
-import { EXECUTION_TRACE_SCHEMA_VERSION, type TraceEnvelope } from './trace-envelope.js';
+import { METRICS_SCHEMA_VERSION } from './result-artifact-contract.js';
+import type { TraceEnvelope } from './trace-envelope.js';
 import type { TraceEvent } from './trace.js';
 import type { EvaluationResult } from './types.js';
 
 const TOOL_STATUS_VALUES = ['ok', 'error', 'timeout', 'cancelled', 'unknown'] as const;
-const TIMING_SOURCE_VALUES = [
-  'provider_reported',
-  'token_estimated',
-  'aggregate',
-  'unavailable',
-] as const;
-
 const FILE_READ_KEY_SET = new Set([
   'file',
   'filename',
@@ -119,30 +109,6 @@ const ReasoningBlockWireSchema = z
   })
   .strict();
 
-const MetricsTimingWireSchema = z
-  .object({
-    total_tokens: z.number().int().nonnegative(),
-    duration_ms: z.number().nonnegative(),
-    total_duration_seconds: z.number().nonnegative(),
-    cost_usd: z.number().nonnegative().nullable(),
-    token_usage: z
-      .object({
-        input: z.number().int().nonnegative(),
-        output: z.number().int().nonnegative(),
-        reasoning: z.number().int().nonnegative(),
-      })
-      .strict(),
-    usage_sources: z
-      .object({
-        token_usage: z.enum(TIMING_SOURCE_VALUES),
-        total_tokens: z.enum(TIMING_SOURCE_VALUES),
-        duration: z.enum(TIMING_SOURCE_VALUES),
-        cost: z.enum(TIMING_SOURCE_VALUES),
-      })
-      .strict(),
-  })
-  .strict();
-
 export const MetricsWireSchema = z
   .object({
     tool_calls: z.record(z.string(), z.number().int().nonnegative()),
@@ -169,31 +135,37 @@ export const MetricsWireSchema = z
 export const MetricsArtifactWireSchema = z
   .object({
     schema_version: z.literal(METRICS_SCHEMA_VERSION),
-    artifact_id: z.string(),
     generated_at: z.string(),
     test_id: z.string(),
     target: z.string(),
     suite: z.string().optional(),
     category: z.string().optional(),
-    trace: z
-      .object({
-        schema_version: z.literal(EXECUTION_TRACE_SCHEMA_VERSION),
-        artifact_id: z.string(),
-        trace_id: z.string(),
-        root_span_id: z.string(),
-        path: z.string(),
-      })
-      .strict(),
     source_artifacts: z
       .object({
-        trace_path: z.string(),
         transcript_path: z.string().optional(),
         grading_path: z.string().optional(),
         timing_path: z.string().optional(),
       })
-      .strict(),
-    metrics: MetricsWireSchema,
-    timing: MetricsTimingWireSchema.optional(),
+      .strict()
+      .optional(),
+    tool_calls: z.record(z.string(), z.number().int().nonnegative()),
+    tool_call_counts: z.record(z.string(), z.number().int().nonnegative()),
+    tool_category_counts: z.record(z.string(), z.number().int().nonnegative()),
+    total_tool_calls: z.number().int().nonnegative(),
+    total_steps: z.number().int().nonnegative(),
+    total_turns: z.number().int().nonnegative(),
+    tool_call_events: z.array(ExecutionToolCallWireSchema),
+    shell_commands: z.array(ShellCommandWireSchema),
+    files_read: z.array(FileReferenceWireSchema),
+    files_modified: z.array(FileReferenceWireSchema),
+    files_created: z.array(z.string()),
+    web_fetches: z.array(WebFetchWireSchema),
+    errors: z.array(ExecutionErrorWireSchema),
+    errors_encountered: z.number().int().nonnegative(),
+    output_chars: z.number().int().nonnegative(),
+    transcript_chars: z.number().int().nonnegative(),
+    reasoning_blocks: z.array(ReasoningBlockWireSchema),
+    thinking_blocks: z.number().int().nonnegative(),
   })
   .strict();
 
@@ -847,47 +819,31 @@ function buildMetrics(result: EvaluationResult) {
   };
 }
 
-function metricsArtifactId(traceArtifactId: string): string {
-  return traceArtifactId.startsWith('execution-trace-')
-    ? traceArtifactId.replace('execution-trace-', 'metrics-')
-    : `metrics-${traceArtifactId}`;
-}
-
 export function buildMetricsArtifact(
   result: EvaluationResult,
   envelope: TraceEnvelope,
   options: {
-    tracePath?: string;
     transcriptPath?: string;
     gradingPath?: string;
     timingPath?: string;
     generatedAt?: string;
   } = {},
 ): MetricsArtifactWire {
-  const tracePath = options.tracePath ?? CANONICAL_TRACE_ARTIFACT_PATH;
+  const metrics = buildMetrics(result);
   return MetricsArtifactWireSchema.parse(
     dropUndefined({
       schema_version: METRICS_SCHEMA_VERSION,
-      artifact_id: metricsArtifactId(envelope.artifactId),
       generated_at: options.generatedAt ?? envelope.createdAt,
       test_id: result.testId ?? 'unknown',
       target: result.target ?? 'unknown',
       suite: result.suite,
       category: result.category,
-      trace: {
-        schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
-        artifact_id: envelope.artifactId,
-        trace_id: envelope.trace.traceId,
-        root_span_id: envelope.trace.rootSpanId,
-        path: tracePath,
-      },
       source_artifacts: dropUndefined({
-        trace_path: tracePath,
         transcript_path: options.transcriptPath,
         grading_path: options.gradingPath,
         timing_path: options.timingPath,
       }),
-      metrics: buildMetrics(result),
+      ...metrics,
     }),
   );
 }

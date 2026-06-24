@@ -345,10 +345,12 @@ describe('agentv eval CLI', () => {
       expect(results).toHaveLength(2);
       await expectFileExists(path.join(outputDir, 'summary.json'));
       await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'result.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'metrics.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'timing.json'));
       await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
       await expectFileExists(path.join(outputDir, 'case-beta', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'result.json'));
+      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'metrics.json'));
+      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'timing.json'));
       await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'grading.json'));
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });

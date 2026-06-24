@@ -9,7 +9,8 @@
  *     <test-id>/
  *       summary.json           — per-case aggregate
  *       task/EVAL.yaml         — self-contained eval case, including input
- *       run-1/result.json      — per-run result
+ *       run-1/metrics.json     — per-run execution metrics
+ *       run-1/timing.json      — per-run timing and token usage
  *       run-1/grading.json     — per-run grading artifact (assertions, graders)
  *
  * This module delegates artifact building to the shared artifact-writer so

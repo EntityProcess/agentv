@@ -130,10 +130,16 @@ Each cycle is a standard eval run. Autoresearch session metadata lives in `_auto
     trajectory.html                # live-updating score trajectory chart
   2026-04-15T10-30-00/             # cycle 1 — standard run artifacts
     index.jsonl
-    grading.json
-    timing.json
     summary.json
     report.html
+    <case-id>/
+      summary.json
+      run-1/
+        metrics.json
+        timing.json
+        grading.json
+        transcript.json
+        transcript-raw.jsonl
   2026-04-15T10-35-00/             # cycle 2 — standard run artifacts
     ...
 ```
@@ -222,8 +228,8 @@ SCORE=$(jq -sr '[.[].scores[].score] | add / length' "$RUN_DIR/index.jsonl")
 # Per-assertion pass rates as JSON object
 PASS_RATES=$(jq -sr '[.[].scores[]] | group_by(.type) | map({key: .[0].type, value: (map(.score) | add / length)}) | from_entries' "$RUN_DIR/index.jsonl")
 
-# Cost (if timing.json exists)
-COST=$(jq -r '.cost_usd // 0' "$RUN_DIR/timing.json" 2>/dev/null || echo 0)
+# Cost (if root summary includes it)
+COST=$(jq -r '.timing_summary.cost_usd.mean // 0' "$RUN_DIR/summary.json" 2>/dev/null || echo 0)
 ```
 
 Capture only these small outputs (`SCORE`, `PASS_RATES`, `COST`) — never read the full JSONL into context.

@@ -31,6 +31,28 @@ describe('eval pipeline e2e', () => {
 
       // Step 2: Write mock response.md (simulating target execution)
       await writeFile(join(outDir, 'input-test', 'test-01', 'response.md'), 'hello world response');
+      await writeFile(
+        join(outDir, 'input-test', 'test-01', 'metrics.json'),
+        JSON.stringify({
+          tool_calls: {},
+          total_tool_calls: 0,
+          total_steps: 1,
+          files_created: [],
+          errors_encountered: 0,
+          output_chars: 'hello world response'.length,
+          transcript_chars: 0,
+        }),
+      );
+      await writeFile(
+        join(outDir, 'input-test', 'test-01', 'timing.json'),
+        JSON.stringify({
+          duration_ms: 800,
+          total_duration_seconds: 0.8,
+          total_tokens: 10,
+          token_usage: { input: 7, output: 3, reasoning: 0 },
+          execution_status: 'ok',
+        }),
+      );
 
       // Step 3: pipeline grade
       await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', outDir]);
@@ -68,9 +90,12 @@ describe('eval pipeline e2e', () => {
         .map((line) => JSON.parse(line));
       expect(indexLines).toHaveLength(1);
       expect(indexLines[0].test_id).toBe('test-01');
+      expect(indexLines[0].metrics_path).toBe('input-test/test-01/metrics.json');
+      expect(indexLines[0].timing_path).toBe('input-test/test-01/timing.json');
 
       const summary = JSON.parse(await readFile(join(outDir, 'summary.json'), 'utf8'));
       expect(summary.run_summary).toBeDefined();
+      expect(summary.timing_summary.total_tokens).toEqual({ mean: 10, stddev: 0 });
     },
     PIPELINE_E2E_TIMEOUT_MS,
   );

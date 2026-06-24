@@ -86,7 +86,7 @@ Repeat-run reliability uses a separate metric: `attempt_success_rate`. It means 
 
 Suggested wire shape:
 
-- `run-N/result.json.result.pass_rate`, or the equivalent current `run-N/grading.json` summary field, is assertion-level pass rate for that attempt and is omitted when the verifier has no assertion counts.
+- `run-N/grading.json` summary is the assertion-level pass rate for that attempt and is omitted when the verifier has no assertion counts.
 - Case `summary.json` may include aggregate assertion pass-rate stats when available, but it must not use assertion `pass_rate` to mean binary attempt success frequency.
 - Case `summary.json`, the index `trials[]`/`aggregation`, and future explicit repeat fields represent successful counted attempts divided by counted attempts.
 - Binary-only harnesses write `passed: true` or `passed: false` per attempt and derive only `attempt_success_rate` across repeated attempts.
@@ -152,7 +152,7 @@ Public docs and implementation notes must not reference non-public sources. If a
 - KTD2. Keep one-run CI as the default. Repeat runs are for reliability evidence unless `repeat.gate` says they are a CI gate.
 - KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json` and `run-N/` directories so existing aggregate consumers do not inflate case counts.
 - KTD4. Single-run and repeat-run cases both use `run-N/` attempt directories. A normal eval writes `run-1/` so the layout stays strict-Vercel and does not fork between default and repeated cases.
-- KTD5. Root `benchmark.json` is removed entirely. Root `summary.json` supersedes it for run-level aggregate data and metadata such as `planned_test_count`, `eval_file`, and `experiment_config`. Root `index.jsonl` is the discovery anchor for both local and remote results; case `summary.json` summarizes that case's `run-N` attempts. Per-attempt files are `run-N/result.json` and AgentV `run-N/grading.json`; no per-attempt `summary.json` is written.
+- KTD5. Root `benchmark.json` is removed entirely. Root `summary.json` supersedes it for run-level aggregate data and metadata such as `planned_test_count`, `eval_file`, and `experiment_config`. Root `index.jsonl` is the discovery anchor for both local and remote results; case `summary.json` summarizes that case's `run-N` attempts. Per-attempt files are `run-N/metrics.json`, `run-N/timing.json`, and AgentV `run-N/grading.json`; no per-attempt summary or combined result file is written.
 - KTD6. `pass_at_k` keeps the existing AgentV/Vercel ergonomics: early exit is enabled unless explicitly disabled. Full reliability sampling requires `early_exit: false` on the experiment and should be recorded because it changes cost and statistics.
 - KTD7. Do not inherit Vercel's implicit CI ambiguity. All policies that can make one failed plus one passed attempt count as passing must be visible in config and artifacts.
 - KTD8. Reuse current failure classification fields before adding new enums. Add aggregate classification fields only after mapping from `execution_status`, `failure_stage`, and `failure_reason_code` proves insufficient.
@@ -247,7 +247,8 @@ Single-run cases still use `run-1/`:
 .agentv/results/<experiment>/<timestamp>/<case-id>/summary.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/task/EVAL.yaml
 .agentv/results/<experiment>/<timestamp>/<case-id>/task/targets.yaml
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/timing.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript-raw.jsonl
@@ -264,12 +265,14 @@ Repeat-run cases use attempt directories:
 
 ```text
 .agentv/results/<experiment>/<timestamp>/<case-id>/summary.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/timing.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript-raw.jsonl
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/outputs/answer.md
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/result.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/metrics.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/timing.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript-raw.jsonl

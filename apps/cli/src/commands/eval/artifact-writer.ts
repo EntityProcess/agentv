@@ -14,6 +14,7 @@ import {
   type ResultIndexArtifact,
   type RunSummaryArtifact,
   type TimingArtifact,
+  type TimingSummaryArtifact,
   aggregateRunDir,
   buildAggregateGradingArtifact,
   buildIndexArtifactEntry as buildCoreIndexArtifactEntry,
@@ -22,6 +23,7 @@ import {
   buildRunSummaryArtifact,
   buildTestTargetKey,
   buildTimingArtifact,
+  buildTimingSummaryArtifact,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifacts,
@@ -44,6 +46,7 @@ export {
   buildGradingArtifact,
   buildTestTargetKey,
   buildTimingArtifact,
+  buildTimingSummaryArtifact,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   RESULT_INDEX_FILENAME,
@@ -58,6 +61,7 @@ export type {
   ResultIndexArtifact,
   RunSummaryArtifact,
   TimingArtifact,
+  TimingSummaryArtifact,
 };
 
 function toRelativeArtifactPath(outputDir: string, filePath: string): string {

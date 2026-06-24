@@ -133,7 +133,7 @@ If a section has no findings, include the header with "None found." underneath.
 
 When analyzing benchmark results across multiple runs (e.g., across iterations or targets), the analyzer surfaces patterns the aggregate stats would hide.
 
-**Additional input:** `benchmark-data-path` — path to summary.json with all run results.
+**Additional input:** `benchmark-data-path` — path to root `summary.json` plus `index.jsonl` for run results.
 
 ### Cross-Run Pattern Analysis
 

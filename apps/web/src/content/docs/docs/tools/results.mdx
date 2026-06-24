@@ -112,14 +112,14 @@ Duplicate policy is explicit:
 
 ### Attempt observability
 
-Each attempt directory includes `result.json`. Its `o11y` object is the compact
-executor behavior summary for dashboards, comparison exports, and metric-style
-graders. It is derived from the run result and transcript projection; token,
-cost, and duration rollups live in root and case `summary.json`.
+Each attempt directory includes `metrics.json` and `timing.json`. `metrics.json`
+is the flattened executor behavior summary for dashboards, comparison exports,
+and metric-style graders. `timing.json` carries the attempt's duration, token,
+and cost values.
 
 Repeat-enabled and single-run cases use a case-level `summary.json`, then store
-attempt details under `run-N/`. Each `run-N/` contains Vercel-compatible
-`result.json`, `transcript.json`, `transcript-raw.jsonl`, and
+attempt details under `run-N/`. Each `run-N/` contains `metrics.json`,
+`timing.json`, `transcript.json`, `transcript-raw.jsonl`, and
 `outputs/answer.md`, plus AgentV `grading.json`.
 
 `transcript-raw.jsonl` is the ordered conversational/log compatibility
@@ -127,30 +127,31 @@ projection and `transcript.json` is the message projection for the attempt.
 Root `summary.json` is the run-level aggregate and metadata file. Root
 `index.jsonl` is the local and remote discovery anchor and lightweight manifest;
 rows point at case `summary.json` and attempt `run-N` directories. Duration,
-token, and cost rollups live in root and case `summary.json`; per-attempt
-duration and observability live in `run-N/result.json`.
+token, and cost rollups live in case `summary.json`; root `summary.json` carries
+`timing_summary` averages/stddevs. Per-attempt timing and execution metrics live
+in `run-N/timing.json` and `run-N/metrics.json`.
 
-The observability fields embedded in `run-N/result.json` align with Claude
-Agent Skills metric vocabulary while adding AgentV/Vercel-style detail:
+The flattened fields in `run-N/metrics.json` align with Claude Agent Skills
+metric vocabulary while adding AgentV/Vercel-style detail:
 
 | Field group | Purpose |
 |-------------|---------|
 | `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created` | Agent Skills-compatible executor metrics |
 | `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV/Vercel-style behavior summary when source data includes it |
 
-Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
+Vercel `@vercel/agent-eval` execution fields map into AgentV like this:
 
 | Vercel field | AgentV field | Artifact location |
 |--------------|--------------|-------------------|
-| `shellCommands` | `result.o11y.shellCommands` | `run-N/result.json` |
-| `filesRead` | `result.o11y.filesRead` | `run-N/result.json` |
-| `filesModified` | `result.o11y.filesModified` | `run-N/result.json` |
-| `toolCalls` | `result.o11y.toolCalls` and compact run summary counts | `run-N/result.json`; compact counts can also appear in `summary.json.run_summary[*].tool_calls` |
-| `totalToolCalls` | `result.o11y.totalToolCalls` | `run-N/result.json` |
-| `webFetches` | `result.o11y.webFetches` | `run-N/result.json` |
-| `totalTurns` | `result.o11y.totalTurns` | `run-N/result.json`; conversational rows remain in `run-N/transcript-raw.jsonl` |
-| `errors` | `result.o11y.errors` | `run-N/result.json` |
-| `thinkingBlocks` | `result.o11y.thinkingBlocks` | `run-N/result.json` |
+| `shellCommands` | `shell_commands` | `run-N/metrics.json` |
+| `filesRead` | `files_read` | `run-N/metrics.json` |
+| `filesModified` | `files_modified` | `run-N/metrics.json` |
+| `toolCalls` | `tool_calls` and compact run summary counts | `run-N/metrics.json`; compact counts can also appear in `summary.json.run_summary[*].tool_calls` |
+| `totalToolCalls` | `total_tool_calls` | `run-N/metrics.json` |
+| `webFetches` | `web_fetches` | `run-N/metrics.json` |
+| `totalTurns` | `total_turns` | `run-N/metrics.json`; conversational rows remain in `run-N/transcript-raw.jsonl` |
+| `errors` | `errors` | `run-N/metrics.json` |
+| `thinkingBlocks` | `thinking_blocks` | `run-N/metrics.json` |
 
 Agent Skills eval artifacts map into AgentV like this:
 
@@ -159,10 +160,10 @@ Agent Skills eval artifacts map into AgentV like this:
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
 | Per-case sidecars | Transcript and raw attempt evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, and optional provider evidence |
-| Per-attempt timing | Duration, token totals, cost, and usage source labels | `run-N/result.json` plus root/case `summary.json` rollups |
+| Per-attempt timing | Duration, token totals, and cost | `run-N/timing.json`; root `summary.json` reports `timing_summary` averages/stddevs |
 | Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
-| Transcript/log outlier analysis | Ordered transcript and attempt result detail | `run-N/transcript-raw.jsonl` for log compatibility; `run-N/result.json` for the attempt outcome |
+| Transcript/log outlier analysis | Ordered transcript and attempt metrics/timing detail | `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, and `run-N/timing.json` |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle

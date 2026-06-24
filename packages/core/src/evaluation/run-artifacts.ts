@@ -3,8 +3,9 @@
  *
  * This module owns the shared run-workspace contract used by CLI and
  * programmatic evals: `index.jsonl`, run-root `summary.json`, per-case
- * `summary.json`, `run-N/result.json`, and transcript projections. Keep wire
- * keys in snake_case here so every caller produces the same artifacts.
+ * `summary.json`, `run-N/metrics.json`, `run-N/timing.json`, and transcript
+ * projections. Keep wire keys in snake_case here so every caller produces the
+ * same artifacts.
  */
 
 import { createHash } from 'node:crypto';
@@ -64,15 +65,6 @@ import type {
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RUN_SUMMARY_FILENAME = 'summary.json';
-
-const TIMING_SOURCE_VALUES = [
-  'provider_reported',
-  'token_estimated',
-  'aggregate',
-  'unavailable',
-] as const;
-
-type TimingSource = (typeof TIMING_SOURCE_VALUES)[number];
 
 export function buildTestTargetKey(testId?: string, target?: string): string {
   return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
@@ -224,12 +216,18 @@ export interface TimingArtifact {
     readonly output: number;
     readonly reasoning: number;
   };
-  readonly usage_sources: {
-    readonly token_usage: TimingSource;
-    readonly total_tokens: TimingSource;
-    readonly duration: TimingSource;
-    readonly cost: TimingSource;
+}
+
+export interface TimingSummaryArtifact {
+  readonly duration_ms: { readonly mean: number; readonly stddev: number };
+  readonly total_duration_seconds: { readonly mean: number; readonly stddev: number };
+  readonly total_tokens: { readonly mean: number; readonly stddev: number };
+  readonly token_usage: {
+    readonly input: { readonly mean: number; readonly stddev: number };
+    readonly output: { readonly mean: number; readonly stddev: number };
+    readonly reasoning: { readonly mean: number; readonly stddev: number };
   };
+  readonly cost_usd?: { readonly mean: number; readonly stddev: number };
 }
 
 export interface RunSummaryArtifact {
@@ -253,7 +251,7 @@ export interface RunSummaryArtifact {
     }
   >;
   readonly per_grader_summary?: Record<string, { readonly mean: number; readonly stddev: number }>;
-  readonly timing: TimingArtifact;
+  readonly timing_summary: TimingSummaryArtifact;
   readonly notes: readonly string[];
 }
 
@@ -343,29 +341,6 @@ export interface AdditionalResultArtifactsContext {
   readonly sourceTestsById: ReadonlyMap<string, EvalTest>;
 }
 
-export interface VercelRunResultArtifact {
-  readonly status: 'passed' | 'failed' | 'error';
-  readonly duration: number;
-  readonly model: string;
-  readonly transcriptPath?: string;
-  readonly transcriptRawPath?: string;
-  readonly o11y: {
-    readonly totalTurns: number;
-    readonly toolCalls: Record<string, number>;
-    readonly totalToolCalls: number;
-    readonly webFetches: readonly unknown[];
-    readonly filesRead: readonly string[];
-    readonly filesModified: readonly string[];
-    readonly shellCommands: readonly unknown[];
-    readonly errors: readonly unknown[];
-    readonly thinkingBlocks: number;
-  };
-  readonly outputPaths?: {
-    readonly answer?: string;
-    readonly scripts?: Record<string, string>;
-  };
-}
-
 export interface RepeatCaseSummaryArtifact {
   readonly total_runs: number;
   readonly passed_runs: number;
@@ -379,7 +354,6 @@ export interface RepeatCaseSummaryArtifact {
   readonly duration_stats?: TimingArtifact['duration_stats'];
   readonly cost_usd: number | null;
   readonly token_usage: TimingArtifact['token_usage'];
-  readonly usage_sources: TimingArtifact['usage_sources'];
 }
 
 export type AdditionalResultArtifactsWriter = (
@@ -599,12 +573,6 @@ function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined
   });
 }
 
-function resultDurationSeconds(result: EvaluationResult): number {
-  const durationMs =
-    result.durationMs ?? result.trace?.durationMs ?? result.evalRun?.durationMs ?? 0;
-  return Math.round((durationMs / 1000) * 1000) / 1000;
-}
-
 function resultDurationMs(result: EvaluationResult): number | undefined {
   const durationMs = result.durationMs ?? result.trace?.durationMs ?? result.evalRun?.durationMs;
   return typeof durationMs === 'number' && Number.isFinite(durationMs) ? durationMs : undefined;
@@ -704,53 +672,7 @@ function buildRepeatCaseSummaryArtifact(
     duration_stats: timing.duration_stats,
     cost_usd: timing.cost_usd,
     token_usage: timing.token_usage,
-    usage_sources: timing.usage_sources,
   };
-}
-
-function toVercelRunStatus(
-  trial: TrialResult,
-  result: EvaluationResult,
-): VercelRunResultArtifact['status'] {
-  if (trial.executionStatus === 'execution_error' || result.executionStatus === 'execution_error') {
-    return 'error';
-  }
-  return trial.verdict === 'pass' ? 'passed' : 'failed';
-}
-
-function toFilePathList(entries: readonly unknown[]): readonly string[] {
-  return entries
-    .map((entry) => (isRecord(entry) && typeof entry.path === 'string' ? entry.path : undefined))
-    .filter((entry): entry is string => entry !== undefined);
-}
-
-function buildVercelRunResultArtifact(params: {
-  readonly trial: TrialResult;
-  readonly result: EvaluationResult;
-  readonly metricsArtifact: ReturnType<typeof buildMetricsArtifact>;
-  readonly hasTranscript: boolean;
-  readonly hasOutput: boolean;
-}): VercelRunResultArtifact {
-  const metrics = params.metricsArtifact.metrics;
-  return dropUndefined({
-    status: toVercelRunStatus(params.trial, params.result),
-    duration: resultDurationSeconds(params.result),
-    model: params.result.target ?? 'unknown',
-    transcriptPath: params.hasTranscript ? './transcript.json' : undefined,
-    transcriptRawPath: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
-    o11y: {
-      totalTurns: metrics.total_turns,
-      toolCalls: metrics.tool_calls,
-      totalToolCalls: metrics.total_tool_calls,
-      webFetches: metrics.web_fetches,
-      filesRead: toFilePathList(metrics.files_read),
-      filesModified: toFilePathList(metrics.files_modified),
-      shellCommands: metrics.shell_commands,
-      errors: metrics.errors,
-      thinkingBlocks: metrics.thinking_blocks,
-    },
-    outputPaths: params.hasOutput ? { answer: './outputs/answer.md' } : undefined,
-  }) as unknown as VercelRunResultArtifact;
 }
 
 function singleRunTrial(result: EvaluationResult): TrialResult {
@@ -795,6 +717,8 @@ async function writeTrialRunArtifacts(params: {
   const runDir = path.join(params.parentTestDir, runDirName);
   const grading = buildGradingArtifact(result, { includeTrials: false });
   const gradingPath = path.join(runDir, 'grading.json');
+  const metricsPath = path.join(runDir, 'metrics.json');
+  const timingPath = path.join(runDir, 'timing.json');
   const outputsDir = path.join(runDir, 'outputs');
   const answerOutputPath =
     result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
@@ -829,26 +753,16 @@ async function writeTrialRunArtifacts(params: {
     );
     await writeTranscriptJsonl(transcriptRawPath, result, envelope);
   }
-  const metricsArtifact = buildMetricsArtifact(result, envelope, {
-    tracePath: 'transcript.json',
-    transcriptPath: transcriptRawPath ? 'transcript-raw.jsonl' : undefined,
+  const timing = buildTimingArtifact([result]);
+  await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
+  await writeMetricsArtifact({
+    filePath: metricsPath,
+    result,
+    envelope,
+    transcriptArtifactPath: transcriptRawPath ? 'transcript-raw.jsonl' : undefined,
+    gradingArtifactPath: 'grading.json',
+    timingArtifactPath: 'timing.json',
   });
-
-  await writeFile(
-    path.join(runDir, 'result.json'),
-    `${JSON.stringify(
-      buildVercelRunResultArtifact({
-        trial: params.trial,
-        result,
-        metricsArtifact,
-        hasTranscript,
-        hasOutput: result.output.length > 0,
-      }),
-      null,
-      2,
-    )}\n`,
-    'utf8',
-  );
 }
 
 function toIndexPreparedAttempt(value: unknown): Record<string, unknown> | undefined {
@@ -951,28 +865,6 @@ export function buildGradingArtifact(
   };
 }
 
-function timingMetadataSource(
-  metadata: EvaluationResult['metadata'],
-  sourceKey: 'token_usage' | 'total_tokens' | 'duration' | 'cost',
-): TimingSource | undefined {
-  const usageSources = metadata?.usage_sources;
-  const usageSummary = metadata?.usage_summary;
-  const legacyKey =
-    sourceKey === 'duration'
-      ? 'duration_source'
-      : sourceKey === 'cost'
-        ? 'cost_source'
-        : 'token_usage_source';
-  const value = isRecord(usageSources)
-    ? usageSources[sourceKey]
-    : isRecord(usageSummary)
-      ? usageSummary[legacyKey]
-      : metadata?.[legacyKey];
-  return typeof value === 'string' && TIMING_SOURCE_VALUES.includes(value as TimingSource)
-    ? (value as TimingSource)
-    : undefined;
-}
-
 function sumMessageTokenUsage(messages: readonly Message[]): TokenUsage | undefined {
   let sawUsage = false;
   let input = 0;
@@ -993,73 +885,33 @@ function sumMessageTokenUsage(messages: readonly Message[]): TokenUsage | undefi
   return sawUsage ? { input, output, reasoning } : undefined;
 }
 
-function combineTimingSources(
-  results: readonly EvaluationResult[],
-  sources: readonly TimingSource[],
-  hasValue: boolean,
-): TimingSource {
-  if (!hasValue) {
-    return 'unavailable';
-  }
-  if (results.length > 1) {
-    return 'aggregate';
-  }
-  return sources[0] ?? 'unavailable';
-}
-
 export function buildTimingArtifact(results: readonly EvaluationResult[]): TimingArtifact {
   let totalInput = 0;
   let totalOutput = 0;
   let totalReasoning = 0;
   let totalDurationMs = 0;
   let totalCostUsd = 0;
-  let hasTokenUsage = false;
-  let hasDuration = false;
   let hasCost = false;
-  const tokenUsageSources: TimingSource[] = [];
-  const durationSources: TimingSource[] = [];
-  const costSources: TimingSource[] = [];
 
   for (const result of results) {
     const providerUsage = result.tokenUsage ?? result.trace?.tokenUsage;
     const aggregateUsage = providerUsage ? undefined : sumMessageTokenUsage(result.trace.messages);
     const usage = providerUsage ?? aggregateUsage;
     if (usage) {
-      hasTokenUsage = true;
       totalInput += usage.input ?? 0;
       totalOutput += usage.output ?? 0;
       totalReasoning += usage.reasoning ?? 0;
-      tokenUsageSources.push(
-        timingMetadataSource(result.metadata, 'token_usage') ??
-          (providerUsage ? 'provider_reported' : 'aggregate'),
-      );
     }
     const durationMs = result.durationMs ?? result.trace?.durationMs ?? result.evalRun?.durationMs;
     if (durationMs != null) {
-      hasDuration = true;
       totalDurationMs += durationMs;
-      durationSources.push(
-        timingMetadataSource(result.metadata, 'duration') ??
-          (result.durationMs != null || result.trace?.durationMs != null
-            ? 'provider_reported'
-            : 'aggregate'),
-      );
     }
     const costUsd = result.costUsd ?? result.trace?.costUsd;
     if (costUsd != null) {
       hasCost = true;
       totalCostUsd += costUsd;
-      costSources.push(
-        timingMetadataSource(result.metadata, 'cost') ??
-          (result.costUsd != null || result.trace?.costUsd != null
-            ? 'provider_reported'
-            : 'unavailable'),
-      );
     }
   }
-  const tokenUsageSource = combineTimingSources(results, tokenUsageSources, hasTokenUsage);
-  const durationSource = combineTimingSources(results, durationSources, hasDuration);
-  const costSource = combineTimingSources(results, costSources, hasCost);
 
   return {
     total_tokens: totalInput + totalOutput,
@@ -1071,13 +923,36 @@ export function buildTimingArtifact(results: readonly EvaluationResult[]): Timin
       output: totalOutput,
       reasoning: totalReasoning,
     },
-    usage_sources: {
-      token_usage: tokenUsageSource,
-      total_tokens: tokenUsageSource,
-      duration: durationSource,
-      cost: costSource,
-    },
   };
+}
+
+function timingStats(values: readonly number[]): {
+  readonly mean: number;
+  readonly stddev: number;
+} {
+  return computeStats(values);
+}
+
+export function buildTimingSummaryArtifact(
+  results: readonly EvaluationResult[],
+): TimingSummaryArtifact {
+  const timings = results.map((result) => buildTimingArtifact([result]));
+  const costs = timings
+    .map((timing) => timing.cost_usd)
+    .filter((cost): cost is number => typeof cost === 'number' && Number.isFinite(cost));
+
+  const summary: TimingSummaryArtifact = {
+    duration_ms: timingStats(timings.map((timing) => timing.duration_ms)),
+    total_duration_seconds: timingStats(timings.map((timing) => timing.total_duration_seconds)),
+    total_tokens: timingStats(timings.map((timing) => timing.total_tokens)),
+    token_usage: {
+      input: timingStats(timings.map((timing) => timing.token_usage.input)),
+      output: timingStats(timings.map((timing) => timing.token_usage.output)),
+      reasoning: timingStats(timings.map((timing) => timing.token_usage.reasoning)),
+    },
+    ...(costs.length > 0 ? { cost_usd: timingStats(costs) } : {}),
+  };
+  return summary;
 }
 
 export function buildRunSummaryArtifact(
@@ -1181,7 +1056,7 @@ export function buildRunSummaryArtifact(
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
-    timing: buildTimingArtifact(results),
+    timing_summary: buildTimingSummaryArtifact(results),
     notes,
   };
 }
@@ -1537,6 +1412,8 @@ export function buildResultIndexArtifact(
     artifact_dir: artifactSubdir,
     summary_path: path.posix.join(artifactSubdir, RUN_SUMMARY_FILENAME),
     grading_path: isSingleRun ? path.posix.join(singleRunDir, 'grading.json') : undefined,
+    timing_path: isSingleRun ? path.posix.join(singleRunDir, 'timing.json') : undefined,
+    metrics_path: isSingleRun ? path.posix.join(singleRunDir, 'metrics.json') : undefined,
     output_path:
       isSingleRun && hasAnswer ? path.posix.join(singleRunDir, 'outputs', 'answer.md') : undefined,
     answer_path:
@@ -1584,25 +1461,18 @@ async function writeMetricsArtifact(params: {
   readonly filePath: string;
   readonly result: EvaluationResult;
   readonly envelope: TraceEnvelope;
-  readonly transcriptPath?: string;
-  readonly traceArtifactPath?: string;
   readonly transcriptArtifactPath?: string;
   readonly gradingArtifactPath?: string;
   readonly timingArtifactPath?: string | null;
-  readonly timing?: TimingArtifact;
-}): Promise<ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact }> {
+}): Promise<ReturnType<typeof buildMetricsArtifact>> {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
-    tracePath: params.traceArtifactPath ?? CANONICAL_TRACE_ARTIFACT_PATH,
-    transcriptPath:
-      params.transcriptArtifactPath ??
-      (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
+    transcriptPath: params.transcriptArtifactPath,
     gradingPath: params.gradingArtifactPath ?? 'grading.json',
     timingPath:
       params.timingArtifactPath === null ? undefined : (params.timingArtifactPath ?? 'timing.json'),
   });
-  const artifactWithTiming = params.timing ? { ...artifact, timing: params.timing } : artifact;
-  await writeFile(params.filePath, `${JSON.stringify(artifactWithTiming, null, 2)}\n`, 'utf8');
-  return artifactWithTiming;
+  await writeFile(params.filePath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+  return artifact;
 }
 
 function indexRecordKey(record: unknown): string | undefined {
@@ -1974,6 +1844,8 @@ export async function writePerTestArtifacts(
         ? path.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined;
     const singleGradingPath = isSingleRun ? path.join(singleRunDir, 'grading.json') : undefined;
+    const singleTimingPath = isSingleRun ? path.join(singleRunDir, 'timing.json') : undefined;
+    const singleMetricsPath = isSingleRun ? path.join(singleRunDir, 'metrics.json') : undefined;
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
@@ -1990,6 +1862,8 @@ export async function writePerTestArtifacts(
         artifactDir: testDir,
         summaryPath: caseSummaryPath,
         gradingPath: singleGradingPath,
+        timingPath: singleTimingPath,
+        metricsPath: singleMetricsPath,
         outputPath: singleAnswerPath,
         answerPath: singleAnswerPath,
         transcriptPath: singleTranscriptPath,
@@ -2062,6 +1936,8 @@ export async function writeArtifactsFromResults(
         ? path.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined;
     const singleGradingPath = isSingleRun ? path.join(singleRunDir, 'grading.json') : undefined;
+    const singleTimingPath = isSingleRun ? path.join(singleRunDir, 'timing.json') : undefined;
+    const singleMetricsPath = isSingleRun ? path.join(singleRunDir, 'metrics.json') : undefined;
     return {
       result,
       testDir,
@@ -2071,6 +1947,8 @@ export async function writeArtifactsFromResults(
       singleAnswerPath,
       singleTranscriptPath,
       singleGradingPath,
+      singleTimingPath,
+      singleMetricsPath,
       identityId,
     };
   });
@@ -2141,6 +2019,8 @@ export async function writeArtifactsFromResults(
         artifactDir: plan.testDir,
         summaryPath: plan.caseSummaryPath,
         gradingPath: plan.singleGradingPath,
+        timingPath: plan.singleTimingPath,
+        metricsPath: plan.singleMetricsPath,
         outputPath: plan.singleAnswerPath,
         answerPath: plan.singleAnswerPath,
         transcriptPath: plan.singleTranscriptPath,

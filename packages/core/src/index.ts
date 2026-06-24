@@ -70,6 +70,7 @@ export {
   buildResultIndexArtifact,
   buildTestTargetKey,
   buildTimingArtifact,
+  buildTimingSummaryArtifact,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifacts,
@@ -85,6 +86,7 @@ export {
   type ResultIndexArtifact,
   type RunSummaryArtifact,
   type TimingArtifact,
+  type TimingSummaryArtifact,
 } from './evaluation/run-artifacts.js';
 export type {
   AssertContext,

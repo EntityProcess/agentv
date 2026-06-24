@@ -7,7 +7,7 @@
  */
 
 import { isExecutionError } from './result-summary';
-import type { EvalResult, ScoreEntry } from './types';
+import type { EvalResult, EvalTrialAttempt, ScoreEntry } from './types';
 
 export type ResultTableViewId =
   | 'all'
@@ -76,9 +76,24 @@ export interface ResultTableRow {
   readonly searchText: string;
 }
 
+export interface RepeatAttemptGroup {
+  readonly row: ResultTableRow;
+  readonly attempts: readonly EvalTrialAttempt[];
+  readonly attemptCount: number;
+  readonly passedAttempts: number;
+  readonly failedAttempts: number;
+  readonly passRate: number;
+  readonly meanScore: number;
+  readonly meanDurationMs?: number;
+  readonly totalToolCalls?: number;
+  readonly artifactCount: number;
+}
+
 export interface ResultTableModel {
   readonly rows: readonly ResultTableRow[];
   readonly filteredRows: readonly ResultTableRow[];
+  readonly repeatGroups: readonly RepeatAttemptGroup[];
+  readonly filteredRepeatGroups: readonly RepeatAttemptGroup[];
   readonly columns: readonly ResultTableColumn[];
   readonly visibleColumns: readonly ResultTableColumn[];
   readonly state: ResultTableState;
@@ -156,6 +171,28 @@ function totalTokens(result: EvalResult): number | undefined {
   return values.reduce((sum, value) => sum + value, 0);
 }
 
+function numeric(values: readonly (number | undefined)[]): number[] {
+  return values.filter(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value),
+  );
+}
+
+function attemptPassed(attempt: EvalTrialAttempt, passThreshold: number): boolean {
+  if (attempt.verdict === 'pass') return true;
+  if (attempt.verdict === 'fail') return false;
+  return typeof attempt.score === 'number' ? attempt.score >= passThreshold : false;
+}
+
+function attemptArtifactCount(attempt: EvalTrialAttempt): number {
+  return [
+    attempt.metrics_path,
+    attempt.timing_path,
+    attempt.grading_path,
+    attempt.transcript_path,
+    attempt.answer_path,
+  ].filter(Boolean).length;
+}
+
 function modelLabel(result: EvalResult): string | undefined {
   const direct = cleanString(result.model);
   if (direct) return direct;
@@ -225,6 +262,40 @@ function buildRow(
     graderNames,
     graderScores,
     searchText: searchParts.join(' ').toLowerCase(),
+  };
+}
+
+function buildRepeatGroup(
+  row: ResultTableRow,
+  passThreshold: number,
+): RepeatAttemptGroup | undefined {
+  const attempts = row.result.trials?.filter((attempt) => attempt.run_path || attempt.verdict);
+  if (!attempts || attempts.length <= 1) return undefined;
+
+  const passedAttempts = attempts.filter((attempt) => attemptPassed(attempt, passThreshold)).length;
+  const durationValues = numeric(attempts.map((attempt) => attempt.duration_ms));
+  const scoreValues = numeric(attempts.map((attempt) => attempt.score));
+  const toolCallValues = numeric(attempts.map((attempt) => attempt.total_tool_calls));
+  const artifactCount = attempts.reduce((sum, attempt) => sum + attemptArtifactCount(attempt), 0);
+
+  return {
+    row,
+    attempts,
+    attemptCount: attempts.length,
+    passedAttempts,
+    failedAttempts: attempts.length - passedAttempts,
+    passRate: attempts.length > 0 ? passedAttempts / attempts.length : 0,
+    meanScore:
+      scoreValues.length > 0
+        ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
+        : row.result.score,
+    ...(durationValues.length > 0 && {
+      meanDurationMs: durationValues.reduce((sum, value) => sum + value, 0) / durationValues.length,
+    }),
+    ...(toolCallValues.length > 0 && {
+      totalToolCalls: toolCallValues.reduce((sum, value) => sum + value, 0),
+    }),
+    artifactCount,
   };
 }
 
@@ -370,10 +441,17 @@ export function buildResultTableModel(input: BuildResultTableModelInput): Result
     if (query && !row.searchText.includes(query)) return false;
     return true;
   });
+  const repeatGroups = rows
+    .map((row) => buildRepeatGroup(row, input.passThreshold))
+    .filter((group): group is RepeatAttemptGroup => Boolean(group));
+  const filteredRowKeys = new Set(filteredRows.map((row) => row.key));
+  const filteredRepeatGroups = repeatGroups.filter((group) => filteredRowKeys.has(group.row.key));
 
   return {
     rows,
     filteredRows,
+    repeatGroups,
+    filteredRepeatGroups,
     columns,
     visibleColumns: columns.filter((column) => visibleColumnIds.has(column.id)),
     state,

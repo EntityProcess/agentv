@@ -7,7 +7,7 @@
  *   2. index.jsonl exists and each line has required fields
  *   3. Root summary.json exists
  *   4. Per-case summary.json exists for every entry in the index
- *   5. Per-run result.json and grading.json exist for materialized run paths
+ *   5. Per-run metrics.json, timing.json, and grading.json exist for materialized run paths
  *   6. Scores are within [0, 1]
  *   7. index.jsonl entries have `scores[]` array (warning if missing — dashboard needs it)
  *
@@ -37,6 +37,7 @@ interface IndexEntry {
   readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
+  readonly metrics_path?: string;
   readonly artifact_dir?: string;
   readonly trials?: readonly { readonly run_path?: string }[];
   readonly [key: string]: unknown;
@@ -257,12 +258,19 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       for (const trial of entry.trials) {
         if (!trial.run_path) continue;
         const runPath = path.join(runDir, entry.artifact_dir, trial.run_path);
-        const resultPath = path.join(runPath, 'result.json');
+        const metricsPath = path.join(runPath, 'metrics.json');
+        const timingPath = path.join(runPath, 'timing.json');
         const gradingPath = path.join(runPath, 'grading.json');
-        if (!existsSync(resultPath)) {
+        if (!existsSync(metricsPath)) {
           diagnostics.push({
             severity: 'error',
-            message: `${testId}: result.json not found at '${path.relative(runDir, resultPath)}'`,
+            message: `${testId}: metrics.json not found at '${path.relative(runDir, metricsPath)}'`,
+          });
+        }
+        if (!existsSync(timingPath)) {
+          diagnostics.push({
+            severity: 'error',
+            message: `${testId}: timing.json not found at '${path.relative(runDir, timingPath)}'`,
           });
         }
         if (!existsSync(gradingPath)) {
@@ -281,6 +289,16 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
         diagnostics.push({
           severity: 'warning',
           message: `${testId}: timing.json not found at '${entry.timing_path}'`,
+        });
+      }
+    }
+
+    if (entry.metrics_path) {
+      const metricsPath = path.join(runDir, entry.metrics_path);
+      if (!existsSync(metricsPath)) {
+        diagnostics.push({
+          severity: 'warning',
+          message: `${testId}: metrics.json not found at '${entry.metrics_path}'`,
         });
       }
     }

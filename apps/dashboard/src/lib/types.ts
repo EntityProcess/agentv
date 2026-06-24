@@ -101,6 +101,45 @@ export interface AssertionEntry {
   durationMs?: number;
 }
 
+export interface EvalTrialAttempt {
+  attempt?: number;
+  run_path?: string;
+  score?: number;
+  verdict?: string;
+  error?: string;
+  execution_status?: string;
+  cost_usd?: number;
+  duration_ms?: number;
+  total_tool_calls?: number;
+  tool_calls?: Record<string, number>;
+  metrics_path?: string;
+  timing_path?: string;
+  grading_path?: string;
+  transcript_path?: string;
+  answer_path?: string;
+}
+
+export type EvalTrialAggregation =
+  | {
+      strategy: 'pass_at_k';
+      passed_attempts?: number;
+      total_attempts?: number;
+    }
+  | {
+      strategy: 'mean';
+      mean?: number;
+      min?: number;
+      max?: number;
+    }
+  | {
+      strategy: 'confidence_interval';
+      mean?: number;
+      ci95_lower?: number;
+      ci95_upper?: number;
+      stddev?: number;
+    }
+  | Record<string, unknown>;
+
 export interface SourceOmittedContent {
   reason: string;
   message?: string;
@@ -204,6 +243,16 @@ export interface EvalResult {
   externalTrace?: CamelExternalTraceMetadata;
   metadata?: Record<string, unknown>;
   source_traceability?: SourceTraceability;
+  trials?: EvalTrialAttempt[];
+  aggregation?: EvalTrialAggregation;
+  artifact_dir?: string;
+  summary_path?: string;
+  grading_path?: string;
+  timing_path?: string;
+  metrics_path?: string;
+  transcript_path?: string;
+  output_path?: string;
+  answer_path?: string;
 }
 
 export interface RunDetailResponse {

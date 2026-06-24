@@ -869,8 +869,9 @@ describe('writeArtifactsFromResults', () => {
     const alphaRunEntries = await readdir(path.join(paths.testArtifactDir, 'alpha', 'run-1'));
     expect(alphaRunEntries.sort()).toEqual([
       'grading.json',
+      'metrics.json',
       'outputs',
-      'result.json',
+      'timing.json',
       'transcript-raw.jsonl',
       'transcript.json',
     ]);
@@ -885,7 +886,7 @@ describe('writeArtifactsFromResults', () => {
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
     expect(summary.metadata.eval_file).toBe('my-eval.yaml');
     expect(summary.metadata.tests_run.sort()).toEqual(['alpha', 'beta']);
-    expect(summary.timing.duration_ms).toBe(13000);
+    expect(summary.timing_summary.duration_ms).toEqual({ mean: 6500, stddev: 1500 });
 
     const indexLines = (await readFile(paths.indexPath, 'utf8'))
       .trim()
@@ -894,10 +895,10 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines).toHaveLength(2);
     expect(indexLines[0]?.summary_path).toBe('alpha/summary.json');
     expect(indexLines[0]?.grading_path).toBe('alpha/run-1/grading.json');
-    expect(indexLines[0]?.timing_path).toBeUndefined();
+    expect(indexLines[0]?.timing_path).toBe('alpha/run-1/timing.json');
     expect(indexLines[0]?.trace_path).toBeUndefined();
     expect(indexLines[0]?.transcript_path).toBe('alpha/run-1/transcript-raw.jsonl');
-    expect(indexLines[0]?.metrics_path).toBeUndefined();
+    expect(indexLines[0]?.metrics_path).toBe('alpha/run-1/metrics.json');
   });
 
   it('writes repeat runs in Vercel-compatible case and run folders', async () => {
@@ -993,21 +994,17 @@ describe('writeArtifactsFromResults', () => {
       total_tokens: 0,
       cost_usd: null,
       token_usage: { input: 0, output: 0, reasoning: 0 },
-      usage_sources: {
-        token_usage: 'unavailable',
-        total_tokens: 'unavailable',
-        duration: 'aggregate',
-        cost: 'unavailable',
-      },
     });
+    expect(caseSummary).not.toHaveProperty('usage_sources');
     expect(typeof caseSummary.fingerprint).toBe('string');
 
     for (const runDir of ['run-1', 'run-2']) {
       const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
       expect(runEntries.sort()).toEqual([
         'grading.json',
+        'metrics.json',
         'outputs',
-        'result.json',
+        'timing.json',
         'transcript-raw.jsonl',
         'transcript.json',
       ]);
@@ -1021,20 +1018,33 @@ describe('writeArtifactsFromResults', () => {
       expect(runGrading.aggregation).toBeUndefined();
     }
 
-    const runOneResult = JSON.parse(
+    const runOneMetrics = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, 'repeat-case', 'run-1', 'result.json'),
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-1', 'metrics.json'),
         'utf8',
       ),
     ) as Record<string, unknown>;
-    expect(runOneResult).toMatchObject({
-      status: 'failed',
-      duration: 2,
-      model: 'test-target',
-      transcriptPath: './transcript.json',
-      transcriptRawPath: './transcript-raw.jsonl',
-      outputPaths: { answer: './outputs/answer.md' },
+    expect(runOneMetrics).toMatchObject({
+      tool_calls: {},
+      total_tool_calls: 0,
+      total_steps: 1,
+      errors_encountered: 0,
+      output_chars: 13,
+      source_artifacts: {
+        transcript_path: 'transcript-raw.jsonl',
+        grading_path: 'grading.json',
+        timing_path: 'timing.json',
+      },
     });
+
+    const runOneTiming = JSON.parse(
+      await readFile(
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-1', 'timing.json'),
+        'utf8',
+      ),
+    ) as TimingArtifact;
+    expect(runOneTiming.duration_ms).toBe(2000);
+    expect(runOneTiming.total_duration_seconds).toBe(2);
 
     const runTwoAnswer = await readFile(
       path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'answer.md'),
@@ -1051,7 +1061,7 @@ describe('writeArtifactsFromResults', () => {
 
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
     expect(summary.notes).toContain('No results to summarize');
-    expect(summary.timing.total_tokens).toBe(0);
+    expect(summary.timing_summary.total_tokens).toEqual({ mean: 0, stddev: 0 });
     expect(await readFile(paths.indexPath, 'utf8')).toBe('');
   });
 
@@ -1086,7 +1096,7 @@ describe('writeArtifactsFromResults', () => {
     expect(gradingOne.summary.passed).toBe(1);
     expect(gradingTwo.summary.total).toBe(2);
     expect(gradingTwo.summary.failed).toBe(1);
-    expect(runSummary.timing.duration_ms).toBe(0);
+    expect(runSummary.timing_summary.duration_ms).toEqual({ mean: 0, stddev: 0 });
   });
 
   it('writes transcript.jsonl as provider-neutral v1 rows projected from the execution trace', async () => {
@@ -1202,7 +1212,7 @@ describe('writeArtifactsFromResults', () => {
     );
     expect(indexLine.trace_path).toBeUndefined();
     expect(indexLine.transcript_path).toBe('transcript-case/run-1/transcript-raw.jsonl');
-    expect(indexLine.metrics_path).toBeUndefined();
+    expect(indexLine.metrics_path).toBe('transcript-case/run-1/metrics.json');
     expect(indexLine.artifact_pointers).toBeUndefined();
   });
 
@@ -1300,21 +1310,22 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.metrics_path).toBeUndefined();
+    expect(indexLine.metrics_path).toBe('summary-case/run-1/metrics.json');
+    expect(indexLine.timing_path).toBe('summary-case/run-1/timing.json');
 
-    const runResult = JSON.parse(
-      await readFile(path.join(testDir, 'summary-case', 'run-1', 'result.json'), 'utf8'),
+    const metrics = JSON.parse(
+      await readFile(path.join(testDir, 'summary-case', 'run-1', 'metrics.json'), 'utf8'),
     );
 
-    expect(runResult.o11y.totalTurns).toBe(2);
-    expect(runResult.o11y.totalToolCalls).toBe(4);
-    expect(runResult.o11y.toolCalls).toMatchObject({
+    expect(metrics.total_turns).toBe(2);
+    expect(metrics.total_tool_calls).toBe(4);
+    expect(metrics.tool_calls).toMatchObject({
       Read: 1,
       Bash: 1,
       WebFetch: 1,
       Edit: 1,
     });
-    expect(runResult.o11y.shellCommands).toEqual([
+    expect(metrics.shell_commands).toEqual([
       {
         command: 'bun test apps/cli/test/commands/eval/artifact-writer.test.ts',
         tool_call_id: 'bash-1',
@@ -1323,30 +1334,42 @@ describe('writeArtifactsFromResults', () => {
         duration_ms: 1200,
       },
     ]);
-    expect(runResult.o11y.filesRead).toContain('src/input.ts');
-    expect(runResult.o11y.filesModified).toContain('src/output.ts');
-    expect(runResult.o11y.webFetches).toHaveLength(1);
-    expect(runResult.o11y.errors).toContainEqual({ message: 'quality gate failed' });
-    expect(runResult.o11y.thinkingBlocks).toBe(2);
+    expect(metrics.files_read).toContainEqual({
+      path: 'src/input.ts',
+      tool_call_id: 'read-1',
+      source: 'tool_input',
+    });
+    expect(metrics.files_modified).toContainEqual({
+      path: 'src/output.ts',
+      tool_call_id: 'edit-1',
+      operation: 'edit',
+      source: 'tool_input',
+    });
+    expect(metrics.files_modified).toContainEqual({
+      path: 'src/new.ts',
+      operation: 'workspace_diff',
+      source: 'file_changes',
+    });
+    expect(metrics.web_fetches).toHaveLength(1);
+    expect(metrics.errors).toContainEqual({ message: 'quality gate failed' });
+    expect(metrics.thinking_blocks).toBe(2);
 
     const runSummary: RunSummaryArtifact = JSON.parse(
       await readFile(path.join(testDir, 'summary.json'), 'utf8'),
     );
-    expect(runSummary.timing).toMatchObject({
-      total_tokens: 140,
-      duration_ms: 4200,
-      cost_usd: 0.25,
-      token_usage: { input: 100, output: 40, reasoning: 5 },
-      usage_sources: {
-        token_usage: 'provider_reported',
-        total_tokens: 'provider_reported',
-        duration: 'provider_reported',
-        cost: 'provider_reported',
+    expect(runSummary.timing_summary).toMatchObject({
+      total_tokens: { mean: 140, stddev: 0 },
+      duration_ms: { mean: 4200, stddev: 0 },
+      cost_usd: { mean: 0.25, stddev: 0 },
+      token_usage: {
+        input: { mean: 100, stddev: 0 },
+        output: { mean: 40, stddev: 0 },
+        reasoning: { mean: 5, stddev: 0 },
       },
     });
   });
 
-  it('distinguishes aggregate, estimated, and unavailable timing usage sources', async () => {
+  it('summarizes timing without usage source labels', async () => {
     const aggregateOutput = [
       {
         role: 'assistant' as const,
@@ -1372,13 +1395,6 @@ describe('writeArtifactsFromResults', () => {
         output: 'done',
         tokenUsage: { input: 6, output: 7 },
         costUsd: 0.002,
-        metadata: {
-          usage_sources: {
-            token_usage: 'token_estimated',
-            total_tokens: 'token_estimated',
-            cost: 'token_estimated',
-          },
-        },
       }),
     ];
 
@@ -1396,33 +1412,18 @@ describe('writeArtifactsFromResults', () => {
       token_usage: { input: 3, output: 4, reasoning: 0 },
       total_tokens: 7,
       cost_usd: null,
-      usage_sources: {
-        token_usage: 'aggregate',
-        total_tokens: 'aggregate',
-        cost: 'unavailable',
-        duration: 'unavailable',
-      },
     });
+    expect(aggregateSummary).not.toHaveProperty('usage_sources');
     expect(estimatedSummary).toMatchObject({
       token_usage: { input: 6, output: 7, reasoning: 0 },
       total_tokens: 13,
       cost_usd: 0.002,
-      usage_sources: {
-        token_usage: 'token_estimated',
-        total_tokens: 'token_estimated',
-        cost: 'token_estimated',
-        duration: 'unavailable',
-      },
     });
-    expect(runSummary.timing).toMatchObject({
-      total_tokens: 20,
-      cost_usd: 0.002,
-      usage_sources: {
-        token_usage: 'aggregate',
-        total_tokens: 'aggregate',
-        cost: 'aggregate',
-        duration: 'unavailable',
-      },
+    expect(estimatedSummary).not.toHaveProperty('usage_sources');
+    expect(runSummary).not.toHaveProperty('timing');
+    expect(runSummary.timing_summary).toMatchObject({
+      total_tokens: { mean: 10, stddev: 3 },
+      cost_usd: { mean: 0.002, stddev: 0 },
     });
   });
 
@@ -1532,7 +1533,7 @@ describe('writeArtifactsFromResults', () => {
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('transcript_path');
-    expect(indexLine.metrics_path).toBeUndefined();
+    expect(indexLine.metrics_path).toBe('no-transcript-case/run-1/metrics.json');
     expect(indexLine.artifact_pointers).toBeUndefined();
   });
 
@@ -1888,7 +1889,7 @@ describe('writeArtifacts (from JSONL file)', () => {
     expect(artifactEntries).toContain('index.jsonl');
 
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
-    expect(summary.timing.duration_ms).toBe(12000);
-    expect(summary.timing.total_tokens).toBe(700);
+    expect(summary.timing_summary.duration_ms).toEqual({ mean: 12000, stddev: 0 });
+    expect(summary.timing_summary.total_tokens).toEqual({ mean: 700, stddev: 0 });
   });
 });

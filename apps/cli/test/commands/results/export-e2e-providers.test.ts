@@ -225,8 +225,8 @@ function readCaseSummary(outputDir: string, record: { suite?: string; test_id?: 
   );
 }
 
-function readRunResult(outputDir: string, record: { suite?: string; test_id?: string }) {
-  return JSON.parse(readFileSync(path.join(runDir(outputDir, record), 'result.json'), 'utf8'));
+function readRunMetrics(outputDir: string, record: { suite?: string; test_id?: string }) {
+  return JSON.parse(readFileSync(path.join(runDir(outputDir, record), 'metrics.json'), 'utf8'));
 }
 
 function gradingPath(outputDir: string, record: { suite?: string; test_id?: string }): string {
@@ -466,10 +466,10 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.summary.failed).toBe(0);
       expect(grading.summary.pass_rate).toBe(1.0);
 
-      const result = readRunResult(outputDir, CLAUDE_CLI_RESULT);
-      expect(result.o11y.totalToolCalls).toBe(3);
-      expect(result.o11y.toolCalls.Read).toBe(2);
-      expect(result.o11y.toolCalls.Write).toBe(1);
+      const metrics = readRunMetrics(outputDir, CLAUDE_CLI_RESULT);
+      expect(metrics.total_tool_calls).toBe(3);
+      expect(metrics.tool_calls.Read).toBe(2);
+      expect(metrics.tool_calls.Write).toBe(1);
 
       // Graders
       expect(grading.graders).toHaveLength(1);
@@ -490,8 +490,8 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.summary.failed).toBe(1);
       expect(grading.summary.pass_rate).toBe(0.5);
 
-      const result = readRunResult(outputDir, COPILOT_RESULT);
-      expect(result.o11y.totalToolCalls).toBe(0);
+      const metrics = readRunMetrics(outputDir, COPILOT_RESULT);
+      expect(metrics.total_tool_calls).toBe(0);
     });
 
     it('should handle error result in grading', async () => {
@@ -507,8 +507,8 @@ describe('export e2e — multi-provider metrics verification', () => {
       // Error result has empty assertions
       expect(grading.summary.total).toBe(0);
       expect(grading.summary.pass_rate).toBe(0);
-      const result = readRunResult(outputDir, ERROR_RESULT);
-      expect(result.o11y.errors).toHaveLength(1);
+      const metrics = readRunMetrics(outputDir, ERROR_RESULT);
+      expect(metrics.errors).toHaveLength(1);
     });
 
     it('should produce grading files for all test IDs in multi-target run', async () => {

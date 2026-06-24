@@ -56,11 +56,18 @@ export interface ResultManifestRecord {
   readonly response_path?: string;
   readonly artifact_dir?: string;
   readonly task_dir?: string;
+  readonly aggregation?: Record<string, unknown>;
   readonly trials?: readonly {
     readonly attempt?: number;
     readonly run_path?: string;
     readonly score?: number;
     readonly verdict?: string;
+    readonly scores?: readonly Record<string, unknown>[];
+    readonly error?: string;
+    readonly cost_usd?: number;
+    readonly execution_status?: string;
+    readonly failure_stage?: string;
+    readonly failure_reason_code?: string;
   }[];
   readonly eval_path?: string;
   readonly targets_path?: string;

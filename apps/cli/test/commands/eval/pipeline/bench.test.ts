@@ -53,6 +53,28 @@ describe('pipeline bench', () => {
         weight: 1.0,
       }),
     );
+    await writeFile(
+      join(testDir, 'metrics.json'),
+      JSON.stringify({
+        tool_calls: { Bash: 1 },
+        total_tool_calls: 1,
+        total_steps: 1,
+        files_created: [],
+        errors_encountered: 0,
+        output_chars: 20,
+        transcript_chars: 0,
+      }),
+    );
+    await writeFile(
+      join(testDir, 'timing.json'),
+      JSON.stringify({
+        duration_ms: 1200,
+        total_duration_seconds: 1.2,
+        total_tokens: 42,
+        token_usage: { input: 30, output: 12, reasoning: 0 },
+        execution_status: 'ok',
+      }),
+    );
   });
 
   afterEach(async () => {
@@ -84,10 +106,24 @@ describe('pipeline bench', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0].test_id).toBe('test-01');
     expect(lines[0].score).toBeGreaterThan(0);
+    expect(lines[0].metrics_path).toBe('test-01/metrics.json');
+    expect(lines[0].timing_path).toBe('test-01/timing.json');
 
     const summary = JSON.parse(await readFile(join(OUT_DIR, 'summary.json'), 'utf8'));
     expect(summary.metadata.targets).toContain('test-target');
     expect(summary.run_summary['test-target']).toBeDefined();
+    expect(summary.run_summary['test-target'].time_seconds).toEqual({ mean: 1.2, stddev: 0 });
+    expect(summary.run_summary['test-target'].tokens).toEqual({ mean: 42, stddev: 0 });
+    expect(summary.timing_summary).toMatchObject({
+      duration_ms: { mean: 1200, stddev: 0 },
+      total_duration_seconds: { mean: 1.2, stddev: 0 },
+      total_tokens: { mean: 42, stddev: 0 },
+      token_usage: {
+        input: { mean: 30, stddev: 0 },
+        output: { mean: 12, stddev: 0 },
+        reasoning: { mean: 0, stddev: 0 },
+      },
+    });
   }, 30_000);
 
   it('propagates experiment from manifest to index.jsonl and summary.json', async () => {

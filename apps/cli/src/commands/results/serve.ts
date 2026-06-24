@@ -743,7 +743,13 @@ function addTrialRunCatalogEntries(
     addDirectArtifactCatalogEntry(
       entries,
       seen,
-      path.posix.join(runDir, 'result.json'),
+      path.posix.join(runDir, 'metrics.json'),
+      'artifact',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'timing.json'),
       'artifact',
     );
     addDirectArtifactCatalogEntry(
@@ -751,6 +757,18 @@ function addTrialRunCatalogEntries(
       seen,
       path.posix.join(runDir, 'grading.json'),
       'artifact',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'transcript-raw.jsonl'),
+      'transcript',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'outputs', 'answer.md'),
+      'answer',
     );
   }
 }
@@ -992,6 +1010,110 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
       ...(metadata && { metadata }),
       ...(toolCalls && { _toolCalls: toolCalls }),
       ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
+    };
+  });
+}
+
+function readArtifactJsonObject(
+  baseDir: string,
+  relativePath: string | undefined,
+): Record<string, unknown> | undefined {
+  if (!relativePath) return undefined;
+  const resolved = resolveReadableRunArtifactFile(baseDir, relativePath);
+  if (!resolved.absolutePath) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(resolved.absolutePath, 'utf8')) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function numberField(record: Record<string, unknown> | undefined, key: string): number | undefined {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function objectField(
+  record: Record<string, unknown> | undefined,
+  key: string,
+): Record<string, unknown> | undefined {
+  const value = record?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function attemptArtifactPath(
+  artifactDir: string | undefined,
+  runPath: string | undefined,
+  filePath: string,
+): string | undefined {
+  if (!artifactDir || !runPath) return undefined;
+  return path.posix.join(artifactDir, runPath, filePath);
+}
+
+function buildRepeatAttemptReadModels(
+  baseDir: string,
+  record: ResultManifestRecord,
+): Array<Record<string, unknown>> | undefined {
+  if (!record.trials || record.trials.length === 0) return undefined;
+  const artifactDir = record.artifact_dir
+    ? normalizeArtifactRelativePath(record.artifact_dir)
+    : undefined;
+
+  return record.trials.map((trial) => {
+    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+    const metricsPath = attemptArtifactPath(artifactDir, runPath, 'metrics.json');
+    const timingPath = attemptArtifactPath(artifactDir, runPath, 'timing.json');
+    const gradingPath = attemptArtifactPath(artifactDir, runPath, 'grading.json');
+    const transcriptPath = attemptArtifactPath(artifactDir, runPath, 'transcript-raw.jsonl');
+    const answerPath = attemptArtifactPath(artifactDir, runPath, 'outputs/answer.md');
+    const metrics = readArtifactJsonObject(baseDir, metricsPath);
+    const timing = readArtifactJsonObject(baseDir, timingPath);
+    const toolCalls = objectField(metrics, 'tool_calls');
+
+    return {
+      ...trial,
+      ...(numberField(timing, 'duration_ms') !== undefined && {
+        duration_ms: numberField(timing, 'duration_ms'),
+      }),
+      ...(numberField(metrics, 'total_tool_calls') !== undefined && {
+        total_tool_calls: numberField(metrics, 'total_tool_calls'),
+      }),
+      ...(toolCalls && { tool_calls: toolCalls }),
+      ...(metricsPath && { metrics_path: metricsPath }),
+      ...(timingPath && { timing_path: timingPath }),
+      ...(gradingPath && { grading_path: gradingPath }),
+      ...(transcriptPath && { transcript_path: transcriptPath }),
+      ...(answerPath && { answer_path: answerPath }),
+    };
+  });
+}
+
+function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
+  results: readonly T[],
+  records: readonly ResultManifestRecord[],
+  baseDir: string,
+): T[] {
+  return results.map((result, index) => {
+    const record = records[index];
+    if (!record) return result;
+    const trials = buildRepeatAttemptReadModels(baseDir, record);
+    return {
+      ...result,
+      ...(record.aggregation && { aggregation: record.aggregation }),
+      ...(record.artifact_dir && { artifact_dir: record.artifact_dir }),
+      ...(record.summary_path && { summary_path: record.summary_path }),
+      ...(record.grading_path && { grading_path: record.grading_path }),
+      ...(record.timing_path && { timing_path: record.timing_path }),
+      ...(record.metrics_path && { metrics_path: record.metrics_path }),
+      ...(record.transcript_path && { transcript_path: record.transcript_path }),
+      ...(record.output_path && { output_path: record.output_path }),
+      ...(record.answer_path && { answer_path: record.answer_path }),
+      ...(trials && { trials }),
     };
   });
 }
@@ -1428,8 +1550,12 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
     const tagFields = await readRunTagFields(searchDir, meta, projectId);
+    const baseDir = path.dirname(meta.path);
     return c.json({
-      results: attachExternalTraceFields(stripHeavyFields(loaded), records),
+      results: attachExternalTraceFields(
+        attachRunDetailReadModelFields(stripHeavyFields(loaded), records, baseDir),
+        records,
+      ),
       source: meta.source,
       source_label: meta.displayName,
       ...tagFields,

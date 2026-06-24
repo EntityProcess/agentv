@@ -118,7 +118,8 @@ my-results/
       EVAL.yaml
       targets.yaml
     run-1/
-      result.json
+      metrics.json
+      timing.json
       grading.json
       transcript.json
       transcript-raw.jsonl
@@ -453,7 +454,7 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 Each result row's `artifact_dir` is a case-local folder under the timestamped
 run bundle. Fresh runs contain the case `summary.json`, optional task bundle,
 and one or more `run-N/` attempt folders. Each attempt can include
-`result.json`, `grading.json`, `transcript.json`, `transcript-raw.jsonl`, and
+`metrics.json`, `timing.json`, `grading.json`, `transcript.json`, `transcript-raw.jsonl`, and
 generated outputs under `outputs/`. The run root does not contain a mixed
 transcript artifact; use each index row's `transcript_path` or `trials[].run_path`
 to find the per-result transcript.

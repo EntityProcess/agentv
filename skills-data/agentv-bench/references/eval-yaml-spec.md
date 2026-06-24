@@ -325,8 +325,8 @@ LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.js
 
 **Output:**
 - `<test-id>/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
-- `index.jsonl` — one JSON line per test: `{test_id, score, pass, graders: [...]}`
-- `summary.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
+- `index.jsonl` — one JSON line per test, including `scores[]`, `grading_path`, `timing_path`, and `metrics_path` when present
+- `summary.json` — run-level metadata, aggregate scores, and `timing_summary`
 
 ### Agent-Mode Workflow
 
@@ -335,5 +335,5 @@ LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.js
 2. (Agent runs targets or reads response.md)
 3. agentv pipeline grade ./export
 4. (Agent does LLM grading, produces scores JSON)
-5. echo '<scores>' | agentv pipeline bench ./export
+5. agentv pipeline bench ./export
 ```

@@ -4,7 +4,7 @@
  *
  * Equivalent to running:
  *   1. `agentv pipeline input <eval> --out <dir>`
- *   2. Invoking each CLI target in parallel (writing response.md + timing.json)
+ *   2. Invoking each CLI target in parallel (writing response.md + metrics.json + timing.json)
  *   3. `agentv pipeline grade <dir>`
  *
  * For `kind: agent` targets, step 2 is skipped (subagent handles execution).
@@ -295,6 +295,15 @@ export const evalRunCommand = command({
           }
 
           await writeFile(join(testDir, 'response.md'), response, 'utf8');
+          await writeJson(join(testDir, 'metrics.json'), {
+            tool_calls: {},
+            total_tool_calls: 0,
+            total_steps: 1,
+            files_created: [],
+            errors_encountered: 0,
+            output_chars: response.length,
+            transcript_chars: 0,
+          });
           await writeJson(join(testDir, 'timing.json'), {
             duration_ms: durationMs,
             total_duration_seconds: Math.round(durationMs / 10) / 100,
@@ -307,6 +316,16 @@ export const evalRunCommand = command({
           const message = error instanceof Error ? error.message : String(error);
           const response = `ERROR: target failed — ${message}`;
           await writeFile(join(testDir, 'response.md'), response, 'utf8');
+          await writeJson(join(testDir, 'metrics.json'), {
+            tool_calls: {},
+            total_tool_calls: 0,
+            total_steps: 1,
+            files_created: [],
+            errors_encountered: 1,
+            output_chars: response.length,
+            transcript_chars: 0,
+            errors: [{ message }],
+          });
           await writeJson(join(testDir, 'timing.json'), {
             duration_ms: durationMs,
             total_duration_seconds: Math.round(durationMs / 10) / 100,

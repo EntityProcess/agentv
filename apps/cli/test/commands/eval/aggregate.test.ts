@@ -130,7 +130,7 @@ describe('aggregateRunDir', () => {
     expect(summary.metadata.tests_run).toContain('a');
     expect(summary.metadata.tests_run).toContain('b');
     expect(summary.run_summary.x).toBeDefined();
-    expect(summary.timing.total_tokens).toBeGreaterThanOrEqual(0);
+    expect(summary.timing_summary.total_tokens.mean).toBeGreaterThanOrEqual(0);
   });
 
   it('uses last entry for duplicates in summary stats', async () => {

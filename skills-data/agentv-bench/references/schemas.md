@@ -164,7 +164,9 @@ Output from the grader agent. Located at `<run-dir>/grading.json`.
 
 ## metrics.json
 
-Output from the executor agent. Located at `<run-dir>/metrics.json`.
+Output from the executor agent. In the subagent pipeline, this is located at
+`<run-dir>/<suite>/<test-id>/metrics.json`. In strict eval run artifacts,
+attempt metrics live at `<case-id>/run-N/metrics.json`.
 
 ```json
 {
@@ -181,7 +183,16 @@ Output from the executor agent. Located at `<run-dir>/metrics.json`.
   "files_created": ["filled_form.pdf", "field_values.json"],
   "errors_encountered": 0,
   "output_chars": 12450,
-  "transcript_chars": 3200
+  "transcript_chars": 3200,
+  "total_turns": 4,
+  "shell_commands": [
+    {"command": "npm run build 2>&1 | tail -20", "success": true}
+  ],
+  "files_read": ["/vercel/sandbox/package.json"],
+  "files_modified": ["/vercel/sandbox/next.config.ts"],
+  "web_fetches": [],
+  "errors": [],
+  "thinking_blocks": 0
 }
 ```
 
@@ -193,12 +204,24 @@ Output from the executor agent. Located at `<run-dir>/metrics.json`.
 - `errors_encountered`: Number of errors during execution
 - `output_chars`: Total character count of output files
 - `transcript_chars`: Character count of transcript
+- `total_turns`: Number of agent turns when known
+- `shell_commands`: Shell commands executed, with success when known
+- `files_read`: Files read by the executor
+- `files_modified`: Files modified by the executor
+- `web_fetches`: Web fetch/search events when captured
+- `errors`: Structured execution errors when captured
+- `thinking_blocks`: Number of reasoning/thinking blocks when captured
+
+Keep these fields flattened at the top level. Do not nest them under an
+observability object.
 
 ---
 
 ## timing.json
 
-Wall clock timing for a run. Located at `<run-dir>/timing.json`.
+Wall clock timing for a run. In the subagent pipeline, this is located at
+`<run-dir>/<suite>/<test-id>/timing.json`. In strict eval run artifacts,
+attempt timing lives at `<case-id>/run-N/timing.json`.
 
 **How to capture:** When a subagent task completes, the task notification includes `total_tokens` and `duration_ms`. Save these immediately — they are not persisted anywhere else and cannot be recovered after the fact.
 
@@ -220,91 +243,52 @@ Wall clock timing for a run. Located at `<run-dir>/timing.json`.
 
 ## summary.json
 
-Output from Benchmark mode. Located at `benchmarks/<timestamp>/summary.json`.
+Run-level aggregate and metadata. Located at the run root:
+`.agentv/results/<experiment>/<timestamp>/summary.json`.
 
 ```json
 {
   "metadata": {
-    "skill_name": "pdf",
-    "skill_path": "/path/to/pdf",
-    "executor_model": "claude-sonnet-4-20250514",
-    "analyzer_model": "most-capable-model",
+    "eval_file": "evals/example.eval.yaml",
     "timestamp": "2026-01-15T10:30:00Z",
-    "evals_run": [1, 2, 3],
-    "runs_per_configuration": 3
+    "experiment": "default",
+    "targets": ["claude"],
+    "tests_run": ["case-1", "case-2"],
+    "planned_test_count": 2
   },
-
-  "runs": [
-    {
-      "eval_id": 1,
-      "eval_name": "Ocean",
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.85,
-        "passed": 6,
-        "failed": 1,
-        "total": 7,
-        "time_seconds": 42.5,
-        "tokens": 3800,
-        "tool_calls": 18,
-        "errors": 0
-      },
-      "assertions": [
-        {"text": "...", "passed": true, "evidence": "..."}
-      ],
-      "notes": [
-        "Used 2023 data, may be stale",
-        "Fell back to text overlay for non-fillable fields"
-      ]
-    }
-  ],
-
   "run_summary": {
-    "with_skill": {
-      "pass_rate": {"mean": 0.85, "stddev": 0.05, "min": 0.80, "max": 0.90},
-      "time_seconds": {"mean": 45.0, "stddev": 12.0, "min": 32.0, "max": 58.0},
-      "tokens": {"mean": 3800, "stddev": 400, "min": 3200, "max": 4100}
-    },
-    "without_skill": {
-      "pass_rate": {"mean": 0.35, "stddev": 0.08, "min": 0.28, "max": 0.45},
-      "time_seconds": {"mean": 32.0, "stddev": 8.0, "min": 24.0, "max": 42.0},
-      "tokens": {"mean": 2100, "stddev": 300, "min": 1800, "max": 2500}
-    },
-    "delta": {
-      "pass_rate": "+0.50",
-      "time_seconds": "+13.0",
-      "tokens": "+1700"
+    "claude": {
+      "pass_rate": {"mean": 0.85, "stddev": 0.05},
+      "time_seconds": {"mean": 45.0, "stddev": 12.0},
+      "tokens": {"mean": 3800, "stddev": 400}
     }
   },
-
-  "notes": [
-    "Assertion 'Output is a PDF file' passes 100% in both configurations - may not differentiate skill value",
-    "Eval 3 shows high variance (50% ± 40%) - may be flaky or model-dependent",
-    "Without-skill runs consistently fail on table extraction assertions",
-    "Skill adds 13s average execution time but improves pass rate by 50%"
-  ]
+  "timing_summary": {
+    "duration_ms": {"mean": 45000, "stddev": 12000},
+    "total_duration_seconds": {"mean": 45, "stddev": 12},
+    "total_tokens": {"mean": 3800, "stddev": 400},
+    "token_usage": {
+      "input": {"mean": 2200, "stddev": 250},
+      "output": {"mean": 1600, "stddev": 180},
+      "reasoning": {"mean": 0, "stddev": 0}
+    }
+  },
+  "notes": []
 }
 ```
 
 **Fields:**
-- `metadata`: Information about the benchmark run
-  - `skill_name`: Name of the skill
+- `metadata`: Information about the eval run
+  - `eval_file`: Source eval file path
   - `timestamp`: When the benchmark was run
-  - `evals_run`: List of eval names or IDs
-  - `runs_per_configuration`: Number of runs per config (e.g. 3)
-- `runs[]`: Individual run results
-  - `eval_id`: Numeric eval identifier
-  - `eval_name`: Human-readable eval name (used as section header in the viewer)
-  - `configuration`: Must be `"with_skill"` or `"without_skill"` (the viewer uses this exact string for grouping and color coding)
-  - `run_number`: Integer run number (1, 2, 3...)
-  - `result`: Nested object with `pass_rate`, `passed`, `total`, `time_seconds`, `tokens`, `errors`
+  - `experiment`: Experiment label
+  - `targets`: Target names included in the run
+  - `tests_run`: Test IDs included in the run
+  - `planned_test_count`: Optional WIP/resume count
 - `run_summary`: Statistical aggregates per configuration
-  - `with_skill` / `without_skill`: Each contains `pass_rate`, `time_seconds`, `tokens` objects with `mean` and `stddev` fields
-  - `delta`: Difference strings like `"+0.50"`, `"+13.0"`, `"+1700"`
+  - Each target contains `pass_rate`, `time_seconds`, and `tokens` objects with `mean` and `stddev` fields
+- `timing_summary`: Average/stddev timing and token usage across attempts
 - `notes`: Freeform observations from the analyzer
-
-**Important:** The viewer reads these field names exactly. Using `config` instead of `configuration`, or putting `pass_rate` at the top level of a run instead of nested under `result`, will cause the viewer to show empty/zero values. Always reference this schema when generating summary.json manually.
 
 ---
 

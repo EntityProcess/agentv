@@ -26,6 +26,19 @@ interface EvaluatorScore {
   readonly assertions: readonly { text: string; passed: boolean; evidence?: string }[];
 }
 
+interface PipelineTiming {
+  readonly durationMs: number;
+  readonly totalDurationSeconds: number;
+  readonly totalTokens: number;
+  readonly costUsd?: number;
+  readonly tokenUsage: {
+    readonly input: number;
+    readonly output: number;
+    readonly reasoning: number;
+  };
+  readonly executionStatus?: string;
+}
+
 export const evalBenchCommand = command({
   name: 'bench',
   description: 'Merge grader scores and produce summary artifacts',
@@ -46,6 +59,7 @@ export const evalBenchCommand = command({
 
     const indexLines: string[] = [];
     const allPassRates: number[] = [];
+    const timings: PipelineTiming[] = [];
 
     for (const testId of testIds) {
       const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
@@ -160,21 +174,19 @@ export const evalBenchCommand = command({
         })),
       }));
 
-      // Read execution_status from timing.json (written by pipeline run)
+      // Read timing.json (written by pipeline run or executor subagent)
       let executionStatus = 'ok';
       const timingPath = join(testDir, 'timing.json');
+      const timing = await readPipelineTiming(timingPath);
+      timings.push(timing);
       if (existsSync(timingPath)) {
-        try {
-          const timing = JSON.parse(await readFile(timingPath, 'utf8'));
-          if (typeof timing.execution_status === 'string') {
-            executionStatus = timing.execution_status;
-          }
-        } catch {
-          // Fall back to 'ok' if timing.json is unreadable
+        if (typeof timing.executionStatus === 'string') {
+          executionStatus = timing.executionStatus;
         }
       }
 
       const hasResponse = existsSync(join(testDir, 'response.md'));
+      const hasMetrics = existsSync(join(testDir, 'metrics.json'));
       indexLines.push(
         JSON.stringify({
           timestamp: manifest.timestamp,
@@ -187,6 +199,7 @@ export const evalBenchCommand = command({
           execution_status: executionStatus,
           grading_path: `${artifactSubdir}/grading.json`,
           timing_path: `${artifactSubdir}/timing.json`,
+          metrics_path: hasMetrics ? `${artifactSubdir}/metrics.json` : undefined,
           response_path: hasResponse ? `${artifactSubdir}/response.md` : undefined,
         }),
       );
@@ -201,6 +214,7 @@ export const evalBenchCommand = command({
 
     // Write summary.json
     const passRateStats = computeStats(allPassRates);
+    const timingSummary = buildPipelineTimingSummary(timings);
     const summary = {
       metadata: {
         eval_file: manifest.eval_file,
@@ -212,10 +226,11 @@ export const evalBenchCommand = command({
       run_summary: {
         [targetName]: {
           pass_rate: passRateStats,
-          time_seconds: { mean: 0, stddev: 0 },
-          tokens: { mean: 0, stddev: 0 },
+          time_seconds: timingSummary.total_duration_seconds,
+          tokens: timingSummary.total_tokens,
         },
       },
+      timing_summary: timingSummary,
       notes: [],
     };
     await writeFile(
@@ -269,6 +284,82 @@ export const evalBenchCommand = command({
     });
   },
 });
+
+async function readPipelineTiming(filePath: string): Promise<PipelineTiming> {
+  if (!existsSync(filePath)) {
+    return emptyPipelineTiming();
+  }
+  try {
+    const value = JSON.parse(await readFile(filePath, 'utf8'));
+    return normalizePipelineTiming(value);
+  } catch {
+    return emptyPipelineTiming();
+  }
+}
+
+function emptyPipelineTiming(): PipelineTiming {
+  return {
+    durationMs: 0,
+    totalDurationSeconds: 0,
+    totalTokens: 0,
+    tokenUsage: { input: 0, output: 0, reasoning: 0 },
+  };
+}
+
+function normalizePipelineTiming(value: unknown): PipelineTiming {
+  if (!value || typeof value !== 'object') {
+    return emptyPipelineTiming();
+  }
+  const record = value as Record<string, unknown>;
+  const durationMs = numberValue(record.duration_ms);
+  const totalDurationSeconds =
+    numberValue(record.total_duration_seconds) ?? Math.round((durationMs ?? 0) / 10) / 100;
+  const tokenUsageRecord =
+    record.token_usage && typeof record.token_usage === 'object'
+      ? (record.token_usage as Record<string, unknown>)
+      : {};
+  const tokenUsage = {
+    input: integerValue(tokenUsageRecord.input) ?? 0,
+    output: integerValue(tokenUsageRecord.output) ?? 0,
+    reasoning: integerValue(tokenUsageRecord.reasoning) ?? 0,
+  };
+  const totalTokens = integerValue(record.total_tokens) ?? tokenUsage.input + tokenUsage.output;
+  const costUsd = numberValue(record.cost_usd);
+  return {
+    durationMs: durationMs ?? 0,
+    totalDurationSeconds,
+    totalTokens,
+    ...(costUsd != null ? { costUsd } : {}),
+    tokenUsage,
+    executionStatus:
+      typeof record.execution_status === 'string' ? record.execution_status : undefined,
+  };
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function integerValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
+function buildPipelineTimingSummary(timings: readonly PipelineTiming[]) {
+  const costs = timings
+    .map((timing) => timing.costUsd)
+    .filter((cost): cost is number => typeof cost === 'number' && Number.isFinite(cost));
+  return {
+    duration_ms: computeStats(timings.map((timing) => timing.durationMs)),
+    total_duration_seconds: computeStats(timings.map((timing) => timing.totalDurationSeconds)),
+    total_tokens: computeStats(timings.map((timing) => timing.totalTokens)),
+    token_usage: {
+      input: computeStats(timings.map((timing) => timing.tokenUsage.input)),
+      output: computeStats(timings.map((timing) => timing.tokenUsage.output)),
+      reasoning: computeStats(timings.map((timing) => timing.tokenUsage.reasoning)),
+    },
+    ...(costs.length > 0 ? { cost_usd: computeStats(costs) } : {}),
+  };
+}
 
 function computeStats(values: readonly number[]): { mean: number; stddev: number } {
   if (values.length === 0) return { mean: 0, stddev: 0 };

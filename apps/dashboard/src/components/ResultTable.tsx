@@ -11,9 +11,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Link } from '@tanstack/react-router';
 
-import { useFeedback } from '~/lib/api';
+import { artifactFileContentUrl, useFeedback } from '~/lib/api';
 import {
   RESULT_TABLE_VIEW_PRESETS,
+  type RepeatAttemptGroup,
   type ResultTableColumn,
   type ResultTableRow,
   type ResultTableState,
@@ -166,6 +167,9 @@ export function ResultTable({
 }: ResultTableProps) {
   const [urlState, setUrlState] = useState<ResultTableStateInput>(() => readUrlState());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(() => readSelectedRowKey());
+  const [collapsedRepeatRows, setCollapsedRepeatRows] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const { data: feedback } = useFeedback(projectId);
   const reviewedTestIds = useMemo(
     () => feedback?.reviews.map((review) => review.test_id) ?? [],
@@ -236,6 +240,15 @@ export function ResultTable({
   function closeRowDetail() {
     writeSelectedRowKey(null);
     setSelectedRowKey(null);
+  }
+
+  function toggleRepeatGroup(rowKey: string) {
+    setCollapsedRepeatRows((current) => {
+      const next = new Set(current);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
   }
 
   if (results.length === 0) {
@@ -369,59 +382,44 @@ export function ResultTable({
                 Adjust the result filters or display preset.
               </p>
             </div>
-          ) : (
-            <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
-              <table
-                className="w-full whitespace-nowrap text-left text-sm"
-                style={{ minWidth: `${Math.max(860, model.visibleColumns.length * 136)}px` }}
-              >
-                <thead className="border-b border-gray-800 bg-gray-900/50">
-                  <tr>
-                    {model.visibleColumns.map((column) => (
-                      <th
-                        key={column.id}
-                        className={`px-4 py-3 font-medium text-gray-400 ${
-                          isNumericColumn(column.id) ? 'text-right' : ''
-                        }`}
-                        title={column.label}
-                      >
-                        <span className="block max-w-48 truncate">{column.label}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/50">
-                  {model.filteredRows.map((row) => {
-                    const isSelected = selectedRowKey === row.key;
-                    return (
-                      <tr
-                        key={row.key}
-                        className={`transition-colors ${
-                          isSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/30'
-                        }`}
-                      >
-                        {model.visibleColumns.map((column) => (
-                          <td
-                            key={`${row.key}:${column.id}`}
-                            className={`px-4 py-3 align-middle ${
-                              isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
-                            }`}
-                          >
-                            <ResultCell
-                              column={column}
-                              row={row}
-                              passThreshold={passThreshold}
-                              onOpenDetail={openRowDetail}
-                              isSelected={isSelected}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          ) : model.filteredRepeatGroups.length > 0 ? (
+            <div className="space-y-4">
+              <RepeatAttemptList
+                groups={model.filteredRepeatGroups}
+                runId={runId}
+                projectId={projectId}
+                passThreshold={passThreshold}
+                collapsedRowKeys={collapsedRepeatRows}
+                onToggleGroup={toggleRepeatGroup}
+                onOpenDetail={openRowDetail}
+                selectedRowKey={selectedRowKey}
+              />
+              {model.filteredRows.length > model.filteredRepeatGroups.length ? (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Single-run results
+                  </h4>
+                  <ResultRowsTable
+                    rows={model.filteredRows.filter(
+                      (row) =>
+                        !model.filteredRepeatGroups.some((group) => group.row.key === row.key),
+                    )}
+                    visibleColumns={model.visibleColumns}
+                    passThreshold={passThreshold}
+                    selectedRowKey={selectedRowKey}
+                    onOpenDetail={openRowDetail}
+                  />
+                </div>
+              ) : null}
             </div>
+          ) : (
+            <ResultRowsTable
+              rows={model.filteredRows}
+              visibleColumns={model.visibleColumns}
+              passThreshold={passThreshold}
+              selectedRowKey={selectedRowKey}
+              onOpenDetail={openRowDetail}
+            />
           )}
         </div>
 
@@ -435,6 +433,278 @@ export function ResultTable({
         )}
       </div>
     </section>
+  );
+}
+
+function ResultRowsTable({
+  rows,
+  visibleColumns,
+  passThreshold,
+  selectedRowKey,
+  onOpenDetail,
+}: {
+  rows: readonly ResultTableRow[];
+  visibleColumns: readonly ResultTableColumn[];
+  passThreshold: number;
+  selectedRowKey: string | null;
+  onOpenDetail: (rowKey: string) => void;
+}) {
+  return (
+    <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+      <table
+        className="w-full whitespace-nowrap text-left text-sm"
+        style={{ minWidth: `${Math.max(860, visibleColumns.length * 136)}px` }}
+      >
+        <thead className="border-b border-gray-800 bg-gray-900/50">
+          <tr>
+            {visibleColumns.map((column) => (
+              <th
+                key={column.id}
+                className={`px-4 py-3 font-medium text-gray-400 ${
+                  isNumericColumn(column.id) ? 'text-right' : ''
+                }`}
+                title={column.label}
+              >
+                <span className="block max-w-48 truncate">{column.label}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-800/50">
+          {rows.map((row) => {
+            const isSelected = selectedRowKey === row.key;
+            return (
+              <tr
+                key={row.key}
+                className={`transition-colors ${
+                  isSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/30'
+                }`}
+              >
+                {visibleColumns.map((column) => (
+                  <td
+                    key={`${row.key}:${column.id}`}
+                    className={`px-4 py-3 align-middle ${
+                      isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
+                    }`}
+                  >
+                    <ResultCell
+                      column={column}
+                      row={row}
+                      passThreshold={passThreshold}
+                      onOpenDetail={onOpenDetail}
+                      isSelected={isSelected}
+                    />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RepeatAttemptList({
+  groups,
+  runId,
+  projectId,
+  passThreshold,
+  collapsedRowKeys,
+  onToggleGroup,
+  onOpenDetail,
+  selectedRowKey,
+}: {
+  groups: readonly RepeatAttemptGroup[];
+  runId: string;
+  projectId?: string;
+  passThreshold: number;
+  collapsedRowKeys: ReadonlySet<string>;
+  onToggleGroup: (rowKey: string) => void;
+  onOpenDetail: (rowKey: string) => void;
+  selectedRowKey: string | null;
+}) {
+  if (groups.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
+        <p className="text-lg text-gray-400">No repeated evaluations match this view</p>
+        <p className="mt-2 text-sm text-gray-500">
+          Clear filters to see repeat-attempt case groups.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {groups.map((group) => {
+        const collapsed = collapsedRowKeys.has(group.row.key);
+        const selected = selectedRowKey === group.row.key;
+        return (
+          <article
+            key={group.row.key}
+            className={`overflow-hidden rounded-lg border bg-gray-900/50 ${
+              selected ? 'border-cyan-800/70' : 'border-gray-800'
+            }`}
+          >
+            <div className="p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onToggleGroup(group.row.key)}
+                      className="shrink-0 rounded-md border border-gray-800 px-2 py-0.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+                      aria-expanded={!collapsed}
+                      aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${group.row.testId}`}
+                    >
+                      {collapsed ? '+' : '-'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenDetail(group.row.key)}
+                      className="min-w-0 truncate text-left font-semibold text-gray-100 transition-colors hover:text-cyan-300 hover:underline"
+                      title={group.row.testId}
+                    >
+                      {group.row.testId}
+                    </button>
+                    <span
+                      className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-medium ${
+                        group.passedAttempts === group.attemptCount
+                          ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
+                          : group.passedAttempts > 0
+                            ? 'border-yellow-900/60 bg-yellow-950/20 text-yellow-300'
+                            : 'border-red-900/60 bg-red-950/20 text-red-300'
+                      }`}
+                    >
+                      {group.passedAttempts}/{group.attemptCount} passed
+                    </span>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-800">
+                    <div
+                      className={`h-full rounded-full ${
+                        group.passRate >= 1
+                          ? 'bg-emerald-500'
+                          : group.passRate > 0
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.max(2, Math.round(group.passRate * 100))}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span>{formatPercent(group.passRate)} attempt success</span>
+                    <span>{formatPercent(group.meanScore)} mean score</span>
+                    {group.totalToolCalls != null ? (
+                      <span>{group.totalToolCalls} total tool calls</span>
+                    ) : null}
+                    {group.artifactCount > 0 ? <span>{group.artifactCount} artifacts</span> : null}
+                  </div>
+                </div>
+                <div className="shrink-0 text-left lg:text-right">
+                  <div className="text-xs font-medium uppercase text-gray-500">Mean duration</div>
+                  <div className="mt-1 tabular-nums text-sm text-gray-200">
+                    {formatDuration(group.meanDurationMs ?? group.row.result.durationMs)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {!collapsed && (
+              <div className="space-y-2 border-t border-gray-800 bg-gray-950/40 p-3">
+                {group.attempts.map((attempt, index) => (
+                  <RepeatAttemptRow
+                    key={`${group.row.key}:${attempt.run_path ?? index}`}
+                    attempt={attempt}
+                    index={index}
+                    runId={runId}
+                    evalId={group.row.testId}
+                    projectId={projectId}
+                    passThreshold={passThreshold}
+                  />
+                ))}
+              </div>
+            )}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function RepeatAttemptRow({
+  attempt,
+  index,
+  runId,
+  evalId,
+  projectId,
+  passThreshold,
+}: {
+  attempt: RepeatAttemptGroup['attempts'][number];
+  index: number;
+  runId: string;
+  evalId: string;
+  projectId?: string;
+  passThreshold: number;
+}) {
+  const passed =
+    attempt.verdict === 'pass' ||
+    (attempt.verdict !== 'fail' && (attempt.score ?? 0) >= passThreshold);
+  const label = attempt.run_path ?? `run-${(attempt.attempt ?? index) + 1}`;
+  const artifactLinks = [
+    { label: 'metrics', path: attempt.metrics_path },
+    { label: 'timing', path: attempt.timing_path },
+    { label: 'grading', path: attempt.grading_path },
+    { label: 'transcript', path: attempt.transcript_path },
+    { label: 'output', path: attempt.answer_path },
+  ].filter((item): item is { label: string; path: string } => Boolean(item.path));
+
+  return (
+    <div className="grid gap-3 rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm md:grid-cols-[minmax(10rem,1fr)_auto_auto_minmax(12rem,auto)] md:items-center">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-medium text-gray-200" title={label}>
+            {label}
+          </span>
+          <span
+            className={`rounded-md px-1.5 py-0.5 text-xs font-medium ${
+              passed ? 'bg-emerald-950/40 text-emerald-300' : 'bg-red-950/40 text-red-300'
+            }`}
+          >
+            {passed ? 'passed' : 'failed'}
+          </span>
+        </div>
+        {attempt.error ? (
+          <p className="mt-1 truncate text-xs text-red-300" title={attempt.error}>
+            {attempt.error}
+          </p>
+        ) : null}
+      </div>
+      <div className="tabular-nums text-gray-400">{formatPercent(attempt.score ?? 0)}</div>
+      <div className="tabular-nums text-gray-400">{formatDuration(attempt.duration_ms)}</div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
+        {attempt.total_tool_calls != null ? (
+          <span className="text-xs text-gray-500">{attempt.total_tool_calls} tool calls</span>
+        ) : null}
+        {artifactLinks.map((artifact) => (
+          <a
+            key={artifact.label}
+            href={artifactFileContentUrl({
+              runId,
+              projectId,
+              evalId,
+              filePath: artifact.path,
+              raw: true,
+            })}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-gray-800 px-2 py-0.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+          >
+            {artifact.label}
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }
 

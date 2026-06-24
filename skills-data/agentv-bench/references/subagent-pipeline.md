@@ -80,7 +80,7 @@ This creates a run directory with per-test `input.json`, `invoke.json`,
 
 Read `agents/executor.md`. Launch one `executor` subagent **per test case**, all in parallel.
 Each subagent receives the test directory path, reads `input.json`, performs the task using
-its own tools, and writes `response.md`.
+its own tools, and writes `response.md` plus flattened `metrics.json`.
 
 Example: 5 tests = 5 executor subagents launched simultaneously.
 
@@ -89,6 +89,7 @@ Example: 5 tests = 5 executor subagents launched simultaneously.
 #   - Reads <run-dir>/<test-id>/input.json
 #   - Performs the task
 #   - Writes <run-dir>/<test-id>/response.md
+#   - Writes <run-dir>/<test-id>/metrics.json
 ```
 
 ### After executors complete: read results from disk
@@ -126,7 +127,7 @@ agentv pipeline grade <run-dir>
 
 # Step 4: Subagent does LLM grading, writes results to llm_grader_results/<name>.json per test
 
-# Step 5: Merge scores (writes index.jsonl with full scores[] for dashboard)
+# Step 5: Merge scores (writes index.jsonl and summary.json for dashboard)
 agentv pipeline bench <run-dir>
 
 # Step 6: Validate
@@ -165,13 +166,14 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
 .agentv/results/<experiment>/<timestamp>/
 ├── manifest.json                    ← eval metadata, target, test_ids
 ├── index.jsonl                      ← per-test scores
-├── summary.json                   ← aggregate statistics
+├── summary.json                     ← aggregate statistics, metadata, timing_summary
 └── <evalset-name>/                  ← eval.yaml "name" field, or eval file basename if absent (same as CLI mode)
     └── <test-id>/                   ← test case id
         ├── input.json               ← test input text + messages
         ├── invoke.json              ← target command or agent instructions
         ├── criteria.md              ← grading criteria
         ├── response.md              ← target/agent output
+        ├── metrics.json             ← flattened execution metrics
         ├── timing.json              ← execution timing
         ├── code_graders/<name>.json     ← grader configs written by `pipeline input`: code-grader scripts AND built-in types (contains, regex, equals, etc.)
         ├── llm_graders/<name>.json      ← LLM grader configs

@@ -28,6 +28,35 @@ describe('results validate', () => {
           execution_status: 'ok',
         })}\n`,
       );
+      writeFileSync(
+        path.join(runDir, 'summary.json'),
+        `${JSON.stringify({
+          metadata: {
+            timestamp: '2026-03-27T12:42:24.429Z',
+            experiment: 'with-skills',
+            targets: ['gpt-4o'],
+            tests_run: ['test-greeting'],
+          },
+          run_summary: {
+            'gpt-4o': {
+              pass_rate: { mean: 1, stddev: 0 },
+              time_seconds: { mean: 0, stddev: 0 },
+              tokens: { mean: 0, stddev: 0 },
+            },
+          },
+          timing_summary: {
+            duration_ms: { mean: 0, stddev: 0 },
+            total_duration_seconds: { mean: 0, stddev: 0 },
+            total_tokens: { mean: 0, stddev: 0 },
+            token_usage: {
+              input: { mean: 0, stddev: 0 },
+              output: { mean: 0, stddev: 0 },
+              reasoning: { mean: 0, stddev: 0 },
+            },
+          },
+          notes: [],
+        })}\n`,
+      );
 
       const { diagnostics } = validateRunDirectory(runDir);
 

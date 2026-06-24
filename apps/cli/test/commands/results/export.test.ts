@@ -595,7 +595,7 @@ describe('results export', () => {
     expect(grading.summary).toHaveProperty('total');
     expect(grading.summary).toHaveProperty('pass_rate');
 
-    // Grading artifacts stay focused on assertion evidence; execution data lives in result.json.
+    // Grading artifacts stay focused on assertion evidence; execution data lives in metrics.json.
     expect(grading).not.toHaveProperty('execution_metrics');
 
     // Has evaluators
@@ -604,7 +604,9 @@ describe('results export', () => {
     expect(grading.graders?.[0].name).toBe('greeting_quality');
     expect(grading.graders?.[0].type).toBe('llm-grader');
 
-    expect(existsSync(path.join(runDir(outputDir, RESULT_FULL), 'result.json'))).toBe(true);
+    expect(existsSync(path.join(runDir(outputDir, RESULT_FULL), 'metrics.json'))).toBe(true);
+    expect(existsSync(path.join(runDir(outputDir, RESULT_FULL), 'timing.json'))).toBe(true);
+    expect(existsSync(path.join(runDir(outputDir, RESULT_FULL), 'result.json'))).toBe(false);
   });
 
   it('should write answer text to <test-id>/run-1/outputs/answer.md as human-readable markdown', async () => {
