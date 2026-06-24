@@ -94,10 +94,13 @@ const RESULTS_JSON_MERGE_DRIVER_SCRIPT = `#!/usr/bin/env node
 //
 // Performs a 3-way merge of AgentV's editable JSON overlay files (run tags /
 // feedback). Tag lists merge as a 3-way set so concurrent add/remove are
-// commutative; bookkeeping scalars that always differ between writers
-// (updated_at, tag_revision) are regenerated to the larger value instead of
-// conflicting. Any other genuinely diverging scalar exits non-zero, leaving the
-// file conflicted so the caller can route it to a human GitHub merge.
+// commutative; display-only bookkeeping scalars that always differ between
+// writers (updated_at) are regenerated to the larger value instead of
+// conflicting. Content-derived concurrency tokens (tag_revision) are dropped on
+// merge so the reader recomputes a token matching the merged content rather than
+// carrying a stale token that could bypass optimistic-concurrency checks. Any
+// other genuinely diverging scalar exits non-zero, leaving the file conflicted
+// so the caller can route it to a human GitHub merge.
 //
 // Invoked by git as: node json-merge-driver.mjs %O %A %B %P
 //   %O ancestor, %A current (overwritten with the result), %B other, %P path.
@@ -106,7 +109,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const [, , ancestorFile, currentFile, otherFile] = process.argv;
 const CONFLICT = Symbol('conflict');
 // Scalars that legitimately differ on every write and carry no merge meaning.
-const REGENERABLE_SCALARS = new Set(['updated_at', 'tag_revision']);
+const REGENERABLE_SCALARS = new Set(['updated_at']);
+// Content-derived tokens (a hash of {tags, updated_at}) that guard optimistic
+// concurrency. Carrying either side's pre-merge token forward would let a stale
+// client whose token happens to match bypass the concurrency check and silently
+// overwrite the merged set, so we drop them and let the reader recompute a token
+// that matches the merged content.
+const DROP_ON_MERGE = new Set(['tag_revision']);
 
 function readJson(file) {
   try {
@@ -160,6 +169,7 @@ function merge3(base, a, b, key) {
     ]);
     const out = {};
     for (const childKey of keys) {
+      if (DROP_ON_MERGE.has(childKey)) continue;
       const merged = merge3(
         isPlainObject(base) ? base[childKey] : undefined,
         a[childKey],

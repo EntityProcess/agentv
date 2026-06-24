@@ -2042,6 +2042,11 @@ describe('results repo write path', () => {
     expect(mergedTags.tags).toContain('base');
     expect(mergedTags.tags).toContain('local-tag');
     expect(mergedTags.tags).toContain('remote-tag');
+    // The content-derived concurrency token must NOT survive a real set merge as
+    // either side's pre-merge value; otherwise a stale client holding that token
+    // would bypass the optimistic-concurrency check and overwrite the union.
+    expect(mergedTags.tag_revision).not.toBe('r1');
+    expect(mergedTags.tag_revision).not.toBe('r2');
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
     ).toBe('');
