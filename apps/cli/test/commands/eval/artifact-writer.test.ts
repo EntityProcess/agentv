@@ -1568,7 +1568,7 @@ describe('writeArtifactsFromResults', () => {
     expect(grading.assertions[0].text).toBe('baseline-check');
   });
 
-  it('prefixes artifact paths with suite when present', async () => {
+  it('writes case artifacts at the run root when suite is present', async () => {
     const paths = await writeArtifactsFromResults(
       [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
       testDir,
@@ -1578,7 +1578,86 @@ describe('writeArtifactsFromResults', () => {
       .trim()
       .split('\n')
       .map(JSON.parse);
-    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
+    expect(indexLine.suite).toBe('eval-top-months-chart');
+    expect(indexLine.artifact_dir).toBe('shared-id');
+    expect(indexLine.grading_path).toBe('shared-id/run-1/grading.json');
+  });
+
+  it('disambiguates duplicate case artifact directories without changing test ids', async () => {
+    const firstEval = path.join(testDir, 'suite-a.eval.yaml');
+    const secondEval = path.join(testDir, 'suite-b.eval.yaml');
+    const sourceTests = [
+      {
+        id: 'shared-id',
+        suite: 'suite-a',
+        question: 'first',
+        input: [],
+        expected_output: [],
+        file_paths: [],
+        criteria: 'ok',
+        source: {
+          evalFilePath: firstEval,
+          evalFileAbsolutePath: firstEval,
+          evalFileRepoPath: 'evals/suite-a.eval.yaml',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id\ninput: first',
+          graderDefinitions: [],
+          references: [],
+        },
+      } satisfies EvalTest,
+      {
+        id: 'shared-id',
+        suite: 'suite-b',
+        question: 'second',
+        input: [],
+        expected_output: [],
+        file_paths: [],
+        criteria: 'ok',
+        source: {
+          evalFilePath: secondEval,
+          evalFileAbsolutePath: secondEval,
+          evalFileRepoPath: 'evals/suite-b.eval.yaml',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id\ninput: second',
+          graderDefinitions: [],
+          references: [],
+        },
+      } satisfies EvalTest,
+    ];
+
+    const paths = await writeArtifactsFromResults(
+      [
+        makeResult({ suite: 'suite-a', testId: 'shared-id', target: 'baseline' }),
+        makeResult({ suite: 'suite-b', testId: 'shared-id', target: 'candidate' }),
+      ],
+      testDir,
+      { sourceTests },
+    );
+
+    const indexLines = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    const firstSuffix = createHash('sha256')
+      .update('evals/suite-a.eval.yaml')
+      .digest('hex')
+      .slice(0, 8);
+    const secondSuffix = createHash('sha256')
+      .update('evals/suite-b.eval.yaml')
+      .digest('hex')
+      .slice(0, 8);
+
+    expect(indexLines.map((line) => line.test_id)).toEqual(['shared-id', 'shared-id']);
+    expect(indexLines.map((line) => line.artifact_dir)).toEqual([
+      `shared-id__${firstSuffix}`,
+      `shared-id__${secondSuffix}`,
+    ]);
+    expect(indexLines.map((line) => line.grading_path)).toEqual([
+      `shared-id__${firstSuffix}/run-1/grading.json`,
+      `shared-id__${secondSuffix}/run-1/grading.json`,
+    ]);
+    expect(await readdir(path.join(testDir, `shared-id__${firstSuffix}`))).toContain('run-1');
+    expect(await readdir(path.join(testDir, `shared-id__${secondSuffix}`))).toContain('run-1');
   });
 
   it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {

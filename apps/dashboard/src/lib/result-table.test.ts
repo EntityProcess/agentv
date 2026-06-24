@@ -183,4 +183,28 @@ describe('result-table model', () => {
     });
     expect(model.filteredRepeatGroups.map((group) => group.row.testId)).toEqual(['repeat-case']);
   });
+
+  it('keeps duplicate artifact directory suffixes out of displayed test ids', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'shared-case',
+          suite: 'suite-a',
+          artifact_dir: 'shared-case__37c9f5a2',
+        }),
+        result({
+          testId: 'shared-case',
+          suite: 'suite-b',
+          artifact_dir: 'shared-case__ce74914d',
+        }),
+      ],
+    });
+
+    expect(model.rows.map((row) => row.testId)).toEqual(['shared-case', 'shared-case']);
+    expect(model.rows.map((row) => row.result.artifact_dir)).toEqual([
+      'shared-case__37c9f5a2',
+      'shared-case__ce74914d',
+    ]);
+  });
 });

@@ -82,19 +82,19 @@ provenance:
 ```text
 <run-dir>/index.jsonl
 <run-dir>/summary.json
-<run-dir>/<suite>/<case-id>/summary.json
-<run-dir>/<suite>/<case-id>/run-1/metrics.json
-<run-dir>/<suite>/<case-id>/run-1/timing.json
-<run-dir>/<suite>/<case-id>/run-1/grading.json
-<run-dir>/<suite>/<case-id>/run-1/transcript.json
-<run-dir>/<suite>/<case-id>/run-1/transcript-raw.jsonl
-<run-dir>/<suite>/<case-id>/run-1/outputs/answer.md
-<run-dir>/<suite>/<case-id>/run-2/metrics.json
-<run-dir>/<suite>/<case-id>/run-2/timing.json
-<run-dir>/<suite>/<case-id>/run-2/grading.json
-<run-dir>/<suite>/<case-id>/run-2/transcript.json
-<run-dir>/<suite>/<case-id>/run-2/transcript-raw.jsonl
-<run-dir>/<suite>/<case-id>/run-2/outputs/answer.md
+<run-dir>/<case-id>/summary.json
+<run-dir>/<case-id>/run-1/metrics.json
+<run-dir>/<case-id>/run-1/timing.json
+<run-dir>/<case-id>/run-1/grading.json
+<run-dir>/<case-id>/run-1/transcript.json
+<run-dir>/<case-id>/run-1/transcript-raw.jsonl
+<run-dir>/<case-id>/run-1/outputs/answer.md
+<run-dir>/<case-id>/run-2/metrics.json
+<run-dir>/<case-id>/run-2/timing.json
+<run-dir>/<case-id>/run-2/grading.json
+<run-dir>/<case-id>/run-2/transcript.json
+<run-dir>/<case-id>/run-2/transcript-raw.jsonl
+<run-dir>/<case-id>/run-2/outputs/answer.md
 ```
 
 The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
@@ -105,6 +105,11 @@ metrics, each `run-N/timing.json` carries the run timing, and each
 `index.jsonl` is the local and remote discovery
 anchor, while root `summary.json` is the run-level aggregate and metadata file
 for CI summary scripts and uploaded artifact consumers.
+Readers should treat `index.jsonl` as the stable manifest layer and follow its
+explicit path fields, such as `artifact_dir`, `metrics_path`, and
+`grading_path`. This lets AgentV adjust the physical folder layout, including
+adding a short suffix when two suites use the same case id, without changing the
+test id that Dashboard displays.
 
 ## Targets and setup
 

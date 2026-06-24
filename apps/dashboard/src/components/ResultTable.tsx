@@ -9,8 +9,6 @@
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { Link } from '@tanstack/react-router';
-
 import { artifactFileContentUrl, useFeedback } from '~/lib/api';
 import {
   RESULT_TABLE_VIEW_PRESETS,
@@ -617,6 +615,7 @@ function RepeatRunList({
                     index={index}
                     runId={runId}
                     evalId={group.row.testId}
+                    artifactDir={group.row.result.artifact_dir}
                     projectId={projectId}
                     passThreshold={passThreshold}
                   />
@@ -635,6 +634,7 @@ function RepeatRunRow({
   index,
   runId,
   evalId,
+  artifactDir,
   projectId,
   passThreshold,
 }: {
@@ -642,6 +642,7 @@ function RepeatRunRow({
   index: number;
   runId: string;
   evalId: string;
+  artifactDir?: string;
   projectId?: string;
   passThreshold: number;
 }) {
@@ -691,6 +692,7 @@ function RepeatRunRow({
               runId,
               projectId,
               evalId,
+              artifactDir,
               filePath: artifact.path,
               raw: true,
             })}
@@ -817,6 +819,21 @@ function TestCell({
   );
 }
 
+function buildEvalDetailHref(options: {
+  projectId?: string;
+  runId: string;
+  evalId: string;
+  artifactDir?: string;
+}): string {
+  const base = options.projectId
+    ? `/projects/${encodeURIComponent(options.projectId)}/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`
+    : `/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`;
+  if (!options.artifactDir) {
+    return base;
+  }
+  return `${base}?artifact_dir=${encodeURIComponent(options.artifactDir)}`;
+}
+
 function ResultDetailPanel({
   row,
   runId,
@@ -828,6 +845,12 @@ function ResultDetailPanel({
   projectId?: string;
   onClose: () => void;
 }) {
+  const evalDetailHref = buildEvalDetailHref({
+    projectId,
+    runId,
+    evalId: row.testId,
+    artifactDir: row.result.artifact_dir,
+  });
   return (
     <aside className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
       <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
@@ -842,23 +865,12 @@ function ResultDetailPanel({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {projectId ? (
-            <Link
-              to="/projects/$projectId/evals/$runId/$evalId"
-              params={{ projectId, runId, evalId: row.testId }}
-              className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
-            >
-              Full page
-            </Link>
-          ) : (
-            <Link
-              to="/evals/$runId/$evalId"
-              params={{ runId, evalId: row.testId }}
-              className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
-            >
-              Full page
-            </Link>
-          )}
+          <a
+            href={evalDetailHref}
+            className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+          >
+            Full page
+          </a>
           <button
             type="button"
             onClick={onClose}

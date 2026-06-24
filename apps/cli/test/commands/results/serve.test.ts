@@ -3689,6 +3689,49 @@ describe('serve app', () => {
       expect(data.content).toContain('Hello, Alice!');
     });
 
+    it('selects duplicate eval artifact files by artifact_dir query', async () => {
+      const runsDir = localResultsExperimentDir(tempDir, 'duplicate-cases');
+      const runId = 'duplicate-cases::2026-03-25T10-00-00-000Z';
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const firstArtifactPath = 'shared-case__11111111/run-1/outputs/answer.md';
+      const secondArtifactPath = 'shared-case__22222222/run-1/outputs/answer.md';
+
+      mkdirSync(path.dirname(path.join(timestampDir, firstArtifactPath)), { recursive: true });
+      mkdirSync(path.dirname(path.join(timestampDir, secondArtifactPath)), { recursive: true });
+      writeFileSync(path.join(timestampDir, firstArtifactPath), 'first suite answer');
+      writeFileSync(path.join(timestampDir, secondArtifactPath), 'second suite answer');
+      writeFileSync(
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl(
+          {
+            ...RESULT_A,
+            test_id: 'shared-case',
+            suite: 'suite-a',
+            experiment: 'duplicate-cases',
+            artifact_dir: 'shared-case__11111111',
+            output_path: firstArtifactPath,
+          },
+          {
+            ...RESULT_A,
+            test_id: 'shared-case',
+            suite: 'suite-b',
+            experiment: 'duplicate-cases',
+            artifact_dir: 'shared-case__22222222',
+            output_path: secondArtifactPath,
+          },
+        ),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/shared-case/files/${secondArtifactPath}?artifact_dir=shared-case__22222222`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { content: string };
+      expect(data.content).toBe('second suite answer');
+    });
+
     it('serves transcript JSONL artifacts as browser-visible raw text and downloads', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'with-transcript');
       const runId = 'with-transcript::2026-03-25T10-00-00-000Z';

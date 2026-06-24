@@ -602,6 +602,36 @@ function normalizeArtifactRelativePath(relativePath: string): string | undefined
   return segments.join('/');
 }
 
+function requestedArtifactDir(c: C): { value?: string; error?: string } {
+  const raw = c.req.query('artifact_dir')?.trim();
+  if (!raw) {
+    return {};
+  }
+  const normalized = normalizeArtifactRelativePath(raw);
+  if (!normalized) {
+    return { error: 'Invalid artifact_dir' };
+  }
+  return { value: normalized };
+}
+
+function manifestRecordSelection(
+  records: readonly ResultManifestRecord[],
+  evalId: string,
+  artifactDir?: string,
+): { record: ResultManifestRecord; index: number } | undefined {
+  return records
+    .map((record, index) => ({ record, index }))
+    .find(({ record }) => {
+      if (record.test_id !== evalId) {
+        return false;
+      }
+      if (!artifactDir) {
+        return true;
+      }
+      return normalizeArtifactRelativePath(record.artifact_dir ?? '') === artifactDir;
+    });
+}
+
 function relativeRunPathFromNormalizedManifestPath(manifestPath: string): string | undefined {
   const parts = manifestPath.split('/').filter(Boolean);
   const runsIndex = parts.lastIndexOf('runs');
@@ -1741,14 +1771,24 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir, projectId }: D
 
 async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
-    const result = loaded.find((r) => r.testId === evalId);
-    if (!result) return c.json({ error: 'Eval not found' }, 404);
-    const [stripped] = stripHeavyFields([result]);
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    const result = selection ? loaded[selection.index] : undefined;
+    if (!selection || !result) return c.json({ error: 'Eval not found' }, 404);
+    const baseDir = path.dirname(meta.path);
+    const [stripped] = attachRunDetailReadModelFields(
+      stripHeavyFields([result]),
+      [selection.record],
+      baseDir,
+    );
     return c.json({ eval: stripped });
   } catch {
     return c.json({ error: 'Failed to load eval' }, 500);
@@ -1757,13 +1797,17 @@ async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
 
 async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const record = records.find((r) => r.test_id === evalId);
-    if (!record) return c.json({ error: 'Eval not found' }, 404);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    if (!selection) return c.json({ error: 'Eval not found' }, 404);
+    const { record } = selection;
 
     const baseDir = path.dirname(meta.path);
     const catalog = buildResultArtifactCatalog(record, {
@@ -1784,7 +1828,10 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
 
 async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
@@ -1803,8 +1850,9 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
   await ensureRunReadable(searchDir, meta, projectId);
   const records = parseResultManifest(readFileSync(meta.path, 'utf8'));
-  const record = records.find((r) => r.test_id === evalId);
-  if (!record) return c.json({ error: 'Eval not found' }, 404);
+  const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+  if (!selection) return c.json({ error: 'Eval not found' }, 404);
+  const { record } = selection;
   const catalog = buildResultArtifactCatalog(record, {
     runPath: relativeRunPathFromManifestPath(meta.path),
   });
@@ -1827,14 +1875,18 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
 async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
   try {
     const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const record = records.find((r) => r.test_id === evalId);
-    if (!record) return c.json({ error: 'Eval not found' }, 404);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    if (!selection) return c.json({ error: 'Eval not found' }, 404);
+    const { record } = selection;
 
     const trace = resolveRecordArtifactPointer(record, 'trace');
     const runPath = relativeRunPathFromManifestPath(meta.path);
@@ -1955,14 +2007,18 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
 
 async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
   try {
     const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const record = records.find((r) => r.test_id === evalId);
-    if (!record) return c.json({ error: 'Eval not found' }, 404);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    if (!selection) return c.json({ error: 'Eval not found' }, 404);
+    const { record } = selection;
 
     const transcript = resolveRecordArtifactPointer(record, 'transcript');
     const answer = resolveRecordArtifactPointer(record, 'answer');

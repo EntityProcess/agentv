@@ -279,7 +279,7 @@ Repeat-run cases use `run-N/` directories:
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/outputs/answer.md
 ```
 
-`<case-id>` should reuse the sanitized artifact key produced by the current artifact writer, including suite disambiguation where needed. Child run directories are one-indexed because users naturally inspect `run-1`, `run-2`, and this matches the Vercel comparison.
+`<case-id>` should reuse the sanitized test id produced by the artifact writer. Suite remains logical metadata in `index.jsonl` and Dashboard filters; it must not add another physical namespace under the run root. If multiple suites emit the same sanitized test id in one run, the writer may append a short opaque suffix to `artifact_dir` to avoid overwrites; Dashboard must still display the manifest `test_id`, not the suffixed folder name. Child run directories are one-indexed because users naturally inspect `run-1`, `run-2`, and this matches the Vercel comparison.
 
 ---
 

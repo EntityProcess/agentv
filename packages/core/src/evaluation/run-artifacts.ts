@@ -338,7 +338,7 @@ export interface AdditionalResultArtifactsContext {
   readonly outputDir: string;
   readonly testDir: string;
   readonly sourceTest?: EvalTest;
-  readonly sourceTestsById: ReadonlyMap<string, EvalTest>;
+  readonly sourceTestsById: ReadonlyMap<string, readonly EvalTest[]>;
 }
 
 export interface RepeatCaseSummaryArtifact {
@@ -706,7 +706,7 @@ async function writeCaseRunArtifacts(params: {
   readonly experiment?: string;
   readonly runId?: string;
   readonly duplicatePolicy: ExportDuplicatePolicy;
-  readonly testByTestId: Map<string, EvalTest>;
+  readonly sourceTest?: EvalTest;
 }): Promise<void> {
   const result = params.caseRun.result;
   if (!result) {
@@ -729,7 +729,7 @@ async function writeCaseRunArtifacts(params: {
     result,
     outputDir: params.outputDir,
     testDir: runDir,
-    evalPath: resolveEnvelopeEvalPath(result, params.testByTestId, params.evalFile),
+    evalPath: resolveSourceEvalPath(params.sourceTest, params.evalFile),
     experiment: params.experiment,
     runId: caseRunId,
     duplicatePolicy: params.duplicatePolicy,
@@ -1131,13 +1131,127 @@ function getSuite(result: EvaluationResult): string | undefined {
 }
 
 function buildArtifactSubdir(result: EvaluationResult): string {
-  const segments = [];
-  const evalSet = getSuite(result);
-  if (evalSet) {
-    segments.push(safeArtifactPathSegment(evalSet, 'default'));
+  return safeTestId(result.testId);
+}
+
+function sourceTestsByTestId(sourceTests: readonly EvalTest[] | undefined) {
+  const byTestId = new Map<string, EvalTest[]>();
+  for (const sourceTest of sourceTests ?? []) {
+    const testId = sourceTest.id ?? 'unknown';
+    const existing = byTestId.get(testId);
+    if (existing) {
+      existing.push(sourceTest);
+    } else {
+      byTestId.set(testId, [sourceTest]);
+    }
   }
-  segments.push(safeTestId(result.testId));
-  return path.posix.join(...segments);
+  return byTestId;
+}
+
+function sourceTestMatchesResult(sourceTest: EvalTest, result: EvaluationResult): boolean {
+  if (result.suite && sourceTest.suite && sourceTest.suite !== result.suite) {
+    return false;
+  }
+  if (result.category && sourceTest.category && sourceTest.category !== result.category) {
+    return false;
+  }
+  return true;
+}
+
+function assignSourceTestsToResults(
+  results: readonly EvaluationResult[],
+  sourceTestsById: ReadonlyMap<string, readonly EvalTest[]>,
+): readonly (EvalTest | undefined)[] {
+  const consumedByTestId = new Map<string, Set<number>>();
+  return results.map((result) => {
+    const testId = result.testId ?? 'unknown';
+    const candidates = sourceTestsById.get(testId) ?? [];
+    if (candidates.length === 0) {
+      return undefined;
+    }
+
+    const consumed = consumedByTestId.get(testId) ?? new Set<number>();
+    const preferredIndex = candidates.findIndex(
+      (candidate, index) => !consumed.has(index) && sourceTestMatchesResult(candidate, result),
+    );
+    const fallbackIndex = candidates.findIndex((_, index) => !consumed.has(index));
+    const selectedIndex =
+      preferredIndex >= 0 ? preferredIndex : fallbackIndex >= 0 ? fallbackIndex : 0;
+    consumed.add(selectedIndex);
+    consumedByTestId.set(testId, consumed);
+    return candidates[selectedIndex];
+  });
+}
+
+function artifactDisambiguationSeed(
+  result: EvaluationResult,
+  sourceTest: EvalTest | undefined,
+): string | undefined {
+  const candidates = [
+    sourceTest?.source?.evalFileRepoPath,
+    sourceTest?.source?.evalFilePath,
+    sourceTest?.source?.evalFileAbsolutePath,
+    result.category,
+    result.suite,
+  ];
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return undefined;
+}
+
+function artifactDisambiguationSuffix(
+  result: EvaluationResult,
+  sourceTest: EvalTest | undefined,
+  occurrence: number,
+): string {
+  const seed = artifactDisambiguationSeed(result, sourceTest);
+  if (!seed) {
+    return String(occurrence);
+  }
+  return createHash('sha256').update(seed).digest('hex').slice(0, 8);
+}
+
+function allocateArtifactSubdirs(
+  results: readonly EvaluationResult[],
+  sourceTests: readonly (EvalTest | undefined)[],
+): readonly string[] {
+  const baseDirs = results.map((result) => buildArtifactSubdir(result));
+  const baseCounts = new Map<string, number>();
+  for (const baseDir of baseDirs) {
+    baseCounts.set(baseDir, (baseCounts.get(baseDir) ?? 0) + 1);
+  }
+
+  const used = new Set<string>();
+  const occurrences = new Map<string, number>();
+  return baseDirs.map((baseDir, index) => {
+    const nextOccurrence = (occurrences.get(baseDir) ?? 0) + 1;
+    occurrences.set(baseDir, nextOccurrence);
+
+    if ((baseCounts.get(baseDir) ?? 0) === 1 && !used.has(baseDir)) {
+      used.add(baseDir);
+      return baseDir;
+    }
+
+    const suffix = artifactDisambiguationSuffix(results[index], sourceTests[index], nextOccurrence);
+    let candidate = safeArtifactPathSegment(
+      `${baseDir}__${suffix}`,
+      `${baseDir}_${nextOccurrence}`,
+    );
+    let collision = 2;
+    while (used.has(candidate)) {
+      candidate = safeArtifactPathSegment(
+        `${baseDir}__${suffix}_${collision}`,
+        `${baseDir}_${nextOccurrence}_${collision}`,
+      );
+      collision += 1;
+    }
+    used.add(candidate);
+    return candidate;
+  });
 }
 
 function toRelativeArtifactPath(outputDir: string, filePath: string): string {
@@ -1146,18 +1260,25 @@ function toRelativeArtifactPath(outputDir: string, filePath: string): string {
 
 function findResultSourceTest(
   result: EvaluationResult,
-  testByTestId: ReadonlyMap<string, EvalTest>,
+  testByTestId: ReadonlyMap<string, readonly EvalTest[]>,
 ): EvalTest | undefined {
-  return testByTestId.get(result.testId ?? 'unknown');
+  return assignSourceTestsToResults([result], testByTestId)[0];
+}
+
+function resolveSourceEvalPath(
+  sourceTest: EvalTest | undefined,
+  fallbackEvalFile?: string,
+): string | undefined {
+  const source = sourceTest?.source;
+  return source?.evalFileRepoPath ?? source?.evalFilePath ?? fallbackEvalFile;
 }
 
 function resolveEnvelopeEvalPath(
   result: EvaluationResult,
-  testByTestId: ReadonlyMap<string, EvalTest>,
+  testByTestId: ReadonlyMap<string, readonly EvalTest[]>,
   fallbackEvalFile?: string,
 ): string | undefined {
-  const source = findResultSourceTest(result, testByTestId)?.source;
-  return source?.evalFileRepoPath ?? source?.evalFilePath ?? fallbackEvalFile;
+  return resolveSourceEvalPath(findResultSourceTest(result, testByTestId), fallbackEvalFile);
 }
 
 function resultHasExecutionTraceTranscript(result: EvaluationResult): boolean {
@@ -1766,7 +1887,8 @@ async function collectAdditionalIndexFields(
   result: EvaluationResult,
   outputDir: string,
   testDir: string,
-  testByTestId: ReadonlyMap<string, EvalTest>,
+  sourceTest: EvalTest | undefined,
+  testByTestId: ReadonlyMap<string, readonly EvalTest[]>,
   additionalArtifacts: AdditionalResultArtifactsWriter | undefined,
 ): Promise<AdditionalResultIndexFields | undefined> {
   if (!additionalArtifacts) {
@@ -1776,7 +1898,7 @@ async function collectAdditionalIndexFields(
     result,
     outputDir,
     testDir,
-    sourceTest: testByTestId.get(result.testId ?? 'unknown'),
+    sourceTest,
     sourceTestsById: testByTestId,
   });
 }
@@ -1795,18 +1917,21 @@ export async function writePerTestArtifacts(
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
   const duplicatePolicy = options?.duplicatePolicy ?? 'update';
-  const testByTestId = new Map((options?.sourceTests ?? []).map((test) => [test.id, test]));
+  const testByTestId = sourceTestsByTestId(options?.sourceTests);
+  const sourceTestAssignments = assignSourceTestsToResults(results, testByTestId);
+  const artifactSubdirs = allocateArtifactSubdirs(results, sourceTestAssignments);
   const indexRecords: ResultIndexArtifact[] = [];
 
-  for (const result of results) {
-    const artifactSubdir = buildArtifactSubdir(result);
+  for (const [index, result] of results.entries()) {
+    const artifactSubdir = artifactSubdirs[index];
+    const sourceTest = sourceTestAssignments[index];
     const testDir = path.join(outputDir, artifactSubdir);
     await mkdir(testDir, { recursive: true });
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
       testDir,
-      evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
+      evalPath: resolveSourceEvalPath(sourceTest, options?.evalFile),
       experiment: options?.experiment,
       runId: options?.runId,
       duplicatePolicy,
@@ -1829,7 +1954,7 @@ export async function writePerTestArtifacts(
         experiment: options?.experiment,
         runId: options?.runId,
         duplicatePolicy,
-        testByTestId,
+        sourceTest,
       });
     }
 
@@ -1851,6 +1976,7 @@ export async function writePerTestArtifacts(
       result,
       outputDir,
       testDir,
+      sourceTest,
       testByTestId,
       options?.additionalArtifacts,
     );
@@ -1904,18 +2030,21 @@ export async function writeArtifactsFromResults(
   const existingRecords = await readExistingIndexRecords(outputDir);
   const existingByIdentity = existingRecordsByProjectionIdentity(existingRecords);
   const indexRecords: unknown[] = [];
-  const testByTestId = new Map((options?.sourceTests ?? []).map((test) => [test.id, test]));
+  const testByTestId = sourceTestsByTestId(options?.sourceTests);
+  const sourceTestAssignments = assignSourceTestsToResults(results, testByTestId);
+  const artifactSubdirs = allocateArtifactSubdirs(results, sourceTestAssignments);
   const emittedIdentityIds = new Set<string>();
 
-  const plans = results.map((result) => {
-    const artifactSubdir = buildArtifactSubdir(result);
+  const plans = results.map((result, index) => {
+    const artifactSubdir = artifactSubdirs[index];
+    const sourceTest = sourceTestAssignments[index];
     const testDir = path.join(outputDir, artifactSubdir);
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
       testDir,
-      evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
+      evalPath: resolveSourceEvalPath(sourceTest, options?.evalFile),
       experiment: options?.experiment,
       runId: options?.runId,
       duplicatePolicy,
@@ -1940,6 +2069,7 @@ export async function writeArtifactsFromResults(
     const singleMetricsPath = isSingleRun ? path.join(singleRunDir, 'metrics.json') : undefined;
     return {
       result,
+      sourceTest,
       testDir,
       caseSummaryPath,
       projectionIdentity,
@@ -1999,7 +2129,7 @@ export async function writeArtifactsFromResults(
         experiment: options?.experiment,
         runId: options?.runId,
         duplicatePolicy,
-        testByTestId,
+        sourceTest: plan.sourceTest,
       });
     }
 
@@ -2007,6 +2137,7 @@ export async function writeArtifactsFromResults(
       result,
       outputDir,
       plan.testDir,
+      plan.sourceTest,
       testByTestId,
       options?.additionalArtifacts,
     );
