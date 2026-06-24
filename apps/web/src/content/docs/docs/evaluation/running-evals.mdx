@@ -114,7 +114,9 @@ my-results/
   summary.json
   <test-id>/
     summary.json
-    task/PROMPT.md
+    task/
+      EVAL.yaml
+      targets.yaml
     run-1/
       result.json
       grading.json
@@ -141,15 +143,10 @@ The `index.jsonl` row links to these generated paths with snake_case fields such
 as `artifact_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
 `graders_path`. Treat those paths as relative to the run directory. When you need
 a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
-share the generated run directory and its `index.jsonl` manifest. Source-side
-case directories are still useful for organizing bulky prompts, fixtures, or
-tests while authoring an eval, but they are optional input organization rather
-than a separate artifact schema.
-
-If the source eval uses the `PROMPT.md` fallback instead of inline `input`,
-AgentV still writes the resolved task prompt to the generated
-`task/PROMPT.md`. This keeps the run artifact self-contained without requiring
-the same long prompt to be duplicated in both Markdown and YAML.
+share the generated run directory and its `index.jsonl` manifest. The generated
+`task/EVAL.yaml` is the task input source of truth, including cases authored with
+the `PROMPT.md` fallback; AgentV does not duplicate the resolved prompt into a
+separate result-side `PROMPT.md` file.
 
 ### Manual or External-Agent Attempts
 

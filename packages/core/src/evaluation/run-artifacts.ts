@@ -1265,56 +1265,6 @@ function buildArtifactSubdir(result: EvaluationResult): string {
   return path.posix.join(...segments);
 }
 
-function formatOutputMarkdown(output: readonly { role: string; content?: unknown }[]): string {
-  return output.map((msg) => `@[${msg.role}]:\n${String(msg.content ?? '')}`).join('\n\n');
-}
-
-function formatInputValue(input: unknown): string | null {
-  if (!input) return null;
-  if (typeof input === 'string') return input;
-  if (Array.isArray(input) && input.length > 0) {
-    return formatOutputMarkdown(input as { role: string; content?: unknown }[]);
-  }
-  return null;
-}
-
-function extractInput(result: EvaluationResult): string | null {
-  return formatInputValue((result as unknown as Record<string, unknown>).input);
-}
-
-function extractTracePrompt(result: EvaluationResult): string | null {
-  const trace = (result as unknown as { trace?: { messages?: unknown } }).trace;
-  const messages = Array.isArray(trace?.messages) ? trace.messages : [];
-  const promptMessages: { role: string; content?: unknown }[] = [];
-  for (const message of messages) {
-    if (!isRecord(message) || typeof message.role !== 'string') continue;
-    if (message.role === 'assistant') break;
-    if (message.role === 'system' || message.role === 'user' || message.role === 'developer') {
-      promptMessages.push({ role: message.role, content: message.content });
-    }
-  }
-  return promptMessages.length > 0 ? formatOutputMarkdown(promptMessages) : null;
-}
-
-function extractPrompt(result: EvaluationResult, sourceTest?: EvalTest): string | null {
-  const input = extractInput(result);
-  if (input) return input;
-  const traceInput = extractTracePrompt(result);
-  if (traceInput) return traceInput;
-  for (const trial of result.trials ?? []) {
-    if (!trial.result) continue;
-    const trialInput = extractInput(trial.result);
-    if (trialInput) return trialInput;
-    const trialTraceInput = extractTracePrompt(trial.result);
-    if (trialTraceInput) return trialTraceInput;
-  }
-  const sourceInput = sourceTest
-    ? formatInputValue((sourceTest as unknown as Record<string, unknown>).input)
-    : null;
-  if (sourceInput) return sourceInput;
-  return null;
-}
-
 function toRelativeArtifactPath(outputDir: string, filePath: string): string {
   return path.relative(outputDir, filePath).split(path.sep).join('/');
 }
@@ -1481,7 +1431,6 @@ export function buildIndexArtifactEntry(
     metricsPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
-    inputPath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
     projectionIdentity?: ProjectionIdentity;
     duplicatePolicy?: ExportDuplicatePolicy;
@@ -1539,9 +1488,6 @@ export function buildIndexArtifactEntry(
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
       : undefined,
     artifact_pointers: options.artifactPointers,
-    input_path: options.inputPath
-      ? toRelativeArtifactPath(options.outputDir, options.inputPath)
-      : undefined,
     ...options.extraIndexFields,
     external_trace: toIndexExternalTrace(result, options.projectionIdentity?.dimensions.runId),
     projection_identity: options.projectionIdentity
@@ -1562,7 +1508,6 @@ export function buildResultIndexArtifact(
   },
 ): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
-  const input = extractPrompt(result);
   const hasAnswer = result.output.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedTrialRuns(result);
@@ -1590,10 +1535,8 @@ export function buildResultIndexArtifact(
     failure_reason_code: result.failureReasonCode,
     workspace_path: result.workspacePath,
     artifact_dir: artifactSubdir,
-    task_dir: input ? path.posix.join(artifactSubdir, 'task') : undefined,
     summary_path: path.posix.join(artifactSubdir, RUN_SUMMARY_FILENAME),
     grading_path: isSingleRun ? path.posix.join(singleRunDir, 'grading.json') : undefined,
-    input_path: input ? path.posix.join(artifactSubdir, 'task', 'PROMPT.md') : undefined,
     output_path:
       isSingleRun && hasAnswer ? path.posix.join(singleRunDir, 'outputs', 'answer.md') : undefined,
     answer_path:
@@ -1989,12 +1932,6 @@ export async function writePerTestArtifacts(
     const artifactSubdir = buildArtifactSubdir(result);
     const testDir = path.join(outputDir, artifactSubdir);
     await mkdir(testDir, { recursive: true });
-    const input = extractPrompt(result, testByTestId.get(result.testId ?? ''));
-    const inputPath = input ? path.join(testDir, 'task', 'PROMPT.md') : undefined;
-    if (input && inputPath) {
-      await mkdir(path.dirname(inputPath), { recursive: true });
-      await writeFile(inputPath, input, 'utf8');
-    }
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
@@ -2045,12 +1982,7 @@ export async function writePerTestArtifacts(
       testByTestId,
       options?.additionalArtifacts,
     );
-    const indexExtraFields = {
-      ...(inputPath
-        ? { task_dir: toRelativeArtifactPath(outputDir, path.dirname(inputPath)) }
-        : {}),
-      ...extraIndexFields,
-    };
+    const indexExtraFields = { ...extraIndexFields };
 
     indexRecords.push({
       ...buildIndexArtifactEntry(result, {
@@ -2061,7 +1993,6 @@ export async function writePerTestArtifacts(
         outputPath: singleAnswerPath,
         answerPath: singleAnswerPath,
         transcriptPath: singleTranscriptPath,
-        inputPath,
         extraIndexFields: indexExtraFields,
         projectionIdentity,
         duplicatePolicy,
@@ -2105,8 +2036,6 @@ export async function writeArtifactsFromResults(
   const plans = results.map((result) => {
     const artifactSubdir = buildArtifactSubdir(result);
     const testDir = path.join(outputDir, artifactSubdir);
-    const input = extractPrompt(result, testByTestId.get(result.testId ?? ''));
-    const inputPath = input ? path.join(testDir, 'task', 'PROMPT.md') : undefined;
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const envelope = buildTraceEnvelopeSidecar({
       result,
@@ -2136,8 +2065,6 @@ export async function writeArtifactsFromResults(
     return {
       result,
       testDir,
-      input,
-      inputPath,
       caseSummaryPath,
       projectionIdentity,
       isSingleRun,
@@ -2185,10 +2112,6 @@ export async function writeArtifactsFromResults(
       options?.experimentMetadata?.fingerprint ?? plan.projectionIdentity.id,
     );
     await writeFile(plan.caseSummaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-    if (plan.inputPath && plan.input) {
-      await mkdir(path.dirname(plan.inputPath), { recursive: true });
-      await writeFile(plan.inputPath, plan.input, 'utf8');
-    }
     for (const trial of materializedRunTrials(result)) {
       await writeTrialRunArtifacts({
         trial,
@@ -2210,12 +2133,7 @@ export async function writeArtifactsFromResults(
       options?.additionalArtifacts,
     );
 
-    const indexExtraFields = {
-      ...(plan.inputPath
-        ? { task_dir: toRelativeArtifactPath(outputDir, path.dirname(plan.inputPath)) }
-        : {}),
-      ...extraIndexFields,
-    };
+    const indexExtraFields = { ...extraIndexFields };
 
     const nextRecord = {
       ...buildIndexArtifactEntry(result, {
@@ -2226,7 +2144,6 @@ export async function writeArtifactsFromResults(
         outputPath: plan.singleAnswerPath,
         answerPath: plan.singleAnswerPath,
         transcriptPath: plan.singleTranscriptPath,
-        inputPath: plan.inputPath,
         extraIndexFields: indexExtraFields,
         projectionIdentity: plan.projectionIdentity,
         duplicatePolicy,

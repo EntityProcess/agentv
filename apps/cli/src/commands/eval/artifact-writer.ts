@@ -101,7 +101,6 @@ export function buildIndexArtifactEntry(
     transcriptPath?: string;
     metricsPath?: string;
     rawProviderLogPath?: string;
-    inputPath?: string;
     responsePath?: string;
     taskBundle?: MaterializedTaskBundlePaths;
   },

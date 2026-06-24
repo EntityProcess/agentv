@@ -8,7 +8,7 @@
  *     summary.json             — run aggregate scores, metadata, and timing
  *     <test-id>/
  *       summary.json           — per-case aggregate
- *       task/PROMPT.md         — human-readable input messages for this test
+ *       task/EVAL.yaml         — self-contained eval case, including input
  *       run-1/result.json      — per-run result
  *       run-1/grading.json     — per-run grading artifact (assertions, graders)
  *

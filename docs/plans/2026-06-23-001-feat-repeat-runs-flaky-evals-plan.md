@@ -245,7 +245,8 @@ Single-run cases still use `run-1/`:
 .agentv/results/<experiment>/<timestamp>/index.jsonl
 .agentv/results/<experiment>/<timestamp>/summary.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/summary.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/task/PROMPT.md
+.agentv/results/<experiment>/<timestamp>/<case-id>/task/EVAL.yaml
+.agentv/results/<experiment>/<timestamp>/<case-id>/task/targets.yaml
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json

@@ -351,13 +351,13 @@ describe('results export', () => {
     });
     expect(bundle.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      input_path: 'privacy/test-private/task/PROMPT.md',
       output_path: 'privacy/test-private/run-1/outputs/answer.md',
       answer_path: 'privacy/test-private/run-1/outputs/answer.md',
       summary_path: 'privacy/test-private/summary.json',
       trace_path: 'privacy/test-private/trace.json',
       transcript_path: 'privacy/test-private/run-1/transcript-raw.jsonl',
     });
+    expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/trace.json');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
     expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/run-1/grading.json');
@@ -421,8 +421,8 @@ describe('results export', () => {
       output_path: 'demo/test-greeting/run-1/outputs/answer.md',
       answer_path: 'demo/test-greeting/run-1/outputs/answer.md',
       transcript_path: 'demo/test-greeting/run-1/transcript-raw.jsonl',
-      input_path: 'demo/test-greeting/task/PROMPT.md',
     });
+    expect(entries[0].input_path).toBeUndefined();
     expect(entries[0].projection_identity).toMatchObject({
       schema_version: 'agentv.projection_identity.v1',
       dimensions: {
@@ -715,7 +715,7 @@ describe('results export', () => {
     expect(grading.summary.total).toBe(0);
   });
 
-  it('should write string input to <test-id>/task/PROMPT.md', async () => {
+  it('should not write string input to <test-id>/task/PROMPT.md', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,
@@ -726,11 +726,15 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(artifactDir(outputDir, resultWithInput), 'task', 'PROMPT.md');
-    expect(existsSync(inputPath)).toBe(true);
-    expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
+    expect(existsSync(inputPath)).toBe(false);
+    const [indexEntry] = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    expect(indexEntry?.input_path).toBeUndefined();
   });
 
-  it('should write Message[] input to <test-id>/task/PROMPT.md as markdown', async () => {
+  it('should not write Message[] input to <test-id>/task/PROMPT.md', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithMessages = {
       ...RESULT_FULL,
@@ -744,8 +748,12 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(artifactDir(outputDir, resultWithMessages), 'task', 'PROMPT.md');
-    expect(existsSync(inputPath)).toBe(true);
-    expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
+    expect(existsSync(inputPath)).toBe(false);
+    const [indexEntry] = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    expect(indexEntry?.input_path).toBeUndefined();
   });
 
   it('should not create input file when input is missing', async () => {
