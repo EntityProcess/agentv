@@ -266,4 +266,53 @@ tests:
     expect(tests).toHaveLength(1);
     expect(tests[0].input[0]).toEqual({ role: 'user', content: 'What is 2+2?' });
   });
+
+  it('uses a sibling PROMPT.md when input is omitted', async () => {
+    const evalDir = path.join(tempDir, 'sibling-prompt');
+    await mkdir(evalDir, { recursive: true });
+    await writeFile(path.join(evalDir, 'PROMPT.md'), 'Use the sibling prompt.\n');
+    await writeFile(
+      path.join(evalDir, 'EVAL.yaml'),
+      `tests:
+  - id: sibling-prompt
+    criteria: "Uses the prompt file"
+`,
+    );
+
+    const tests = await loadTests(path.join(evalDir, 'EVAL.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].input[0]).toEqual({ role: 'user', content: 'Use the sibling prompt.\n' });
+    expect(tests[0].question).toBe('Use the sibling prompt.');
+  });
+
+  it('uses PROMPT.md from input_files without duplicating it as an attachment', async () => {
+    const evalDir = path.join(tempDir, 'input-files-prompt');
+    await mkdir(path.join(evalDir, 'task'), { recursive: true });
+    await writeFile(
+      path.join(evalDir, 'task', 'PROMPT.md'),
+      'Summarize the attached sales data.\n',
+    );
+    await writeFile(path.join(evalDir, 'sales.csv'), 'month,revenue\nApr,400\n');
+    await writeFile(
+      path.join(evalDir, 'EVAL.yaml'),
+      `tests:
+  - id: prompt-file-with-attachment
+    criteria: "Uses the prompt and attached data"
+    input_files:
+      - ./task/PROMPT.md
+      - ./sales.csv
+`,
+    );
+
+    const tests = await loadTests(path.join(evalDir, 'EVAL.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    const content = tests[0].input[0].content as Array<{ type: string; value: string }>;
+    expect(content).toHaveLength(2);
+    expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv' });
+    expect(content[1]).toEqual({ type: 'text', value: 'Summarize the attached sales data.\n' });
+    expect(tests[0].file_paths).toHaveLength(1);
+    expect(tests[0].file_paths[0]).toContain('sales.csv');
+  });
 });

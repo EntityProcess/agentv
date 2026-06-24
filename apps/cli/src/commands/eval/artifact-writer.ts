@@ -6,6 +6,7 @@ import {
   type BenchmarkArtifact,
   type EvalTest,
   type EvaluationResult,
+  type ExperimentArtifactMetadata,
   type ExportDuplicatePolicy,
   type GradingArtifact,
   type IndexArtifactEntry,
@@ -228,6 +229,7 @@ export async function writeArtifactsFromResults(
   options?: {
     evalFile?: string;
     experiment?: string;
+    experimentMetadata?: ExperimentArtifactMetadata;
     plannedTestCount?: number;
     runId?: string;
     duplicatePolicy?: ExportDuplicatePolicy;
@@ -245,6 +247,7 @@ export async function writeArtifactsFromResults(
   return writeCoreArtifactsFromResults(results, outputDir, {
     evalFile: options?.evalFile,
     experiment: options?.experiment,
+    experimentMetadata: options?.experimentMetadata,
     plannedTestCount: options?.plannedTestCount,
     runId: options?.runId,
     duplicatePolicy: options?.duplicatePolicy,

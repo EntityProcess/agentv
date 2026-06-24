@@ -61,7 +61,7 @@ tests:
   await writeFile(path.join(taskDir, 'targets.yaml'), options.targetsYaml, 'utf8');
   await writeFile(path.join(artifactDir, 'grading.json'), '{"assertions":[]}\n', 'utf8');
   await writeFile(path.join(artifactDir, 'timing.json'), '{"duration_ms":1}\n', 'utf8');
-  await writeFile(path.join(outputsDir, 'response.md'), '@[assistant]:\nCaptured answer\n', 'utf8');
+  await writeFile(path.join(outputsDir, 'answer.md'), '@[assistant]:\nCaptured answer\n', 'utf8');
 
   return {
     timestamp: '2024-01-01T00:00:00.000Z',
@@ -71,8 +71,8 @@ tests:
     artifact_dir: options.testId,
     grading_path: `${options.testId}/grading.json`,
     timing_path: `${options.testId}/timing.json`,
-    output_path: `${options.testId}/outputs/response.md`,
-    response_path: `${options.testId}/outputs/response.md`,
+    output_path: `${options.testId}/outputs/answer.md`,
+    answer_path: `${options.testId}/outputs/answer.md`,
     task_dir: `${options.testId}/task`,
     eval_path: `${options.testId}/task/EVAL.yaml`,
     targets_path: `${options.testId}/task/targets.yaml`,
@@ -197,10 +197,10 @@ describe('agentv runs rerun', () => {
       },
     });
 
-    const responsePath = path.join(created.outputDir, String(rows[0].response_path));
-    const response = await readFile(responsePath, 'utf8');
-    expect(response).toContain('Alpha answer');
-    expect(response).not.toContain('Captured answer');
+    const answerPath = path.join(created.outputDir, String(rows[0].answer_path));
+    const answer = await readFile(answerPath, 'utf8');
+    expect(answer).toContain('Alpha answer');
+    expect(answer).not.toContain('Captured answer');
   }, 30_000);
 
   it('fails clearly for missing env and accepts an explicit env file', async () => {

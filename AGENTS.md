@@ -43,6 +43,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - Non-trivial work needs a plan or task list. If the implementation surface starts to balloon, stop and re-plan.
 - Large or high-risk PRs need meaningful, reviewable commits for each coherent change. Rewrite only the PR branch with `git push --force-with-lease` when needed to replace WIP or accidental squashed history before review.
 - Manual red/green UAT is blocking before a branch is ready for review. GitHub Actions is the authoritative merge gate.
+- For eval execution, experiments, repeat runs, providers, graders, or artifact-layout changes, dogfood with a live provider and a real LLM grader before marking ready. Mock graders, dry-run, and deterministic-only smoke tests are useful plumbing checks, but they are not live dogfood. Use canonical `.agentv/results/<experiment>/<timestamp>` output and publish private evidence. See [.agents/verification.md](.agents/verification.md).
 - For browser or screenshot UAT, keep evidence out of the public repo and publish reviewable artifacts to an `agentv-private` evidence branch. See [.agents/verification.md](.agents/verification.md).
 - Wire formats are `snake_case`; internal TypeScript is `camelCase`. Translate only at the boundary.
 - In AgentV, a `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite. Do not collapse those terms.

@@ -39,6 +39,8 @@ export interface ResultManifestRecord {
     readonly reasoning?: number;
   };
   readonly trace?: Record<string, unknown>;
+  readonly benchmark_path?: string;
+  readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
   readonly input_path?: string;

@@ -1,0 +1,9 @@
+name: trials-confidence-interval
+target: llm
+evals:
+  - math-basics
+  - capital-knowledge
+repeat:
+  count: 5
+  strategy: confidence_interval
+  cost_limit_usd: 2.00

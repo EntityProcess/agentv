@@ -346,13 +346,6 @@ const EvalTargetRefSchema = z.object({
 // Execution block
 // ---------------------------------------------------------------------------
 
-const TrialsSchema = z.object({
-  count: z.number().int().min(1),
-  strategy: z.enum(['pass_at_k', 'mean', 'confidence_interval']).optional(),
-  cost_limit_usd: z.number().min(0).optional(),
-  costLimitUsd: z.number().min(0).optional(),
-});
-
 /** Execution error tolerance: true or false */
 const FailOnErrorSchema = z.boolean();
 
@@ -364,7 +357,8 @@ const ExecutionSchema = z.object({
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
-  trials: TrialsSchema.optional(),
+  /** Removed before stable release. Run counts belong on experiment configs. */
+  trials: z.never().optional(),
   budget_usd: z.number().min(0).optional(),
   budgetUsd: z.number().min(0).optional(),
   fail_on_error: FailOnErrorSchema.optional(),

@@ -1,0 +1,9 @@
+name: trials-mean
+target: llm
+evals:
+  - math-basics
+  - capital-knowledge
+repeat:
+  count: 3
+  strategy: mean
+  cost_limit_usd: 1.50

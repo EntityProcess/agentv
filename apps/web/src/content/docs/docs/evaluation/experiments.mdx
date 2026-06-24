@@ -1,0 +1,147 @@
+---
+title: Experiments
+description: Configure how AgentV evals run
+sidebar:
+  order: 2
+---
+
+Experiments define **how** eval cases run: target or target matrix, setup,
+scripts, timeout, sandbox, case filters, and repeat-run policy. Eval files stay
+focused on **what** is tested: prompts, datasets, assertions, and task fixtures.
+
+## Experiment YAML
+
+Committed experiments conventionally live under `experiments/`:
+
+```yaml
+name: baseline
+target: codex-gpt5
+evals: "agent-*"
+timeout_seconds: 720
+repeat:
+  count: 4
+  strategy: pass_at_k
+  cost_limit_usd: 2.00
+setup:
+  - script: bun install
+scripts:
+  - build
+```
+
+Wire fields use `snake_case`. AgentV translates to internal `camelCase` when it
+loads the file.
+
+## Repeat runs
+
+`repeat` is the full AgentV replacement for the old eval-level
+`execution.trials` shape. It supports the same core strategies:
+
+```yaml
+repeat:
+  count: 3
+  strategy: mean
+  cost_limit_usd: 1.50
+```
+
+Supported strategies:
+
+| Strategy | Behavior |
+| --- | --- |
+| `pass_at_k` | Uses the best passing attempt; early-exits by default unless the experiment sets `early_exit: false` |
+| `mean` | Aggregates repeated attempt scores by mean |
+| `confidence_interval` | Uses the lower bound of a 95% confidence interval as the conservative score |
+
+`repeat.cost_limit_usd` caps repeat-run spend. `repeat.costLimitUsd` is also
+accepted for prerelease trial-schema parity, but new YAML should use
+`cost_limit_usd`.
+
+## Vercel-compatible shorthand
+
+AgentV also accepts Vercel-style top-level `runs` and `early_exit`:
+
+```yaml
+runs: 4
+early_exit: true
+```
+
+This is shorthand for a `pass_at_k` repeat run. Use `repeat` when you need
+AgentV-specific strategy or cost-limit fields.
+
+Do not set both `repeat` and `runs` in the same experiment. `repeat` is the
+canonical AgentV shape; `runs` exists only for Vercel-compatible shorthand.
+
+Vercel defines the requested run count at the experiment level. Some result
+summaries show fewer actual runs for a case because `earlyExit: true` stops
+remaining attempts after the first pass; smoke runs can also force one run.
+AgentV follows the same experiment-level placement while keeping the richer
+`repeat` block for AgentV strategies.
+
+Repeat-enabled cases use a Vercel-style physical layout with AgentV aggregate
+provenance:
+
+```text
+<run-dir>/index.jsonl
+<run-dir>/benchmark.json
+<run-dir>/<suite>/<case-id>/summary.json
+<run-dir>/<suite>/<case-id>/grading.json
+<run-dir>/<suite>/<case-id>/run-1/result.json
+<run-dir>/<suite>/<case-id>/run-1/transcript.json
+<run-dir>/<suite>/<case-id>/run-1/transcript-raw.jsonl
+<run-dir>/<suite>/<case-id>/run-1/outputs/answer.md
+<run-dir>/<suite>/<case-id>/run-1/grading.json
+```
+
+The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
+fingerprint, and flattened snake_case timing fields such as
+`mean_duration_ms`, and `grading.json` for compact trial/aggregation verdicts.
+Each `run-N/result.json` is the per-attempt manifest and includes
+`grading_path`, transcript/output paths, and embedded timing/o11y metrics.
+Root `index.jsonl` and root `benchmark.json` remain stable for existing CI
+summary scripts and uploaded artifact consumers.
+
+## Targets and setup
+
+Experiments reuse targets from `.agentv/targets.yaml`; they do not define a new
+provider registry.
+
+```yaml
+targets:
+  - copilot
+  - claude
+  - name: gemini-with-hooks
+    use_target: gemini
+```
+
+Setup and scripts belong on the experiment because they are often the A/B
+variable:
+
+```yaml
+setup:
+  - script: cp skills/with-docs/AGENTS.md AGENTS.md
+scripts:
+  - script: bun test
+    timeout_seconds: 120
+```
+
+## Running experiments
+
+Run a specific experiment:
+
+```bash
+bun agentv eval evals/suite.eval.yaml --experiment experiments/default.yaml
+```
+
+If no experiment is passed, AgentV checks `.agentv/config.yaml` for a default:
+
+```yaml
+experiments:
+  default: experiments/default.yaml
+```
+
+If no default is configured, AgentV keeps the old behavior and uses the
+`default` experiment label.
+
+## Schema
+
+The generated JSON Schema is available at
+`skills-data/agentv-eval-writer/references/experiment-schema.json`.

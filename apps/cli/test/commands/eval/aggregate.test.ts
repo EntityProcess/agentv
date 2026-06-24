@@ -191,12 +191,12 @@ describe('writePerTestArtifacts', () => {
     expect(grading2.assertions).toHaveLength(1);
   });
 
-  it('writes response.md for results with output', async () => {
+  it('writes outputs/answer.md for results with output', async () => {
     const results = [makeResult({ testId: 'test-1', output: 'hello' })];
 
     await writePerTestArtifacts(results, tmpDir);
 
-    const response = readFileSync(path.join(tmpDir, 'test-1', 'outputs', 'response.md'), 'utf8');
-    expect(response).toContain('hello');
+    const answer = readFileSync(path.join(tmpDir, 'test-1', 'outputs', 'answer.md'), 'utf8');
+    expect(answer).toContain('hello');
   });
 });

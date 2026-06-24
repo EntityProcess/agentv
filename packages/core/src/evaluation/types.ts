@@ -1065,6 +1065,8 @@ export interface TrialsConfig {
   readonly count: number;
   readonly strategy: TrialStrategy;
   readonly costLimitUsd?: number;
+  /** When false, pass_at_k runs all configured attempts instead of stopping at first pass. */
+  readonly earlyExit?: boolean;
 }
 
 /**
@@ -1083,6 +1085,11 @@ export interface TrialResult {
   readonly failureStage?: FailureStage;
   /** Machine-readable failure reason code */
   readonly failureReasonCode?: string;
+  /**
+   * Full per-attempt result used by artifact writers to materialize Vercel-style
+   * run-N folders. This is intentionally omitted from wire trial summaries.
+   */
+  readonly result?: EvaluationResult;
 }
 
 /**

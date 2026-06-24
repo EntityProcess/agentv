@@ -87,12 +87,13 @@ export type ProjectionBundleArtifactRefs = Partial<
   Pick<
     IndexArtifactEntry,
     | 'artifact_dir'
+    | 'benchmark_path'
+    | 'summary_path'
     | 'grading_path'
     | 'timing_path'
     | 'input_path'
     | 'output_path'
     | 'answer_path'
-    | 'response_path'
     | 'transcript_path'
     | 'metrics_path'
     | 'task_dir'
@@ -172,11 +173,12 @@ function artifactRefs(
   return dropUndefined({
     ...metadataRefs,
     artifact_dir: indexEntry.artifact_dir,
+    benchmark_path: indexEntry.benchmark_path,
+    summary_path: indexEntry.summary_path,
     grading_path: indexEntry.grading_path,
     input_path: indexEntry.input_path,
     output_path: indexEntry.output_path,
     answer_path: indexEntry.answer_path,
-    response_path: indexEntry.response_path,
     transcript_path: indexEntry.transcript_path,
     metrics_path: indexEntry.metrics_path,
     trace_path: tracePathFor(indexEntry),
@@ -280,7 +282,6 @@ function buildEntry(
     artifacts: {
       trace_path: tracePathFor(indexRecord ?? plannedIndexEntry),
       answer_path: result.output.length > 0 ? 'outputs/answer.md' : undefined,
-      response_path: result.output.length > 0 ? 'outputs/response.md' : undefined,
     },
     duplicatePolicy: options.duplicatePolicy,
     capture: captureOptions(includeRawContent),

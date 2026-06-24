@@ -1,0 +1,9 @@
+name: trials
+target: llm
+evals:
+  - math-basics
+  - capital-knowledge
+repeat:
+  count: 2
+  strategy: pass_at_k
+  cost_limit_usd: 1.00

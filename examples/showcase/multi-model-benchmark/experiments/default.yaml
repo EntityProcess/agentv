@@ -1,0 +1,15 @@
+name: multi-model-benchmark
+targets:
+  - copilot
+  - claude
+  - gemini-llm
+evals:
+  - factual-geography
+  - factual-science
+  - analytical-comparison
+  - creative-explanation
+  - structured-list
+repeat:
+  count: 2
+  strategy: pass_at_k
+  cost_limit_usd: 2.00

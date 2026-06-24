@@ -21,6 +21,7 @@ const MIGRATION_GUIDANCE =
 const RESULT_ROW_ALIASES = {
   answerPath: 'answer_path',
   artifactDir: 'artifact_dir',
+  benchmarkPath: 'benchmark_path',
   conversationId: 'conversation_id',
   costUsd: 'cost_usd',
   durationMs: 'duration_ms',
@@ -38,6 +39,7 @@ const RESULT_ROW_ALIASES = {
   rawProviderLogPath: 'raw_provider_log_path',
   responsePath: 'response_path',
   startTime: 'start_time',
+  summaryPath: 'summary_path',
   targetsPath: 'targets_path',
   taskDir: 'task_dir',
   testId: 'test_id',
@@ -176,6 +178,7 @@ function looksLikeResultRow(value: Record<string, unknown>): boolean {
     Object.hasOwn(value, 'trace') ||
     Object.hasOwn(value, 'spans') ||
     Object.hasOwn(value, 'target') ||
+    Object.hasOwn(value, 'benchmark_path') ||
     Object.hasOwn(value, 'grading_path') ||
     Object.hasOwn(value, 'timing_path')
   );

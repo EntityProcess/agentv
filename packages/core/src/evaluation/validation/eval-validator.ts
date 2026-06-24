@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { interpolateEnv } from '../interpolation.js';
 import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-loader.js';
+import { buildSearchRoots } from '../loaders/file-resolver.js';
+import { loadPromptMdFallback } from '../loaders/prompt-md-fallback.js';
 import { isGraderKind } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
@@ -381,9 +383,21 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     }
 
-    // input field (string/object shorthand or message array)
+    // input field (string/object shorthand or message array). When omitted,
+    // AgentV accepts Vercel-style PROMPT.md fallback beside EVAL.yaml or in input_files.
+    const caseExecution = isObject(evalCase.execution) ? evalCase.execution : undefined;
+    const skipDefaults = caseExecution?.skip_defaults === true;
+    const hasPromptMdFallback =
+      evalCase.input === undefined
+        ? (await loadPromptMdFallback({
+            evalFilePath: absolutePath,
+            searchRoots: buildSearchRoots(absolutePath, process.cwd()),
+            testInputFiles: evalCase.input_files,
+            suiteInputFiles: skipDefaults ? undefined : parsed.input_files,
+          })) !== undefined
+        : false;
     validateInputField(evalCase.input, `${location}.input`, absolutePath, errors, {
-      required: true,
+      required: !hasPromptMdFallback,
     });
 
     // expected_output field (string/object shorthand or message array)
@@ -683,7 +697,8 @@ function validateInputField(
         severity: 'error',
         filePath,
         location,
-        message: "Missing 'input' field (must be a string, object, or array of messages)",
+        message:
+          "Missing 'input' field (provide a string, object, message array, or PROMPT.md next to EVAL.yaml / referenced in input_files)",
       });
     }
     return;

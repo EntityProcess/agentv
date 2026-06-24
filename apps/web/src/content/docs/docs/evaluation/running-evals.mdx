@@ -114,8 +114,8 @@ my-results/
   <test-id>/
     grading.json
     timing.json
-    input.md
-    outputs/response.md
+    task/PROMPT.md
+    outputs/answer.md
     task/
       EVAL.yaml
       targets.yaml
@@ -131,6 +131,11 @@ share the generated run directory and its `index.jsonl` manifest. Source-side
 case directories are still useful for organizing bulky prompts, fixtures, or
 tests while authoring an eval, but they are optional input organization rather
 than a separate artifact schema.
+
+If the source eval uses the `PROMPT.md` fallback instead of inline `input`,
+AgentV still writes the resolved task prompt to the generated
+`task/PROMPT.md`. This keeps the run artifact self-contained without requiring
+the same long prompt to be duplicated in both Markdown and YAML.
 
 ### Manual or External-Agent Attempts
 

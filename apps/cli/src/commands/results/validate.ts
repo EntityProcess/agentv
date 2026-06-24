@@ -6,7 +6,7 @@
  *   1. Directory follows the `.agentv/results/<experiment>/<timestamp>` naming convention
  *   2. index.jsonl exists and each line has required fields
  *   3. Per-test grading.json exists for every entry in the index
- *   4. Per-test timing.json exists (warning if missing)
+ *   4. Per-test timing.json exists for direct case rows (warning if missing)
  *   5. benchmark.json exists (warning if missing)
  *   6. Scores are within [0, 1]
  *   7. index.jsonl entries have `scores[]` array (warning if missing — dashboard needs it)
@@ -34,6 +34,8 @@ interface IndexEntry {
   readonly target?: string;
   readonly scores?: unknown[];
   readonly execution_status?: string;
+  readonly benchmark_path?: string;
+  readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
   readonly [key: string]: unknown;
@@ -139,10 +141,10 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
         });
       }
 
-      if (!entry.grading_path) {
+      if (!entry.grading_path && !entry.benchmark_path) {
         diagnostics.push({
           severity: 'warning',
-          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'grading_path'`,
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'grading_path' or 'benchmark_path'`,
         });
       }
 
@@ -202,6 +204,26 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
 
   for (const entry of entries) {
     const testId = entry.test_id ?? '?';
+
+    if (entry.summary_path) {
+      const summaryPath = path.join(runDir, entry.summary_path);
+      if (!existsSync(summaryPath)) {
+        diagnostics.push({
+          severity: 'error',
+          message: `${testId}: summary.json not found at '${entry.summary_path}'`,
+        });
+      }
+    }
+
+    if (entry.benchmark_path) {
+      const benchmarkPath = path.join(runDir, entry.benchmark_path);
+      if (!existsSync(benchmarkPath)) {
+        diagnostics.push({
+          severity: 'error',
+          message: `${testId}: benchmark.json not found at '${entry.benchmark_path}'`,
+        });
+      }
+    }
 
     // Check grading.json
     if (entry.grading_path) {

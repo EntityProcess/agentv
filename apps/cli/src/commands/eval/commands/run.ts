@@ -11,7 +11,6 @@ import {
 } from 'cmd-ts';
 
 import { runEvalCommand } from '../run-eval.js';
-import { resolveEvalPaths } from '../shared.js';
 
 export const evalRunCommand = command({
   name: 'eval',
@@ -264,14 +263,6 @@ export const evalRunCommand = command({
     }),
   },
   handler: async (args) => {
-    // Launch interactive wizard when no eval paths and stdin is a TTY
-    if (args.evalPaths.length === 0 && process.stdin.isTTY) {
-      const { launchInteractiveWizard } = await import('../interactive.js');
-      await launchInteractiveWizard();
-      return;
-    }
-
-    const resolvedPaths = await resolveEvalPaths(args.evalPaths, process.cwd());
     if (args.budgetUsd !== undefined && args.budgetUsd <= 0) {
       console.error('Error: --budget-usd must be a positive number.');
       process.exit(2);
@@ -330,7 +321,7 @@ export const evalRunCommand = command({
       recordReplay: args.recordReplay,
       recordReplayVariant: args.recordReplayVariant,
     };
-    const result = await runEvalCommand({ testFiles: resolvedPaths, rawOptions });
+    const result = await runEvalCommand({ testFiles: args.evalPaths, rawOptions });
     if (result?.allExecutionErrors) {
       process.exit(2);
     }

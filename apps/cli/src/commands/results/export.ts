@@ -9,9 +9,8 @@
  *     <test-id>/
  *       grading.json           — per-test grading artifact (assertions, graders)
  *       timing.json            — per-test timing artifact
- *       outputs/
- *         response.md          — human-readable agent response for this test
- *       input.md               — human-readable input messages for this test
+ *       outputs/answer.md              — human-readable agent response for this test
+ *       task/PROMPT.md               — human-readable input messages for this test
  *
  * This module delegates artifact building to the shared artifact-writer so
  * that benchmark/grading/timing schemas stay aligned with `agentv eval`.

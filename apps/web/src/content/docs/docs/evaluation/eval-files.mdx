@@ -5,13 +5,13 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, targets, and graders for an evaluation run. AgentV supports two formats: YAML and JSONL.
+Evaluation files define the test cases and graders for an evaluation run. Runtime choices such as target matrices, setup, scripts, and repeat runs belong in [experiments](/docs/evaluation/experiments/). AgentV supports two eval formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 
 ## Suites
 
-An eval file is a **suite**: it binds test cases to execution context (workspace, hooks, targets, trials). Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
+An eval file is a **suite**: it binds test cases to task context, assertions, and reusable fixtures. Runtime choices such as target matrices, setup, and run counts belong in experiments. Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
 
 ## YAML Format
 
@@ -185,6 +185,35 @@ tests:
 Each test's effective input becomes a single user message with `[file blocks..., text block]`.
 
 Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `execution.skip_defaults: true` on the test.
+
+### PROMPT.md Fallback
+
+For Vercel-style eval directories, a test may omit `input` and keep the task
+prompt in Markdown instead. AgentV resolves the prompt in this order:
+
+1. If the effective `input_files` contains a file named exactly `PROMPT.md`, that file becomes the test prompt.
+2. Otherwise, if a `PROMPT.md` exists beside the `EVAL.yaml`, that file becomes the test prompt.
+3. Other `input_files` remain attachments. `PROMPT.md` is removed from the attachment list so the prompt is not duplicated.
+
+```text
+agent-001-fix-bug/
+  EVAL.yaml
+  PROMPT.md
+  fixtures/
+    failing-test.log
+```
+
+```yaml
+tests:
+  - id: fix-bug
+    criteria: Fixes the regression described in the prompt
+    input_files:
+      - ./fixtures/failing-test.log
+```
+
+Use explicit `input` when the prompt is short or generated from YAML variables.
+Use `PROMPT.md` when the task text is long enough that duplicating it inside
+YAML would make the eval hard to review.
 
 ### Tests as String Path
 

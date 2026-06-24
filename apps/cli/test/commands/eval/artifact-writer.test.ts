@@ -142,6 +142,56 @@ describe('buildGradingArtifact', () => {
     });
   });
 
+  it('preserves repeat trial metadata', () => {
+    const result = makeResult({
+      trials: [
+        {
+          attempt: 0,
+          score: 0.4,
+          verdict: 'fail',
+          executionStatus: 'quality_failure',
+          failureStage: 'evaluator',
+          failureReasonCode: 'threshold_not_met',
+        },
+        {
+          attempt: 1,
+          score: 1,
+          verdict: 'pass',
+          costUsd: 0.03,
+        },
+      ],
+      aggregation: {
+        strategy: 'pass_at_k',
+        passedAttempts: 1,
+        totalAttempts: 2,
+      },
+    });
+
+    const grading = buildGradingArtifact(result);
+
+    expect(grading.trials).toEqual([
+      {
+        attempt: 0,
+        score: 0.4,
+        verdict: 'fail',
+        execution_status: 'quality_failure',
+        failure_stage: 'evaluator',
+        failure_reason_code: 'threshold_not_met',
+      },
+      {
+        attempt: 1,
+        score: 1,
+        verdict: 'pass',
+        cost_usd: 0.03,
+      },
+    ]);
+    expect(grading.aggregation).toEqual({
+      strategy: 'pass_at_k',
+      passed_attempts: 1,
+      total_attempts: 2,
+    });
+  });
+
   it('uses top-level assertions when no grader scores', () => {
     const result = makeResult({
       assertions: [
@@ -176,10 +226,10 @@ describe('buildGradingArtifact', () => {
     expect(grading.graders?.[1].score).toBe(0.7);
   });
 
-  it('records error as errors_encountered', () => {
+  it('keeps grading.json focused on grading evidence', () => {
     const result = makeResult({ error: 'Timeout exceeded' });
     const grading = buildGradingArtifact(result);
-    expect(grading.execution_metrics.errors_encountered).toBe(1);
+    expect(grading).not.toHaveProperty('execution_metrics');
   });
 
   it('handles result with no assertions or scores', () => {
@@ -528,8 +578,9 @@ describe('buildIndexArtifactEntry', () => {
         outputDir: '/tmp/artifacts',
         gradingPath: '/tmp/artifacts/alpha/grading.json',
         timingPath: '/tmp/artifacts/alpha/timing.json',
-        outputPath: '/tmp/artifacts/alpha/outputs/response.md',
-        inputPath: '/tmp/artifacts/alpha/input.md',
+        outputPath: '/tmp/artifacts/alpha/outputs/answer.md',
+        answerPath: '/tmp/artifacts/alpha/outputs/answer.md',
+        inputPath: '/tmp/artifacts/alpha/task/PROMPT.md',
       },
     );
 
@@ -559,8 +610,43 @@ describe('buildIndexArtifactEntry', () => {
       error: 'model drift',
       grading_path: 'alpha/grading.json',
       timing_path: 'alpha/timing.json',
-      output_path: 'alpha/outputs/response.md',
-      input_path: 'alpha/input.md',
+      output_path: 'alpha/outputs/answer.md',
+      answer_path: 'alpha/outputs/answer.md',
+      input_path: 'alpha/task/PROMPT.md',
+    });
+  });
+
+  it('includes repeat trial metadata', () => {
+    const entry = buildIndexArtifactEntry(
+      makeResult({
+        testId: 'alpha',
+        trials: [
+          { attempt: 0, score: 0.8, verdict: 'pass' },
+          { attempt: 1, score: 0.6, verdict: 'fail', error: 'missing token' },
+        ],
+        aggregation: {
+          strategy: 'mean',
+          mean: 0.7,
+          min: 0.6,
+          max: 0.8,
+        },
+      }),
+      {
+        outputDir: '/tmp/artifacts',
+        gradingPath: '/tmp/artifacts/alpha/grading.json',
+        timingPath: '/tmp/artifacts/alpha/timing.json',
+      },
+    );
+
+    expect(entry.trials).toEqual([
+      { attempt: 0, score: 0.8, verdict: 'pass' },
+      { attempt: 1, score: 0.6, verdict: 'fail', error: 'missing token' },
+    ]);
+    expect(entry.aggregation).toEqual({
+      strategy: 'mean',
+      mean: 0.7,
+      min: 0.6,
+      max: 0.8,
     });
   });
 });
@@ -791,7 +877,7 @@ describe('writeArtifactsFromResults', () => {
       await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
     );
     expect(alphaGrading.summary).toBeDefined();
-    expect(alphaGrading.execution_metrics).toBeDefined();
+    expect(alphaGrading).not.toHaveProperty('execution_metrics');
 
     const alphaTiming: TimingArtifact = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'alpha', 'timing.json'), 'utf8'),
@@ -817,6 +903,191 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines[0]?.trace_path).toBe('alpha/trace.json');
     expect(indexLines[0]?.transcript_path).toBe('alpha/transcript.jsonl');
     expect(indexLines[0]?.metrics_path).toBe('alpha/metrics.json');
+  });
+
+  it('writes repeat runs in Vercel-compatible case and run folders', async () => {
+    const results = [
+      makeResult({
+        testId: 'repeat-case',
+        score: 1,
+        trials: [
+          {
+            attempt: 0,
+            score: 0.25,
+            verdict: 'fail',
+            result: makeResult({
+              testId: 'repeat-case',
+              score: 0.25,
+              output: 'first attempt',
+              durationMs: 2000,
+              executionStatus: 'quality_failure',
+            }),
+          },
+          {
+            attempt: 1,
+            score: 1,
+            verdict: 'pass',
+            result: makeResult({
+              testId: 'repeat-case',
+              score: 1,
+              output: 'second attempt',
+              durationMs: 4000,
+            }),
+          },
+        ],
+        aggregation: {
+          strategy: 'confidence_interval',
+          mean: 0.625,
+          ci95Lower: 0.1,
+          ci95Upper: 1,
+          stddev: 0.53,
+        },
+      }),
+    ];
+
+    const sourceTests = [
+      {
+        id: 'repeat-case',
+        input: [{ role: 'user', content: 'Repeat this task prompt.' }],
+        expected_output: [],
+        reference_answer: '',
+        file_paths: [],
+        criteria: 'Repeats the task prompt',
+        evaluator: 'llm-grader',
+        assertions: [],
+      } as unknown as EvalTest,
+    ];
+
+    const paths = await writeArtifactsFromResults(results, testDir, { sourceTests });
+
+    const [indexEntry] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    expect(indexEntry?.trials).toEqual([
+      { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
+      { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
+    ]);
+    expect(indexEntry?.aggregation).toEqual({
+      strategy: 'confidence_interval',
+      mean: 0.625,
+      ci95_lower: 0.1,
+      ci95_upper: 1,
+      stddev: 0.53,
+    });
+    expect(indexEntry?.artifact_dir).toBe('repeat-case');
+    expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
+    expect(indexEntry?.task_dir).toBe('repeat-case/task');
+    expect(indexEntry?.input_path).toBe('repeat-case/task/PROMPT.md');
+    expect(indexEntry?.benchmark_path).toBeUndefined();
+    expect(indexEntry?.grading_path).toBe('repeat-case/grading.json');
+    expect(indexEntry?.timing_path).toBeUndefined();
+    expect(indexEntry?.metrics_path).toBeUndefined();
+
+    const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
+    expect(repeatEntries.sort()).toEqual([
+      'grading.json',
+      'run-1',
+      'run-2',
+      'summary.json',
+      'task',
+    ]);
+
+    const prompt = await readFile(
+      path.join(paths.testArtifactDir, 'repeat-case', 'task', 'PROMPT.md'),
+      'utf8',
+    );
+    expect(prompt).toBe('@[user]:\nRepeat this task prompt.');
+
+    const caseSummary = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(caseSummary).toMatchObject({
+      total_runs: 2,
+      passed_runs: 1,
+      pass_rate: '50%',
+      mean_duration_ms: 3000,
+      mean_duration_seconds: 3,
+      duration_ms: 6000,
+      total_duration_seconds: 6,
+      duration_stats: {
+        count: 2,
+        mean_ms: 3000,
+        mean_seconds: 3,
+        stddev_ms: 1000,
+        stddev_seconds: 1,
+        min_ms: 2000,
+        max_ms: 4000,
+      },
+      total_tokens: 0,
+      cost_usd: null,
+      token_usage: { input: 0, output: 0, reasoning: 0 },
+      usage_sources: {
+        token_usage: 'unavailable',
+        total_tokens: 'unavailable',
+        duration: 'aggregate',
+        cost: 'unavailable',
+      },
+    });
+    expect(typeof caseSummary.fingerprint).toBe('string');
+
+    const aggregateGrading: GradingArtifact = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
+    );
+    expect(aggregateGrading.trials).toEqual(indexEntry?.trials);
+    expect(aggregateGrading.aggregation).toEqual(indexEntry?.aggregation);
+
+    for (const runDir of ['run-1', 'run-2']) {
+      const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
+      expect(runEntries.sort()).toEqual([
+        'grading.json',
+        'outputs',
+        'result.json',
+        'transcript-raw.jsonl',
+        'transcript.json',
+      ]);
+    }
+
+    const runOneResult = JSON.parse(
+      await readFile(
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-1', 'result.json'),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    expect(runOneResult).toMatchObject({
+      status: 'failed',
+      duration_ms: 2000,
+      duration_seconds: 2,
+      model: 'test-target',
+      grading_path: './grading.json',
+      transcript_path: './transcript.json',
+      transcript_raw_path: './transcript-raw.jsonl',
+      output_paths: { answer: './outputs/answer.md' },
+      timing: {
+        duration_ms: 2000,
+      },
+    });
+
+    const runTwoAnswer = await readFile(
+      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'answer.md'),
+      'utf8',
+    );
+    expect(runTwoAnswer).toBe('second attempt');
+
+    const runTwoResult = JSON.parse(
+      await readFile(
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'result.json'),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    expect(runTwoResult).toMatchObject({
+      grading_path: './grading.json',
+      transcript_path: './transcript.json',
+      transcript_raw_path: './transcript-raw.jsonl',
+      timing: {
+        duration_ms: 4000,
+      },
+    });
   });
 
   it('handles empty results array', async () => {

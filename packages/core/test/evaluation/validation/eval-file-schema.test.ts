@@ -35,4 +35,18 @@ describe('EvalFileSchema input shorthand', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejects eval-level execution.trials because run counts belong on experiments', () => {
+    const result = EvalFileSchema.safeParse({
+      execution: {
+        trials: {
+          count: 2,
+          strategy: 'pass_at_k',
+        },
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

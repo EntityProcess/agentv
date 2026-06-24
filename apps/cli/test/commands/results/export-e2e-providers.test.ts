@@ -466,10 +466,12 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.summary.failed).toBe(0);
       expect(grading.summary.pass_rate).toBe(1.0);
 
-      // Tool calls from trace
-      expect(grading.execution_metrics.total_tool_calls).toBe(3);
-      expect(grading.execution_metrics.tool_calls.Read).toBe(2);
-      expect(grading.execution_metrics.tool_calls.Write).toBe(1);
+      const metrics = JSON.parse(
+        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'metrics.json'), 'utf8'),
+      );
+      expect(metrics.metrics.total_tool_calls).toBe(3);
+      expect(metrics.metrics.tool_call_counts.Read).toBe(2);
+      expect(metrics.metrics.tool_call_counts.Write).toBe(1);
 
       // Graders
       expect(grading.graders).toHaveLength(1);
@@ -490,8 +492,10 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.summary.failed).toBe(1);
       expect(grading.summary.pass_rate).toBe(0.5);
 
-      // No trace means no tool calls
-      expect(grading.execution_metrics.total_tool_calls).toBe(0);
+      const metrics = JSON.parse(
+        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'metrics.json'), 'utf8'),
+      );
+      expect(metrics.metrics.total_tool_calls).toBe(0);
     });
 
     it('should handle error result in grading', async () => {
@@ -507,7 +511,10 @@ describe('export e2e — multi-provider metrics verification', () => {
       // Error result has empty assertions
       expect(grading.summary.total).toBe(0);
       expect(grading.summary.pass_rate).toBe(0);
-      expect(grading.execution_metrics.errors_encountered).toBe(1);
+      const metrics = JSON.parse(
+        readFileSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'metrics.json'), 'utf8'),
+      );
+      expect(metrics.metrics.errors_encountered).toBe(1);
     });
 
     it('should produce grading files for all test IDs in multi-target run', async () => {

@@ -18,6 +18,11 @@ Comprehensive docs: https://agentv.dev
 
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
+Eval files define what is tested: prompts, datasets, assertions, and task fixtures.
+Experiment files define how those evals run: targets, setup, scripts, timeout,
+sandbox, and repeat-run policy. Use `experiments/*.yaml` for committed run
+configurations.
+
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
 ## Evaluation Types
@@ -759,6 +764,7 @@ Do not invent a separate Opik-specific eval surface. Keep the eval definition in
 ## Schemas
 
 - Eval file: `references/eval-schema.json`
+- Experiment file: `references/experiment-schema.json`
 - Config: `references/config-schema.json`
 
 ## Accessing reference files
@@ -767,12 +773,14 @@ To load a specific reference without pulling the entire skill into context:
 
 ```bash
 agentv skills get agentv-eval-writer --ref eval-schema.json
+agentv skills get agentv-eval-writer --ref experiment-schema.json
 ```
 
 Or resolve the skill directory and read files directly:
 
 ```bash
 cat $(agentv skills path agentv-eval-writer)/references/eval-schema.json
+cat $(agentv skills path agentv-eval-writer)/references/experiment-schema.json
 ```
 
 Use `--full` to retrieve every file in the skill at once.

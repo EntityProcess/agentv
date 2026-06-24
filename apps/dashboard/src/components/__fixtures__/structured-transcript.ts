@@ -86,7 +86,7 @@ export const structuredTranscriptFiles: FileNode[] = [
     type: 'dir',
     children: [
       { name: 'grading.json', path: 'final-json-answer__codex/grading.json', type: 'file' },
-      { name: 'answer.md', path: 'final-json-answer__codex/answer.md', type: 'file' },
+      { name: 'answer.md', path: 'final-json-answer__codex/outputs/answer.md', type: 'file' },
       {
         name: 'outputs',
         path: 'final-json-answer__codex/outputs',

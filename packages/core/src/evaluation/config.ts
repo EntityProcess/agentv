@@ -67,6 +67,18 @@ const AgentVConfigSchema = z.object({
     })
     .optional(),
 
+  /** Compatibility shorthand for experiments.default */
+  defaultExperiment: z.string().optional(),
+
+  /** Experiment defaults */
+  experiments: z
+    .object({
+      /** Default experiment label or path used when eval runs omit --experiment */
+      default: z.string().optional(),
+    })
+    .strict()
+    .optional(),
+
   /** Cost and duration limits */
   limits: z
     .object({

@@ -8,8 +8,6 @@ import type {
   FailOnError,
   JsonObject,
   TargetHooksConfig,
-  TrialStrategy,
-  TrialsConfig,
   WorkspaceHookConfig,
 } from '../types.js';
 import { isJsonObject } from '../types.js';
@@ -66,9 +64,17 @@ export type HooksConfig = {
   readonly before_session?: string;
 };
 
+export type ExperimentsConfig = {
+  /** Default experiment label or path used when `agentv eval` omits --experiment. */
+  readonly default?: string;
+};
+
 export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
+  /** Compatibility shorthand for experiments.default. */
+  readonly default_experiment?: string;
+  readonly experiments?: ExperimentsConfig;
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
@@ -140,12 +146,22 @@ async function readConfigFile(configPath: string): Promise<AgentVConfig | null> 
       (parsed as Record<string, unknown>).execution,
       configPath,
     );
+    const defaultExperiment = parseDefaultExperiment(
+      (parsed as Record<string, unknown>).default_experiment,
+      configPath,
+    );
+    const experiments = parseExperimentsConfig(
+      (parsed as Record<string, unknown>).experiments,
+      configPath,
+    );
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
 
     return {
       required_version: requiredVersion as string | undefined,
       eval_patterns: evalPatterns as readonly string[] | undefined,
+      ...(defaultExperiment && { default_experiment: defaultExperiment }),
+      ...(experiments && { experiments }),
       execution: executionDefaults,
       results,
       ...(hooks && { hooks }),
@@ -321,74 +337,6 @@ export function extractTargetsFromTestCase(testCase: JsonObject): readonly strin
   }
 
   return undefined;
-}
-
-const VALID_TRIAL_STRATEGIES: ReadonlySet<string> = new Set([
-  'pass_at_k',
-  'mean',
-  'confidence_interval',
-]);
-
-/**
- * Extract trials configuration from parsed eval suite's execution block.
- * Returns undefined when count is 1 or not specified (no-op).
- */
-export function extractTrialsConfig(suite: JsonObject): TrialsConfig | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
-    return undefined;
-  }
-
-  const trials = (execution as Record<string, unknown>).trials;
-  if (!trials || typeof trials !== 'object' || Array.isArray(trials)) {
-    return undefined;
-  }
-
-  const trialsObj = trials as Record<string, unknown>;
-  const count = trialsObj.count;
-
-  if (count === undefined || count === null) {
-    return undefined;
-  }
-
-  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
-    logWarning(
-      `Invalid trials.count: ${count}, must be a positive integer. Ignoring trials config.`,
-    );
-    return undefined;
-  }
-
-  if (count === 1) {
-    return undefined;
-  }
-
-  // Parse strategy (default: pass_at_k)
-  const rawStrategy = trialsObj.strategy;
-  let strategy: TrialStrategy = 'pass_at_k';
-  if (rawStrategy !== undefined && rawStrategy !== null) {
-    if (typeof rawStrategy !== 'string' || !VALID_TRIAL_STRATEGIES.has(rawStrategy)) {
-      logWarning(
-        `Invalid trials.strategy: '${rawStrategy}'. Must be one of: pass_at_k, mean, confidence_interval. Defaulting to pass_at_k.`,
-      );
-    } else {
-      strategy = rawStrategy as TrialStrategy;
-    }
-  }
-
-  // Parse cost_limit_usd (accepts both snake_case and camelCase)
-  const rawCostLimit = trialsObj.cost_limit_usd ?? trialsObj.costLimitUsd;
-  let costLimitUsd: number | undefined;
-  if (rawCostLimit !== undefined && rawCostLimit !== null) {
-    if (typeof rawCostLimit === 'number' && rawCostLimit > 0) {
-      costLimitUsd = rawCostLimit;
-    } else {
-      logWarning(
-        `Invalid trials.cost_limit_usd: ${rawCostLimit}. Must be a positive number. Ignoring.`,
-      );
-    }
-  }
-
-  return { count, strategy, costLimitUsd };
 }
 
 /**
@@ -591,6 +539,46 @@ export function parseExecutionDefaults(
   }
 
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
+}
+
+export function resolveDefaultExperimentReference(
+  config: AgentVConfig | null | undefined,
+): string | undefined {
+  return config?.experiments?.default ?? config?.default_experiment;
+}
+
+function parseDefaultExperiment(raw: unknown, configPath: string): string | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  const value = readTrimmedString(raw);
+  if (!value) {
+    logWarning(`Invalid default_experiment in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+  return value;
+}
+
+export function parseExperimentsConfig(
+  raw: unknown,
+  configPath: string,
+): ExperimentsConfig | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid experiments in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const defaultExperiment = readTrimmedString(obj.default);
+  if (obj.default !== undefined && !defaultExperiment) {
+    logWarning(`Invalid experiments.default in ${configPath}, expected non-empty string`);
+    return undefined;
+  }
+
+  return defaultExperiment ? { default: defaultExperiment } : undefined;
 }
 
 function isFilesystemPath(p: string): boolean {

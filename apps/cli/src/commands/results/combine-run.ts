@@ -363,6 +363,8 @@ function resolveCombinedExperiment(
 
 const MANIFEST_PATH_FIELDS = [
   'artifact_dir',
+  'benchmark_path',
+  'summary_path',
   'grading_path',
   'timing_path',
   'input_path',

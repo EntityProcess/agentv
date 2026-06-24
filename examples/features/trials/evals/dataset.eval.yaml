@@ -1,15 +1,8 @@
-# AgentV Trial Strategy Example
-# Demonstrates execution.trials for handling LLM non-determinism
+# AgentV Repeat Strategy Example
+# Demonstrates experiment-level repeat runs for handling LLM non-determinism
 
 name: trials
-description: Trial strategy example - pass@k with 2 trials
-
-execution:
-  target: llm
-  trials:
-    count: 2
-    strategy: pass_at_k
-    cost_limit_usd: 1.00
+description: Repeat strategy example - pass@k with 2 attempts configured by experiment
 
 tests:
   - id: math-basics
