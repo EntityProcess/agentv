@@ -5,9 +5,9 @@
  * Checks:
  *   1. Directory follows the `.agentv/results/<experiment>/<timestamp>` naming convention
  *   2. index.jsonl exists and each line has required fields
- *   3. Per-test grading.json exists for every entry in the index
- *   4. Per-test timing.json exists for direct case rows (warning if missing)
- *   5. benchmark.json exists (warning if missing)
+ *   3. Root summary.json exists
+ *   4. Per-case summary.json exists for every entry in the index
+ *   5. Per-run result.json and grading.json exist for materialized run paths
  *   6. Scores are within [0, 1]
  *   7. index.jsonl entries have `scores[]` array (warning if missing — dashboard needs it)
  *
@@ -34,10 +34,11 @@ interface IndexEntry {
   readonly target?: string;
   readonly scores?: unknown[];
   readonly execution_status?: string;
-  readonly benchmark_path?: string;
   readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
+  readonly artifact_dir?: string;
+  readonly trials?: readonly { readonly run_path?: string }[];
   readonly [key: string]: unknown;
 }
 
@@ -141,10 +142,10 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
         });
       }
 
-      if (!entry.grading_path && !entry.benchmark_path) {
+      if (!entry.summary_path) {
         diagnostics.push({
           severity: 'warning',
-          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'grading_path' or 'benchmark_path'`,
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'summary_path'`,
         });
       }
 
@@ -202,6 +203,11 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
 function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
 
+  const rootSummaryPath = path.join(runDir, 'summary.json');
+  if (!existsSync(rootSummaryPath)) {
+    diagnostics.push({ severity: 'error', message: 'summary.json is missing' });
+  }
+
   for (const entry of entries) {
     const testId = entry.test_id ?? '?';
 
@@ -211,16 +217,6 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
         diagnostics.push({
           severity: 'error',
           message: `${testId}: summary.json not found at '${entry.summary_path}'`,
-        });
-      }
-    }
-
-    if (entry.benchmark_path) {
-      const benchmarkPath = path.join(runDir, entry.benchmark_path);
-      if (!existsSync(benchmarkPath)) {
-        diagnostics.push({
-          severity: 'error',
-          message: `${testId}: benchmark.json not found at '${entry.benchmark_path}'`,
         });
       }
     }
@@ -257,6 +253,27 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       }
     }
 
+    if (entry.artifact_dir && Array.isArray(entry.trials)) {
+      for (const trial of entry.trials) {
+        if (!trial.run_path) continue;
+        const runPath = path.join(runDir, entry.artifact_dir, trial.run_path);
+        const resultPath = path.join(runPath, 'result.json');
+        const gradingPath = path.join(runPath, 'grading.json');
+        if (!existsSync(resultPath)) {
+          diagnostics.push({
+            severity: 'error',
+            message: `${testId}: result.json not found at '${path.relative(runDir, resultPath)}'`,
+          });
+        }
+        if (!existsSync(gradingPath)) {
+          diagnostics.push({
+            severity: 'error',
+            message: `${testId}: grading.json not found at '${path.relative(runDir, gradingPath)}'`,
+          });
+        }
+      }
+    }
+
     // Check timing.json
     if (entry.timing_path) {
       const timingPath = path.join(runDir, entry.timing_path);
@@ -267,12 +284,6 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
         });
       }
     }
-  }
-
-  // Check benchmark.json
-  const benchmarkPath = path.join(runDir, 'benchmark.json');
-  if (!existsSync(benchmarkPath)) {
-    diagnostics.push({ severity: 'warning', message: 'benchmark.json is missing' });
   }
 
   return diagnostics;

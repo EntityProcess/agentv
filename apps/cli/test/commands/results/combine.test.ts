@@ -90,10 +90,10 @@ describe('results combine', () => {
     expect(
       existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/grading.json')),
     ).toBe(true);
-    const benchmark = JSON.parse(readFileSync(combined.benchmarkPath, 'utf8')) as {
+    const summary = JSON.parse(readFileSync(combined.summaryPath, 'utf8')) as {
       metadata: { timestamp: string };
     };
-    expect(benchmark.metadata.timestamp).toBe('2026-06-01T10:00:00.000Z');
+    expect(summary.metadata.timestamp).toBe('2026-06-01T10:00:00.000Z');
   });
 
   it('inherits a shared non-default source experiment', () => {

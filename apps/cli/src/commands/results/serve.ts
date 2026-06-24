@@ -727,6 +727,34 @@ function displayPathFromArtifactKey(key: string | undefined, runPath: string | u
   return normalizeArtifactRelativePath(normalizedKey.slice(runPrefix.length)) ?? normalizedKey;
 }
 
+function addTrialRunCatalogEntries(
+  entries: ArtifactCatalogEntry[],
+  seen: Set<string>,
+  record: ResultManifestRecord,
+): void {
+  const artifactDir = record.artifact_dir
+    ? normalizeArtifactRelativePath(record.artifact_dir)
+    : undefined;
+  if (!artifactDir) return;
+  for (const trial of record.trials ?? []) {
+    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+    if (!runPath) continue;
+    const runDir = path.posix.join(artifactDir, runPath);
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'result.json'),
+      'artifact',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'grading.json'),
+      'artifact',
+    );
+  }
+}
+
 function buildResultArtifactCatalog(
   record: ResultManifestRecord,
   options?: { readonly runPath?: string },
@@ -742,7 +770,6 @@ function buildResultArtifactCatalog(
   addPointerArtifactCatalogEntry(entries, seen, trace, 'trace', options?.runPath);
   addPointerArtifactCatalogEntry(entries, seen, answer, 'answer', options?.runPath);
 
-  addDirectArtifactCatalogEntry(entries, seen, record.benchmark_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.summary_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.grading_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.timing_path, 'artifact');
@@ -754,6 +781,7 @@ function buildResultArtifactCatalog(
   addDirectArtifactCatalogEntry(entries, seen, recordWithTrace.trace_path, 'trace');
   addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
+  addTrialRunCatalogEntries(entries, seen, record);
 
   return entries;
 }
@@ -1449,7 +1477,7 @@ function attachExternalTraceFields<T extends Record<string, unknown>>(
 
 /**
  * Compute `run_dir` (relative to cwd, snake_case) and `suite_filter` (the
- * eval file path stored in benchmark.json metadata) for a local run manifest.
+ * eval file path stored in summary.json metadata) for a local run manifest.
  * Returns whatever fields could be resolved — both are best-effort and only
  * needed by the Dashboard "Resume run" / "Rerun failed" actions.
  */
@@ -1465,9 +1493,9 @@ function deriveResumeMeta(
   // dir as cwd) is unusual but valid — fall through to absolute in that case.
   out.run_dir = relative !== '' && !relative.startsWith('..') ? relative : runDir;
   try {
-    const benchmarkPath = path.join(runDir, 'benchmark.json');
-    if (existsSync(benchmarkPath)) {
-      const parsed = JSON.parse(readFileSync(benchmarkPath, 'utf8')) as {
+    const summaryPath = path.join(runDir, 'summary.json');
+    if (existsSync(summaryPath)) {
+      const parsed = JSON.parse(readFileSync(summaryPath, 'utf8')) as {
         metadata?: { eval_file?: string; planned_test_count?: number };
       };
       const evalFile = parsed.metadata?.eval_file;
@@ -1480,7 +1508,7 @@ function deriveResumeMeta(
       }
     }
   } catch {
-    // benchmark.json missing / unreadable / malformed — leave fields unset.
+    // summary.json missing / unreadable / malformed — leave fields unset.
   }
   return out;
 }

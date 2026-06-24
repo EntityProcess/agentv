@@ -5,8 +5,8 @@
  * Combines two or more local run workspace manifests into a new local run
  * workspace. The writer keeps per-test artifacts self-contained by copying
  * referenced source files under `sources/source-N/` and rewriting manifest
- * paths, while recomputing top-level `timing.json` and `benchmark.json` from
- * the selected result rows.
+ * paths, while recomputing top-level `summary.json` from the selected result
+ * rows.
  */
 
 import {
@@ -28,10 +28,9 @@ import type {
 } from '@agentv/core';
 
 import {
-  type BenchmarkArtifact,
-  buildBenchmarkArtifact,
+  type RunSummaryArtifact,
+  buildRunSummaryArtifact,
   buildTestTargetKey,
-  buildTimingArtifact,
 } from '../eval/artifact-writer.js';
 import {
   buildDefaultRunDirFromName,
@@ -103,8 +102,7 @@ export interface CombineRunResult {
   readonly runDir: string;
   readonly runId: string;
   readonly manifestPath: string;
-  readonly benchmarkPath: string;
-  readonly timingPath: string;
+  readonly summaryPath: string;
   readonly displayName: string;
   readonly experiment: string;
   readonly combinedFromRunIds: readonly string[];
@@ -126,13 +124,13 @@ function readManifestRecords(manifestPath: string): ResultManifestRecord[] {
     .map(parseJsonlLine);
 }
 
-function readBenchmarkMetadata(manifestPath: string): {
+function readSummaryMetadata(manifestPath: string): {
   timestamp?: string;
   displayName?: string;
 } {
   try {
-    const benchmarkPath = path.join(path.dirname(manifestPath), 'benchmark.json');
-    const parsed = JSON.parse(readFileSync(benchmarkPath, 'utf8')) as {
+    const summaryPath = path.join(path.dirname(manifestPath), 'summary.json');
+    const parsed = JSON.parse(readFileSync(summaryPath, 'utf8')) as {
       metadata?: { timestamp?: string; display_name?: string };
     };
     return {
@@ -168,7 +166,7 @@ function loadSources(sources: readonly CombineRunSource[]): LoadedSource[] {
     if (records.length !== results.length) {
       throw new Error(`Manifest could not be hydrated completely: ${manifestPath}`);
     }
-    const metadata = readBenchmarkMetadata(manifestPath);
+    const metadata = readSummaryMetadata(manifestPath);
     return {
       ...source,
       index,
@@ -363,7 +361,6 @@ function resolveCombinedExperiment(
 
 const MANIFEST_PATH_FIELDS = [
   'artifact_dir',
-  'benchmark_path',
   'summary_path',
   'grading_path',
   'timing_path',
@@ -604,13 +601,9 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
   const manifestPath = path.join(runDir, 'index.jsonl');
   writeJsonl(manifestPath, records);
 
-  const timing = buildTimingArtifact(results);
-  const timingPath = path.join(runDir, 'timing.json');
-  writeJson(timingPath, timing);
-
-  const benchmark = buildBenchmarkArtifact(results, '', 'combined', results.length);
-  const benchmarkWithMetadata: BenchmarkArtifact & {
-    metadata: BenchmarkArtifact['metadata'] & {
+  const summary = buildRunSummaryArtifact(results, '', 'combined', results.length);
+  const summaryWithMetadata: RunSummaryArtifact & {
+    metadata: RunSummaryArtifact['metadata'] & {
       display_name: string;
       combined_from_run_ids: readonly string[];
       combined_from_display_names: readonly string[];
@@ -618,10 +611,10 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
       duplicate_policy: Exclude<CombineDuplicatePolicy, 'prompt'> | 'prompt';
     };
   } = {
-    ...benchmark,
+    ...summary,
     metadata: {
-      ...benchmark.metadata,
-      timestamp: startedAt ?? benchmark.metadata.timestamp,
+      ...summary.metadata,
+      timestamp: startedAt ?? summary.metadata.timestamp,
       display_name: displayName,
       experiment,
       combined_from_run_ids: loadedSources.map((source) => source.id),
@@ -629,16 +622,15 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
       duplicate_policy: options.duplicatePolicy,
     },
   };
-  const benchmarkPath = path.join(runDir, 'benchmark.json');
-  writeJson(benchmarkPath, benchmarkWithMetadata);
+  const summaryPath = path.join(runDir, 'summary.json');
+  writeJson(summaryPath, summaryWithMetadata);
 
   const tags = [...new Set(loadedSources.flatMap((source) => source.tags ?? []))].sort();
   return {
     runDir,
     runId: toRunId(options.cwd, runDir),
     manifestPath,
-    benchmarkPath,
-    timingPath,
+    summaryPath,
     displayName,
     experiment,
     combinedFromRunIds: loadedSources.map((source) => source.id),

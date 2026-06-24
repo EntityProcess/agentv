@@ -264,7 +264,7 @@ function writeRemoteRunArtifact(
   const records = Array.isArray(resultRecords) ? resultRecords : [resultRecords];
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
@@ -303,7 +303,7 @@ function writeDirtyRemoteRunArtifact(
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
@@ -354,7 +354,7 @@ function writeLocalRunArtifact(
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl({ ...resultRecord, experiment }));
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
@@ -2041,19 +2041,15 @@ describe('serve app', () => {
   });
 
   describe('GET /api/projects/all-runs', () => {
-    it('infers experiment names for live benchmark runs before records persist them', async () => {
+    it('infers experiment names for live summary runs before records persist them', async () => {
       const homedirSpy = spyOn(os, 'homedir').mockReturnValue(path.join(tempDir, 'home'));
 
       try {
-        const benchmarkDir = path.join(tempDir, 'bench-one');
-        const runDir = localRunDir(
-          benchmarkDir,
-          'issue-1198-benchmark',
-          '2026-03-25T12-00-00-000Z',
-        );
+        const summaryDir = path.join(tempDir, 'bench-one');
+        const runDir = localRunDir(summaryDir, 'issue-1198-summary', '2026-03-25T12-00-00-000Z');
         mkdirSync(runDir, { recursive: true });
         writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-        const project = addProject(benchmarkDir);
+        const project = addProject(summaryDir);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/projects/all-runs');
@@ -2065,7 +2061,7 @@ describe('serve app', () => {
         expect(data.runs).toHaveLength(1);
         expect(data.runs[0]).toMatchObject({
           project_id: project.id,
-          experiment: 'issue-1198-benchmark',
+          experiment: 'issue-1198-summary',
           target: 'gpt-4o',
         });
       } finally {
@@ -2567,15 +2563,13 @@ describe('serve app', () => {
         tags: string[];
       };
       expect(tags.tags.sort()).toEqual(['baseline', 'candidate', 'shared']);
-      const benchmark = JSON.parse(
-        readFileSync(path.join(combinedDir, 'benchmark.json'), 'utf8'),
-      ) as {
+      const summary = JSON.parse(readFileSync(path.join(combinedDir, 'summary.json'), 'utf8')) as {
         metadata: { combined_from_run_ids?: string[]; display_name?: string; timestamp?: string };
       };
-      expect(benchmark.metadata.combined_from_run_ids).toEqual([first.runId, second.runId]);
-      expect(benchmark.metadata.display_name).toBe('Combined Smoke');
-      expect(benchmark.metadata).toMatchObject({ experiment: 'default' });
-      expect(benchmark.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
+      expect(summary.metadata.combined_from_run_ids).toEqual([first.runId, second.runId]);
+      expect(summary.metadata.display_name).toBe('Combined Smoke');
+      expect(summary.metadata).toMatchObject({ experiment: 'default' });
+      expect(summary.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
     });
 
     it('requires an explicit experiment when combining runs across experiments', async () => {
@@ -3349,7 +3343,7 @@ describe('serve app', () => {
         }),
       );
       writeFileSync(
-        path.join(runDir, 'benchmark.json'),
+        path.join(runDir, 'summary.json'),
         JSON.stringify(
           {
             metadata: {
@@ -4175,7 +4169,7 @@ describe('serve app', () => {
       expect(res.status).toBe(403);
     });
 
-    it('returns 404 for benchmark-scoped stop with unknown run id', async () => {
+    it('returns 404 for summary-scoped stop with unknown run id', async () => {
       const app = makeAppForStop();
       const res = await app.request('/api/projects/some-id/eval/run/no-such-id/stop', {
         method: 'POST',
@@ -4183,7 +4177,7 @@ describe('serve app', () => {
       expect(res.status).toBe(404);
     });
 
-    it('returns 403 in read-only mode for benchmark-scoped stop', async () => {
+    it('returns 403 in read-only mode for summary-scoped stop', async () => {
       const app = makeAppForStop({ readOnly: true });
       const res = await app.request('/api/projects/some-id/eval/run/anything/stop', {
         method: 'POST',
@@ -4293,11 +4287,11 @@ describe('serve app', () => {
   //
   // The Dashboard "Resume run" / "Rerun failed cases" buttons need the run dir
   // and the original eval file path to issue a launch request that targets
-  // the same run workspace. handleRunDetail reads benchmark.json's
+  // the same run workspace. handleRunDetail reads summary.json's
   // metadata.eval_file and reports the run dir relative to cwd.
 
   describe('GET /api/runs/:filename (resume metadata)', () => {
-    it('includes run_dir and suite_filter for local runs with benchmark.json', async () => {
+    it('includes run_dir and suite_filter for local runs with summary.json', async () => {
       const runsDir = localResultsExperimentDir(tempDir);
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-05-06T00-00-00-000Z';
@@ -4305,7 +4299,7 @@ describe('serve app', () => {
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
       writeFileSync(
-        path.join(runDir, 'benchmark.json'),
+        path.join(runDir, 'summary.json'),
         JSON.stringify(
           {
             metadata: {
@@ -4335,7 +4329,7 @@ describe('serve app', () => {
       expect(data.suite_filter).toBe('examples/demo.eval.yaml');
     });
 
-    it('omits suite_filter when benchmark.json is missing', async () => {
+    it('omits suite_filter when summary.json is missing', async () => {
       const runsDir = localResultsExperimentDir(tempDir);
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-05-06T00-00-01-000Z';

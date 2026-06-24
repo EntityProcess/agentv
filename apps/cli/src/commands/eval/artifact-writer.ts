@@ -3,7 +3,6 @@ import path from 'node:path';
 import {
   type AdditionalResultArtifactsWriter,
   type AggregateGradingArtifact,
-  type BenchmarkArtifact,
   type EvalTest,
   type EvaluationResult,
   type ExperimentArtifactMetadata,
@@ -11,14 +10,16 @@ import {
   type GradingArtifact,
   type IndexArtifactEntry,
   RESULT_INDEX_FILENAME,
+  RUN_SUMMARY_FILENAME,
   type ResultIndexArtifact,
+  type RunSummaryArtifact,
   type TimingArtifact,
   aggregateRunDir,
   buildAggregateGradingArtifact,
-  buildBenchmarkArtifact,
   buildIndexArtifactEntry as buildCoreIndexArtifactEntry,
   buildResultIndexArtifact as buildCoreResultIndexArtifact,
   buildGradingArtifact,
+  buildRunSummaryArtifact,
   buildTestTargetKey,
   buildTimingArtifact,
   deduplicateByTestIdTarget,
@@ -26,7 +27,7 @@ import {
   writeArtifacts,
   writeArtifactsFromResults as writeCoreArtifactsFromResults,
   writePerTestArtifacts as writeCorePerTestArtifacts,
-  writeInitialBenchmarkArtifact,
+  writeInitialRunSummaryArtifact,
 } from '@agentv/core';
 import type { TargetDefinition } from '@agentv/core';
 
@@ -39,22 +40,23 @@ import {
 export {
   aggregateRunDir,
   buildAggregateGradingArtifact,
-  buildBenchmarkArtifact,
+  buildRunSummaryArtifact,
   buildGradingArtifact,
   buildTestTargetKey,
   buildTimingArtifact,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   RESULT_INDEX_FILENAME,
+  RUN_SUMMARY_FILENAME,
   writeArtifacts,
-  writeInitialBenchmarkArtifact,
+  writeInitialRunSummaryArtifact,
 };
 export type {
   AggregateGradingArtifact,
-  BenchmarkArtifact,
   GradingArtifact,
   IndexArtifactEntry,
   ResultIndexArtifact,
+  RunSummaryArtifact,
   TimingArtifact,
 };
 
@@ -90,8 +92,9 @@ export function buildIndexArtifactEntry(
   options: {
     outputDir: string;
     artifactDir?: string;
-    gradingPath: string;
-    timingPath: string;
+    gradingPath?: string;
+    timingPath?: string;
+    summaryPath?: string;
     outputPath?: string;
     answerPath?: string;
     tracePath?: string;
@@ -240,8 +243,7 @@ export async function writeArtifactsFromResults(
   },
 ): Promise<{
   testArtifactDir: string;
-  timingPath: string;
-  benchmarkPath: string;
+  summaryPath: string;
   indexPath: string;
 }> {
   return writeCoreArtifactsFromResults(results, outputDir, {

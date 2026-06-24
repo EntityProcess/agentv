@@ -577,10 +577,10 @@ function buildRunId(relativeRunPath: string): string {
 
 function readRunDisplayName(runDir: string): string | undefined {
   try {
-    const benchmark = JSON.parse(readFileSync(path.join(runDir, 'benchmark.json'), 'utf8')) as {
+    const summary = JSON.parse(readFileSync(path.join(runDir, 'summary.json'), 'utf8')) as {
       metadata?: { display_name?: unknown };
     };
-    const displayName = benchmark.metadata?.display_name;
+    const displayName = summary.metadata?.display_name;
     return typeof displayName === 'string' && displayName.trim() ? displayName.trim() : undefined;
   } catch {
     return undefined;

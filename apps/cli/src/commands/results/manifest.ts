@@ -39,7 +39,6 @@ export interface ResultManifestRecord {
     readonly reasoning?: number;
   };
   readonly trace?: Record<string, unknown>;
-  readonly benchmark_path?: string;
   readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
@@ -57,6 +56,12 @@ export interface ResultManifestRecord {
   readonly response_path?: string;
   readonly artifact_dir?: string;
   readonly task_dir?: string;
+  readonly trials?: readonly {
+    readonly attempt?: number;
+    readonly run_path?: string;
+    readonly score?: number;
+    readonly verdict?: string;
+  }[];
   readonly eval_path?: string;
   readonly targets_path?: string;
   readonly files_path?: string;
@@ -237,6 +242,33 @@ function hydrateTrace(
   });
 }
 
+function assertionsFromScores(
+  scores: readonly Record<string, unknown>[] | undefined,
+): EvaluationResult['assertions'] | undefined {
+  if (!scores) {
+    return undefined;
+  }
+  const assertions: { text: string; passed: boolean; evidence?: string }[] = [];
+  for (const score of scores) {
+    const scoreAssertions = Array.isArray(score.assertions) ? score.assertions : [];
+    for (const assertion of scoreAssertions) {
+      if (!assertion || typeof assertion !== 'object' || Array.isArray(assertion)) {
+        continue;
+      }
+      const candidate = assertion as Record<string, unknown>;
+      if (typeof candidate.text !== 'string' || typeof candidate.passed !== 'boolean') {
+        continue;
+      }
+      assertions.push({
+        text: candidate.text,
+        passed: candidate.passed,
+        ...(typeof candidate.evidence === 'string' && { evidence: candidate.evidence }),
+      });
+    }
+  }
+  return assertions.length > 0 ? assertions : undefined;
+}
+
 function hydrateManifestRecord(
   baseDir: string,
   record: ResultManifestRecord,
@@ -255,11 +287,12 @@ function hydrateManifestRecord(
     score: record.score,
     executionStatus: record.execution_status,
     error: record.error,
-    assertions: grading?.assertions.map((assertion) => ({
-      text: assertion.text,
-      passed: assertion.passed,
-      evidence: assertion.evidence,
-    })),
+    assertions:
+      grading?.assertions.map((assertion) => ({
+        text: assertion.text,
+        passed: assertion.passed,
+        evidence: assertion.evidence,
+      })) ?? assertionsFromScores(record.scores),
     scores:
       // `evaluators` was renamed to `graders` in v4.13 — read both for backwards compat with old artifacts.
       // TODO: remove `evaluators` fallback once old run directories are no longer in use.

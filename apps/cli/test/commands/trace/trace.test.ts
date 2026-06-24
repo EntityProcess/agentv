@@ -401,14 +401,14 @@ describe('trace utils', () => {
       expect(metas[0].displayName).toBe('2026-02-20T21-38-05-833Z');
     });
 
-    it('should use benchmark metadata display names when listing run workspaces', () => {
+    it('should use summary metadata display names when listing run workspaces', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results');
       const runDir = path.join(runsDir, 'combined', '2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
       writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
       writeFileSync(
-        path.join(runDir, 'benchmark.json'),
+        path.join(runDir, 'summary.json'),
         JSON.stringify({
           metadata: {
             display_name: 'Combined run (dogfood-run-a + dogfood-run-b)',

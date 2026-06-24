@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type {
-  BenchmarkArtifact,
   GradingArtifact,
+  RunSummaryArtifact,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { exportResults } from '../../../src/commands/results/export.js';
@@ -215,6 +215,24 @@ function artifactDir(outputDir: string, record: { suite?: string; test_id?: stri
   return path.join(outputDir, ...(record.suite ? [record.suite] : []), testId);
 }
 
+function runDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
+  return path.join(artifactDir(outputDir, record), 'run-1');
+}
+
+function readCaseSummary(outputDir: string, record: { suite?: string; test_id?: string }) {
+  return JSON.parse(
+    readFileSync(path.join(artifactDir(outputDir, record), 'summary.json'), 'utf8'),
+  );
+}
+
+function readRunResult(outputDir: string, record: { suite?: string; test_id?: string }) {
+  return JSON.parse(readFileSync(path.join(runDir(outputDir, record), 'result.json'), 'utf8'));
+}
+
+function gradingPath(outputDir: string, record: { suite?: string; test_id?: string }): string {
+  return path.join(runDir(outputDir, record), 'grading.json');
+}
+
 describe('export e2e — multi-provider metrics verification', () => {
   let tempDir: string;
 
@@ -226,18 +244,16 @@ describe('export e2e — multi-provider metrics verification', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  // ── Timing artifact tests ──────────────────────────────────────────────
+  // ── Case summary timing tests ──────────────────────────────────────────
 
-  describe('<test-id>/timing.json — per-test timing', () => {
+  describe('<test-id>/summary.json — per-case timing', () => {
     it('should include reasoning tokens in token_usage', async () => {
       const outputDir = path.join(tempDir, 'claude');
       const content = toJsonl(CLAUDE_CLI_RESULT);
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
-      );
+      const timing: TimingArtifact = readCaseSummary(outputDir, CLAUDE_CLI_RESULT);
 
       expect(timing.token_usage.input).toBe(2000);
       expect(timing.token_usage.output).toBe(800);
@@ -250,15 +266,9 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const claudeTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
-      );
-      const codexTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CODEX_RESULT), 'timing.json'), 'utf8'),
-      );
-      const copilotTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'timing.json'), 'utf8'),
-      );
+      const claudeTiming: TimingArtifact = readCaseSummary(outputDir, CLAUDE_CLI_RESULT);
+      const codexTiming: TimingArtifact = readCaseSummary(outputDir, CODEX_RESULT);
+      const copilotTiming: TimingArtifact = readCaseSummary(outputDir, COPILOT_RESULT);
 
       expect(claudeTiming.token_usage.reasoning).toBe(1500);
       expect(codexTiming.token_usage.reasoning).toBe(2500);
@@ -271,9 +281,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
-      );
+      const timing: TimingArtifact = readCaseSummary(outputDir, CLAUDE_CLI_RESULT);
 
       expect(timing.total_tokens).toBe(2800);
     });
@@ -284,9 +292,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CODEX_RESULT), 'timing.json'), 'utf8'),
-      );
+      const timing: TimingArtifact = readCaseSummary(outputDir, CODEX_RESULT);
 
       expect(timing.duration_ms).toBe(12000);
       expect(timing.total_duration_seconds).toBe(12);
@@ -298,9 +304,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, MINIMAL_RESULT), 'timing.json'), 'utf8'),
-      );
+      const timing: TimingArtifact = readCaseSummary(outputDir, MINIMAL_RESULT);
 
       expect(timing.total_tokens).toBe(0);
       expect(timing.duration_ms).toBe(0);
@@ -315,23 +319,19 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const claudeTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'), 'utf8'),
-      );
-      const copilotTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'timing.json'), 'utf8'),
-      );
+      const claudeTiming: TimingArtifact = readCaseSummary(outputDir, CLAUDE_CLI_RESULT);
+      const copilotTiming: TimingArtifact = readCaseSummary(outputDir, COPILOT_RESULT);
 
       expect(claudeTiming.token_usage.reasoning).toBe(1500);
       expect(copilotTiming.token_usage.reasoning).toBe(0);
     });
   });
 
-  // ── Benchmark artifact tests ───────────────────────────────────────────
+  // ── Summary artifact tests ───────────────────────────────────────────
 
-  describe('benchmark.json — per-target summary', () => {
+  describe('summary.json — per-target summary', () => {
     it('should group results by target with correct pass rates', async () => {
-      const outputDir = path.join(tempDir, 'benchmark');
+      const outputDir = path.join(tempDir, 'summary');
       const content = toJsonl(
         CLAUDE_CLI_RESULT,
         CODEX_RESULT,
@@ -343,17 +343,17 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
       // All 6 targets should be represented
-      expect(benchmark.metadata.targets).toContain('claude-cli');
-      expect(benchmark.metadata.targets).toContain('codex');
-      expect(benchmark.metadata.targets).toContain('copilot-cli');
-      expect(benchmark.metadata.targets).toContain('pi-coding-agent');
-      expect(benchmark.metadata.targets).toContain('azure-o4-mini');
-      expect(benchmark.metadata.targets).toContain('gpt-4.1');
+      expect(summary.metadata.targets).toContain('claude-cli');
+      expect(summary.metadata.targets).toContain('codex');
+      expect(summary.metadata.targets).toContain('copilot-cli');
+      expect(summary.metadata.targets).toContain('pi-coding-agent');
+      expect(summary.metadata.targets).toContain('azure-o4-mini');
+      expect(summary.metadata.targets).toContain('gpt-4.1');
     });
 
     it('should report correct time_seconds per target', async () => {
@@ -362,14 +362,14 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
       // claude: 8500ms = 8.5s
-      expect(benchmark.run_summary['claude-cli'].time_seconds.mean).toBe(8.5);
+      expect(summary.run_summary['claude-cli'].time_seconds.mean).toBe(8.5);
       // codex: 12000ms = 12s
-      expect(benchmark.run_summary.codex.time_seconds.mean).toBe(12);
+      expect(summary.run_summary.codex.time_seconds.mean).toBe(12);
     });
 
     it('should report correct token counts per target (input + output)', async () => {
@@ -378,14 +378,14 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
       // claude: 2000 + 800 = 2800
-      expect(benchmark.run_summary['claude-cli'].tokens.mean).toBe(2800);
+      expect(summary.run_summary['claude-cli'].tokens.mean).toBe(2800);
       // codex: 3000 + 1200 = 4200
-      expect(benchmark.run_summary.codex.tokens.mean).toBe(4200);
+      expect(summary.run_summary.codex.tokens.mean).toBe(4200);
     });
 
     it('should include cost_usd when available', async () => {
@@ -394,13 +394,13 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
-      expect(benchmark.run_summary['claude-cli'].cost_usd).toBeDefined();
-      expect(benchmark.run_summary['claude-cli'].cost_usd?.mean).toBe(0.045);
-      expect(benchmark.run_summary['azure-o4-mini'].cost_usd?.mean).toBe(0.025);
+      expect(summary.run_summary['claude-cli'].cost_usd).toBeDefined();
+      expect(summary.run_summary['claude-cli'].cost_usd?.mean).toBe(0.045);
+      expect(summary.run_summary['azure-o4-mini'].cost_usd?.mean).toBe(0.025);
     });
 
     it('should include tool_calls when trace has tool data', async () => {
@@ -409,13 +409,13 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
       // Claude has 3 tool calls in trace steps
-      expect(benchmark.run_summary['claude-cli'].tool_calls).toBeDefined();
-      expect(benchmark.run_summary['claude-cli'].tool_calls?.mean).toBe(3);
+      expect(summary.run_summary['claude-cli'].tool_calls).toBeDefined();
+      expect(summary.run_summary['claude-cli'].tool_calls?.mean).toBe(3);
     });
 
     it('should note execution errors in notes', async () => {
@@ -424,12 +424,12 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
-      expect(benchmark.notes.length).toBeGreaterThan(0);
-      expect(benchmark.notes.some((n) => n.includes('execution error'))).toBe(true);
+      expect(summary.notes.length).toBeGreaterThan(0);
+      expect(summary.notes.some((n) => n.includes('execution error'))).toBe(true);
     });
 
     it('should include per_grader_summary across providers', async () => {
@@ -438,17 +438,17 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
-      expect(benchmark.per_grader_summary).toBeDefined();
+      expect(summary.per_grader_summary).toBeDefined();
     });
   });
 
   // ── Grading artifact tests ─────────────────────────────────────────────
 
-  describe('<test-id>/grading.json — per-test grading', () => {
+  describe('<test-id>/run-1/grading.json — per-test grading', () => {
     it('should produce correct grading for Claude CLI result with trace', async () => {
       const outputDir = path.join(tempDir, 'grade-claude');
       const content = toJsonl(CLAUDE_CLI_RESULT);
@@ -456,7 +456,7 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'grading.json'), 'utf8'),
+        readFileSync(gradingPath(outputDir, CLAUDE_CLI_RESULT), 'utf8'),
       );
 
       expect(grading.assertions).toHaveLength(2);
@@ -466,12 +466,10 @@ describe('export e2e — multi-provider metrics verification', () => {
       expect(grading.summary.failed).toBe(0);
       expect(grading.summary.pass_rate).toBe(1.0);
 
-      const metrics = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'metrics.json'), 'utf8'),
-      );
-      expect(metrics.metrics.total_tool_calls).toBe(3);
-      expect(metrics.metrics.tool_call_counts.Read).toBe(2);
-      expect(metrics.metrics.tool_call_counts.Write).toBe(1);
+      const result = readRunResult(outputDir, CLAUDE_CLI_RESULT);
+      expect(result.o11y.totalToolCalls).toBe(3);
+      expect(result.o11y.toolCalls.Read).toBe(2);
+      expect(result.o11y.toolCalls.Write).toBe(1);
 
       // Graders
       expect(grading.graders).toHaveLength(1);
@@ -485,17 +483,15 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'grading.json'), 'utf8'),
+        readFileSync(gradingPath(outputDir, COPILOT_RESULT), 'utf8'),
       );
 
       expect(grading.summary.passed).toBe(1);
       expect(grading.summary.failed).toBe(1);
       expect(grading.summary.pass_rate).toBe(0.5);
 
-      const metrics = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'metrics.json'), 'utf8'),
-      );
-      expect(metrics.metrics.total_tool_calls).toBe(0);
+      const result = readRunResult(outputDir, COPILOT_RESULT);
+      expect(result.o11y.totalToolCalls).toBe(0);
     });
 
     it('should handle error result in grading', async () => {
@@ -505,16 +501,14 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const grading: GradingArtifact = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'grading.json'), 'utf8'),
+        readFileSync(gradingPath(outputDir, ERROR_RESULT), 'utf8'),
       );
 
       // Error result has empty assertions
       expect(grading.summary.total).toBe(0);
       expect(grading.summary.pass_rate).toBe(0);
-      const metrics = JSON.parse(
-        readFileSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'metrics.json'), 'utf8'),
-      );
-      expect(metrics.metrics.errors_encountered).toBe(1);
+      const result = readRunResult(outputDir, ERROR_RESULT);
+      expect(result.o11y.errors).toHaveLength(1);
     });
 
     it('should produce grading files for all test IDs in multi-target run', async () => {
@@ -523,18 +517,14 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      expect(existsSync(path.join(artifactDir(outputDir, LLM_AZURE_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, LLM_GPT_RESULT), 'grading.json'))).toBe(
-        true,
-      );
+      expect(existsSync(gradingPath(outputDir, LLM_AZURE_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, LLM_GPT_RESULT))).toBe(true);
     });
   });
 
   // ── Output artifact tests ──────────────────────────────────────────────
 
-  describe('<test-id>/outputs/answer.md — human-readable agent responses', () => {
+  describe('<test-id>/run-1/outputs/answer.md — human-readable agent responses', () => {
     it('should write answer text for each provider as markdown', async () => {
       const outputDir = path.join(tempDir, 'outputs');
       const content = toJsonl(CLAUDE_CLI_RESULT, CODEX_RESULT, COPILOT_RESULT);
@@ -543,23 +533,17 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       expect(
         readFileSync(
-          path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'outputs', 'answer.md'),
+          path.join(runDir(outputDir, CLAUDE_CLI_RESULT), 'outputs', 'answer.md'),
           'utf8',
         ),
       ).toBe('The answer is 42, derived through extended thinking.');
 
       expect(
-        readFileSync(
-          path.join(artifactDir(outputDir, CODEX_RESULT), 'outputs', 'answer.md'),
-          'utf8',
-        ),
+        readFileSync(path.join(runDir(outputDir, CODEX_RESULT), 'outputs', 'answer.md'), 'utf8'),
       ).toBe('Applied the requested edit to src/main.ts.');
 
       expect(
-        readFileSync(
-          path.join(artifactDir(outputDir, COPILOT_RESULT), 'outputs', 'answer.md'),
-          'utf8',
-        ),
+        readFileSync(path.join(runDir(outputDir, COPILOT_RESULT), 'outputs', 'answer.md'), 'utf8'),
       ).toBe('function add(a, b) { return a + b }');
     });
 
@@ -569,9 +553,9 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', content, outputDir);
 
-      expect(
-        existsSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'outputs', 'answer.md')),
-      ).toBe(false);
+      expect(existsSync(path.join(runDir(outputDir, ERROR_RESULT), 'outputs', 'answer.md'))).toBe(
+        false,
+      );
     });
   });
 
@@ -594,41 +578,26 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('eval_2026-03-18.jsonl', content, outputDir);
 
       // Verify all artifact files exist
-      expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
+      expect(existsSync(path.join(outputDir, 'summary.json'))).toBe(true);
 
-      // Verify benchmark
-      const benchmark: BenchmarkArtifact = JSON.parse(
-        readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+      // Verify summary
+      const summary: RunSummaryArtifact = JSON.parse(
+        readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
       );
 
       // 7 unique targets (claude-cli appears twice with error result)
-      expect(benchmark.metadata.targets.length).toBe(7);
-      expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
+      expect(summary.metadata.targets.length).toBe(7);
+      expect(summary.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
 
       // Verify grading files
-      expect(existsSync(path.join(artifactDir(outputDir, CLAUDE_CLI_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, CODEX_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, COPILOT_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, PI_RESULT), 'grading.json'))).toBe(true);
-      expect(existsSync(path.join(artifactDir(outputDir, LLM_AZURE_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, LLM_GPT_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, MINIMAL_RESULT), 'grading.json'))).toBe(
-        true,
-      );
-      expect(existsSync(path.join(artifactDir(outputDir, ERROR_RESULT), 'grading.json'))).toBe(
-        true,
-      );
+      expect(existsSync(gradingPath(outputDir, CLAUDE_CLI_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, CODEX_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, COPILOT_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, PI_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, LLM_AZURE_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, LLM_GPT_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, MINIMAL_RESULT))).toBe(true);
+      expect(existsSync(gradingPath(outputDir, ERROR_RESULT))).toBe(true);
     });
   });
 
@@ -658,12 +627,10 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       await exportResults('test.jsonl', toJsonl(record), outputDir);
 
-      const timing: TimingArtifact = JSON.parse(
-        readFileSync(
-          path.join(artifactDir(outputDir, { ...record, target: 'mock' as const }), 'timing.json'),
-          'utf8',
-        ),
-      );
+      const timing: TimingArtifact = readCaseSummary(outputDir, {
+        ...record,
+        target: 'mock' as const,
+      });
 
       expect(timing.token_usage.input).toBe(100);
       expect(timing.token_usage.output).toBe(50);

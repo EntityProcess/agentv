@@ -216,7 +216,7 @@ export interface RunDetailResponse {
   status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
   run_dir?: string;
-  /** Eval file path the run was launched against, if recorded in benchmark.json. Local runs only. */
+  /** Eval file path the run was launched against, if recorded in summary.json. Local runs only. */
   suite_filter?: string;
   /** Total (test_id, target) executions originally planned for this run. Used to detect incomplete partial runs as resumable. Local runs only, populated when the run was launched after the planned-count metadata feature shipped. */
   planned_test_count?: number;

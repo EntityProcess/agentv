@@ -67,7 +67,7 @@ function writeRunArtifacts(projectDir: string): string {
     `${JSON.stringify({ test_id: 'alpha', score: 1 })}\n`,
   );
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     `${JSON.stringify({ eval_file: 'evals/example.eval.yaml', tests_run: 1 }, null, 2)}\n`,
   );
   return runDir;
@@ -121,7 +121,7 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
     })}\n`,
   );
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     `${JSON.stringify({ eval_file: 'evals/example.eval.yaml', tests_run: 1 }, null, 2)}\n`,
   );
   return runDir;
@@ -227,7 +227,7 @@ describe('maybeAutoExportRunArtifacts', () => {
       rootDir,
     );
     expect(resultTree).toContain('runs/default/run-002/index.jsonl');
-    expect(resultTree).toContain('runs/default/run-002/benchmark.json');
+    expect(resultTree).toContain('runs/default/run-002/summary.json');
     expect(resultTree).not.toContain('runs/default/run-002/alpha/trace.json');
     expect(resultTree).not.toContain('runs/default/run-002/alpha/transcript.jsonl');
     const index = JSON.parse(

@@ -343,10 +343,13 @@ describe('agentv eval CLI', () => {
 
       const results = await readJsonLines(path.join(outputDir, 'index.jsonl'));
       expect(results).toHaveLength(2);
-      await expectFileExists(path.join(outputDir, 'benchmark.json'));
-      await expectFileExists(path.join(outputDir, 'timing.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'grading.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'grading.json'));
+      await expectFileExists(path.join(outputDir, 'summary.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'result.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
+      await expectFileExists(path.join(outputDir, 'case-beta', 'summary.json'));
+      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'result.json'));
+      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'grading.json'));
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -363,8 +366,9 @@ describe('agentv eval CLI', () => {
       expect(exitCode).toBe(0);
       expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
       await expectFileExists(path.join(outputDir, 'index.jsonl'));
-      await expectFileExists(path.join(outputDir, 'benchmark.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'grading.json'));
+      await expectFileExists(path.join(outputDir, 'summary.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
+      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -403,11 +407,13 @@ describe('agentv eval CLI', () => {
 
       const canonicalResults = await readJsonLines(path.join(outputDir, 'index.jsonl'));
       expect(canonicalResults).toHaveLength(2);
-      await expectFileExists(path.join(outputDir, 'benchmark.json'));
-      await expectFileExists(path.join(outputDir, 'timing.json'));
+      await expectFileExists(path.join(outputDir, 'summary.json'));
       for (const row of canonicalResults) {
-        expect(row.transcript_path).toMatch(/transcript\.jsonl$/);
+        expect(row.summary_path).toMatch(/summary\.json$/);
+        expect(row.transcript_path).toMatch(/run-1\/transcript-raw\.jsonl$/);
+        expect(row.grading_path).toMatch(/run-1\/grading\.json$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
+        await expectFileExists(path.join(outputDir, row.grading_path as string));
       }
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
@@ -591,11 +597,11 @@ describe('agentv eval CLI', () => {
       await expectFileExists(path.join(fixture.suiteDir, 'experiment-setup.txt'));
       await expectFileExists(path.join(fixture.suiteDir, 'experiment-script.txt'));
 
-      const benchmark = JSON.parse(
-        await readFile(path.join(path.dirname(outputPath), 'benchmark.json'), 'utf8'),
+      const summary = JSON.parse(
+        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
       ) as { metadata?: Record<string, unknown> };
-      expect(benchmark.metadata?.experiment).toBe('native-exp');
-      expect(benchmark.metadata?.experiment_config).toMatchObject({
+      expect(summary.metadata?.experiment).toBe('native-exp');
+      expect(summary.metadata?.experiment_config).toMatchObject({
         name: 'native-exp',
         source_path: experimentPath,
         target: 'cli-target',
@@ -609,9 +615,9 @@ describe('agentv eval CLI', () => {
         timeout_seconds: 12,
         workers: 4,
       });
-      expect(
-        (benchmark.metadata?.experiment_config as Record<string, unknown>).fingerprint,
-      ).toMatch(/^[a-f0-9]{64}$/);
+      expect((summary.metadata?.experiment_config as Record<string, unknown>).fingerprint).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -773,32 +779,32 @@ describe('agentv eval CLI', () => {
     expect(replayHelp).not.toContain('response cache');
   }, 30_000);
 
-  it('omits removed benchmark JSON export flag from help', async () => {
+  it('omits removed summary JSON export flag from help', async () => {
     const result = await execa('bun', ['--no-env-file', CLI_ENTRY, 'eval', 'run', '--help'], {
       cwd: projectRoot,
       env: { ...process.env, CI: 'true' },
       reject: false,
     });
     const helpText = `${result.stdout}\n${result.stderr}`;
-    expect(helpText).not.toContain('--benchmark-json');
+    expect(helpText).not.toContain('--summary-json');
     expect(helpText).toContain('--output');
-    expect(helpText).toContain('benchmark.json');
+    expect(helpText).toContain('summary.json');
   }, 30_000);
 
-  it('rejects the removed benchmark JSON export flag as an unknown argument', async () => {
+  it('rejects the removed summary JSON export flag as an unknown argument', async () => {
     const fixture = await createFixture();
     try {
       const result = await runCli(fixture, [
         'eval',
         fixture.testFilePath,
-        '--benchmark-json',
-        path.join(fixture.baseDir, 'benchmark.json'),
+        '--summary-json',
+        path.join(fixture.baseDir, 'summary.json'),
       ]);
 
       expect(result.exitCode).not.toBe(0);
       const output = `${result.stdout}\n${result.stderr}`;
       expect(output).toContain('Unknown arguments');
-      expect(output).toContain('--benchmark-json');
+      expect(output).toContain('--summary-json');
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }

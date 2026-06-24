@@ -31,8 +31,8 @@ export interface BuildResumeRequestParams {
  * Case 2 covers Stop-button / Ctrl+C interruptions where the run produced
  * only successful rows before being killed: there is no `execution_error`
  * to anchor on, but the run is still resumable. `plannedTestCount` is
- * persisted in `benchmark.json.metadata` at run start (see
- * `writeInitialBenchmarkArtifact`).
+ * persisted in `summary.json.metadata` at run start (see
+ * `writeInitialRunSummaryArtifact`).
  *
  * Hidden in read-only mode — the server also returns 403, but UI-level
  * hiding avoids dead controls.

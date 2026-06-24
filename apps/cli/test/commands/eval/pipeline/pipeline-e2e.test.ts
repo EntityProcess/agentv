@@ -69,8 +69,8 @@ describe('eval pipeline e2e', () => {
       expect(indexLines).toHaveLength(1);
       expect(indexLines[0].test_id).toBe('test-01');
 
-      const benchmark = JSON.parse(await readFile(join(outDir, 'benchmark.json'), 'utf8'));
-      expect(benchmark.run_summary).toBeDefined();
+      const summary = JSON.parse(await readFile(join(outDir, 'summary.json'), 'utf8'));
+      expect(summary.run_summary).toBeDefined();
     },
     PIPELINE_E2E_TIMEOUT_MS,
   );

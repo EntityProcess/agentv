@@ -1,13 +1,13 @@
 /**
  * `agentv pipeline bench` — Merge code-grader and LLM grader scores into final
- * benchmark artifacts.
+ * summary artifacts.
  *
  * Reads code_grader_results and llm_grader_results from disk per test.
  *
  * Writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
  *   - index.jsonl             (one line per test)
- *   - benchmark.json          (aggregate statistics)
+ *   - summary.json            (aggregate statistics)
  */
 import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
@@ -28,7 +28,7 @@ interface EvaluatorScore {
 
 export const evalBenchCommand = command({
   name: 'bench',
-  description: 'Merge grader scores and produce benchmark artifacts',
+  description: 'Merge grader scores and produce summary artifacts',
   args: {
     exportDir: positional({
       type: string,
@@ -199,9 +199,9 @@ export const evalBenchCommand = command({
       'utf8',
     );
 
-    // Write benchmark.json
+    // Write summary.json
     const passRateStats = computeStats(allPassRates);
-    const benchmark = {
+    const summary = {
       metadata: {
         eval_file: manifest.eval_file,
         timestamp: manifest.timestamp,
@@ -219,12 +219,12 @@ export const evalBenchCommand = command({
       notes: [],
     };
     await writeFile(
-      join(exportDir, 'benchmark.json'),
-      `${JSON.stringify(benchmark, null, 2)}\n`,
+      join(exportDir, 'summary.json'),
+      `${JSON.stringify(summary, null, 2)}\n`,
       'utf8',
     );
 
-    console.log(`Benchmark: ${testIds.length} test(s), pass_rate=${passRateStats.mean}`);
+    console.log(`Summary: ${testIds.length} test(s), pass_rate=${passRateStats.mean}`);
 
     const results = indexLines.map((line) => JSON.parse(line)) as Array<{
       test_id: string;

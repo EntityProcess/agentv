@@ -132,8 +132,7 @@ describe('evaluate() — programmatic API extensions', () => {
         expect(result.artifacts).toBeDefined();
         expect(result.artifacts?.runDir).toBe(outputDir);
         expect(result.artifacts?.indexPath).toBe(path.join(outputDir, 'index.jsonl'));
-        expect(result.artifacts?.benchmarkPath).toBe(path.join(outputDir, 'benchmark.json'));
-        expect(result.artifacts?.timingPath).toBe(path.join(outputDir, 'timing.json'));
+        expect(result.artifacts?.summaryPath).toBe(path.join(outputDir, 'summary.json'));
 
         const indexContent = await readFile(path.join(outputDir, 'index.jsonl'), 'utf8');
         expect(indexContent).toContain('"test_id":"programmatic-artifacts"');
@@ -143,17 +142,23 @@ describe('evaluate() — programmatic API extensions', () => {
           .split('\n')
           .map((line) => JSON.parse(line) as { artifact_dir?: string });
 
-        const benchmark = JSON.parse(
-          await readFile(path.join(outputDir, 'benchmark.json'), 'utf8'),
+        const summary = JSON.parse(
+          await readFile(path.join(outputDir, 'summary.json'), 'utf8'),
         ) as { metadata: { experiment?: string; tests_run: string[]; eval_file: string } };
-        expect(benchmark.metadata.experiment).toBe('sdk-test');
-        expect(benchmark.metadata.tests_run).toEqual(['programmatic-artifacts']);
-        expect(benchmark.metadata.eval_file).toBe('');
+        expect(summary.metadata.experiment).toBe('sdk-test');
+        expect(summary.metadata.tests_run).toEqual(['programmatic-artifacts']);
+        expect(summary.metadata.eval_file).toBe('');
 
         expect(indexRow?.artifact_dir).toBe('__programmatic__.yaml/programmatic-artifacts');
         expect(
           existsSync(
-            path.join(outputDir, '__programmatic__.yaml', 'programmatic-artifacts', 'grading.json'),
+            path.join(
+              outputDir,
+              '__programmatic__.yaml',
+              'programmatic-artifacts',
+              'run-1',
+              'grading.json',
+            ),
           ),
         ).toBe(true);
         expect(
@@ -162,6 +167,7 @@ describe('evaluate() — programmatic API extensions', () => {
               outputDir,
               '__programmatic__.yaml',
               'programmatic-artifacts',
+              'run-1',
               'outputs',
               'answer.md',
             ),

@@ -205,7 +205,7 @@ export interface EvalConfig {
   readonly budgetUsd?: number;
   /** Optional run workspace directory for canonical AgentV artifacts. */
   readonly outputDir?: string;
-  /** Optional experiment name recorded in benchmark.json and index.jsonl. */
+  /** Optional experiment name recorded in summary.json and index.jsonl. */
   readonly experiment?: string;
 }
 
@@ -256,8 +256,7 @@ export interface EvalRunResult {
 export interface EvalRunArtifacts {
   readonly runDir: string;
   readonly indexPath: string;
-  readonly benchmarkPath: string;
-  readonly timingPath: string;
+  readonly summaryPath: string;
 }
 
 /**
@@ -386,11 +385,10 @@ export async function evaluate(config: EvalConfig): Promise<EvalRunResult> {
         evalFile: config.specFile ? testFilePath : '',
         experiment: config.experiment,
         sourceTests: materialized.tests,
-      }).then(({ benchmarkPath, indexPath, timingPath }) => ({
+      }).then(({ summaryPath, indexPath }) => ({
         runDir: outputDir,
-        benchmarkPath,
+        summaryPath,
         indexPath,
-        timingPath,
       }))
     : undefined;
 

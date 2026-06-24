@@ -496,7 +496,7 @@ describe('execution trace artifact v1', () => {
         target: 'harbor_replay',
         output: 'Lifecycle run complete.',
         trace: buildTraceFromMessages({
-          input: [{ role: 'user', content: 'Run the benchmark task.' }],
+          input: [{ role: 'user', content: 'Run the summary task.' }],
           output: [
             {
               role: 'assistant',

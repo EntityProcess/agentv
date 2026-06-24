@@ -115,7 +115,7 @@ describe('aggregateRunDir', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('reads index.jsonl, deduplicates, writes benchmark.json and timing.json', async () => {
+  it('reads index.jsonl, deduplicates, writes summary.json', async () => {
     writeJsonlIndex(tmpDir, [
       { testId: 'a', target: 'x', score: 0.1, executionStatus: 'execution_error' },
       { testId: 'a', target: 'x', score: 0.9, executionStatus: 'ok' },
@@ -126,16 +126,14 @@ describe('aggregateRunDir', () => {
     expect(result.testCount).toBe(2);
     expect(result.targetCount).toBe(1);
 
-    const benchmark = JSON.parse(readFileSync(result.benchmarkPath, 'utf8'));
-    expect(benchmark.metadata.tests_run).toContain('a');
-    expect(benchmark.metadata.tests_run).toContain('b');
-    expect(benchmark.run_summary.x).toBeDefined();
-
-    const timing = JSON.parse(readFileSync(result.timingPath, 'utf8'));
-    expect(timing.total_tokens).toBeGreaterThanOrEqual(0);
+    const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
+    expect(summary.metadata.tests_run).toContain('a');
+    expect(summary.metadata.tests_run).toContain('b');
+    expect(summary.run_summary.x).toBeDefined();
+    expect(summary.timing.total_tokens).toBeGreaterThanOrEqual(0);
   });
 
-  it('uses last entry for duplicates in benchmark stats', async () => {
+  it('uses last entry for duplicates in summary stats', async () => {
     writeJsonlIndex(tmpDir, [
       { testId: 'a', target: 'x', score: 0.0, executionStatus: 'execution_error' },
       { testId: 'a', target: 'x', score: 1.0, executionStatus: 'ok' },
@@ -144,9 +142,9 @@ describe('aggregateRunDir', () => {
     const result = await aggregateRunDir(tmpDir);
     expect(result.testCount).toBe(1);
 
-    const benchmark = JSON.parse(readFileSync(result.benchmarkPath, 'utf8'));
+    const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
     // Should have 100% pass rate since the last entry is ok with score 1.0
-    expect(benchmark.run_summary.x.pass_rate.mean).toBe(1);
+    expect(summary.run_summary.x.pass_rate.mean).toBe(1);
   });
 
   it('handles multi-target results', async () => {
@@ -176,18 +174,22 @@ describe('writePerTestArtifacts', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('writes grading.json and timing.json for each result', async () => {
+  it('writes grading.json under run-1 and case summary for each result', async () => {
     const results = [makeResult({ testId: 'test-1' }), makeResult({ testId: 'test-2' })];
 
     await writePerTestArtifacts(results, tmpDir);
 
-    const grading1 = JSON.parse(readFileSync(path.join(tmpDir, 'test-1', 'grading.json'), 'utf8'));
+    const grading1 = JSON.parse(
+      readFileSync(path.join(tmpDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
+    );
     expect(grading1.assertions).toHaveLength(1);
 
-    const timing1 = JSON.parse(readFileSync(path.join(tmpDir, 'test-1', 'timing.json'), 'utf8'));
-    expect(timing1.total_tokens).toBeGreaterThanOrEqual(0);
+    const summary1 = JSON.parse(readFileSync(path.join(tmpDir, 'test-1', 'summary.json'), 'utf8'));
+    expect(summary1.total_tokens).toBeGreaterThanOrEqual(0);
 
-    const grading2 = JSON.parse(readFileSync(path.join(tmpDir, 'test-2', 'grading.json'), 'utf8'));
+    const grading2 = JSON.parse(
+      readFileSync(path.join(tmpDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
+    );
     expect(grading2.assertions).toHaveLength(1);
   });
 
@@ -196,7 +198,10 @@ describe('writePerTestArtifacts', () => {
 
     await writePerTestArtifacts(results, tmpDir);
 
-    const answer = readFileSync(path.join(tmpDir, 'test-1', 'outputs', 'answer.md'), 'utf8');
+    const answer = readFileSync(
+      path.join(tmpDir, 'test-1', 'run-1', 'outputs', 'answer.md'),
+      'utf8',
+    );
     expect(answer).toContain('hello');
   });
 });

@@ -64,7 +64,7 @@ export function ResumeRunActions({
   const disabledReason = !runDir
     ? 'Run directory unavailable (remote run cannot be resumed in place)'
     : !suiteFilter
-      ? 'Original eval file path missing from benchmark.json — cannot determine what to resume'
+      ? 'Original eval file path missing from summary.json — cannot determine what to resume'
       : '';
 
   async function launch(mode: ResumeMode) {
