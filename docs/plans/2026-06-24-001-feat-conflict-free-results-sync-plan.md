@@ -2,7 +2,7 @@
 title: "feat: Conflict-free results sync without force push"
 type: feat
 date: 2026-06-24
-bead: av-tbd
+bead: av-raf
 related:
   - docs/plans/2026-06-23-002-feat-remote-result-metadata-conflicts-plan.md
   - docs/plans/2026-06-10-remote-results-cli-contract.md
@@ -16,28 +16,33 @@ related:
 
 Design a results-sync workflow for AgentV that never force-pushes a shared branch
 and never rewrites shared history, while keeping the Dashboard zero-infra
-(local-git-first, no Phoenix, no hosted DB, no webhook server required at runtime).
+(local-git-first; no Phoenix, no hosted DB, no inbound webhook server).
 
-The core recommendation is a **hybrid**:
+Two layers, deliberately small:
 
 1. **Auto-merge the common case.** Most result writes are append-mostly and
-   line-orthogonal (immutable run bundles under `runs/<exp>/<ts>/`). Replace the
-   current `backup_and_force_push` escape hatch with a real **fetch → merge →
-   push** loop using artifact-aware merge drivers (`union` for append-only index
-   lines, JSON-aware/`-X ours`-scoped for the small mutable overlay). This commits
-   a genuine merge instead of overwriting the remote, so no force push is needed
-   for the overwhelming majority of pushes.
-2. **Fall back to a human-in-the-loop temporary-branch flow only on a true
-   conflict.** When a real content conflict cannot be auto-resolved, push the
-   local work to a **new timestamped branch** (never the canonical branch), surface
-   a compare/PR link, and resume canonical-branch sync once the temp branch tip is
-   an **ancestor** of the canonical branch (i.e. actually merged) — not merely when
-   the branch is deleted.
+   line-orthogonal (immutable run bundles under `runs/<exp>/<ts>/`, append-only
+   index JSONL). On a non-fast-forward push, run a bounded **fetch → merge → push**
+   loop using artifact-aware merge drivers (`union` for the index, a small
+   JSON-union driver for the mutable overlay). This commits a real merge instead of
+   overwriting the remote, so force push is never needed for the overwhelming
+   majority of pushes.
+2. **Human merge via a GitHub PR only on a true conflict.** When a real content
+   conflict cannot be auto-resolved, push the local work to a **new timestamped
+   branch** (never the canonical branch) and surface a compare/PR link. The user
+   merges that branch into the target branch (`main` or `agentv/results/v1`) using
+   **GitHub's own PR/merge UI** — AgentV builds **no merge UI of its own**. When the
+   user has merged, they click **OK** in the Dashboard; AgentV pulls the target
+   branch and resumes normal sync.
 
-This supersedes the `backup_and_force_push` policy as the recommended default and
-keeps the prior metadata-conflict UX design
-(`docs/plans/2026-06-23-002-feat-remote-result-metadata-conflicts-plan.md`) for the
-narrow per-file resolution surface, minus its force-push action.
+The resume signal is an **explicit user confirmation ("OK")**, not branch deletion
+and not automatic merge detection. This keeps the design tiny: no squash-safe
+ancestor detection, no merge-state polling, no per-file conflict editor.
+
+This supersedes the `backup_and_force_push` policy as the recommended default. It
+does **not** depend on building the per-file conflict-resolution UI from
+`docs/plans/2026-06-23-002-feat-remote-result-metadata-conflicts-plan.md` (av-xwm);
+GitHub's PR is the conflict surface instead.
 
 This is a design artifact only. It does not implement a broad change.
 
@@ -63,11 +68,10 @@ This is a design artifact only. It does not implement a broad change.
     commit** (`buildResultsBackupRef`, `results-repo.ts:1341-1345`), then
     `git push --force-with-lease=refs/heads/<branch>:<remoteCommit>` the local ref
     over the canonical branch (`results-repo.ts:1440-1459`).
-- The force push is leased (`--force-with-lease`) and backed up, so it is not a
-  blind `--force`. But it still **rewrites shared history**: any remote commits
-  that landed between fetch and push (and are not in the local lineage) survive
-  only on the backup ref, not on the canonical branch. Recovery requires someone to
-  notice the backup ref and re-merge it. This is exactly the failure mode the repo
+- The force push is leased and backed up, so it is not a blind `--force`. But it
+  still **rewrites shared history**: remote commits that landed between fetch and
+  push survive only on the backup ref, not on the canonical branch, and recovery
+  requires someone to notice that ref and re-merge it. This is exactly what the repo
   safety norms (`.agents/workflow.md`: "Never force-push", "Never rewrite shared
   history") want to avoid.
 
@@ -78,12 +82,6 @@ This is a design artifact only. It does not implement a broad change.
   `apps/cli/src/commands/results/remote.ts:356-385`).
 - `syncRemoteResults()` delegates to `syncResultsRepoForProject()` and reports
   status; on error it returns `blocked: true` with the message.
-- The prior conflict design
-  (`docs/plans/2026-06-23-002-feat-remote-result-metadata-conflicts-plan.md`) adds
-  `GET /api/remote/conflicts` and `POST /api/remote/resolve` with three actions:
-  `pull_remote_overwrite`, `force_push_local` (backup + lease), and
-  `resolve_files` (per-file accept incoming/outgoing). The `force_push_local`
-  action is the part this design removes.
 
 ### Artifact families (what "merge" means here)
 
@@ -92,351 +90,242 @@ From `docs/plans/results-branch-layout.md` and `results-repo.ts`:
 | Family | Path | Mutability | Conflict shape |
 | --- | --- | --- | --- |
 | Run bundles | `runs/<exp>/<ts>/...` | Immutable, write-once | New files in unique timestamped dirs; **never** overlap between writers |
-| Run index | append-only JSONL (e.g. `index.jsonl`) | Append-only | Concurrent appends → both-modified on the same tail lines; line-union resolves cleanly |
-| Mutable metadata overlay | `metadata/runs/<exp>/<ts>/tags.json`, `feedback.json` | Editable | Genuine content conflict possible (two writers retag the same run) |
+| Run index | append-only JSONL | Append-only | Concurrent appends → both-modified on the tail; line-union resolves cleanly |
+| Mutable overlay | `metadata/runs/<exp>/<ts>/tags.json`, `feedback.json` | Editable | Genuine content conflict possible (two writers retag the same run) |
 
 The crucial observation: **only the small editable overlay can truly conflict.**
-Run bundles are content-addressed by unique timestamp directories, so two agents
-pushing different runs never touch the same path. Index appends are line-orthogonal.
-That means a force push is almost never *necessary* — it is being used as a blunt
-instrument for a non-fast-forward that a merge would resolve automatically.
+Run bundles are uniquely pathed by timestamp, so two agents pushing different runs
+never touch the same path. Index appends are line-orthogonal. So a force push is
+almost never *necessary* — it is being used as a blunt instrument for a
+non-fast-forward that a merge resolves automatically.
 
 ---
 
-## Evaluating the Operator's Proposed Workflow
+## Recommended Design
 
-> 1. On divergence, push to a NEW timestamped branch
->    `agentv/results/v1/sync-2026-06-24T01-29-52Z` (never force-push canonical).
-> 2. Surface a link / pre-filled PR-compare URL and ask the user to merge that
->    branch into canonical and delete the temp branch.
-> 3. Watch the temp branch; when it is **deleted**, resume syncing canonical.
-
-### What works
-
-- **Eliminates force push.** The canonical branch is only ever updated by a merge
-  the human/CI performs through normal Git/GitHub, which respects branch protection
-  and review. This is the headline win and aligns with `.agents/workflow.md`.
-- **Zero data loss.** The diverged local work is preserved on a named remote branch;
-  nothing is overwritten.
-- **Composable.** A timestamped branch + compare URL is a narrow adapter over
-  plain Git; it does not require Phoenix or a hosted DB.
-- **Human-auditable.** The merge is a reviewable PR, which fits "portable artifacts
-  as source of truth" and "GitHub is the merge surface".
-
-### Failure modes and edge cases
-
-1. **Branch-deletion is an unreliable "merge done" signal.** Deletion and merge are
-   independent events:
-   - User deletes **without merging** (cleanup, mistake, "this run was junk") →
-     Dashboard would wrongly resume canonical sync and the local work is silently
-     lost from the canonical branch. **This is a correctness bug.**
-   - User merges but **does not delete** (GitHub "delete branch" is optional, or
-     auto-delete is off) → Dashboard never resumes; it keeps pushing to a stale
-     temp branch forever.
-   - User deletes, then **re-pushes** the same branch name (or a new run reuses a
-     near-identical timestamp) → ambiguous state; the watcher may flap.
-   - Branch protection / org policy **forbids branch deletion** → the signal can
-     never fire.
-
-   **Recommendation:** do not key resumption on deletion. Key it on **"the temp
-   branch tip is an ancestor of the canonical branch"**, computed locally after a
-   fetch:
-
-   ```bash
-   git fetch origin
-   git merge-base --is-ancestor <temp_tip_sha> origin/<canonical>   # exit 0 ⇒ merged
-   ```
-
-   This is true only if the temp branch's content actually reached canonical
-   (whether via merge, squash-merge of identical content, or fast-forward), and is
-   robust to deletion timing. Deletion can be an **optional cleanup** the Dashboard
-   *offers* after detecting the ancestor condition, never the trigger.
-
-   Caveat: **squash merge** (the repo's required merge style — `.agents/workflow.md`
-   uses `gh pr merge --squash`) produces a *new* commit whose SHA differs from the
-   temp tip, so `--is-ancestor` on the raw tip returns false even though the content
-   merged. Detect squash-merge content equivalence instead via patch-id or tree
-   comparison of the contributed runs:
-   - Preferred: confirm every `runs/<exp>/<ts>/` directory the temp branch added is
-     now present at the same path in `origin/<canonical>` with an identical tree
-     SHA (`git rev-parse origin/<canonical>:<path>` equals the temp's
-     `<path>` tree). Because run bundles are immutable and uniquely pathed, tree
-     equality is an exact "this run reached canonical" test that survives squash.
-   - This makes run-bundle merge detection **independent of commit SHA**, which is
-     the right invariant for append-only content.
-
-2. **Concurrency: N Dashboards/agents pushing temp branches at once.** Each writer
-   uses a unique timestamped (and ideally host/pid/random-suffixed) branch name, so
-   pushes never collide. Ordering does not matter because the runs they carry live
-   in disjoint `runs/<exp>/<ts>/` dirs. The canonical branch absorbs N temp branches
-   by N merges; each merge is a fast-forward or trivial union (no path overlap).
-   The only true contention is the **mutable overlay** (two writers retag the same
-   run) — see the merge-strategy section. **Recommendation:** suffix temp branch
-   names with a short random token to avoid same-second collisions:
-   `agentv/results/v1/sync-2026-06-24T01-29-52Z-<rand6>`.
-
-3. **Temp-branch sprawl.** Without cleanup, abandoned temp branches accumulate.
-   **Recommendation:** the Dashboard tracks the temp branches it created
-   (locally, in `.agentv/` state, not committed), shows their status
-   (`pending_merge | merged | abandoned`), and offers a one-click delete after the
-   ancestor/tree-equality check confirms merge. Optionally a TTL-based "these N
-   sync branches are >14 days old and unmerged" nudge.
-
-4. **The human step is unnecessary for the common case.** Per the artifact-family
-   table, almost every divergence is auto-mergeable. Forcing a human PR for every
-   divergence is heavy and breaks the zero-friction local loop. **Recommendation:**
-   make the human temp-branch flow the *fallback*, gated on a real conflict, not
-   the default path.
-
-### Polling vs webhook vs local git
-
-- **Webhook**: requires an inbound server / public endpoint → violates zero-infra.
-  Rejected for the default path.
-- **Local git polling**: `git fetch` + `merge-base --is-ancestor` / tree compare on
-  a timer or on Dashboard focus. Zero-infra, works offline-ish, no external service.
-  **Recommended.**
-- **`gh` enrichment (optional)**: when `gh` is authenticated, the Dashboard can
-  *additionally* read PR state to show "merged"/"closed" labels and build a
-  pre-filled PR-create URL. This is a narrow optional adapter, never required for
-  correctness — the ancestor/tree check from local git remains the source of truth.
-
----
-
-## Merge Strategy Per Artifact Family
-
-The goal: make merges automatic so the human path is rarely hit and force push is
-never needed.
-
-| Family | Strategy | Mechanism |
-| --- | --- | --- |
-| Run bundles `runs/<exp>/<ts>/**` | Always auto (no overlap) | Disjoint paths ⇒ standard 3-way merge has no conflict. Add a `.gitattributes` safety net but it should never trigger. |
-| Append-only index JSONL | Union merge | `.gitattributes`: `index.jsonl merge=union`; lines from both sides are kept. A post-merge normalizer can de-dup/sort by `run_id` if needed (the index is a rebuildable projection per `results-storage-retention-oplog-plan.md` / the SQLite index epic, so worst case it is regenerated). |
-| Mutable overlay `metadata/runs/**/tags.json`, `feedback.json` | JSON-aware merge driver; fall back to human path | Custom `merge=agentv-json` driver does a 3-way **set/field union** for tags (add/remove are commutative) and last-writer-wins only on genuine scalar conflicts; if it cannot reconcile, leave conflict markers → triggers the temp-branch fallback. |
-
-Notes:
-
-- `.gitattributes` lives **on the results branch** (committed there), so every clone
-  and the storage-branch worktree inherit the merge drivers. Custom drivers
-  (`merge=agentv-json`) must be registered in the local git config of the results
-  checkout the Dashboard controls; AgentV configures this when it initializes/owns
-  the results checkout (it already manages a dedicated checkout / storage-branch
-  worktree, so this is a one-time `git config merge.agentv-json.driver ...` on
-  setup, not user-facing infra).
-- Union/JSON-aware merge means the **fetch → merge → push** loop resolves the
-  common case with a real merge commit. Only a genuine overlay conflict (rare) falls
-  through to the human temp-branch flow.
-- This directly removes the justification for `backup_and_force_push`: a
-  non-fast-forward becomes "fetch, merge (auto), push", retried under optimistic
-  concurrency.
-
----
-
-## Recommended Design (Hybrid)
-
-### Sync algorithm (replaces `resolveResultBranchPushConflict` force path)
+### Layer 1 — Auto-merge push loop (replaces the force-push path)
 
 ```
 push_results(local_ref, canonical):
   for attempt in 1..N:                      # bounded optimistic retry
     git fetch origin canonical
-    if local_ref is ancestor of origin/canonical:   # nothing to do
-      return up_to_date
-    if origin/canonical is ancestor of local_ref:   # fast-forward
+    if local_ref is ancestor of origin/canonical: return up_to_date
+    if origin/canonical is ancestor of local_ref:        # fast-forward
       git push origin local_ref:canonical
-      if ok: return pushed
-      else: continue                        # someone raced us; retry
+      if ok: return pushed else: continue   # raced; retry
     # diverged → try a real merge with artifact-aware drivers
     git merge -m "chore(results): merge remote results" origin/canonical
-    if merge clean:                         # union/json drivers resolved it
+    if merge clean:                          # union/json drivers resolved it
       git push origin HEAD:canonical
-      if ok: return merged_pushed
-      else: continue                        # raced; retry from fetch
-    else:                                    # TRUE conflict (overlay)
+      if ok: return merged_pushed else: continue
+    else:                                     # TRUE conflict (overlay only)
       git merge --abort
-      return needs_human_merge              # → temp-branch fallback
-  return needs_human_merge                  # exhausted retries
+      return needs_human_merge               # → Layer 2
+  return needs_human_merge
 ```
 
-- **No force push anywhere.** Push is always fast-forward of canonical (either a
-  plain FF or a FF onto a freshly-created merge commit that already contains the
-  remote tip).
+- **No force push anywhere.** Every push is a fast-forward of canonical (a plain FF,
+  or a FF onto a merge commit that already contains the remote tip).
 - Bounded retry handles the benign race where another writer pushes between our
-  fetch and push; each retry re-merges the newer remote tip.
+  fetch and push.
 
-### Temp-branch fallback (operator's idea, hardened)
+#### Merge strategy per artifact family
 
-When `needs_human_merge`:
+| Family | Strategy | Mechanism |
+| --- | --- | --- |
+| Run bundles `runs/<exp>/<ts>/**` | Always auto (no overlap) | Disjoint paths ⇒ standard 3-way merge never conflicts. |
+| Append-only index JSONL | Union merge | `.gitattributes`: `index.jsonl merge=union`. Index is a rebuildable projection (see the SQLite index epic / `results-storage-retention-oplog-plan.md`), so worst case it is regenerated. |
+| Mutable overlay `tags.json`, `feedback.json` | JSON-union driver; else human path | `merge=agentv-json` does a 3-way set/field union for tags (add/remove are commutative); if it cannot reconcile a genuine scalar conflict, it leaves the file conflicted → Layer 2. |
 
-1. Push local work to `agentv/results/v1/sync-<utc_ts>-<rand6>` (create-only push;
-   if the name somehow exists, regenerate). Never touch canonical.
-2. Record in local Dashboard state (`.agentv/`-scoped, **not committed**):
-   `{ temp_branch, tip_sha, contributed_run_paths[], canonical, created_at,
-   status: 'pending_merge', compare_url? }`.
-3. Surface in the Dashboard:
-   - Status chip: `Pending merge` with the temp branch name.
-   - A **compare/PR link**. With `gh` available and a GitHub remote, build
-     `https://github.com/<owner>/<repo>/compare/<canonical>...<temp_branch>?expand=1`
-     (or `gh pr create --web`). Without `gh`, show the branch name and the compare
-     path so the user can open it manually.
-   - Copy that names exactly what to do: "Merge this branch into `<canonical>`,
-     then AgentV will resume normal sync automatically."
-4. **Resume signal (robust):** on each poll, `git fetch`, then mark the temp branch
-   `merged` when **every** `contributed_run_paths[]` entry has an identical tree SHA
-   at the same path on `origin/<canonical>` (squash-safe), or `tip_sha` is an
-   ancestor of `origin/<canonical>` (FF/merge-commit case). Only then revert to
-   canonical-branch sync.
-5. On `merged`: offer (do not force) temp-branch deletion as cleanup.
-6. `abandoned` is a UI-only label for a temp branch the user dismisses; AgentV keeps
-   its local run workspace intact so nothing is lost.
+`.gitattributes` lives on the results branch; the `agentv-json` driver is registered
+once in the AgentV-owned results checkout config when AgentV initializes it (it
+already manages a dedicated checkout / storage-branch worktree, so this is a one-time
+`git config`, not user-facing infra).
+
+### Layer 2 — Human merge via GitHub PR + explicit OK (only on true conflict)
+
+When Layer 1 returns `needs_human_merge`:
+
+1. **Push to a new timestamped temp branch**, never canonical:
+   `agentv/results/v1/sync-<utc_ts>-<rand6>` (create-only push; `<rand6>` avoids
+   same-second collisions between concurrent writers).
+2. **Surface a link** in the Dashboard:
+   - A **compare/PR URL**. With a GitHub remote and `gh`, build
+     `https://github.com/<owner>/<repo>/compare/<target>...<temp_branch>?expand=1`
+     (or `gh pr create --web`). Without `gh`, show the branch name + compare path.
+   - Status chip: `Pending merge` with the temp branch name and a copy line:
+     "Merge this branch into `<target>` on GitHub, then click OK."
+3. **The user merges the PR on GitHub.** GitHub's PR/merge/conflict UI is the
+   resolution surface; AgentV renders **no diff/merge editor**.
+4. **The user clicks OK** in the Dashboard.
+5. AgentV **pulls the target branch** (`git fetch` + fast-forward / merge of
+   `origin/<target>` into the local results checkout) and resumes normal sync.
+
+#### Why an explicit OK instead of auto-detecting the merge
+
+Auto-detecting "the temp branch was merged" is surprisingly hard and was the main
+complexity in earlier drafts:
+
+- **Branch deletion is not a merge signal.** A user can delete without merging
+  (loses work), merge without deleting (never resumes), or be blocked from deleting
+  by branch protection.
+- **Squash merge** (the repo's required style — `.agents/workflow.md` uses
+  `gh pr merge --squash`) gives the merge a *new* SHA, so the temp tip is not an
+  ancestor of the target even though the content merged. Detecting it requires
+  tree-equality comparison of every contributed run bundle — extra machinery for a
+  signal the user can simply give us.
+
+An explicit OK sidesteps all of it. It is also **safe**: if the user clicks OK
+*without* having merged, AgentV just pulls the target (which lacks their work),
+re-diverges on the next push, and re-creates a temp branch. Local run artifacts are
+never lost, so a premature OK only costs one extra loop — no data loss, no force
+push.
+
+#### Concurrency
+
+Each writer uses a unique `sync-<ts>-<rand6>` branch, so temp pushes never collide,
+and the runs they carry live in disjoint `runs/<exp>/<ts>/` dirs. The target branch
+absorbs N temp PRs through N normal merges. The only true contention is the mutable
+overlay, which Layer 1's JSON-union driver already handles for add/remove; a genuine
+scalar overlay conflict is the rare case that reaches a PR.
 
 ### Dashboard UX states
 
 `Clean | Ahead | Behind | Syncing | Merged remote (auto) | Pending merge (link) |
-Conflict (per-file) | Unavailable`
+Unavailable`
 
-- `Merged remote (auto)`: transient toast after the fetch→merge→push loop committed a
-  real merge — informs the user their push absorbed remote changes with no action.
-- `Pending merge (link)`: the temp-branch fallback card with compare/PR URL and
-  per-temp-branch status.
-- `Conflict (per-file)`: reuse the prior design's
-  `GET /api/remote/conflicts` + `POST /api/remote/resolve` **`resolve_files`** action
-  (accept incoming/outgoing on the small overlay), but **drop `force_push_local`**.
-  After per-file resolution, the push uses the same FF/merge loop above.
+- `Merged remote (auto)`: transient toast after Layer 1 committed a real merge — the
+  user's push absorbed remote changes with no action.
+- `Pending merge (link)`: Layer 2 card with the temp branch name, the compare/PR
+  link, and a single **OK** button ("I merged it — resync"). Optionally an
+  `gh`-enriched label showing the PR is merged/closed, as a convenience only; the OK
+  button remains the trigger.
+- No per-file conflict view, no inline diffs, no accept-incoming/outgoing buttons.
+
+### Detecting "true conflict" vs auto-mergeable
+
+The split is purely whatever `git merge` (with the configured drivers) decides:
+clean merge ⇒ Layer 1 pushes; conflicted merge ⇒ Layer 2. AgentV does not classify
+conflicts itself, which keeps the core tiny.
 
 ### Rationale against the product boundary (`.agents/product-boundary.md`)
 
-- **Zero-infra local to CI:** local-git fetch + merge + ancestor/tree checks; no
-  webhook, no Phoenix, no hosted DB. `gh` is an optional enrichment adapter.
-- **Portable artifacts as source of truth:** the canonical results branch is only
-  ever advanced by real merges; history is never rewritten, so the branch remains a
-  trustworthy, append-only-ish record.
-- **Small composable core / narrow adapters:** the merge drivers are stock git
-  (`union`) plus one tiny JSON driver; the temp-branch flow is plain `git push` to a
-  new ref + a compare URL string. No new service.
-- **YAGNI:** the human path is only built as a thin fallback; the common case is
-  handled by git's own merge machinery. We are not building a CRDT or an event log
-  (the prior design already declined `tag-events.jsonl`).
-- **Industry alignment:** "push to a branch, open a PR, gate on merge" is the
-  lowest-common-denominator GitHub flow; auto-merging append-only data with
-  `merge=union` is a well-worn git idiom.
+- **Zero-infra local to CI:** local-git fetch/merge/push for Layer 1; a plain
+  `git push` to a new ref + a URL string for Layer 2. `gh` is an optional
+  enrichment, never required. No webhook, no Phoenix, no hosted DB.
+- **Portable artifacts as source of truth:** canonical branch advances only by real
+  merges; history is never rewritten.
+- **Small composable core / narrow adapters:** stock git `union` + one tiny JSON
+  driver; the human path is "push a branch, open a PR on GitHub, click OK."
+- **YAGNI:** no merge UI, no squash-safe detection, no event log/CRDT. The heaviest
+  earlier idea (per-file conflict editor from av-xwm) is explicitly **not** built.
+- **Industry alignment:** "push a branch, open a PR, merge it on GitHub" is the
+  lowest-common-denominator flow; `merge=union` for append-only data is a standard
+  git idiom.
 
 ---
 
 ## Alternatives Considered
 
-### A. Always-PR flow (push temp branch + open PR for *every* divergence)
+### A. Auto-detect merge (tree-equality / ancestor) instead of an OK button
 
-- Pros: uniform, fully auditable, branch-protection-friendly.
-- Cons: heavy; forces a human/CI round-trip even for trivially auto-mergeable
-  appends; breaks the fast local loop. **Rejected as the default**, kept as the
-  fallback shape.
+- Pros: no human click; could auto-resume.
+- Cons: must be squash-safe (tree-equality across every contributed run bundle) and
+  must distinguish merge from deletion; meaningfully more code and edge cases for a
+  signal the user can give in one click. **Rejected** in favor of explicit OK.
 
-### B. Rebase/replay local commits onto updated remote tip
+### B. Backup + force-with-lease (current `backup_and_force_push`)
 
-- Replaying local-only results commits onto `origin/canonical` then FF-pushing.
-- Pros: linear history.
-- Cons: rebase **rewrites** the local commits (new SHAs). If those commits were ever
-  shared (e.g. already on a temp branch others fetched), this reintroduces a
-  history-rewrite hazard. A **merge** commit is safer and equally automatic for our
-  append-only data. **Rejected** in favor of merge; rebase offers no real benefit
-  here because we do not care about linear history on the results branch.
+- Pros: no human step.
+- Cons: rewrites shared history; concurrent remote commits survive only on a backup
+  ref. Violates repo safety norms. **Removed** by this design.
 
-### C. Append-only / CRDT-ish layout to make conflicts structurally impossible
+### C. Per-file conflict-resolution UI (av-xwm)
 
-- Make even mutable metadata append-only: instead of editing `tags.json`, append
-  tag events to a per-writer file (`metadata/runs/<exp>/<ts>/tags/<writer>.jsonl`)
-  and fold at read time.
-- Pros: zero conflicts *by construction*, including the overlay; the human path
-  essentially never triggers.
-- Cons: the prior design (`...-002-...`) **explicitly declined** `tag-events.jsonl`
-  and per-writer event streams for v1 (KTD6). Adopting it now is a scope increase
-  and a layout migration. **Deferred** — but noted as the natural end-state if
-  overlay conflicts prove common in practice. The hybrid's JSON-union driver gets
-  most of this benefit (add/remove are commutative) without the layout change.
+- Build incoming/outgoing accept buttons + inline diffs in the Dashboard.
+- Cons: heavy UI to build and maintain; duplicates what GitHub's PR UI already does.
+  **Rejected** — GitHub's PR is the conflict surface. The av-xwm design's optimistic
+  concurrency for *stale tag writes* remains independently useful, but its conflict
+  *merge UI* is not a dependency here.
 
-### Comparison vs the operator's raw idea
+### D. Rebase/replay local commits onto the remote tip
 
-| Aspect | Operator (delete-to-resync) | Recommended hybrid |
-| --- | --- | --- |
-| Force push | Avoided | Avoided |
-| Common-case friction | Human merge every divergence | Auto-merge, no human |
-| Resume signal | Branch deletion (unreliable) | Tree-equality / ancestor (robust, squash-safe) |
-| Lost-work risk | Delete-without-merge loses work | None (resume only on confirmed merge) |
-| Concurrency | OK (unique branches) | OK + random suffix; auto-merge for overlap |
-| Infra | Local git | Local git (+ optional `gh`) |
+- Cons: rewrites local commit SHAs; if those were ever shared (e.g. on a temp
+  branch) it reintroduces a history-rewrite hazard, and we do not care about linear
+  history on the results branch. **Rejected** in favor of merge.
+
+### E. Append-only / CRDT overlay (per-writer tag event files)
+
+- Makes even overlay conflicts structurally impossible.
+- Cons: a layout migration the prior design explicitly declined (KTD6). The JSON
+  union driver already gets most of the benefit (add/remove commute). **Deferred**
+  as a potential end-state only if overlay conflicts prove common.
 
 ---
 
 ## Phased, Non-Breaking Implementation Plan
 
-### Phase 0 — Merge drivers + `.gitattributes` (foundation)
+### Phase 0 — Merge drivers + `.gitattributes`
 
-- Add `.gitattributes` to the results branch with `merge=union` for append-only
-  index files; register an `agentv-json` merge driver in the AgentV-owned results
-  checkout config.
-- Non-breaking: drivers only affect merges AgentV performs; existing branches gain
-  the attributes on next write.
+- Add `.gitattributes` (`merge=union` for the index) to the results branch; register
+  the `agentv-json` driver in the AgentV-owned results checkout config.
+- Non-breaking: drivers only affect merges AgentV performs.
 
-### Phase 1 — FF/merge push loop (removes force-push need)
+### Phase 1 — Auto-merge push loop (removes the force-push need)
 
 - Replace the `backup_and_force_push` branch in `resolveResultBranchPushConflict`
-  (`results-repo.ts:1380-1468`) with the bounded **fetch → merge → push** loop.
-- Keep `push_conflict_policy` config key for back-compat but:
-  - `'block'` → still blocks on a *true* conflict (now defined as merge-driver
-    failure), and routes to the temp-branch fallback instead of suggesting force
-    push.
-  - `'backup_and_force_push'` → **deprecate**; treat as `'block'` + temp-branch
-    fallback, and log a one-time notice. (Same-week/unreleased-surface latitude per
-    `.agents/product-boundary.md` §6 may allow hard removal; confirm release state
-    first.)
-- Tests: temp-remote integration covering FF, auto-merge of disjoint run bundles,
-  union index merge, benign push race retry.
+  (`results-repo.ts:1380-1468`) with the bounded fetch → merge → push loop.
+- Keep `push_conflict_policy` for back-compat but deprecate `backup_and_force_push`:
+  treat it as `'block'` + route true conflicts to Layer 2. Same-week/unreleased
+  latitude (`product-boundary.md` §6) may allow hard removal — confirm release state.
+- Tests (temp-remote integration): FF push, auto-merge of disjoint run bundles,
+  union index merge, benign push-race retry.
 
-### Phase 2 — Temp-branch fallback + robust resume detection
+### Phase 2 — Temp-branch + OK-to-resync
 
 - Core helpers: `pushResultsSyncBranch()` (create-only push to
-  `sync-<ts>-<rand6>`), `detectResultsBranchMerged()` (tree-equality + ancestor
-  check), `listResultsSyncBranches()` (local state).
-- API: extend `POST /api/remote/sync` result to include a `pending_merge` block
-  (`temp_branch`, `compare_url`, `contributed_run_count`, `status`); add
-  `POST /api/remote/sync-branches/:id/cleanup` for optional deletion.
-- Tests: delete-without-merge does **not** resume; squash-merged content **does**
-  resume; FF-merged tip resumes; concurrent writers get distinct branches.
+  `sync-<ts>-<rand6>`) and `pullResultsTargetBranch()` (fetch + FF/merge target into
+  the local checkout, invoked on OK).
+- API: extend `POST /api/remote/sync` to return a `pending_merge` block
+  (`temp_branch`, `compare_url`, `contributed_run_count`); add
+  `POST /api/remote/sync/confirm-merge` (the OK action) that pulls the target and
+  returns refreshed status.
+- Tests: true overlay conflict produces a temp branch + pending_merge payload; OK
+  pulls the target and clears pending state; premature OK (target not actually
+  merged) re-diverges without data loss.
 
 ### Phase 3 — Dashboard UX
 
-- Add `Pending merge` card and `Merged remote (auto)` toast to `RunSourceToolbar` /
-  `project-sync-status`.
-- Build compare/PR URL (with optional `gh` enrichment); show per-temp-branch status
-  and optional cleanup button.
-- Reuse the prior design's per-file conflict view for the overlay, minus
-  `force_push_local`.
+- `RunSourceToolbar` / `project-sync-status`: `Merged remote (auto)` toast and a
+  `Pending merge` card with the compare/PR link and an **OK** button.
+- Optional `gh` enrichment to label the PR state (convenience only).
 - Browser UAT per `.agents/verification.md` (evidence to `agentv-private`).
 
 ### Phase 4 — (Deferred) Append-only overlay
 
-- Only if overlay conflicts prove common: migrate tags/feedback to per-writer
-  append-only event files and fold at read. Revisits KTD6 of the prior design.
+- Only if overlay conflicts prove common in practice (Alternative E).
 
 ---
 
 ## Non-Goals
 
-- Force push, blind or leased, anywhere in the design.
+- Force push, blind or leased, anywhere.
 - Rewriting shared history (no rebase-and-force of shared branches).
 - A webhook server, hosted DB, or Phoenix dependency for sync.
-- A CRDT or operation-log layout in v1 (deferred to Phase 4).
-- CLI command family for conflict resolution (stays Dashboard/API-owned, per the
-  prior design's KTD1).
-- Multi-tenant authorization policy for hosted Dashboard force-merge roles.
+- An AgentV merge/diff/conflict-editor UI — GitHub's PR is the conflict surface.
+- Automatic merge detection (tree-equality/ancestor/deletion watching) — replaced by
+  an explicit OK.
+- A CRDT or operation-log overlay layout in v1 (deferred to Phase 4).
+- A CLI command family for conflict resolution (stays Dashboard/API-owned).
 
 ---
 
 ## Open Questions
 
-- Release state of `backup_and_force_push`: can it be hard-removed (same-week,
-  unshipped) or must it be deprecated with a compatibility window?
-- Should the index JSONL keep `merge=union` permanently, or rely on the rebuildable
-  SQLite index (av-2il epic) and treat the on-branch JSONL as best-effort?
-- Default retry count `N` and backoff for the optimistic FF/merge loop.
-- Whether the Dashboard should auto-open the compare/PR URL or only surface it.
+- Release state of `backup_and_force_push`: hard-remove (same-week, unshipped) or
+  deprecate with a compatibility window?
+- Keep `merge=union` on the index permanently, or rely on the rebuildable SQLite
+  index and treat the on-branch JSONL as best-effort?
+- Default retry count `N` and backoff for the optimistic loop.
+- Should the OK action also offer optional temp-branch cleanup (delete the merged
+  `sync-*` branch), or leave that to GitHub auto-delete-on-merge?
