@@ -315,6 +315,11 @@ conflicts itself, which keeps the core tiny.
 - An AgentV merge/diff/conflict-editor UI — GitHub's PR is the conflict surface.
 - Automatic merge detection (tree-equality/ancestor/deletion watching) — replaced by
   an explicit OK.
+- **Temp-branch deletion/cleanup.** The user owns the merge on GitHub, so deleting
+  the merged `sync-<ts>-<rand6>` branch belongs to that same GitHub flow
+  (auto-delete-on-merge, or the user's manual cleanup). AgentV does not delete temp
+  branches and does not track them for cleanup. AgentV only creates the temp branch
+  and reads the target on OK.
 - A CRDT or operation-log overlay layout in v1 (deferred to Phase 4).
 - A CLI command family for conflict resolution (stays Dashboard/API-owned).
 
@@ -327,5 +332,3 @@ conflicts itself, which keeps the core tiny.
 - Keep `merge=union` on the index permanently, or rely on the rebuildable SQLite
   index and treat the on-branch JSONL as best-effort?
 - Default retry count `N` and backoff for the optimistic loop.
-- Should the OK action also offer optional temp-branch cleanup (delete the merged
-  `sync-*` branch), or leave that to GitHub auto-delete-on-merge?
