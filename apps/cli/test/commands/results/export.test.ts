@@ -352,7 +352,6 @@ describe('results export', () => {
       input_path: 'privacy/test-private/input.md',
       output_path: 'privacy/test-private/outputs/answer.md',
       answer_path: 'privacy/test-private/outputs/answer.md',
-      response_path: 'privacy/test-private/outputs/response.md',
       trace_path: 'privacy/test-private/trace.json',
     });
     expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/trace.json');
@@ -417,7 +416,6 @@ describe('results export', () => {
       timing_path: 'demo/test-greeting/timing.json',
       output_path: 'demo/test-greeting/outputs/answer.md',
       answer_path: 'demo/test-greeting/outputs/answer.md',
-      response_path: 'demo/test-greeting/outputs/response.md',
       transcript_path: 'demo/test-greeting/transcript.jsonl',
       input_path: 'demo/test-greeting/input.md',
     });
@@ -613,8 +611,7 @@ describe('results export', () => {
     expect(readFileSync(answerPath, 'utf8')).toBe('Hello, Alice!');
 
     const responsePath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'response.md');
-    expect(existsSync(responsePath)).toBe(true);
-    expect(readFileSync(responsePath, 'utf8')).toBe('Hello, Alice!');
+    expect(existsSync(responsePath)).toBe(false);
   });
 
   it('should group results by target in benchmark.json', async () => {

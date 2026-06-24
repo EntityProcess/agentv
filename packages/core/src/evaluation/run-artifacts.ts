@@ -308,7 +308,6 @@ export interface IndexArtifactEntry {
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly raw_provider_log_path?: string;
   readonly input_path?: string;
-  readonly response_path?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
   readonly targets_path?: string;
@@ -364,7 +363,7 @@ export interface VercelRunResultArtifact {
     readonly thinkingBlocks: number;
   };
   readonly outputPaths?: {
-    readonly eval?: string;
+    readonly answer?: string;
     readonly scripts?: Record<string, string>;
   };
 }
@@ -743,7 +742,7 @@ function buildVercelRunResultArtifact(params: {
       errors: metrics.errors,
       thinkingBlocks: metrics.thinking_blocks,
     },
-    outputPaths: params.hasOutput ? { eval: './outputs/eval.txt' } : undefined,
+    outputPaths: params.hasOutput ? { answer: './outputs/answer.md' } : undefined,
   }) as unknown as VercelRunResultArtifact;
 }
 
@@ -768,7 +767,8 @@ async function writeTrialRunArtifacts(params: {
   const timing = buildTimingArtifact([result]);
   const gradingPath = path.join(runDir, 'grading.json');
   const outputsDir = path.join(runDir, 'outputs');
-  const evalOutputPath = result.output.length > 0 ? path.join(outputsDir, 'eval.txt') : undefined;
+  const answerOutputPath =
+    result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
   const attemptRunId = params.runId
     ? `${params.runId}:${runDirName}`
     : `${result.testId}:${result.target}:${runDirName}`;
@@ -790,8 +790,8 @@ async function writeTrialRunArtifacts(params: {
   await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
 
   await mkdir(outputsDir, { recursive: true });
-  if (evalOutputPath) {
-    await writeFile(evalOutputPath, result.output, 'utf8');
+  if (answerOutputPath) {
+    await writeFile(answerOutputPath, result.output, 'utf8');
   }
   if (transcriptPath && transcriptRawPath) {
     await writeFile(
@@ -1316,7 +1316,6 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     artifacts: {
       trace_path: CANONICAL_TRACE_ARTIFACT_PATH,
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
-      response_path: params.result.output.length > 0 ? 'outputs/response.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
       metrics_path: CANONICAL_METRICS_ARTIFACT_PATH,
       raw_provider_log_path: rawProviderLogSourcePath(params.result) ? 'provider.log' : undefined,
@@ -1420,7 +1419,6 @@ export function buildIndexArtifactEntry(
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     inputPath?: string;
-    responsePath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
     projectionIdentity?: ProjectionIdentity;
     duplicatePolicy?: ExportDuplicatePolicy;
@@ -1484,9 +1482,6 @@ export function buildIndexArtifactEntry(
     input_path: options.inputPath
       ? toRelativeArtifactPath(options.outputDir, options.inputPath)
       : undefined,
-    response_path: options.responsePath
-      ? toRelativeArtifactPath(options.outputDir, options.responsePath)
-      : undefined,
     ...options.extraIndexFields,
     external_trace: toIndexExternalTrace(result, options.projectionIdentity?.dimensions.runId),
     projection_identity: options.projectionIdentity
@@ -1548,9 +1543,6 @@ export function buildResultIndexArtifact(
       ? path.posix.join(artifactSubdir, 'provider.log')
       : undefined,
     artifact_pointers: options?.artifactPointers,
-    response_path: hasAnswer
-      ? path.posix.join(artifactSubdir, 'outputs', 'response.md')
-      : undefined,
     ...extraIndexFields,
     external_trace: toIndexExternalTrace(result, options?.projectionIdentity?.dimensions.runId),
     projection_identity: options?.projectionIdentity
@@ -1959,7 +1951,6 @@ export async function writePerTestArtifacts(
     await mkdir(outputsDir, { recursive: true });
     if (result.output.length > 0) {
       await writeFile(path.join(outputsDir, 'answer.md'), result.output, 'utf8');
-      await writeFile(path.join(outputsDir, 'response.md'), result.output, 'utf8');
     }
     const rawProviderLogSource = rawProviderLogSourcePath(result);
     if (rawProviderLogSource) {
@@ -2057,8 +2048,6 @@ export async function writeArtifactsFromResults(
     const inputPath = input ? path.join(testDir, 'input.md') : undefined;
     const outputsDir = path.join(testDir, 'outputs');
     const answerPath = result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
-    const responsePath =
-      result.output.length > 0 ? path.join(outputsDir, 'response.md') : undefined;
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
@@ -2093,7 +2082,6 @@ export async function writeArtifactsFromResults(
       inputPath,
       outputsDir,
       answerPath,
-      responsePath,
       tracePath,
       metricsPath,
       envelope,
@@ -2191,9 +2179,8 @@ export async function writeArtifactsFromResults(
     }
 
     await mkdir(plan.outputsDir, { recursive: true });
-    if (plan.answerPath && plan.responsePath) {
+    if (plan.answerPath) {
       await writeFile(plan.answerPath, result.output, 'utf8');
-      await writeFile(plan.responsePath, result.output, 'utf8');
     }
     if (plan.rawProviderLogSource) {
       await copyRawProviderLogArtifact(plan.rawProviderLogSource, plan.testDir);
@@ -2252,7 +2239,6 @@ export async function writeArtifactsFromResults(
         artifactPointers,
         rawProviderLogPath: plan.rawProviderLogPath,
         inputPath: plan.inputPath,
-        responsePath: plan.responsePath,
         extraIndexFields,
         projectionIdentity: plan.projectionIdentity,
         duplicatePolicy,

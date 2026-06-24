@@ -249,7 +249,7 @@ Single-run cases keep direct case-local files:
 .agentv/results/<experiment>/<timestamp>/<case-id>/input.md
 .agentv/results/<experiment>/<timestamp>/<case-id>/outputs/trace.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/outputs/transcript.jsonl
-.agentv/results/<experiment>/<timestamp>/<case-id>/outputs/response.md
+.agentv/results/<experiment>/<timestamp>/<case-id>/outputs/answer.md
 ```
 
 Rationale: the common path stays readable, old mental models stay close, and no user pays a `run-1/` nesting tax for default CI.
@@ -266,13 +266,13 @@ Repeat-run cases use attempt directories:
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript-raw.jsonl
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/outputs/eval.txt
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/outputs/answer.md
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/metrics.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript-raw.jsonl
-.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/outputs/eval.txt
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/outputs/answer.md
 ```
 
 `<case-id>` should reuse the sanitized artifact key produced by the current artifact writer, including suite disambiguation where needed. Attempt directories are one-indexed because users naturally inspect `run-1`, `run-2`, and this matches the Vercel comparison.

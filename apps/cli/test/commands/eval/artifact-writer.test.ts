@@ -578,7 +578,8 @@ describe('buildIndexArtifactEntry', () => {
         outputDir: '/tmp/artifacts',
         gradingPath: '/tmp/artifacts/alpha/grading.json',
         timingPath: '/tmp/artifacts/alpha/timing.json',
-        outputPath: '/tmp/artifacts/alpha/outputs/response.md',
+        outputPath: '/tmp/artifacts/alpha/outputs/answer.md',
+        answerPath: '/tmp/artifacts/alpha/outputs/answer.md',
         inputPath: '/tmp/artifacts/alpha/input.md',
       },
     );
@@ -609,7 +610,8 @@ describe('buildIndexArtifactEntry', () => {
       error: 'model drift',
       grading_path: 'alpha/grading.json',
       timing_path: 'alpha/timing.json',
-      output_path: 'alpha/outputs/response.md',
+      output_path: 'alpha/outputs/answer.md',
+      answer_path: 'alpha/outputs/answer.md',
       input_path: 'alpha/input.md',
     });
   });
@@ -1032,11 +1034,11 @@ describe('writeArtifactsFromResults', () => {
       model: 'test-target',
       transcriptPath: './transcript.json',
       transcriptRawPath: './transcript-raw.jsonl',
-      outputPaths: { eval: './outputs/eval.txt' },
+      outputPaths: { answer: './outputs/answer.md' },
     });
 
     const runTwoAnswer = await readFile(
-      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'eval.txt'),
+      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'answer.md'),
       'utf8',
     );
     expect(runTwoAnswer).toBe('second attempt');
