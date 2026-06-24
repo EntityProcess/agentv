@@ -149,11 +149,11 @@ Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 | `shellCommands` | `metrics.shell_commands` | `metrics.json` |
 | `filesRead` | `metrics.files_read` | `metrics.json` |
 | `filesModified` | `metrics.files_modified` | `metrics.json` |
-| `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `metrics.json`; compact counts can also appear in `grading.json.execution_metrics` and `benchmark.json.run_summary[*].tool_calls` |
+| `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `metrics.json`; compact counts can also appear in `benchmark.json.run_summary[*].tool_calls` |
 | `totalToolCalls` | `metrics.total_tool_calls` | `metrics.json` |
 | `webFetches` | `metrics.web_fetches` | `metrics.json` |
 | `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational rows remain in `transcript.jsonl` |
-| `errors` | `metrics.errors` | `metrics.json`; compact count remains in `grading.json.execution_metrics.errors_encountered` |
+| `errors` | `metrics.errors` | `metrics.json` |
 | `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `metrics.json` |
 
 Agent Skills eval artifacts map into AgentV like this:

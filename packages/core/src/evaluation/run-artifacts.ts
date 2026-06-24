@@ -152,11 +152,6 @@ export interface GradingArtifact {
     readonly total: number;
     readonly pass_rate: number;
   };
-  readonly execution_metrics: {
-    readonly tool_calls: Record<string, number>;
-    readonly total_tool_calls: number;
-    readonly errors_encountered: number;
-  };
   readonly graders?: readonly {
     readonly name: string;
     readonly type: string;
@@ -907,9 +902,6 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
   const failed = assertions.filter((e) => !e.passed).length;
   const total = assertions.length;
 
-  const { toolCalls, total: totalToolCalls } = countToolCalls(result);
-  const errorsEncountered = result.error ? 1 : 0;
-
   return {
     assertions,
     summary: {
@@ -917,11 +909,6 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
       failed,
       total,
       pass_rate: total > 0 ? Math.round((passed / total) * 1000) / 1000 : 0,
-    },
-    execution_metrics: {
-      tool_calls: toolCalls,
-      total_tool_calls: totalToolCalls,
-      errors_encountered: errorsEncountered,
     },
     graders: buildEvaluators(result.scores),
     workspace_changes: parseWorkspaceChanges(result.fileChanges),

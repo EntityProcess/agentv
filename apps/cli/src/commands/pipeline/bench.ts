@@ -132,7 +132,6 @@ export const evalBenchCommand = command({
       const grading = {
         assertions: allAssertions,
         summary: { passed, failed, total: allAssertions.length, pass_rate: passRate },
-        execution_metrics: { tool_calls: {}, total_tool_calls: 0, errors_encountered: 0 },
         graders: evaluators.map((e) => ({
           name: e.name,
           type: e.type,

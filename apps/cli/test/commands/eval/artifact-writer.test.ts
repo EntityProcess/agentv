@@ -226,10 +226,10 @@ describe('buildGradingArtifact', () => {
     expect(grading.graders?.[1].score).toBe(0.7);
   });
 
-  it('records error as errors_encountered', () => {
+  it('keeps grading.json focused on grading evidence', () => {
     const result = makeResult({ error: 'Timeout exceeded' });
     const grading = buildGradingArtifact(result);
-    expect(grading.execution_metrics.errors_encountered).toBe(1);
+    expect(grading).not.toHaveProperty('execution_metrics');
   });
 
   it('handles result with no assertions or scores', () => {
@@ -875,7 +875,7 @@ describe('writeArtifactsFromResults', () => {
       await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
     );
     expect(alphaGrading.summary).toBeDefined();
-    expect(alphaGrading.execution_metrics).toBeDefined();
+    expect(alphaGrading).not.toHaveProperty('execution_metrics');
 
     const alphaTiming: TimingArtifact = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'alpha', 'timing.json'), 'utf8'),

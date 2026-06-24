@@ -589,8 +589,8 @@ describe('results export', () => {
     expect(grading.summary).toHaveProperty('total');
     expect(grading.summary).toHaveProperty('pass_rate');
 
-    // Has execution_metrics
-    expect(grading.execution_metrics).toBeDefined();
+    // Grading artifacts stay focused on assertion evidence; execution data lives in metrics.json.
+    expect(grading).not.toHaveProperty('execution_metrics');
 
     // Has evaluators
     expect(grading.graders).toBeDefined();
