@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "d88be769afd1",
+  "session_id": "c3f091b3-1a1f-435f-8acb-6c7520106212",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-24T12:44:40.921003922Z",
+  "branch": "conflict-free-results-sync",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/plans/2026-06-24-001-feat-conflict-free-results-sync-plan.md"
+  ],
+  "agent": "Copilot CLI",
+  "model": "claude-opus-4.8",
+  "turn_id": "e2ee7e078269",
+  "checkpoint_transcript_start": 407,
+  "transcript_lines_at_start": 407,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 2102,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-24T12:44:40.872674598Z",
+    "agent_lines": 5,
+    "agent_removed": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5,
+    "total_lines_changed": 7,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 44,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".workmux/PROMPT-conflict-free-results-sync.md": 44
+      }
+    }
+  ]
+}

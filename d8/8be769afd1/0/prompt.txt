@@ -1,0 +1,5 @@
+sorry wrong chat. ignore last message. i think the design can be further simpflieid
+
+---
+
+if the useris responsible for merging then deletion should be handled outside of agentv right
