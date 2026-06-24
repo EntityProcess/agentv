@@ -144,6 +144,24 @@ describe('result-table model', () => {
         result({
           testId: 'repeat-case',
           score: 1,
+          assertions: [
+            { text: 'has correct answer', passed: true },
+            { text: 'has explanation', passed: false },
+            { text: 'uses concise output', passed: true },
+          ],
+          scores: [
+            {
+              name: 'rubric',
+              type: 'llm-grader',
+              score: 0.5,
+              verdict: 'fail',
+              assertions: [
+                { text: 'has correct answer', passed: true },
+                { text: 'has explanation', passed: false },
+                { text: 'uses concise output', passed: true },
+              ],
+            },
+          ],
           runs: [
             {
               run: 1,
@@ -177,6 +195,9 @@ describe('result-table model', () => {
       failedRuns: 1,
       passRate: 0.5,
       meanScore: 0.6,
+      assertionCount: 3,
+      passedAssertions: 2,
+      assertionPassRate: 2 / 3,
       meanDurationMs: 2000,
       totalToolCalls: 6,
       artifactCount: 3,

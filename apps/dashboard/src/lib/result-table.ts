@@ -7,7 +7,7 @@
  */
 
 import { isExecutionError } from './result-summary';
-import type { EvalCaseRun, EvalResult, ScoreEntry } from './types';
+import type { AssertionEntry, EvalCaseRun, EvalResult, ScoreEntry } from './types';
 
 export type ResultTableViewId =
   | 'all'
@@ -84,6 +84,9 @@ export interface RepeatRunGroup {
   readonly failedRuns: number;
   readonly passRate: number;
   readonly meanScore: number;
+  readonly assertionCount: number;
+  readonly passedAssertions: number;
+  readonly assertionPassRate?: number;
   readonly meanDurationMs?: number;
   readonly totalToolCalls?: number;
   readonly artifactCount: number;
@@ -146,6 +149,23 @@ function flattenScoreText(scores: readonly ScoreEntry[] | undefined): string[] {
     parts.push(...flattenScoreText(score.scores));
   });
   return parts.filter((part) => part.length > 0);
+}
+
+function scoreAssertions(scores: readonly ScoreEntry[] | undefined): AssertionEntry[] {
+  if (!scores || scores.length === 0) return [];
+  return scores.flatMap((score) => [...(score.assertions ?? []), ...scoreAssertions(score.scores)]);
+}
+
+function uniqueAssertions(assertions: readonly AssertionEntry[]): AssertionEntry[] {
+  const seen = new Set<string>();
+  return assertions.filter((assertion) => {
+    const key = `${assertion.text}\0${assertion.evidence ?? ''}\0${assertion.passed}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function buildGraderMap(
@@ -274,6 +294,11 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
   const scoreValues = numeric(runs.map((caseRun) => caseRun.score));
   const toolCallValues = numeric(runs.map((caseRun) => caseRun.total_tool_calls));
   const artifactCount = runs.reduce((sum, caseRun) => sum + caseRunArtifactCount(caseRun), 0);
+  const assertions = uniqueAssertions([
+    ...(row.result.assertions ?? []),
+    ...scoreAssertions(row.result.scores),
+  ]);
+  const passedAssertions = assertions.filter((assertion) => assertion.passed).length;
 
   return {
     row,
@@ -286,6 +311,9 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
       scoreValues.length > 0
         ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
         : row.result.score,
+    assertionCount: assertions.length,
+    passedAssertions,
+    ...(assertions.length > 0 && { assertionPassRate: passedAssertions / assertions.length }),
     ...(durationValues.length > 0 && {
       meanDurationMs: durationValues.reduce((sum, value) => sum + value, 0) / durationValues.length,
     }),

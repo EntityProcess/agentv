@@ -591,6 +591,12 @@ function RepeatRunList({
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                     <span>{formatPercent(group.passRate)} run success</span>
                     <span>{formatPercent(group.meanScore)} mean score</span>
+                    {group.assertionPassRate != null ? (
+                      <span>
+                        {formatPercent(group.assertionPassRate)} assertions (
+                        {group.passedAssertions}/{group.assertionCount})
+                      </span>
+                    ) : null}
                     {group.totalToolCalls != null ? (
                       <span>{group.totalToolCalls} total tool calls</span>
                     ) : null}
