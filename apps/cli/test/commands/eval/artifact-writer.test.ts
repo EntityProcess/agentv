@@ -909,8 +909,27 @@ describe('writeArtifactsFromResults', () => {
         testId: 'repeat-case',
         score: 1,
         trials: [
-          { attempt: 0, score: 0.25, verdict: 'fail' },
-          { attempt: 1, score: 1, verdict: 'pass' },
+          {
+            attempt: 0,
+            score: 0.25,
+            verdict: 'fail',
+            result: makeResult({
+              testId: 'repeat-case',
+              score: 0.25,
+              output: 'first attempt',
+              executionStatus: 'quality_failure',
+            }),
+          },
+          {
+            attempt: 1,
+            score: 1,
+            verdict: 'pass',
+            result: makeResult({
+              testId: 'repeat-case',
+              score: 1,
+              output: 'second attempt',
+            }),
+          },
         ],
         aggregation: {
           strategy: 'confidence_interval',
@@ -928,8 +947,8 @@ describe('writeArtifactsFromResults', () => {
       await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
     );
     expect(grading.trials).toEqual([
-      { attempt: 0, score: 0.25, verdict: 'fail' },
-      { attempt: 1, score: 1, verdict: 'pass' },
+      { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
+      { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
     ]);
     expect(grading.aggregation).toEqual({
       strategy: 'confidence_interval',
@@ -945,6 +964,48 @@ describe('writeArtifactsFromResults', () => {
       .map((line) => JSON.parse(line) as IndexArtifactEntry);
     expect(indexEntry?.trials).toEqual(grading.trials);
     expect(indexEntry?.aggregation).toEqual(grading.aggregation);
+
+    const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
+    expect(repeatEntries.sort()).toEqual([
+      'grading.json',
+      'metrics.json',
+      'outputs',
+      'run-1',
+      'run-2',
+      'timing.json',
+      'trace.json',
+      'transcript.jsonl',
+    ]);
+
+    for (const runDir of ['run-1', 'run-2']) {
+      const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
+      expect(runEntries.sort()).toEqual([
+        'grading.json',
+        'metrics.json',
+        'outputs',
+        'result.json',
+        'summary.json',
+        'timing.json',
+        'trace.json',
+        'transcript-raw.jsonl',
+        'transcript.jsonl',
+      ]);
+    }
+
+    const runOneResult = JSON.parse(
+      await readFile(
+        path.join(paths.testArtifactDir, 'repeat-case', 'run-1', 'result.json'),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    expect(runOneResult.run_id).toBe('run-1');
+    expect(runOneResult.score).toBe(0.25);
+
+    const runTwoAnswer = await readFile(
+      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'answer.md'),
+      'utf8',
+    );
+    expect(runTwoAnswer).toBe('second attempt');
   });
 
   it('handles empty results array', async () => {

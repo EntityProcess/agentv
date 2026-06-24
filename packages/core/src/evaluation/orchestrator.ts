@@ -2310,6 +2310,7 @@ async function runEvalCaseWithTrials(
       executionStatus: result.executionStatus,
       failureStage: result.failureStage,
       failureReasonCode: result.failureReasonCode,
+      result,
     };
     trialResults.push(trial);
 

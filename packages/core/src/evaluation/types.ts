@@ -1085,6 +1085,11 @@ export interface TrialResult {
   readonly failureStage?: FailureStage;
   /** Machine-readable failure reason code */
   readonly failureReasonCode?: string;
+  /**
+   * Full per-attempt result used by artifact writers to materialize Vercel-style
+   * run-N folders. This is intentionally omitted from wire trial summaries.
+   */
+  readonly result?: EvaluationResult;
 }
 
 /**

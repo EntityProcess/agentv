@@ -179,6 +179,7 @@ export interface GradingArtifact {
 
 export type TrialResultArtifact = {
   readonly attempt: number;
+  readonly run_path?: string;
   readonly score: number;
   readonly verdict: string;
   readonly scores?: IndexArtifactEntry['scores'];
@@ -467,6 +468,10 @@ function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifa
   return scores?.map(toIndexScore) as IndexArtifactEntry['scores'];
 }
 
+function trialRunDirName(attempt: number): string {
+  return `run-${attempt + 1}`;
+}
+
 function toTrialArtifacts(
   trials: readonly TrialResult[] | undefined,
 ): readonly TrialResultArtifact[] | undefined {
@@ -475,6 +480,7 @@ function toTrialArtifacts(
   }
   return trials.map((trial) => ({
     attempt: trial.attempt,
+    run_path: trial.result ? trialRunDirName(trial.attempt) : undefined,
     score: trial.score,
     verdict: trial.verdict,
     scores: toIndexScores(trial.scores),
@@ -539,6 +545,141 @@ function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined
     source_target: value.sourceTarget,
     source_timestamp: value.sourceTimestamp,
   });
+}
+
+async function writeTrialRunArtifacts(params: {
+  readonly trial: TrialResult;
+  readonly parentTestDir: string;
+  readonly outputDir: string;
+  readonly evalFile?: string;
+  readonly experiment?: string;
+  readonly runId?: string;
+  readonly duplicatePolicy: ExportDuplicatePolicy;
+  readonly testByTestId: Map<string, EvalTest>;
+}): Promise<void> {
+  const result = params.trial.result;
+  if (!result) {
+    return;
+  }
+
+  const runDirName = trialRunDirName(params.trial.attempt);
+  const runDir = path.join(params.parentTestDir, runDirName);
+  const grading = buildGradingArtifact(result);
+  const timing = buildTimingArtifact([result]);
+  const input = extractInput(result);
+  const gradingPath = path.join(runDir, 'grading.json');
+  const timingPath = path.join(runDir, 'timing.json');
+  const inputPath = input ? path.join(runDir, 'input.md') : undefined;
+  const outputsDir = path.join(runDir, 'outputs');
+  const answerPath = result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
+  const responsePath = result.output.length > 0 ? path.join(outputsDir, 'response.md') : undefined;
+  const attemptRunId = params.runId
+    ? `${params.runId}:${runDirName}`
+    : `${result.testId}:${result.target}:${runDirName}`;
+  const envelope = buildTraceEnvelopeSidecar({
+    result,
+    outputDir: params.outputDir,
+    testDir: runDir,
+    evalPath: resolveEnvelopeEvalPath(result, params.testByTestId, params.evalFile),
+    experiment: params.experiment,
+    runId: attemptRunId,
+    duplicatePolicy: params.duplicatePolicy,
+  });
+  const tracePath = path.join(runDir, CANONICAL_TRACE_ARTIFACT_PATH);
+  const transcriptPath = hasTranscriptProjection(result, envelope)
+    ? path.join(runDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
+    : undefined;
+  const metricsPath = path.join(runDir, CANONICAL_METRICS_ARTIFACT_PATH);
+  const rawProviderLogSource = rawProviderLogSourcePath(result);
+  const rawProviderLogPath = rawProviderLogSource ? rawProviderLogArtifactPath(runDir) : undefined;
+
+  await mkdir(runDir, { recursive: true });
+  await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
+  await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
+
+  if (inputPath && input) {
+    await writeFile(inputPath, input, 'utf8');
+  }
+
+  await mkdir(outputsDir, { recursive: true });
+  if (answerPath && responsePath) {
+    await writeFile(answerPath, result.output, 'utf8');
+    await writeFile(responsePath, result.output, 'utf8');
+  }
+  if (rawProviderLogSource) {
+    await copyRawProviderLogArtifact(rawProviderLogSource, runDir);
+  }
+  await writeFile(tracePath, `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`, 'utf8');
+  if (transcriptPath) {
+    await writeTranscriptJsonl(transcriptPath, result, envelope);
+    await writeFile(
+      path.join(runDir, 'transcript-raw.jsonl'),
+      await readFile(transcriptPath, 'utf8'),
+      'utf8',
+    );
+  }
+  await writeMetricsArtifact({
+    filePath: metricsPath,
+    result,
+    envelope,
+    transcriptPath,
+  });
+
+  const artifactPointers = await buildArtifactPointers({
+    outputDir: params.outputDir,
+    tracePath,
+    transcriptPath,
+  });
+  const resultArtifact = {
+    ...buildIndexArtifactEntry(result, {
+      outputDir: params.outputDir,
+      artifactDir: runDir,
+      gradingPath,
+      timingPath,
+      outputPath: answerPath,
+      answerPath,
+      tracePath,
+      transcriptPath,
+      metricsPath,
+      artifactPointers,
+      rawProviderLogPath,
+      inputPath,
+      responsePath,
+      projectionIdentity: envelope.projectionIdentity,
+      duplicatePolicy: params.duplicatePolicy,
+    }),
+    attempt: params.trial.attempt,
+    run: params.trial.attempt + 1,
+    run_id: runDirName,
+    experiment: params.experiment,
+  };
+  await writeFile(
+    path.join(runDir, 'result.json'),
+    `${JSON.stringify(resultArtifact, null, 2)}\n`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(runDir, 'summary.json'),
+    `${JSON.stringify(
+      {
+        attempt: params.trial.attempt,
+        run: params.trial.attempt + 1,
+        run_id: runDirName,
+        test_id: result.testId,
+        target: result.target,
+        score: result.score,
+        verdict: params.trial.verdict,
+        execution_status: result.executionStatus,
+        error: result.error,
+        cost_usd: result.costUsd,
+        duration_ms: result.durationMs,
+        token_usage: result.tokenUsage,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
 }
 
 function toIndexPreparedAttempt(value: unknown): Record<string, unknown> | undefined {
@@ -1862,6 +2003,18 @@ export async function writeArtifactsFromResults(
       envelope,
       transcriptPath: plan.transcriptPath,
     });
+    for (const trial of result.trials ?? []) {
+      await writeTrialRunArtifacts({
+        trial,
+        parentTestDir: plan.testDir,
+        outputDir,
+        evalFile: options?.evalFile,
+        experiment: options?.experiment,
+        runId: options?.runId,
+        duplicatePolicy,
+        testByTestId,
+      });
+    }
     const artifactPointers = await buildArtifactPointers({
       outputDir,
       tracePath: plan.tracePath,
