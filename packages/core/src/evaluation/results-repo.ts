@@ -66,6 +66,127 @@ const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results 
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
 const RESULT_INDEX_FILENAME = 'index.jsonl';
 
+// Artifact-aware merge config for the AgentV-owned results checkout. These two
+// pieces let `git merge` reconcile concurrent result writes automatically so
+// results sync never has to force-push (see resolveResultBranchPushConflict):
+//   - `.gitattributes` (committed on the results branch) maps the append-only
+//     run index to git's stock `union` driver and the editable JSON overlay to
+//     our `agentv-json` driver.
+//   - `merge.agentv-json.driver` (registered once in the checkout's local git
+//     config) points at a tiny 3-way JSON set/field union script.
+// Run bundles under runs/<exp>/<ts>/** are uniquely pathed, so a 3-way merge
+// never conflicts on them and they need no attribute.
+const RESULTS_REPO_GITATTRIBUTES_FILE = '.gitattributes';
+const RESULTS_REPO_GITATTRIBUTES_CONTENT = `# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
+# Append-only run index: union concurrent appends (lines are orthogonal).
+index.jsonl merge=union
+# Editable run overlay (tags/feedback): 3-way JSON set/field union via the
+# agentv-json driver; a genuine scalar conflict falls through to a human merge.
+metadata/runs/**/*.json merge=agentv-json
+`;
+const RESULTS_JSON_MERGE_DRIVER_NAME = 'agentv-json';
+// Materialized into the results checkout's git dir and invoked by git as
+// `node <script> %O %A %B %P`. Kept dependency-free and self-describing so it
+// runs under any Node without bundling. To extend the overlay merge, add cases
+// to merge3 below (e.g. new regenerable bookkeeping fields).
+const RESULTS_JSON_MERGE_DRIVER_SCRIPT = `#!/usr/bin/env node
+// AgentV results overlay merge driver (merge=agentv-json).
+//
+// Performs a 3-way merge of AgentV's editable JSON overlay files (run tags /
+// feedback). Tag lists merge as a 3-way set so concurrent add/remove are
+// commutative; bookkeeping scalars that always differ between writers
+// (updated_at, tag_revision) are regenerated to the larger value instead of
+// conflicting. Any other genuinely diverging scalar exits non-zero, leaving the
+// file conflicted so the caller can route it to a human GitHub merge.
+//
+// Invoked by git as: node json-merge-driver.mjs %O %A %B %P
+//   %O ancestor, %A current (overwritten with the result), %B other, %P path.
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const [, , ancestorFile, currentFile, otherFile] = process.argv;
+const CONFLICT = Symbol('conflict');
+// Scalars that legitimately differ on every write and carry no merge meaning.
+const REGENERABLE_SCALARS = new Set(['updated_at', 'tag_revision']);
+
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+function isPrimitiveArray(value) {
+  return (
+    Array.isArray(value) &&
+    value.every((entry) => entry === null || ['string', 'number', 'boolean'].includes(typeof entry))
+  );
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeSet(base, a, b) {
+  const baseSet = new Set((isPrimitiveArray(base) ? base : []).map(String));
+  const aSet = new Set(a.map(String));
+  const bSet = new Set(b.map(String));
+  const removed = new Set();
+  for (const value of baseSet) {
+    if (!aSet.has(value) || !bSet.has(value)) removed.add(value);
+  }
+  const merged = [];
+  const seen = new Set();
+  for (const value of [...a, ...b]) {
+    const key = String(value);
+    if (!removed.has(key) && !seen.has(key)) {
+      seen.add(key);
+      merged.push(value);
+    }
+  }
+  return merged;
+}
+
+function merge3(base, a, b, key) {
+  if (JSON.stringify(a) === JSON.stringify(b)) return a;
+  if (JSON.stringify(a) === JSON.stringify(base)) return b;
+  if (JSON.stringify(b) === JSON.stringify(base)) return a;
+  if (isPrimitiveArray(a) && isPrimitiveArray(b)) return mergeSet(base, a, b);
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const keys = new Set([
+      ...Object.keys(a),
+      ...Object.keys(b),
+      ...(isPlainObject(base) ? Object.keys(base) : []),
+    ]);
+    const out = {};
+    for (const childKey of keys) {
+      const merged = merge3(
+        isPlainObject(base) ? base[childKey] : undefined,
+        a[childKey],
+        b[childKey],
+        childKey,
+      );
+      if (merged === CONFLICT) return CONFLICT;
+      if (merged !== undefined) out[childKey] = merged;
+    }
+    return out;
+  }
+  if (REGENERABLE_SCALARS.has(key)) {
+    return [a, b].filter((value) => value !== undefined).sort().pop();
+  }
+  return CONFLICT;
+}
+
+const ancestor = readJson(ancestorFile) ?? {};
+const current = readJson(currentFile);
+const other = readJson(otherFile);
+if (current === undefined || other === undefined) process.exit(1);
+const result = merge3(ancestor, current, other, '');
+if (result === CONFLICT) process.exit(1);
+writeFileSync(currentFile, \`\${JSON.stringify(result, null, 2)}\\n\`);
+process.exit(0);
+`;
+
 export interface ResultsRepoLocalPaths {
   readonly rootDir: string;
   readonly repoDir: string;
@@ -81,6 +202,7 @@ export type ResultsRepoSyncStatus =
   | 'dirty'
   | 'conflicted'
   | 'push_conflict'
+  | 'needs_human_merge'
   | 'syncing';
 
 export interface ResultsRepoStatus {
@@ -613,6 +735,131 @@ async function resolveGitTopLevel(repoDir: string): Promise<string> {
   return stdout.trim() || repoDir;
 }
 
+// Register the artifact-aware `agentv-json` merge driver in the AgentV-owned
+// results checkout. This is a one-time, idempotent local-config write (never a
+// global/user config change) plus materializing the dependency-free driver
+// script into the checkout's git dir. `.gitattributes` on the branch maps the
+// overlay paths to this driver; together they let resolveResultBranchPushConflict
+// auto-merge concurrent writes without ever force-pushing.
+async function ensureResultsMergeConfig(repoDir: string): Promise<void> {
+  let gitDir: string;
+  try {
+    const { stdout } = await runGit(['rev-parse', '--git-common-dir'], { cwd: repoDir });
+    const resolved = stdout.trim();
+    gitDir = resolved
+      ? path.isAbsolute(resolved)
+        ? resolved
+        : path.join(repoDir, resolved)
+      : path.join(repoDir, '.git');
+  } catch {
+    return;
+  }
+
+  const driverScriptPath = path.join(gitDir, 'agentv', 'json-merge-driver.mjs');
+  let scriptCurrent = false;
+  try {
+    scriptCurrent = readFileSync(driverScriptPath, 'utf8') === RESULTS_JSON_MERGE_DRIVER_SCRIPT;
+  } catch {
+    scriptCurrent = false;
+  }
+  if (!scriptCurrent) {
+    mkdirSync(path.dirname(driverScriptPath), { recursive: true });
+    writeFileSync(driverScriptPath, RESULTS_JSON_MERGE_DRIVER_SCRIPT, { mode: 0o755 });
+  }
+
+  const driverCommand = `node ${JSON.stringify(driverScriptPath)} %O %A %B %P`;
+  await runGit(
+    ['config', `merge.${RESULTS_JSON_MERGE_DRIVER_NAME}.name`, 'AgentV results overlay JSON union'],
+    { cwd: repoDir, check: false },
+  );
+  await runGit(['config', `merge.${RESULTS_JSON_MERGE_DRIVER_NAME}.driver`, driverCommand], {
+    cwd: repoDir,
+    check: false,
+  });
+
+  // Also mirror the merge attributes into the repo-local `info/attributes`. The
+  // committed `.gitattributes` makes the drivers portable to other clients, but
+  // info/attributes guarantees they apply to *this* checkout's merges even on
+  // branches committed before `.gitattributes` existed, and for both the
+  // working-tree merge and the detached `merge-tree` paths.
+  writeResultsInfoAttributes(gitDir);
+}
+
+const RESULTS_INFO_ATTRIBUTES_BEGIN = '# >>> agentv results merge attributes >>>';
+const RESULTS_INFO_ATTRIBUTES_END = '# <<< agentv results merge attributes <<<';
+
+// Idempotently install AgentV's merge attributes into `<git-dir>/info/attributes`
+// inside a managed marker block, preserving any unrelated lines already there.
+function writeResultsInfoAttributes(gitDir: string): void {
+  const infoDir = path.join(gitDir, 'info');
+  const attributesPath = path.join(infoDir, 'attributes');
+  const managedBlock = `${RESULTS_INFO_ATTRIBUTES_BEGIN}\n${RESULTS_REPO_GITATTRIBUTES_CONTENT.trimEnd()}\n${RESULTS_INFO_ATTRIBUTES_END}\n`;
+
+  let existing = '';
+  try {
+    existing = readFileSync(attributesPath, 'utf8');
+  } catch {
+    existing = '';
+  }
+
+  const blockPattern = new RegExp(
+    `${escapeRegExp(RESULTS_INFO_ATTRIBUTES_BEGIN)}[\\s\\S]*?${escapeRegExp(
+      RESULTS_INFO_ATTRIBUTES_END,
+    )}\\n?`,
+  );
+  const withoutManaged = existing.replace(blockPattern, '');
+  const next =
+    withoutManaged.length > 0 && !withoutManaged.endsWith('\n')
+      ? `${withoutManaged}\n${managedBlock}`
+      : `${withoutManaged}${managedBlock}`;
+  if (next === existing) {
+    return;
+  }
+  mkdirSync(infoDir, { recursive: true });
+  writeFileSync(attributesPath, next);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Inject the managed `.gitattributes` blob into a temporary git index so every
+// results commit carries it. Merge drivers read attributes from the trees being
+// merged, so the file must live on the branch, not just in repo config. Skips
+// the write when the base tree already has identical content, preserving the
+// "tree unchanged" no-op detection in the commit helpers.
+async function addResultsGitattributesToIndex(
+  repoDir: string,
+  indexEnv: NodeJS.ProcessEnv,
+): Promise<void> {
+  const { stdout: existing } = await runGit(
+    ['cat-file', '-p', `:0:${RESULTS_REPO_GITATTRIBUTES_FILE}`],
+    { cwd: repoDir, env: indexEnv, check: false },
+  );
+  if (existing === RESULTS_REPO_GITATTRIBUTES_CONTENT) {
+    return;
+  }
+  const scratchDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-results-attrs-'));
+  try {
+    const scratchFile = path.join(scratchDir, RESULTS_REPO_GITATTRIBUTES_FILE);
+    writeFileSync(scratchFile, RESULTS_REPO_GITATTRIBUTES_CONTENT);
+    const { stdout: blob } = await runGit(['hash-object', '-w', '--no-filters', scratchFile], {
+      cwd: repoDir,
+    });
+    await runGit(
+      [
+        'update-index',
+        '--add',
+        '--cacheinfo',
+        `100644,${blob.trim()},${RESULTS_REPO_GITATTRIBUTES_FILE}`,
+      ],
+      { cwd: repoDir, env: indexEnv },
+    );
+  } finally {
+    rmSync(scratchDir, { recursive: true, force: true });
+  }
+}
+
 async function ensureResultsRepoRemote(
   repoDir: string,
   config: NormalizedResultsConfig,
@@ -663,7 +910,9 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
     if (!(await isGitRepository(normalized.repo_path))) {
       throw new Error(`Results repo_path is not a git repository: ${normalized.repo_path}`);
     }
-    return resolveGitTopLevel(normalized.repo_path);
+    const topLevel = await resolveGitTopLevel(normalized.repo_path);
+    await ensureResultsMergeConfig(topLevel);
+    return topLevel;
   }
 
   const cachePaths = getResultsRepoLocalPaths(normalized.repo);
@@ -684,6 +933,7 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
         cloneDir,
       ]);
       await ensureResultsRepoRemote(cloneDir, normalized);
+      await ensureResultsMergeConfig(cloneDir);
       return cloneDir;
     } catch (error) {
       updateStatusFile(normalized, { last_error: withFriendlyGitHubAuthError(error).message });
@@ -696,6 +946,7 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
   }
 
   await ensureResultsRepoRemote(cloneDir, normalized);
+  await ensureResultsMergeConfig(cloneDir);
   return cloneDir;
 }
 
@@ -1162,6 +1413,7 @@ type ResultsBranchPushOutcome =
       readonly blocked: true;
       readonly blockReason: string;
       readonly details: ResultsBranchPushDetails;
+      readonly syncStatus?: ResultsRepoSyncStatus;
     };
 
 class ResultsBranchPushConflictError extends Error {
@@ -1234,16 +1486,19 @@ function withPushConflictStatus(
     readonly pullPerformed: boolean;
     readonly pushPerformed: boolean;
     readonly commitCreated: boolean;
+    readonly syncStatus?: ResultsRepoSyncStatus;
   },
 ): ResultsRepoStatus {
   return withBlockedStatus(
     {
       ...status,
-      sync_status: 'push_conflict',
+      sync_status: flags.syncStatus ?? 'push_conflict',
     },
     blockReason,
     {
-      ...flags,
+      pullPerformed: flags.pullPerformed,
+      pushPerformed: flags.pushPerformed,
+      commitCreated: flags.commitCreated,
       pushDetails: details,
     },
   );
@@ -1269,7 +1524,10 @@ function withActionFlags(
 }
 
 function isSafeResultsRepoPath(p: string): boolean {
-  return RESULTS_REPO_TRACKED_DIRS.some((dir) => p === dir || p.startsWith(`${dir}/`));
+  return (
+    p === RESULTS_REPO_GITATTRIBUTES_FILE ||
+    RESULTS_REPO_TRACKED_DIRS.some((dir) => p === dir || p.startsWith(`${dir}/`))
+  );
 }
 
 // git errors on a pathspec that matches nothing, so when staging AgentV's result
@@ -1322,26 +1580,8 @@ function getPushTargetBranch(
   return upstream?.startsWith(prefix) ? upstream.slice(prefix.length) : baseBranch;
 }
 
-function timestampForBackupRef(date = new Date()): string {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(
-    date.getUTCHours(),
-  )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
-}
-
-function slugifyBackupTargetBranch(branch: string): string {
-  return (
-    branch
-      .trim()
-      .replace(/[^A-Za-z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'results'
-  );
-}
-
-function buildResultsBackupRef(targetBranch: string, remoteCommit: string): string {
-  return `agentv/backups/${timestampForBackupRef()}-${slugifyBackupTargetBranch(
-    targetBranch,
-  )}-${remoteCommit.slice(0, 7)}`;
+function formatShortSha(sha: string | undefined): string {
+  return sha ? sha.slice(0, 12) : 'unknown';
 }
 
 async function getCommitSha(repoDir: string, ref: string | undefined): Promise<string | undefined> {
@@ -1367,103 +1607,242 @@ function isNonFastForwardPushError(error: unknown): boolean {
   );
 }
 
-function formatShortSha(sha: string | undefined): string {
-  return sha ? sha.slice(0, 12) : 'unknown';
+// Bounded optimistic retry for the fetch → merge → push loop. Covers the benign
+// race where another writer advances the remote between our fetch and push.
+const RESULTS_PUSH_MERGE_MAX_ATTEMPTS = 5;
+
+let warnedForcePushPolicyDeprecation = false;
+// `backup_and_force_push` is retained for config back-compat but no longer force
+// pushes. Layer 1's auto-merge loop handles the common case and genuine
+// conflicts go to a human GitHub merge, so the policy is a no-op alias for the
+// safe default. Warn once per process so existing configs surface the change.
+function warnDeprecatedForcePushPolicyOnce(): void {
+  if (warnedForcePushPolicyDeprecation) {
+    return;
+  }
+  warnedForcePushPolicyDeprecation = true;
+  console.warn(
+    "[agentv] results.sync.push_conflict_policy: 'backup_and_force_push' is deprecated and no " +
+      'longer force-pushes. Results sync now auto-merges concurrent writes and routes genuine ' +
+      'conflicts to a human GitHub merge.',
+  );
 }
 
-function buildBlockedPushConflictReason(details: ResultsBranchPushDetails): string {
-  return `Results branch push conflict on ${details.targetBranch}: remote ${formatShortSha(
-    details.remoteCommit,
-  )}, local ${formatShortSha(details.localCommit)}. Configure results.sync.push_conflict_policy: backup_and_force_push to back up the remote ref before replacing it.`;
+async function isAncestorCommit(
+  repoDir: string,
+  ancestor: string,
+  descendant: string,
+): Promise<boolean> {
+  const { exitCode } = await runGit(['merge-base', '--is-ancestor', ancestor, descendant], {
+    cwd: repoDir,
+    check: false,
+  });
+  return exitCode === 0;
 }
 
+async function getMergeBaseCommit(
+  repoDir: string,
+  a: string,
+  b: string,
+): Promise<string | undefined> {
+  const { stdout, exitCode } = await runGit(['merge-base', a, b], { cwd: repoDir, check: false });
+  const sha = stdout.trim();
+  return exitCode === 0 && sha.length > 0 ? sha : undefined;
+}
+
+function buildNeedsHumanMergeReason(
+  targetBranch: string,
+  remoteCommit: string | undefined,
+  localCommit: string | undefined,
+): string {
+  return `Results branch ${targetBranch} diverged from the remote and could not be auto-merged: a genuine content conflict in the editable overlay remains (remote ${formatShortSha(
+    remoteCommit,
+  )}, local ${formatShortSha(
+    localCommit,
+  )}). The remote branch is unchanged and no history was rewritten; resolve it with a GitHub pull request.`;
+}
+
+// Merge `remoteCommit` into the currently checked-out branch via a real
+// `git merge`, so the working tree and index advance together (the ref-only
+// path uses merge-tree + update-ref instead). Returns the merge exit code; a
+// non-zero code means git left a conflict, which the caller aborts.
+async function mergeRemoteIntoCheckedOutBranch(
+  repoDir: string,
+  remoteCommit: string,
+): Promise<number> {
+  const args = ['merge', '--no-edit', '-m', 'chore(results): merge remote results', remoteCommit];
+  let result = await runGit(args, {
+    cwd: repoDir,
+    check: false,
+    env: configuredGitCommitIdentityEnv(),
+  });
+  if (result.exitCode !== 0 && isMissingGitIdentityError({ stderr: result.stderr })) {
+    await runGit(['merge', '--abort'], { cwd: repoDir, check: false });
+    result = await runGit(args, {
+      cwd: repoDir,
+      check: false,
+      env: { ...configuredGitCommitIdentityEnv(), ...fallbackResultsRepoCommitEnv() },
+    });
+  }
+  return result.exitCode;
+}
+
+// Layer 1 of the no-force-push results sync (see
+// docs/plans/2026-06-24-001-feat-conflict-free-results-sync-plan.md). A bounded
+// fetch → merge → push loop: fast-forward when possible, otherwise commit a real
+// 3-way merge using the artifact-aware drivers (union index, agentv-json
+// overlay) and fast-forward the canonical branch onto it. A genuine overlay
+// conflict returns a `needs_human_merge` blocked outcome — never a force push.
 async function resolveResultBranchPushConflict(params: {
   readonly normalized: StorageBranchResultsConfig;
   readonly repoDir: string;
   readonly targetBranch: string;
   readonly sourceRef: string;
 }): Promise<ResultsBranchPushOutcome> {
-  await fetchResultsRepo(params.repoDir, params.normalized.remote, params.targetBranch);
-  const remoteRef = remoteBranchRef(params.targetBranch, params.normalized.remote);
-  const remoteCommit = await getCommitSha(params.repoDir, remoteRef);
-  const localCommit = await getCommitSha(params.repoDir, params.sourceRef);
-  const baseDetails: ResultsBranchPushDetails = {
+  if (params.normalized.push_conflict_policy === 'backup_and_force_push') {
+    warnDeprecatedForcePushPolicyOnce();
+  }
+  await ensureResultsMergeConfig(params.repoDir);
+
+  const { repoDir, targetBranch } = params;
+  const remote = params.normalized.remote;
+  const localRef = params.sourceRef;
+  const remoteRef = remoteBranchRef(targetBranch, remote);
+  // When the caller hands us `HEAD`, the canonical branch is checked out, so we
+  // must advance the working tree too (real `git merge`). The storage-branch
+  // path hands us `refs/heads/<branch>` with a detached HEAD, where we update
+  // the ref directly via merge-tree to avoid touching any working tree.
+  const branchCheckedOut = params.sourceRef === 'HEAD';
+
+  let lastDetails: ResultsBranchPushDetails = {
     pushConflictPolicy: params.normalized.push_conflict_policy,
-    targetBranch: params.targetBranch,
-    ...(remoteCommit !== undefined && {
-      remoteCommit,
-      previousRemoteCommit: remoteCommit,
-      leaseCommit: remoteCommit,
-    }),
-    ...(localCommit !== undefined && { localCommit }),
+    targetBranch,
   };
 
-  if (!remoteCommit) {
-    return {
-      blocked: true,
-      blockReason: `Results branch push conflict on ${params.targetBranch}: remote commit could not be resolved after fetch`,
-      details: baseDetails,
+  for (let attempt = 1; attempt <= RESULTS_PUSH_MERGE_MAX_ATTEMPTS; attempt += 1) {
+    await fetchResultsRepo(repoDir, remote, targetBranch);
+    const remoteCommit = await getCommitSha(repoDir, remoteRef);
+    const localCommit = await getCommitSha(repoDir, localRef);
+    const details: ResultsBranchPushDetails = {
+      pushConflictPolicy: params.normalized.push_conflict_policy,
+      targetBranch,
+      ...(remoteCommit !== undefined && { remoteCommit, previousRemoteCommit: remoteCommit }),
+      ...(localCommit !== undefined && { localCommit }),
     };
-  }
+    lastDetails = details;
 
-  if (params.normalized.push_conflict_policy === 'block') {
+    if (!remoteCommit) {
+      return {
+        blocked: true,
+        blockReason: `Results branch push conflict on ${targetBranch}: remote commit could not be resolved after fetch`,
+        details,
+        syncStatus: 'push_conflict',
+      };
+    }
+    if (!localCommit) {
+      return {
+        blocked: true,
+        blockReason: `Results branch push conflict on ${targetBranch}: local commit could not be resolved`,
+        details,
+        syncStatus: 'push_conflict',
+      };
+    }
+
+    // Remote already contains our work: fast-forward to it and stop.
+    if (await isAncestorCommit(repoDir, localCommit, remoteCommit)) {
+      if (branchCheckedOut) {
+        await runGit(['merge', '--ff-only', remoteCommit], { cwd: repoDir, check: false });
+      } else {
+        await runGit(['update-ref', localRef, remoteCommit, localCommit], {
+          cwd: repoDir,
+          check: false,
+        });
+      }
+      return { blocked: false, details };
+    }
+
+    let pushSpec = branchCheckedOut ? 'HEAD' : localCommit;
+    // Diverged (neither side is an ancestor): commit a real 3-way merge using
+    // the artifact-aware drivers. If `git merge` reports a genuine conflict, no
+    // history is rewritten and we route to a human GitHub merge.
+    if (!(await isAncestorCommit(repoDir, remoteCommit, localCommit))) {
+      if (branchCheckedOut) {
+        const exitCode = await mergeRemoteIntoCheckedOutBranch(repoDir, remoteCommit);
+        if (exitCode !== 0) {
+          await runGit(['merge', '--abort'], { cwd: repoDir, check: false });
+          return {
+            blocked: true,
+            blockReason: buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
+            details,
+            syncStatus: 'needs_human_merge',
+          };
+        }
+        pushSpec = 'HEAD';
+      } else {
+        const base = await getMergeBaseCommit(repoDir, localCommit, remoteCommit);
+        if (!base) {
+          return {
+            blocked: true,
+            blockReason: buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
+            details,
+            syncStatus: 'needs_human_merge',
+          };
+        }
+        const merge = await runGit(
+          ['merge-tree', '--write-tree', `--merge-base=${base}`, localCommit, remoteCommit],
+          { cwd: repoDir, check: false },
+        );
+        const mergedTree = merge.stdout.trim().split(/\r?\n/)[0]?.trim();
+        if (merge.exitCode !== 0 || !mergedTree) {
+          return {
+            blocked: true,
+            blockReason: buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
+            details,
+            syncStatus: 'needs_human_merge',
+          };
+        }
+        const { stdout: mergeCommitOut } = await runGitWithFallbackCommitIdentity(
+          [
+            'commit-tree',
+            mergedTree,
+            '-p',
+            localCommit,
+            '-p',
+            remoteCommit,
+            '-m',
+            'chore(results): merge remote results',
+          ],
+          { cwd: repoDir },
+        );
+        pushSpec = mergeCommitOut.trim();
+        await runGit(['update-ref', localRef, pushSpec, localCommit], { cwd: repoDir });
+      }
+    }
+
+    try {
+      await runGit(['push', '--porcelain', remote, `${pushSpec}:refs/heads/${targetBranch}`], {
+        cwd: repoDir,
+      });
+    } catch (error) {
+      if (isNonFastForwardPushError(error)) {
+        // Remote advanced between fetch and push; retry the loop.
+        continue;
+      }
+      throw error;
+    }
+
+    const pushedCommit = (await getCommitSha(repoDir, pushSpec)) ?? localCommit;
     return {
-      blocked: true,
-      blockReason: buildBlockedPushConflictReason(baseDetails),
-      details: baseDetails,
-    };
-  }
-
-  const backupRef = buildResultsBackupRef(params.targetBranch, remoteCommit);
-  const backupDetails: ResultsBranchPushDetails = {
-    ...baseDetails,
-    backupRef,
-    backupCommit: remoteCommit,
-  };
-
-  try {
-    await assertValidResultsBranchName(params.repoDir, backupRef);
-    await runGit(
-      ['push', '--porcelain', params.normalized.remote, `${remoteCommit}:refs/heads/${backupRef}`],
-      { cwd: params.repoDir },
-    );
-  } catch (error) {
-    return {
-      blocked: true,
-      blockReason: `Results branch backup creation failed for ${params.targetBranch} at ${formatShortSha(
-        remoteCommit,
-      )}: ${getStatusMessage(error)}`,
-      details: backupDetails,
-    };
-  }
-
-  try {
-    await runGit(
-      [
-        'push',
-        '--porcelain',
-        `--force-with-lease=refs/heads/${params.targetBranch}:${remoteCommit}`,
-        params.normalized.remote,
-        `${params.sourceRef}:refs/heads/${params.targetBranch}`,
-      ],
-      { cwd: params.repoDir },
-    );
-  } catch (error) {
-    return {
-      blocked: true,
-      blockReason: `Results branch force push lease failed for ${params.targetBranch}; remote changed after backup ${backupRef} was created with lease ${formatShortSha(
-        remoteCommit,
-      )}: ${getStatusMessage(error)}`,
-      details: backupDetails,
+      blocked: false,
+      details: { ...details, localCommit: pushedCommit },
     };
   }
 
   return {
-    blocked: false,
-    details: {
-      ...backupDetails,
-      ...(localCommit !== undefined && { forcePushedCommit: localCommit }),
-    },
+    blocked: true,
+    blockReason: `Results branch ${targetBranch} could not be reconciled after ${RESULTS_PUSH_MERGE_MAX_ATTEMPTS} attempts because the remote kept advancing; retry sync. The remote branch is unchanged.`,
+    details: lastDetails,
+    syncStatus: 'needs_human_merge',
   };
 }
 
@@ -1679,6 +2058,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
             pullPerformed,
             pushPerformed,
             commitCreated,
+            syncStatus: outcome.syncStatus,
           });
         }
         pushPerformed = true;
@@ -1801,6 +2181,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
                     pullPerformed,
                     pushPerformed,
                     commitCreated,
+                    syncStatus: outcome.syncStatus,
                   });
                 }
               } else {
@@ -1942,6 +2323,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
           pullPerformed,
           pushPerformed,
           commitCreated,
+          syncStatus: outcome.syncStatus,
         });
       }
       pushPerformed = true;
@@ -2034,6 +2416,7 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
               pullPerformed,
               pushPerformed,
               commitCreated,
+              syncStatus: outcome.syncStatus,
             });
           }
         } else {
@@ -2611,6 +2994,7 @@ async function commitStorageBranchWorktreePaths(params: {
     } else {
       await runGit(['read-tree', '--empty'], { cwd: params.repoDir, env: indexEnv });
     }
+    await addResultsGitattributesToIndex(params.repoDir, indexEnv);
 
     for (const gitPath of paths) {
       const sourcePath = path.join(params.repoDir, ...gitPath.split('/'));
@@ -2730,6 +3114,7 @@ async function commitResultsRunWithTemporaryIndex(params: {
     } else {
       await runGit(['read-tree', '--empty'], { cwd: params.repoDir, env: indexEnv });
     }
+    await addResultsGitattributesToIndex(params.repoDir, indexEnv);
 
     const existingPaths = await getExistingRunTreePaths(
       params.repoDir,
@@ -2832,7 +3217,7 @@ function buildDirectPushResult(
     ...(outcome?.blocked === true && {
       blocked: true,
       block_reason: outcome.blockReason,
-      sync_status: 'push_conflict' as const,
+      sync_status: outcome.syncStatus ?? ('push_conflict' as const),
     }),
     ...pushDetailsToWire(details),
   };
