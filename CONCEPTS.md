@@ -10,6 +10,16 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Provider runtime boundary** — the process boundary between AgentV's evaluation orchestrator and the agent runtime a provider invokes. CLI-backed providers place the agent runtime outside the orchestrator; in-process SDK providers share the orchestrator process and need either a targeted transport fix or subprocess-style isolation when runtime teardown can threaten run artifact finalization.
 
+## Evaluation Model
+
+**Eval** — The frozen task and grading definition: prompts, datasets, input files, fixtures, assertions, and judge criteria. An eval defines what is being tested, not which agent, model, setup variant, or run policy executes it.
+
+**Experiment** — A committed run variant that selects how evals are executed: target or target matrix, setup, scripts, eval filters, repeat counts, timeouts, workers, budgets, and related run knobs. Experiments make A/B setup differences explicit while pointing at stable eval tasks.
+
+**Run manifest** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `artifact_dir`, `task_dir`, `summary_path`, and `grading_path`.
+
+**Artifact sidecar** — A file beside or below a test-case artifact directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
+
 ## Evaluation Reliability
 
 **Repeat run** — A configured request to execute the same eval case and target more than once in the same timestamped run bundle. Repeat runs measure stochastic reliability, verifier stability, and drift; they are not the default CI path.
