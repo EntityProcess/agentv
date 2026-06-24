@@ -145,7 +145,6 @@ export {
   type EvalRequires,
   type EvalTargetRef,
   type EvalTest,
-  type EvalTrials,
   type EvalTurn,
   type EvalWorkspace,
   type EvalWorkspaceHook,

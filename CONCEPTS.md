@@ -14,12 +14,12 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Repeat run** — A configured request to execute the same eval case and target more than once in the same timestamped run bundle. Repeat runs measure stochastic reliability, verifier stability, and drift; they are not the default CI path.
 
-**Attempt** — One concrete execution inside a repeat run. Attempts keep their own score, status, timing, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
+**Case run** — One concrete execution inside a repeat run. Case runs keep their own score, status, timing, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
 
-**Pass rate** — Assertion or expectation pass rate inside a grading result: passed assertions or expectations divided by total assertions or expectations. AgentV does not use `pass_rate` for repeat-attempt success frequency.
+**Pass rate** — Assertion or expectation pass rate inside a grading result: passed assertions or expectations divided by total assertions or expectations. AgentV does not use `pass_rate` for repeat-run success frequency.
 
-**Attempt success rate** — Repeat-run reliability metric equal to successful counted attempts divided by counted attempts. This is distinct from `pass_rate`, which is reserved for assertion or expectation pass rate within a grading result.
+**Run success rate** — Repeat-run reliability metric equal to successful counted runs divided by counted runs. This is distinct from `pass_rate`, which is reserved for assertion or expectation pass rate within a grading result.
 
-**Gate policy** — The explicit rule that decides whether repeated attempts pass CI, such as `all_attempts_successful`, `any_attempt_successful`, `attempt_success_rate_at_least`, or `mean_pass_rate_at_least`. Without a repeat-run gate policy, AgentV preserves the normal single-run gate behavior and treats repeat statistics as report data.
+**Gate policy** — The explicit rule that decides whether repeated runs pass CI, such as `all_runs_successful`, `any_run_successful`, `run_success_rate_at_least`, or `mean_pass_rate_at_least`. Without a repeat-run gate policy, AgentV preserves the normal single-run gate behavior and treats repeat statistics as report data.
 
-**Flaky eval outcome** — A repeat-run aggregate whose attempts disagree, or whose failure classification points at verifier, infrastructure, or timeout instability rather than a stable model-quality failure.
+**Flaky eval outcome** — A repeat-run aggregate whose child runs disagree, or whose failure classification points at verifier, infrastructure, or timeout instability rather than a stable model-quality failure.

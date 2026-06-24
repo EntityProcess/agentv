@@ -28,7 +28,7 @@ The first research doc is load-bearing for the single-ref git model, compact der
 
 ## Problem Frame
 
-AgentV already has the beginning of a git-native results store. `packages/core/src/evaluation/results-repo.ts` defaults to `agentv/results/v1`, creates a deterministic orphan genesis commit, lists remote runs with `git ls-tree`, reads `summary.json` blobs through `git cat-file --batch`, publishes run trees without checking out the storage branch, and has support for the heavy artifact sidecar ref `agentv/artifacts/v1`.
+AgentV already has the beginning of a git-native results store. `packages/core/src/evaluation/results-repo.ts` defaults to `agentv/results/v1`, creates a deterministic orphan genesis commit, lists remote runs with `git ls-tree`, reads `index.jsonl` blobs through `git cat-file --batch`, reads sibling `summary.json` blobs for metadata when present, publishes run trees without checking out the storage branch, and has support for the heavy artifact sidecar ref `agentv/artifacts/v1`.
 
 The next storage beads need one reviewed contract before implementation splits across retention, object storage, publication export, path-sharding assessment, and mutable operations. Without that contract, each bead could accidentally create its own branch layout, backend abstraction, transcript boundary, or dashboard read model.
 
@@ -82,7 +82,7 @@ The product boundary stays unchanged: AgentV remains the repo-native and workspa
 
 - KTD1. Use `git-native`, `hybrid`, and `blob-native` as storage backend modes. The current `results.mode: github` is transport-era naming and should not become the long-term storage-mode field.
 - KTD2. Add new wire fields in snake_case, such as `storage_mode` and `object_store`, while keeping TypeScript internals in camelCase, such as `storageMode` and `objectStore`.
-- KTD3. Keep the git-backed listing contract centered on `summary.json` and `index.jsonl`. Do not add a new canonical SQL, JSON index, or `eval.txt` authoring surface.
+- KTD3. Keep the git-backed listing contract centered on `index.jsonl` as the discovery anchor and sibling `summary.json` as run aggregate metadata. Do not add a new canonical SQL, JSON index, or `eval.txt` authoring surface.
 - KTD4. Keep `agentv/results/v1`, `agentv/artifacts/v1`, and `agentv/oplog/v1` as sibling refs. Do not use refs like `agentv/results/v1/artifacts`.
 - KTD5. Use one artifact sidecar ref with typed path prefixes. Start with prefixes such as `transcripts/`, `traces/`, `raw-logs/`, `outputs/`, and `screenshots/`; do not use one branch per artifact type unless measurement later proves it is needed.
 - KTD6. Do not shard `runs/` in this spec. The lightweight measurement below shows current realistic scale is acceptable, and av-thr owns deeper profiling before any layout change.
@@ -108,7 +108,7 @@ The product boundary stays unchanged: AgentV remains the repo-native and workspa
 
 ## Lightweight Path-Sharding Measurement
 
-I ran a temp-only Git measurement on 2026-06-21 using the current `runs/<experiment>/<timestamp>/` shape. Each synthetic run had a small `summary.json` and `index.jsonl`; the measurement approximates `listGitRuns()` by listing tree paths and batch-reading all `summary.json` blobs.
+I ran a temp-only Git measurement on 2026-06-21 using the current `runs/<experiment>/<timestamp>/` shape. Each synthetic run had a small `summary.json` and `index.jsonl`; the measurement approximates `listGitRuns()` by listing tree paths and batch-reading all manifest blobs.
 
 | Runs | `git ls-tree` | `git cat-file --batch` for benchmarks | Benchmark paths |
 | ---: | ---: | ---: | ---: |
@@ -189,7 +189,7 @@ flowchart TB
 
 **Listing/index strategy by mode:**
 
-- `git-native`: `listGitRuns()` remains the fast path. It lists `runs/**/summary.json` on `agentv/results/v1`, batch-reads those JSON blobs, and uses `index.jsonl` only when callers need per-test detail.
+- `git-native`: `listGitRuns()` remains the fast path. It lists `runs/**/index.jsonl` on `agentv/results/v1`, batch-reads those JSONL blobs, and reads sibling `summary.json` blobs for run-level metadata when present.
 - `hybrid`: same listing as `git-native`; heavy payloads are not required for list views. Pointer records in `index.jsonl` decide whether detail reads use git sidecar or S3.
 - `blob-native`: maintain a bucket manifest, for example a compact run listing object under a stable prefix, as the fast path. Use paginated `ListObjectsV2` over `runs/` or manifest prefixes as a rebuild/fallback path. Manifest reads are cheaper for Dashboard; ListObjectsV2 is simpler but can become expensive and pagination-sensitive.
 

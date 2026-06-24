@@ -1,53 +1,53 @@
 import type {
+  CaseRunResult,
   ConfidenceIntervalAggregation,
   MeanAggregation,
   PassAtKAggregation,
-  TrialAggregation,
-  TrialResult,
-  TrialsConfig,
+  RunAggregation,
+  RunsConfig,
 } from './types.js';
 
 /**
- * Aggregate trial results into a final score and aggregation metadata.
+ * Aggregate repeated case runs into a final score and aggregation metadata.
  */
-export function aggregateTrials(
-  trials: readonly TrialResult[],
-  config: TrialsConfig,
-): { score: number; aggregation: TrialAggregation } {
+export function aggregateRuns(
+  runs: readonly CaseRunResult[],
+  config: RunsConfig,
+): { score: number; aggregation: RunAggregation } {
   switch (config.strategy) {
     case 'pass_at_k':
-      return aggregatePassAtK(trials);
+      return aggregatePassAtK(runs);
     case 'mean':
-      return aggregateMean(trials);
+      return aggregateMean(runs);
     case 'confidence_interval':
-      return aggregateConfidenceInterval(trials);
+      return aggregateConfidenceInterval(runs);
   }
 }
 
-function aggregatePassAtK(trials: readonly TrialResult[]): {
+function aggregatePassAtK(runs: readonly CaseRunResult[]): {
   score: number;
   aggregation: PassAtKAggregation;
 } {
-  const passedAttempts = trials.filter((t) => t.verdict === 'pass').length;
-  const bestTrial = trials.reduce((best, t) => (t.score > best.score ? t : best), trials[0]);
+  const passedRuns = runs.filter((run) => run.verdict === 'pass').length;
+  const bestRun = runs.reduce((best, run) => (run.score > best.score ? run : best), runs[0]);
 
   const aggregation: PassAtKAggregation = {
     strategy: 'pass_at_k',
-    passedAttempts,
-    totalAttempts: trials.length,
+    passedRuns,
+    totalRuns: runs.length,
   };
 
   return {
-    score: bestTrial.score,
+    score: bestRun.score,
     aggregation,
   };
 }
 
-function aggregateMean(trials: readonly TrialResult[]): {
+function aggregateMean(runs: readonly CaseRunResult[]): {
   score: number;
   aggregation: MeanAggregation;
 } {
-  const scores = trials.map((t) => t.score);
+  const scores = runs.map((run) => run.score);
   const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
   const min = Math.min(...scores);
   const max = Math.max(...scores);
@@ -65,11 +65,11 @@ function aggregateMean(trials: readonly TrialResult[]): {
   };
 }
 
-function aggregateConfidenceInterval(trials: readonly TrialResult[]): {
+function aggregateConfidenceInterval(runs: readonly CaseRunResult[]): {
   score: number;
   aggregation: ConfidenceIntervalAggregation;
 } {
-  const scores = trials.map((t) => t.score);
+  const scores = runs.map((run) => run.score);
   const n = scores.length;
   const mean = scores.reduce((sum, s) => sum + s, 0) / n;
 

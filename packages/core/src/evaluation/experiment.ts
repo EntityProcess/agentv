@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import type { TrialStrategy } from './types.js';
+import type { RunStrategy } from './types.js';
 import { parseYamlValue } from './yaml-loader.js';
 
 export type ExperimentSandbox = 'auto' | 'docker' | 'vercel';
@@ -47,14 +47,14 @@ export type ExperimentSetup = readonly ExperimentScript[] | ExperimentSetupFn;
 
 export type ExperimentRepeatWire = {
   readonly count?: number;
-  readonly strategy?: TrialStrategy;
+  readonly strategy?: RunStrategy;
   readonly cost_limit_usd?: number;
   readonly costLimitUsd?: number;
 };
 
 export type ExperimentRepeat = {
   readonly count: number;
-  readonly strategy: TrialStrategy;
+  readonly strategy: RunStrategy;
   readonly costLimitUsd?: number;
 };
 
@@ -111,7 +111,7 @@ export type ExperimentArtifactMetadata = {
   readonly evals?: string | readonly string[];
   readonly repeat?: {
     readonly count: number;
-    readonly strategy: TrialStrategy;
+    readonly strategy: RunStrategy;
     readonly cost_limit_usd?: number;
   };
   readonly runs?: number;
@@ -460,7 +460,7 @@ function readOptionalBoolean(raw: unknown, location: string): boolean | undefine
   return raw;
 }
 
-function readOptionalRepeatStrategy(raw: unknown): TrialStrategy | undefined {
+function readOptionalRepeatStrategy(raw: unknown): RunStrategy | undefined {
   if (raw === undefined) {
     return undefined;
   }
@@ -469,7 +469,7 @@ function readOptionalRepeatStrategy(raw: unknown): TrialStrategy | undefined {
       "Experiment repeat.strategy must be one of 'pass_at_k', 'mean', or 'confidence_interval'.",
     );
   }
-  return raw as TrialStrategy;
+  return raw as RunStrategy;
 }
 
 function readOptionalPositiveInteger(raw: unknown, location: string): number | undefined {

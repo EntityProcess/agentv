@@ -110,25 +110,25 @@ Duplicate policy is explicit:
 
 `attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
 
-### Attempt observability
+### Run observability
 
-Each attempt directory includes `metrics.json` and `timing.json`. `metrics.json`
+Each `run-N/` directory includes `metrics.json` and `timing.json`. `metrics.json`
 is the flattened executor behavior summary for dashboards, comparison exports,
-and metric-style graders. `timing.json` carries the attempt's duration, token,
+and metric-style graders. `timing.json` carries the run's duration, token,
 and cost values.
 
 Repeat-enabled and single-run cases use a case-level `summary.json`, then store
-attempt details under `run-N/`. Each `run-N/` contains `metrics.json`,
+run details under `run-N/`. Each `run-N/` contains `metrics.json`,
 `timing.json`, `transcript.json`, `transcript-raw.jsonl`, and
 `outputs/answer.md`, plus AgentV `grading.json`.
 
 `transcript-raw.jsonl` is the ordered conversational/log compatibility
-projection and `transcript.json` is the message projection for the attempt.
+projection and `transcript.json` is the message projection for the run.
 Root `summary.json` is the run-level aggregate and metadata file. Root
 `index.jsonl` is the local and remote discovery anchor and lightweight manifest;
-rows point at case `summary.json` and attempt `run-N` directories. Duration,
+rows point at case `summary.json` and `run-N` directories. Duration,
 token, and cost rollups live in case `summary.json`; root `summary.json` carries
-`timing_summary` averages/stddevs. Per-attempt timing and execution metrics live
+`timing_summary` averages/stddevs. Per-run timing and execution metrics live
 in `run-N/timing.json` and `run-N/metrics.json`.
 
 The flattened fields in `run-N/metrics.json` align with Claude Agent Skills
@@ -159,11 +159,11 @@ Agent Skills eval artifacts map into AgentV like this:
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
-| Per-case sidecars | Transcript and raw attempt evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, and optional provider evidence |
-| Per-attempt timing | Duration, token totals, and cost | `run-N/timing.json`; root `summary.json` reports `timing_summary` averages/stddevs |
-| Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
+| Per-case sidecars | Transcript and raw run evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, and optional provider evidence |
+| Per-run timing | Duration, token totals, and cost | `run-N/timing.json`; root `summary.json` reports `timing_summary` averages/stddevs |
+| Per-run `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
-| Transcript/log outlier analysis | Ordered transcript and attempt metrics/timing detail | `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, and `run-N/timing.json` |
+| Transcript/log outlier analysis | Ordered transcript and run metrics/timing detail | `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, and `run-N/timing.json` |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle

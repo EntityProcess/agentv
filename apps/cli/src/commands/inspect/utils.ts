@@ -70,7 +70,7 @@ export interface RawResult {
   input?: unknown;
   output?: unknown;
   spans?: RawTraceSpan[];
-  trials?: unknown[];
+  runs?: unknown[];
   aggregation?: unknown;
   file_changes?: string;
 }

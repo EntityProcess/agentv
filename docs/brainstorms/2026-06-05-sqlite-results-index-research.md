@@ -26,7 +26,7 @@ The main benefit of SQLite is not just faster run-list rendering. It is high-vol
 
 ## Current Code Grounding
 
-- Remote result repo listing is in `packages/core/src/evaluation/results-repo.ts`. `listGitRuns()` reads remote `summary.json` blobs from `origin/main`.
+- Remote result repo listing is in `packages/core/src/evaluation/results-repo.ts`. `listGitRuns()` discovers remote runs from `index.jsonl` anchors and reads sibling `summary.json` metadata from the results ref when present.
 - Dashboard result merge/list logic is in `apps/cli/src/commands/results/remote.ts`. It merges local run scans with remote git-native listing and uses a 60 second in-memory TTL cache.
 - Dashboard handlers in `apps/cli/src/commands/results/serve.ts` still enrich many views by loading `index.jsonl` per run after listing. This affects run lists, experiments, targets, compare, and analytics.
 - Local run discovery still uses `listResultFilesFromRunsDir()` in `apps/cli/src/commands/inspect/utils.ts`, which recursively scans `.agentv/results/runs/`.

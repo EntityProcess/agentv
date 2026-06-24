@@ -588,7 +588,7 @@ describe('agentv eval CLI', () => {
         target: 'cli-target',
         agentTimeoutMs: 12000,
         maxConcurrency: 4,
-        trials: {
+        runs: {
           count: 2,
           strategy: 'mean',
           costLimitUsd: 1.25,

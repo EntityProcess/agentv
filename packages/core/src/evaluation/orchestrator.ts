@@ -45,6 +45,7 @@ import {
   buildReplayFixtureRecord,
 } from './replay-fixtures.js';
 import type { RunBudgetTracker } from './run-budget-tracker.js';
+import { aggregateRuns } from './runs.js';
 import {
   type TokenUsage,
   type Trace,
@@ -54,9 +55,9 @@ import {
   computeTraceSummary,
   mergeExecutionMetrics,
 } from './trace.js';
-import { aggregateTrials } from './trials.js';
 import type {
   AssertionEntry,
+  CaseRunResult,
   ConversationAggregation,
   ConversationTurn,
   DependencyResult,
@@ -72,10 +73,9 @@ import type {
   JsonObject,
   JsonValue,
   LlmGraderConfig,
+  RunsConfig,
   TestMessage,
   TestMessageRole,
-  TrialResult,
-  TrialsConfig,
 } from './types.js';
 import { cleanupEvalWorkspaces, cleanupWorkspace } from './workspace/manager.js';
 import type { RepoManager } from './workspace/repo-manager.js';
@@ -481,8 +481,8 @@ export interface RunEvaluationOptions {
   readonly keepWorkspaces?: boolean;
   /** Force cleanup of workspaces even on failure */
   readonly cleanupWorkspaces?: boolean;
-  /** Trial configuration for running eval cases multiple times */
-  readonly trials?: TrialsConfig;
+  /** Configuration for running eval cases multiple times */
+  readonly runs?: RunsConfig;
   /** Real-time observability callbacks passed to the provider */
   readonly streamCallbacks?: ProviderStreamCallbacks;
   /** Suite-level total cost budget in USD (stops dispatching when exceeded) */
@@ -769,7 +769,7 @@ export async function runEvaluation(
     onProgress,
     keepWorkspaces,
     cleanupWorkspaces,
-    trials,
+    runs,
     streamCallbacks,
     budgetUsd,
     runBudgetTracker,
@@ -789,11 +789,11 @@ export async function runEvaluation(
   } = options;
   const repoRootPath = pathFromRoot(repoRoot);
 
-  // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
+  // Disable cache when repeat count > 1 (cache makes repeated runs deterministic).
   let useCache = options.useCache;
-  if (trials && trials.count > 1 && useCache) {
+  if (runs && runs.count > 1 && useCache) {
     console.warn(
-      'Warning: Caching is disabled when trials.count > 1 (cached responses would make trials deterministic).',
+      'Warning: Caching is disabled when repeat.count > 1 (cached responses would make repeated runs deterministic).',
     );
     useCache = false;
   }
@@ -854,9 +854,9 @@ export async function runEvaluation(
     primaryProvider.supportsBatch === true &&
     typeof primaryProvider.invokeBatch === 'function';
 
-  // Disable batch mode when trials > 1 (batch processes all cases at once, incompatible with per-case retries)
-  if (trials && trials.count > 1 && providerSupportsBatch) {
-    console.warn('Warning: Batch mode is disabled when trials.count > 1. Using per-case dispatch.');
+  // Disable batch mode when repeat count > 1 (batch processes all cases at once).
+  if (runs && runs.count > 1 && providerSupportsBatch) {
+    console.warn('Warning: Batch mode is disabled when repeat.count > 1. Using per-case dispatch.');
     providerSupportsBatch = false;
   }
 
@@ -1011,9 +1011,9 @@ export async function runEvaluation(
     }
 
     function extractEvaluationCostUsd(result: EvaluationResult): number | undefined {
-      if (result.trials && result.trials.length > 0) {
-        const trialCostSum = result.trials.reduce((sum, t) => sum + (t.costUsd ?? 0), 0);
-        return trialCostSum > 0 ? trialCostSum : undefined;
+      if (result.runs && result.runs.length > 0) {
+        const runCostSum = result.runs.reduce((sum, run) => sum + (run.costUsd ?? 0), 0);
+        return runCostSum > 0 ? runCostSum : undefined;
       }
       return result.costUsd;
     }
@@ -1225,8 +1225,8 @@ export async function runEvaluation(
             : {}),
         };
         let result =
-          trials && trials.count > 1
-            ? await runEvalCaseWithTrials(runCaseOptions, trials)
+          runs && runs.count > 1
+            ? await runEvalCaseWithRuns(runCaseOptions, runs)
             : await runEvalCase(runCaseOptions);
 
         const caseCost = extractEvaluationCostUsd(result);
@@ -2265,99 +2265,99 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
   }
 }
 
-async function runEvalCaseWithTrials(
+async function runEvalCaseWithRuns(
   options: RunEvalCaseOptions,
-  trialsConfig: TrialsConfig,
+  runsConfig: RunsConfig,
 ): Promise<EvaluationResult> {
-  const trialResults: TrialResult[] = [];
+  const runResults: CaseRunResult[] = [];
   const allResults: EvaluationResult[] = [];
   let cumulativeCost = 0;
   let costLimited = false;
   let costWarningEmitted = false;
 
-  for (let attempt = 0; attempt < trialsConfig.count; attempt++) {
-    // For intermediate trials, force workspace cleanup.
+  for (let runIndex = 0; runIndex < runsConfig.count; runIndex++) {
+    const runNumber = runIndex + 1;
+    // For intermediate runs, force workspace cleanup.
     // We don't know the declared count's last index because early exit may occur,
-    // so treat the current trial as "last" only if it's the final declared iteration.
-    // On early exit, the actual last trial gets intermediate cleanup — acceptable since
-    // the passing trial's workspace is less important to preserve.
-    const isLastDeclaredTrial = attempt === trialsConfig.count - 1;
-    const trialOptions: RunEvalCaseOptions = {
+    // so treat the current run as "last" only if it's the final declared iteration.
+    // On early exit, the actual last run gets intermediate cleanup, which is
+    // acceptable because the passing run's workspace is less important to preserve.
+    const isLastDeclaredRun = runIndex === runsConfig.count - 1;
+    const runOptions: RunEvalCaseOptions = {
       ...options,
-      // Disable cache for individual trials (each should be a fresh invocation)
+      // Disable cache for individual runs (each should be a fresh invocation).
       useCache: false,
-      // Force cleanup for intermediate trials
-      cleanupWorkspaces: isLastDeclaredTrial ? options.cleanupWorkspaces : true,
-      keepWorkspaces: isLastDeclaredTrial ? options.keepWorkspaces : false,
-      retainOnSuccess: isLastDeclaredTrial ? options.retainOnSuccess : 'cleanup',
-      retainOnFailure: isLastDeclaredTrial ? options.retainOnFailure : 'cleanup',
+      cleanupWorkspaces: isLastDeclaredRun ? options.cleanupWorkspaces : true,
+      keepWorkspaces: isLastDeclaredRun ? options.keepWorkspaces : false,
+      retainOnSuccess: isLastDeclaredRun ? options.retainOnSuccess : 'cleanup',
+      retainOnFailure: isLastDeclaredRun ? options.retainOnFailure : 'cleanup',
     };
 
-    const result = await runEvalCase(trialOptions);
+    const result = await runEvalCase(runOptions);
     allResults.push(result);
 
     // Extract cost from trace summary if available
-    const trialCost = result.costUsd;
+    const runCost = result.costUsd;
 
-    const trialVerdict = scoreToVerdict(result.score);
-    const trial: TrialResult = {
-      attempt,
+    const runVerdict = scoreToVerdict(result.score);
+    const caseRun: CaseRunResult = {
+      run: runNumber,
       score: result.score,
-      verdict: trialVerdict,
+      verdict: runVerdict,
       scores: result.scores,
       error: result.error,
-      costUsd: trialCost,
+      costUsd: runCost,
       executionStatus: result.executionStatus,
       failureStage: result.failureStage,
       failureReasonCode: result.failureReasonCode,
       result,
     };
-    trialResults.push(trial);
+    runResults.push(caseRun);
 
     // Track cumulative cost
-    if (trialCost !== undefined) {
-      cumulativeCost += trialCost;
-    } else if (trialsConfig.costLimitUsd && !costWarningEmitted) {
+    if (runCost !== undefined) {
+      cumulativeCost += runCost;
+    } else if (runsConfig.costLimitUsd && !costWarningEmitted) {
       console.warn(
-        'Warning: cost_limit_usd is set but provider does not report cost. All trials will run.',
+        'Warning: cost_limit_usd is set but provider does not report cost. All runs will run.',
       );
       costWarningEmitted = true;
     }
 
     // Check cost limit
-    if (trialsConfig.costLimitUsd && cumulativeCost >= trialsConfig.costLimitUsd) {
+    if (runsConfig.costLimitUsd && cumulativeCost >= runsConfig.costLimitUsd) {
       costLimited = true;
       break;
     }
 
-    // pass_at_k early exit: short-circuit after first passing trial
+    // pass_at_k early exit: short-circuit after first passing run.
     if (
-      trialsConfig.strategy === 'pass_at_k' &&
-      trialsConfig.earlyExit !== false &&
-      trialVerdict === 'pass'
+      runsConfig.strategy === 'pass_at_k' &&
+      runsConfig.earlyExit !== false &&
+      runVerdict === 'pass'
     ) {
       break;
     }
   }
 
-  // Aggregate trial results
-  const { score, aggregation } = aggregateTrials(trialResults, trialsConfig);
+  // Aggregate repeated-run results.
+  const { score, aggregation } = aggregateRuns(runResults, runsConfig);
 
-  // Use the best-scoring trial's EvaluationResult for metadata (assertions,
+  // Use the best-scoring run's EvaluationResult for metadata (assertions,
   // answer) so that the result's metadata corresponds to the aggregated score.
-  const bestTrialIndex = trialResults.reduce(
-    (bestIdx, t, idx) => (t.score > trialResults[bestIdx].score ? idx : bestIdx),
+  const bestRunIndex = runResults.reduce(
+    (bestIdx, run, idx) => (run.score > runResults[bestIdx].score ? idx : bestIdx),
     0,
   );
-  const baseResult = allResults[bestTrialIndex];
+  const baseResult = allResults[bestRunIndex];
 
-  // Determine aggregate executionStatus from trial results:
-  // - If ANY trial succeeded → ok
-  // - If ALL trials had execution_error → execution_error
+  // Determine aggregate executionStatus from repeated-run results:
+  // - If ANY run succeeded -> ok
+  // - If ALL runs had execution_error -> execution_error
   // - Otherwise → quality_failure
-  const hasOk = trialResults.some((t) => t.executionStatus === 'ok');
+  const hasOk = runResults.some((run) => run.executionStatus === 'ok');
   const allExecutionError =
-    trialResults.length > 0 && trialResults.every((t) => t.executionStatus === 'execution_error');
+    runResults.length > 0 && runResults.every((run) => run.executionStatus === 'execution_error');
   const aggregateExecutionStatus: ExecutionStatus = hasOk
     ? 'ok'
     : allExecutionError
@@ -2375,7 +2375,7 @@ async function runEvalCaseWithTrials(
   return {
     ...baseResult,
     score,
-    trials: trialResults,
+    runs: runResults,
     aggregation,
     costLimited: costLimited || undefined,
     executionStatus: aggregateExecutionStatus,

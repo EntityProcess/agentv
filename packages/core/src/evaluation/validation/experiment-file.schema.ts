@@ -4,7 +4,7 @@
  *
  * IMPORTANT: This schema describes the YAML input format, not the parsed runtime types.
  * Wire fields are snake_case. The only camelCase field accepted here is
- * repeat.costLimitUsd, kept for parity with the prerelease trials schema.
+ * repeat.costLimitUsd, kept for parity with the prerelease repeat schema.
  */
 import { z } from 'zod';
 

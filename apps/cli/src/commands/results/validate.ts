@@ -39,7 +39,7 @@ interface IndexEntry {
   readonly timing_path?: string;
   readonly metrics_path?: string;
   readonly artifact_dir?: string;
-  readonly trials?: readonly { readonly run_path?: string }[];
+  readonly runs?: readonly { readonly run_path?: string }[];
   readonly [key: string]: unknown;
 }
 
@@ -254,10 +254,10 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       }
     }
 
-    if (entry.artifact_dir && Array.isArray(entry.trials)) {
-      for (const trial of entry.trials) {
-        if (!trial.run_path) continue;
-        const runPath = path.join(runDir, entry.artifact_dir, trial.run_path);
+    if (entry.artifact_dir && Array.isArray(entry.runs)) {
+      for (const caseRun of entry.runs) {
+        if (!caseRun.run_path) continue;
+        const runPath = path.join(runDir, entry.artifact_dir, caseRun.run_path);
         const metricsPath = path.join(runPath, 'metrics.json');
         const timingPath = path.join(runPath, 'timing.json');
         const gradingPath = path.join(runPath, 'grading.json');

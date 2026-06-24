@@ -1,7 +1,7 @@
 /**
  * AgentV metrics v1.
  *
- * This is a derived per-attempt executor metrics projection over
+ * This is a derived per-run executor metrics projection over
  * `EvaluationResult` and `agentv.trace.v1`. It combines the Anthropic
  * skill-eval `metrics.json` counters with the compact Vercel observability
  * counters. It is not the canonical trace store; full detail stays in

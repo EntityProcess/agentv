@@ -20,7 +20,7 @@ import {
   type ResolvedTarget,
   ResponseCache,
   RunBudgetTracker,
-  type TrialsConfig,
+  type RunsConfig,
   buildExperimentArtifactMetadata,
   buildTraceFromMessages,
   runEvaluation as defaultRunEvaluation,
@@ -155,7 +155,7 @@ interface NormalizedOptions {
   readonly experimentConfig?: ExperimentConfig;
   readonly experimentMetadata?: ExperimentArtifactMetadata;
   readonly experimentTargetRefs?: readonly EvalTargetRef[];
-  readonly experimentTrialsConfig?: TrialsConfig;
+  readonly experimentRunsConfig?: RunsConfig;
   readonly budgetUsd?: number;
   readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
   readonly resultsOverrides?: ResultsPublishOverrides;
@@ -665,7 +665,7 @@ function applyExperimentOptions(
     experimentConfig: experiment,
     experimentMetadata: buildExperimentArtifactMetadata(experiment),
     experimentTargetRefs: options.cliTargets.length === 0 ? experimentTargetRefs : undefined,
-    experimentTrialsConfig: buildExperimentTrialsConfig(experiment),
+    experimentRunsConfig: buildExperimentRunsConfig(experiment),
   };
 }
 
@@ -689,7 +689,7 @@ function buildExperimentTargetRefs(
   });
 }
 
-function buildExperimentTrialsConfig(experiment: ExperimentConfig): TrialsConfig | undefined {
+function buildExperimentRunsConfig(experiment: ExperimentConfig): RunsConfig | undefined {
   if (experiment.repeat) {
     if (experiment.repeat.count <= 1) {
       return undefined;
@@ -996,7 +996,7 @@ async function prepareFileMetadata(params: {
   readonly testIds: readonly string[];
   readonly testCases: readonly EvalTest[];
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
-  readonly trialsConfig?: TrialsConfig;
+  readonly runsConfig?: RunsConfig;
   readonly suiteTargets?: readonly string[];
   readonly yamlWorkers?: number;
   readonly yamlCache?: boolean;
@@ -1034,7 +1034,7 @@ async function prepareFileMetadata(params: {
       testIds,
       testCases: suite.tests,
       selections: [],
-      trialsConfig: options.experimentTrialsConfig,
+      runsConfig: options.experimentRunsConfig,
       suiteTargets,
       yamlWorkers: suite.workers,
       yamlCache: suite.cacheConfig?.enabled,
@@ -1197,7 +1197,7 @@ async function prepareFileMetadata(params: {
     testIds,
     testCases: suite.tests,
     selections,
-    trialsConfig: options.experimentTrialsConfig,
+    runsConfig: options.experimentRunsConfig,
     suiteTargets,
     yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
@@ -1248,7 +1248,7 @@ async function runSingleEvalFile(params: {
   readonly selection: TargetSelection;
   readonly inlineTargetLabel: string;
   readonly testCases: readonly EvalTest[];
-  readonly trialsConfig?: TrialsConfig;
+  readonly runsConfig?: RunsConfig;
   readonly matrixMode?: boolean;
   readonly budgetUsd?: number;
   readonly runBudgetTracker?: RunBudgetTracker;
@@ -1275,7 +1275,7 @@ async function runSingleEvalFile(params: {
     selection,
     inlineTargetLabel,
     testCases,
-    trialsConfig,
+    runsConfig,
     matrixMode,
     budgetUsd,
     runBudgetTracker,
@@ -1390,7 +1390,7 @@ async function runSingleEvalFile(params: {
     workspaceMode: options.workspaceMode,
     workspacePath: options.workspacePath,
     keepWorkspaces: options.keepWorkspaces,
-    trials: trialsConfig,
+    runs: runsConfig,
     budgetUsd,
     runBudgetTracker,
     failOnError,
@@ -1793,7 +1793,7 @@ export async function runEvalCommand(
         selection: TargetSelection;
         inlineTargetLabel: string;
       }[];
-      readonly trialsConfig?: TrialsConfig;
+      readonly runsConfig?: RunsConfig;
       readonly suiteTargets?: readonly string[];
       readonly yamlWorkers?: number;
       readonly yamlCache?: boolean;
@@ -2128,7 +2128,7 @@ export async function runEvalCommand(
               selection,
               inlineTargetLabel,
               testCases: filteredTestCases,
-              trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
+              runsConfig: options.transcript ? undefined : targetPrep.runsConfig,
               matrixMode: targetPrep.selections.length > 1,
               budgetUsd: targetPrep.budgetUsd,
               runBudgetTracker,

@@ -14,7 +14,7 @@ After comparing with **entireio** (single-ref + git tree as index) and **skillfu
 
 ## Core idea
 
-The configured results branch tree IS the index. `git ls-tree -r <storage-ref> -- runs/` lists every run path without reading every blob. `git cat-file --batch` reads existing `summary.json` blobs in one subprocess call. No separate index file. No drift. Natural pruning when runs are deleted. With `--filter=blob:none` clone, individual run blobs are fetched lazily when a user opens the detail view.
+The configured results branch tree IS the index. `git ls-tree -r <storage-ref> -- runs/` lists every run path by finding `index.jsonl` anchors without reading every blob. `git cat-file --batch` reads those manifest blobs in one subprocess call, and `summary.json` is read opportunistically for run metadata when present. No separate index file. No drift. Natural pruning when runs are deleted. With `--filter=blob:none` clone, individual run blobs are fetched lazily when a user opens the detail view.
 
 ## Architecture
 
@@ -59,8 +59,9 @@ Each run is one commit. Files are unique to that run, so rebases never content-c
 ### Reads
 
 **Listing** (replaces `listResultFilesFromRunsDir`):
-- `git ls-tree -r <storage-ref> -- runs/` → filter for `summary.json` paths
-- `git cat-file --batch` → read those blobs in one subprocess
+- `git ls-tree -r <storage-ref> -- runs/` -> filter for `index.jsonl` paths
+- `git cat-file --batch` -> read those manifest blobs in one subprocess
+- Read sibling `summary.json` blobs when present for run-level metadata and aggregate display fields
 - Derive `run_id` from path (same logic as current `buildRunId`)
 - Sort by timestamp descending
 - Apply cursor pagination
@@ -91,7 +92,7 @@ Each run is one commit. Files are unique to that run, so rebases never content-c
 - `normalizeResultsConfig()` accepts `repo_url`/legacy `repo` or `repo_path`, but prerelease docs and config examples use `repo_url` or `repo_path`.
 - `directPushResults()` resolves the results store, builds one storage-branch commit for the completed run, and pushes when `sync.auto_push` or `sync.require_push` is enabled.
 - `commitResultsRunWithTemporaryIndex()` writes blobs into the repo object database and updates the storage branch via a temporary index. This is the normal `repo_path: .` path and avoids copying files into a checked-out results branch.
-- `listGitRuns()` uses `git ls-tree` plus `git cat-file --batch` against `runs/**/summary.json`. A not-yet-created storage branch (ref does not exist) returns `[]` rather than throwing, so the Dashboard's remote-results poll stays quiet before the first push.
+- `listGitRuns()` uses `git ls-tree` plus `git cat-file --batch` against `runs/**/index.jsonl`, then reads sibling `summary.json` blobs when present. A not-yet-created storage branch (ref does not exist) returns `[]` rather than throwing, so the Dashboard's remote-results poll stays quiet before the first push.
 - `setupWipWorktree()` and `pushWipCheckpoint()` maintain recoverable in-progress branches under `agentv/wip/...`.
 
 ## Breaking changes

@@ -126,9 +126,9 @@ my-results/
       outputs/answer.md
 ```
 
-Single-run and repeat-run cases both use `run-N/` attempt directories. The
+Single-run and repeat-run cases both use `run-N/` directories. The
 top-level `summary.json` is the run aggregate and metadata file; each case
-directory has its own `summary.json` for that case's attempts.
+directory has its own `summary.json` for that case's runs.
 
 Task bundles can also include captured eval context:
 
@@ -453,10 +453,10 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 Each result row's `artifact_dir` is a case-local folder under the timestamped
 run bundle. Fresh runs contain the case `summary.json`, optional task bundle,
-and one or more `run-N/` attempt folders. Each attempt can include
+and one or more `run-N/` folders. Each run can include
 `metrics.json`, `timing.json`, `grading.json`, `transcript.json`, `transcript-raw.jsonl`, and
 generated outputs under `outputs/`. The run root does not contain a mixed
-transcript artifact; use each index row's `transcript_path` or `trials[].run_path`
+transcript artifact; use each index row's `transcript_path` or `runs[].run_path`
 to find the per-result transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer

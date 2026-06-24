@@ -56,11 +56,11 @@ import {
 } from './trace-envelope.js';
 import { type TokenUsage, type TraceSummary, buildTraceFromMessages } from './trace.js';
 import type {
+  CaseRunResult,
   EvalTest,
   EvaluationResult,
   GraderResult,
-  TrialAggregation,
-  TrialResult,
+  RunAggregation,
 } from './types.js';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
@@ -158,12 +158,12 @@ export interface GradingArtifact {
     readonly turns: number;
     readonly conversation_id: string;
   };
-  readonly trials?: readonly TrialResultArtifact[];
-  readonly aggregation?: TrialAggregationArtifact;
+  readonly runs?: readonly CaseRunResultArtifact[];
+  readonly aggregation?: RunAggregationArtifact;
 }
 
-export type TrialResultArtifact = {
-  readonly attempt: number;
+export type CaseRunResultArtifact = {
+  readonly run: number;
   readonly run_path?: string;
   readonly score: number;
   readonly verdict: string;
@@ -175,11 +175,11 @@ export type TrialResultArtifact = {
   readonly failure_reason_code?: string;
 };
 
-export type TrialAggregationArtifact =
+export type RunAggregationArtifact =
   | {
       readonly strategy: 'pass_at_k';
-      readonly passed_attempts: number;
-      readonly total_attempts: number;
+      readonly passed_runs: number;
+      readonly total_runs: number;
     }
   | {
       readonly strategy: 'mean';
@@ -285,8 +285,8 @@ export interface IndexArtifactEntry {
   readonly start_time?: string;
   readonly end_time?: string;
   readonly scores?: readonly Record<string, unknown>[];
-  readonly trials?: readonly TrialResultArtifact[];
-  readonly aggregation?: TrialAggregationArtifact;
+  readonly runs?: readonly CaseRunResultArtifact[];
+  readonly aggregation?: RunAggregationArtifact;
   readonly execution_status?: string;
   readonly error?: string;
   readonly failure_stage?: string;
@@ -486,41 +486,41 @@ function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifa
   return scores?.map(toIndexScore) as IndexArtifactEntry['scores'];
 }
 
-function trialRunDirName(attempt: number): string {
-  return `run-${attempt + 1}`;
+function caseRunDirName(run: number): string {
+  return `run-${run}`;
 }
 
-function hasPersistedTrialRuns(result: EvaluationResult): boolean {
-  return (result.trials ?? []).some((trial) => trial.result !== undefined);
+function hasPersistedCaseRuns(result: EvaluationResult): boolean {
+  return (result.runs ?? []).some((run) => run.result !== undefined);
 }
 
-function toTrialArtifacts(
-  trials: readonly TrialResult[] | undefined,
-): readonly TrialResultArtifact[] | undefined {
-  if (!trials || trials.length === 0) {
+function toRunArtifacts(
+  runs: readonly CaseRunResult[] | undefined,
+): readonly CaseRunResultArtifact[] | undefined {
+  if (!runs || runs.length === 0) {
     return undefined;
   }
-  return trials.map((trial) => ({
-    attempt: trial.attempt,
-    run_path: trial.result ? trialRunDirName(trial.attempt) : undefined,
-    score: trial.score,
-    verdict: trial.verdict,
-    scores: toIndexScores(trial.scores),
-    error: trial.error,
-    cost_usd: trial.costUsd,
-    execution_status: trial.executionStatus,
-    failure_stage: trial.failureStage,
-    failure_reason_code: trial.failureReasonCode,
+  return runs.map((caseRun) => ({
+    run: caseRun.run,
+    run_path: caseRun.result ? caseRunDirName(caseRun.run) : undefined,
+    score: caseRun.score,
+    verdict: caseRun.verdict,
+    scores: toIndexScores(caseRun.scores),
+    error: caseRun.error,
+    cost_usd: caseRun.costUsd,
+    execution_status: caseRun.executionStatus,
+    failure_stage: caseRun.failureStage,
+    failure_reason_code: caseRun.failureReasonCode,
   }));
 }
 
-function toIndexTrialArtifacts(result: EvaluationResult): readonly TrialResultArtifact[] {
-  return toTrialArtifacts(result.trials) ?? toTrialArtifacts([singleRunTrial(result)]) ?? [];
+function toIndexRunArtifacts(result: EvaluationResult): readonly CaseRunResultArtifact[] {
+  return toRunArtifacts(result.runs) ?? toRunArtifacts([singleCaseRun(result)]) ?? [];
 }
 
-function toTrialAggregationArtifact(
-  aggregation: TrialAggregation | undefined,
-): TrialAggregationArtifact | undefined {
+function toRunAggregationArtifact(
+  aggregation: RunAggregation | undefined,
+): RunAggregationArtifact | undefined {
   if (!aggregation) {
     return undefined;
   }
@@ -528,8 +528,8 @@ function toTrialAggregationArtifact(
     case 'pass_at_k':
       return {
         strategy: aggregation.strategy,
-        passed_attempts: aggregation.passedAttempts,
-        total_attempts: aggregation.totalAttempts,
+        passed_runs: aggregation.passedRuns,
+        total_runs: aggregation.totalRuns,
       };
     case 'mean':
       return {
@@ -586,17 +586,17 @@ function roundSecondsFromMs(value: number): number {
   return Math.round((value / 1000) * 1000) / 1000;
 }
 
-function repeatAttemptResults(result: EvaluationResult): readonly EvaluationResult[] {
-  const trialResults = (result.trials ?? [])
-    .map((trial) => trial.result)
-    .filter((trialResult): trialResult is EvaluationResult => trialResult !== undefined);
-  return trialResults.length > 0 ? trialResults : [result];
+function repeatRunResults(result: EvaluationResult): readonly EvaluationResult[] {
+  const runResults = (result.runs ?? [])
+    .map((caseRun) => caseRun.result)
+    .filter((runResult): runResult is EvaluationResult => runResult !== undefined);
+  return runResults.length > 0 ? runResults : [result];
 }
 
 function buildRepeatAggregateTimingArtifact(result: EvaluationResult): TimingArtifact {
-  const attemptResults = repeatAttemptResults(result);
-  const timing = buildTimingArtifact(attemptResults);
-  const durationsMs = attemptResults
+  const runResults = repeatRunResults(result);
+  const timing = buildTimingArtifact(runResults);
+  const durationsMs = runResults
     .map(resultDurationMs)
     .filter((durationMs): durationMs is number => durationMs !== undefined);
   if (durationsMs.length === 0) {
@@ -636,7 +636,7 @@ function fallbackRepeatFingerprint(result: EvaluationResult): string {
       JSON.stringify({
         test_id: result.testId ?? 'unknown',
         target: result.target ?? 'unknown',
-        trial_count: result.trials?.length ?? 0,
+        run_count: result.runs?.length ?? 0,
         aggregation: result.aggregation,
       }),
     )
@@ -648,11 +648,11 @@ function buildRepeatCaseSummaryArtifact(
   timing: TimingArtifact,
   fingerprint?: string,
 ): RepeatCaseSummaryArtifact {
-  const trials = result.trials ?? [];
-  const totalRuns = trials.length > 0 ? trials.length : 1;
+  const runs = result.runs ?? [];
+  const totalRuns = runs.length > 0 ? runs.length : 1;
   const passedRuns =
-    trials.length > 0
-      ? trials.filter((trial) => trial.verdict === 'pass').length
+    runs.length > 0
+      ? runs.filter((caseRun) => caseRun.verdict === 'pass').length
       : result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
         ? 1
         : 0;
@@ -675,9 +675,9 @@ function buildRepeatCaseSummaryArtifact(
   };
 }
 
-function singleRunTrial(result: EvaluationResult): TrialResult {
+function singleCaseRun(result: EvaluationResult): CaseRunResult {
   return {
-    attempt: 0,
+    run: 1,
     score: result.score,
     verdict:
       result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
@@ -693,13 +693,13 @@ function singleRunTrial(result: EvaluationResult): TrialResult {
   };
 }
 
-function materializedRunTrials(result: EvaluationResult): readonly TrialResult[] {
-  const persisted = (result.trials ?? []).filter((trial) => trial.result !== undefined);
-  return persisted.length > 0 ? persisted : [singleRunTrial(result)];
+function materializedCaseRuns(result: EvaluationResult): readonly CaseRunResult[] {
+  const persisted = (result.runs ?? []).filter((caseRun) => caseRun.result !== undefined);
+  return persisted.length > 0 ? persisted : [singleCaseRun(result)];
 }
 
-async function writeTrialRunArtifacts(params: {
-  readonly trial: TrialResult;
+async function writeCaseRunArtifacts(params: {
+  readonly caseRun: CaseRunResult;
   readonly parentTestDir: string;
   readonly outputDir: string;
   readonly evalFile?: string;
@@ -708,21 +708,21 @@ async function writeTrialRunArtifacts(params: {
   readonly duplicatePolicy: ExportDuplicatePolicy;
   readonly testByTestId: Map<string, EvalTest>;
 }): Promise<void> {
-  const result = params.trial.result;
+  const result = params.caseRun.result;
   if (!result) {
     return;
   }
 
-  const runDirName = trialRunDirName(params.trial.attempt);
+  const runDirName = caseRunDirName(params.caseRun.run);
   const runDir = path.join(params.parentTestDir, runDirName);
-  const grading = buildGradingArtifact(result, { includeTrials: false });
+  const grading = buildGradingArtifact(result, { includeRuns: false });
   const gradingPath = path.join(runDir, 'grading.json');
   const metricsPath = path.join(runDir, 'metrics.json');
   const timingPath = path.join(runDir, 'timing.json');
   const outputsDir = path.join(runDir, 'outputs');
   const answerOutputPath =
     result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
-  const attemptRunId = params.runId
+  const caseRunId = params.runId
     ? `${params.runId}:${runDirName}`
     : `${result.testId}:${result.target}:${runDirName}`;
   const envelope = buildTraceEnvelopeSidecar({
@@ -731,7 +731,7 @@ async function writeTrialRunArtifacts(params: {
     testDir: runDir,
     evalPath: resolveEnvelopeEvalPath(result, params.testByTestId, params.evalFile),
     experiment: params.experiment,
-    runId: attemptRunId,
+    runId: caseRunId,
     duplicatePolicy: params.duplicatePolicy,
   });
   const hasTranscript = hasTranscriptProjection(result, envelope);
@@ -835,13 +835,13 @@ function buildExportMetadata(
 
 export function buildGradingArtifact(
   result: EvaluationResult,
-  options?: { includeTrials?: boolean },
+  options?: { includeRuns?: boolean },
 ): GradingArtifact {
   const assertions = buildAssertions(result);
   const passed = assertions.filter((e) => e.passed).length;
   const failed = assertions.filter((e) => !e.passed).length;
   const total = assertions.length;
-  const includeTrials = options?.includeTrials ?? true;
+  const includeRuns = options?.includeRuns ?? true;
 
   return {
     assertions,
@@ -860,8 +860,8 @@ export function buildGradingArtifact(
           conversation_id: result.conversationId,
         }
       : undefined,
-    trials: includeTrials ? toIndexTrialArtifacts(result) : undefined,
-    aggregation: includeTrials ? toTrialAggregationArtifact(result.aggregation) : undefined,
+    runs: includeRuns ? toIndexRunArtifacts(result) : undefined,
+    aggregation: includeRuns ? toRunAggregationArtifact(result.aggregation) : undefined,
   };
 }
 
@@ -1325,8 +1325,8 @@ export function buildIndexArtifactEntry(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
-    trials: toIndexTrialArtifacts(result),
-    aggregation: toTrialAggregationArtifact(result.aggregation),
+    runs: toIndexRunArtifacts(result),
+    aggregation: toRunAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
     failure_stage: result.failureStage,
@@ -1385,8 +1385,8 @@ export function buildResultIndexArtifact(
   const artifactSubdir = buildArtifactSubdir(result);
   const hasAnswer = result.output.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
-  const isSingleRun = !hasPersistedTrialRuns(result);
-  const singleRunDir = path.posix.join(artifactSubdir, trialRunDirName(0));
+  const isSingleRun = !hasPersistedCaseRuns(result);
+  const singleRunDir = path.posix.join(artifactSubdir, caseRunDirName(1));
 
   return {
     timestamp: result.timestamp,
@@ -1402,8 +1402,8 @@ export function buildResultIndexArtifact(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
-    trials: toTrialArtifacts(result.trials),
-    aggregation: toTrialAggregationArtifact(result.aggregation),
+    runs: toIndexRunArtifacts(result),
+    aggregation: toRunAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
     failure_stage: result.failureStage,
@@ -1820,9 +1820,9 @@ export async function writePerTestArtifacts(
     const summary = buildRepeatCaseSummaryArtifact(result, aggregateTiming, projectionIdentity.id);
     await writeFile(caseSummaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 
-    for (const trial of materializedRunTrials(result)) {
-      await writeTrialRunArtifacts({
-        trial,
+    for (const caseRun of materializedCaseRuns(result)) {
+      await writeCaseRunArtifacts({
+        caseRun,
         parentTestDir: testDir,
         outputDir,
         evalFile: options?.evalFile,
@@ -1833,8 +1833,8 @@ export async function writePerTestArtifacts(
       });
     }
 
-    const isSingleRun = !hasPersistedTrialRuns(result);
-    const singleRunDir = path.join(testDir, trialRunDirName(0));
+    const isSingleRun = !hasPersistedCaseRuns(result);
+    const singleRunDir = path.join(testDir, caseRunDirName(1));
     const singleAnswerPath =
       isSingleRun && result.output.length > 0
         ? path.join(singleRunDir, 'outputs', 'answer.md')
@@ -1925,8 +1925,8 @@ export async function writeArtifactsFromResults(
       throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
     }
     const identityId = projectionIdentity.id;
-    const isSingleRun = !hasPersistedTrialRuns(result);
-    const singleRunDir = path.join(testDir, trialRunDirName(0));
+    const isSingleRun = !hasPersistedCaseRuns(result);
+    const singleRunDir = path.join(testDir, caseRunDirName(1));
     const singleAnswerPath =
       isSingleRun && result.output.length > 0
         ? path.join(singleRunDir, 'outputs', 'answer.md')
@@ -1990,9 +1990,9 @@ export async function writeArtifactsFromResults(
       options?.experimentMetadata?.fingerprint ?? plan.projectionIdentity.id,
     );
     await writeFile(plan.caseSummaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-    for (const trial of materializedRunTrials(result)) {
-      await writeTrialRunArtifacts({
-        trial,
+    for (const caseRun of materializedCaseRuns(result)) {
+      await writeCaseRunArtifacts({
+        caseRun,
         parentTestDir: plan.testDir,
         outputDir,
         evalFile: options?.evalFile,

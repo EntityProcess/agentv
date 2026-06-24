@@ -14,7 +14,7 @@ import { Link } from '@tanstack/react-router';
 import { artifactFileContentUrl, useFeedback } from '~/lib/api';
 import {
   RESULT_TABLE_VIEW_PRESETS,
-  type RepeatAttemptGroup,
+  type RepeatRunGroup,
   type ResultTableColumn,
   type ResultTableRow,
   type ResultTableState,
@@ -384,7 +384,7 @@ export function ResultTable({
             </div>
           ) : model.filteredRepeatGroups.length > 0 ? (
             <div className="space-y-4">
-              <RepeatAttemptList
+              <RepeatRunList
                 groups={model.filteredRepeatGroups}
                 runId={runId}
                 projectId={projectId}
@@ -505,7 +505,7 @@ function ResultRowsTable({
   );
 }
 
-function RepeatAttemptList({
+function RepeatRunList({
   groups,
   runId,
   projectId,
@@ -515,7 +515,7 @@ function RepeatAttemptList({
   onOpenDetail,
   selectedRowKey,
 }: {
-  groups: readonly RepeatAttemptGroup[];
+  groups: readonly RepeatRunGroup[];
   runId: string;
   projectId?: string;
   passThreshold: number;
@@ -528,9 +528,7 @@ function RepeatAttemptList({
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
         <p className="text-lg text-gray-400">No repeated evaluations match this view</p>
-        <p className="mt-2 text-sm text-gray-500">
-          Clear filters to see repeat-attempt case groups.
-        </p>
+        <p className="mt-2 text-sm text-gray-500">Clear filters to see repeated-run case groups.</p>
       </div>
     );
   }
@@ -570,14 +568,14 @@ function RepeatAttemptList({
                     </button>
                     <span
                       className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-medium ${
-                        group.passedAttempts === group.attemptCount
+                        group.passedRuns === group.runCount
                           ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
-                          : group.passedAttempts > 0
+                          : group.passedRuns > 0
                             ? 'border-yellow-900/60 bg-yellow-950/20 text-yellow-300'
                             : 'border-red-900/60 bg-red-950/20 text-red-300'
                       }`}
                     >
-                      {group.passedAttempts}/{group.attemptCount} passed
+                      {group.passedRuns}/{group.runCount} passed
                     </span>
                   </div>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-800">
@@ -593,7 +591,7 @@ function RepeatAttemptList({
                     />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                    <span>{formatPercent(group.passRate)} attempt success</span>
+                    <span>{formatPercent(group.passRate)} run success</span>
                     <span>{formatPercent(group.meanScore)} mean score</span>
                     {group.totalToolCalls != null ? (
                       <span>{group.totalToolCalls} total tool calls</span>
@@ -612,10 +610,10 @@ function RepeatAttemptList({
 
             {!collapsed && (
               <div className="space-y-2 border-t border-gray-800 bg-gray-950/40 p-3">
-                {group.attempts.map((attempt, index) => (
-                  <RepeatAttemptRow
-                    key={`${group.row.key}:${attempt.run_path ?? index}`}
-                    attempt={attempt}
+                {group.runs.map((caseRun, index) => (
+                  <RepeatRunRow
+                    key={`${group.row.key}:${caseRun.run_path ?? index}`}
+                    caseRun={caseRun}
                     index={index}
                     runId={runId}
                     evalId={group.row.testId}
@@ -632,15 +630,15 @@ function RepeatAttemptList({
   );
 }
 
-function RepeatAttemptRow({
-  attempt,
+function RepeatRunRow({
+  caseRun,
   index,
   runId,
   evalId,
   projectId,
   passThreshold,
 }: {
-  attempt: RepeatAttemptGroup['attempts'][number];
+  caseRun: RepeatRunGroup['runs'][number];
   index: number;
   runId: string;
   evalId: string;
@@ -648,15 +646,15 @@ function RepeatAttemptRow({
   passThreshold: number;
 }) {
   const passed =
-    attempt.verdict === 'pass' ||
-    (attempt.verdict !== 'fail' && (attempt.score ?? 0) >= passThreshold);
-  const label = attempt.run_path ?? `run-${(attempt.attempt ?? index) + 1}`;
+    caseRun.verdict === 'pass' ||
+    (caseRun.verdict !== 'fail' && (caseRun.score ?? 0) >= passThreshold);
+  const label = caseRun.run_path ?? `run-${caseRun.run ?? index + 1}`;
   const artifactLinks = [
-    { label: 'metrics', path: attempt.metrics_path },
-    { label: 'timing', path: attempt.timing_path },
-    { label: 'grading', path: attempt.grading_path },
-    { label: 'transcript', path: attempt.transcript_path },
-    { label: 'output', path: attempt.answer_path },
+    { label: 'metrics', path: caseRun.metrics_path },
+    { label: 'timing', path: caseRun.timing_path },
+    { label: 'grading', path: caseRun.grading_path },
+    { label: 'transcript', path: caseRun.transcript_path },
+    { label: 'output', path: caseRun.answer_path },
   ].filter((item): item is { label: string; path: string } => Boolean(item.path));
 
   return (
@@ -674,17 +672,17 @@ function RepeatAttemptRow({
             {passed ? 'passed' : 'failed'}
           </span>
         </div>
-        {attempt.error ? (
-          <p className="mt-1 truncate text-xs text-red-300" title={attempt.error}>
-            {attempt.error}
+        {caseRun.error ? (
+          <p className="mt-1 truncate text-xs text-red-300" title={caseRun.error}>
+            {caseRun.error}
           </p>
         ) : null}
       </div>
-      <div className="tabular-nums text-gray-400">{formatPercent(attempt.score ?? 0)}</div>
-      <div className="tabular-nums text-gray-400">{formatDuration(attempt.duration_ms)}</div>
+      <div className="tabular-nums text-gray-400">{formatPercent(caseRun.score ?? 0)}</div>
+      <div className="tabular-nums text-gray-400">{formatDuration(caseRun.duration_ms)}</div>
       <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">
-        {attempt.total_tool_calls != null ? (
-          <span className="text-xs text-gray-500">{attempt.total_tool_calls} tool calls</span>
+        {caseRun.total_tool_calls != null ? (
+          <span className="text-xs text-gray-500">{caseRun.total_tool_calls} tool calls</span>
         ) : null}
         {artifactLinks.map((artifact) => (
           <a

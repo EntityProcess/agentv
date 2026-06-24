@@ -727,7 +727,7 @@ function displayPathFromArtifactKey(key: string | undefined, runPath: string | u
   return normalizeArtifactRelativePath(normalizedKey.slice(runPrefix.length)) ?? normalizedKey;
 }
 
-function addTrialRunCatalogEntries(
+function addCaseRunCatalogEntries(
   entries: ArtifactCatalogEntry[],
   seen: Set<string>,
   record: ResultManifestRecord,
@@ -736,8 +736,8 @@ function addTrialRunCatalogEntries(
     ? normalizeArtifactRelativePath(record.artifact_dir)
     : undefined;
   if (!artifactDir) return;
-  for (const trial of record.trials ?? []) {
-    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+  for (const caseRun of record.runs ?? []) {
+    const runPath = caseRun.run_path ? normalizeArtifactRelativePath(caseRun.run_path) : undefined;
     if (!runPath) continue;
     const runDir = path.posix.join(artifactDir, runPath);
     addDirectArtifactCatalogEntry(
@@ -799,7 +799,7 @@ function buildResultArtifactCatalog(
   addDirectArtifactCatalogEntry(entries, seen, recordWithTrace.trace_path, 'trace');
   addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
-  addTrialRunCatalogEntries(entries, seen, record);
+  addCaseRunCatalogEntries(entries, seen, record);
 
   return entries;
 }
@@ -1046,7 +1046,7 @@ function objectField(
     : undefined;
 }
 
-function attemptArtifactPath(
+function caseRunArtifactPath(
   artifactDir: string | undefined,
   runPath: string | undefined,
   filePath: string,
@@ -1055,28 +1055,28 @@ function attemptArtifactPath(
   return path.posix.join(artifactDir, runPath, filePath);
 }
 
-function buildRepeatAttemptReadModels(
+function buildRepeatRunReadModels(
   baseDir: string,
   record: ResultManifestRecord,
 ): Array<Record<string, unknown>> | undefined {
-  if (!record.trials || record.trials.length === 0) return undefined;
+  if (!record.runs || record.runs.length === 0) return undefined;
   const artifactDir = record.artifact_dir
     ? normalizeArtifactRelativePath(record.artifact_dir)
     : undefined;
 
-  return record.trials.map((trial) => {
-    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
-    const metricsPath = attemptArtifactPath(artifactDir, runPath, 'metrics.json');
-    const timingPath = attemptArtifactPath(artifactDir, runPath, 'timing.json');
-    const gradingPath = attemptArtifactPath(artifactDir, runPath, 'grading.json');
-    const transcriptPath = attemptArtifactPath(artifactDir, runPath, 'transcript-raw.jsonl');
-    const answerPath = attemptArtifactPath(artifactDir, runPath, 'outputs/answer.md');
+  return record.runs.map((caseRun) => {
+    const runPath = caseRun.run_path ? normalizeArtifactRelativePath(caseRun.run_path) : undefined;
+    const metricsPath = caseRunArtifactPath(artifactDir, runPath, 'metrics.json');
+    const timingPath = caseRunArtifactPath(artifactDir, runPath, 'timing.json');
+    const gradingPath = caseRunArtifactPath(artifactDir, runPath, 'grading.json');
+    const transcriptPath = caseRunArtifactPath(artifactDir, runPath, 'transcript-raw.jsonl');
+    const answerPath = caseRunArtifactPath(artifactDir, runPath, 'outputs/answer.md');
     const metrics = readArtifactJsonObject(baseDir, metricsPath);
     const timing = readArtifactJsonObject(baseDir, timingPath);
     const toolCalls = objectField(metrics, 'tool_calls');
 
     return {
-      ...trial,
+      ...caseRun,
       ...(numberField(timing, 'duration_ms') !== undefined && {
         duration_ms: numberField(timing, 'duration_ms'),
       }),
@@ -1101,7 +1101,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
   return results.map((result, index) => {
     const record = records[index];
     if (!record) return result;
-    const trials = buildRepeatAttemptReadModels(baseDir, record);
+    const runs = buildRepeatRunReadModels(baseDir, record);
     return {
       ...result,
       ...(record.aggregation && { aggregation: record.aggregation }),
@@ -1113,7 +1113,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
       ...(record.transcript_path && { transcript_path: record.transcript_path }),
       ...(record.output_path && { output_path: record.output_path }),
       ...(record.answer_path && { answer_path: record.answer_path }),
-      ...(trials && { trials }),
+      ...(runs && { runs }),
     };
   });
 }

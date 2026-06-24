@@ -219,5 +219,5 @@ repeat:
 
 - [`examples/features/matrix-evaluation/`](../../features/matrix-evaluation/) — minimal targets matrix example
 - [`examples/features/weighted-graders/`](../../features/weighted-graders/) — per-grader weight patterns
-- [`examples/features/trials/`](../../features/trials/) — experiment run-count configuration
+- [`examples/features/runs/`](../../features/runs/) — experiment run-count configuration
 - [`examples/features/compare/`](../../features/compare/) — baseline vs candidate comparison

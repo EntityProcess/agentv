@@ -1054,40 +1054,41 @@ export interface DependencyResult {
 export type EvalCase = EvalTest;
 
 /**
- * Supported trial aggregation strategies.
+ * Supported repeated-run aggregation strategies.
  */
-export type TrialStrategy = 'pass_at_k' | 'mean' | 'confidence_interval';
+export type RunStrategy = 'pass_at_k' | 'mean' | 'confidence_interval';
 
 /**
- * Configuration for running multiple trials per eval case.
+ * Configuration for running an eval case multiple times.
  */
-export interface TrialsConfig {
+export interface RunsConfig {
   readonly count: number;
-  readonly strategy: TrialStrategy;
+  readonly strategy: RunStrategy;
   readonly costLimitUsd?: number;
-  /** When false, pass_at_k runs all configured attempts instead of stopping at first pass. */
+  /** When false, pass_at_k runs all configured runs instead of stopping at first pass. */
   readonly earlyExit?: boolean;
 }
 
 /**
- * Result of a single trial attempt.
+ * Result of one repeated eval-case run.
  */
-export interface TrialResult {
-  readonly attempt: number;
+export interface CaseRunResult {
+  /** 1-based run number matching the run-N artifact directory. */
+  readonly run: number;
   readonly score: number;
   readonly verdict: EvaluationVerdict;
   readonly scores?: readonly GraderResult[];
   readonly error?: string;
   readonly costUsd?: number;
-  /** Primary classification for this trial attempt */
+  /** Primary classification for this case run */
   readonly executionStatus?: ExecutionStatus;
   /** Pipeline stage where failure occurred */
   readonly failureStage?: FailureStage;
   /** Machine-readable failure reason code */
   readonly failureReasonCode?: string;
   /**
-   * Full per-attempt result used by artifact writers to materialize Vercel-style
-   * run-N folders. This is intentionally omitted from wire trial summaries.
+   * Full per-run result used by artifact writers to materialize Vercel-style
+   * run-N folders. This is intentionally omitted from wire run summaries.
    */
   readonly result?: EvaluationResult;
 }
@@ -1097,8 +1098,8 @@ export interface TrialResult {
  */
 export interface PassAtKAggregation {
   readonly strategy: 'pass_at_k';
-  readonly passedAttempts: number;
-  readonly totalAttempts: number;
+  readonly passedRuns: number;
+  readonly totalRuns: number;
 }
 
 /**
@@ -1123,9 +1124,9 @@ export interface ConfidenceIntervalAggregation {
 }
 
 /**
- * Discriminated union of trial aggregation results.
+ * Discriminated union of repeated-run aggregation results.
  */
-export type TrialAggregation = PassAtKAggregation | MeanAggregation | ConfidenceIntervalAggregation;
+export type RunAggregation = PassAtKAggregation | MeanAggregation | ConfidenceIntervalAggregation;
 
 /**
  * Primary classification of evaluation outcome.
@@ -1213,11 +1214,11 @@ export interface EvaluationResult {
   readonly afterEachOutput?: string;
   /** Unified diff of workspace file changes */
   readonly fileChanges?: string;
-  /** Individual trial results (only present when trials.count > 1) */
-  readonly trials?: readonly TrialResult[];
-  /** Aggregation metadata describing how the final score was computed from trials */
-  readonly aggregation?: TrialAggregation;
-  /** Whether the trial loop was terminated early due to cost limit */
+  /** Individual repeated-run results (only present when repeat count > 1) */
+  readonly runs?: readonly CaseRunResult[];
+  /** Aggregation metadata describing how the final score was computed from repeated runs */
+  readonly aggregation?: RunAggregation;
+  /** Whether the repeated-run loop was terminated early due to cost limit */
   readonly costLimited?: boolean;
   /** Whether the evaluation was skipped due to suite-level budget exhaustion */
   readonly budgetExceeded?: boolean;

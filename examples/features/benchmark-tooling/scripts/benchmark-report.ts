@@ -30,7 +30,7 @@ interface ResultRecord {
   target?: string;
   score: number;
   scores?: EvaluatorScore[];
-  trials?: TrialRecord[];
+  runs?: RunRecord[];
   aggregation?: AggregationInfo;
 }
 
@@ -42,8 +42,8 @@ interface EvaluatorScore {
   verdict?: string;
 }
 
-interface TrialRecord {
-  attempt: number;
+interface RunRecord {
+  run: number;
   score: number;
   verdict?: string;
 }
@@ -56,8 +56,8 @@ interface AggregationInfo {
   ci95_lower?: number;
   ci95_upper?: number;
   stddev?: number;
-  passed_attempts?: number;
-  total_attempts?: number;
+  passed_runs?: number;
+  total_runs?: number;
 }
 
 interface TargetStats {
@@ -198,8 +198,8 @@ function readResultFile(filePath: string, fallbackTarget: string): ResultRecord[
     if (Array.isArray(raw.scores)) {
       record.scores = raw.scores as EvaluatorScore[];
     }
-    if (Array.isArray(raw.trials)) {
-      record.trials = raw.trials as TrialRecord[];
+    if (Array.isArray(raw.runs)) {
+      record.runs = raw.runs as RunRecord[];
     }
     if (raw.aggregation && typeof raw.aggregation === 'object') {
       record.aggregation = raw.aggregation as AggregationInfo;
@@ -248,13 +248,13 @@ function computeTargetStats(
   const passCount = scores.filter((s) => s >= passThreshold).length;
   const confidence = ci95(scores);
 
-  // Check for trial-level uncertainty
-  let trialCiLower: number | null = null;
-  let trialCiUpper: number | null = null;
+  // Check for repeated-run uncertainty.
+  let runCiLower: number | null = null;
+  let runCiUpper: number | null = null;
   for (const r of records) {
     if (r.aggregation?.ci95_lower != null && r.aggregation?.ci95_upper != null) {
-      trialCiLower = r.aggregation.ci95_lower;
-      trialCiUpper = r.aggregation.ci95_upper;
+      runCiLower = r.aggregation.ci95_lower;
+      runCiUpper = r.aggregation.ci95_upper;
       break; // Use first available as representative
     }
   }
@@ -269,8 +269,8 @@ function computeTargetStats(
     median_score: round(median(scores), 4),
     pass_count: passCount,
     pass_rate: round(scores.length > 0 ? passCount / scores.length : 0, 4),
-    ci95_lower: confidence?.lower ?? trialCiLower,
-    ci95_upper: confidence?.upper ?? trialCiUpper,
+    ci95_lower: confidence?.lower ?? runCiLower,
+    ci95_upper: confidence?.upper ?? runCiUpper,
   };
 }
 

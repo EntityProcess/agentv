@@ -7,7 +7,7 @@
  */
 
 import { isExecutionError } from './result-summary';
-import type { EvalResult, EvalTrialAttempt, ScoreEntry } from './types';
+import type { EvalCaseRun, EvalResult, ScoreEntry } from './types';
 
 export type ResultTableViewId =
   | 'all'
@@ -76,12 +76,12 @@ export interface ResultTableRow {
   readonly searchText: string;
 }
 
-export interface RepeatAttemptGroup {
+export interface RepeatRunGroup {
   readonly row: ResultTableRow;
-  readonly attempts: readonly EvalTrialAttempt[];
-  readonly attemptCount: number;
-  readonly passedAttempts: number;
-  readonly failedAttempts: number;
+  readonly runs: readonly EvalCaseRun[];
+  readonly runCount: number;
+  readonly passedRuns: number;
+  readonly failedRuns: number;
   readonly passRate: number;
   readonly meanScore: number;
   readonly meanDurationMs?: number;
@@ -92,8 +92,8 @@ export interface RepeatAttemptGroup {
 export interface ResultTableModel {
   readonly rows: readonly ResultTableRow[];
   readonly filteredRows: readonly ResultTableRow[];
-  readonly repeatGroups: readonly RepeatAttemptGroup[];
-  readonly filteredRepeatGroups: readonly RepeatAttemptGroup[];
+  readonly repeatGroups: readonly RepeatRunGroup[];
+  readonly filteredRepeatGroups: readonly RepeatRunGroup[];
   readonly columns: readonly ResultTableColumn[];
   readonly visibleColumns: readonly ResultTableColumn[];
   readonly state: ResultTableState;
@@ -177,19 +177,19 @@ function numeric(values: readonly (number | undefined)[]): number[] {
   );
 }
 
-function attemptPassed(attempt: EvalTrialAttempt, passThreshold: number): boolean {
-  if (attempt.verdict === 'pass') return true;
-  if (attempt.verdict === 'fail') return false;
-  return typeof attempt.score === 'number' ? attempt.score >= passThreshold : false;
+function caseRunPassed(caseRun: EvalCaseRun, passThreshold: number): boolean {
+  if (caseRun.verdict === 'pass') return true;
+  if (caseRun.verdict === 'fail') return false;
+  return typeof caseRun.score === 'number' ? caseRun.score >= passThreshold : false;
 }
 
-function attemptArtifactCount(attempt: EvalTrialAttempt): number {
+function caseRunArtifactCount(caseRun: EvalCaseRun): number {
   return [
-    attempt.metrics_path,
-    attempt.timing_path,
-    attempt.grading_path,
-    attempt.transcript_path,
-    attempt.answer_path,
+    caseRun.metrics_path,
+    caseRun.timing_path,
+    caseRun.grading_path,
+    caseRun.transcript_path,
+    caseRun.answer_path,
   ].filter(Boolean).length;
 }
 
@@ -265,26 +265,23 @@ function buildRow(
   };
 }
 
-function buildRepeatGroup(
-  row: ResultTableRow,
-  passThreshold: number,
-): RepeatAttemptGroup | undefined {
-  const attempts = row.result.trials?.filter((attempt) => attempt.run_path || attempt.verdict);
-  if (!attempts || attempts.length <= 1) return undefined;
+function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRunGroup | undefined {
+  const runs = row.result.runs?.filter((caseRun) => caseRun.run_path || caseRun.verdict);
+  if (!runs || runs.length <= 1) return undefined;
 
-  const passedAttempts = attempts.filter((attempt) => attemptPassed(attempt, passThreshold)).length;
-  const durationValues = numeric(attempts.map((attempt) => attempt.duration_ms));
-  const scoreValues = numeric(attempts.map((attempt) => attempt.score));
-  const toolCallValues = numeric(attempts.map((attempt) => attempt.total_tool_calls));
-  const artifactCount = attempts.reduce((sum, attempt) => sum + attemptArtifactCount(attempt), 0);
+  const passedRuns = runs.filter((caseRun) => caseRunPassed(caseRun, passThreshold)).length;
+  const durationValues = numeric(runs.map((caseRun) => caseRun.duration_ms));
+  const scoreValues = numeric(runs.map((caseRun) => caseRun.score));
+  const toolCallValues = numeric(runs.map((caseRun) => caseRun.total_tool_calls));
+  const artifactCount = runs.reduce((sum, caseRun) => sum + caseRunArtifactCount(caseRun), 0);
 
   return {
     row,
-    attempts,
-    attemptCount: attempts.length,
-    passedAttempts,
-    failedAttempts: attempts.length - passedAttempts,
-    passRate: attempts.length > 0 ? passedAttempts / attempts.length : 0,
+    runs,
+    runCount: runs.length,
+    passedRuns,
+    failedRuns: runs.length - passedRuns,
+    passRate: runs.length > 0 ? passedRuns / runs.length : 0,
     meanScore:
       scoreValues.length > 0
         ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
@@ -443,7 +440,7 @@ export function buildResultTableModel(input: BuildResultTableModelInput): Result
   });
   const repeatGroups = rows
     .map((row) => buildRepeatGroup(row, input.passThreshold))
-    .filter((group): group is RepeatAttemptGroup => Boolean(group));
+    .filter((group): group is RepeatRunGroup => Boolean(group));
   const filteredRowKeys = new Set(filteredRows.map((row) => row.key));
   const filteredRepeatGroups = repeatGroups.filter((group) => filteredRowKeys.has(group.row.key));
 

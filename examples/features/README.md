@@ -82,8 +82,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [matrix-evaluation](matrix-evaluation/) | Run the same tests against multiple targets and display a score matrix |
 | [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv compare` cross-model score matrix |
-| [trials](trials/) | Configure experiment-level repeat runs with `pass_at_k`, `mean`, or `confidence_interval` |
-| [trial-output-consistency](trial-output-consistency/) | Measure output consistency across trials using pairwise cosine similarity |
+| [runs](runs/) | Configure experiment-level repeat runs with `pass_at_k`, `mean`, or `confidence_interval` |
+| [run-output-consistency](run-output-consistency/) | Measure output consistency across runs using pairwise cosine similarity |
 | [compare](compare/) | Compare a run against a stored baseline |
 
 ---
@@ -179,8 +179,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [tool-trajectory-simple](tool-trajectory-simple/) | Tool & agent evaluation |
 | [trace-analysis](trace-analysis/) | Offline evaluation |
 | [trace-evaluation](trace-evaluation/) | Tool & agent evaluation |
-| [trial-output-consistency](trial-output-consistency/) | Benchmarking |
-| [trials](trials/) | Benchmarking |
+| [run-output-consistency](run-output-consistency/) | Benchmarking |
+| [runs](runs/) | Benchmarking |
 | [weighted-graders](weighted-graders/) | LLM grading |
 | [workspace-multi-repo](workspace-multi-repo/) | Workspace & targets |
 | [workspace-setup-script](workspace-setup-script/) | Workspace & targets |

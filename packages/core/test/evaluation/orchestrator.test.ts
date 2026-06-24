@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -30,7 +30,7 @@ import {
   toTraceEnvelopeWire,
 } from '../../src/evaluation/trace-envelope.js';
 import { buildTraceFromMessages } from '../../src/evaluation/trace.js';
-import type { EvalTest, EvaluationResult, TrialsConfig } from '../../src/evaluation/types.js';
+import type { EvalTest, EvaluationResult, RunsConfig } from '../../src/evaluation/types.js';
 
 class SequenceProvider implements Provider {
   readonly id: string;
@@ -723,7 +723,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(result.failureReasonCode).toBe('provider_error');
   });
 
-  it('copies and indexes raw provider logs from normal per-case evaluation artifacts', async () => {
+  it('omits optional raw provider logs from strict per-case evaluation artifacts', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-raw-provider-log-'));
     const rawLogPath = path.join(tempDir, 'provider-native-session.jsonl');
     writeFileSync(rawLogPath, '{"event":"provider-native"}\n', 'utf8');
@@ -750,21 +750,20 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     await writeArtifactsFromResults([result], outputDir);
 
     const artifactDir = path.join(outputDir, 'test-dataset', 'case-1');
-    const outputsDir = path.join(artifactDir, 'outputs');
-    expect(readFileSync(path.join(artifactDir, 'provider.log'), 'utf8')).toBe(
-      '{"event":"provider-native"}\n',
-    );
-    expect(readdirSync(artifactDir)).toContain('transcript.jsonl');
-    expect(readdirSync(outputsDir)).not.toContain('transcript.jsonl');
+    const runDir = path.join(artifactDir, 'run-1');
+    const outputsDir = path.join(runDir, 'outputs');
+    expect(existsSync(path.join(artifactDir, 'provider.log'))).toBe(false);
+    expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
+    expect(readdirSync(outputsDir)).not.toContain('transcript-raw.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.json');
 
     const indexRows = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, unknown>);
-    expect(indexRows[0]?.raw_provider_log_path).toBe('test-dataset/case-1/provider.log');
-    expect(indexRows[0]?.trace_path).toBe('test-dataset/case-1/trace.json');
-    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/transcript.jsonl');
+    expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
+    expect(indexRows[0]?.trace_path).toBeUndefined();
+    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/run-1/transcript-raw.jsonl');
   });
 
   it('reports failed progress status for batch item errors', async () => {
@@ -1628,7 +1627,7 @@ console.log('Question: ' + question + '\\nAnswer: ' + answer);
   });
 });
 
-describe('runEvaluation with trials', () => {
+describe('runEvaluation with runs', () => {
   // Provider that returns configurable scores via alternating grader results
   class MultiCallProvider implements Provider {
     readonly id = 'multi:mock';
@@ -1667,10 +1666,10 @@ describe('runEvaluation with trials', () => {
     };
   }
 
-  it('pass_at_k: passes on second trial and early exits', async () => {
+  it('pass_at_k: passes on second run and early exits', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.4, 0.9]);
-    const trials: TrialsConfig = { count: 5, strategy: 'pass_at_k' };
+    const runs: RunsConfig = { count: 5, strategy: 'pass_at_k' };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1679,28 +1678,28 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evalRegistry,
       evalCases: [baseTestCase],
-      trials,
+      runs,
     });
 
     expect(results).toHaveLength(1);
     const result = results[0];
     expect(result.score).toBe(0.9);
-    expect(result.trials).toHaveLength(2); // Early exit after pass
-    expect(result.trials?.[0].verdict).toBe('fail');
-    expect(result.trials?.[1].verdict).toBe('pass');
+    expect(result.runs).toHaveLength(2); // Early exit after pass
+    expect(result.runs?.[0].verdict).toBe('fail');
+    expect(result.runs?.[1].verdict).toBe('pass');
     expect(result.aggregation?.strategy).toBe('pass_at_k');
     if (result.aggregation?.strategy === 'pass_at_k') {
-      expect(result.aggregation.passedAttempts).toBe(1);
-      expect(result.aggregation.totalAttempts).toBe(2);
+      expect(result.aggregation.passedRuns).toBe(1);
+      expect(result.aggregation.totalRuns).toBe(2);
     }
     // Provider should have been called exactly 2 times
     expect(provider.callCount).toBe(2);
   });
 
-  it('pass_at_k: all fail runs all trials', async () => {
+  it('pass_at_k: all fail runs all runs', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.3, 0.4, 0.2]);
-    const trials: TrialsConfig = { count: 3, strategy: 'pass_at_k' };
+    const runs: RunsConfig = { count: 3, strategy: 'pass_at_k' };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1709,11 +1708,11 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evalRegistry,
       evalCases: [baseTestCase],
-      trials,
+      runs,
     });
 
     const result = results[0];
-    expect(result.trials).toHaveLength(3);
+    expect(result.runs).toHaveLength(3);
     expect(result.score).toBe(0.4); // Best score
     expect(provider.callCount).toBe(3);
   });
@@ -1721,7 +1720,7 @@ describe('runEvaluation with trials', () => {
   it('mean: averages scores correctly', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.6, 0.8, 1.0]);
-    const trials: TrialsConfig = { count: 3, strategy: 'mean' };
+    const runs: RunsConfig = { count: 3, strategy: 'mean' };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1730,7 +1729,7 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evalRegistry,
       evalCases: [baseTestCase],
-      trials,
+      runs,
     });
 
     const result = results[0];
@@ -1746,7 +1745,7 @@ describe('runEvaluation with trials', () => {
   it('confidence_interval: computes CI bounds', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.7, 0.8, 0.9]);
-    const trials: TrialsConfig = { count: 3, strategy: 'confidence_interval' };
+    const runs: RunsConfig = { count: 3, strategy: 'confidence_interval' };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1755,7 +1754,7 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evalRegistry,
       evalCases: [baseTestCase],
-      trials,
+      runs,
     });
 
     const result = results[0];
@@ -1780,7 +1779,7 @@ describe('runEvaluation with trials', () => {
       },
     };
     const evalRegistry = createScoringEvaluator([0.5, 0.5, 0.5, 0.5, 0.5]);
-    const trials: TrialsConfig = { count: 5, strategy: 'pass_at_k', costLimitUsd: 5.0 };
+    const runs: RunsConfig = { count: 5, strategy: 'pass_at_k', costLimitUsd: 5.0 };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1789,19 +1788,19 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evalRegistry,
       evalCases: [baseTestCase],
-      trials,
+      runs,
     });
 
     const result = results[0];
     expect(result.costLimited).toBe(true);
-    // Should have stopped after 2 trials ($3 + $3 = $6 >= $5 limit)
-    expect(result.trials?.length).toBeLessThanOrEqual(2);
+    // Should have stopped after 2 runs ($3 + $3 = $6 >= $5 limit)
+    expect(result.runs?.length).toBeLessThanOrEqual(2);
   });
 
-  it('count=1: no trial metadata in result (handled by orchestrator)', async () => {
+  it('count=1: no run metadata in result (handled by orchestrator)', async () => {
     const provider = new MultiCallProvider();
 
-    // Single-run callers should omit trials entirely. Verify normal behavior.
+    // Single-run callers should omit runs entirely. Verify normal behavior.
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
       repoRoot: 'in-memory',
@@ -1809,19 +1808,19 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evaluatorRegistry,
       evalCases: [baseTestCase],
-      // No trials option
+      // No runs option
     });
 
     const result = results[0];
-    expect(result.trials).toBeUndefined();
+    expect(result.runs).toBeUndefined();
     expect(result.aggregation).toBeUndefined();
     expect(result.costLimited).toBeUndefined();
   });
 
-  it('disables cache when trials > 1', async () => {
+  it('disables cache when runs > 1', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.5, 0.9]);
-    const trials: TrialsConfig = { count: 2, strategy: 'pass_at_k' };
+    const runs: RunsConfig = { count: 2, strategy: 'pass_at_k' };
 
     const cache: EvaluationCache = {
       async get() {
@@ -1837,14 +1836,14 @@ describe('runEvaluation with trials', () => {
       providerFactory: () => provider,
       evaluators: evalRegistry,
       evalCases: [baseTestCase],
-      trials,
+      runs,
       cache,
       useCache: true, // Should be overridden to false
     });
 
-    // Provider should have been called for each trial (cache disabled)
+    // Provider should have been called for each run (cache disabled)
     expect(provider.callCount).toBe(2);
-    expect(results[0].trials).toHaveLength(2);
+    expect(results[0].runs).toHaveLength(2);
   });
 });
 
@@ -2920,7 +2919,7 @@ describe('suite-level total budget guardrail', () => {
     expect(results[3].score).toBe(0);
   });
 
-  it('works correctly with trials and budget', async () => {
+  it('works correctly with runs and budget', async () => {
     const provider: Provider = {
       id: 'budget:mock',
       kind: 'mock' as const,
@@ -2940,7 +2939,7 @@ describe('suite-level total budget guardrail', () => {
       { ...baseTestCase, id: 'case-4' },
     ];
 
-    // evaluatorRegistry always returns 0.8 (pass), so pass_at_k exits after 1 trial per case.
+    // evaluatorRegistry always returns 0.8 (pass), so pass_at_k exits after 1 run per case.
     // Each case costs $2. Budget of $5 is exceeded after case-3 ($6 >= $5).
     // Case-4 should be budget-exceeded.
     const results = await runEvaluation({
@@ -2952,7 +2951,7 @@ describe('suite-level total budget guardrail', () => {
       evalCases,
       budgetUsd: 5.0,
       maxConcurrency: 1,
-      trials: { count: 2, strategy: 'pass_at_k' },
+      runs: { count: 2, strategy: 'pass_at_k' },
     });
 
     expect(results).toHaveLength(4);

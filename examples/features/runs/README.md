@@ -14,8 +14,8 @@ behavior in committed experiment files.
 ## Run
 
 ```bash
-bun agentv eval examples/features/trials/evals/dataset.eval.yaml \
-  --experiment examples/features/trials/experiments/default.yaml
+bun agentv eval examples/features/runs/evals/dataset.eval.yaml \
+  --experiment examples/features/runs/experiments/default.yaml
 ```
 
 Swap the experiment path to try the other strategies.
@@ -40,4 +40,4 @@ Field mapping:
   for prerelease compatibility
 
 Use top-level experiment `early_exit: false` only when you want `pass_at_k` to
-run all attempts instead of stopping after the first pass.
+run all configured runs instead of stopping after the first pass.

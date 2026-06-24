@@ -47,8 +47,8 @@ Supported strategies:
 
 | Strategy | Behavior |
 | --- | --- |
-| `pass_at_k` | Uses the best passing attempt; early-exits by default unless the experiment sets `early_exit: false` |
-| `mean` | Aggregates repeated attempt scores by mean |
+| `pass_at_k` | Uses the best passing run; early-exits by default unless the experiment sets `early_exit: false` |
+| `mean` | Aggregates repeated run scores by mean |
 | `confidence_interval` | Uses the lower bound of a 95% confidence interval as the conservative score |
 
 `repeat.cost_limit_usd` caps repeat-run spend. `repeat.costLimitUsd` is also
@@ -72,7 +72,7 @@ canonical AgentV shape; `runs` exists only for Vercel-compatible shorthand.
 
 Vercel defines the requested run count at the experiment level. Some result
 summaries show fewer actual runs for a case because `earlyExit: true` stops
-remaining attempts after the first pass; smoke runs can also force one run.
+remaining runs after the first pass; smoke runs can also force one run.
 AgentV follows the same experiment-level placement while keeping the richer
 `repeat` block for AgentV strategies.
 
@@ -99,8 +99,8 @@ provenance:
 
 The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
 fingerprint, and flattened snake_case timing fields such as
-`mean_duration_ms`. Each `run-N/metrics.json` carries the per-attempt execution
-metrics, each `run-N/timing.json` carries the attempt timing, and each
+`mean_duration_ms`. Each `run-N/metrics.json` carries the per-run execution
+metrics, each `run-N/timing.json` carries the run timing, and each
 `run-N/grading.json` carries the AgentV grader or LLM assertion detail. Root
 `index.jsonl` is the local and remote discovery
 anchor, while root `summary.json` is the run-level aggregate and metadata file

@@ -1,24 +1,24 @@
 #!/usr/bin/env bun
 /**
- * Trial Output Consistency Grader
+ * Run Output Consistency Grader
  *
- * Computes consistency across repeated trial outputs using embedding similarity.
+ * Computes consistency across repeated run outputs using embedding similarity.
  * Uses the Vercel AI SDK for embeddings via AgentV's target client, with a
  * token-overlap cosine similarity fallback when embeddings are unavailable.
  *
  * Config:
- *   trialOutputs: string[]  — array of outputs from repeated trials
+ *   runOutputs: string[]  — array of outputs from repeated runs
  *   fallback?: "token"      — force token-overlap mode (skip embeddings)
  *
  * Edge cases:
- *   0 trials  → score 0, miss reported
- *   1 trial   → score 1.0 (perfect consistency by definition)
- *   2+ trials → average pairwise cosine similarity
+ *   0 runs  → score 0, miss reported
+ *   1 run   → score 1.0 (perfect consistency by definition)
+ *   2+ runs → average pairwise cosine similarity
  */
 import { createTargetClient, defineCodeGrader, z } from '@agentv/sdk';
 
 const ConfigSchema = z.object({
-  trialOutputs: z.array(z.string()),
+  runOutputs: z.array(z.string()),
   fallback: z.enum(['token']).optional(),
 });
 
@@ -117,7 +117,7 @@ export default defineCodeGrader(async (input) => {
       score: 0,
       assertions: [
         {
-          text: 'Invalid config: trialOutputs (string[]) is required',
+          text: 'Invalid config: runOutputs (string[]) is required',
           passed: false,
           evidence: `Config validation failed: ${parsed.error.message}`,
         },
@@ -125,36 +125,36 @@ export default defineCodeGrader(async (input) => {
     };
   }
 
-  const { trialOutputs, fallback } = parsed.data;
+  const { runOutputs, fallback } = parsed.data;
 
-  // Edge case: 0 trials
-  if (trialOutputs.length === 0) {
+  // Edge case: 0 runs
+  if (runOutputs.length === 0) {
     return {
       score: 0,
-      assertions: [{ text: 'No trial outputs provided (0 trials)', passed: false }],
+      assertions: [{ text: 'No run outputs provided (0 runs)', passed: false }],
     };
   }
 
-  // Edge case: 1 trial
-  if (trialOutputs.length === 1) {
+  // Edge case: 1 run
+  if (runOutputs.length === 1) {
     return {
       score: 1,
-      assertions: [{ text: 'Single trial — perfect consistency by definition', passed: true }],
-      details: { trialCount: 1, method: 'trivial' },
+      assertions: [{ text: 'Single run — perfect consistency by definition', passed: true }],
+      details: { runCount: 1, method: 'trivial' },
     };
   }
 
-  // 2+ trials: compute pairwise similarity
+  // 2+ runs: compute pairwise similarity
   let vectors: number[][] | null = null;
   let method = 'token-overlap';
 
   if (fallback !== 'token') {
-    vectors = await getEmbeddings(trialOutputs);
+    vectors = await getEmbeddings(runOutputs);
     if (vectors) method = 'embedding';
   }
 
   if (!vectors) {
-    vectors = tokenVectors(trialOutputs);
+    vectors = tokenVectors(runOutputs);
     method = 'token-overlap';
   }
 
@@ -173,9 +173,9 @@ export default defineCodeGrader(async (input) => {
     score: Math.max(0, Math.min(1, score)),
     assertions,
     details: {
-      trialCount: trialOutputs.length,
+      runCount: runOutputs.length,
       method,
-      pairCount: (trialOutputs.length * (trialOutputs.length - 1)) / 2,
+      pairCount: (runOutputs.length * (runOutputs.length - 1)) / 2,
     },
   };
 });

@@ -1,11 +1,11 @@
-# Trial Output Consistency Grader
-# Measures how consistent an agent's outputs are across repeated trials
+# Run Output Consistency Grader
+# Measures how consistent an agent's outputs are across repeated runs
 # using pairwise cosine similarity (embedding-based or token-overlap fallback).
 #
 # Run:
-#   bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --dry-run
+#   bun agentv eval examples/features/run-output-consistency/evals/dataset.eval.yaml --dry-run
 
-description: Trial output consistency via embedding similarity
+description: Run output consistency via embedding similarity
 
 execution:
   target: llm
@@ -13,7 +13,7 @@ execution:
 tests:
   # ── High consistency: semantically identical outputs ──────────────
   - id: high-consistency
-    criteria: Agent produces consistent answers across trials.
+    criteria: Agent produces consistent answers across runs.
 
     input:
       - role: user
@@ -24,19 +24,19 @@ tests:
         content: The capital of France is Paris.
 
     assertions:
-      - name: trial-consistency
+      - name: run-consistency
         type: code-grader
-        command: ["bun", "run", "../graders/trial-consistency.ts"]
+        command: ["bun", "run", "../graders/run-consistency.ts"]
         config:
           fallback: token
-          trialOutputs:
+          runOutputs:
             - "The capital of France is Paris."
             - "Paris is the capital of France."
             - "France's capital city is Paris."
 
   # ── Low consistency: divergent outputs ────────────────────────────
   - id: low-consistency
-    criteria: Agent produces inconsistent answers across trials.
+    criteria: Agent produces inconsistent answers across runs.
 
     input:
       - role: user
@@ -47,19 +47,19 @@ tests:
         content: Any creative tagline.
 
     assertions:
-      - name: trial-consistency
+      - name: run-consistency
         type: code-grader
-        command: ["bun", "run", "../graders/trial-consistency.ts"]
+        command: ["bun", "run", "../graders/run-consistency.ts"]
         config:
           fallback: token
-          trialOutputs:
+          runOutputs:
             - "Wake up and smell the magic."
             - "Brewed with love, served with a smile."
             - "Where every cup tells a story."
 
-  # ── Edge case: single trial ──────────────────────────────────────
-  - id: single-trial
-    criteria: Single trial returns perfect consistency.
+  # ── Edge case: single run ──────────────────────────────────────
+  - id: single-run
+    criteria: Single run returns perfect consistency.
 
     input:
       - role: user
@@ -70,17 +70,17 @@ tests:
         content: "4"
 
     assertions:
-      - name: trial-consistency
+      - name: run-consistency
         type: code-grader
-        command: ["bun", "run", "../graders/trial-consistency.ts"]
+        command: ["bun", "run", "../graders/run-consistency.ts"]
         config:
           fallback: token
-          trialOutputs:
+          runOutputs:
             - "The answer is 4."
 
-  # ── Edge case: zero trials ──────────────────────────────────────
-  - id: zero-trials
-    criteria: Zero trials returns an error score.
+  # ── Edge case: zero runs ──────────────────────────────────────
+  - id: zero-runs
+    criteria: Zero runs returns an error score.
 
     input:
       - role: user
@@ -91,9 +91,9 @@ tests:
         content: Hi
 
     assertions:
-      - name: trial-consistency
+      - name: run-consistency
         type: code-grader
-        command: ["bun", "run", "../graders/trial-consistency.ts"]
+        command: ["bun", "run", "../graders/run-consistency.ts"]
         config:
           fallback: token
-          trialOutputs: []
+          runOutputs: []

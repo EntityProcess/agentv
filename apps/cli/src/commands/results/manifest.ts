@@ -57,8 +57,8 @@ export interface ResultManifestRecord {
   readonly artifact_dir?: string;
   readonly task_dir?: string;
   readonly aggregation?: Record<string, unknown>;
-  readonly trials?: readonly {
-    readonly attempt?: number;
+  readonly runs?: readonly {
+    readonly run?: number;
     readonly run_path?: string;
     readonly score?: number;
     readonly verdict?: string;

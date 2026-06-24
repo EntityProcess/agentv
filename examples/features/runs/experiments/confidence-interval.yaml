@@ -1,4 +1,4 @@
-name: trials-confidence-interval
+name: repeat-runs-confidence-interval
 target: llm
 evals:
   - math-basics

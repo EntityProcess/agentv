@@ -129,12 +129,6 @@ export interface EvalTargetRef {
   readonly hooks?: EvalWorkspaceHooks;
 }
 
-export interface EvalTrials {
-  readonly count: number;
-  readonly strategy?: 'pass_at_k' | 'mean' | 'confidence_interval';
-  readonly costLimitUsd?: number;
-}
-
 export interface EvalExecution {
   readonly target?: string;
   readonly targets?: readonly (string | EvalTargetRef)[];
@@ -142,7 +136,6 @@ export interface EvalExecution {
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly skipDefaults?: boolean;
   readonly cache?: boolean;
-  readonly trials?: EvalTrials;
   readonly budgetUsd?: number;
   readonly failOnError?: boolean;
   readonly threshold?: number;

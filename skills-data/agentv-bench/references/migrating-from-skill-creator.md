@@ -52,7 +52,7 @@ AgentV's companion artifacts are compatible with skill-creator's eval-viewer:
 AgentV's schemas are supersets — they include all fields skill-creator expects, plus additional fields (claims extraction, pattern analysis, deterministic upgrade candidates). Tools that read skill-creator artifacts will read AgentV artifacts correctly, ignoring the extra fields.
 
 The optimizer scripts layer reads those same artifacts directly:
-- `aggregate-benchmark.ts` consumes root `summary.json`, per-attempt `timing.json`, and `index.jsonl`
+- `aggregate-benchmark.ts` consumes root `summary.json`, per-run `timing.json`, and `index.jsonl`
 - `generate-report.ts` and `eval-viewer/generate-review.ts` render review output from AgentV artifacts
 - `improve-description.ts` proposes follow-up experiments from benchmark/grading observations
 

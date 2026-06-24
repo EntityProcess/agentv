@@ -65,7 +65,7 @@ describe('experiment config', () => {
     });
   });
 
-  it('accepts the prerelease trials costLimitUsd spelling only inside repeat', () => {
+  it('accepts the prerelease repeat costLimitUsd spelling only inside repeat', () => {
     const config = normalizeExperimentConfig({
       repeat: {
         count: 2,

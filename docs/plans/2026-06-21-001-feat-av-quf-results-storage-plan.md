@@ -136,8 +136,9 @@ without creating another hosted results platform inside AgentV.
   normalize missing `storage_mode` to `git-native`. Put object-store settings under
   `results.object_store`.
 - KTD3. The git tree remains the index for git-backed modes. `listGitRuns()` should
-  continue to list `runs/**/summary.json` from `agentv/results/v1`; no separate
-  branch-local `index/runs.jsonl` is introduced.
+  list `runs/**/index.jsonl` from `agentv/results/v1` and read sibling
+  `summary.json` metadata when present; no separate branch-local `index/runs.jsonl`
+  is introduced.
 - KTD4. Use one artifact sidecar namespace named `artifacts`. Do not introduce
   `artifact-blobs`, `blobs`, or per-artifact refs. Prefix by artifact class, for example
   `transcripts/<run-path>/...`, `raw-logs/<run-path>/...`, and
@@ -254,15 +255,16 @@ rewriting all results code at once.
 
 **Per-mode listing/index strategy:**
 
-- `git-native`: list `runs/**/summary.json` with `git ls-tree`; batch-read
-  benchmark blobs with `git cat-file --batch`; materialize run details lazily with
-  `materializeGitRun()`.
-- `hybrid`: list from the same git ref and read the same `summary.json` blobs.
+- `git-native`: list `runs/**/index.jsonl` with `git ls-tree`; batch-read
+  manifest blobs with `git cat-file --batch`; read sibling `summary.json` metadata
+  when present; materialize run details lazily with `materializeGitRun()`.
+- `hybrid`: list from the same git ref and read the same `index.jsonl` anchors and
+  sibling `summary.json` metadata.
   Artifact locators in `index.jsonl` or sidecar manifests decide whether bytes come
   from git artifacts or object storage.
 - `blob-native`: read a compact run manifest from bucket storage first. If the
   manifest is missing or stale, fall back to `ListObjectsV2` over
-  `runs/**/summary.json`-equivalent objects, rebuild the manifest, and continue.
+  `runs/**/index.jsonl`-equivalent objects, rebuild the manifest, and continue.
   Use continuation tokens because S3 listing returns a bounded page per request.
 
 **Test plan:**
@@ -274,7 +276,7 @@ rewriting all results code at once.
   - Proves the adapter interface can list runs in all modes from fixtures.
 - `packages/core/test/evaluation/results-repo.test.ts`
   - Existing git-native tests must keep passing.
-  - Add coverage that `git-native` listing remains one `runs/**/summary.json`
+  - Add coverage that `git-native` listing remains one `runs/**/index.jsonl`
     tree scan, not a committed index file.
 - `apps/cli/test/commands/results/serve.test.ts`
   - Dashboard `/api/runs` response shape stays stable across adapter-backed sources.
@@ -319,7 +321,7 @@ ref. Do not add windowed or per-run branches. Do not shard paths before measurem
 
 - Primary ref `agentv/results/v1`:
   - Owns `runs/**` and lightweight materialized metadata.
-  - Lists runs only through `runs/**/summary.json`.
+  - Lists runs only through `runs/**/index.jsonl`.
 - Artifact ref `agentv/artifacts/v1`:
   - Owns payload classes under `transcripts/`, `raw-logs/`, and `screenshots/`.
   - May store payload bytes in `git-native`.

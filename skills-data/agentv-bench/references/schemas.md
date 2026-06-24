@@ -166,7 +166,7 @@ Output from the grader agent. Located at `<run-dir>/grading.json`.
 
 Output from the executor agent. In the subagent pipeline, this is located at
 `<run-dir>/<suite>/<test-id>/metrics.json`. In strict eval run artifacts,
-attempt metrics live at `<case-id>/run-N/metrics.json`.
+per-run metrics live at `<case-id>/run-N/metrics.json`.
 
 ```json
 {
@@ -221,7 +221,7 @@ observability object.
 
 Wall clock timing for a run. In the subagent pipeline, this is located at
 `<run-dir>/<suite>/<test-id>/timing.json`. In strict eval run artifacts,
-attempt timing lives at `<case-id>/run-N/timing.json`.
+per-run timing lives at `<case-id>/run-N/timing.json`.
 
 **How to capture:** When a subagent task completes, the task notification includes `total_tokens` and `duration_ms`. Save these immediately — they are not persisted anywhere else and cannot be recovered after the fact.
 
@@ -287,7 +287,7 @@ Run-level aggregate and metadata. Located at the run root:
   - `planned_test_count`: Optional WIP/resume count
 - `run_summary`: Statistical aggregates per configuration
   - Each target contains `pass_rate`, `time_seconds`, and `tokens` objects with `mean` and `stddev` fields
-- `timing_summary`: Average/stddev timing and token usage across attempts
+- `timing_summary`: Average/stddev timing and token usage across runs
 - `notes`: Freeform observations from the analyzer
 
 ---

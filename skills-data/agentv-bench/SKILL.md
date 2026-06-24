@@ -255,11 +255,11 @@ agentv results validate <run-dir>
 
 All artifacts use established schemas — see `references/schemas.md` for the full definitions. Do not modify the structure. Key artifacts per run:
 - **grading.json**: per-test assertions with `{text, passed, evidence}`, plus summary
-- **metrics.json**: flattened per-attempt execution metrics such as `tool_calls`, `total_tool_calls`, `files_created`, and `errors_encountered`
+- **metrics.json**: flattened per-run execution metrics such as `tool_calls`, `total_tool_calls`, `files_created`, and `errors_encountered`
 - **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}` plus optional `token_usage` and `cost_usd`
 - **summary.json**: run-level aggregate and metadata, including `timing_summary`
 
-Strict CLI eval runs store attempts under `run-N/` as `metrics.json`,
+Strict CLI eval runs store repeated runs under `run-N/` as `metrics.json`,
 `timing.json`, and AgentV `grading.json`. The subagent pipeline uses per-test
 workspace directories while the run is in progress; `pipeline bench` writes
 root `index.jsonl` and `summary.json` so `agentv results validate` and the

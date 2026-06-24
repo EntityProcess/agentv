@@ -137,16 +137,16 @@ describe('result-table model', () => {
     expect(model.visibleColumns.map((column) => column.id)).toEqual(['grader:rubric']);
   });
 
-  it('builds repeat attempt groups from hydrated trial metadata', () => {
+  it('builds repeated-run groups from hydrated run metadata', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,
       results: [
         result({
           testId: 'repeat-case',
           score: 1,
-          trials: [
+          runs: [
             {
-              attempt: 0,
+              run: 1,
               run_path: 'run-1',
               score: 0.2,
               verdict: 'fail',
@@ -155,7 +155,7 @@ describe('result-table model', () => {
               metrics_path: 'repeat-case/run-1/metrics.json',
             },
             {
-              attempt: 1,
+              run: 2,
               run_path: 'run-2',
               score: 1,
               verdict: 'pass',
@@ -172,9 +172,9 @@ describe('result-table model', () => {
 
     expect(model.repeatGroups).toHaveLength(1);
     expect(model.repeatGroups[0]).toMatchObject({
-      attemptCount: 2,
-      passedAttempts: 1,
-      failedAttempts: 1,
+      runCount: 2,
+      passedRuns: 1,
+      failedRuns: 1,
       passRate: 0.5,
       meanScore: 0.6,
       meanDurationMs: 2000,

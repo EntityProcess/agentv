@@ -101,8 +101,8 @@ export interface AssertionEntry {
   durationMs?: number;
 }
 
-export interface EvalTrialAttempt {
-  attempt?: number;
+export interface EvalCaseRun {
+  run?: number;
   run_path?: string;
   score?: number;
   verdict?: string;
@@ -119,11 +119,11 @@ export interface EvalTrialAttempt {
   answer_path?: string;
 }
 
-export type EvalTrialAggregation =
+export type EvalRunAggregation =
   | {
       strategy: 'pass_at_k';
-      passed_attempts?: number;
-      total_attempts?: number;
+      passed_runs?: number;
+      total_runs?: number;
     }
   | {
       strategy: 'mean';
@@ -243,8 +243,8 @@ export interface EvalResult {
   externalTrace?: CamelExternalTraceMetadata;
   metadata?: Record<string, unknown>;
   source_traceability?: SourceTraceability;
-  trials?: EvalTrialAttempt[];
-  aggregation?: EvalTrialAggregation;
+  runs?: EvalCaseRun[];
+  aggregation?: EvalRunAggregation;
   artifact_dir?: string;
   summary_path?: string;
   grading_path?: string;

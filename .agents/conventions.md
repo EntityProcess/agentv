@@ -36,7 +36,7 @@ These terms are distinct and not interchangeable.
 - Project: the top-level container Dashboard organizes around, backed by a registered workspace directory with `.agentv/`, run artifacts, traces, and experiments. The registry lives in `~/.agentv/projects.yaml` and is modeled by `ProjectEntry` and `ProjectRegistry` in `packages/core/src/projects.ts`.
 - Benchmark: a curated eval suite designed to measure something specific, in the academic ML sense. Example directories using this meaning are correctly named and should not be renamed.
 
-The legacy `~/.agentv/benchmarks.yaml` file is auto-migrated to `projects.yaml` by `migrateLegacyBenchmarksFile()`. The unrelated per-run `benchmark.json` artifact is a third, separate concept and should keep that name.
+The legacy `~/.agentv/benchmarks.yaml` file is auto-migrated to `projects.yaml` by `migrateLegacyBenchmarksFile()`. Do not reintroduce a per-run `benchmark.json` artifact; root `summary.json` is the run aggregate and metadata file.
 
 Rule of thumb:
 

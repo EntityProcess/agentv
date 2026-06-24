@@ -1,19 +1,19 @@
-# Trial Output Consistency Metric
+# Run Output Consistency Metric
 
-Measures how consistent an agent's outputs are across repeated trials using pairwise cosine similarity.
+Measures how consistent an agent's outputs are across repeated runs using pairwise cosine similarity.
 
 ## What It Measures
 
-When an agent is run multiple times on the same input (trials), outputs may vary due to LLM non-determinism. This metric quantifies that variation:
+When an agent is run multiple times on the same input (runs), outputs may vary due to LLM non-determinism. This metric quantifies that variation:
 
-- **Score 1.0** — all trial outputs are identical/semantically equivalent
+- **Score 1.0** — all run outputs are identical/semantically equivalent
 - **Score ~0.8+** — high consistency (minor wording differences)
 - **Score ~0.5** — moderate consistency (different phrasing, same topic)
 - **Score <0.5** — low consistency (substantially different outputs)
 
 ## How It Works
 
-1. Receives an array of trial outputs via `config.trialOutputs`
+1. Receives an array of run outputs via `config.runOutputs`
 2. Computes a vector representation for each output (embedding or token-overlap)
 3. Calculates pairwise cosine similarity for all output pairs
 4. Returns the average as the consistency score
@@ -29,9 +29,9 @@ When an agent is run multiple times on the same input (trials), outputs may vary
 
 | Condition | Score | Reasoning |
 |-----------|-------|-----------|
-| 0 trials | 0 | Cannot compute — reported as miss |
-| 1 trial | 1.0 | Perfect consistency by definition |
-| 2+ trials | 0–1 | Average pairwise cosine similarity |
+| 0 runs | 0 | Cannot compute — reported as miss |
+| 1 run | 1.0 | Perfect consistency by definition |
+| 2+ runs | 0–1 | Average pairwise cosine similarity |
 | Identical outputs | 1.0 | Maximum similarity |
 | Empty strings | 0 | Zero vectors produce 0 similarity |
 
@@ -41,53 +41,53 @@ When an agent is run multiple times on the same input (trials), outputs may vary
 
 ```yaml
 assertions:
-  - name: trial-consistency
+  - name: run-consistency
     type: code-grader
-    command: ["bun", "run", "../graders/trial-consistency.ts"]
+    command: ["bun", "run", "../graders/run-consistency.ts"]
     config:
-      trialOutputs:
-        - "Output from trial 1"
-        - "Output from trial 2"
-        - "Output from trial 3"
+      runOutputs:
+        - "Output from run 1"
+        - "Output from run 2"
+        - "Output from run 3"
 ```
 
 ### Config Options
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `trialOutputs` | `string[]` | Yes | Array of outputs from repeated trials |
+| `runOutputs` | `string[]` | Yes | Array of outputs from repeated runs |
 | `fallback` | `"token"` | No | Force token-overlap mode (skip embedding) |
 
 ### Running
 
 ```bash
 # Run all tests (uses token-overlap fallback for demo)
-bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --dry-run
+bun agentv eval examples/features/run-output-consistency/evals/dataset.eval.yaml --dry-run
 
 # Run a specific test
-bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --test-id high-consistency --dry-run
+bun agentv eval examples/features/run-output-consistency/evals/dataset.eval.yaml --test-id high-consistency --dry-run
 ```
 
 ## Extending
 
 ### Custom Embedding Provider
 
-Replace `getEmbeddings()` in `graders/trial-consistency.ts` with your preferred embedding API. The grader expects vectors as `number[][]` — any embedding dimension works.
+Replace `getEmbeddings()` in `graders/run-consistency.ts` with your preferred embedding API. The grader expects vectors as `number[][]` — any embedding dimension works.
 
-### Integration with Trial Execution
+### Integration with Run Execution
 
-In a production workflow, pipe actual trial outputs into the `trialOutputs` config array. Example with a wrapper script:
+In a production workflow, pipe actual run outputs into the `runOutputs` config array. Example with a wrapper script:
 
 ```typescript
 import { execSync } from 'child_process';
 
-// Run N trials and collect outputs
+// Run N runs and collect outputs
 const outputs = Array.from({ length: 5 }, () =>
   execSync('bun agentv eval ... --json').toString()
 );
 
 // Pass to consistency grader via config
-const config = { trialOutputs: outputs };
+const config = { runOutputs: outputs };
 ```
 
 ### Threshold-Based Pass/Fail
@@ -96,11 +96,11 @@ Wrap the grader in an assertion that enforces a minimum consistency threshold:
 
 ```yaml
 assertions:
-  - name: trial-consistency
+  - name: run-consistency
     type: code-grader
-    command: ["bun", "run", "../graders/trial-consistency.ts"]
+    command: ["bun", "run", "../graders/run-consistency.ts"]
     config:
-      trialOutputs: [...]
+      runOutputs: [...]
 ```
 
 Check `score >= 0.8` in the results to enforce high consistency.

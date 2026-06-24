@@ -19,7 +19,7 @@ interface RunEvaluationOptionsLike {
   readonly evalCases?: ReadonlyArray<unknown>;
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
-  readonly trials?: {
+  readonly runs?: {
     readonly count: number;
     readonly strategy: string;
     readonly costLimitUsd?: number;
@@ -180,7 +180,7 @@ async function maybeWriteDiagnostics(
     envLocalOnly: process.env.CLI_ENV_LOCAL_ONLY ?? null,
     budgetUsd: options.budgetUsd ?? null,
     maxConcurrency: options.maxConcurrency ?? null,
-    trials: options.trials ?? null,
+    runs: options.runs ?? null,
     hasRunBudgetTracker: options.runBudgetTracker !== undefined,
     runBudgetCapUsd: options.runBudgetTracker?.budgetCapUsd ?? null,
     replayRecording: options.replayRecording ?? null,

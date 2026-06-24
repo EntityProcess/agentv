@@ -1,4 +1,4 @@
-name: trials
+name: repeat-runs
 target: llm
 evals:
   - math-basics
