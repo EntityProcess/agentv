@@ -247,7 +247,7 @@ function writeFeedback(cwd: string, data: FeedbackData): void {
 
 // ── Shared utilities (used by handler functions) ─────────────────────────
 
-interface FileNode {
+export interface FileNode {
   name: string;
   path: string;
   type: 'file' | 'dir';
@@ -262,7 +262,7 @@ interface FileNode {
 
 type ArtifactCatalogStorage = 'local' | 'git';
 
-interface ArtifactCatalogEntry {
+export interface ArtifactCatalogEntry {
   readonly displayPath: string;
   readonly kind: 'transcript' | 'trace' | 'answer' | 'artifact';
   readonly storage: ArtifactCatalogStorage;
@@ -316,22 +316,40 @@ function flattenFileTree(nodes: readonly FileNode[]): FileNode[] {
   return files;
 }
 
-function ensureCatalogFileNode(root: FileNode[], entry: ArtifactCatalogEntry): void {
-  const segments = entry.displayPath.split('/').filter(Boolean);
+export function ensureCatalogFileNode(
+  root: FileNode[],
+  entry: ArtifactCatalogEntry,
+  rootPrefix?: string,
+): void {
+  // The local file tree is rooted at `rootPrefix` (the artifacts' common dir):
+  // its top-level node names are relative to that dir, but each node's `path`
+  // stays relative to the run manifest dir. To overlay a catalog entry into the
+  // SAME tree we must nest by the prefix-stripped segments (so we match the
+  // existing folder names) while still recording the full `path` for content
+  // reads. Skipping this is what made git artifacts form a duplicate subtree.
+  const fullPath = entry.displayPath;
+  const nestPath =
+    rootPrefix && fullPath.startsWith(`${rootPrefix}/`)
+      ? fullPath.slice(rootPrefix.length + 1)
+      : fullPath;
+  const usePrefix = nestPath !== fullPath ? rootPrefix : undefined;
+
+  const segments = nestPath.split('/').filter(Boolean);
   if (segments.length === 0) return;
 
   let siblings = root;
-  let currentPath = '';
+  let nestedPath = '';
   for (let i = 0; i < segments.length; i += 1) {
     const segment = segments[i];
     if (!segment) continue;
-    currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+    nestedPath = nestedPath ? `${nestedPath}/${segment}` : segment;
+    const fullNodePath = usePrefix ? `${usePrefix}/${nestedPath}` : nestedPath;
     const isFile = i === segments.length - 1;
     let node = siblings.find((candidate) => candidate.name === segment);
     if (!node) {
       node = {
         name: segment,
-        path: currentPath,
+        path: fullNodePath,
         type: isFile ? 'file' : 'dir',
         ...(isFile
           ? {
@@ -362,6 +380,25 @@ function ensureCatalogFileNode(root: FileNode[], entry: ArtifactCatalogEntry): v
     node.children ??= [];
     siblings = node.children;
   }
+}
+
+/**
+ * Overlays catalog entries (notably git-stored `agentv/artifacts/v1` files) onto
+ * the local file tree. Git entries and any catalog entry not already present as
+ * a local file are inserted; `rootPrefix` keeps them rooted in the same tree.
+ */
+export function overlayCatalogFileNodes(
+  files: FileNode[],
+  catalog: readonly ArtifactCatalogEntry[],
+  rootPrefix?: string,
+): FileNode[] {
+  const localFilePaths = new Set(flattenFileTree(files).map((file) => file.path));
+  for (const entry of catalog) {
+    if (entry.storage === 'git' || !localFilePaths.has(entry.displayPath)) {
+      ensureCatalogFileNode(files, entry, rootPrefix);
+    }
+  }
+  return files;
 }
 
 function inferLanguage(filePath: string): string {
@@ -768,22 +805,44 @@ function resultArtifactTreeRootPaths(
   ].filter((p, index, all): p is string => !!p && all.indexOf(p) === index);
 }
 
-function buildLocalResultArtifactTree(
-  baseDir: string,
+/**
+ * The directory (relative to the run manifest) that all of a test's artifacts
+ * share. The local file tree is rooted here, so its top-level nodes are named
+ * by their basename (e.g. `outputs`, `task`) while their `path` stays relative
+ * to the manifest dir. Git-stored catalog entries must be overlaid using this
+ * same prefix, otherwise they nest by their full path and produce a duplicate
+ * parallel subtree instead of merging into the existing folders.
+ */
+function artifactTreeCommonDir(
   record: ResultManifestRecord,
   catalog: readonly ArtifactCatalogEntry[],
-): FileNode[] {
+): string | undefined {
   const knownPaths = resultArtifactTreeRootPaths(record, catalog);
-  if (knownPaths.length === 0) return [];
+  if (knownPaths.length === 0) return undefined;
 
   const artifactDirs = knownPaths.map((p) => path.dirname(p));
   let commonDir = artifactDirs[0];
   for (const dir of artifactDirs) {
     while (!dir.startsWith(commonDir)) {
-      commonDir = path.dirname(commonDir);
+      const parent = path.dirname(commonDir);
+      if (parent === commonDir) break;
+      commonDir = parent;
     }
   }
+  return commonDir === '.' || commonDir === '' ? undefined : commonDir;
+}
 
+function buildLocalResultArtifactTree(
+  baseDir: string,
+  record: ResultManifestRecord,
+  catalog: readonly ArtifactCatalogEntry[],
+): FileNode[] {
+  const commonDir = artifactTreeCommonDir(record, catalog);
+  if (commonDir === undefined) {
+    return resultArtifactTreeRootPaths(record, catalog).length === 0
+      ? []
+      : buildFileTree(baseDir, baseDir);
+  }
   return buildFileTree(path.join(baseDir, commonDir), baseDir);
 }
 
@@ -1614,12 +1673,8 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
       runPath: relativeRunPathFromManifestPath(meta.path),
     });
     const files = buildLocalResultArtifactTree(baseDir, record, catalog);
-    const localFilePaths = new Set(flattenFileTree(files).map((file) => file.path));
-    for (const entry of catalog) {
-      if (entry.storage === 'git' || !localFilePaths.has(entry.displayPath)) {
-        ensureCatalogFileNode(files, entry);
-      }
-    }
+    const rootPrefix = artifactTreeCommonDir(record, catalog);
+    overlayCatalogFileNodes(files, catalog, rootPrefix);
     return c.json({ files });
   } catch {
     return c.json({ error: 'Failed to load file tree' }, 500);
