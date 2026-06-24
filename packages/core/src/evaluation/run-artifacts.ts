@@ -374,12 +374,20 @@ export interface VercelRunResultArtifact {
   };
 }
 
-export interface VercelEvalSummaryArtifact {
-  readonly totalRuns: number;
-  readonly passedRuns: number;
-  readonly passRate: string;
-  readonly meanDuration: number;
+export interface RepeatCaseSummaryArtifact {
+  readonly total_runs: number;
+  readonly passed_runs: number;
+  readonly pass_rate: string;
+  readonly mean_duration_ms: number;
+  readonly mean_duration_seconds: number;
   readonly fingerprint: string;
+  readonly total_tokens: number;
+  readonly duration_ms: number;
+  readonly total_duration_seconds: number;
+  readonly duration_stats?: TimingArtifact['duration_stats'];
+  readonly cost_usd: number | null;
+  readonly token_usage: TimingArtifact['token_usage'];
+  readonly usage_sources: TimingArtifact['usage_sources'];
 }
 
 export type AdditionalResultArtifactsWriter = (
@@ -650,7 +658,7 @@ function buildRepeatAggregateTimingArtifact(result: EvaluationResult): TimingArt
   };
 }
 
-function formatVercelPassRate(passedRuns: number, totalRuns: number): string {
+function formatRepeatPassRate(passedRuns: number, totalRuns: number): string {
   if (totalRuns === 0) {
     return '0%';
   }
@@ -671,27 +679,31 @@ function fallbackRepeatFingerprint(result: EvaluationResult): string {
     .digest('hex');
 }
 
-function buildVercelEvalSummaryArtifact(
+function buildRepeatCaseSummaryArtifact(
   result: EvaluationResult,
+  timing: TimingArtifact,
   fingerprint?: string,
-): VercelEvalSummaryArtifact {
+): RepeatCaseSummaryArtifact {
   const trials = result.trials ?? [];
   const totalRuns = trials.length;
   const passedRuns = trials.filter((trial) => trial.verdict === 'pass').length;
-  const durations = repeatAttemptResults(result).map(resultDurationSeconds);
-  const meanDuration =
-    durations.length === 0
-      ? 0
-      : Math.round(
-          (durations.reduce((sum, duration) => sum + duration, 0) / durations.length) * 1000,
-        ) / 1000;
+  const fallbackMeanMs = totalRuns > 0 ? roundMillis(timing.duration_ms / totalRuns) : 0;
+  const meanDurationMs = timing.mean_duration_ms ?? fallbackMeanMs;
 
   return {
-    totalRuns,
-    passedRuns,
-    passRate: formatVercelPassRate(passedRuns, totalRuns),
-    meanDuration,
+    total_runs: totalRuns,
+    passed_runs: passedRuns,
+    pass_rate: formatRepeatPassRate(passedRuns, totalRuns),
+    mean_duration_ms: meanDurationMs,
+    mean_duration_seconds: timing.mean_duration_seconds ?? roundSecondsFromMs(meanDurationMs),
     fingerprint: fingerprint ?? fallbackRepeatFingerprint(result),
+    total_tokens: timing.total_tokens,
+    duration_ms: timing.duration_ms,
+    total_duration_seconds: timing.total_duration_seconds,
+    duration_stats: timing.duration_stats,
+    cost_usd: timing.cost_usd,
+    token_usage: timing.token_usage,
+    usage_sources: timing.usage_sources,
   };
 }
 
@@ -2139,16 +2151,12 @@ export async function writeArtifactsFromResults(
     if (hasPersistedTrialRuns(result)) {
       const aggregateTiming = buildRepeatAggregateTimingArtifact(result);
       const summaryPath = path.join(plan.testDir, 'summary.json');
-      const summary = buildVercelEvalSummaryArtifact(
+      const summary = buildRepeatCaseSummaryArtifact(
         result,
+        aggregateTiming,
         options?.experimentMetadata?.fingerprint ?? plan.projectionIdentity.id,
       );
       await writeFile(plan.gradingPath, `${JSON.stringify(plan.grading, null, 2)}\n`, 'utf8');
-      await writeFile(
-        plan.perTestTimingPath,
-        `${JSON.stringify(aggregateTiming, null, 2)}\n`,
-        'utf8',
-      );
       await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
       for (const trial of result.trials ?? []) {
         await writeTrialRunArtifacts({
@@ -2168,7 +2176,6 @@ export async function writeArtifactsFromResults(
           outputDir,
           artifactDir: plan.testDir,
           gradingPath: plan.gradingPath,
-          timingPath: plan.perTestTimingPath,
           summaryPath,
           projectionIdentity: plan.projectionIdentity,
           duplicatePolicy,

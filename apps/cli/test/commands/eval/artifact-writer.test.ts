@@ -964,49 +964,49 @@ describe('writeArtifactsFromResults', () => {
     expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
     expect(indexEntry?.benchmark_path).toBeUndefined();
     expect(indexEntry?.grading_path).toBe('repeat-case/grading.json');
-    expect(indexEntry?.timing_path).toBe('repeat-case/timing.json');
+    expect(indexEntry?.timing_path).toBeUndefined();
     expect(indexEntry?.metrics_path).toBeUndefined();
 
     const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
-    expect(repeatEntries.sort()).toEqual([
-      'grading.json',
-      'run-1',
-      'run-2',
-      'summary.json',
-      'timing.json',
-    ]);
+    expect(repeatEntries.sort()).toEqual(['grading.json', 'run-1', 'run-2', 'summary.json']);
 
     const caseSummary = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
     ) as Record<string, unknown>;
-    expect(caseSummary).toEqual({
-      totalRuns: 2,
-      passedRuns: 1,
-      passRate: '50%',
-      meanDuration: 3,
-      fingerprint: expect.any(String),
+    expect(caseSummary).toMatchObject({
+      total_runs: 2,
+      passed_runs: 1,
+      pass_rate: '50%',
+      mean_duration_ms: 3000,
+      mean_duration_seconds: 3,
+      duration_ms: 6000,
+      total_duration_seconds: 6,
+      duration_stats: {
+        count: 2,
+        mean_ms: 3000,
+        mean_seconds: 3,
+        stddev_ms: 1000,
+        stddev_seconds: 1,
+        min_ms: 2000,
+        max_ms: 4000,
+      },
+      total_tokens: 0,
+      cost_usd: null,
+      token_usage: { input: 0, output: 0, reasoning: 0 },
+      usage_sources: {
+        token_usage: 'unavailable',
+        total_tokens: 'unavailable',
+        duration: 'aggregate',
+        cost: 'unavailable',
+      },
     });
+    expect(typeof caseSummary.fingerprint).toBe('string');
 
     const aggregateGrading: GradingArtifact = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
     );
     expect(aggregateGrading.trials).toEqual(indexEntry?.trials);
     expect(aggregateGrading.aggregation).toEqual(indexEntry?.aggregation);
-
-    const aggregateTiming = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'timing.json'), 'utf8'),
-    ) as TimingArtifact;
-    expect(aggregateTiming.duration_ms).toBe(6000);
-    expect(aggregateTiming.mean_duration_seconds).toBe(3);
-    expect(aggregateTiming.duration_stats).toEqual({
-      count: 2,
-      mean_ms: 3000,
-      mean_seconds: 3,
-      stddev_ms: 1000,
-      stddev_seconds: 1,
-      min_ms: 2000,
-      max_ms: 4000,
-    });
 
     for (const runDir of ['run-1', 'run-2']) {
       const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));

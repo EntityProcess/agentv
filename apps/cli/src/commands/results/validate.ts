@@ -35,6 +35,7 @@ interface IndexEntry {
   readonly scores?: unknown[];
   readonly execution_status?: string;
   readonly benchmark_path?: string;
+  readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
   readonly [key: string]: unknown;
@@ -203,6 +204,16 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
 
   for (const entry of entries) {
     const testId = entry.test_id ?? '?';
+
+    if (entry.summary_path) {
+      const summaryPath = path.join(runDir, entry.summary_path);
+      if (!existsSync(summaryPath)) {
+        diagnostics.push({
+          severity: 'error',
+          message: `${testId}: summary.json not found at '${entry.summary_path}'`,
+        });
+      }
+    }
 
     if (entry.benchmark_path) {
       const benchmarkPath = path.join(runDir, entry.benchmark_path);

@@ -84,7 +84,6 @@ provenance:
 <run-dir>/benchmark.json
 <run-dir>/<suite>/<case-id>/summary.json
 <run-dir>/<suite>/<case-id>/grading.json
-<run-dir>/<suite>/<case-id>/timing.json
 <run-dir>/<suite>/<case-id>/run-1/result.json
 <run-dir>/<suite>/<case-id>/run-1/transcript.json
 <run-dir>/<suite>/<case-id>/run-1/transcript-raw.jsonl
@@ -93,11 +92,11 @@ provenance:
 <run-dir>/<suite>/<case-id>/run-1/metrics.json
 ```
 
-The repeated case aggregate folder uses `summary.json` for run-count and mean
-duration, `grading.json` for compact trial/aggregation verdicts, and
-`timing.json` for aggregate timing totals plus mean attempt duration. Root
-`index.jsonl` and root `benchmark.json` remain stable for existing CI summary
-scripts and uploaded artifact consumers.
+The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
+fingerprint, and flattened snake_case timing fields such as
+`mean_duration_ms`, and `grading.json` for compact trial/aggregation verdicts.
+Root `index.jsonl` and root `benchmark.json` remain stable for existing CI
+summary scripts and uploaded artifact consumers.
 
 ## Targets and setup
 

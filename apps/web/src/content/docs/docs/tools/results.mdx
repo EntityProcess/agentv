@@ -119,8 +119,9 @@ derived projection over `trace.json`, the result row, and
 comparison exports, and metric-style graders; it is not canonical trace storage
 and does not carry token/cost usage.
 
-Repeat-enabled cases use aggregate `summary.json`, `grading.json`, and
-`timing.json`, then store attempt details under `run-N/`. Each `run-N/` contains Vercel-compatible
+Repeat-enabled cases use aggregate `summary.json` with flattened snake_case
+timing fields plus aggregate `grading.json`, then store attempt details under
+`run-N/`. Each `run-N/` contains Vercel-compatible
 `result.json`, `transcript.json`, `transcript-raw.jsonl`, and `outputs/eval.txt`,
 plus AgentV `grading.json` and `metrics.json` with embedded timing.
 

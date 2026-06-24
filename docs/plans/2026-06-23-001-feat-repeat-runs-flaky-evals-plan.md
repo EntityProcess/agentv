@@ -150,9 +150,9 @@ Public docs and implementation notes must not reference non-public sources. If a
 
 - KTD1. The repeat config attaches to the **experiment** surface, not to `eval.yaml` `execution`, per the experiments-separation decision (epic `av-991`, recorded on `av-991.1`). This aligns with Vercel agent-eval, where `runs`/`earlyExit` are experiment-level. This epic (`av-i0l`) owns the repeat **mechanics** (schema shape, gate policies, attempt aggregation, flake classification, and the run-N artifact layout); `av-991` owns **placement** (the experiment contract the repeat block lives on). The existing `execution.trials` code path is **hard-removed** (no compatibility alias) because usage is rare; its behavior is replaced by the experiment-level repeat block. Because the experiment surface is delivered by `av-991`, the schema work in `av-i0l.1` depends on that contract landing.
 - KTD2. Keep one-run CI as the default. Repeat runs are for reliability evidence unless `repeat.gate` says they are a CI gate.
-- KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json`, `grading.json`, `timing.json`, and `run-N/` directories so existing aggregate consumers do not inflate case counts.
+- KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json`, `grading.json`, and `run-N/` directories so existing aggregate consumers do not inflate case counts.
 - KTD4. Single-run cases keep direct case-local files instead of always nesting under `run-1`. This preserves the simple default artifact shape and makes `.agentv/results/<experiment>/<timestamp>/<case-id>/grading.json` easy to inspect. Repeat-enabled cases use `run-1/`, `run-2/`, and so on under the case directory.
-- KTD5. Root run aggregates keep the existing AgentV `benchmark.json` for compatibility. Repeat case aggregates use Vercel-compatible `summary.json` plus AgentV aggregate `grading.json` and `timing.json`; repeat attempts use `run-N/` children.
+- KTD5. Root run aggregates keep the existing AgentV `benchmark.json` for compatibility. Repeat case aggregates use `summary.json` with flattened snake_case timing fields plus AgentV aggregate `grading.json`; repeat attempts use `run-N/` children.
 - KTD6. `pass_at_k` keeps the existing AgentV/Vercel ergonomics: early exit is enabled unless explicitly disabled. Full reliability sampling requires `early_exit: false` on the experiment and should be recorded because it changes cost and statistics.
 - KTD7. Do not inherit Vercel's implicit CI ambiguity. All policies that can make one failed plus one passed attempt count as passing must be visible in config and artifacts.
 - KTD8. Reuse current failure classification fields before adding new enums. Add aggregate classification fields only after mapping from `execution_status`, `failure_stage`, and `failure_reason_code` proves insufficient.
@@ -261,7 +261,6 @@ Repeat-run cases use attempt directories:
 ```text
 .agentv/results/<experiment>/<timestamp>/<case-id>/summary.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/grading.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/timing.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
