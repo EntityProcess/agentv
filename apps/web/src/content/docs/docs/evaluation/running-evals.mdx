@@ -80,7 +80,8 @@ Dry-run returns mock responses that don't match grader output schemas. Use it on
 
 ### Custom Output Directory
 
-Write all artifacts (index.jsonl, benchmark.json, per-test grading/timing) to a specific directory:
+Write all artifacts (`index.jsonl`, `summary.json`, per-case summaries, and
+`run-N` details) to a specific directory:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./my-results
@@ -110,17 +111,30 @@ Typical layout:
 ```text
 my-results/
   index.jsonl
-  benchmark.json
+  summary.json
   <test-id>/
-    grading.json
-    timing.json
+    summary.json
     task/PROMPT.md
-    outputs/answer.md
-    task/
-      EVAL.yaml
-      targets.yaml
-      files/      # copied input files when the case references them
-      graders/    # copied grader prompt/script files when applicable
+    run-1/
+      result.json
+      grading.json
+      transcript.json
+      transcript-raw.jsonl
+      outputs/answer.md
+```
+
+Single-run and repeat-run cases both use `run-N/` attempt directories. The
+top-level `summary.json` is the run aggregate and metadata file; each case
+directory has its own `summary.json` for that case's attempts.
+
+Task bundles can also include captured eval context:
+
+```text
+my-results/<test-id>/task/
+  EVAL.yaml
+  targets.yaml
+  files/      # copied input files when the case references them
+  graders/    # copied grader prompt/script files when applicable
 ```
 
 The `index.jsonl` row links to these generated paths with snake_case fields such
@@ -440,10 +454,12 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 ## Transcript And Trace Artifacts
 
 Each result row's `artifact_dir` is a case-local folder under the timestamped
-run bundle. It can include `trace.json`, `transcript.jsonl`, `provider.log`,
-`grading.json`, `timing.json`, `metrics.json`, and generated outputs under
-`outputs/`. The run root does not contain a mixed transcript artifact; use each
-index row's `transcript_path` to find the per-result transcript.
+run bundle. Fresh runs contain the case `summary.json`, optional task bundle,
+and one or more `run-N/` attempt folders. Each attempt can include
+`result.json`, `grading.json`, `transcript.json`, `transcript-raw.jsonl`, and
+generated outputs under `outputs/`. The run root does not contain a mixed
+transcript artifact; use each index row's `transcript_path` or `trials[].run_path`
+to find the per-result transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
 entries such as `artifact_pointers.trace` and `artifact_pointers.transcript`
@@ -457,7 +473,7 @@ When automatic remote publishing sees pointers whose `ref` is
 `agentv/artifacts/v1` branch in the same results remote at
 `runs/<run-path>/<pointer.path>` and rewrites the published pointer `key` to
 that backend object key. The configured results branch is the metadata/control
-plane for `index.jsonl`, `benchmark.json`, tags, and pointers; it does not
+plane for `index.jsonl`, `summary.json`, tags, and pointers; it does not
 duplicate canonical trace/transcript payload bodies when those rows name
 `agentv/artifacts/v1`. Local pre-publish run workspaces can still contain the
 files beside the manifest, and Dashboard resolves the published pointers lazily

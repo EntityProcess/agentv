@@ -105,16 +105,17 @@ The rest of the bundle follows the same pattern:
 - `scripts/aggregate_benchmark.py` and `scripts/generate_report.py` read AgentV artifacts
 - `scripts/improve_description.py` proposes description experiments from observed failures
 
-## Benchmark output
+## Run Summary Output
 
-Generate the run `benchmark.json` alongside the standard result JSONL. The `benchmark.json` is automatically written to the artifact directory:
+Generate the run `summary.json` alongside the standard result JSONL. The `summary.json` is automatically written to the artifact directory:
 
 ```bash
 agentv eval evals.json --target claude --output ./results
-# benchmark.json is written to ./results/benchmark.json
+# summary.json is written to ./results/summary.json
 ```
 
-The benchmark uses AgentV's pass threshold (score >= 0.8) for each target's `pass_rate`, plus timing and token summaries:
+The run summary uses AgentV's pass threshold (score >= 0.8) for each target's
+`pass_rate`, plus timing and token summaries:
 
 ```json
 {
@@ -132,7 +133,7 @@ The benchmark uses AgentV's pass threshold (score >= 0.8) for each target's `pas
 }
 ```
 
-If another tool needs a different benchmark shape, keep `--output` as the source of truth and convert `<output>/benchmark.json` in a wrapper.
+If another tool needs a different benchmark shape, keep `--output` as the source of truth and convert `<output>/summary.json` in a wrapper.
 
 ## Converting to EVAL.yaml
 

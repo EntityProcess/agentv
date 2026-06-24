@@ -81,22 +81,27 @@ provenance:
 
 ```text
 <run-dir>/index.jsonl
-<run-dir>/benchmark.json
+<run-dir>/summary.json
 <run-dir>/<suite>/<case-id>/summary.json
-<run-dir>/<suite>/<case-id>/grading.json
 <run-dir>/<suite>/<case-id>/run-1/result.json
+<run-dir>/<suite>/<case-id>/run-1/grading.json
 <run-dir>/<suite>/<case-id>/run-1/transcript.json
 <run-dir>/<suite>/<case-id>/run-1/transcript-raw.jsonl
 <run-dir>/<suite>/<case-id>/run-1/outputs/answer.md
-<run-dir>/<suite>/<case-id>/run-1/grading.json
-<run-dir>/<suite>/<case-id>/run-1/metrics.json
+<run-dir>/<suite>/<case-id>/run-2/result.json
+<run-dir>/<suite>/<case-id>/run-2/grading.json
+<run-dir>/<suite>/<case-id>/run-2/transcript.json
+<run-dir>/<suite>/<case-id>/run-2/transcript-raw.jsonl
+<run-dir>/<suite>/<case-id>/run-2/outputs/answer.md
 ```
 
 The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
 fingerprint, and flattened snake_case timing fields such as
-`mean_duration_ms`, and `grading.json` for compact trial/aggregation verdicts.
-Root `index.jsonl` and root `benchmark.json` remain stable for existing CI
-summary scripts and uploaded artifact consumers.
+`mean_duration_ms`. Each `run-N/result.json` carries the per-attempt result and
+observability summary; each `run-N/grading.json` carries the AgentV grader or
+LLM assertion detail. Root `index.jsonl` is the local and remote discovery
+anchor, while root `summary.json` is the run-level aggregate and metadata file
+for CI summary scripts and uploaded artifact consumers.
 
 ## Targets and setup
 

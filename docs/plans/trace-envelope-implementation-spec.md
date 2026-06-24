@@ -43,7 +43,7 @@ Source of truth:
 Non-goals:
 
 - Do not invent an AgentV-specific canonical trace graph.
-- Do not change existing public result JSONL, `benchmark.json`, `grading.json`,
+- Do not change existing public result JSONL, `summary.json`, `grading.json`,
   `timing.json`, replay fixture JSONL, or `outputs/transcript.jsonl` schemas in
   the first implementation slice.
 - Do not build Phoenix, Langfuse, Braintrust, or LangSmith vendor adapters here.

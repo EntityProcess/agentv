@@ -165,7 +165,7 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
 .agentv/results/<experiment>/<timestamp>/
 ├── manifest.json                    ← eval metadata, target, test_ids
 ├── index.jsonl                      ← per-test scores
-├── benchmark.json                   ← aggregate statistics
+├── summary.json                   ← aggregate statistics
 └── <evalset-name>/                  ← eval.yaml "name" field, or eval file basename if absent (same as CLI mode)
     └── <test-id>/                   ← test case id
         ├── input.json               ← test input text + messages

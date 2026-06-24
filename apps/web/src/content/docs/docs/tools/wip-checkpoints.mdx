@@ -22,7 +22,7 @@ If no results repo is configured, or auto-push is disabled, `agentv eval` still 
 
 | Location | Path or ref | What it contains |
 | --- | --- | --- |
-| Local project | `.agentv/results/<experiment>/<run-id>/benchmark.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
+| Local project | `.agentv/results/<experiment>/<run-id>/summary.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
 | Local project | `.agentv/results/<experiment>/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
 | Results repo remote | `agentv/wip/<hostname>/<run-dir-basename>` | A forced-updated branch containing the checkpointed run under `.agentv/results/<same-relative-run-path>/`. |
 | Results repo storage branch | Configured `results.repo.branch`; local checkout configs default to `agentv/results/v1` | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
@@ -31,7 +31,7 @@ The WIP branch name is derived from the current host and the run directory basen
 
 ## Lifecycle
 
-1. **Run start** — AgentV creates the local run directory and writes the initial `benchmark.json` stub. If auto-push is enabled, it creates a temporary git worktree for a branch named `agentv/wip/<hostname>/<run-dir-basename>`, based on the configured results storage branch. Missing storage branches are initialized automatically.
+1. **Run start** — AgentV creates the local run directory and writes the initial `summary.json` stub. If auto-push is enabled, it creates a temporary git worktree for a branch named `agentv/wip/<hostname>/<run-dir-basename>`, based on the configured results storage branch. Missing storage branches are initialized automatically.
 2. **While running** — about every 30 seconds, AgentV copies the current run directory into the WIP worktree, amends a single checkpoint commit, and force-pushes the WIP branch. If nothing changed, it skips the push.
 3. **Successful completion** — AgentV publishes the completed run to the normal results branch. After that publish is confirmed as `published` or `already_published`, it deletes the remote WIP branch.
 4. **Failure, interrupt, or final export failure** — AgentV stops the checkpoint loop and removes the temporary local worktree, but leaves the remote WIP branch intact for recovery.
@@ -55,7 +55,7 @@ git branch -r --list 'origin/agentv/wip/*'
 git switch --detach origin/agentv/wip/<hostname>/<run-dir-basename>
 
 # 4. Inspect the checkpointed run path.
-find .agentv/results -name benchmark.json
+find .agentv/results -name summary.json
 
 # 5. Copy the run tree into the eval project, preserving experiment paths.
 PROJECT=/path/to/eval-project
@@ -67,7 +67,7 @@ cd "$PROJECT"
 agentv eval <eval-file> --output .agentv/results/<experiment>/<run-id> --resume
 ```
 
-If the recovered `benchmark.json` contains `metadata.eval_file`, use that as `<eval-file>`.
+If the recovered `summary.json` contains `metadata.eval_file`, use that as `<eval-file>`.
 
 After the resumed run publishes successfully, AgentV cleans up any WIP branch it creates for the resumed run. Delete the original orphaned branch manually when you no longer need it:
 
@@ -77,13 +77,13 @@ git push origin --delete agentv/wip/<hostname>/<run-dir-basename>
 
 ## Dashboard and `results` surfaces
 
-- **Dashboard local runs:** an interrupted local run can show the one-click **Resume run** and **Rerun failed** actions when `benchmark.json` has `metadata.planned_test_count` greater than the number of result rows, or when any row has `execution_status: execution_error`.
+- **Dashboard local runs:** an interrupted local run can show the one-click **Resume run** and **Rerun failed** actions when `summary.json` has `metadata.planned_test_count` greater than the number of result rows, or when any row has `execution_status: execution_error`.
 - **Dashboard remote runs:** normal remote listing reads the configured results storage branch. It does not list `agentv/wip/...` WIP branches. Recover the checkpoint into the project-local run directory first, or wait for the final publish branch to receive a completed run.
 - **`agentv results` CLI:** the command family manages local run workspaces and reports. It does not have a WIP branch subcommand; use git for remote checkpoint inspection and cleanup.
 
 ## Operational caveats
 
-- The first remote checkpoint happens on the periodic interval, so a process that dies immediately after startup may only have the local `benchmark.json` stub.
+- The first remote checkpoint happens on the periodic interval, so a process that dies immediately after startup may only have the local `summary.json` stub.
 - The WIP branch is force-pushed and keeps one snapshot commit. Do not treat it as an audit log.
 - Checkpoint contents can include prompts, outputs, grader evidence, traces, and generated task bundles. Protect the results repo like any other eval artifact store.
 - Authentication and branch permissions are the same as normal results auto-push. If git or GitHub authentication is missing, AgentV warns and keeps evaluating locally.

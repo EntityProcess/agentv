@@ -110,32 +110,28 @@ Duplicate policy is explicit:
 
 `attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
 
-### Metrics sidecar
+### Attempt observability
 
-Each direct per-case artifact directory includes `metrics.json`
-(`schema_version: "agentv.metrics.v1"`). This is an AgentV-owned
-derived projection over `trace.json`, the result row, and
-`grading.json`. It is the compact executor behavior summary for dashboards,
-comparison exports, and metric-style graders; it is not canonical trace storage
-and does not carry token/cost usage.
+Each attempt directory includes `result.json`. Its `o11y` object is the compact
+executor behavior summary for dashboards, comparison exports, and metric-style
+graders. It is derived from the run result and transcript projection; token,
+cost, and duration rollups live in root and case `summary.json`.
 
-Repeat-enabled cases use aggregate `summary.json` with flattened snake_case
-timing fields plus aggregate `grading.json`, then store attempt details under
-`run-N/`. Each `run-N/` contains Vercel-compatible
-`result.json`, `transcript.json`, `transcript-raw.jsonl`, and `outputs/answer.md`,
-plus AgentV `grading.json` and `metrics.json` with embedded timing.
+Repeat-enabled and single-run cases use a case-level `summary.json`, then store
+attempt details under `run-N/`. Each `run-N/` contains Vercel-compatible
+`result.json`, `transcript.json`, `transcript-raw.jsonl`, and
+`outputs/answer.md`, plus AgentV `grading.json`.
 
-`transcript.jsonl` remains the ordered conversational/log compatibility
-projection. Full trace detail stays in `trace.json`
-(`agentv.trace.v1`). `benchmark.json` remains the run-level aggregate summary,
-and `index.jsonl` carries the lightweight `metrics_path` plus
-the trace/transcript artifact pointers used for detached payload publishing.
-Duration, token, and cost usage remains in `timing.json`, including source
-labels such as `provider_reported`, `token_estimated`, `aggregate`, or
-`unavailable`.
+`transcript-raw.jsonl` is the ordered conversational/log compatibility
+projection and `transcript.json` is the message projection for the attempt.
+Root `summary.json` is the run-level aggregate and metadata file. Root
+`index.jsonl` is the local and remote discovery anchor and lightweight manifest;
+rows point at case `summary.json` and attempt `run-N` directories. Duration,
+token, and cost rollups live in root and case `summary.json`; per-attempt
+duration and observability live in `run-N/result.json`.
 
-The `metrics` section aligns with Claude Agent Skills `metrics.json`
-while adding AgentV/Vercel-style detail:
+The observability fields embedded in `run-N/result.json` align with Claude
+Agent Skills metric vocabulary while adding AgentV/Vercel-style detail:
 
 | Field group | Purpose |
 |-------------|---------|
@@ -146,28 +142,28 @@ Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 
 | Vercel field | AgentV field | Artifact location |
 |--------------|--------------|-------------------|
-| `shellCommands` | `metrics.shell_commands` | `metrics.json` |
-| `filesRead` | `metrics.files_read` | `metrics.json` |
-| `filesModified` | `metrics.files_modified` | `metrics.json` |
-| `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `metrics.json`; compact counts can also appear in `benchmark.json.run_summary[*].tool_calls` |
-| `totalToolCalls` | `metrics.total_tool_calls` | `metrics.json` |
-| `webFetches` | `metrics.web_fetches` | `metrics.json` |
-| `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational rows remain in `transcript.jsonl` |
-| `errors` | `metrics.errors` | `metrics.json` |
-| `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `metrics.json` |
+| `shellCommands` | `result.o11y.shellCommands` | `run-N/result.json` |
+| `filesRead` | `result.o11y.filesRead` | `run-N/result.json` |
+| `filesModified` | `result.o11y.filesModified` | `run-N/result.json` |
+| `toolCalls` | `result.o11y.toolCalls` and compact run summary counts | `run-N/result.json`; compact counts can also appear in `summary.json.run_summary[*].tool_calls` |
+| `totalToolCalls` | `result.o11y.totalToolCalls` | `run-N/result.json` |
+| `webFetches` | `result.o11y.webFetches` | `run-N/result.json` |
+| `totalTurns` | `result.o11y.totalTurns` | `run-N/result.json`; conversational rows remain in `run-N/transcript-raw.jsonl` |
+| `errors` | `result.o11y.errors` | `run-N/result.json` |
+| `thinkingBlocks` | `result.o11y.thinkingBlocks` | `run-N/result.json` |
 
 Agent Skills eval artifacts map into AgentV like this:
 
 | Agent Skills pattern | AgentV field | Artifact location |
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
-| Per-case answer | Generated target output artifact | `outputs/answer.md` |
-| Per-case sidecars | Trace, transcript, metrics, and raw provider evidence | `trace.json`, `transcript.jsonl`, `metrics.json`, `provider.log` |
-| Per-case `timing.json` | Duration, token totals, cost, and usage source labels | `timing.json` |
-| Per-case `grading.json` | Assertions, graders, execution metrics, workspace changes | `grading.json`; summary fields can reference the same trace/result facts |
-| Iteration-level `benchmark.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `benchmark.json` |
-| Transcript/log outlier analysis | Ordered transcript and canonical trace | `transcript.jsonl` for log compatibility; `trace.json` for full detail |
-| Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `benchmark.json`, result comparisons, and projection bundles |
+| Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
+| Per-case sidecars | Transcript and raw attempt evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, and optional provider evidence |
+| Per-attempt timing | Duration, token totals, cost, and usage source labels | `run-N/result.json` plus root/case `summary.json` rollups |
+| Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
+| Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
+| Transcript/log outlier analysis | Ordered transcript and attempt result detail | `run-N/transcript-raw.jsonl` for log compatibility; `run-N/result.json` for the attempt outcome |
+| Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle
 
@@ -237,7 +233,7 @@ The CLI contract is deliberately narrow: `agentv results` manages local result a
 
 Use these supported remote workflows instead:
 
-- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo.remote` with `repo.path: .` and `repo.branch: agentv/results/v1` to store primary result records on a dedicated branch of the source repo without requiring a machine-local Git remote name. AgentV reserves `agentv/results/v1` for primary results and `agentv/artifacts/v1` for heavy artifact payloads. When `index.jsonl` rows point trace or transcript payloads at `agentv/artifacts/v1`, automatic publishing stores those bytes on that artifact branch in the same remote and publishes pointer keys such as `runs/<run-path>/<pointer.path>`. The configured results branch remains the metadata/control plane (`index.jsonl`, `benchmark.json`, tags, and pointers) instead of duplicating canonical trace/transcript payload bodies. Local pre-publish run workspaces can still contain those files beside the manifest so local tools keep working. Mutable run tags are stored as `tags.json` with a `tag_revision`; there is no tag event log in the normal results layout. `results.repo.path` without `results.repo.remote` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. AgentV manages any local Git remote alias internally. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. Non-fast-forward result branch pushes block by default with `sync.push_conflict_policy: block`; `backup_and_force_push` is an explicit single-writer opt-in that first creates an `agentv/backups/<timestamp>-<target_branch_slug>-<remote_short_sha>` remote backup branch and then force-pushes with a lease. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
+- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo.remote` with `repo.path: .` and `repo.branch: agentv/results/v1` to store primary result records on a dedicated branch of the source repo without requiring a machine-local Git remote name. AgentV reserves `agentv/results/v1` for primary results and `agentv/artifacts/v1` for heavy artifact payloads. When `index.jsonl` rows point trace or transcript payloads at `agentv/artifacts/v1`, automatic publishing stores those bytes on that artifact branch in the same remote and publishes pointer keys such as `runs/<run-path>/<pointer.path>`. The configured results branch remains the metadata/control plane (`index.jsonl`, `summary.json`, tags, and pointers) instead of duplicating canonical trace/transcript payload bodies. Local pre-publish run workspaces can still contain those files beside the manifest so local tools keep working. Mutable run tags are stored as `tags.json` with a `tag_revision`; there is no tag event log in the normal results layout. `results.repo.path` without `results.repo.remote` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. AgentV manages any local Git remote alias internally. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. Non-fast-forward result branch pushes block by default with `sync.push_conflict_policy: block`; `backup_and_force_push` is an explicit single-writer opt-in that first creates an `agentv/backups/<timestamp>-<target_branch_slug>-<remote_short_sha>` remote backup branch and then force-pushes with a lease. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
 - **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
 - **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
 - **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.repo.path` clone with `git` directly, then sync again.
