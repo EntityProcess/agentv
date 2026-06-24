@@ -161,7 +161,7 @@ Agent Skills eval artifacts map into AgentV like this:
 | Agent Skills pattern | AgentV field | Artifact location |
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
-| Per-case `outputs/` | Generated target output artifacts | `outputs/answer.md` |
+| Per-case answer | Generated target output artifact | `outputs/answer.md` |
 | Per-case sidecars | Trace, transcript, metrics, and raw provider evidence | `trace.json`, `transcript.jsonl`, `metrics.json`, `provider.log` |
 | Per-case `timing.json` | Duration, token totals, cost, and usage source labels | `timing.json` |
 | Per-case `grading.json` | Assertions, graders, execution metrics, workspace changes | `grading.json`; summary fields can reference the same trace/result facts |

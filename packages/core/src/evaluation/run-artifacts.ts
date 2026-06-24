@@ -1241,13 +1241,49 @@ function formatOutputMarkdown(output: readonly { role: string; content?: unknown
   return output.map((msg) => `@[${msg.role}]:\n${String(msg.content ?? '')}`).join('\n\n');
 }
 
-function extractInput(result: EvaluationResult): string | null {
-  const input = (result as unknown as Record<string, unknown>).input;
+function formatInputValue(input: unknown): string | null {
   if (!input) return null;
   if (typeof input === 'string') return input;
   if (Array.isArray(input) && input.length > 0) {
     return formatOutputMarkdown(input as { role: string; content?: unknown }[]);
   }
+  return null;
+}
+
+function extractInput(result: EvaluationResult): string | null {
+  return formatInputValue((result as unknown as Record<string, unknown>).input);
+}
+
+function extractTracePrompt(result: EvaluationResult): string | null {
+  const trace = (result as unknown as { trace?: { messages?: unknown } }).trace;
+  const messages = Array.isArray(trace?.messages) ? trace.messages : [];
+  const promptMessages: { role: string; content?: unknown }[] = [];
+  for (const message of messages) {
+    if (!isRecord(message) || typeof message.role !== 'string') continue;
+    if (message.role === 'assistant') break;
+    if (message.role === 'system' || message.role === 'user' || message.role === 'developer') {
+      promptMessages.push({ role: message.role, content: message.content });
+    }
+  }
+  return promptMessages.length > 0 ? formatOutputMarkdown(promptMessages) : null;
+}
+
+function extractPrompt(result: EvaluationResult, sourceTest?: EvalTest): string | null {
+  const input = extractInput(result);
+  if (input) return input;
+  const traceInput = extractTracePrompt(result);
+  if (traceInput) return traceInput;
+  for (const trial of result.trials ?? []) {
+    if (!trial.result) continue;
+    const trialInput = extractInput(trial.result);
+    if (trialInput) return trialInput;
+    const trialTraceInput = extractTracePrompt(trial.result);
+    if (trialTraceInput) return trialTraceInput;
+  }
+  const sourceInput = sourceTest
+    ? formatInputValue((sourceTest as unknown as Record<string, unknown>).input)
+    : null;
+  if (sourceInput) return sourceInput;
   return null;
 }
 
@@ -1502,7 +1538,7 @@ export function buildResultIndexArtifact(
   },
 ): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
-  const input = extractInput(result);
+  const input = extractPrompt(result);
   const hasAnswer = result.output.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const hasRawProviderLog = rawProviderLogSourcePath(result) !== undefined;
@@ -1529,9 +1565,10 @@ export function buildResultIndexArtifact(
     failure_reason_code: result.failureReasonCode,
     workspace_path: result.workspacePath,
     artifact_dir: artifactSubdir,
+    task_dir: input ? path.posix.join(artifactSubdir, 'task') : undefined,
     grading_path: path.posix.join(artifactSubdir, 'grading.json'),
     timing_path: path.posix.join(artifactSubdir, 'timing.json'),
-    input_path: input ? path.posix.join(artifactSubdir, 'input.md') : undefined,
+    input_path: input ? path.posix.join(artifactSubdir, 'task', 'PROMPT.md') : undefined,
     output_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
     answer_path: hasAnswer ? path.posix.join(artifactSubdir, 'outputs', 'answer.md') : undefined,
     trace_path: path.posix.join(artifactSubdir, CANONICAL_TRACE_ARTIFACT_PATH),
@@ -1943,9 +1980,11 @@ export async function writePerTestArtifacts(
       'utf8',
     );
 
-    const input = extractInput(result);
+    const input = extractPrompt(result, testByTestId.get(result.testId ?? ''));
     if (input) {
-      await writeFile(path.join(testDir, 'input.md'), input, 'utf8');
+      const promptPath = path.join(testDir, 'task', 'PROMPT.md');
+      await mkdir(path.dirname(promptPath), { recursive: true });
+      await writeFile(promptPath, input, 'utf8');
     }
     const outputsDir = path.join(testDir, 'outputs');
     await mkdir(outputsDir, { recursive: true });
@@ -2044,8 +2083,8 @@ export async function writeArtifactsFromResults(
     const testDir = path.join(outputDir, artifactSubdir);
     const gradingPath = path.join(testDir, 'grading.json');
     const perTestTimingPath = path.join(testDir, 'timing.json');
-    const input = extractInput(result);
-    const inputPath = input ? path.join(testDir, 'input.md') : undefined;
+    const input = extractPrompt(result, testByTestId.get(result.testId ?? ''));
+    const inputPath = input ? path.join(testDir, 'task', 'PROMPT.md') : undefined;
     const outputsDir = path.join(testDir, 'outputs');
     const answerPath = result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
     const envelope = buildTraceEnvelopeSidecar({
@@ -2133,6 +2172,10 @@ export async function writeArtifactsFromResults(
       );
       await writeFile(plan.gradingPath, `${JSON.stringify(plan.grading, null, 2)}\n`, 'utf8');
       await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+      if (plan.inputPath && plan.input) {
+        await mkdir(path.dirname(plan.inputPath), { recursive: true });
+        await writeFile(plan.inputPath, plan.input, 'utf8');
+      }
       for (const trial of result.trials ?? []) {
         await writeTrialRunArtifacts({
           trial,
@@ -2152,6 +2195,10 @@ export async function writeArtifactsFromResults(
           artifactDir: plan.testDir,
           gradingPath: plan.gradingPath,
           summaryPath,
+          inputPath: plan.inputPath,
+          extraIndexFields: plan.inputPath
+            ? { task_dir: toRelativeArtifactPath(outputDir, path.dirname(plan.inputPath)) }
+            : undefined,
           projectionIdentity: plan.projectionIdentity,
           duplicatePolicy,
         }),
@@ -2175,6 +2222,7 @@ export async function writeArtifactsFromResults(
     await writeFile(plan.perTestTimingPath, `${JSON.stringify(plan.timing, null, 2)}\n`, 'utf8');
 
     if (plan.inputPath && plan.input) {
+      await mkdir(path.dirname(plan.inputPath), { recursive: true });
       await writeFile(plan.inputPath, plan.input, 'utf8');
     }
 
@@ -2225,6 +2273,13 @@ export async function writeArtifactsFromResults(
       options?.additionalArtifacts,
     );
 
+    const indexExtraFields = {
+      ...(plan.inputPath
+        ? { task_dir: toRelativeArtifactPath(outputDir, path.dirname(plan.inputPath)) }
+        : {}),
+      ...extraIndexFields,
+    };
+
     const nextRecord = {
       ...buildIndexArtifactEntry(result, {
         outputDir,
@@ -2239,7 +2294,7 @@ export async function writeArtifactsFromResults(
         artifactPointers,
         rawProviderLogPath: plan.rawProviderLogPath,
         inputPath: plan.inputPath,
-        extraIndexFields,
+        extraIndexFields: indexExtraFields,
         projectionIdentity: plan.projectionIdentity,
         duplicatePolicy,
       }),

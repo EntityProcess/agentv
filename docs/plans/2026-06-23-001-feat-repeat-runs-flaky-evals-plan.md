@@ -246,7 +246,7 @@ Single-run cases keep direct case-local files:
 .agentv/results/<experiment>/<timestamp>/benchmark.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/timing.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/input.md
+.agentv/results/<experiment>/<timestamp>/<case-id>/task/PROMPT.md
 .agentv/results/<experiment>/<timestamp>/<case-id>/outputs/trace.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/outputs/transcript.jsonl
 .agentv/results/<experiment>/<timestamp>/<case-id>/outputs/answer.md

@@ -24,6 +24,8 @@
 #   - File blocks come first, text block last
 #   - Only supported with a string `input` (not multi-turn arrays)
 #   - Paths are resolved the same way as explicit type:file blocks
+#   - If `input` is omitted and input_files includes PROMPT.md, that file becomes
+#     the prompt and is not duplicated as an attachment
 
 description: Demonstrates input_files shorthand for attaching files to test inputs
 
@@ -74,3 +76,15 @@ tests:
       - ../fixtures/sales.csv
       - ../fixtures/sales.csv
     input: "Compare these two data files and describe any differences."
+
+  # ==========================================
+  # Example 4: PROMPT.md prompt plus attached data
+  # ==========================================
+  - id: prompt-md-with-attachment
+    criteria: >
+      Agent follows the task prompt from PROMPT.md and uses the attached CSV
+      data when answering.
+
+    input_files:
+      - ./PROMPT.md
+      - ../fixtures/sales.csv

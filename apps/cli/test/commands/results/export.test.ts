@@ -349,7 +349,7 @@ describe('results export', () => {
     });
     expect(bundle.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      input_path: 'privacy/test-private/input.md',
+      input_path: 'privacy/test-private/task/PROMPT.md',
       output_path: 'privacy/test-private/outputs/answer.md',
       answer_path: 'privacy/test-private/outputs/answer.md',
       trace_path: 'privacy/test-private/trace.json',
@@ -417,7 +417,7 @@ describe('results export', () => {
       output_path: 'demo/test-greeting/outputs/answer.md',
       answer_path: 'demo/test-greeting/outputs/answer.md',
       transcript_path: 'demo/test-greeting/transcript.jsonl',
-      input_path: 'demo/test-greeting/input.md',
+      input_path: 'demo/test-greeting/task/PROMPT.md',
     });
     expect(entries[0].projection_identity).toMatchObject({
       schema_version: 'agentv.projection_identity.v1',
@@ -712,7 +712,7 @@ describe('results export', () => {
     expect(grading.summary.total).toBe(0);
   });
 
-  it('should write string input to <test-id>/input.md', async () => {
+  it('should write string input to <test-id>/task/PROMPT.md', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,
@@ -722,12 +722,12 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(artifactDir(outputDir, resultWithInput), 'input.md');
+    const inputPath = path.join(artifactDir(outputDir, resultWithInput), 'task', 'PROMPT.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
   });
 
-  it('should write Message[] input to <test-id>/input.md as markdown', async () => {
+  it('should write Message[] input to <test-id>/task/PROMPT.md as markdown', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithMessages = {
       ...RESULT_FULL,
@@ -740,7 +740,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(artifactDir(outputDir, resultWithMessages), 'input.md');
+    const inputPath = path.join(artifactDir(outputDir, resultWithMessages), 'task', 'PROMPT.md');
     expect(existsSync(inputPath)).toBe(true);
     expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
   });
@@ -751,7 +751,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const inputPath = path.join(artifactDir(outputDir, RESULT_FULL), 'input.md');
+    const inputPath = path.join(artifactDir(outputDir, RESULT_FULL), 'task', 'PROMPT.md');
     expect(existsSync(inputPath)).toBe(false);
   });
 

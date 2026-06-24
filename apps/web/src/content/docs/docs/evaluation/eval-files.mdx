@@ -186,6 +186,35 @@ Each test's effective input becomes a single user message with `[file blocks...,
 
 Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `execution.skip_defaults: true` on the test.
 
+### PROMPT.md Fallback
+
+For Vercel-style eval directories, a test may omit `input` and keep the task
+prompt in Markdown instead. AgentV resolves the prompt in this order:
+
+1. If the effective `input_files` contains a file named exactly `PROMPT.md`, that file becomes the test prompt.
+2. Otherwise, if a `PROMPT.md` exists beside the `EVAL.yaml`, that file becomes the test prompt.
+3. Other `input_files` remain attachments. `PROMPT.md` is removed from the attachment list so the prompt is not duplicated.
+
+```text
+agent-001-fix-bug/
+  EVAL.yaml
+  PROMPT.md
+  fixtures/
+    failing-test.log
+```
+
+```yaml
+tests:
+  - id: fix-bug
+    criteria: Fixes the regression described in the prompt
+    input_files:
+      - ./fixtures/failing-test.log
+```
+
+Use explicit `input` when the prompt is short or generated from YAML variables.
+Use `PROMPT.md` when the task text is long enough that duplicating it inside
+YAML would make the eval hard to review.
+
 ### Tests as String Path
 
 Instead of inlining tests in the same file, you can point `tests` to an external YAML or JSONL file. This is the inverse of the sidecar pattern — the metadata file references the test data:

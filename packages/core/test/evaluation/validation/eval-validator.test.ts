@@ -34,6 +34,46 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates eval file that omits input when sibling PROMPT.md exists', async () => {
+    const evalDir = path.join(tempDir, 'prompt-md-fallback');
+    await mkdir(evalDir, { recursive: true });
+    await writeFile(path.join(evalDir, 'PROMPT.md'), 'Use the prompt fallback.');
+    const filePath = path.join(evalDir, 'EVAL.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates eval file that omits input when input_files references PROMPT.md', async () => {
+    const evalDir = path.join(tempDir, 'prompt-md-input-files');
+    await mkdir(path.join(evalDir, 'task'), { recursive: true });
+    await writeFile(path.join(evalDir, 'task', 'PROMPT.md'), 'Use the referenced prompt.');
+    const filePath = path.join(evalDir, 'EVAL.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+    input_files:
+      - ./task/PROMPT.md
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('validates eval file with suite-level input block shorthand', async () => {
     const filePath = path.join(tempDir, 'suite-input-block.yaml');
     await writeFile(

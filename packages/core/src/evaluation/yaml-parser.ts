@@ -34,6 +34,7 @@ import {
 } from './loaders/grader-parser.js';
 import { detectFormat, loadTestsFromJsonl } from './loaders/jsonl-parser.js';
 import { processExpectedMessages, processMessages } from './loaders/message-processor.js';
+import { loadPromptMdFallback } from './loaders/prompt-md-fallback.js';
 import {
   expandInputShorthand,
   resolveExpectedMessages,
@@ -504,7 +505,40 @@ async function loadTestsFromParsedYamlValue(
       rawSuiteInputFiles && !skipDefaults
         ? interpolateCaseField(rawSuiteInputFiles, caseVars)
         : undefined;
-    const testInputMessages = resolveInputMessages(renderedCase, effectiveSuiteInputFiles);
+    let inputCase = renderedCase;
+    let inputSuiteFiles = effectiveSuiteInputFiles;
+    if (renderedCase.input === undefined) {
+      const promptFallback = await loadPromptMdFallback({
+        evalFilePath: absoluteTestPath,
+        searchRoots,
+        testInputFiles: renderedCase.input_files,
+        suiteInputFiles: effectiveSuiteInputFiles,
+      });
+      if (promptFallback) {
+        if (promptFallback.inputFilesSource === 'test') {
+          const { input_files: _inputFiles, ...caseWithoutInputFiles } = renderedCase;
+          inputCase = {
+            ...caseWithoutInputFiles,
+            input: promptFallback.promptText,
+            ...(promptFallback.remainingInputFiles
+              ? { input_files: [...promptFallback.remainingInputFiles] }
+              : {}),
+          };
+          inputSuiteFiles = undefined;
+        } else {
+          inputCase = {
+            ...renderedCase,
+            input: promptFallback.promptText,
+          };
+          if (promptFallback.inputFilesSource === 'suite') {
+            inputSuiteFiles = promptFallback.remainingInputFiles
+              ? [...promptFallback.remainingInputFiles]
+              : undefined;
+          }
+        }
+      }
+    }
+    const testInputMessages = resolveInputMessages(inputCase, inputSuiteFiles);
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(renderedCase) ?? [];
 
@@ -517,7 +551,7 @@ async function loadTestsFromParsedYamlValue(
       (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions/turns`,
+        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input or PROMPT.md, and at least one of criteria/expected_output/assertions/turns`,
       );
       continue;
     }

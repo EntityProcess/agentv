@@ -580,7 +580,7 @@ describe('buildIndexArtifactEntry', () => {
         timingPath: '/tmp/artifacts/alpha/timing.json',
         outputPath: '/tmp/artifacts/alpha/outputs/answer.md',
         answerPath: '/tmp/artifacts/alpha/outputs/answer.md',
-        inputPath: '/tmp/artifacts/alpha/input.md',
+        inputPath: '/tmp/artifacts/alpha/task/PROMPT.md',
       },
     );
 
@@ -612,7 +612,7 @@ describe('buildIndexArtifactEntry', () => {
       timing_path: 'alpha/timing.json',
       output_path: 'alpha/outputs/answer.md',
       answer_path: 'alpha/outputs/answer.md',
-      input_path: 'alpha/input.md',
+      input_path: 'alpha/task/PROMPT.md',
     });
   });
 
@@ -945,7 +945,20 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    const paths = await writeArtifactsFromResults(results, testDir);
+    const sourceTests = [
+      {
+        id: 'repeat-case',
+        input: [{ role: 'user', content: 'Repeat this task prompt.' }],
+        expected_output: [],
+        reference_answer: '',
+        file_paths: [],
+        criteria: 'Repeats the task prompt',
+        evaluator: 'llm-grader',
+        assertions: [],
+      } as unknown as EvalTest,
+    ];
+
+    const paths = await writeArtifactsFromResults(results, testDir, { sourceTests });
 
     const [indexEntry] = (await readFile(paths.indexPath, 'utf8'))
       .trim()
@@ -964,13 +977,27 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(indexEntry?.artifact_dir).toBe('repeat-case');
     expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
+    expect(indexEntry?.task_dir).toBe('repeat-case/task');
+    expect(indexEntry?.input_path).toBe('repeat-case/task/PROMPT.md');
     expect(indexEntry?.benchmark_path).toBeUndefined();
     expect(indexEntry?.grading_path).toBe('repeat-case/grading.json');
     expect(indexEntry?.timing_path).toBeUndefined();
     expect(indexEntry?.metrics_path).toBeUndefined();
 
     const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
-    expect(repeatEntries.sort()).toEqual(['grading.json', 'run-1', 'run-2', 'summary.json']);
+    expect(repeatEntries.sort()).toEqual([
+      'grading.json',
+      'run-1',
+      'run-2',
+      'summary.json',
+      'task',
+    ]);
+
+    const prompt = await readFile(
+      path.join(paths.testArtifactDir, 'repeat-case', 'task', 'PROMPT.md'),
+      'utf8',
+    );
+    expect(prompt).toBe('@[user]:\nRepeat this task prompt.');
 
     const caseSummary = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
