@@ -793,7 +793,7 @@ async function writeTrialRunArtifacts(params: {
 
   const runDirName = trialRunDirName(params.trial.attempt);
   const runDir = path.join(params.parentTestDir, runDirName);
-  const grading = buildGradingArtifact(result);
+  const grading = buildGradingArtifact(result, { includeTrials: false });
   const gradingPath = path.join(runDir, 'grading.json');
   const outputsDir = path.join(runDir, 'outputs');
   const answerOutputPath =
@@ -919,11 +919,15 @@ function buildExportMetadata(
   };
 }
 
-export function buildGradingArtifact(result: EvaluationResult): GradingArtifact {
+export function buildGradingArtifact(
+  result: EvaluationResult,
+  options?: { includeTrials?: boolean },
+): GradingArtifact {
   const assertions = buildAssertions(result);
   const passed = assertions.filter((e) => e.passed).length;
   const failed = assertions.filter((e) => !e.passed).length;
   const total = assertions.length;
+  const includeTrials = options?.includeTrials ?? true;
 
   return {
     assertions,
@@ -942,8 +946,8 @@ export function buildGradingArtifact(result: EvaluationResult): GradingArtifact 
           conversation_id: result.conversationId,
         }
       : undefined,
-    trials: toIndexTrialArtifacts(result),
-    aggregation: toTrialAggregationArtifact(result.aggregation),
+    trials: includeTrials ? toIndexTrialArtifacts(result) : undefined,
+    aggregation: includeTrials ? toTrialAggregationArtifact(result.aggregation) : undefined,
   };
 }
 

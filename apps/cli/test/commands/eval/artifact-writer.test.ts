@@ -1029,6 +1029,14 @@ describe('writeArtifactsFromResults', () => {
         'transcript-raw.jsonl',
         'transcript.json',
       ]);
+      const runGrading = JSON.parse(
+        await readFile(
+          path.join(paths.testArtifactDir, 'repeat-case', runDir, 'grading.json'),
+          'utf8',
+        ),
+      ) as GradingArtifact;
+      expect(runGrading.trials).toBeUndefined();
+      expect(runGrading.aggregation).toBeUndefined();
     }
 
     const runOneResult = JSON.parse(
