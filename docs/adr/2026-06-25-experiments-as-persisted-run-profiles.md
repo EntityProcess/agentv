@@ -71,6 +71,24 @@ When a user supplies CLI flags without an experiment file, AgentV should still
 persist the resolved run configuration in the run bundle so the material choices
 are not lost.
 
+Experiments may also persist eval suite file selection with `eval_suites`. This
+field uses the same path, glob, directory, and negation syntax as positional
+`agentv eval` arguments, and paths are resolved from the project root/current
+working directory just like CLI arguments. Experiment `eval_cases` is the
+case/test-id filter over the selected suites. Existing experiment `evals`
+remains a legacy alias for `eval_cases`.
+
+The eval-file selection precedence is:
+
+1. CLI positional eval paths.
+2. Experiment `eval_suites`.
+3. Config/default discovery only for compatibility paths that already rely on
+   experiment `evals` as a case filter.
+
+The higher-precedence source chooses the eval files for the run. The lower
+source does not merge in extra suites. Experiment `eval_cases` can still narrow
+cases after either CLI paths or `eval_suites` select the files.
+
 Run artifacts should model results as rows across the stable axes:
 
 - experiment or run profile name

@@ -40,7 +40,7 @@ Pooling is on by default. To disable it:
 ### CLI mode
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace-mode temp
+agentv eval evals/my-eval.eval.yaml --workspace-mode temp
 ```
 
 ### YAML workspace mode
@@ -63,7 +63,7 @@ By default, pool reset uses `git clean -fd` which **preserves `.gitignore`d file
 For strict reset that also removes `.gitignore`d files, use the `--workspace-clean full` CLI flag:
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace-clean full
+agentv eval evals/my-eval.eval.yaml --workspace-clean full
 ```
 
 | Mode | Git command | `.gitignore`d files | Use case |
@@ -126,7 +126,7 @@ Two configs produce different fingerprints if **any** of these fields differ. Fo
 Pool slots support concurrent eval workers. When running with multiple workers (`-w N`), each worker acquires its own slot from the pool:
 
 ```bash
-agentv eval evals/my-eval.yaml -w 4
+agentv eval evals/my-eval.eval.yaml -w 4
 ```
 
 This creates up to 4 slots (`slot-0` through `slot-3`). PID-based lock files prevent two workers from using the same slot simultaneously. If a lock file references a dead process, it's automatically cleaned up as a stale lock.
@@ -178,7 +178,7 @@ This pattern is especially valuable with pooling: a single `workspace.yaml` guar
 For workspaces you manage outside AgentV, use static mode:
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/my-workspace
+agentv eval evals/my-eval.eval.yaml --workspace-mode static --workspace-path /path/to/my-workspace
 ```
 
 **Auto-materialisation:** When `workspace.path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, AgentV checks each repo individually — existing repos are reused as-is, and only missing repos are cloned. This makes static mode convenient for both first-run bootstrap and incremental setup.

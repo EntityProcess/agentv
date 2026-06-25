@@ -77,6 +77,18 @@ describe('resolveEvalPaths', () => {
     expect(resolved).toEqual([path.normalize(tsFile)]);
   });
 
+  it('discovers EVAL.yaml files from directory auto-expansion', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const evalFile = path.join(evalDir, 'EVAL.yaml');
+    writeFileSync(evalFile, 'tests:\n  - id: sample\n    input: test\n');
+
+    const resolved = await resolveEvalPaths([tempDir], tempDir);
+
+    expect(resolved).toEqual([path.normalize(evalFile)]);
+  });
+
   it('accepts a direct .mts file path', async () => {
     const tsFile = path.join(tempDir, 'custom.eval.mts');
     writeFileSync(tsFile, 'export default { tests: [] }');

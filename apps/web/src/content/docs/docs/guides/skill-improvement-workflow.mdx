@@ -268,10 +268,10 @@ The `--experiment` flag provides a structured way to label baseline and candidat
 
 ```bash
 # Baseline: run without skills installed
-agentv pipeline run evals/my-eval.yaml --experiment without_skills
+agentv pipeline run evals/my-eval.eval.yaml --experiment without_skills
 
 # Candidate: run with skills installed
-agentv pipeline run evals/my-eval.yaml --experiment with_skills
+agentv pipeline run evals/my-eval.eval.yaml --experiment with_skills
 ```
 
 Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `index.jsonl`, making it easy to filter and compare in dashboards.

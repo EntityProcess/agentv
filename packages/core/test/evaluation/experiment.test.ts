@@ -19,7 +19,8 @@ describe('experiment config', () => {
       agent: 'codex',
       model: 'openai/gpt-5.5',
       agent_options: { reasoning_effort: 'high' },
-      evals: 'evals/**/*.eval.yaml',
+      eval_suites: 'evals/**/*.eval.yaml',
+      eval_cases: 'case-*',
       scripts: ['build', { script: 'bun test', timeout_seconds: 120 }],
       runs: 3,
       early_exit: false,
@@ -36,7 +37,8 @@ describe('experiment config', () => {
       agent: 'codex',
       model: 'openai/gpt-5.5',
       agentOptions: { reasoning_effort: 'high' },
-      evals: 'evals/**/*.eval.yaml',
+      evalSuites: 'evals/**/*.eval.yaml',
+      evalCases: 'case-*',
       scripts: [{ script: 'build' }, { script: 'bun test', timeoutSeconds: 120 }],
       runs: 3,
       earlyExit: false,
@@ -47,6 +49,14 @@ describe('experiment config', () => {
       setup: [{ script: 'bun install' }],
     });
     expect(config.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('treats legacy evals as an eval_cases alias', () => {
+    const config = normalizeExperimentConfig({
+      evals: ['case-alpha', 'case-beta'],
+    });
+
+    expect(config.evalCases).toEqual(['case-alpha', 'case-beta']);
   });
 
   it('normalizes experiment-level repeat config with legacy trial strategy parity', () => {
@@ -83,7 +93,7 @@ describe('experiment config', () => {
   it('loads a YAML experiment file', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-experiment-'));
     try {
-      const experimentPath = path.join(tempDir, 'default.yaml');
+      const experimentPath = path.join(tempDir, 'default.exp.yaml');
       writeFileSync(
         experimentPath,
         [
@@ -123,12 +133,17 @@ describe('experiment config', () => {
       /repeat and runs/,
     );
     expect(() => normalizeExperimentConfig({ sandbox: 'host' })).toThrow(/sandbox/);
+    expect(() => normalizeExperimentConfig({ eval_cases: 'case-a', evals: 'case-b' })).toThrow(
+      /eval_cases and evals/,
+    );
   });
 
   it('builds safe snake_case artifact metadata', () => {
     const config = normalizeExperimentConfig({
       name: 'baseline',
       target: 'codex',
+      eval_suites: ['evals/**/*.eval.yaml'],
+      eval_cases: ['case-alpha'],
       agent_options: { secret: 'not persisted' },
       setup: [{ script: 'bun install' }],
       scripts: [{ script: 'bun test' }],
@@ -143,6 +158,8 @@ describe('experiment config', () => {
     expect(metadata).toMatchObject({
       name: 'baseline',
       target: 'codex',
+      eval_suites: ['evals/**/*.eval.yaml'],
+      eval_cases: ['case-alpha'],
       repeat: {
         count: 2,
         strategy: 'mean',
@@ -158,7 +175,7 @@ describe('experiment config', () => {
   });
 
   it('detects experiment file references separately from labels', () => {
-    expect(isExperimentFileReference('experiments/default.yaml')).toBe(true);
+    expect(isExperimentFileReference('experiments/default.exp.yaml')).toBe(true);
     expect(isExperimentFileReference('default.yaml')).toBe(true);
     expect(isExperimentFileReference('baseline')).toBe(false);
   });
@@ -166,6 +183,9 @@ describe('experiment config', () => {
   it('derives experiment names from file paths', () => {
     expect(deriveExperimentNameFromPath('/repo/experiments/baseline.experiment.ts')).toBe(
       'baseline',
+    );
+    expect(deriveExperimentNameFromPath('/repo/experiments/with-skill.exp.yaml')).toBe(
+      'with-skill',
     );
     expect(deriveExperimentNameFromPath('/repo/experiments/with-skill.yaml')).toBe('with-skill');
   });

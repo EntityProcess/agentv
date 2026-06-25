@@ -70,7 +70,8 @@ as the power-user escape hatch:
 name: copilot-gpt55-withskill
 target: copilot-gpt55
 model: openai/gpt-5.5
-evals: "agent-042-*"
+eval_suites: "evals/**/*.eval.yaml"
+eval_cases: "agent-042-*"
 scripts:
   - build
 repeat:
@@ -90,7 +91,7 @@ usage keeps working:
 
 ```yaml
 experiments:
-  default: experiments/default.yaml
+  default: experiments/default.exp.yaml
 ```
 
 If no default experiment is configured, AgentV keeps the current behavior and

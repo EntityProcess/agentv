@@ -42,7 +42,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
         // Auto-expand directory to recursive eval file glob
         const dirGlob = path.posix.join(
           candidatePath.replace(/\\/g, '/'),
-          '**/{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}',
+          '**/{*.eval.yaml,*.eval.yml,EVAL.yaml,EVAL.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}',
         );
         const dirMatches = await fg(dirGlob, {
           absolute: true,
@@ -99,7 +99,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error(
       `No eval files matched any provided paths or globs: ${includePatterns.join(
         ', ',
-      )}. Provide YAML, JSONL, JSON, or TypeScript paths or globs (e.g., "evals/**/eval.yaml", "evals/**/*.eval.ts").`,
+      )}. Provide YAML, JSONL, JSON, or TypeScript paths or globs (e.g., "evals/**/*.eval.yaml", "evals/**/EVAL.yaml", "evals/**/*.eval.ts").`,
     );
   }
 

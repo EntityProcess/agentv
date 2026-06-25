@@ -136,13 +136,13 @@ describe('loadConfig', () => {
       mkdirSync(localConfigDir, { recursive: true });
       writeFileSync(
         path.join(localConfigDir, 'config.yaml'),
-        'experiments:\n  default: experiments/default.yaml\n',
+        'experiments:\n  default: experiments/default.exp.yaml\n',
       );
 
       const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
 
-      expect(config?.experiments?.default).toBe('experiments/default.yaml');
-      expect(resolveDefaultExperimentReference(config)).toBe('experiments/default.yaml');
+      expect(config?.experiments?.default).toBe('experiments/default.exp.yaml');
+      expect(resolveDefaultExperimentReference(config)).toBe('experiments/default.exp.yaml');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -170,8 +170,10 @@ describe('loadConfig', () => {
 
 describe('parseExperimentsConfig', () => {
   it('parses experiments.default', () => {
-    expect(parseExperimentsConfig({ default: 'experiments/default.yaml' }, 'config.yaml')).toEqual({
-      default: 'experiments/default.yaml',
+    expect(
+      parseExperimentsConfig({ default: 'experiments/default.exp.yaml' }, 'config.yaml'),
+    ).toEqual({
+      default: 'experiments/default.exp.yaml',
     });
   });
 });

@@ -16,12 +16,12 @@
     },
     "eval_patterns": {
       "type": "array",
-      "description": "Glob patterns for discovering eval files during interactive mode (`agentv eval` with no args). Defaults to ['**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml'] if not specified.",
+      "description": "Glob patterns for discovering eval files during interactive mode (`agentv eval` with no args). Defaults to ['**/evals/**/*.eval.yaml', '**/evals/**/EVAL.yaml', '**/evals/**/eval.yaml', '**/evals/**/*.eval.ts'] if not specified.",
       "items": {
         "type": "string",
-        "description": "Glob pattern (e.g., '**/evals/**/dataset*.yaml', '**/evals/**/eval.yaml')"
+        "description": "Glob pattern (e.g., '**/evals/**/*.eval.yaml', '**/evals/**/EVAL.yaml')"
       },
-      "examples": [["**/evals/**/dataset*.yaml", "**/evals/**/eval.yaml"], ["**/evals/**/*.yaml"]]
+      "examples": [["**/evals/**/*.eval.yaml", "**/evals/**/EVAL.yaml"], ["**/evals/**/*.yaml"]]
     },
     "execution": {
       "type": "object",

@@ -52,6 +52,6 @@ await writeSchema({
   schema: ExperimentFileSchema,
   name: 'ExperimentFile',
   title: 'AgentV Experiment File',
-  description: 'Schema for AgentV experiment YAML files (experiments/*.yaml)',
+  description: 'Schema for AgentV experiment YAML files (experiments/*.exp.yaml)',
   outputFile: 'experiment-schema.json',
 });

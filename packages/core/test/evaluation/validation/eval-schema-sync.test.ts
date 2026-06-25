@@ -51,7 +51,7 @@ describe('generated schema sync', () => {
     const expected = {
       $schema: 'https://json-schema.org/draft/2019-09/schema',
       title: 'AgentV Experiment File',
-      description: 'Schema for AgentV experiment YAML files (experiments/*.yaml)',
+      description: 'Schema for AgentV experiment YAML files (experiments/*.exp.yaml)',
       ...generated,
     };
 

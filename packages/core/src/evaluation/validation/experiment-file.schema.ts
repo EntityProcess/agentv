@@ -56,6 +56,8 @@ export const ExperimentFileSchema = z
     targets: z.array(ExperimentTargetRefSchema).min(1).optional(),
     model: z.string().min(1).optional(),
     agent_options: JsonObjectSchema.optional(),
+    eval_suites: StringOrStringArraySchema.optional(),
+    eval_cases: StringOrStringArraySchema.optional(),
     evals: StringOrStringArraySchema.optional(),
     scripts: z.array(ExperimentScriptSchema).optional(),
     repeat: ExperimentRepeatSchema.optional(),
@@ -71,4 +73,7 @@ export const ExperimentFileSchema = z
   .strict()
   .refine((value) => value.repeat === undefined || value.runs === undefined, {
     message: 'Use repeat or runs, not both.',
+  })
+  .refine((value) => value.eval_cases === undefined || value.evals === undefined, {
+    message: 'Use eval_cases or legacy evals, not both.',
   });
