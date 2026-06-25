@@ -19,6 +19,7 @@ import { RunList } from '~/components/RunList';
 import { RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
+  confirmRemoteResultsMergeApi,
   remoteStatusOptions,
   removeProjectApi,
   syncRemoteResultsApi,
@@ -232,6 +233,7 @@ function SingleProjectHome() {
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
   const [syncInFlight, setSyncInFlight] = useState(false);
+  const [confirmMergeInFlight, setConfirmMergeInFlight] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<{
     kind: 'success' | 'warning' | 'error';
     message: string;
@@ -278,6 +280,30 @@ function SingleProjectHome() {
     const timeout = window.setTimeout(() => setSyncFeedback(null), 7000);
     return () => window.clearTimeout(timeout);
   }, [syncFeedback]);
+
+  async function handleConfirmMerge() {
+    setConfirmMergeInFlight(true);
+    setSyncFeedback(null);
+    try {
+      const result = await confirmRemoteResultsMergeApi();
+      queryClient.setQueryData(remoteStatusOptions().queryKey, result);
+      setSyncFeedback(buildProjectSyncFeedback(result));
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['runs'] }),
+        queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['compare'] }),
+        queryClient.invalidateQueries({ queryKey: ['targets'] }),
+        queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
+      ]).catch(() => undefined);
+    } catch (err) {
+      setSyncFeedback(buildProjectSyncErrorFeedback(err, remoteStatus));
+      void queryClient
+        .invalidateQueries({ queryKey: ['remote-status', ''] })
+        .catch(() => undefined);
+    } finally {
+      setConfirmMergeInFlight(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -329,6 +355,8 @@ function SingleProjectHome() {
           syncInFlight={syncInFlight}
           syncFeedback={syncFeedback}
           onSyncRemote={handleSyncRemote}
+          onConfirmMerge={handleConfirmMerge}
+          confirmMergeInFlight={confirmMergeInFlight}
           projectName={config?.project_name}
           onRemoteSummary={onRemoteSummary}
           hasNextPage={hasNextPage}
@@ -367,6 +395,8 @@ function RunsTabContent({
   syncInFlight,
   syncFeedback,
   onSyncRemote,
+  onConfirmMerge,
+  confirmMergeInFlight,
   projectName,
   onRemoteSummary,
   hasNextPage,
@@ -381,6 +411,8 @@ function RunsTabContent({
   syncInFlight: boolean;
   syncFeedback: { kind: 'success' | 'warning' | 'error'; message: string } | null;
   onSyncRemote: () => void;
+  onConfirmMerge: () => void;
+  confirmMergeInFlight: boolean;
   projectName?: string;
   onRemoteSummary?: string;
   hasNextPage: boolean | undefined;
@@ -410,6 +442,8 @@ function RunsTabContent({
         projectName={projectName}
         syncFeedback={syncFeedback}
         onRemoteSummary={onRemoteSummary}
+        onConfirmMerge={onConfirmMerge}
+        confirmMergeInFlight={confirmMergeInFlight}
       />
       <RunList
         runs={runs}

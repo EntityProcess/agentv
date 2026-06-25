@@ -449,6 +449,21 @@ export interface StudioConfigResponse {
   current_project_id?: string;
 }
 
+/**
+ * Layer 2 of the no-force-push results sync. When a genuine conflict cannot be
+ * auto-merged, the local work is pushed to a fresh timestamped temp branch
+ * (never the canonical branch, never force) and this block is surfaced so the
+ * user can merge it on GitHub and then click OK to resync. GitHub's pull request
+ * is the conflict surface — the Dashboard builds no merge/diff/accept UI.
+ */
+export interface RemotePendingMerge {
+  temp_branch: string;
+  target_branch: string;
+  compare_url?: string;
+  contributed_run_count?: number;
+  created_at: string;
+}
+
 export interface RemoteStatusResponse {
   configured: boolean;
   available: boolean;
@@ -493,6 +508,7 @@ export interface RemoteStatusResponse {
   previous_remote_commit?: string;
   force_pushed_commit?: string;
   lease_commit?: string;
+  pending_merge?: RemotePendingMerge;
 }
 
 // ── Project types ──────────────────────────────────────────────────────

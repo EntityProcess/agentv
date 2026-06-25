@@ -635,6 +635,30 @@ export async function syncRemoteResultsApi(projectId?: string): Promise<RemoteSt
   return res.json() as Promise<RemoteStatusResponse>;
 }
 
+/**
+ * Explicit "OK" action of the Layer 2 human-merge flow: the user merged the temp
+ * branch into the canonical target on GitHub, so the Dashboard tells the backend
+ * to pull the merged target (ancestor-guarded fast-forward) and resume canonical
+ * sync. A premature confirm is a safe no-op (no force push, no data loss).
+ */
+export async function confirmRemoteResultsMergeApi(
+  projectId?: string,
+): Promise<RemoteStatusResponse> {
+  const url = projectId
+    ? `${projectApiBase(projectId)}/remote/sync/confirm-merge`
+    : '/api/remote/sync/confirm-merge';
+  const res = await fetch(url, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(
+      (err as { error?: string }).error ?? `Failed to confirm results merge: ${res.status}`,
+    );
+  }
+  return res.json() as Promise<RemoteStatusResponse>;
+}
+
 export class CombineRunsApiError extends Error {
   constructor(
     message: string,

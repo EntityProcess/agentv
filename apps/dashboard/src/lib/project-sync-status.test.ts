@@ -118,6 +118,53 @@ describe('getProjectSyncView', () => {
     });
     expect(view.nextAction).not.toMatch(/force/i);
     expect(view.nextAction).toMatch(/pull request/i);
+    expect(view.pendingMerge).toBeUndefined();
+  });
+
+  it('surfaces a pending-merge card with the GitHub link when a temp branch exists', () => {
+    const view = getProjectSyncView({
+      configured: true,
+      available: true,
+      sync_status: 'needs_human_merge',
+      pending_merge: {
+        temp_branch: 'agentv/results-sync/20260625T0000Z-agentv-results-v1-ab12cd',
+        target_branch: 'agentv/results/v1',
+        compare_url:
+          'https://github.com/o/r/compare/agentv%2Fresults%2Fv1...agentv%2Fresults-sync%2F20260625T0000Z-agentv-results-v1-ab12cd?expand=1',
+        contributed_run_count: 3,
+        created_at: '2026-06-25T00:00:00.000Z',
+      },
+    });
+    expect(view).toMatchObject({
+      state: 'needs_human_merge',
+      label: 'Pending merge',
+      tone: 'warn',
+      canSync: false,
+    });
+    expect(view.nextAction).not.toMatch(/force/i);
+    expect(view.pendingMerge).toEqual({
+      tempBranch: 'agentv/results-sync/20260625T0000Z-agentv-results-v1-ab12cd',
+      targetBranch: 'agentv/results/v1',
+      compareUrl:
+        'https://github.com/o/r/compare/agentv%2Fresults%2Fv1...agentv%2Fresults-sync%2F20260625T0000Z-agentv-results-v1-ab12cd?expand=1',
+      contributedRunCount: 3,
+      createdAt: '2026-06-25T00:00:00.000Z',
+    });
+  });
+
+  it('omits the compare URL in the pending-merge view for non-GitHub remotes', () => {
+    const view = getProjectSyncView({
+      configured: true,
+      available: true,
+      sync_status: 'needs_human_merge',
+      pending_merge: {
+        temp_branch: 'agentv/results-sync/20260625T0000Z-main-ab12cd',
+        target_branch: 'main',
+        created_at: '2026-06-25T00:00:00.000Z',
+      },
+    });
+    expect(view.pendingMerge?.compareUrl).toBeUndefined();
+    expect(view.pendingMerge?.tempBranch).toBe('agentv/results-sync/20260625T0000Z-main-ab12cd');
   });
 });
 
