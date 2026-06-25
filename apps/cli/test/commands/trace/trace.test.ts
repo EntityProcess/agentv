@@ -408,7 +408,7 @@ describe('trace utils', () => {
 
       writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
       writeFileSync(
-        path.join(runDir, 'benchmark.json'),
+        path.join(runDir, 'summary.json'),
         JSON.stringify({
           metadata: {
             display_name: 'Combined run (dogfood-run-a + dogfood-run-b)',

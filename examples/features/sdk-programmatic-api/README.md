@@ -26,4 +26,4 @@ bun run evaluate.ts
 - **Inline tests** — define YAML-shaped tests directly in TypeScript
 - **Config mirrors YAML** — same evaluation model, with programmatic `assert` and camelCase fields
 - **Typed results** — `EvalRunResult` with summary statistics
-- **Canonical artifacts** — opt into the same `index.jsonl` / `benchmark.json` workspace layout as `agentv eval`
+- **Canonical artifacts** — opt into the same `index.jsonl` / `summary.json` workspace layout as `agentv eval`

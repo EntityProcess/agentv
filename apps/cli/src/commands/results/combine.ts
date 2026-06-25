@@ -114,7 +114,7 @@ export const resultsCombineCommand = command({
     displayName: option({
       type: optional(string),
       long: 'display-name',
-      description: 'Display name stored in benchmark.json metadata',
+      description: 'Display name stored in summary.json metadata',
     }),
     duplicatePolicy: option({
       type: optional(oneOf(['prompt', 'error', 'latest'])),
@@ -175,8 +175,7 @@ export const resultsCombineCommand = command({
       });
       console.log(`Combined ${result.testCount} result row(s) into ${result.runDir}`);
       console.log(`  Run ID: ${result.runId}`);
-      console.log(`  Benchmark: ${result.benchmarkPath}`);
-      console.log(`  Timing:    ${result.timingPath}`);
+      console.log(`  Summary: ${result.summaryPath}`);
       if (result.duplicateConflicts.length > 0) {
         console.log(`  Duplicates handled: ${result.duplicateConflicts.length}`);
       }

@@ -29,6 +29,21 @@ When spawning a subprocess with an explicit `cwd`, pass user-supplied `args` thr
 - Those heuristics miss bare relative paths such as `plugins/foo`, can corrupt flag-value pairs such as `--config=./x`, and duplicate behavior the subprocess already handles.
 - See `docs/solutions/best-practices/trust-subprocess-cwd-for-relative-path-resolution.md`.
 
+## Git Remote Ownership
+
+Treat an existing Git checkout's remote configuration as user-owned state.
+AgentV may read remotes, fetch from a configured remote name, and push results
+refs to that remote, but it must not run `git remote add` or `git remote
+set-url` in an existing checkout as a side effect of Dashboard status, results
+sync, eval publishing, or WIP checkpoint handling. This applies especially to
+`results.repo.path: .`, where the source checkout's existing `origin` is the
+authoritative remote.
+
+If AgentV needs a separate results checkout and the configured path is missing
+or empty, create it with `git clone` and the requested remote name. If the path
+already exists, use its current Git config as-is or fail with clear setup
+guidance; do not repair, rewrite, or synthesize remotes in place.
+
 ## Naming: Project vs Benchmark
 
 These terms are distinct and not interchangeable.
@@ -36,7 +51,7 @@ These terms are distinct and not interchangeable.
 - Project: the top-level container Dashboard organizes around, backed by a registered workspace directory with `.agentv/`, run artifacts, traces, and experiments. The registry lives in `~/.agentv/projects.yaml` and is modeled by `ProjectEntry` and `ProjectRegistry` in `packages/core/src/projects.ts`.
 - Benchmark: a curated eval suite designed to measure something specific, in the academic ML sense. Example directories using this meaning are correctly named and should not be renamed.
 
-The legacy `~/.agentv/benchmarks.yaml` file is auto-migrated to `projects.yaml` by `migrateLegacyBenchmarksFile()`. The unrelated per-run `benchmark.json` artifact is a third, separate concept and should keep that name.
+The legacy `~/.agentv/benchmarks.yaml` file is auto-migrated to `projects.yaml` by `migrateLegacyBenchmarksFile()`. Run-level results metadata lives in `summary.json`, with `index.jsonl` as the discovery anchor.
 
 Rule of thumb:
 

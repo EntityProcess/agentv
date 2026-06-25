@@ -29,6 +29,14 @@ export interface ResultManifestRecord {
   readonly target?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
+  readonly trials?: readonly {
+    readonly attempt?: number;
+    readonly run_path?: string;
+    readonly score?: number;
+    readonly verdict?: string;
+    readonly [key: string]: unknown;
+  }[];
+  readonly aggregation?: Record<string, unknown>;
   readonly execution_status?: string;
   readonly error?: string;
   readonly cost_usd?: number;
@@ -39,7 +47,6 @@ export interface ResultManifestRecord {
     readonly reasoning?: number;
   };
   readonly trace?: Record<string, unknown>;
-  readonly benchmark_path?: string;
   readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;

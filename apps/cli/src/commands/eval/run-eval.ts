@@ -60,7 +60,7 @@ import {
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifactsFromResults,
-  writeInitialBenchmarkArtifact,
+  writeInitialRunSummaryArtifact,
 } from './artifact-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
 import { resolveOtelBackend } from './otel-backends.js';
@@ -2051,7 +2051,7 @@ export async function runEvalCommand(
     );
   }
 
-  // Write a stub benchmark.json before dispatching tests, carrying the planned
+  // Write a stub summary.json before dispatching tests, carrying the planned
   // execution count so an interrupted run can still surface as resumable in
   // Dashboard (results.length < planned_test_count) even when every recorded row
   // has execution_status: ok. The end-of-run write preserves this value via
@@ -2059,7 +2059,7 @@ export async function runEvalCommand(
   // Skip on resume — we want to preserve the *original* planned count.
   if (!isResumeAppend && totalEvalCount > 0) {
     const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-    await writeInitialBenchmarkArtifact(runDir, {
+    await writeInitialRunSummaryArtifact(runDir, {
       evalFile,
       plannedTestCount: totalEvalCount,
       experiment: normalizeExperimentName(options.experiment),
@@ -2317,42 +2317,36 @@ export async function runEvalCommand(
           sourceTests,
           taskBundleTargets,
         });
-        const { benchmarkPath: workspaceBenchmarkPath, timingPath } = await aggregateRunDir(
+        const { summaryPath } = await aggregateRunDir(runDir, {
+          evalFile,
+          experiment: normalizeExperimentName(options.experiment),
+          experimentMetadata: options.experimentMetadata,
+        });
+        const indexPath = path.join(runDir, 'index.jsonl');
+        console.log(`Artifact workspace updated: ${runDir}`);
+        console.log(`  Index: ${indexPath}`);
+        console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
+        console.log(`  Summary: ${summaryPath}`);
+      } else {
+        const { testArtifactDir, summaryPath, indexPath } = await writeArtifactsFromResults(
+          allResults,
           runDir,
           {
             evalFile,
             experiment: normalizeExperimentName(options.experiment),
             experimentMetadata: options.experimentMetadata,
+            cwd,
+            repoRoot,
+            sourceTests,
+            taskBundleTargets,
           },
         );
-        const indexPath = path.join(runDir, 'index.jsonl');
-        console.log(`Artifact workspace updated: ${runDir}`);
-        console.log(`  Index: ${indexPath}`);
-        console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
-        console.log(`  Timing: ${timingPath}`);
-        console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
-      } else {
-        const {
-          testArtifactDir,
-          timingPath,
-          benchmarkPath: workspaceBenchmarkPath,
-          indexPath,
-        } = await writeArtifactsFromResults(allResults, runDir, {
-          evalFile,
-          experiment: normalizeExperimentName(options.experiment),
-          experimentMetadata: options.experimentMetadata,
-          cwd,
-          repoRoot,
-          sourceTests,
-          taskBundleTargets,
-        });
         console.log(`Artifact workspace written to: ${runDir}`);
         console.log(`  Index: ${indexPath}`);
         console.log(
           `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
         );
-        console.log(`  Timing: ${timingPath}`);
-        console.log(`  Benchmark: ${workspaceBenchmarkPath}`);
+        console.log(`  Summary: ${summaryPath}`);
       }
     }
 

@@ -111,7 +111,7 @@ tests:
 ```text
 .agentv/results/<experiment>/<timestamp>/
   index.jsonl
-  benchmark.json
+  summary.json
   timing.json
   <suite>/<case>/
     task/PROMPT.md

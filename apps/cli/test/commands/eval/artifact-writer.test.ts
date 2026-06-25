@@ -26,14 +26,14 @@ import {
 
 import {
   type AggregateGradingArtifact,
-  type BenchmarkArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
+  type RunSummaryArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
-  buildBenchmarkArtifact,
   buildGradingArtifact,
   buildIndexArtifactEntry,
+  buildRunSummaryArtifact,
   buildTimingArtifact,
   parseJsonlResults,
   writeArtifacts,
@@ -336,7 +336,7 @@ describe('buildTimingArtifact', () => {
 // Benchmark artifact
 // ---------------------------------------------------------------------------
 
-describe('buildBenchmarkArtifact', () => {
+describe('buildRunSummaryArtifact', () => {
   it('computes per-target statistics', () => {
     const results = [
       makeResult({ target: 'gpt-4', score: 0.9, durationMs: 30000 }),
@@ -344,7 +344,7 @@ describe('buildBenchmarkArtifact', () => {
       makeResult({ target: 'claude', score: 0.5, durationMs: 45000 }),
     ];
 
-    const benchmark = buildBenchmarkArtifact(results, 'test.eval.yaml');
+    const benchmark = buildRunSummaryArtifact(results, 'test.eval.yaml');
 
     expect(benchmark.metadata.eval_file).toBe('test.eval.yaml');
     expect(benchmark.metadata.targets).toEqual(['claude', 'gpt-4']);
@@ -371,7 +371,7 @@ describe('buildBenchmarkArtifact', () => {
       }),
     ];
 
-    const benchmark = buildBenchmarkArtifact(results);
+    const benchmark = buildRunSummaryArtifact(results);
 
     expect(benchmark.per_grader_summary).toBeDefined();
     expect(benchmark.per_grader_summary?.['quality:llm-grader'].mean).toBe(0.8);
@@ -380,7 +380,7 @@ describe('buildBenchmarkArtifact', () => {
   it('adds note when execution errors present', () => {
     const results = [makeResult({ executionStatus: 'execution_error', score: 0 })];
 
-    const benchmark = buildBenchmarkArtifact(results);
+    const benchmark = buildRunSummaryArtifact(results);
     expect(benchmark.notes).toContain(
       '1 test(s) had execution errors and are excluded from quality pass_rate',
     );
@@ -401,14 +401,14 @@ describe('buildBenchmarkArtifact', () => {
       }),
     ];
 
-    const benchmark = buildBenchmarkArtifact(results);
+    const benchmark = buildRunSummaryArtifact(results);
 
     expect(benchmark.run_summary['test-target'].pass_rate.mean).toBe(1);
     expect(benchmark.per_grader_summary?.['quality:llm-grader'].mean).toBe(1);
   });
 
   it('handles empty results', () => {
-    const benchmark = buildBenchmarkArtifact([]);
+    const benchmark = buildRunSummaryArtifact([]);
 
     expect(benchmark.metadata.targets).toEqual([]);
     expect(benchmark.metadata.tests_run).toEqual([]);
@@ -418,7 +418,7 @@ describe('buildBenchmarkArtifact', () => {
   it('includes cost_usd when available', () => {
     const results = [makeResult({ costUsd: 0.05 }), makeResult({ testId: 'test-2', costUsd: 0.1 })];
 
-    const benchmark = buildBenchmarkArtifact(results);
+    const benchmark = buildRunSummaryArtifact(results);
     const summary = benchmark.run_summary['test-target'];
     expect(summary.cost_usd).toBeDefined();
     expect(summary.cost_usd?.mean).toBe(0.075);
@@ -576,11 +576,10 @@ describe('buildIndexArtifactEntry', () => {
       }),
       {
         outputDir: '/tmp/artifacts',
-        gradingPath: '/tmp/artifacts/alpha/grading.json',
-        timingPath: '/tmp/artifacts/alpha/timing.json',
+        gradingPath: '/tmp/artifacts/alpha/run-1/grading.json',
+        timingPath: '/tmp/artifacts/alpha/run-1/timing.json',
         outputPath: '/tmp/artifacts/alpha/outputs/answer.md',
         answerPath: '/tmp/artifacts/alpha/outputs/answer.md',
-        inputPath: '/tmp/artifacts/alpha/task/PROMPT.md',
       },
     );
 
@@ -608,11 +607,32 @@ describe('buildIndexArtifactEntry', () => {
       ],
       execution_status: 'quality_failure',
       error: 'model drift',
-      grading_path: 'alpha/grading.json',
-      timing_path: 'alpha/timing.json',
+      grading_path: 'alpha/run-1/grading.json',
+      timing_path: 'alpha/run-1/timing.json',
       output_path: 'alpha/outputs/answer.md',
       answer_path: 'alpha/outputs/answer.md',
-      input_path: 'alpha/task/PROMPT.md',
+      trials: [
+        {
+          attempt: 0,
+          run_path: 'run-1',
+          score: 0.9,
+          verdict: 'pass',
+          scores: [
+            {
+              name: 'quality',
+              type: 'llm-grader',
+              score: 0.7,
+              assertions: [
+                { text: 'criterion-a', passed: true },
+                { text: 'criterion-b', passed: false },
+              ],
+            },
+          ],
+          error: 'model drift',
+          cost_usd: 0.25,
+          execution_status: 'quality_failure',
+        },
+      ],
     });
   });
 
@@ -633,8 +653,8 @@ describe('buildIndexArtifactEntry', () => {
       }),
       {
         outputDir: '/tmp/artifacts',
-        gradingPath: '/tmp/artifacts/alpha/grading.json',
-        timingPath: '/tmp/artifacts/alpha/timing.json',
+        gradingPath: '/tmp/artifacts/alpha/run-1/grading.json',
+        timingPath: '/tmp/artifacts/alpha/run-1/timing.json',
       },
     );
 
@@ -698,9 +718,9 @@ describe('parseJsonlResults', () => {
       artifactPointers: {
         transcript: {
           ref: 'agentv/artifacts/v1',
-          key: 'transcripts/pointer-row/transcript.jsonl',
+          key: 'transcripts/pointer-row/run-1/transcript-raw.jsonl',
           object_version: 'sha256:test',
-          path: 'pointer-row/transcript.jsonl',
+          path: 'pointer-row/run-1/transcript-raw.jsonl',
           sha256: 'test',
           size: 1,
           schema_version: 'agentv.transcript.v1',
@@ -719,7 +739,7 @@ describe('parseJsonlResults', () => {
       target: 'codex',
       score: 1,
       output: 'done',
-      raw_provider_log_path: 'raw-log-case/provider.log',
+      raw_provider_log_path: 'raw-log-case/run-1/provider.log',
     })}\n`;
 
     const results = parseJsonlResults(content);
@@ -815,7 +835,7 @@ describe('schema compatibility', () => {
   });
 
   it('benchmark run_summary has pass_rate/time_seconds/tokens with mean/stddev', () => {
-    const benchmark = buildBenchmarkArtifact([makeResult({})]);
+    const benchmark = buildRunSummaryArtifact([makeResult({})]);
     const summary = benchmark.run_summary['test-target'];
 
     expect(summary).toBeDefined();
@@ -843,7 +863,7 @@ describe('writeArtifactsFromResults', () => {
     await rm(testDir, { recursive: true, force: true }).catch(() => undefined);
   });
 
-  it('writes grading, timing, and benchmark files', async () => {
+  it('writes summary, index, and per-run artifact files', async () => {
     const results = [
       makeResult({ testId: 'alpha', score: 0.9, durationMs: 5000 }),
       makeResult({ testId: 'beta', score: 0.6, durationMs: 8000 }),
@@ -855,54 +875,47 @@ describe('writeArtifactsFromResults', () => {
 
     // Check per-test artifact directories
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual([
-      'alpha',
-      'benchmark.json',
-      'beta',
-      'index.jsonl',
-      'timing.json',
-    ]);
+    expect(artifactEntries.sort()).toEqual(['alpha', 'beta', 'index.jsonl', 'summary.json']);
 
     const alphaEntries = await readdir(path.join(paths.testArtifactDir, 'alpha'));
-    expect(alphaEntries.sort()).toEqual([
+    expect(alphaEntries.sort()).toEqual(['run-1', 'summary.json']);
+
+    const alphaRunEntries = await readdir(path.join(paths.testArtifactDir, 'alpha', 'run-1'));
+    expect(alphaRunEntries.sort()).toEqual([
       'grading.json',
       'metrics.json',
       'outputs',
+      'result.json',
       'timing.json',
-      'trace.json',
-      'transcript.jsonl',
+      'transcript-raw.jsonl',
+      'transcript.json',
     ]);
 
     const alphaGrading: GradingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'alpha', 'grading.json'), 'utf8'),
+      await readFile(path.join(paths.testArtifactDir, 'alpha', 'run-1', 'grading.json'), 'utf8'),
     );
     expect(alphaGrading.summary).toBeDefined();
     expect(alphaGrading).not.toHaveProperty('execution_metrics');
 
     const alphaTiming: TimingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'alpha', 'timing.json'), 'utf8'),
+      await readFile(path.join(paths.testArtifactDir, 'alpha', 'run-1', 'timing.json'), 'utf8'),
     );
     expect(alphaTiming.duration_ms).toBe(5000);
 
-    // Check timing
-    const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
-    expect(timing.duration_ms).toBe(13000);
-
-    // Check benchmark
-    const benchmark: BenchmarkArtifact = JSON.parse(await readFile(paths.benchmarkPath, 'utf8'));
-    expect(benchmark.metadata.eval_file).toBe('my-eval.yaml');
-    expect(benchmark.metadata.tests_run.sort()).toEqual(['alpha', 'beta']);
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.metadata.eval_file).toBe('my-eval.yaml');
+    expect(summary.metadata.tests_run.sort()).toEqual(['alpha', 'beta']);
+    expect(summary.timing.duration_ms).toBe(13000);
 
     const indexLines = (await readFile(paths.indexPath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as IndexArtifactEntry);
     expect(indexLines).toHaveLength(2);
-    expect(indexLines[0]?.grading_path).toBe('alpha/grading.json');
-    expect(indexLines[0]?.timing_path).toBe('alpha/timing.json');
-    expect(indexLines[0]?.trace_path).toBe('alpha/trace.json');
-    expect(indexLines[0]?.transcript_path).toBe('alpha/transcript.jsonl');
-    expect(indexLines[0]?.metrics_path).toBe('alpha/metrics.json');
+    expect(indexLines[0]?.summary_path).toBe('alpha/summary.json');
+    expect(indexLines[0]?.grading_path).toBe('alpha/run-1/grading.json');
+    expect(indexLines[0]?.timing_path).toBe('alpha/run-1/timing.json');
+    expect(indexLines[0]?.metrics_path).toBe('alpha/run-1/metrics.json');
   });
 
   it('writes repeat runs in Vercel-compatible case and run folders', async () => {
@@ -977,27 +990,14 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(indexEntry?.artifact_dir).toBe('repeat-case');
     expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
-    expect(indexEntry?.task_dir).toBe('repeat-case/task');
-    expect(indexEntry?.input_path).toBe('repeat-case/task/PROMPT.md');
-    expect(indexEntry?.benchmark_path).toBeUndefined();
-    expect(indexEntry?.grading_path).toBe('repeat-case/grading.json');
+    expect(indexEntry?.task_dir).toBeUndefined();
+    expect(indexEntry?.input_path).toBeUndefined();
+    expect(indexEntry?.grading_path).toBeUndefined();
     expect(indexEntry?.timing_path).toBeUndefined();
     expect(indexEntry?.metrics_path).toBeUndefined();
 
     const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
-    expect(repeatEntries.sort()).toEqual([
-      'grading.json',
-      'run-1',
-      'run-2',
-      'summary.json',
-      'task',
-    ]);
-
-    const prompt = await readFile(
-      path.join(paths.testArtifactDir, 'repeat-case', 'task', 'PROMPT.md'),
-      'utf8',
-    );
-    expect(prompt).toBe('@[user]:\nRepeat this task prompt.');
+    expect(repeatEntries.sort()).toEqual(['run-1', 'run-2', 'summary.json']);
 
     const caseSummary = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
@@ -1031,18 +1031,18 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(typeof caseSummary.fingerprint).toBe('string');
 
-    const aggregateGrading: GradingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
-    );
-    expect(aggregateGrading.trials).toEqual(indexEntry?.trials);
-    expect(aggregateGrading.aggregation).toEqual(indexEntry?.aggregation);
+    await expect(
+      readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
+    ).rejects.toThrow();
 
     for (const runDir of ['run-1', 'run-2']) {
       const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
       expect(runEntries.sort()).toEqual([
         'grading.json',
+        'metrics.json',
         'outputs',
         'result.json',
+        'timing.json',
         'transcript-raw.jsonl',
         'transcript.json',
       ]);
@@ -1094,13 +1094,11 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults([], testDir);
 
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual(['benchmark.json', 'index.jsonl', 'timing.json']);
+    expect(artifactEntries.sort()).toEqual(['index.jsonl', 'summary.json']);
 
-    const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
-    expect(timing.total_tokens).toBe(0);
-
-    const benchmark: BenchmarkArtifact = JSON.parse(await readFile(paths.benchmarkPath, 'utf8'));
-    expect(benchmark.notes).toContain('No results to summarize');
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.notes).toContain('No results to summarize');
+    expect(summary.timing.total_tokens).toBe(0);
     expect(await readFile(paths.indexPath, 'utf8')).toBe('');
   });
 
@@ -1122,13 +1120,13 @@ describe('writeArtifactsFromResults', () => {
     await writeArtifactsFromResults(results, testDir);
 
     const gradingOne: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-1', 'grading.json'), 'utf8'),
+      await readFile(path.join(testDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
     );
     const gradingTwo: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-2', 'grading.json'), 'utf8'),
+      await readFile(path.join(testDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
     );
     const timingOne: TimingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-1', 'timing.json'), 'utf8'),
+      await readFile(path.join(testDir, 'test-1', 'run-1', 'timing.json'), 'utf8'),
     );
 
     expect(gradingOne.summary.total).toBe(1);
@@ -1179,22 +1177,18 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptPath = path.join(testDir, 'transcript-case', 'transcript.jsonl');
+    const transcriptPath = path.join(testDir, 'transcript-case', 'run-1', 'transcript-raw.jsonl');
     const transcriptLines = (await readFile(transcriptPath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
 
-    const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'transcript-case', 'trace.json'), 'utf8')),
+    const transcriptMessages = JSON.parse(
+      await readFile(path.join(testDir, 'transcript-case', 'run-1', 'transcript.json'), 'utf8'),
     );
-    const projectedEnvelope = fromTraceEnvelopeWire(envelope);
-    const projectedTranscript = traceEnvelopeToTranscriptJsonLines(projectedEnvelope, {
-      testId: 'transcript-case',
-      target: 'codex',
-    });
 
-    expect(transcriptLines).toEqual(JSON.parse(JSON.stringify(projectedTranscript)));
+    expect(Array.isArray(transcriptMessages)).toBe(true);
+    expect(transcriptMessages).toHaveLength(2);
     expect(transcriptLines).toHaveLength(2);
     expect(transcriptLines[0]).toMatchObject({
       schema_version: 'agentv.transcript.v1',
@@ -1209,9 +1203,9 @@ describe('writeArtifactsFromResults', () => {
       capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
       trace: {
         schema_version: 'agentv.trace.v1',
-        artifact_id: envelope.artifact_id,
-        trace_id: envelope.trace.trace_id,
-        span_id: envelope.trace.root_span_id,
+        artifact_id: expect.any(String),
+        trace_id: expect.any(String),
+        span_id: expect.any(String),
       },
       source: {
         kind: 'agentv_run',
@@ -1242,8 +1236,8 @@ describe('writeArtifactsFromResults', () => {
           status: 'ok',
           trace: {
             schema_version: 'agentv.trace.v1',
-            artifact_id: envelope.artifact_id,
-            trace_id: envelope.trace.trace_id,
+            artifact_id: expect.any(String),
+            trace_id: expect.any(String),
           },
         },
       ],
@@ -1257,18 +1251,6 @@ describe('writeArtifactsFromResults', () => {
     expect(transcriptLines[1].tool_calls[0].trace.span_id).toBeTruthy();
     expect(transcriptLines[1]).not.toHaveProperty('provider_session_id');
     expect(transcriptLines[1]).not.toHaveProperty('providerSessionId');
-    expect(envelope.schema_version).toBe('agentv.trace.v1');
-    expect(envelope.artifact_id).toMatch(/^execution-trace-/);
-    expect(envelope.artifacts.trace_path).toBe(CANONICAL_TRACE_ARTIFACT_PATH);
-    expect(envelope.artifacts.transcript_path).toBe(CANONICAL_TRANSCRIPT_ARTIFACT_PATH);
-    expect(envelope.artifacts.metrics_path).toBe(CANONICAL_METRICS_ARTIFACT_PATH);
-    expect(envelope.artifacts).not.toHaveProperty('execution_trace_path');
-    expect(envelope.eval.test_id).toBe('transcript-case');
-    expect(envelope.trace.spans.map((span) => span.attributes['gen_ai.operation.name'])).toEqual([
-      'invoke_agent',
-      'chat',
-      'execute_tool',
-    ]);
     await expect(
       readFile(path.join(testDir, 'transcript-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
@@ -1276,40 +1258,12 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.trace_path).toBe('transcript-case/trace.json');
-    expect(indexLine.transcript_path).toBe('transcript-case/transcript.jsonl');
-    expect(indexLine.transcript_path.endsWith(CANONICAL_TRANSCRIPT_ARTIFACT_PATH)).toBe(true);
-    expect(indexLine.metrics_path).toBe('transcript-case/metrics.json');
+    expect(indexLine).not.toHaveProperty('trace_path');
+    expect(indexLine.transcript_path).toBe('transcript-case/run-1/transcript-raw.jsonl');
+    expect(indexLine.metrics_path).toBe('transcript-case/run-1/metrics.json');
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
 
-    const traceContent = await readFile(path.join(testDir, 'transcript-case', 'trace.json'));
-    const transcriptContent = await readFile(transcriptPath);
-    const traceSha = sha256Hex(traceContent);
-    const transcriptSha = sha256Hex(transcriptContent);
-
-    expect(indexLine.artifact_pointers.trace).toMatchObject({
-      ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'traces/transcript-case/trace.json',
-      object_version: `sha256:${traceSha}`,
-      path: 'transcript-case/trace.json',
-      sha256: traceSha,
-      size: traceContent.byteLength,
-      schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
-      media_type: TRACE_JSON_MEDIA_TYPE,
-      family: 'traces',
-    });
-    expect(indexLine.artifact_pointers.transcript).toMatchObject({
-      ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'transcripts/transcript-case/transcript.jsonl',
-      object_version: `sha256:${transcriptSha}`,
-      path: 'transcript-case/transcript.jsonl',
-      sha256: transcriptSha,
-      size: transcriptContent.byteLength,
-      schema_version: TRANSCRIPT_SCHEMA_VERSION,
-      media_type: TRANSCRIPT_JSONL_MEDIA_TYPE,
-      family: 'transcripts',
-    });
-    expect(indexLine.artifact_pointers).not.toHaveProperty('metrics');
+    expect(indexLine.artifact_pointers).toBeUndefined();
   });
 
   it('writes AgentV metrics as Agent Skills and Vercel-style behavior projections', async () => {
@@ -1406,16 +1360,18 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.metrics_path).toBe('summary-case/metrics.json');
+    expect(indexLine.metrics_path).toBe('summary-case/run-1/metrics.json');
 
     const summary = MetricsArtifactWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'summary-case', 'metrics.json'), 'utf8')),
+      JSON.parse(
+        await readFile(path.join(testDir, 'summary-case', 'run-1', 'metrics.json'), 'utf8'),
+      ),
     );
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
     expect(summary.source_artifacts).toMatchObject({
-      trace_path: CANONICAL_TRACE_ARTIFACT_PATH,
-      transcript_path: CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
+      trace_path: 'transcript.json',
+      transcript_path: 'transcript-raw.jsonl',
       grading_path: 'grading.json',
       timing_path: 'timing.json',
     });
@@ -1490,7 +1446,7 @@ describe('writeArtifactsFromResults', () => {
     expect(summary).not.toHaveProperty('usage_summary');
 
     const timing = JSON.parse(
-      await readFile(path.join(testDir, 'summary-case', 'timing.json'), 'utf8'),
+      await readFile(path.join(testDir, 'summary-case', 'run-1', 'timing.json'), 'utf8'),
     );
     expect(timing).toMatchObject({
       total_tokens: 140,
@@ -1545,18 +1501,22 @@ describe('writeArtifactsFromResults', () => {
     await writeArtifactsFromResults(results, testDir);
 
     const aggregateTiming = JSON.parse(
-      await readFile(path.join(testDir, 'aggregate-usage', 'timing.json'), 'utf8'),
+      await readFile(path.join(testDir, 'aggregate-usage', 'run-1', 'timing.json'), 'utf8'),
     );
     const estimatedTiming = JSON.parse(
-      await readFile(path.join(testDir, 'estimated-usage', 'timing.json'), 'utf8'),
+      await readFile(path.join(testDir, 'estimated-usage', 'run-1', 'timing.json'), 'utf8'),
     );
-    const runTiming = JSON.parse(await readFile(path.join(testDir, 'timing.json'), 'utf8'));
+    const runSummary = JSON.parse(await readFile(path.join(testDir, 'summary.json'), 'utf8'));
 
     MetricsArtifactWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'aggregate-usage', 'metrics.json'), 'utf8')),
+      JSON.parse(
+        await readFile(path.join(testDir, 'aggregate-usage', 'run-1', 'metrics.json'), 'utf8'),
+      ),
     );
     MetricsArtifactWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'estimated-usage', 'metrics.json'), 'utf8')),
+      JSON.parse(
+        await readFile(path.join(testDir, 'estimated-usage', 'run-1', 'metrics.json'), 'utf8'),
+      ),
     );
 
     expect(aggregateTiming).toMatchObject({
@@ -1581,7 +1541,7 @@ describe('writeArtifactsFromResults', () => {
         duration: 'unavailable',
       },
     });
-    expect(runTiming).toMatchObject({
+    expect(runSummary.timing).toMatchObject({
       total_tokens: 20,
       cost_usd: 0.002,
       usage_sources: {
@@ -1614,10 +1574,10 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'provider.log');
+    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'run-1', 'provider.log');
     expect(await readFile(copiedRawLogPath, 'utf8')).toBe(rawLog);
 
-    const transcriptPath = path.join(testDir, 'raw-log-case', 'transcript.jsonl');
+    const transcriptPath = path.join(testDir, 'raw-log-case', 'run-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toContain(
       '"schema_version":"agentv.transcript.v1"',
     );
@@ -1625,17 +1585,16 @@ describe('writeArtifactsFromResults', () => {
       readFile(path.join(testDir, 'raw-log-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
 
-    const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'raw-log-case', 'trace.json'), 'utf8')),
+    const transcriptMessages = JSON.parse(
+      await readFile(path.join(testDir, 'raw-log-case', 'run-1', 'transcript.json'), 'utf8'),
     );
-    expect(envelope.artifacts.raw_provider_log_path).toBe('provider.log');
-    expect(envelope.artifacts.transcript_path).toBe('transcript.jsonl');
+    expect(Array.isArray(transcriptMessages)).toBe(true);
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
-    expect(indexLine.raw_provider_log_path).toBe('raw-log-case/provider.log');
-    expect(indexLine.transcript_path).toBe('raw-log-case/transcript.jsonl');
+    expect(indexLine.raw_provider_log_path).toBeUndefined();
+    expect(indexLine.transcript_path).toBe('raw-log-case/run-1/transcript-raw.jsonl');
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
@@ -1681,13 +1640,12 @@ describe('writeArtifactsFromResults', () => {
     expect(JSON.stringify(indexLine)).not.toContain('secret');
     expect(JSON.stringify(indexLine)).not.toContain('api_key');
 
-    const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'external-trace-case', 'trace.json'), 'utf8')),
+    const transcriptJson = await readFile(
+      path.join(testDir, 'external-trace-case', 'run-1', 'transcript.json'),
+      'utf8',
     );
-    expect(envelope.external_trace).toEqual(indexLine.external_trace);
-    expect(envelope.source.metadata ?? {}).not.toHaveProperty('external_trace');
-    expect(JSON.stringify(envelope)).not.toContain('secret');
-    expect(JSON.stringify(envelope)).not.toContain('api_key');
+    expect(transcriptJson).not.toContain('secret');
+    expect(transcriptJson).not.toContain('api_key');
   });
 
   it('omits per-test transcript links when the execution trace has no transcript rows', async () => {
@@ -1701,30 +1659,20 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptPath = path.join(testDir, 'no-transcript-case', 'transcript.jsonl');
+    const transcriptPath = path.join(
+      testDir,
+      'no-transcript-case',
+      'run-1',
+      'transcript-raw.jsonl',
+    );
     await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('transcript_path');
-    expect(indexLine.metrics_path).toBe('no-transcript-case/metrics.json');
-    expect(indexLine.artifact_pointers.trace).toMatchObject({
-      ref: AGENTV_RESULTS_ARTIFACTS_REF,
-      key: 'traces/no-transcript-case/trace.json',
-      path: 'no-transcript-case/trace.json',
-      schema_version: EXECUTION_TRACE_SCHEMA_VERSION,
-      media_type: TRACE_JSON_MEDIA_TYPE,
-      family: 'traces',
-    });
-    expect(indexLine.artifact_pointers).not.toHaveProperty('transcript');
-    expect(indexLine.artifact_pointers).not.toHaveProperty('metrics');
-
-    const envelope = TraceEnvelopeWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'no-transcript-case', 'trace.json'), 'utf8')),
-    );
-    expect(envelope.artifacts).not.toHaveProperty('transcript_path');
-    expect(envelope.artifacts.metrics_path).toBe(CANONICAL_METRICS_ARTIFACT_PATH);
+    expect(indexLine.metrics_path).toBe('no-transcript-case/run-1/metrics.json');
+    expect(indexLine.artifact_pointers).toBeUndefined();
   });
 
   it('sanitizes test IDs for directory names', async () => {
@@ -1749,10 +1697,10 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults(results, testDir);
     const indexLines = (await readFile(paths.indexPath, 'utf8')).trim().split('\n').map(JSON.parse);
 
-    expect(indexLines[0].grading_path).toBe('shared-id/grading.json');
+    expect(indexLines[0].grading_path).toBe('shared-id/run-1/grading.json');
 
     const grading: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'shared-id', 'grading.json'), 'utf8'),
+      await readFile(path.join(testDir, 'shared-id', 'run-1', 'grading.json'), 'utf8'),
     );
 
     expect(grading.assertions[0].text).toBe('baseline-check');
@@ -1768,7 +1716,7 @@ describe('writeArtifactsFromResults', () => {
       .trim()
       .split('\n')
       .map(JSON.parse);
-    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/grading.json');
+    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
   });
 
   it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {
@@ -2078,8 +2026,8 @@ describe('writeArtifacts (from JSONL file)', () => {
     expect(artifactEntries).toContain('from-file');
     expect(artifactEntries).toContain('index.jsonl');
 
-    const timing: TimingArtifact = JSON.parse(await readFile(paths.timingPath, 'utf8'));
-    expect(timing.duration_ms).toBe(12000);
-    expect(timing.total_tokens).toBe(700);
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.timing.duration_ms).toBe(12000);
+    expect(summary.timing.total_tokens).toBe(700);
   });
 });

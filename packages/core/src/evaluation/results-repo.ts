@@ -53,7 +53,6 @@ const GIT_ENV_INHERIT_ALLOWLIST = new Set([
   'GIT_USERNAME',
 ]);
 export const DEFAULT_RESULTS_BRANCH = AGENTV_RESULTS_PRIMARY_REF;
-const MANAGED_RESULTS_REMOTE = 'agentv-results';
 const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // The results branch is a self-rooted orphan whose first commit is a fixed,
 // byte-identical empty-tree genesis. Pinning the message, identity, and dates
@@ -383,9 +382,7 @@ export function normalizeResultsConfig(
   const repo = repoUrl ?? repoPath ?? '';
   const branch = config.branch?.trim() || (repoPath ? DEFAULT_RESULTS_BRANCH : undefined);
   const useStorageBranchWorktree = Boolean(repoPath || (repoUrl && explicitClonePath && branch));
-  const remote =
-    config.remote?.trim() ||
-    (repoUrl && useStorageBranchWorktree ? MANAGED_RESULTS_REMOTE : 'origin');
+  const remote = config.remote?.trim() || 'origin';
   const autoPush = config.sync?.auto_push ?? config.auto_push === true;
   const requirePush = config.sync?.require_push === true;
   const configuredPushConflictPolicy = (
@@ -908,36 +905,6 @@ async function addResultsGitattributesToIndex(
   }
 }
 
-async function ensureResultsRepoRemote(
-  repoDir: string,
-  config: NormalizedResultsConfig,
-): Promise<void> {
-  if (!config.repo_url) {
-    return;
-  }
-
-  const remoteUrl = resolveResultsRepoUrl(config.repo_url);
-  // Same-repo results push to the project's existing remote (typically
-  // `origin`). Never rewrite that remote to a value that is not a real Git
-  // remote URL (e.g. a local results path or `.`), which would otherwise
-  // clobber a correct origin with a synthesized URL.
-  if (!isExplicitRemoteUrl(remoteUrl)) {
-    return;
-  }
-  const { stdout } = await runGit(['remote', 'get-url', config.remote], {
-    cwd: repoDir,
-    check: false,
-  });
-  const existingUrl = stdout.trim();
-  if (!existingUrl) {
-    await runGit(['remote', 'add', config.remote, remoteUrl], { cwd: repoDir });
-    return;
-  }
-  if (existingUrl !== remoteUrl) {
-    await runGit(['remote', 'set-url', config.remote, remoteUrl], { cwd: repoDir });
-  }
-}
-
 function updateStatusFile(
   config: ResultsConfig | NormalizedResultsConfig,
   patch: PersistedStatus,
@@ -977,10 +944,10 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
       await runGit([
         'clone',
         '--filter=blob:none',
+        ...(normalized.remote === 'origin' ? [] : ['--origin', normalized.remote]),
         resolveResultsRepoUrl(normalized.repo_url ?? normalized.repo),
         cloneDir,
       ]);
-      await ensureResultsRepoRemote(cloneDir, normalized);
       await ensureResultsMergeConfig(cloneDir);
       return cloneDir;
     } catch (error) {
@@ -993,7 +960,6 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
     throw new Error(`Results repo clone path is not a git repository: ${cloneDir}`);
   }
 
-  await ensureResultsRepoRemote(cloneDir, normalized);
   await ensureResultsMergeConfig(cloneDir);
   return cloneDir;
 }
@@ -2128,7 +2094,6 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
   }
 
   try {
-    await ensureResultsRepoRemote(normalized.path, normalized);
     if (usesStorageBranchWorktree(normalized)) {
       await fetchResultsRepo(normalized.path, normalized.remote, normalized.branch).catch(
         () => undefined,
@@ -3790,7 +3755,7 @@ export interface GitListedRun {
   pass_rate?: number;
   target?: string;
   manifest_path: string;
-  benchmark_path: string;
+  summary_path?: string;
   display_name: string;
   test_count: number;
   avg_score: number;
@@ -3802,7 +3767,7 @@ type GitBatchBlob = {
   readonly content: Buffer;
 };
 
-type GitRunBenchmark = {
+type GitRunSummary = {
   readonly metadata?: {
     readonly display_name?: string;
     readonly timestamp?: string;
@@ -3832,8 +3797,8 @@ function buildGitRunId(relativeRunPath: string): string {
   return segments[0] ?? relativeRunPath;
 }
 
-function getRunExperiment(runId: string, benchmark: GitRunBenchmark): string {
-  const experiment = benchmark.metadata?.experiment?.trim();
+function getRunExperiment(runId: string, summary: GitRunSummary | undefined): string {
+  const experiment = summary?.metadata?.experiment?.trim();
   if (experiment) {
     return experiment;
   }
@@ -3842,7 +3807,7 @@ function getRunExperiment(runId: string, benchmark: GitRunBenchmark): string {
   return separatorIndex === -1 ? 'default' : runId.slice(0, separatorIndex);
 }
 
-function computeAveragePassRate(runSummary: GitRunBenchmark['run_summary']): number | undefined {
+function computeAveragePassRate(runSummary: GitRunSummary['run_summary']): number | undefined {
   if (!runSummary) {
     return undefined;
   }
@@ -4158,45 +4123,97 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
     throw error;
   }
 
-  const benchmarkPaths = treeOut
+  const treePaths = treeOut
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.endsWith('/benchmark.json'));
-  if (benchmarkPaths.length === 0) {
+    .filter(Boolean);
+  const indexPaths = treePaths.filter((line) => line.endsWith('/index.jsonl'));
+  if (indexPaths.length === 0) {
     return [];
   }
 
-  const batchInput = `${benchmarkPaths.map((benchmarkPath) => `${ref}:${benchmarkPath}`).join('\n')}\n`;
+  const batchInput = `${indexPaths.map((indexPath) => `${ref}:${indexPath}`).join('\n')}\n`;
   const blobs = parseGitBatchBlobs(await runGitBatch(repoDir, batchInput));
-  if (blobs.length !== benchmarkPaths.length) {
+  if (blobs.length !== indexPaths.length) {
     throw new Error(
-      `Expected ${benchmarkPaths.length} git blobs but received ${blobs.length} while listing results runs`,
+      `Expected ${indexPaths.length} git blobs but received ${blobs.length} while listing results runs`,
     );
   }
 
+  const summaryPaths = indexPaths
+    .map((indexPath) => path.posix.join(path.posix.dirname(indexPath), 'summary.json'))
+    .filter((summaryPath) => treePaths.includes(summaryPath));
+  const summaryByPath = new Map<string, GitRunSummary>();
+  if (summaryPaths.length > 0) {
+    const summaryBatchInput = `${summaryPaths.map((summaryPath) => `${ref}:${summaryPath}`).join('\n')}\n`;
+    const summaryBlobs = parseGitBatchBlobs(await runGitBatch(repoDir, summaryBatchInput));
+    for (let i = 0; i < summaryBlobs.length; i++) {
+      const summaryPath = summaryPaths[i];
+      const blob = summaryBlobs[i];
+      if (!summaryPath || !blob) continue;
+      summaryByPath.set(summaryPath, JSON.parse(blob.content.toString('utf8')) as GitRunSummary);
+    }
+  }
+
   const runs = blobs.flatMap((blob, index): GitListedRun[] => {
-    const benchmarkPath = benchmarkPaths[index];
-    const benchmark = JSON.parse(blob.content.toString('utf8')) as GitRunBenchmark;
-    const runDir = path.posix.dirname(benchmarkPath);
+    const manifestPath = indexPaths[index];
+    const runDir = path.posix.dirname(manifestPath);
+    const summaryPath = path.posix.join(runDir, 'summary.json');
+    const summary = summaryByPath.get(summaryPath);
     const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);
     const runId = buildGitRunId(relativeRunPath);
-    const timestamp = benchmark.metadata?.timestamp?.trim() || path.posix.basename(runDir);
-    const displayName = benchmark.metadata?.display_name?.trim() || path.posix.basename(runDir);
-    const targets = benchmark.metadata?.targets ?? [];
-    const passRate = computeAveragePassRate(benchmark.run_summary);
+    const rows = blob.content
+      .toString('utf8')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .flatMap(
+        (line): { timestamp?: string; target?: string; test_id?: string; score?: number }[] => {
+          try {
+            return [
+              JSON.parse(line) as {
+                timestamp?: string;
+                target?: string;
+                test_id?: string;
+                score?: number;
+              },
+            ];
+          } catch {
+            return [];
+          }
+        },
+      );
+    const rowTargets = [
+      ...new Set(rows.map((row) => row.target).filter((target): target is string => !!target)),
+    ];
+    const rowTestIds = [
+      ...new Set(rows.map((row) => row.test_id).filter((testId): testId is string => !!testId)),
+    ];
+    const rowScores = rows
+      .map((row) => row.score)
+      .filter((score): score is number => typeof score === 'number' && Number.isFinite(score));
+    const avgScore =
+      rowScores.length > 0
+        ? rowScores.reduce((sum, score) => sum + score, 0) / rowScores.length
+        : 0;
+    const timestamp =
+      summary?.metadata?.timestamp?.trim() || rows[0]?.timestamp || path.posix.basename(runDir);
+    const displayName = summary?.metadata?.display_name?.trim() || path.posix.basename(runDir);
+    const targets = summary?.metadata?.targets ?? rowTargets;
+    const passRate = computeAveragePassRate(summary?.run_summary) ?? avgScore;
 
     return [
       {
         run_id: runId,
-        experiment: getRunExperiment(runId, benchmark),
+        experiment: getRunExperiment(runId, summary),
         timestamp,
         ...(passRate !== undefined && { pass_rate: passRate }),
         ...(targets.length === 1 && targets[0] ? { target: targets[0] } : {}),
-        manifest_path: path.posix.join(runDir, 'index.jsonl'),
-        benchmark_path: benchmarkPath,
+        manifest_path: manifestPath,
+        ...(summaryByPath.has(summaryPath) && { summary_path: summaryPath }),
         display_name: displayName,
-        test_count: benchmark.metadata?.tests_run?.length ?? 0,
-        avg_score: 0,
+        test_count: summary?.metadata?.tests_run?.length ?? rowTestIds.length,
+        avg_score: avgScore,
         size_bytes: blob.size,
       },
     ];

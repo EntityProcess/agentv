@@ -100,7 +100,7 @@ Before introducing AgentV-specific contract shapes, implementation should check 
 | Reference | Lowest common denominator to reuse | Intentional AgentV divergence |
 | --- | --- | --- |
 | Claude Skills schema | Use assertion, expectation, grading, `passed`, `failed`, `total`, and assertion-level `pass_rate` vocabulary for graders that expose assertion counts. | Do not copy the full skill-eval artifact shape. AgentV keeps `.agentv/results/<experiment>/<timestamp>/...` as the portable run bundle and uses `attempt_success_rate` for repeat-run reliability. |
-| Vercel `agent-eval` | Reuse fixture-driven hidden verifier ergonomics, case-level `summary.json`, and durable `run-1`, `run-2` attempt directories. | Keep AgentV root `benchmark.json` for current run-level compatibility, but do not write per-attempt `benchmark.json`. Rename Vercel `passRate` to `attempt_success_rate` where attempt-frequency stats are exposed in AgentV-specific artifacts. Do not inherit ambiguous CLI gating semantics. |
+| Vercel `agent-eval` | Reuse fixture-driven hidden verifier ergonomics, root `summary.json`, root `index.jsonl`, case-level `summary.json`, and durable `run-1`, `run-2` attempt directories. | Do not write the retired root benchmark file or a compatibility alias. Keep AgentV attempt-local `grading.json`, `metrics.json`, and `timing.json` as value-add sidecars. Rename Vercel `passRate` to `attempt_success_rate` where attempt-frequency stats are exposed in AgentV-specific artifacts. Do not inherit ambiguous CLI gating semantics. |
 | Hugging Face Datasets | Keep dataset, split, record, features, and row-oriented corpus vocabulary for eval inputs and benchmark corpora. Treat an AgentV case as a record-like unit when mapping to external datasets. | Do not require Arrow, the Hub, DatasetDict, or HF storage layout. AgentV cases remain repo files or generated case records inside benchmark/project artifacts. |
 | OpenInference | Preserve trace/span/tool-call/model-observability semantics when naming trace metadata and external trace correlation fields. | Do not require OpenTelemetry collection, Phoenix, or OpenInference export as core runtime infrastructure. AgentV stores portable traces/transcripts as artifacts and supports link-out correlation through `external_trace` metadata. |
 
@@ -150,9 +150,9 @@ Public docs and implementation notes must not reference non-public sources. If a
 
 - KTD1. The repeat config attaches to the **experiment** surface, not to `eval.yaml` `execution`, per the experiments-separation decision (epic `av-991`, recorded on `av-991.1`). This aligns with Vercel agent-eval, where `runs`/`earlyExit` are experiment-level. This epic (`av-i0l`) owns the repeat **mechanics** (schema shape, gate policies, attempt aggregation, flake classification, and the run-N artifact layout); `av-991` owns **placement** (the experiment contract the repeat block lives on). The existing `execution.trials` code path is **hard-removed** (no compatibility alias) because usage is rare; its behavior is replaced by the experiment-level repeat block. Because the experiment surface is delivered by `av-991`, the schema work in `av-i0l.1` depends on that contract landing.
 - KTD2. Keep one-run CI as the default. Repeat runs are for reliability evidence unless `repeat.gate` says they are a CI gate.
-- KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json`, `grading.json`, and `run-N/` directories so existing aggregate consumers do not inflate case counts.
-- KTD4. Single-run cases keep direct case-local files instead of always nesting under `run-1`. This preserves the simple default artifact shape and makes `.agentv/results/<experiment>/<timestamp>/<case-id>/grading.json` easy to inspect. Repeat-enabled cases use `run-1/`, `run-2/`, and so on under the case directory.
-- KTD5. Root run aggregates keep the existing AgentV `benchmark.json` for compatibility. Repeat case aggregates use `summary.json` with flattened snake_case timing fields plus AgentV aggregate `grading.json`; repeat attempts use `run-N/` children.
+- KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json` plus `run-N/` directories so existing aggregate consumers do not inflate case counts.
+- KTD4. Single-run cases also nest the lone attempt under `run-1`, matching Vercel's durable attempt directory shape and keeping future repeat expansion append-only.
+- KTD5. Root run aggregates use `summary.json`, which supersedes the old AgentV benchmark file; no compatibility alias is written. Root `index.jsonl` is the discovery anchor for both local and git-backed remote discovery.
 - KTD6. `pass_at_k` keeps the existing AgentV/Vercel ergonomics: early exit is enabled unless explicitly disabled. Full reliability sampling requires `early_exit: false` on the experiment and should be recorded because it changes cost and statistics.
 - KTD7. Do not inherit Vercel's implicit CI ambiguity. All policies that can make one failed plus one passed attempt count as passing must be visible in config and artifacts.
 - KTD8. Reuse current failure classification fields before adding new enums. Add aggregate classification fields only after mapping from `execution_status`, `failure_stage`, and `failure_reason_code` proves insufficient.
@@ -239,20 +239,22 @@ This design assumes the in-flight artifact layout migration moves local run bund
 
 ### Single-Run Case
 
-Single-run cases keep direct case-local files:
+Single-run cases use the same case summary plus attempt directory layout as repeated cases:
 
 ```text
 .agentv/results/<experiment>/<timestamp>/index.jsonl
-.agentv/results/<experiment>/<timestamp>/benchmark.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/grading.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/timing.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/task/PROMPT.md
-.agentv/results/<experiment>/<timestamp>/<case-id>/outputs/trace.json
-.agentv/results/<experiment>/<timestamp>/<case-id>/outputs/transcript.jsonl
-.agentv/results/<experiment>/<timestamp>/<case-id>/outputs/answer.md
+.agentv/results/<experiment>/<timestamp>/summary.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/summary.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/timing.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript-raw.jsonl
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/outputs/answer.md
 ```
 
-Rationale: the common path stays readable, old mental models stay close, and no user pays a `run-1/` nesting tax for default CI.
+Rationale: the common path now matches Vercel's repeat-ready attempt layout. AgentV keeps attempt-local grading, metrics, timing, transcript, and output sidecars; it does not emit generated prompt sidecars.
 
 ### Repeat-Run Case
 
@@ -263,11 +265,15 @@ Repeat-run cases use attempt directories:
 .agentv/results/<experiment>/<timestamp>/<case-id>/grading.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/grading.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/metrics.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-1/timing.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/transcript-raw.jsonl
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-1/outputs/answer.md
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/result.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/grading.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/metrics.json
+.agentv/results/<experiment>/<timestamp>/<case-id>/run-2/timing.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript.json
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/transcript-raw.jsonl
 .agentv/results/<experiment>/<timestamp>/<case-id>/run-2/outputs/answer.md
@@ -275,8 +281,9 @@ Repeat-run cases use attempt directories:
 
 Each `run-N/result.json` is the per-attempt manifest. It carries paths such as
 `grading_path`, `transcript_path`, `transcript_raw_path`, `output_paths.answer`,
-plus embedded timing/o11y metrics so repeat attempts do not need a separate
-`metrics.json` sidecar.
+plus embedded timing/o11y metrics. AgentV also writes attempt-local
+`grading.json`, `metrics.json`, and `timing.json` sidecars for inspection,
+dashboard rendering, and compatibility with Agent Skills-style evidence.
 
 `<case-id>` should reuse the sanitized artifact key produced by the current artifact writer, including suite disambiguation where needed. Attempt directories are one-indexed because users naturally inspect `run-1`, `run-2`, and this matches the Vercel comparison.
 
@@ -312,7 +319,7 @@ Threshold behavior:
 - `mean_score_at_least` operates on `mean_score` and should be included in v1 only if the implementation can reuse existing numeric score semantics without widening grader contracts.
 - Execution errors do not silently become quality failures. They are counted in `execution_error_attempts` and affect gates according to the selected policy.
 
-Benchmark reporting should add target and suite aggregate reliability stats where they can be computed from case summaries. It should not replace `benchmark.json` with a new database or flatten attempts into extra top-level tests.
+Benchmark reporting should add target and suite aggregate reliability stats where they can be computed from case summaries. It should not replace root `summary.json` with a new database, reintroduce the retired benchmark file, or flatten attempts into extra top-level tests.
 
 ---
 
@@ -376,7 +383,7 @@ Dashboard should present repeat-run cases aggregate-first:
 - Attempt drill-down lists `run-1`, `run-2`, and so on with score, status, duration, cost, failure reason, and retry/exclusion reason.
 - Selecting an attempt opens the same Checks, Transcript, Source, Files, and Feedback affordances as a normal single-run result.
 - Dashboard must not hide individual traces, transcripts, raw provider logs, or grader output behind the aggregate.
-- Historical single-run rows render as they do today, with `summary.json` absent.
+- Historical direct-sidecar single-run rows render as they do today, even when case `summary.json` or `run-1` paths are absent.
 
 For trend and compare views, repeat aggregates should be the default unit. Attempt-level views can be added as a filter later, but they must not silently change run-level counts.
 
@@ -419,7 +426,7 @@ For trend and compare views, repeat aggregates should be the default unit. Attem
   "attempts": [
     {
       "run": 1,
-      "artifact_dir": "case-1/run-1",
+      "run_path": "run-1",
       "score": 0.9,
       "execution_status": "ok",
       "duration_ms": 118000
@@ -487,12 +494,12 @@ Repeat runs can multiply provider spend. V1 should ship with conservative contro
 
 **Files:** `packages/core/src/evaluation/run-artifacts.ts`, `packages/core/src/evaluation/result-row-schema.ts`, `apps/cli/src/commands/eval/artifact-writer.ts`, `apps/cli/src/commands/eval/result-layout.ts`, `apps/cli/test/commands/eval/artifact-writer.test.ts`, `apps/cli/test/commands/eval/aggregate.test.ts`, `apps/cli/test/commands/results/validate.test.ts`.
 
-**Approach:** Extend the artifact writer to understand aggregate results with attempt children. Keep single-run case sidecars direct, add case-local `summary.json` for repeat aggregates, and add optional repeat fields to index rows. Avoid putting full attempt payloads in `index.jsonl`.
+**Approach:** Extend the artifact writer to understand aggregate results with attempt children. Use case-local `summary.json` for every case, store single-run and repeated attempts under `run-N/`, and add optional repeat fields to index rows. Avoid putting full attempt payloads in `index.jsonl`.
 
 **Test Scenarios:**
 
-- Single-run output writes direct case-local sidecars and remains readable by existing manifest hydration.
-- Repeat-run output writes `summary.json` and `run-1/`, `run-2/` sidecars with correct relative paths.
+- Single-run output writes case `summary.json` plus `run-1/` sidecars and remains readable by existing manifest hydration.
+- Repeat-run output writes case `summary.json` and `run-1/`, `run-2/` sidecars with correct relative paths.
 - `index.jsonl` has one aggregate row per case/target and compact attempt references.
 - Historical rows without repeat fields parse successfully.
 - Validation reports missing attempt sidecars when a repeat summary points to absent `run-N` artifacts.

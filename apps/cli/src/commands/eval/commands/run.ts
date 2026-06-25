@@ -52,7 +52,7 @@ export const evalRunCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Run artifact directory (writes index.jsonl, benchmark.json, timing, and per-test artifacts)',
+        'Run artifact directory (writes index.jsonl, summary.json, and per-case artifacts)',
     }),
     outputFormat: option({
       type: optional(string),

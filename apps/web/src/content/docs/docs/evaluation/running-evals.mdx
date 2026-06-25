@@ -80,7 +80,7 @@ Dry-run returns mock responses that don't match grader output schemas. Use it on
 
 ### Custom Output Directory
 
-Write all artifacts (index.jsonl, benchmark.json, per-test grading/timing) to a specific directory:
+Write all artifacts (index.jsonl, summary.json, per-test grading/timing) to a specific directory:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./my-results
@@ -110,12 +110,17 @@ Typical layout:
 ```text
 my-results/
   index.jsonl
-  benchmark.json
+  summary.json
   <test-id>/
-    grading.json
-    timing.json
-    task/PROMPT.md
-    outputs/answer.md
+    summary.json
+    run-1/
+      result.json
+      grading.json
+      metrics.json
+      timing.json
+      transcript.json
+      transcript-raw.jsonl
+      outputs/answer.md
     task/
       EVAL.yaml
       targets.yaml
@@ -133,9 +138,8 @@ tests while authoring an eval, but they are optional input organization rather
 than a separate artifact schema.
 
 If the source eval uses the `PROMPT.md` fallback instead of inline `input`,
-AgentV still writes the resolved task prompt to the generated
-`task/PROMPT.md`. This keeps the run artifact self-contained without requiring
-the same long prompt to be duplicated in both Markdown and YAML.
+AgentV records the generated task bundle metadata when source artifacts are
+available. It no longer emits a generated prompt sidecar for result rows.
 
 ### Manual or External-Agent Attempts
 
@@ -457,7 +461,7 @@ When automatic remote publishing sees pointers whose `ref` is
 `agentv/artifacts/v1` branch in the same results remote at
 `runs/<run-path>/<pointer.path>` and rewrites the published pointer `key` to
 that backend object key. The configured results branch is the metadata/control
-plane for `index.jsonl`, `benchmark.json`, tags, and pointers; it does not
+plane for `index.jsonl`, `summary.json`, tags, and pointers; it does not
 duplicate canonical trace/transcript payload bodies when those rows name
 `agentv/artifacts/v1`. Local pre-publish run workspaces can still contain the
 files beside the manifest, and Dashboard resolves the published pointers lazily

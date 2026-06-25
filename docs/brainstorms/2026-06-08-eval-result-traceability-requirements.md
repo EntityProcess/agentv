@@ -15,7 +15,7 @@ AgentV Dashboard result detail should make an eval result traceable back to the 
 
 The current result artifacts explain what happened in a run, but not enough about where the definition came from. A Dashboard user can see output, score, assertions, and artifact files, yet must manually leave the run, find the source repository, locate the eval YAML, identify the right `test_id`, and resolve any file-backed inputs or grader prompts.
 
-WTG.AI.Prompts PR #679 exposed the gap. The final eval run for `evals/cargowise/database/data-transformation-pr50857-e2e.eval.yaml` passed, and the run artifact includes `test_id`, grader scores, `input.md`, `response.md`, `grading.json`, and `benchmark.json.metadata.eval_file`. It does not provide a compact Dashboard path from a result row to the source YAML test block, the structured `type: file` snippets, or the grader definitions that produced the score.
+WTG.AI.Prompts PR #679 exposed the gap. The final eval run for `evals/cargowise/database/data-transformation-pr50857-e2e.eval.yaml` passed, and the run artifact includes `test_id`, grader scores, `input.md`, `response.md`, `grading.json`, and `summary.json.metadata.eval_file`. It does not provide a compact Dashboard path from a result row to the source YAML test block, the structured `type: file` snippets, or the grader definitions that produced the score.
 
 The goal is not a full provenance system. AgentV should keep the core local-first and git-friendly: capture the eval-source facts available at run time, persist them in reviewable artifacts, and let Dashboard render them.
 
@@ -54,7 +54,7 @@ The goal is not a full provenance system. AgentV should keep the core local-firs
 
 **Compatibility And Safety**
 
-- R14. Existing `index.jsonl`, `benchmark.json`, `grading.json`, `input.md`, `response.md`, and `transcript.jsonl` consumers must keep working unchanged.
+- R14. Existing `index.jsonl`, `summary.json`, `grading.json`, `input.md`, `response.md`, and `transcript.jsonl` consumers must keep working unchanged.
 - R15. New artifact fields must be optional and backward compatible for historical runs.
 - R16. The artifact must avoid capturing environment variables, provider credentials, or workspace-local machine secrets.
 - R17. Large referenced files should be bounded by size limits with explicit truncation metadata; v1 may skip oversized content if it records path, hash when available, size, and reason.

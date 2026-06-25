@@ -7,7 +7,7 @@
  * Writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
  *   - index.jsonl             (one line per test)
- *   - benchmark.json          (aggregate statistics)
+ *   - summary.json            (aggregate statistics)
  */
 import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
@@ -199,9 +199,9 @@ export const evalBenchCommand = command({
       'utf8',
     );
 
-    // Write benchmark.json
+    // Write summary.json
     const passRateStats = computeStats(allPassRates);
-    const benchmark = {
+    const summary = {
       metadata: {
         eval_file: manifest.eval_file,
         timestamp: manifest.timestamp,
@@ -216,11 +216,24 @@ export const evalBenchCommand = command({
           tokens: { mean: 0, stddev: 0 },
         },
       },
+      timing: {
+        total_tokens: 0,
+        duration_ms: 0,
+        total_duration_seconds: 0,
+        cost_usd: null,
+        token_usage: { input: 0, output: 0, reasoning: 0 },
+        usage_sources: {
+          token_usage: 'unavailable',
+          total_tokens: 'unavailable',
+          duration: 'unavailable',
+          cost: 'unavailable',
+        },
+      },
       notes: [],
     };
     await writeFile(
-      join(exportDir, 'benchmark.json'),
-      `${JSON.stringify(benchmark, null, 2)}\n`,
+      join(exportDir, 'summary.json'),
+      `${JSON.stringify(summary, null, 2)}\n`,
       'utf8',
     );
 

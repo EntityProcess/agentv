@@ -7,7 +7,7 @@
  */
 
 import { isExecutionError } from './result-summary';
-import type { EvalResult, ScoreEntry } from './types';
+import type { AssertionEntry, EvalCaseTrial, EvalResult, ScoreEntry } from './types';
 
 export type ResultTableViewId =
   | 'all'
@@ -76,9 +76,27 @@ export interface ResultTableRow {
   readonly searchText: string;
 }
 
+export interface RepeatRunGroup {
+  readonly row: ResultTableRow;
+  readonly trials: readonly EvalCaseTrial[];
+  readonly trialCount: number;
+  readonly passedTrials: number;
+  readonly failedTrials: number;
+  readonly passRate: number;
+  readonly meanScore: number;
+  readonly assertionCount: number;
+  readonly passedAssertions: number;
+  readonly assertionPassRate?: number;
+  readonly meanDurationMs?: number;
+  readonly totalToolCalls?: number;
+  readonly artifactCount: number;
+}
+
 export interface ResultTableModel {
   readonly rows: readonly ResultTableRow[];
   readonly filteredRows: readonly ResultTableRow[];
+  readonly repeatGroups: readonly RepeatRunGroup[];
+  readonly filteredRepeatGroups: readonly RepeatRunGroup[];
   readonly columns: readonly ResultTableColumn[];
   readonly visibleColumns: readonly ResultTableColumn[];
   readonly state: ResultTableState;
@@ -133,6 +151,21 @@ function flattenScoreText(scores: readonly ScoreEntry[] | undefined): string[] {
   return parts.filter((part) => part.length > 0);
 }
 
+function scoreAssertions(scores: readonly ScoreEntry[] | undefined): AssertionEntry[] {
+  if (!scores || scores.length === 0) return [];
+  return scores.flatMap((score) => [...(score.assertions ?? []), ...scoreAssertions(score.scores)]);
+}
+
+function uniqueAssertions(assertions: readonly AssertionEntry[]): AssertionEntry[] {
+  const seen = new Set<string>();
+  return assertions.filter((assertion) => {
+    const key = `${assertion.text}\0${assertion.evidence ?? ''}\0${assertion.passed}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function buildGraderMap(
   scores: readonly ScoreEntry[] | undefined,
 ): ReadonlyMap<string, ScoreEntry> {
@@ -154,6 +187,32 @@ function totalTokens(result: EvalResult): number | undefined {
   );
   if (values.length === 0) return undefined;
   return values.reduce((sum, value) => sum + value, 0);
+}
+
+function numeric(values: readonly (number | undefined)[]): number[] {
+  return values.filter(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value),
+  );
+}
+
+function caseTrials(result: EvalResult): readonly EvalCaseTrial[] {
+  return result.trials ?? [];
+}
+
+function caseTrialPassed(trial: EvalCaseTrial, passThreshold: number): boolean {
+  if (trial.verdict === 'pass') return true;
+  if (trial.verdict === 'fail') return false;
+  return typeof trial.score === 'number' ? trial.score >= passThreshold : false;
+}
+
+function caseTrialArtifactCount(trial: EvalCaseTrial): number {
+  return [
+    trial.metrics_path,
+    trial.timing_path,
+    trial.grading_path,
+    trial.transcript_path,
+    trial.answer_path,
+  ].filter(Boolean).length;
 }
 
 function modelLabel(result: EvalResult): string | undefined {
@@ -228,30 +287,77 @@ function buildRow(
   };
 }
 
-function hasMeaningfulTarget(rows: readonly ResultTableRow[]): boolean {
-  return rows.some((row) => row.targetLabel !== 'default' || row.modelLabel);
+function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRunGroup | undefined {
+  const trials = caseTrials(row.result).filter((trial) => trial.run_path || trial.verdict);
+  if (trials.length <= 1) return undefined;
+
+  const passedTrials = trials.filter((trial) => caseTrialPassed(trial, passThreshold)).length;
+  const durationValues = numeric(trials.map((trial) => trial.duration_ms));
+  const scoreValues = numeric(trials.map((trial) => trial.score));
+  const toolCallValues = numeric(trials.map((trial) => trial.total_tool_calls));
+  const artifactCount = trials.reduce((sum, trial) => sum + caseTrialArtifactCount(trial), 0);
+  const assertions = uniqueAssertions([
+    ...(row.result.assertions ?? []),
+    ...scoreAssertions(row.result.scores),
+    ...trials.flatMap((trial) => [...(trial.assertions ?? []), ...scoreAssertions(trial.scores)]),
+  ]);
+  const passedAssertions = assertions.filter((assertion) => assertion.passed).length;
+
+  return {
+    row,
+    trials,
+    trialCount: trials.length,
+    passedTrials,
+    failedTrials: trials.length - passedTrials,
+    passRate: trials.length > 0 ? passedTrials / trials.length : 0,
+    meanScore:
+      scoreValues.length > 0
+        ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
+        : row.result.score,
+    assertionCount: assertions.length,
+    passedAssertions,
+    ...(assertions.length > 0 && { assertionPassRate: passedAssertions / assertions.length }),
+    ...(durationValues.length > 0 && {
+      meanDurationMs: durationValues.reduce((sum, value) => sum + value, 0) / durationValues.length,
+    }),
+    ...(toolCallValues.length > 0 && {
+      totalToolCalls: toolCallValues.reduce((sum, value) => sum + value, 0),
+    }),
+    artifactCount,
+  };
 }
 
 function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly string[]) {
+  const hasRepeatRows = rows.some((row) => caseTrials(row.result).length > 1);
   const hasSuite = rows.some((row) => row.suiteLabel);
   const hasCategory = rows.some((row) => row.categoryLabel);
-  const hasDuration = rows.some((row) => row.result.durationMs != null);
-  const hasCostOrTokens = rows.some((row) => row.result.costUsd != null || row.tokenTotal != null);
+  const hasDuration = rows.some(
+    (row) =>
+      row.result.durationMs != null ||
+      caseTrials(row.result).some((trial) => trial.duration_ms != null),
+  );
+  const hasCostOrTokens = rows.some(
+    (row) =>
+      row.result.costUsd != null ||
+      row.tokenTotal != null ||
+      caseTrials(row.result).some(
+        (trial) =>
+          trial.cost_usd != null || trial.total_tokens != null || trial.token_usage != null,
+      ),
+  );
   const hasError = rows.some((row) => row.result.error);
 
   const columns: ResultTableColumn[] = [
     { id: 'status', label: 'Status', kind: 'base', defaultVisible: true },
+    ...(hasRepeatRows
+      ? [{ id: 'expander', label: 'Expand', kind: 'base' as const, defaultVisible: true }]
+      : []),
     { id: 'test', label: 'Test ID', kind: 'base', defaultVisible: true },
-    {
-      id: 'model_target',
-      label: 'Model / Target',
-      kind: 'base',
-      defaultVisible: hasMeaningfulTarget(rows),
-    },
-    { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
+    { id: 'target', label: 'Target', kind: 'base', defaultVisible: true },
     ...(hasSuite
       ? [{ id: 'suite', label: 'Suite', kind: 'base' as const, defaultVisible: true }]
       : []),
+    { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasCategory
       ? [{ id: 'category', label: 'Category', kind: 'base' as const, defaultVisible: false }]
       : []),
@@ -295,6 +401,23 @@ function defaultVisibleColumnIds(columns: readonly ResultTableColumn[]): string[
   return defaults.length > 0 ? defaults : columns.slice(0, 4).map((column) => column.id);
 }
 
+function includeStructuralColumn(
+  requestedColumns: readonly string[],
+  columns: readonly ResultTableColumn[],
+): string[] {
+  if (!columns.some((column) => column.id === 'expander')) return [...requestedColumns];
+  if (requestedColumns.includes('expander') || !requestedColumns.includes('test')) {
+    return [...requestedColumns];
+  }
+
+  const next = [...requestedColumns];
+  const statusIndex = next.indexOf('status');
+  const testIndex = next.indexOf('test');
+  const insertIndex = statusIndex >= 0 ? statusIndex + 1 : testIndex;
+  next.splice(insertIndex, 0, 'expander');
+  return next;
+}
+
 function normalizeState(
   input: ResultTableStateInput | undefined,
   columns: readonly ResultTableColumn[],
@@ -307,7 +430,9 @@ function normalizeState(
       ?.map((id) => (id.startsWith('scorer:') ? `grader:${id.slice('scorer:'.length)}` : id))
       .filter((id) => columnIds.has(id)) ?? [];
   const visibleColumnIds =
-    requestedColumns.length > 0 ? requestedColumns : defaultVisibleColumnIds(columns);
+    requestedColumns.length > 0
+      ? includeStructuralColumn(requestedColumns, columns)
+      : defaultVisibleColumnIds(columns);
   const target =
     input?.target && targetOptions.includes(input.target) ? input.target : DEFAULT_TARGET;
   const requestedGrader = input?.grader ?? input?.scorer;
@@ -370,10 +495,17 @@ export function buildResultTableModel(input: BuildResultTableModelInput): Result
     if (query && !row.searchText.includes(query)) return false;
     return true;
   });
+  const repeatGroups = rows
+    .map((row) => buildRepeatGroup(row, input.passThreshold))
+    .filter((group): group is RepeatRunGroup => Boolean(group));
+  const filteredRowKeys = new Set(filteredRows.map((row) => row.key));
+  const filteredRepeatGroups = repeatGroups.filter((group) => filteredRowKeys.has(group.row.key));
 
   return {
     rows,
     filteredRows,
+    repeatGroups,
+    filteredRepeatGroups,
     columns,
     visibleColumns: columns.filter((column) => visibleColumnIds.has(column.id)),
     state,

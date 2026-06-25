@@ -86,7 +86,7 @@ The future Opik adapter should consume one of these equivalent inputs:
 1. `EvaluationResult[]` loaded from `index.jsonl` via `parseJsonlResults()`
 2. the completed run workspace with:
    - `index.jsonl`
-   - `benchmark.json`
+   - `summary.json`
    - per-test `grading.json`
    - per-test `timing.json`
    - per-test `outputs/trace.json`
