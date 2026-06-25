@@ -32,69 +32,10 @@ export async function execFileWithStdin(
     throw new Error('Executable argv must include at least one entry');
   }
 
-  // Use Bun.spawn if available, otherwise fall back to Node.js child_process
-  if (typeof Bun !== 'undefined') {
-    return execFileWithStdinBun(argv, stdinPayload, options);
-  }
+  // Use Node's child_process path even under Bun. Bun 1.3.3 can hang when a
+  // Bun.spawn child is a Node process reading stdin, which breaks code grader
+  // and workspace hook execution on CI's pinned Bun version.
   return execFileWithStdinNode(argv, stdinPayload, options);
-}
-
-/**
- * Bun implementation using Bun.spawn
- */
-async function execFileWithStdinBun(
-  argv: readonly string[],
-  stdinPayload: string,
-  options: ExecOptions,
-): Promise<{
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly exitCode: number;
-}> {
-  const command = [...argv];
-  const encoder = new TextEncoder();
-  const proc = Bun.spawn(command, {
-    cwd: options.cwd,
-    stdin: encoder.encode(stdinPayload),
-    stdout: 'pipe',
-    stderr: 'pipe',
-    // Merge additional env vars with process.env
-    env: options.env ? { ...process.env, ...options.env } : process.env,
-  });
-
-  let timedOut = false;
-  const timeout =
-    options.timeoutMs !== undefined
-      ? setTimeout(() => {
-          timedOut = true;
-          proc.kill('SIGKILL');
-        }, options.timeoutMs)
-      : undefined;
-
-  try {
-    const stdoutPromise = proc.stdout ? new Response(proc.stdout).text() : Promise.resolve('');
-    const stderrPromise = proc.stderr ? new Response(proc.stderr).text() : Promise.resolve('');
-
-    const [stdout, stderr, exitCode] = await Promise.all([
-      stdoutPromise,
-      stderrPromise,
-      proc.exited,
-    ]);
-
-    if (timedOut) {
-      throw new Error(`Process timed out after ${options.timeoutMs}ms`);
-    }
-
-    return {
-      stdout: stdout.replace(/\r\n/g, '\n'),
-      stderr: stderr.replace(/\r\n/g, '\n'),
-      exitCode,
-    };
-  } finally {
-    if (timeout !== undefined) {
-      clearTimeout(timeout);
-    }
-  }
 }
 
 /**
