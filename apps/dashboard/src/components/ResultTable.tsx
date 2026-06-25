@@ -7,23 +7,24 @@
  */
 
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
-
-import { Link } from '@tanstack/react-router';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import { useFeedback } from '~/lib/api';
 import {
   RESULT_TABLE_VIEW_PRESETS,
+  type RepeatRunGroup,
   type ResultTableColumn,
   type ResultTableRow,
   type ResultTableState,
   type ResultTableStateInput,
   buildResultTableModel,
 } from '~/lib/result-table';
-import type { EvalResult, ScoreEntry } from '~/lib/types';
+import type { EvalCaseTrial, EvalResult, ScoreEntry } from '~/lib/types';
 
 import { EvalDetail } from './EvalDetail';
 import { PassRatePill } from './PassRatePill';
+
+type DetailTab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
 
 interface ResultTableProps {
   results: readonly EvalResult[];
@@ -43,6 +44,9 @@ const QUERY_KEYS = {
   columns: 'results_cols',
   detail: 'results_detail',
 } as const;
+
+const CHECK_MARK = '\u2713';
+const CROSS_MARK = '\u2717';
 
 function readUrlState(): ResultTableStateInput {
   if (typeof window === 'undefined') return {};
@@ -132,6 +136,24 @@ function formatTokens(tokens: number | undefined): string | undefined {
   return `${tokens} tok`;
 }
 
+function tokenUsageTotal(
+  usage: EvalCaseTrial['token_usage'] | EvalResult['tokenUsage'],
+): number | undefined {
+  if (!usage) return undefined;
+  const values = [usage.input, usage.output, usage.reasoning, usage.cached].filter(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value),
+  );
+  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) : undefined;
+}
+
+function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {
+  return trial.total_tokens ?? tokenUsageTotal(trial.token_usage);
+}
+
+function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
+  return trial.run_path ?? `run-${trial.attempt ?? index + 1}`;
+}
+
 function compactTokenBreakdown(result: EvalResult): string | undefined {
   const usage = result.tokenUsage;
   if (!usage) return undefined;
@@ -166,6 +188,12 @@ export function ResultTable({
 }: ResultTableProps) {
   const [urlState, setUrlState] = useState<ResultTableStateInput>(() => readUrlState());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(() => readSelectedRowKey());
+  const [selectedTrialPath, setSelectedTrialPath] = useState<string | null>(null);
+  const [selectedDetailFilePath, setSelectedDetailFilePath] = useState<string | null>(null);
+  const [selectedDetailTab, setSelectedDetailTab] = useState<DetailTab>('checks');
+  const [collapsedRepeatRows, setCollapsedRepeatRows] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const { data: feedback } = useFeedback(projectId);
   const reviewedTestIds = useMemo(
     () => feedback?.reviews.map((review) => review.test_id) ?? [],
@@ -186,11 +214,25 @@ export function ResultTable({
     selectedRowKey != null
       ? (model.filteredRows.find((row) => row.key === selectedRowKey) ?? null)
       : null;
+  const repeatGroupsByRowKey = useMemo(
+    () => new Map(model.repeatGroups.map((group) => [group.row.key, group])),
+    [model.repeatGroups],
+  );
+  const selectedRepeatGroup = selectedRow ? repeatGroupsByRowKey.get(selectedRow.key) : undefined;
+  const selectedTrial =
+    selectedRepeatGroup && selectedTrialPath
+      ? (selectedRepeatGroup.trials.find(
+          (trial, index) => caseTrialPath(trial, index) === selectedTrialPath,
+        ) ?? null)
+      : null;
 
   useEffect(() => {
     const handlePopState = () => {
       setUrlState(readUrlState());
       setSelectedRowKey(readSelectedRowKey());
+      setSelectedTrialPath(null);
+      setSelectedDetailFilePath(null);
+      setSelectedDetailTab('checks');
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -219,6 +261,9 @@ export function ResultTable({
     window.history.replaceState(window.history.state, '', nextUrl);
     setUrlState({});
     setSelectedRowKey(null);
+    setSelectedTrialPath(null);
+    setSelectedDetailFilePath(null);
+    setSelectedDetailTab('checks');
   }
 
   function toggleColumn(columnId: string) {
@@ -231,11 +276,38 @@ export function ResultTable({
   function openRowDetail(rowKey: string) {
     writeSelectedRowKey(rowKey);
     setSelectedRowKey(rowKey);
+    setSelectedTrialPath(null);
+    setSelectedDetailFilePath(null);
+    setSelectedDetailTab('checks');
+  }
+
+  function openTrialDetail(
+    rowKey: string,
+    trial: EvalCaseTrial,
+    initialTab: DetailTab = 'checks',
+  ) {
+    writeSelectedRowKey(rowKey);
+    setSelectedRowKey(rowKey);
+    setSelectedTrialPath(caseTrialPath(trial));
+    setSelectedDetailTab(initialTab);
+    setSelectedDetailFilePath(primaryTrialArtifactPath(trial));
   }
 
   function closeRowDetail() {
     writeSelectedRowKey(null);
     setSelectedRowKey(null);
+    setSelectedTrialPath(null);
+    setSelectedDetailFilePath(null);
+    setSelectedDetailTab('checks');
+  }
+
+  function toggleRepeatGroup(rowKey: string) {
+    setCollapsedRepeatRows((current) => {
+      const next = new Set(current);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
   }
 
   if (results.length === 0) {
@@ -370,58 +442,18 @@ export function ResultTable({
               </p>
             </div>
           ) : (
-            <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
-              <table
-                className="w-full whitespace-nowrap text-left text-sm"
-                style={{ minWidth: `${Math.max(860, model.visibleColumns.length * 136)}px` }}
-              >
-                <thead className="border-b border-gray-800 bg-gray-900/50">
-                  <tr>
-                    {model.visibleColumns.map((column) => (
-                      <th
-                        key={column.id}
-                        className={`px-4 py-3 font-medium text-gray-400 ${
-                          isNumericColumn(column.id) ? 'text-right' : ''
-                        }`}
-                        title={column.label}
-                      >
-                        <span className="block max-w-48 truncate">{column.label}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/50">
-                  {model.filteredRows.map((row) => {
-                    const isSelected = selectedRowKey === row.key;
-                    return (
-                      <tr
-                        key={row.key}
-                        className={`transition-colors ${
-                          isSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/30'
-                        }`}
-                      >
-                        {model.visibleColumns.map((column) => (
-                          <td
-                            key={`${row.key}:${column.id}`}
-                            className={`px-4 py-3 align-middle ${
-                              isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
-                            }`}
-                          >
-                            <ResultCell
-                              column={column}
-                              row={row}
-                              passThreshold={passThreshold}
-                              onOpenDetail={openRowDetail}
-                              isSelected={isSelected}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ResultRowsTable
+              rows={model.filteredRows}
+              visibleColumns={model.visibleColumns}
+              passThreshold={passThreshold}
+              selectedRowKey={selectedRowKey}
+              selectedTrialPath={selectedTrialPath}
+              repeatGroupsByRowKey={repeatGroupsByRowKey}
+              collapsedRepeatRows={collapsedRepeatRows}
+              onToggleRepeatGroup={toggleRepeatGroup}
+              onOpenDetail={openRowDetail}
+              onOpenTrialDetail={openTrialDetail}
+            />
           )}
         </div>
 
@@ -430,6 +462,14 @@ export function ResultTable({
             row={selectedRow}
             runId={runId}
             projectId={projectId}
+            repeatGroup={selectedRepeatGroup}
+            selectedTrial={selectedTrial}
+            selectedTrialPath={selectedTrialPath}
+            initialTab={selectedDetailTab}
+            initialFilePath={selectedDetailFilePath}
+            onOpenTrialDetail={(trial, initialTab) =>
+              openTrialDetail(selectedRow.key, trial, initialTab)
+            }
             onClose={closeRowDetail}
           />
         )}
@@ -438,22 +478,326 @@ export function ResultTable({
   );
 }
 
+function ResultRowsTable({
+  rows,
+  visibleColumns,
+  passThreshold,
+  selectedRowKey,
+  selectedTrialPath,
+  repeatGroupsByRowKey,
+  collapsedRepeatRows,
+  onToggleRepeatGroup,
+  onOpenDetail,
+  onOpenTrialDetail,
+}: {
+  rows: readonly ResultTableRow[];
+  visibleColumns: readonly ResultTableColumn[];
+  passThreshold: number;
+  selectedRowKey: string | null;
+  selectedTrialPath: string | null;
+  repeatGroupsByRowKey: ReadonlyMap<string, RepeatRunGroup>;
+  collapsedRepeatRows: ReadonlySet<string>;
+  onToggleRepeatGroup: (rowKey: string) => void;
+  onOpenDetail: (rowKey: string) => void;
+  onOpenTrialDetail: (rowKey: string, trial: EvalCaseTrial) => void;
+}) {
+  return (
+    <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
+      <table
+        className="w-full whitespace-nowrap text-left text-sm"
+        style={{ minWidth: `${resultTableMinWidth(visibleColumns)}px` }}
+      >
+        <thead className="border-b border-gray-800 bg-gray-900/50">
+          <tr>
+            {visibleColumns.map((column) => (
+              <th key={column.id} className={columnHeaderClassName(column.id)} title={column.label}>
+                <span
+                  className={
+                    isVisuallyHiddenHeader(column.id) ? 'sr-only' : 'block max-w-48 truncate'
+                  }
+                >
+                  {column.label}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-800/50">
+          {rows.map((row) => {
+            const repeatGroup = repeatGroupsByRowKey.get(row.key);
+            const isSelected = selectedRowKey === row.key && !selectedTrialPath;
+            const collapsed = repeatGroup ? collapsedRepeatRows.has(row.key) : true;
+            return (
+              <Fragment key={row.key}>
+                <tr
+                  className={`cursor-pointer transition-colors ${
+                    isSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/30'
+                  }`}
+                  onClick={() => onOpenDetail(row.key)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onOpenDetail(row.key);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-selected={isSelected}
+                >
+                  {visibleColumns.map((column) => (
+                    <td
+                      key={`${row.key}:${column.id}`}
+                      className={columnCellClassName(column.id, 'py-3')}
+                    >
+                      <ResultCell
+                        column={column}
+                        row={row}
+                        repeatGroup={repeatGroup}
+                        repeatCollapsed={collapsed}
+                        passThreshold={passThreshold}
+                        isSelected={isSelected}
+                        onToggleRepeatGroup={onToggleRepeatGroup}
+                      />
+                    </td>
+                  ))}
+                </tr>
+                {repeatGroup && !collapsed
+                  ? repeatGroup.trials.map((trial, index) => {
+                      const trialPath = caseTrialPath(trial, index);
+                      const trialSelected =
+                        selectedRowKey === row.key && selectedTrialPath === trialPath;
+                      return (
+                        <tr
+                          key={`${row.key}:${trialPath}`}
+                          className={`cursor-pointer bg-gray-950/40 transition-colors ${
+                            trialSelected ? 'bg-cyan-950/20' : 'hover:bg-gray-900/50'
+                          }`}
+                          onClick={() => onOpenTrialDetail(row.key, trial)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              onOpenTrialDetail(row.key, trial);
+                            }
+                          }}
+                          tabIndex={0}
+                          aria-selected={trialSelected}
+                        >
+                          {visibleColumns.map((column) => (
+                            <td
+                              key={`${row.key}:${trialPath}:${column.id}`}
+                              className={columnCellClassName(column.id, 'py-2')}
+                            >
+                              <TrialResultCell
+                                column={column}
+                                row={row}
+                                trial={trial}
+                                index={index}
+                                passThreshold={passThreshold}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })
+                  : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function caseTrialPassed(trial: EvalCaseTrial, passThreshold: number): boolean {
+  if (trial.verdict === 'pass') return true;
+  if (trial.verdict === 'fail') return false;
+  return typeof trial.score === 'number' ? trial.score >= passThreshold : false;
+}
+
+function primaryTrialArtifactPath(trial: EvalCaseTrial): string | null {
+  return (
+    trial.grading_path ??
+    trial.metrics_path ??
+    trial.timing_path ??
+    trial.transcript_path ??
+    trial.answer_path ??
+    null
+  );
+}
+
+function TrialResultCell({
+  column,
+  row,
+  trial,
+  index,
+  passThreshold,
+}: {
+  column: ResultTableColumn;
+  row: ResultTableRow;
+  trial: EvalCaseTrial;
+  index: number;
+  passThreshold: number;
+}) {
+  const passed = caseTrialPassed(trial, passThreshold);
+  const isExecutionError = trial.execution_status === 'execution_error';
+  const status = isExecutionError ? 'error' : passed ? 'passing' : 'failing';
+  const statusLabel = isExecutionError ? 'Error' : passed ? 'Passing' : 'Failing';
+  const label = caseTrialPath(trial, index);
+
+  switch (column.id) {
+    case 'status':
+      return <ResultStatusSymbol status={status} label={statusLabel} />;
+    case 'expander':
+      return <span aria-hidden="true" className="block h-5" />;
+    case 'test':
+      return <TrialTestCell label={label} trial={trial} />;
+    case 'target':
+      return <TargetCell target={row.targetLabel} tone="text-gray-500" />;
+    case 'score':
+      return <PassRatePill rate={trial.score ?? 0} />;
+    case 'suite':
+      return <TruncatedMuted value={row.suiteLabel} tone="text-gray-500" />;
+    case 'category':
+      return <TruncatedMuted value={row.categoryLabel} tone="text-gray-500" />;
+    case 'duration':
+      return <span className="text-gray-500">{formatDuration(trial.duration_ms)}</span>;
+    case 'cost_tokens':
+      return <TrialCostTokenCell trial={trial} />;
+    case 'review':
+      return <span className="text-gray-700">-</span>;
+    case 'error':
+      return <TruncatedMuted value={trial.error} tone="text-red-300" />;
+    default:
+      return <span className="text-gray-700">-</span>;
+  }
+}
+
+function TrialTestCell({ label, trial }: { label: string; trial: EvalCaseTrial }) {
+  return (
+    <div className="max-w-[24rem] min-w-0 pl-6">
+      <div className="truncate font-medium text-gray-300" title={label}>
+        {label}
+      </div>
+      <div className="mt-0.5 flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-600">
+        {trial.total_tool_calls != null ? <span>{trial.total_tool_calls} tool calls</span> : null}
+      </div>
+      {trial.error ? (
+        <div className="mt-0.5 truncate text-xs text-red-300" title={trial.error}>
+          {trial.error}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ResultStatusSymbol({ status, label }: { status: string; label: string }) {
+  const passing = status === 'passing';
+  const warning = status === 'error' || status === 'partial';
+  const symbol = passing ? CHECK_MARK : CROSS_MARK;
+  const tone = passing ? 'text-emerald-300' : warning ? 'text-amber-300' : 'text-red-300';
+  return (
+    <span className={`inline-flex text-base font-semibold ${tone}`} title={label}>
+      {symbol}
+    </span>
+  );
+}
+
+function RepeatStatusCell({
+  group,
+  passThreshold,
+}: {
+  group: RepeatRunGroup;
+  passThreshold: number;
+}) {
+  const passesThreshold = group.passRate >= passThreshold;
+  const status = passesThreshold ? 'passing' : group.passedTrials > 0 ? 'partial' : 'failing';
+  return (
+    <ResultStatusSymbol
+      status={status}
+      label={`${group.passedTrials}/${group.trialCount} runs passed`}
+    />
+  );
+}
+
+function RepeatSummaryText({ group }: { group: RepeatRunGroup }) {
+  const parts = [
+    `${group.trialCount} runs`,
+    `${formatPercent(group.passRate)} run success`,
+    `${formatPercent(group.meanScore)} mean score`,
+    group.assertionPassRate != null
+      ? `${formatPercent(group.assertionPassRate)} assertions (${group.passedAssertions}/${group.assertionCount})`
+      : undefined,
+    group.totalToolCalls != null ? `${group.totalToolCalls} tool calls` : undefined,
+    group.artifactCount > 0 ? `${group.artifactCount} artifacts` : undefined,
+  ].filter((part): part is string => Boolean(part));
+  return (
+    <div className="mt-0.5 truncate text-xs text-gray-500" title={parts.join(' · ')}>
+      {parts.join(' · ')}
+    </div>
+  );
+}
+
+function RepeatScoreCell({ group }: { group: RepeatRunGroup }) {
+  return <PassRatePill rate={group.meanScore} />;
+}
+
+function RepeatDurationCell({ group, row }: { group: RepeatRunGroup; row: ResultTableRow }) {
+  return (
+    <span className="text-gray-400">
+      {formatDuration(group.meanDurationMs ?? row.result.durationMs)}
+    </span>
+  );
+}
+
 function isNumericColumn(columnId: string): boolean {
   return ['duration', 'cost_tokens'].includes(columnId) || columnId.startsWith('grader:');
+}
+
+function isCompactColumn(columnId: string): boolean {
+  return columnId === 'status' || columnId === 'expander';
+}
+
+function isVisuallyHiddenHeader(columnId: string): boolean {
+  return isCompactColumn(columnId);
+}
+
+function resultTableMinWidth(columns: readonly ResultTableColumn[]): number {
+  const width = columns.reduce((sum, column) => sum + (isCompactColumn(column.id) ? 44 : 136), 0);
+  return Math.max(760, width);
+}
+
+function columnHeaderClassName(columnId: string): string {
+  if (isCompactColumn(columnId)) {
+    return 'w-11 min-w-11 max-w-11 px-2 py-3 text-center font-medium text-gray-400';
+  }
+  return `px-4 py-3 font-medium text-gray-400 ${isNumericColumn(columnId) ? 'text-right' : ''}`;
+}
+
+function columnCellClassName(columnId: string, paddingY: 'py-2' | 'py-3'): string {
+  if (isCompactColumn(columnId)) {
+    return `w-11 min-w-11 max-w-11 px-2 ${paddingY} text-center align-middle`;
+  }
+  return `px-4 ${paddingY} align-middle ${
+    isNumericColumn(columnId) ? 'text-right tabular-nums' : ''
+  }`;
 }
 
 function ResultCell({
   column,
   row,
+  repeatGroup,
+  repeatCollapsed,
   passThreshold,
-  onOpenDetail,
   isSelected,
+  onToggleRepeatGroup,
 }: {
   column: ResultTableColumn;
   row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
+  repeatGroup?: RepeatRunGroup;
+  repeatCollapsed: boolean;
   passThreshold: number;
-  onOpenDetail: (rowKey: string) => void;
   isSelected: boolean;
+  onToggleRepeatGroup: (rowKey: string) => void;
 }) {
   if (column.id.startsWith('grader:')) {
     const graderName = column.id.slice('grader:'.length);
@@ -464,16 +808,32 @@ function ResultCell({
 
   switch (column.id) {
     case 'status':
-      return <StatusCell status={row.status} label={row.statusLabel} />;
+      return repeatGroup ? (
+        <RepeatStatusCell group={repeatGroup} passThreshold={passThreshold} />
+      ) : (
+        <ResultStatusSymbol status={row.status} label={row.statusLabel} />
+      );
+    case 'expander':
+      return repeatGroup ? (
+        <ExpanderCell
+          row={row}
+          repeatCollapsed={repeatCollapsed}
+          onToggleRepeatGroup={onToggleRepeatGroup}
+        />
+      ) : (
+        <span aria-hidden="true" className="block h-5" />
+      );
     case 'test':
-      return <TestCell row={row} onOpenDetail={onOpenDetail} isSelected={isSelected} />;
-    case 'model_target':
-      return <ModelTargetCell row={row} />;
+      return <TestCell row={row} repeatGroup={repeatGroup} isSelected={isSelected} />;
+    case 'target':
+      return <TargetCell target={row.targetLabel} />;
     case 'score':
       return row.executionError ? (
         <span className="inline-flex rounded-md border border-amber-900/60 bg-amber-950/20 px-2 py-0.5 text-xs font-medium text-amber-300">
           Execution error
         </span>
+      ) : repeatGroup ? (
+        <RepeatScoreCell group={repeatGroup} />
       ) : (
         <PassRatePill rate={row.result.score} />
       );
@@ -482,9 +842,13 @@ function ResultCell({
     case 'category':
       return <TruncatedMuted value={row.categoryLabel} />;
     case 'duration':
-      return <span className="text-gray-400">{formatDuration(row.result.durationMs)}</span>;
+      return repeatGroup ? (
+        <RepeatDurationCell group={repeatGroup} row={row} />
+      ) : (
+        <span className="text-gray-400">{formatDuration(row.result.durationMs)}</span>
+      );
     case 'cost_tokens':
-      return <CostTokenCell row={row} />;
+      return <CostTokenCell row={row} repeatGroup={repeatGroup} />;
     case 'review':
       return (
         <span className={row.reviewed ? 'text-emerald-300' : 'text-gray-500'}>
@@ -498,48 +862,26 @@ function ResultCell({
   }
 }
 
-function StatusCell({ status, label }: { status: string; label: string }) {
-  const tone =
-    status === 'passing'
-      ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
-      : status === 'error'
-        ? 'border-amber-900/60 bg-amber-950/20 text-amber-300'
-        : 'border-red-900/60 bg-red-950/20 text-red-300';
-  const dot =
-    status === 'passing' ? 'bg-emerald-400' : status === 'error' ? 'bg-amber-400' : 'bg-red-400';
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs ${tone}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-}
-
 function TestCell({
   row,
-  onOpenDetail,
+  repeatGroup,
   isSelected,
 }: {
   row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
-  onOpenDetail: (rowKey: string) => void;
+  repeatGroup?: RepeatRunGroup;
   isSelected: boolean;
 }) {
-  const className =
-    'block min-w-0 truncate text-left font-medium text-cyan-400 hover:text-cyan-300 hover:underline';
-
   return (
     <div className="max-w-[24rem] min-w-0">
-      <button
-        type="button"
-        onClick={() => onOpenDetail(row.key)}
-        className={className}
+      <span
+        className={`block min-w-0 truncate text-left font-medium ${
+          isSelected ? 'text-cyan-200' : 'text-cyan-400'
+        }`}
         title={row.testId}
-        aria-pressed={isSelected}
       >
         {row.testId}
-      </button>
+      </span>
+      {repeatGroup ? <RepeatSummaryText group={repeatGroup} /> : null}
       {row.result.error ? (
         <div className="mt-0.5 truncate text-xs text-red-300" title={row.result.error}>
           {row.result.error}
@@ -553,20 +895,46 @@ function ResultDetailPanel({
   row,
   runId,
   projectId,
+  repeatGroup,
+  selectedTrial,
+  selectedTrialPath,
+  initialTab,
+  initialFilePath,
+  onOpenTrialDetail,
   onClose,
 }: {
   row: ResultTableRow;
   runId: string;
   projectId?: string;
+  repeatGroup?: RepeatRunGroup;
+  selectedTrial: EvalCaseTrial | null;
+  selectedTrialPath: string | null;
+  initialTab: DetailTab;
+  initialFilePath: string | null;
+  onOpenTrialDetail: (trial: EvalCaseTrial, initialTab?: DetailTab) => void;
   onClose: () => void;
 }) {
+  const evalDetailHref = buildEvalDetailHref({
+    projectId,
+    runId,
+    evalId: row.testId,
+    artifactDir: row.result.artifact_dir,
+  });
+  const title = selectedTrialPath ? `${row.testId} · ${selectedTrialPath}` : row.testId;
+  const showAggregateRepeatDetail = repeatGroup && !selectedTrial;
+  const panelScrollKey = `${row.key}:${selectedTrialPath ?? ''}:${initialTab}`;
+
   return (
-    <aside className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
+    <aside
+      key={panelScrollKey}
+      ref={scrollPanelIntoView}
+      className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
+    >
       <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Row detail</p>
-          <h4 className="mt-1 truncate text-base font-semibold text-white" title={row.testId}>
-            {row.testId}
+          <h4 className="mt-1 truncate text-base font-semibold text-white" title={title}>
+            {title}
           </h4>
           <p className="mt-1 truncate text-xs text-gray-500" title={row.targetLabel}>
             {row.targetLabel}
@@ -574,23 +942,12 @@ function ResultDetailPanel({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {projectId ? (
-            <Link
-              to="/projects/$projectId/evals/$runId/$evalId"
-              params={{ projectId, runId, evalId: row.testId }}
-              className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
-            >
-              Full page
-            </Link>
-          ) : (
-            <Link
-              to="/evals/$runId/$evalId"
-              params={{ runId, evalId: row.testId }}
-              className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
-            >
-              Full page
-            </Link>
-          )}
+          <a
+            href={evalDetailHref}
+            className="rounded-md border border-gray-800 px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+          >
+            Full page
+          </a>
           <button
             type="button"
             onClick={onClose}
@@ -601,38 +958,98 @@ function ResultDetailPanel({
         </div>
       </div>
       <div className="h-[36rem] min-h-[28rem] overflow-hidden xl:h-[calc(100vh-9rem)]">
-        <EvalDetail eval={row.result} runId={runId} projectId={projectId} />
+        <EvalDetail
+          key={`${row.key}:${selectedTrialPath ?? 'aggregate'}:${initialFilePath ?? ''}`}
+          eval={row.result}
+          runId={runId}
+          projectId={projectId}
+          repeatGroup={showAggregateRepeatDetail ? repeatGroup : undefined}
+          selectedTrial={selectedTrial}
+          initialTab={initialTab}
+          initialSelectedFilePath={initialFilePath}
+          onSelectTrial={onOpenTrialDetail}
+        />
       </div>
     </aside>
   );
 }
 
-function ModelTargetCell({
-  row,
-}: {
-  row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
-}) {
+function TargetCell({ target, tone = 'text-gray-300' }: { target: string; tone?: string }) {
   return (
-    <div className="max-w-[16rem] min-w-0">
-      <div className="truncate text-gray-300" title={row.targetLabel}>
-        {row.targetLabel}
-      </div>
-      {row.modelLabel ? (
-        <div className="mt-0.5 truncate text-xs text-gray-500" title={row.modelLabel}>
-          {row.modelLabel}
-        </div>
-      ) : null}
+    <div className={`max-w-[14rem] truncate ${tone}`} title={target}>
+      {target}
     </div>
   );
 }
 
+function ExpanderCell({
+  row,
+  repeatCollapsed,
+  onToggleRepeatGroup,
+}: {
+  row: ResultTableRow;
+  repeatCollapsed: boolean;
+  onToggleRepeatGroup: (rowKey: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggleRepeatGroup(row.key);
+      }}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-800 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+      aria-expanded={!repeatCollapsed}
+      aria-label={`${repeatCollapsed ? 'Expand' : 'Collapse'} ${row.testId}`}
+    >
+      {repeatCollapsed ? '+' : '-'}
+    </button>
+  );
+}
+
+function buildEvalDetailHref(options: {
+  projectId?: string;
+  runId: string;
+  evalId: string;
+  artifactDir?: string;
+}): string {
+  const base = options.projectId
+    ? `/projects/${encodeURIComponent(options.projectId)}/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`
+    : `/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`;
+  if (!options.artifactDir) return base;
+  return `${base}?artifact_dir=${encodeURIComponent(options.artifactDir)}`;
+}
+
+function scrollPanelIntoView(panel: HTMLElement | null) {
+  if (!panel) return;
+  window.requestAnimationFrame(() => {
+    panel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+}
+
 function CostTokenCell({
   row,
+  repeatGroup,
 }: {
   row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
+  repeatGroup?: RepeatRunGroup;
 }) {
-  const cost = formatCost(row.result.costUsd);
-  const tokens = formatTokens(row.tokenTotal);
+  const repeatCosts =
+    repeatGroup?.trials
+      .map((trial) => trial.cost_usd)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)) ??
+    [];
+  const repeatTokens =
+    repeatGroup?.trials
+      .map(caseTrialTokenTotal)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)) ??
+    [];
+  const repeatCostTotal =
+    repeatCosts.length > 0 ? repeatCosts.reduce((sum, value) => sum + value, 0) : undefined;
+  const repeatTokenTotal =
+    repeatTokens.length > 0 ? repeatTokens.reduce((sum, value) => sum + value, 0) : undefined;
+  const cost = formatCost(row.result.costUsd ?? repeatCostTotal);
+  const tokens = formatTokens(row.tokenTotal ?? repeatTokenTotal);
   const breakdown = compactTokenBreakdown(row.result);
   if (!cost && !tokens) return <span className="text-gray-600">-</span>;
 
@@ -644,6 +1061,18 @@ function CostTokenCell({
           {tokens}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function TrialCostTokenCell({ trial }: { trial: EvalCaseTrial }) {
+  const cost = formatCost(trial.cost_usd);
+  const tokens = formatTokens(caseTrialTokenTotal(trial));
+  if (!cost && !tokens) return <span className="text-gray-700">-</span>;
+  return (
+    <div className="min-w-0 text-right">
+      {cost ? <div className="tabular-nums text-gray-500">{cost}</div> : null}
+      {tokens ? <div className="text-xs tabular-nums text-gray-600">{tokens}</div> : null}
     </div>
   );
 }

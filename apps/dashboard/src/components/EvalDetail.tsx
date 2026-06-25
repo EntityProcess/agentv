@@ -6,7 +6,7 @@
  * Assertions are grouped by grader name.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -20,8 +20,10 @@ import {
   useEvalTranscript,
   useStudioConfig,
 } from '~/lib/api';
+import type { RepeatRunGroup } from '~/lib/result-table';
 import type {
   AssertionEntry,
+  EvalCaseTrial,
   EvalResult,
   ScoreEntry,
   SourceCapturedFile,
@@ -40,6 +42,11 @@ interface EvalDetailProps {
   eval: EvalResult;
   runId: string;
   projectId?: string;
+  repeatGroup?: RepeatRunGroup;
+  selectedTrial?: EvalCaseTrial | null;
+  initialTab?: Tab;
+  initialSelectedFilePath?: string | null;
+  onSelectTrial?: (trial: EvalCaseTrial, initialTab?: Tab) => void;
 }
 
 type Tab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
@@ -56,11 +63,90 @@ function findFirstFile(nodes: FileNode[]): string | null {
   return null;
 }
 
-export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('checks');
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
+  return trial.run_path ?? `run-${trial.attempt ?? index + 1}`;
+}
+
+function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {
+  if (trial.total_tokens != null) return trial.total_tokens;
+  const usage = trial.token_usage;
+  if (!usage) return undefined;
+  const values = [usage.input, usage.output, usage.reasoning, usage.cached].filter(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value),
+  );
+  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) : undefined;
+}
+
+function formatPercent(value: number | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatDuration(durationMs: number | undefined): string {
+  if (durationMs == null) return '-';
+  if (durationMs < 1000) return `${Math.round(durationMs)}ms`;
+  if (durationMs < 60_000) return `${(durationMs / 1000).toFixed(1)}s`;
+  const minutes = Math.floor(durationMs / 60_000);
+  const seconds = Math.round((durationMs % 60_000) / 1000);
+  return `${minutes}m ${seconds}s`;
+}
+
+function formatCost(costUsd: number | undefined): string | undefined {
+  if (costUsd == null) return undefined;
+  if (costUsd === 0) return '$0';
+  if (costUsd < 0.01) return `$${costUsd.toFixed(5)}`;
+  return `$${costUsd.toFixed(4)}`;
+}
+
+function formatTokens(tokens: number | undefined): string | undefined {
+  if (tokens == null) return undefined;
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M tok`;
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k tok`;
+  return `${tokens} tok`;
+}
+
+function selectedTrialResult(result: EvalResult, trial: EvalCaseTrial): EvalResult {
+  return {
+    ...result,
+    score: trial.score ?? result.score,
+    executionStatus: trial.execution_status ?? result.executionStatus,
+    error: trial.error,
+    costUsd: trial.cost_usd ?? result.costUsd,
+    durationMs: trial.duration_ms ?? result.durationMs,
+    scores: trial.scores,
+    assertions: trial.assertions,
+    trials: undefined,
+    aggregation: undefined,
+    grading_path: trial.grading_path,
+    timing_path: trial.timing_path,
+    metrics_path: trial.metrics_path,
+    transcript_path: trial.transcript_path,
+    output_path: trial.answer_path,
+    answer_path: trial.answer_path,
+  };
+}
+
+export function EvalDetail({
+  eval: result,
+  runId,
+  projectId,
+  repeatGroup,
+  selectedTrial = null,
+  initialTab = 'checks',
+  initialSelectedFilePath = null,
+  onSelectTrial,
+}: EvalDetailProps) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(initialSelectedFilePath);
   const { data: config } = useStudioConfig(projectId);
   const isReadOnly = config?.read_only === true;
+  const detailResult = selectedTrial ? selectedTrialResult(result, selectedTrial) : result;
+  const showAggregateRepeat = repeatGroup != null && selectedTrial == null;
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+    setSelectedFilePath(initialSelectedFilePath);
+  }, [initialTab, initialSelectedFilePath]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'checks', label: 'Checks' },
@@ -76,7 +162,7 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
   };
 
   return (
-    <div className="flex h-full min-h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
       <div className="border-b border-gray-800">
         <div className="flex gap-1 px-4">
@@ -98,16 +184,32 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
       </div>
 
       {/* Tab content */}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab === 'checks' && (
           <div className="overflow-auto p-4">
-            <ChecksTab result={result} projectId={projectId} />
+            {showAggregateRepeat ? (
+              <RepeatAggregateChecksTab
+                result={result}
+                group={repeatGroup}
+                onSelectTrial={onSelectTrial}
+              />
+            ) : selectedTrial ? (
+              <TrialChecksTab
+                result={detailResult}
+                trial={selectedTrial}
+                runId={runId}
+                projectId={projectId}
+                onOpenFile={openFile}
+              />
+            ) : (
+              <ChecksTab result={detailResult} projectId={projectId} />
+            )}
           </div>
         )}
         {activeTab === 'files' && (
-          <div className="h-full p-4">
+          <div className="h-full min-h-0 p-4">
             <FilesTab
-              result={result}
+              result={detailResult}
               runId={runId}
               projectId={projectId}
               selectedPath={selectedFilePath}
@@ -117,22 +219,40 @@ export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) 
         )}
         {activeTab === 'transcript' && (
           <div className="overflow-auto p-4">
-            <TranscriptTab
-              result={result}
-              runId={runId}
-              projectId={projectId}
-              onOpenFile={openFile}
-            />
+            {showAggregateRepeat ? (
+              <RepeatAggregateTranscriptTab
+                result={result}
+                group={repeatGroup}
+                runId={runId}
+                projectId={projectId}
+                onSelectTrial={onSelectTrial}
+              />
+            ) : selectedTrial ? (
+              <TrialTranscriptTab
+                result={detailResult}
+                trial={selectedTrial}
+                runId={runId}
+                projectId={projectId}
+                onOpenFile={openFile}
+              />
+            ) : (
+              <TranscriptTab
+                result={detailResult}
+                runId={runId}
+                projectId={projectId}
+                onOpenFile={openFile}
+              />
+            )}
           </div>
         )}
         {activeTab === 'source' && (
           <div className="overflow-auto p-4">
-            <SourceTab result={result} />
+            <SourceTab result={detailResult} />
           </div>
         )}
         {!isReadOnly && activeTab === 'feedback' && (
           <div className="p-4">
-            <FeedbackPanel testId={result.testId} projectId={projectId} />
+            <FeedbackPanel testId={detailResult.testId} projectId={projectId} />
           </div>
         )}
       </div>
@@ -433,6 +553,232 @@ function ChecksTab({ result, projectId }: { result: EvalResult; projectId?: stri
   );
 }
 
+function RunMetricRow({ label, value }: { label: string; value: string | undefined }) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+      <div className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</div>
+      <div className="mt-1 font-mono text-sm text-gray-200">{value ?? '-'}</div>
+    </div>
+  );
+}
+
+function TrialActionRow({
+  trial,
+  index,
+  onSelectTrial,
+}: {
+  trial: EvalCaseTrial;
+  index: number;
+  onSelectTrial?: (trial: EvalCaseTrial, initialTab?: Tab) => void;
+}) {
+  const label = caseTrialPath(trial, index);
+  return (
+    <div className="grid gap-2 rounded-md border border-gray-800 bg-gray-950/50 p-3 text-sm md:grid-cols-[minmax(8rem,1fr)_auto] md:items-center">
+      <div className="min-w-0">
+        <div className="font-medium text-gray-200">{label}</div>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+          <span>{formatPercent(trial.score)} score</span>
+          <span>{trial.verdict ?? 'unknown'}</span>
+          {trial.duration_ms != null ? <span>{formatDuration(trial.duration_ms)}</span> : null}
+          {trial.total_tool_calls != null ? <span>{trial.total_tool_calls} tool calls</span> : null}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 md:justify-end">
+        <button
+          type="button"
+          onClick={() => onSelectTrial?.(trial, 'checks')}
+          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
+        >
+          Checks
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelectTrial?.(trial, 'files')}
+          disabled={!trial.grading_path && !trial.metrics_path && !trial.timing_path}
+          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Files
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RepeatAggregateChecksTab({
+  result,
+  group,
+  onSelectTrial,
+}: {
+  result: EvalResult;
+  group: RepeatRunGroup;
+  onSelectTrial?: (trial: EvalCaseTrial, initialTab?: Tab) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <RunMetricRow label="Run success" value={formatPercent(group.passRate)} />
+          <RunMetricRow label="Mean score" value={formatPercent(group.meanScore)} />
+          <RunMetricRow
+            label="Passed runs"
+            value={`${group.passedTrials}/${group.trialCount}`}
+          />
+          <RunMetricRow label="Assertions" value={formatPercent(group.assertionPassRate)} />
+        </div>
+      </div>
+
+      {result.scores && result.scores.length > 0 ? (
+        <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+          <h4 className="mb-3 text-sm font-medium text-gray-400">Aggregate Grader Scores</h4>
+          <div className="space-y-3">
+            {result.scores.map((score, index) => (
+              <div key={`${score.name ?? score.type ?? index}`} className="flex items-center gap-4">
+                <span className="w-40 truncate text-sm text-gray-300">
+                  {score.name ?? score.type ?? `Score ${index + 1}`}
+                </span>
+                <div className="flex-1">
+                  <ScoreBar score={score.score} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <section className="space-y-3">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">Runs</h4>
+        {group.trials.map((trial, index) => (
+          <TrialActionRow
+            key={caseTrialPath(trial, index)}
+            trial={trial}
+            index={index}
+            onSelectTrial={onSelectTrial}
+          />
+        ))}
+      </section>
+    </div>
+  );
+}
+
+type ParsedGradingArtifact = {
+  assertions: AssertionEntry[];
+  summary?: {
+    passed?: number;
+    failed?: number;
+    total?: number;
+    pass_rate?: number;
+  };
+  error?: string;
+};
+
+function parseGradingArtifact(content: string | undefined): ParsedGradingArtifact | null {
+  if (!content) return null;
+  try {
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    const rawAssertions = Array.isArray(parsed.assertions) ? parsed.assertions : [];
+    const assertions = rawAssertions.flatMap((value): AssertionEntry[] => {
+      if (!value || typeof value !== 'object') return [];
+      const assertion = value as Record<string, unknown>;
+      if (typeof assertion.text !== 'string' || typeof assertion.passed !== 'boolean') {
+        return [];
+      }
+      return [
+        {
+          text: assertion.text,
+          passed: assertion.passed,
+          evidence: typeof assertion.evidence === 'string' ? assertion.evidence : undefined,
+        },
+      ];
+    });
+    const summary =
+      parsed.summary && typeof parsed.summary === 'object' ? parsed.summary : undefined;
+    return { assertions, summary: summary as ParsedGradingArtifact['summary'] };
+  } catch (error) {
+    return { assertions: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function TrialChecksTab({
+  result,
+  trial,
+  runId,
+  projectId,
+  onOpenFile,
+}: {
+  result: EvalResult;
+  trial: EvalCaseTrial;
+  runId: string;
+  projectId?: string;
+  onOpenFile: (path: string) => void;
+}) {
+  const gradingPath = trial.grading_path;
+  const artifactDir = result.artifact_dir;
+  const evalId = result.testId;
+  const { data: gradingContent, isLoading } =
+    projectId && gradingPath
+      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, gradingPath, artifactDir))
+      : useEvalFileContent(runId, evalId, gradingPath ?? '', artifactDir);
+  const parsed = parseGradingArtifact(gradingContent?.content);
+
+  if (!gradingPath) {
+    return <ChecksTab result={result} projectId={projectId} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-gray-400">Run score</span>
+          <div className="flex-1">
+            <ScoreBar score={result.score} />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <RunMetricRow label="Duration" value={formatDuration(trial.duration_ms)} />
+        <RunMetricRow label="Cost" value={formatCost(trial.cost_usd)} />
+        <RunMetricRow label="Tokens" value={formatTokens(caseTrialTokenTotal(trial))} />
+      </div>
+
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h4 className="text-sm font-medium text-gray-400">Grading</h4>
+          <button
+            type="button"
+            onClick={() => onOpenFile(gradingPath)}
+            className="rounded-md border border-gray-700 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
+          >
+            Open grading JSON
+          </button>
+        </div>
+        {isLoading ? <p className="mt-3 text-sm text-gray-500">Loading grading artifact...</p> : null}
+        {parsed?.error ? <p className="mt-3 text-sm text-red-300">{parsed.error}</p> : null}
+        {parsed?.summary ? (
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <RunMetricRow
+              label="Assertion pass rate"
+              value={formatPercent(parsed.summary.pass_rate)}
+            />
+            <RunMetricRow label="Passed" value={String(parsed.summary.passed ?? 0)} />
+            <RunMetricRow label="Failed" value={String(parsed.summary.failed ?? 0)} />
+          </div>
+        ) : null}
+      </div>
+
+      {parsed && parsed.assertions.length > 0 ? (
+        <div className="space-y-2">
+          {parsed.assertions.map((assertion, index) => (
+            <AssertionCard key={`${assertion.text}-${index}`} assertion={assertion} />
+          ))}
+        </div>
+      ) : !isLoading ? (
+        <p className="text-sm text-gray-500">No assertion steps recorded in grading.json.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function containsFilePath(nodes: FileNode[], filePath: string | null): boolean {
   if (!filePath) return false;
   for (const node of nodes) {
@@ -440,6 +786,191 @@ function containsFilePath(nodes: FileNode[], filePath: string | null): boolean {
     if (node.children && containsFilePath(node.children, filePath)) return true;
   }
   return false;
+}
+
+function RepeatAggregateTranscriptTab({
+  result,
+  group,
+  runId,
+  projectId,
+  onSelectTrial,
+}: {
+  result: EvalResult;
+  group: RepeatRunGroup;
+  runId: string;
+  projectId?: string;
+  onSelectTrial?: (trial: EvalCaseTrial, initialTab?: Tab) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+        Run transcripts
+      </h4>
+      {group.trials.map((trial, index) => {
+        const runLabel = caseTrialPath(trial, index);
+        const transcriptPath = trial.transcript_path;
+        const transcriptHref = transcriptPath
+          ? artifactFileContentUrl({
+              projectId,
+              runId,
+              evalId: result.testId,
+              filePath: transcriptPath,
+              artifactDir: result.artifact_dir,
+              raw: true,
+            })
+          : undefined;
+        return (
+          <div
+            key={runLabel}
+            className="grid gap-2 rounded-md border border-gray-800 bg-gray-950/50 p-3 text-sm md:grid-cols-[minmax(8rem,1fr)_auto] md:items-center"
+          >
+            <div className="min-w-0">
+              <div className="font-medium text-gray-200">{runLabel}</div>
+              <div className="mt-1 truncate font-mono text-xs text-gray-500" title={transcriptPath}>
+                {transcriptPath ?? 'No transcript artifact'}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <button
+                type="button"
+                onClick={() => onSelectTrial?.(trial, 'transcript')}
+                disabled={!transcriptPath}
+                className="rounded-md border border-gray-700 px-2.5 py-1 text-xs text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                View
+              </button>
+              {transcriptHref ? (
+                <a
+                  href={transcriptHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md px-2.5 py-1 text-xs text-cyan-400 transition-colors hover:text-cyan-300 hover:underline"
+                >
+                  Raw
+                </a>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function TrialTranscriptTab({
+  result,
+  trial,
+  runId,
+  projectId,
+  onOpenFile,
+}: {
+  result: EvalResult;
+  trial: EvalCaseTrial;
+  runId: string;
+  projectId?: string;
+  onOpenFile: (path: string) => void;
+}) {
+  const evalId = result.testId;
+  const artifactDir = result.artifact_dir;
+  const transcriptPath = trial.transcript_path;
+  const answerPath = trial.answer_path;
+  const { data: transcriptContent, isLoading: isLoadingTranscript } =
+    projectId && transcriptPath
+      ? useQuery(
+          projectEvalFileContentOptions(projectId, runId, evalId, transcriptPath, artifactDir),
+        )
+      : useEvalFileContent(runId, evalId, transcriptPath ?? '', artifactDir);
+  const { data: answerContent } =
+    projectId && answerPath
+      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, answerPath, artifactDir))
+      : useEvalFileContent(runId, evalId, answerPath ?? '', artifactDir);
+
+  const transcriptValue = transcriptContent?.content ?? '';
+  const parsedTranscript = useMemo(() => parseTranscriptJsonl(transcriptValue), [transcriptValue]);
+
+  if (!transcriptPath) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
+        <p className="mt-2 text-sm text-gray-500">This run does not include a transcript artifact.</p>
+      </div>
+    );
+  }
+
+  if (isLoadingTranscript) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4 text-sm text-gray-500">
+        Loading transcript artifact...
+      </div>
+    );
+  }
+
+  if (parsedTranscript.error) {
+    return (
+      <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-4">
+        <h3 className="text-sm font-medium text-red-300">Transcript could not be parsed</h3>
+        <p className="mt-2 text-sm text-gray-300">{parsedTranscript.error}</p>
+        <button
+          type="button"
+          onClick={() => onOpenFile(transcriptPath)}
+          className="mt-3 rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-cyan-900/60 hover:text-cyan-300"
+        >
+          Open raw JSONL in Files
+        </button>
+      </div>
+    );
+  }
+
+  if (parsedTranscript.entries.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h3 className="text-sm font-medium text-gray-300">Empty transcript</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          <code>{transcriptPath}</code> exists but contains no JSONL rows.
+        </p>
+      </div>
+    );
+  }
+
+  const answerHref = answerPath
+    ? artifactFileContentUrl({
+        projectId,
+        runId,
+        evalId,
+        filePath: answerPath,
+        artifactDir,
+        raw: true,
+      })
+    : undefined;
+  const transcriptHref = artifactFileContentUrl({
+    projectId,
+    runId,
+    evalId,
+    filePath: transcriptPath,
+    artifactDir,
+    raw: true,
+  });
+  const transcriptDownloadHref = artifactFileContentUrl({
+    projectId,
+    runId,
+    evalId,
+    filePath: transcriptPath,
+    artifactDir,
+    download: true,
+  });
+
+  return (
+    <TranscriptTimeline
+      entries={parsedTranscript.entries}
+      finalAnswer={answerPath ? (answerContent?.content ?? result.output) : undefined}
+      answerPath={answerPath}
+      transcriptPath={transcriptPath}
+      answerHref={answerHref}
+      transcriptHref={transcriptHref}
+      transcriptDownloadHref={transcriptDownloadHref}
+      onOpenFile={onOpenFile}
+    />
+  );
 }
 
 function TranscriptTab({
@@ -454,13 +985,14 @@ function TranscriptTab({
   onOpenFile: (path: string) => void;
 }) {
   const evalId = result.testId;
+  const artifactDir = result.artifact_dir;
   const {
     data: transcriptData,
     isLoading: isLoadingTranscript,
     error: transcriptError,
   } = projectId
-    ? useQuery(projectEvalTranscriptOptions(projectId, runId, evalId))
-    : useEvalTranscript(runId, evalId);
+    ? useQuery(projectEvalTranscriptOptions(projectId, runId, evalId, artifactDir))
+    : useEvalTranscript(runId, evalId, artifactDir);
   const transcriptPath = transcriptData?.transcript_path;
   const answerPath = transcriptData?.answer_path;
   const transcriptContent = transcriptData?.status === 'ok' ? (transcriptData.content ?? '') : '';
@@ -541,6 +1073,7 @@ function TranscriptTab({
                   runId,
                   evalId,
                   filePath: transcriptPath,
+                  artifactDir,
                   raw: true,
                 })}
                 target="_blank"
@@ -568,7 +1101,14 @@ function TranscriptTab({
   }
 
   const answerHref = answerPath
-    ? artifactFileContentUrl({ projectId, runId, evalId, filePath: answerPath, raw: true })
+    ? artifactFileContentUrl({
+        projectId,
+        runId,
+        evalId,
+        filePath: answerPath,
+        artifactDir,
+        raw: true,
+      })
     : undefined;
   const transcriptHref = transcriptPath
     ? artifactFileContentUrl({
@@ -576,6 +1116,7 @@ function TranscriptTab({
         runId,
         evalId,
         filePath: transcriptPath,
+        artifactDir,
         raw: true,
       })
     : undefined;
@@ -585,6 +1126,7 @@ function TranscriptTab({
         runId,
         evalId,
         filePath: transcriptPath,
+        artifactDir,
         download: true,
       })
     : undefined;
@@ -617,11 +1159,12 @@ function FilesTab({
   onSelectedPathChange: (path: string) => void;
 }) {
   const evalId = result.testId;
+  const artifactDir = result.artifact_dir;
 
   // Use project-scoped API hooks when projectId is present
   const { data: filesData } = projectId
-    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId))
-    : useEvalFiles(runId, evalId);
+    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId, artifactDir))
+    : useEvalFiles(runId, evalId, artifactDir);
   const files = filesData?.files ?? [];
 
   const [localSelectedPath, setLocalSelectedPath] = useState<string | null>(null);
@@ -635,8 +1178,10 @@ function FilesTab({
       : null;
 
   const { data: fileContentData, isLoading: isLoadingContent } = projectId
-    ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? ''))
-    : useEvalFileContent(runId, evalId, effectivePath ?? '');
+    ? useQuery(
+        projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? '', artifactDir),
+      )
+    : useEvalFileContent(runId, evalId, effectivePath ?? '', artifactDir);
 
   if (files.length === 0) {
     return <p className="text-sm text-gray-500">No artifact files available.</p>;
@@ -651,9 +1196,11 @@ function FilesTab({
   const displayLanguage = effectivePath ? (fileContentData?.language ?? 'plaintext') : 'plaintext';
 
   return (
-    <div className="relative flex h-full min-h-[400px] gap-4">
+    <div className="relative flex h-full min-h-0 min-w-0 gap-4 overflow-hidden">
       {/* FileTree panel — desktop: side-by-side, mobile: full-width slide-over */}
-      <div className={`${mobileShowTree ? 'block' : 'hidden'} md:block w-full md:w-auto`}>
+      <div
+        className={`${mobileShowTree ? 'block' : 'hidden'} min-h-0 w-full overflow-auto md:block md:w-auto`}
+      >
         <FileTree
           files={files}
           selectedPath={effectivePath}
@@ -667,7 +1214,9 @@ function FilesTab({
       </div>
 
       {/* MonacoViewer panel — desktop: side-by-side, mobile: full-width */}
-      <div className={`${!mobileShowTree ? 'block' : 'hidden'} md:block flex-1 h-full`}>
+      <div
+        className={`${!mobileShowTree ? 'block' : 'hidden'} h-full min-h-0 min-w-0 flex-1 overflow-hidden md:block`}
+      >
         <MonacoViewer value={displayValue} language={displayLanguage} height="100%" />
       </div>
 
