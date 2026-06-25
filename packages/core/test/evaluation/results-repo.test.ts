@@ -18,7 +18,9 @@ import type { ResultsConfig } from '../../src/evaluation/loaders/config-loader.j
 import { AGENTV_RESULTS_REFS } from '../../src/evaluation/result-artifact-contract.js';
 import {
   DEFAULT_RESULTS_BRANCH,
+  buildResultsCompareUrl,
   buildWipBranchName,
+  confirmResultsMergeAndPull,
   deleteWipBranch,
   directPushResults,
   directPushResultsWithDetails,
@@ -162,6 +164,77 @@ async function createStaleResultBranchPushFixture(params: {
     ),
     config,
   };
+}
+
+// Sets up a genuine (non-auto-mergeable) overlay conflict where the canonical
+// results branch is `agentv/results/v1` (the clone's default/checked-out
+// branch). The local checkout and the remote both commit a conflicting scalar
+// field on the same overlay file, so a sync routes to the Layer 2 human-merge
+// path (needs_human_merge + a temp branch). The canonical branch name is
+// deliberately the nested-looking `agentv/results/v1` to prove the flat
+// temp-branch name never D/F-conflicts with it.
+async function setupCanonicalOverlayConflict(rootDir: string): Promise<{
+  remoteDir: string;
+  seedDir: string;
+  cloneDir: string;
+  targetBranch: string;
+  tagsRel: string;
+  config: ResultsConfig;
+  remoteBefore: string;
+}> {
+  const targetBranch = DEFAULT_RESULTS_BRANCH;
+  const remoteDir = path.join(rootDir, `remote-${randomToken()}.git`);
+  const seedDir = path.join(rootDir, `seed-${randomToken()}`);
+  git(`git init --bare --initial-branch=${targetBranch} --quiet "${remoteDir}"`, rootDir);
+  git(`git clone --quiet "${remoteDir}" "${seedDir}"`, rootDir);
+  git('git config user.email "test@example.com"', seedDir);
+  git('git config user.name "Test User"', seedDir);
+
+  const tagsRel = path.join(
+    'metadata',
+    'runs',
+    'conflict',
+    '2026-06-24T10-00-00-000Z',
+    'tags.json',
+  );
+  const writeOverlay = (repoDir: string, rating: number) => {
+    const tagPath = path.join(repoDir, tagsRel);
+    mkdirSync(path.dirname(tagPath), { recursive: true });
+    writeFileSync(tagPath, `${JSON.stringify({ tags: ['keep'], rating }, null, 2)}\n`);
+  };
+
+  writeFileSync(path.join(seedDir, 'README.md'), '# results\n');
+  writeOverlay(seedDir, 1);
+  git('git add . && git commit --quiet -m "seed overlay"', seedDir);
+  git(`git push --quiet origin HEAD:${targetBranch}`, seedDir);
+
+  const cloneDir = path.join(rootDir, `results-clone-${randomToken()}`);
+  const config: ResultsConfig = {
+    mode: 'github',
+    repo: `file://${remoteDir}`,
+    path: cloneDir,
+    auto_push: true,
+  };
+  await ensureResultsRepoClone(config);
+  git('git config user.email "test@example.com"', cloneDir);
+  git('git config user.name "Test User"', cloneDir);
+  git('git pull --ff-only --quiet', cloneDir);
+
+  // Local edit: a conflicting scalar (rating=3) committed on the canonical branch.
+  writeOverlay(cloneDir, 3);
+  git('git add metadata && git commit --quiet -m "local overlay scalar"', cloneDir);
+
+  // Remote advances with a different conflicting scalar (rating=5).
+  writeOverlay(seedDir, 5);
+  git('git add metadata && git commit --quiet -m "remote overlay scalar"', seedDir);
+  git(`git push --quiet origin HEAD:${targetBranch}`, seedDir);
+  const remoteBefore = git(`git --git-dir "${remoteDir}" rev-parse ${targetBranch}`, rootDir);
+
+  return { remoteDir, seedDir, cloneDir, targetBranch, tagsRel, config, remoteBefore };
+}
+
+function randomToken(): string {
+  return Math.random().toString(36).slice(2, 8);
 }
 
 function writeRunArtifacts(runDir: string, experiment: string, timestamp: string): void {
@@ -2099,6 +2172,132 @@ describe('results repo write path', () => {
     // The local checkout is clean (the failed merge was aborted).
     expect(git('git status --porcelain', cloneDir)).toBe('');
   }, 20000);
+
+  it('pushes diverged work to a flat temp branch and surfaces pending_merge on a genuine conflict', async () => {
+    const { remoteDir, cloneDir, targetBranch, tagsRel, config, remoteBefore } =
+      await setupCanonicalOverlayConflict(rootDir);
+
+    const status = await syncResultsRepoForProject(config);
+
+    expect(status.sync_status).toBe('needs_human_merge');
+    expect(status.blocked).toBe(true);
+    expect(status.block_reason).not.toMatch(/force/i);
+
+    // A pending_merge wire block (snake_case) is surfaced for the Dashboard.
+    const pending = status.pending_merge;
+    expect(pending).toBeDefined();
+    expect(pending?.target_branch).toBe(targetBranch);
+    expect(typeof pending?.created_at).toBe('string');
+    expect(typeof pending?.contributed_run_count).toBe('number');
+    // The branch is flat under a dedicated namespace, never nested under the
+    // canonical branch, so it cannot D/F-conflict with agentv/results/v1.
+    expect(pending?.temp_branch).toMatch(/^agentv\/results-sync\/.+/);
+    expect(pending?.temp_branch.startsWith(`${targetBranch}/`)).toBe(false);
+    // Snake_case keys only on the wire shape.
+    expect(Object.keys(pending ?? {})).toEqual(
+      expect.arrayContaining(['temp_branch', 'target_branch', 'created_at']),
+    );
+    // A non-GitHub (file://) remote yields no compare_url.
+    expect(pending?.compare_url).toBeUndefined();
+
+    const tempBranch = pending?.temp_branch ?? '';
+    // The temp branch exists on the remote alongside the canonical branch (the
+    // create-only push succeeded — no D/F-conflict) and carries the local work.
+    const remoteRefs = git(
+      `git --git-dir "${remoteDir}" for-each-ref --format="%(refname:short)" refs/heads`,
+      rootDir,
+    );
+    expect(remoteRefs).toContain(tempBranch);
+    expect(remoteRefs).toContain(targetBranch);
+    const overlayOnTemp = JSON.parse(
+      git(`git --git-dir "${remoteDir}" show ${tempBranch}:${tagsRel}`, rootDir),
+    );
+    expect(overlayOnTemp.rating).toBe(3);
+
+    // The canonical branch is untouched: no merge commit, no force, no backup.
+    expect(git(`git --git-dir "${remoteDir}" rev-parse ${targetBranch}`, rootDir)).toBe(
+      remoteBefore,
+    );
+    expect(
+      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
+    ).toBe('');
+
+    // The local work is intact on disk.
+    expect(JSON.parse(readFileSync(path.join(cloneDir, tagsRel), 'utf8')).rating).toBe(3);
+  }, 30000);
+
+  it('clears the pending merge after the temp branch is merged into the target', async () => {
+    const { remoteDir, cloneDir, targetBranch, tagsRel, config } =
+      await setupCanonicalOverlayConflict(rootDir);
+
+    const blocked = await syncResultsRepoForProject(config);
+    expect(blocked.sync_status).toBe('needs_human_merge');
+    const tempBranch = blocked.pending_merge?.temp_branch ?? '';
+    expect(tempBranch).not.toBe('');
+
+    // Simulate the user merging the temp branch into the target on GitHub: a
+    // fresh clone merges the temp branch (resolving the scalar toward the temp
+    // side) and pushes the result onto the canonical branch.
+    const mergeDir = path.join(rootDir, `merge-${randomToken()}`);
+    git(`git clone --quiet "${remoteDir}" "${mergeDir}"`, rootDir);
+    git('git config user.email "merge@example.com"', mergeDir);
+    git('git config user.name "Merge Bot"', mergeDir);
+    git(`git fetch --quiet origin "+refs/heads/*:refs/remotes/origin/*"`, mergeDir);
+    git(`git checkout --quiet -B ${targetBranch} origin/${targetBranch}`, mergeDir);
+    git(`git merge --no-edit -X theirs origin/${tempBranch}`, mergeDir);
+    git(`git push --quiet origin HEAD:${targetBranch}`, mergeDir);
+
+    const resumed = await confirmResultsMergeAndPull(config);
+
+    expect(resumed.blocked ?? false).toBe(false);
+    expect(resumed.sync_status).not.toBe('needs_human_merge');
+    expect(resumed.sync_status).toBe('clean');
+    expect(resumed.pending_merge).toBeUndefined();
+    // The local checkout now matches the merged target which carries the work.
+    expect(JSON.parse(readFileSync(path.join(cloneDir, tagsRel), 'utf8')).rating).toBe(3);
+  }, 30000);
+
+  it('keeps local work intact on a premature confirm-merge (target not yet merged)', async () => {
+    const { cloneDir, targetBranch, tagsRel, config } =
+      await setupCanonicalOverlayConflict(rootDir);
+
+    const blocked = await syncResultsRepoForProject(config);
+    expect(blocked.sync_status).toBe('needs_human_merge');
+    const firstTempBranch = blocked.pending_merge?.temp_branch ?? '';
+
+    // OK clicked without merging on GitHub: pulling the target is a no-op, the
+    // local work stays diverged, and the resumed sync re-creates a temp branch.
+    const resumed = await confirmResultsMergeAndPull(config);
+
+    expect(resumed.sync_status).toBe('needs_human_merge');
+    expect(resumed.blocked).toBe(true);
+    expect(resumed.pending_merge?.temp_branch).toMatch(/^agentv\/results-sync\/.+/);
+    expect(resumed.pending_merge?.target_branch).toBe(targetBranch);
+    // No data loss: the local work survives the premature OK.
+    expect(JSON.parse(readFileSync(path.join(cloneDir, tagsRel), 'utf8')).rating).toBe(3);
+    expect(firstTempBranch).not.toBe('');
+  }, 30000);
+
+  it('builds a GitHub compare URL only for GitHub remotes', () => {
+    expect(
+      buildResultsCompareUrl(
+        'https://github.com/EntityProcess/agentv.git',
+        'agentv/results/v1',
+        'agentv/results-sync/20260624T100000Z-agentv-results-v1-ab12cd',
+      ),
+    ).toBe(
+      'https://github.com/EntityProcess/agentv/compare/agentv%2Fresults%2Fv1...agentv%2Fresults-sync%2F20260624T100000Z-agentv-results-v1-ab12cd?expand=1',
+    );
+    expect(buildResultsCompareUrl('git@github.com:EntityProcess/agentv.git', 'main', 'temp')).toBe(
+      'https://github.com/EntityProcess/agentv/compare/main...temp?expand=1',
+    );
+    // Non-GitHub remotes (local file://, other hosts) get no compare URL.
+    expect(buildResultsCompareUrl('file:///tmp/remote.git', 'main', 'temp')).toBeUndefined();
+    expect(
+      buildResultsCompareUrl('https://gitlab.com/owner/repo.git', 'main', 'temp'),
+    ).toBeUndefined();
+    expect(buildResultsCompareUrl(undefined, 'main', 'temp')).toBeUndefined();
+  });
 
   it('supersedes stale sync errors with the current conflicted status', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);

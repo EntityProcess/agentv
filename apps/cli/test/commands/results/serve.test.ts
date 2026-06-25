@@ -2452,6 +2452,117 @@ describe('serve app', () => {
     }, 20000);
   });
 
+  describe('POST /api/remote/sync/confirm-merge', () => {
+    it('resumes sync by pulling the target branch (unscoped)', async () => {
+      const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+      const runId = writeRemoteRunArtifact(
+        seedDir,
+        'confirm-merge-unscoped',
+        '2026-03-26T14-00-00-000Z',
+        RESULT_A,
+      );
+
+      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/remote/sync/confirm-merge', { method: 'POST' });
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        sync_status: string;
+        blocked?: boolean;
+        pull_performed?: boolean;
+        run_count: number;
+      };
+      expect(data.sync_status).toBe('clean');
+      expect(data.blocked).toBe(false);
+      expect(data.run_count).toBe(1);
+      expect(
+        existsSync(
+          path.join(
+            cloneDir,
+            'runs',
+            'confirm-merge-unscoped',
+            '2026-03-26T14-00-00-000Z',
+            'index.jsonl',
+          ),
+        ),
+      ).toBe(true);
+      expect(runId).toBe('confirm-merge-unscoped::2026-03-26T14-00-00-000Z');
+    }, 15000);
+
+    it('resumes sync by pulling the target branch (project-scoped)', async () => {
+      const previousHome = process.env.AGENTV_HOME;
+      const homeDir = path.join(tempDir, 'agentv-home-confirm-merge-scoped');
+      process.env.AGENTV_HOME = homeDir;
+
+      try {
+        const { remoteDir, cloneDir, seedDir } = initializeRemoteRepo(tempDir);
+        const projectDir = path.join(tempDir, 'source-project-confirm-merge');
+        mkdirSync(path.join(projectDir, '.agentv'), { recursive: true });
+        mkdirSync(homeDir, { recursive: true });
+        saveProjectRegistry({
+          projects: [
+            {
+              id: 'project-confirm-merge',
+              name: 'Project Confirm Merge',
+              path: projectDir,
+              results: {
+                repoUrl: `file://${remoteDir}`,
+                path: cloneDir,
+                sync: { autoPush: false },
+              },
+              addedAt: '2026-01-01T00:00:00.000Z',
+              lastOpenedAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        });
+        const runId = writeRemoteRunArtifact(
+          seedDir,
+          'project-confirm-merge',
+          '2026-03-26T15-00-00-000Z',
+          RESULT_A,
+        );
+
+        const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+        const res = await app.request(
+          '/api/projects/project-confirm-merge/remote/sync/confirm-merge',
+          { method: 'POST' },
+        );
+
+        expect(res.status).toBe(200);
+        const data = (await res.json()) as {
+          sync_status: string;
+          blocked?: boolean;
+          pull_performed?: boolean;
+          run_count: number;
+        };
+        expect(data).toMatchObject({
+          sync_status: 'clean',
+          blocked: false,
+          run_count: 1,
+        });
+        expect(
+          existsSync(
+            path.join(
+              cloneDir,
+              'runs',
+              'project-confirm-merge',
+              runId.replace('project-confirm-merge::', ''),
+              'index.jsonl',
+            ),
+          ),
+        ).toBe(true);
+      } finally {
+        if (previousHome === undefined) {
+          process.env.AGENTV_HOME = undefined;
+        } else {
+          process.env.AGENTV_HOME = previousHome;
+        }
+      }
+    }, 15000);
+  });
+
   // ── GET /api/runs/:filename ─────────────────────────────────────────
 
   describe('GET /api/runs/:filename', () => {
