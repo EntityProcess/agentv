@@ -1,0 +1,3 @@
+investigate why i get  Check hook recovered and main state (shell)                                                                                                                                                                                                              ┃  │ cd /home/entity/projects/EntityProcess/agentv 2>/dev/null && git remote set-url origin https://github.com/EntityProcess/agentv.git 2>/dev/null; git fetch origin --quiet 2>&1 | tail -1; git log origin/main --oneline -3                              ┃  └ Denied by preToolUse hook from ".github/hooks/entire.json" (hook errored)    
+
+and fix
