@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
 import { constants, existsSync, mkdirSync } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
-  DEFAULT_EVAL_PATTERNS,
   DEFAULT_THRESHOLD,
   type EvalTargetRef,
   type EvalTest,
@@ -89,6 +89,10 @@ import type { TaskBundleTargetSelection } from './task-bundle.js';
 import { WipCheckpointLoop } from './wip-checkpoint.js';
 
 const DEFAULT_WORKERS = 3;
+const require = createRequire(import.meta.url);
+const micromatch = require('micromatch') as {
+  isMatch(id: string, pattern: string): boolean;
+};
 
 function shouldSkipExistingResultForResume(
   result: Pick<EvaluationResult, 'executionStatus'>,
@@ -156,6 +160,7 @@ interface NormalizedOptions {
   readonly experimentMetadata?: ExperimentArtifactMetadata;
   readonly experimentTargetRefs?: readonly EvalTargetRef[];
   readonly experimentTrialsConfig?: TrialsConfig;
+  readonly suiteFiltersByEvalFile?: ReadonlyMap<string, string | readonly string[]>;
   readonly budgetUsd?: number;
   readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
   readonly resultsOverrides?: ResultsPublishOverrides;
@@ -650,8 +655,6 @@ function applyExperimentOptions(
   const workspaceMode =
     options.workspaceMode ?? readExperimentWorkspaceMode(experiment.workspace?.mode);
   const workspacePath = options.workspacePath ?? readExperimentWorkspacePath(experiment.workspace);
-  const experimentFilter = normalizeExperimentCaseFilter(experiment.evals);
-
   return {
     ...options,
     target: options.target ?? (nextCliTargets.length === 1 ? nextCliTargets[0] : undefined),
@@ -660,7 +663,6 @@ function applyExperimentOptions(
     workers: options.workers ?? experiment.workers,
     workspaceMode: workspacePath ? 'static' : workspaceMode,
     workspacePath,
-    filter: options.filter ?? experimentFilter,
     budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
     experimentConfig: experiment,
     experimentMetadata: buildExperimentArtifactMetadata(experiment),
@@ -724,16 +726,53 @@ function readExperimentWorkspacePath(
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function normalizeExperimentCaseFilter(
-  evals: ExperimentConfig['evals'] | undefined,
-): NormalizedOptions['filter'] {
-  if (typeof evals === 'string') {
-    return evals;
-  }
-  if (!Array.isArray(evals)) {
+type ExperimentSuiteSelection = {
+  readonly testFiles: readonly string[];
+  readonly filtersByEvalFile: ReadonlyMap<string, string | readonly string[]>;
+};
+
+function matchesTestFilter(id: string, filter: string | readonly string[]): boolean {
+  return typeof filter === 'string'
+    ? micromatch.isMatch(id, filter)
+    : filter.some((pattern) => micromatch.isMatch(id, pattern));
+}
+
+async function resolveExperimentSuiteSelection(
+  suites: ExperimentConfig['suites'] | undefined,
+  cwd: string,
+): Promise<ExperimentSuiteSelection | undefined> {
+  if (!suites || suites.length === 0) {
     return undefined;
   }
-  return evals.length === 1 ? evals[0] : [...evals];
+
+  const testFiles = new Set<string>();
+  const selectedTestIdsByEvalFile = new Map<string, string[]>();
+
+  for (const suite of suites) {
+    const resolvedSuiteFiles = await resolveEvalPaths([suite.ref], cwd);
+    for (const testFilePath of resolvedSuiteFiles) {
+      const resolvedPath = path.resolve(testFilePath);
+      testFiles.add(resolvedPath);
+      if (suite.select?.testIds && suite.select.testIds.length > 0) {
+        const existing = selectedTestIdsByEvalFile.get(resolvedPath) ?? [];
+        selectedTestIdsByEvalFile.set(resolvedPath, [...existing, ...suite.select.testIds]);
+      }
+    }
+  }
+
+  const filtersByEvalFile = new Map<string, string | readonly string[]>();
+  for (const [testFilePath, testIds] of selectedTestIdsByEvalFile.entries()) {
+    const uniqueTestIds = [...new Set(testIds)];
+    filtersByEvalFile.set(
+      testFilePath,
+      uniqueTestIds.length === 1 ? uniqueTestIds[0] : uniqueTestIds,
+    );
+  }
+
+  return {
+    testFiles: [...testFiles],
+    filtersByEvalFile,
+  };
 }
 
 async function runExperimentSteps(params: {
@@ -992,6 +1031,7 @@ async function prepareFileMetadata(params: {
   readonly repoRoot: string;
   readonly cwd: string;
   readonly options: NormalizedOptions;
+  readonly suiteFilter?: string | readonly string[];
 }): Promise<{
   readonly testIds: readonly string[];
   readonly testCases: readonly EvalTest[];
@@ -1009,7 +1049,7 @@ async function prepareFileMetadata(params: {
     target: import('@agentv/core').ResolvedTarget,
   ) => import('@agentv/core').Provider;
 }> {
-  const { testFilePath, repoRoot, cwd, options } = params;
+  const { testFilePath, repoRoot, cwd, options, suiteFilter } = params;
 
   await ensureFileExists(testFilePath, 'Test file');
   await loadEnvFromHierarchy({
@@ -1023,16 +1063,20 @@ async function prepareFileMetadata(params: {
 
   const suite = await loadTestSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
-    filter: options.filter,
+    filter: suiteFilter ?? options.filter,
     category,
   });
-  const testIds = suite.tests.map((value) => value.id);
+  const testCases =
+    suiteFilter && options.filter
+      ? suite.tests.filter((testCase) => matchesTestFilter(testCase.id, options.filter ?? ''))
+      : suite.tests;
+  const testIds = testCases.map((value) => value.id);
   const suiteTargets = suite.targets;
 
-  if (suite.tests.length === 0) {
+  if (testCases.length === 0) {
     return {
       testIds,
-      testCases: suite.tests,
+      testCases,
       selections: [],
       trialsConfig: options.experimentTrialsConfig,
       suiteTargets,
@@ -1195,7 +1239,7 @@ async function prepareFileMetadata(params: {
 
   return {
     testIds,
-    testCases: suite.tests,
+    testCases,
     selections,
     trialsConfig: options.experimentTrialsConfig,
     suiteTargets,
@@ -1529,11 +1573,15 @@ export async function runEvalCommand(
     experiment: resolvedExperiment.name,
   };
 
+  const suiteSelection = await resolveExperimentSuiteSelection(
+    options.experimentConfig?.suites,
+    cwd,
+  );
   const evalPathInputs =
     input.testFiles.length > 0
       ? [...input.testFiles]
-      : options.experimentConfig?.evals !== undefined
-        ? [...(yamlConfig?.eval_patterns ?? DEFAULT_EVAL_PATTERNS)]
+      : suiteSelection
+        ? [...suiteSelection.testFiles]
         : [];
   if (evalPathInputs.length === 0 && process.stdin.isTTY) {
     const { launchInteractiveWizard } = await import('./interactive.js');
@@ -1541,6 +1589,12 @@ export async function runEvalCommand(
     return undefined;
   }
   const resolvedTestFiles = await resolveEvalPaths(evalPathInputs, cwd);
+  options = {
+    ...options,
+    ...(suiteSelection !== undefined && {
+      suiteFiltersByEvalFile: suiteSelection.filtersByEvalFile,
+    }),
+  };
 
   if (!process.env.AGENTV_EXPERIMENT) {
     process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
@@ -1813,6 +1867,7 @@ export async function runEvalCommand(
       repoRoot,
       cwd,
       options,
+      suiteFilter: options.suiteFiltersByEvalFile?.get(path.resolve(testFilePath)),
     });
     fileMetadata.set(testFilePath, meta);
   }

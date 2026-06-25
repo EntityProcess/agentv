@@ -1,8 +1,11 @@
 name: trials-mean
 target: llm
-evals:
-  - math-basics
-  - capital-knowledge
+suites:
+  - ref: examples/features/trials/evals/dataset.eval.yaml
+    select:
+      test_ids:
+        - math-basics
+        - capital-knowledge
 repeat:
   count: 3
   strategy: mean

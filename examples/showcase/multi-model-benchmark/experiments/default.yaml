@@ -3,12 +3,15 @@ targets:
   - copilot
   - claude
   - gemini-llm
-evals:
-  - factual-geography
-  - factual-science
-  - analytical-comparison
-  - creative-explanation
-  - structured-list
+suites:
+  - ref: examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
+    select:
+      test_ids:
+        - factual-geography
+        - factual-science
+        - analytical-comparison
+        - creative-explanation
+        - structured-list
 repeat:
   count: 2
   strategy: pass_at_k

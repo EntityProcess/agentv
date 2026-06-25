@@ -20,8 +20,10 @@ Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVA
 
 Eval files define what is tested: prompts, datasets, assertions, and task fixtures.
 Experiment files define how those evals run: targets, setup, scripts, timeout,
-sandbox, and repeat-run policy. Use `experiments/*.yaml` for committed run
-configurations.
+sandbox, suite selection, and repeat-run policy. Use `experiments/*.yaml` for
+committed run configurations. In eval YAML, keep `tests[]` as the atomic eval
+definition. In experiment YAML, reference eval suites with `suites[]` and select
+suite-local tests with `select.test_ids[]`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 

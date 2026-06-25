@@ -1,8 +1,11 @@
 name: trials-confidence-interval
 target: llm
-evals:
-  - math-basics
-  - capital-knowledge
+suites:
+  - ref: examples/features/trials/evals/dataset.eval.yaml
+    select:
+      test_ids:
+        - math-basics
+        - capital-knowledge
 repeat:
   count: 5
   strategy: confidence_interval

@@ -58,6 +58,25 @@ export type ExperimentRepeat = {
   readonly costLimitUsd?: number;
 };
 
+export type ExperimentSuiteSelectWire = {
+  readonly test_ids?: readonly string[];
+  readonly testIds?: readonly string[];
+};
+
+export type ExperimentSuiteSelect = {
+  readonly testIds: readonly string[];
+};
+
+export type ExperimentSuiteRefWire = {
+  readonly ref: string;
+  readonly select?: ExperimentSuiteSelectWire;
+};
+
+export type ExperimentSuiteRef = {
+  readonly ref: string;
+  readonly select?: ExperimentSuiteSelect;
+};
+
 export type ExperimentConfigWire = {
   readonly name?: string;
   readonly agent?: string;
@@ -65,7 +84,7 @@ export type ExperimentConfigWire = {
   readonly targets?: readonly ExperimentTargetRefWire[];
   readonly model?: string;
   readonly agent_options?: Record<string, unknown>;
-  readonly evals?: string | readonly string[];
+  readonly suites?: readonly ExperimentSuiteRefWire[];
   readonly scripts?: readonly ExperimentScriptWire[];
   readonly repeat?: ExperimentRepeatWire;
   readonly runs?: number;
@@ -85,7 +104,7 @@ export type ExperimentConfig = {
   readonly targets?: readonly ExperimentTargetRef[];
   readonly model?: string;
   readonly agentOptions?: Record<string, unknown>;
-  readonly evals?: string | readonly string[];
+  readonly suites?: readonly ExperimentSuiteRef[];
   readonly scripts?: readonly ExperimentScript[];
   readonly repeat?: ExperimentRepeat;
   readonly runs?: number;
@@ -108,7 +127,12 @@ export type ExperimentArtifactMetadata = {
   readonly target?: string;
   readonly targets?: readonly string[];
   readonly model?: string;
-  readonly evals?: string | readonly string[];
+  readonly suites?: readonly {
+    readonly ref: string;
+    readonly select?: {
+      readonly test_ids: readonly string[];
+    };
+  }[];
   readonly repeat?: {
     readonly count: number;
     readonly strategy: TrialStrategy;
@@ -187,7 +211,7 @@ export function normalizeExperimentConfig(
   const targets = readTargets(rawConfig.targets);
   const model = readOptionalString(rawConfig.model, 'model');
   const agentOptions = readOptionalRecord(rawConfig.agent_options ?? rawConfig.agentOptions);
-  const evals = readOptionalStringOrStringArray(rawConfig.evals, 'evals');
+  const suites = readSuites(rawConfig.suites);
   const scripts = readScriptArray(rawConfig.scripts, 'scripts');
   const repeat = readRepeat(rawConfig.repeat);
   const runs = readOptionalPositiveInteger(rawConfig.runs, 'runs');
@@ -215,7 +239,7 @@ export function normalizeExperimentConfig(
     ...(targets !== undefined && { targets }),
     ...(model !== undefined && { model }),
     ...(agentOptions !== undefined && { agentOptions }),
-    ...(evals !== undefined && { evals }),
+    ...(suites !== undefined && { suites }),
     ...(scripts !== undefined && { scripts }),
     ...(repeat !== undefined && { repeat }),
     ...(runs !== undefined && { runs }),
@@ -257,7 +281,7 @@ export function buildExperimentArtifactMetadata(
     ...(config.target !== undefined && { target: config.target }),
     ...(targets && targets.length > 0 && { targets }),
     ...(config.model !== undefined && { model: config.model }),
-    ...(config.evals !== undefined && { evals: config.evals }),
+    ...(config.suites !== undefined && { suites: config.suites.map(toSuiteArtifactMetadata) }),
     ...(config.repeat !== undefined && {
       repeat: {
         count: config.repeat.count,
@@ -273,6 +297,20 @@ export function buildExperimentArtifactMetadata(
     ...(config.workers !== undefined && { workers: config.workers }),
     ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
     ...(config.sandbox !== undefined && { sandbox: config.sandbox }),
+  };
+}
+
+function toSuiteArtifactMetadata(suite: ExperimentSuiteRef): {
+  readonly ref: string;
+  readonly select?: { readonly test_ids: readonly string[] };
+} {
+  return {
+    ref: suite.ref,
+    ...(suite.select !== undefined && {
+      select: {
+        test_ids: suite.select.testIds,
+      },
+    }),
   };
 }
 
@@ -323,6 +361,43 @@ function readTargets(raw: unknown): readonly ExperimentTargetRef[] | undefined {
       ...(hooks !== undefined && { hooks }),
     };
   });
+}
+
+function readSuites(raw: unknown): readonly ExperimentSuiteRef[] | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    throw new Error('Experiment suites must be an array.');
+  }
+  if (raw.length === 0) {
+    throw new Error('Experiment suites must not be empty.');
+  }
+  return raw.map((entry, index): ExperimentSuiteRef => {
+    if (!isRecord(entry)) {
+      throw new Error(`Experiment suites[${index}] must be an object.`);
+    }
+    const ref = readRequiredString(entry.ref, `suites[${index}].ref`);
+    const select = readSuiteSelect(entry.select, `suites[${index}].select`);
+    return {
+      ref,
+      ...(select !== undefined && { select }),
+    };
+  });
+}
+
+function readSuiteSelect(raw: unknown, location: string): ExperimentSuiteSelect | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!isRecord(raw)) {
+    throw new Error(`Experiment ${location} must be an object.`);
+  }
+  const testIds = readOptionalStringArray(raw.test_ids ?? raw.testIds, `${location}.test_ids`);
+  if (testIds === undefined) {
+    throw new Error(`Experiment ${location}.test_ids is required when select is set.`);
+  }
+  return { testIds };
 }
 
 function readScriptArray(raw: unknown, location: string): readonly ExperimentScript[] | undefined {
@@ -422,6 +497,20 @@ function readOptionalStringOrStringArray(
     return raw.map((entry) => entry.trim());
   }
   throw new Error(`Experiment ${location} must be a string or string array.`);
+}
+
+function readOptionalStringArray(raw: unknown, location: string): readonly string[] | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (
+    Array.isArray(raw) &&
+    raw.length > 0 &&
+    raw.every((entry) => typeof entry === 'string' && entry.trim())
+  ) {
+    return raw.map((entry) => entry.trim());
+  }
+  throw new Error(`Experiment ${location} must be a non-empty string array.`);
 }
 
 function readOptionalString(raw: unknown, location: string): string | undefined {

@@ -37,8 +37,7 @@ From the repository root:
 
 ```bash
 # Run the full matrix (all targets × all tests × 2 repeat attempts)
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml
+bun agentv eval --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml
 ```
 
 ### Cost & Safety
@@ -132,11 +131,14 @@ targets:
   - copilot
   - claude
   - gemini-llm
-evals:
-  - factual-*
-  - analytical-comparison
-  - creative-explanation
-  - structured-list
+suites:
+  - ref: examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
+    select:
+      test_ids:
+        - factual-*
+        - analytical-comparison
+        - creative-explanation
+        - structured-list
 repeat:
   count: 2
   strategy: pass_at_k

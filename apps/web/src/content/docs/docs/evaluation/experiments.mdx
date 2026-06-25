@@ -16,7 +16,12 @@ Committed experiments conventionally live under `experiments/`:
 ```yaml
 name: baseline
 target: codex-gpt5
-evals: "agent-*"
+suites:
+  - ref: evals/support-regression.eval.yaml
+    select:
+      test_ids:
+        - refund-eligibility
+        - missing-order-date
 timeout_seconds: 720
 repeat:
   count: 4
@@ -30,6 +35,30 @@ scripts:
 
 Wire fields use `snake_case`. AgentV translates to internal `camelCase` when it
 loads the file.
+
+## Suites and test selection
+
+Eval files keep `tests[]` as the canonical atomic test definition. Experiments
+reference one or more reusable eval suites through `suites[]`:
+
+```yaml
+suites:
+  - ref: evals/support-regression.eval.yaml
+  - ref: evals/billing-*.eval.yaml
+```
+
+Use suite-local `select.test_ids[]` to run only specific tests from a suite. The
+values match `tests[].id` inside that suite and use the same glob semantics as
+`--test-id`:
+
+```yaml
+suites:
+  - ref: evals/support-regression.eval.yaml
+    select:
+      test_ids:
+        - refund-*
+        - missing-order-date
+```
 
 ## Repeat runs
 
@@ -128,7 +157,7 @@ scripts:
 Run a specific experiment:
 
 ```bash
-bun agentv eval evals/suite.eval.yaml --experiment experiments/default.yaml
+bun agentv eval --experiment experiments/default.yaml
 ```
 
 If no experiment is passed, AgentV checks `.agentv/config.yaml` for a default:
