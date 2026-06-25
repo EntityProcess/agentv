@@ -104,9 +104,9 @@ describe('result-table model', () => {
     expect(model.columns.map((column) => column.id)).toEqual([
       'status',
       'test',
-      'model_target',
-      'score',
+      'target',
       'suite',
+      'score',
       'category',
       'duration',
       'cost_tokens',
@@ -114,6 +114,38 @@ describe('result-table model', () => {
       'grader:correctness',
     ]);
     expect(model.visibleColumns.map((column) => column.id)).toContain('grader:correctness');
+  });
+
+  it('orders repeat-run columns with target before suite before score', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'repeat-case',
+          suite: 'strict-layout',
+          target: 'openai',
+          trials: [
+            { attempt: 0, run_path: 'run-1', score: 1, verdict: 'pass' },
+            { attempt: 1, run_path: 'run-2', score: 0.4, verdict: 'fail' },
+          ],
+        }),
+      ],
+    });
+
+    expect(model.columns.map((column) => column.id).slice(0, 6)).toEqual([
+      'status',
+      'expander',
+      'test',
+      'target',
+      'suite',
+      'score',
+    ]);
+    expect(model.repeatGroups).toHaveLength(1);
+    expect(model.repeatGroups[0]).toMatchObject({
+      trialCount: 2,
+      passedTrials: 1,
+      failedTrials: 1,
+    });
   });
 
   it('accepts legacy scorer URL state as a grader alias', () => {

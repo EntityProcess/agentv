@@ -299,10 +299,7 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
   const assertions = uniqueAssertions([
     ...(row.result.assertions ?? []),
     ...scoreAssertions(row.result.scores),
-    ...trials.flatMap((trial) => [
-      ...(trial.assertions ?? []),
-      ...scoreAssertions(trial.scores),
-    ]),
+    ...trials.flatMap((trial) => [...(trial.assertions ?? []), ...scoreAssertions(trial.scores)]),
   ]);
   const passedAssertions = assertions.filter((assertion) => assertion.passed).length;
 
@@ -336,7 +333,8 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
   const hasCategory = rows.some((row) => row.categoryLabel);
   const hasDuration = rows.some(
     (row) =>
-      row.result.durationMs != null || caseTrials(row.result).some((trial) => trial.duration_ms != null),
+      row.result.durationMs != null ||
+      caseTrials(row.result).some((trial) => trial.duration_ms != null),
   );
   const hasCostOrTokens = rows.some(
     (row) =>
@@ -356,10 +354,10 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
       : []),
     { id: 'test', label: 'Test ID', kind: 'base', defaultVisible: true },
     { id: 'target', label: 'Target', kind: 'base', defaultVisible: true },
-    { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasSuite
       ? [{ id: 'suite', label: 'Suite', kind: 'base' as const, defaultVisible: true }]
       : []),
+    { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasCategory
       ? [{ id: 'category', label: 'Category', kind: 'base' as const, defaultVisible: false }]
       : []),
