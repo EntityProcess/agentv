@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -215,6 +215,20 @@ export type ResultsRepoSyncStatus =
   | 'needs_human_merge'
   | 'syncing';
 
+/**
+ * Layer 2 of the no-force-push results sync: when a genuine conflict cannot be
+ * auto-merged, the diverged local work is pushed to a fresh timestamped temp
+ * branch (never the canonical branch) and surfaced here so the user can merge it
+ * on GitHub and click OK to resume sync. Wire shape (snake_case).
+ */
+export interface ResultsPendingMerge {
+  readonly temp_branch: string;
+  readonly target_branch: string;
+  readonly compare_url?: string;
+  readonly contributed_run_count?: number;
+  readonly created_at: string;
+}
+
 export interface ResultsRepoStatus {
   readonly configured: boolean;
   readonly available: boolean;
@@ -250,6 +264,16 @@ export interface ResultsRepoStatus {
   readonly previous_remote_commit?: string;
   readonly force_pushed_commit?: string;
   readonly lease_commit?: string;
+  readonly pending_merge?: ResultsPendingMerge;
+}
+
+/** Internal camelCase mirror of {@link ResultsPendingMerge}. */
+export interface PendingMergeDetails {
+  readonly tempBranch: string;
+  readonly targetBranch: string;
+  readonly compareUrl?: string;
+  readonly contributedRunCount?: number;
+  readonly createdAt: string;
 }
 
 export interface NormalizedResultsConfig {
@@ -284,6 +308,7 @@ export interface DirectPushResultsResult {
   readonly previous_remote_commit?: string;
   readonly force_pushed_commit?: string;
   readonly lease_commit?: string;
+  readonly pending_merge?: ResultsPendingMerge;
 }
 
 export interface CheckedOutResultsRepoBranch {
@@ -1412,6 +1437,7 @@ type ResultsBranchPushDetails = {
   readonly previousRemoteCommit?: string;
   readonly forcePushedCommit?: string;
   readonly leaseCommit?: string;
+  readonly pendingMerge?: PendingMergeDetails;
 };
 
 type ResultsBranchPushOutcome =
@@ -1433,6 +1459,18 @@ class ResultsBranchPushConflictError extends Error {
   }
 }
 
+function pendingMergeToWire(details: PendingMergeDetails): ResultsPendingMerge {
+  return {
+    temp_branch: details.tempBranch,
+    target_branch: details.targetBranch,
+    ...(details.compareUrl !== undefined && { compare_url: details.compareUrl }),
+    ...(details.contributedRunCount !== undefined && {
+      contributed_run_count: details.contributedRunCount,
+    }),
+    created_at: details.createdAt,
+  };
+}
+
 function pushDetailsToWire(
   details?: ResultsBranchPushDetails,
 ): Pick<
@@ -1446,6 +1484,7 @@ function pushDetailsToWire(
   | 'previous_remote_commit'
   | 'force_pushed_commit'
   | 'lease_commit'
+  | 'pending_merge'
 > {
   if (!details) {
     return {};
@@ -1464,6 +1503,9 @@ function pushDetailsToWire(
       force_pushed_commit: details.forcePushedCommit,
     }),
     ...(details.leaseCommit !== undefined && { lease_commit: details.leaseCommit }),
+    ...(details.pendingMerge !== undefined && {
+      pending_merge: pendingMergeToWire(details.pendingMerge),
+    }),
   };
 }
 
@@ -1672,6 +1714,172 @@ function buildNeedsHumanMergeReason(
   )}). The remote branch is unchanged and no history was rewritten; resolve it with a GitHub pull request.`;
 }
 
+// Stable, flat, slug-based naming for the Layer 2 temp branches. A flat name is
+// required: a nested `agentv/results/v1/sync-...` ref would D/F-conflict with the
+// canonical `agentv/results/v1` branch (git cannot store a ref as both a file and
+// a directory). Mirrors the old backup-ref scheme.
+function timestampForResultsRef(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(
+    date.getUTCHours(),
+  )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
+}
+
+function slugifyResultsTargetBranch(branch: string): string {
+  return (
+    branch
+      .trim()
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'results'
+  );
+}
+
+function randomResultsRefToken(): string {
+  return randomBytes(4).toString('hex').slice(0, 6);
+}
+
+// `agentv/results-sync/<utc_ts>-<branch_slug>-<rand6>` — a flat ref under a
+// dedicated namespace so it never collides with (or D/F-conflicts against) the
+// canonical results branch. `<rand6>` avoids same-second collisions between
+// concurrent writers.
+function buildResultsSyncBranchName(targetBranch: string, token = randomResultsRefToken()): string {
+  return `agentv/results-sync/${timestampForResultsRef()}-${slugifyResultsTargetBranch(
+    targetBranch,
+  )}-${token}`;
+}
+
+// Build a GitHub compare URL for the temp branch, but only when the remote is a
+// GitHub remote. Returns undefined for non-GitHub remotes (zero-infra: URL
+// construction only, never a `gh` shell-out).
+export function buildResultsCompareUrl(
+  remoteUrl: string | undefined,
+  targetBranch: string,
+  syncBranch: string,
+): string | undefined {
+  if (!remoteUrl) {
+    return undefined;
+  }
+  const match = remoteUrl.trim().match(/github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i);
+  if (!match) {
+    return undefined;
+  }
+  const [, owner, repo] = match;
+  return `https://github.com/${owner}/${repo}/compare/${encodeURIComponent(
+    targetBranch,
+  )}...${encodeURIComponent(syncBranch)}?expand=1`;
+}
+
+async function resolveRemotePushUrl(repoDir: string, remote: string): Promise<string | undefined> {
+  for (const args of [
+    ['remote', 'get-url', '--push', remote],
+    ['remote', 'get-url', remote],
+  ]) {
+    const { stdout, exitCode } = await runGit(args, { cwd: repoDir, check: false });
+    const url = stdout.trim();
+    if (exitCode === 0 && url.length > 0) {
+      return url;
+    }
+  }
+  return undefined;
+}
+
+// Count the unique top-level `runs/<exp>/<ts>` run directories that the diverged
+// local commit adds on top of the remote target tip. Best-effort: returns
+// undefined when the diff cannot be computed.
+async function countContributedRunDirs(
+  repoDir: string,
+  remoteTargetCommit: string | undefined,
+  sourceCommit: string,
+): Promise<number | undefined> {
+  if (!remoteTargetCommit) {
+    return undefined;
+  }
+  const { stdout, exitCode } = await runGit(
+    [
+      'diff',
+      '--name-only',
+      `${remoteTargetCommit}...${sourceCommit}`,
+      '--',
+      `${RESULTS_REPO_RUNS_DIR}/`,
+    ],
+    { cwd: repoDir, check: false },
+  );
+  if (exitCode !== 0) {
+    return undefined;
+  }
+  const runDirs = new Set<string>();
+  for (const line of stdout.split(/\r?\n/)) {
+    const file = line.trim();
+    if (!file) {
+      continue;
+    }
+    const segments = file.split('/');
+    // runs/<experiment>/<timestamp>/...
+    if (segments[0] === RESULTS_REPO_RUNS_DIR && segments.length >= 3) {
+      runDirs.add(`${segments[0]}/${segments[1]}/${segments[2]}`);
+    }
+  }
+  return runDirs.size;
+}
+
+// Layer 2 push: create-only push of the diverged local commit to a fresh
+// timestamped temp branch. Never force, never the canonical branch. On the rare
+// same-second ref collision, regenerate the random token and retry once.
+async function pushResultsSyncBranch(params: {
+  readonly repoDir: string;
+  readonly remote: string;
+  readonly sourceCommit: string;
+  readonly targetBranch: string;
+}): Promise<PendingMergeDetails> {
+  const { repoDir, remote, sourceCommit, targetBranch } = params;
+  const remoteTargetCommit = await getCommitSha(repoDir, remoteBranchRef(targetBranch, remote));
+
+  let syncBranch = buildResultsSyncBranchName(targetBranch);
+  await assertValidResultsBranchName(repoDir, syncBranch);
+  try {
+    await runGit(['push', '--porcelain', remote, `${sourceCommit}:refs/heads/${syncBranch}`], {
+      cwd: repoDir,
+    });
+  } catch (error) {
+    if (!isRefAlreadyExistsPushError(error)) {
+      throw error;
+    }
+    syncBranch = buildResultsSyncBranchName(targetBranch);
+    await assertValidResultsBranchName(repoDir, syncBranch);
+    await runGit(['push', '--porcelain', remote, `${sourceCommit}:refs/heads/${syncBranch}`], {
+      cwd: repoDir,
+    });
+  }
+
+  const compareUrl = buildResultsCompareUrl(
+    await resolveRemotePushUrl(repoDir, remote),
+    targetBranch,
+    syncBranch,
+  );
+  const contributedRunCount = await countContributedRunDirs(
+    repoDir,
+    remoteTargetCommit,
+    sourceCommit,
+  ).catch(() => undefined);
+
+  return {
+    tempBranch: syncBranch,
+    targetBranch,
+    ...(compareUrl !== undefined && { compareUrl }),
+    ...(contributedRunCount !== undefined && { contributedRunCount }),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function isRefAlreadyExistsPushError(error: unknown): boolean {
+  const text = gitErrorText(error);
+  return (
+    text.includes('already exists') ||
+    text.includes('cannot lock ref') ||
+    text.includes('reference already exists')
+  );
+}
+
 // Merge `remoteCommit` into the currently checked-out branch via a real
 // `git merge`, so the working tree and index advance together (the ref-only
 // path uses merge-tree + update-ref instead). Returns the merge exit code; a
@@ -1729,6 +1937,43 @@ async function resolveResultBranchPushConflict(params: {
     targetBranch,
   };
 
+  // Layer 2: a genuine conflict could not be auto-merged. Push the diverged
+  // local work to a fresh temp branch (never canonical, never force) and surface
+  // a `pending_merge` block so the user can merge it on GitHub and click OK. If
+  // the temp-branch push itself fails, still return the blocked outcome with the
+  // error appended to the reason — never crash the sync.
+  const buildHumanMergeOutcome = async (
+    reason: string,
+    details: ResultsBranchPushDetails,
+  ): Promise<ResultsBranchPushOutcome> => {
+    if (!details.localCommit) {
+      return { blocked: true, blockReason: reason, details, syncStatus: 'needs_human_merge' };
+    }
+    try {
+      const pendingMerge = await pushResultsSyncBranch({
+        repoDir,
+        remote,
+        sourceCommit: details.localCommit,
+        targetBranch: details.targetBranch,
+      });
+      return {
+        blocked: true,
+        blockReason: reason,
+        details: { ...details, pendingMerge },
+        syncStatus: 'needs_human_merge',
+      };
+    } catch (error) {
+      return {
+        blocked: true,
+        blockReason: `${reason} (could not create the temp branch for the GitHub merge: ${getStatusMessage(
+          error,
+        )})`,
+        details,
+        syncStatus: 'needs_human_merge',
+      };
+    }
+  };
+
   for (let attempt = 1; attempt <= RESULTS_PUSH_MERGE_MAX_ATTEMPTS; attempt += 1) {
     await fetchResultsRepo(repoDir, remote, targetBranch);
     const remoteCommit = await getCommitSha(repoDir, remoteRef);
@@ -1780,23 +2025,19 @@ async function resolveResultBranchPushConflict(params: {
         const exitCode = await mergeRemoteIntoCheckedOutBranch(repoDir, remoteCommit);
         if (exitCode !== 0) {
           await runGit(['merge', '--abort'], { cwd: repoDir, check: false });
-          return {
-            blocked: true,
-            blockReason: buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
+          return await buildHumanMergeOutcome(
+            buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
             details,
-            syncStatus: 'needs_human_merge',
-          };
+          );
         }
         pushSpec = 'HEAD';
       } else {
         const base = await getMergeBaseCommit(repoDir, localCommit, remoteCommit);
         if (!base) {
-          return {
-            blocked: true,
-            blockReason: buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
+          return await buildHumanMergeOutcome(
+            buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
             details,
-            syncStatus: 'needs_human_merge',
-          };
+          );
         }
         const merge = await runGit(
           ['merge-tree', '--write-tree', `--merge-base=${base}`, localCommit, remoteCommit],
@@ -1804,12 +2045,10 @@ async function resolveResultBranchPushConflict(params: {
         );
         const mergedTree = merge.stdout.trim().split(/\r?\n/)[0]?.trim();
         if (merge.exitCode !== 0 || !mergedTree) {
-          return {
-            blocked: true,
-            blockReason: buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
+          return await buildHumanMergeOutcome(
+            buildNeedsHumanMergeReason(targetBranch, remoteCommit, localCommit),
             details,
-            syncStatus: 'needs_human_merge',
-          };
+          );
         }
         const { stdout: mergeCommitOut } = await runGitWithFallbackCommitIdentity(
           [
@@ -1848,12 +2087,10 @@ async function resolveResultBranchPushConflict(params: {
     };
   }
 
-  return {
-    blocked: true,
-    blockReason: `Results branch ${targetBranch} could not be reconciled after ${RESULTS_PUSH_MERGE_MAX_ATTEMPTS} attempts because the remote kept advancing; retry sync. The remote branch is unchanged.`,
-    details: lastDetails,
-    syncStatus: 'needs_human_merge',
-  };
+  return await buildHumanMergeOutcome(
+    `Results branch ${targetBranch} could not be reconciled after ${RESULTS_PUSH_MERGE_MAX_ATTEMPTS} attempts because the remote kept advancing; retry sync. The remote branch is unchanged.`,
+    lastDetails,
+  );
 }
 
 async function statusFromInspection(
@@ -2465,6 +2702,74 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
   } finally {
     activeResultsRepoSyncs.delete(syncKey);
   }
+}
+
+// Ancestor-guarded fast-forward of the local results checkout toward the merged
+// target branch. Only advances when the local commit is already an ancestor of
+// the remote target (i.e. the target genuinely contains the local work), so a
+// premature OK — where the user has not actually merged — is a no-op that leaves
+// the local work diverged and intact. Operates only on the results checkout,
+// never the user's source repo branch.
+async function fastForwardResultsTowardTarget(
+  repoDir: string,
+  normalized: NormalizedResultsConfig,
+  targetBranch: string,
+): Promise<void> {
+  const upstreamRef = remoteBranchRef(targetBranch, normalized.remote);
+  if (!(await gitRefExists(repoDir, upstreamRef))) {
+    return;
+  }
+  const upstreamCommit = await getCommitSha(repoDir, upstreamRef);
+  if (!upstreamCommit) {
+    return;
+  }
+
+  if (usesStorageBranchWorktree(normalized) && normalized.branch) {
+    const localRef = `refs/heads/${normalized.branch}`;
+    if (!(await gitRefExists(repoDir, localRef))) {
+      await runGit(['update-ref', localRef, upstreamCommit], { cwd: repoDir, check: false });
+      await runGit(['branch', '--set-upstream-to', upstreamRef, normalized.branch], {
+        cwd: repoDir,
+        check: false,
+      });
+      return;
+    }
+    const localCommit = await getCommitSha(repoDir, localRef);
+    if (localCommit && (await isAncestorCommit(repoDir, localCommit, upstreamCommit))) {
+      await runGit(['update-ref', localRef, upstreamCommit, localCommit], {
+        cwd: repoDir,
+        check: false,
+      });
+    }
+    return;
+  }
+
+  // Checkout mode: a plain fast-forward-only merge. It succeeds when the target
+  // contains the local work and is a harmless no-op (non-zero, ignored) when the
+  // local checkout is still diverged.
+  await runGit(['merge', '--ff-only', upstreamRef], { cwd: repoDir, check: false });
+}
+
+/**
+ * The explicit "OK" action of the Layer 2 human-merge flow. The user has merged
+ * the temp branch into the target on GitHub; AgentV fetches the remote, pulls the
+ * merged target into the local results checkout (ancestor-guarded fast-forward),
+ * and resumes the normal sync path which clears the `pending_merge` state.
+ *
+ * A premature OK (target not actually merged) is safe: the fast-forward is a
+ * no-op, the local work stays diverged and intact, and the resumed sync simply
+ * re-creates a fresh temp branch — no data loss, no force push. Only the results
+ * checkout is touched; the user's source repo branch is never modified.
+ */
+export async function confirmResultsMergeAndPull(
+  config: ResultsConfig,
+): Promise<ResultsRepoStatus> {
+  const normalized = normalizeResultsConfig(config);
+  const repoDir = await ensureResultsRepoClone(normalized);
+  const targetBranch = normalized.branch ?? (await resolveDefaultBranch(repoDir));
+  await fetchResultsRepo(repoDir, normalized.remote, normalized.branch).catch(() => undefined);
+  await fastForwardResultsTowardTarget(repoDir, normalized, targetBranch);
+  return syncResultsRepoForProject(config);
 }
 
 export async function checkoutResultsRepoBranch(

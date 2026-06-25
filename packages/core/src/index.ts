@@ -107,6 +107,8 @@ export {
   ensureResultsRepoClone,
   syncResultsRepo,
   syncResultsRepoForProject,
+  confirmResultsMergeAndPull,
+  buildResultsCompareUrl,
   getResultsRepoLocalPaths,
   getResultsRepoStatus,
   getResultsRepoSyncStatus,
@@ -139,6 +141,8 @@ export {
   type ResultsRepoLocalPaths,
   type ResultsRepoSyncStatus,
   type ResultsRepoStatus,
+  type ResultsPendingMerge,
+  type PendingMergeDetails,
   type WipWorktreeHandle,
 } from './evaluation/results-repo.js';
 export {
