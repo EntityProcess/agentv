@@ -76,14 +76,14 @@ describe('results report', () => {
     expect(deriveReportPath(sourceFile)).toBe(path.join(tempDir, 'run', 'report.html'));
   });
 
-  it('loads benchmark eval file metadata from a run workspace', async () => {
+  it('loads run summary eval file metadata from a run workspace', async () => {
     const runDir = path.join(tempDir, 'run');
     await writeArtifactsFromResults([makeResult()], runDir, { evalFile: 'evals/demo.eval.yaml' });
 
     const loaded = await loadReportSource(runDir, tempDir);
 
     expect(loaded.results).toHaveLength(1);
-    expect(loaded.benchmarkEvalFile).toBe('demo');
+    expect(loaded.summaryEvalFile).toBe('demo');
   });
 
   it('writes a static HTML report with grouped eval files and assertion type badges', async () => {

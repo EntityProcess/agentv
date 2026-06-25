@@ -25,7 +25,29 @@ describe('results validate', () => {
           test_id: 'test-greeting',
           score: 1,
           target: 'gpt-4o',
+          scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
           execution_status: 'ok',
+          summary_path: 'test-greeting/summary.json',
+        })}\n`,
+      );
+      mkdirSync(path.join(runDir, 'test-greeting'), { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'test-greeting', 'summary.json'),
+        `${JSON.stringify({
+          test_id: 'test-greeting',
+          score: 1,
+          target: 'gpt-4o',
+          execution_status: 'ok',
+        })}\n`,
+      );
+      writeFileSync(
+        path.join(runDir, 'summary.json'),
+        `${JSON.stringify({
+          schema_version: 1,
+          metadata: {
+            experiment: 'with-skills',
+            timestamp: '2026-03-27T12:42:24.429Z',
+          },
         })}\n`,
       );
 
