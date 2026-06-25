@@ -104,7 +104,6 @@ describe('result-table model', () => {
     expect(model.columns.map((column) => column.id)).toEqual([
       'status',
       'test',
-      'model_target',
       'score',
       'suite',
       'category',
@@ -114,27 +113,6 @@ describe('result-table model', () => {
       'grader:correctness',
     ]);
     expect(model.visibleColumns.map((column) => column.id)).toContain('grader:correctness');
-  });
-
-  it('accepts legacy scorer URL state as a grader alias', () => {
-    const model = buildResultTableModel({
-      passThreshold: 0.8,
-      results: [
-        result({
-          testId: 'legacy-rubric',
-          scores: [{ name: 'rubric', type: 'llm-grader', score: 1, verdict: 'pass' }],
-        }),
-      ],
-      state: {
-        view: 'scorer_errors',
-        scorer: 'rubric',
-        visibleColumnIds: ['scorer:rubric'],
-      },
-    });
-
-    expect(model.state.view).toBe('grader_errors');
-    expect(model.state.grader).toBe('rubric');
-    expect(model.visibleColumns.map((column) => column.id)).toEqual(['grader:rubric']);
   });
 
   it('builds repeated-run groups from hydrated run metadata', () => {
@@ -193,6 +171,12 @@ describe('result-table model', () => {
     });
 
     expect(model.repeatGroups).toHaveLength(1);
+    expect(model.columns.map((column) => column.id).slice(0, 3)).toEqual([
+      'status',
+      'expander',
+      'test',
+    ]);
+    expect(model.visibleColumns.map((column) => column.id)).toContain('expander');
     expect(model.repeatGroups[0]).toMatchObject({
       runCount: 2,
       passedRuns: 1,
@@ -209,6 +193,32 @@ describe('result-table model', () => {
     expect(model.visibleColumns.map((column) => column.id)).toContain('duration');
     expect(model.visibleColumns.map((column) => column.id)).toContain('cost_tokens');
     expect(model.filteredRepeatGroups.map((group) => group.row.testId)).toEqual(['repeat-case']);
+  });
+
+  it('keeps the repeat expander visible for saved result table column URLs', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'repeat-case',
+          score: 1,
+          runs: [
+            { run: 1, run_path: 'run-1', verdict: 'pass' },
+            { run: 2, run_path: 'run-2', verdict: 'pass' },
+          ],
+        }),
+      ],
+      state: {
+        visibleColumnIds: ['status', 'test', 'model_target', 'score', 'suite', 'duration'],
+      },
+    });
+
+    expect(model.visibleColumns.map((column) => column.id).slice(0, 3)).toEqual([
+      'status',
+      'expander',
+      'test',
+    ]);
+    expect(model.visibleColumns.map((column) => column.id)).not.toContain('model_target');
   });
 
   it('keeps duplicate artifact directory suffixes out of displayed test ids', () => {

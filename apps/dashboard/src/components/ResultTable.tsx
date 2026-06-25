@@ -40,7 +40,6 @@ const QUERY_KEYS = {
   search: 'results_q',
   target: 'results_target',
   grader: 'results_grader',
-  legacyScorer: 'results_scorer',
   columns: 'results_cols',
   detail: 'results_detail',
 } as const;
@@ -55,7 +54,7 @@ function readUrlState(): ResultTableStateInput {
     view: params.get(QUERY_KEYS.view) ?? undefined,
     search: params.get(QUERY_KEYS.search) ?? undefined,
     target: params.get(QUERY_KEYS.target) ?? undefined,
-    grader: params.get(QUERY_KEYS.grader) ?? params.get(QUERY_KEYS.legacyScorer) ?? undefined,
+    grader: params.get(QUERY_KEYS.grader) ?? undefined,
     visibleColumnIds:
       params
         .get(QUERY_KEYS.columns)
@@ -78,7 +77,6 @@ function writeUrlState(state: ResultTableState) {
   if (state.target === 'all') params.delete(QUERY_KEYS.target);
   else params.set(QUERY_KEYS.target, state.target);
 
-  params.delete(QUERY_KEYS.legacyScorer);
   if (state.grader === 'all') params.delete(QUERY_KEYS.grader);
   else params.set(QUERY_KEYS.grader, state.grader);
 
@@ -501,19 +499,19 @@ function ResultRowsTable({
     <div className="max-w-full overflow-x-auto rounded-lg border border-gray-800">
       <table
         className="w-full whitespace-nowrap text-left text-sm"
-        style={{ minWidth: `${Math.max(860, visibleColumns.length * 136)}px` }}
+        style={{ minWidth: `${resultTableMinWidth(visibleColumns)}px` }}
       >
         <thead className="border-b border-gray-800 bg-gray-900/50">
           <tr>
             {visibleColumns.map((column) => (
-              <th
-                key={column.id}
-                className={`px-4 py-3 font-medium text-gray-400 ${
-                  isNumericColumn(column.id) ? 'text-right' : ''
-                }`}
-                title={column.label}
-              >
-                <span className="block max-w-48 truncate">{column.label}</span>
+              <th key={column.id} className={columnHeaderClassName(column.id)} title={column.label}>
+                <span
+                  className={
+                    isVisuallyHiddenHeader(column.id) ? 'sr-only' : 'block max-w-48 truncate'
+                  }
+                >
+                  {column.label}
+                </span>
               </th>
             ))}
           </tr>
@@ -542,9 +540,7 @@ function ResultRowsTable({
                   {visibleColumns.map((column) => (
                     <td
                       key={`${row.key}:${column.id}`}
-                      className={`px-4 py-3 align-middle ${
-                        isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
-                      }`}
+                      className={columnCellClassName(column.id, 'py-3')}
                     >
                       <ResultCell
                         column={column}
@@ -581,9 +577,7 @@ function ResultRowsTable({
                           {visibleColumns.map((column) => (
                             <td
                               key={`${row.key}:${runPath}:${column.id}`}
-                              className={`px-4 py-2 align-middle ${
-                                isNumericColumn(column.id) ? 'text-right tabular-nums' : ''
-                              }`}
+                              className={columnCellClassName(column.id, 'py-2')}
                             >
                               <RunResultCell
                                 column={column}
@@ -644,22 +638,11 @@ function RunResultCell({
   const label = caseRunPath(caseRun, index);
   switch (column.id) {
     case 'status':
-      return <RunStatusSymbol status={status} label={statusLabel} />;
+      return <ResultStatusSymbol status={status} label={statusLabel} />;
+    case 'expander':
+      return <span aria-hidden="true" className="block h-5" />;
     case 'test':
       return <RunTestCell label={label} caseRun={caseRun} />;
-    case 'model_target':
-      return (
-        <div className="max-w-[16rem] min-w-0">
-          <div className="truncate text-gray-400" title={row.targetLabel}>
-            {row.targetLabel}
-          </div>
-          {caseRun.execution_status ? (
-            <div className="mt-0.5 truncate text-xs text-gray-600" title={caseRun.execution_status}>
-              {caseRun.execution_status}
-            </div>
-          ) : null}
-        </div>
-      );
     case 'score':
       return <PassRatePill rate={caseRun.score ?? 0} />;
     case 'suite':
@@ -699,11 +682,11 @@ function RunTestCell({ label, caseRun }: { label: string; caseRun: EvalCaseRun }
   );
 }
 
-function RunStatusSymbol({ status, label }: { status: string; label: string }) {
+function ResultStatusSymbol({ status, label }: { status: string; label: string }) {
   const passing = status === 'passing';
-  const error = status === 'error';
+  const warning = status === 'error' || status === 'partial';
   const symbol = passing ? CHECK_MARK : CROSS_MARK;
-  const tone = passing ? 'text-emerald-300' : error ? 'text-amber-300' : 'text-red-300';
+  const tone = passing ? 'text-emerald-300' : warning ? 'text-amber-300' : 'text-red-300';
   return (
     <span className={`inline-flex text-base font-semibold ${tone}`} title={label}>
       {symbol}
@@ -719,22 +702,12 @@ function RepeatStatusCell({
   passThreshold: number;
 }) {
   const passesThreshold = group.passRate >= passThreshold;
-  const symbol = passesThreshold ? CHECK_MARK : CROSS_MARK;
-  const tone = passesThreshold
-    ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
-    : group.passedRuns > 0
-      ? 'border-yellow-900/60 bg-yellow-950/20 text-yellow-300'
-      : 'border-red-900/60 bg-red-950/20 text-red-300';
+  const status = passesThreshold ? 'passing' : group.passedRuns > 0 ? 'partial' : 'failing';
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${tone}`}
-      title={`${formatPercent(group.passRate)} run success`}
-    >
-      <span>{symbol}</span>
-      <span>
-        {group.passedRuns}/{group.runCount}
-      </span>
-    </span>
+    <ResultStatusSymbol
+      status={status}
+      label={`${group.passedRuns}/${group.runCount} runs passed`}
+    />
   );
 }
 
@@ -772,6 +745,35 @@ function isNumericColumn(columnId: string): boolean {
   return ['duration', 'cost_tokens'].includes(columnId) || columnId.startsWith('grader:');
 }
 
+function isCompactColumn(columnId: string): boolean {
+  return columnId === 'status' || columnId === 'expander';
+}
+
+function isVisuallyHiddenHeader(columnId: string): boolean {
+  return isCompactColumn(columnId);
+}
+
+function resultTableMinWidth(columns: readonly ResultTableColumn[]): number {
+  const width = columns.reduce((sum, column) => sum + (isCompactColumn(column.id) ? 44 : 136), 0);
+  return Math.max(760, width);
+}
+
+function columnHeaderClassName(columnId: string): string {
+  if (isCompactColumn(columnId)) {
+    return 'w-11 min-w-11 max-w-11 px-2 py-3 text-center font-medium text-gray-400';
+  }
+  return `px-4 py-3 font-medium text-gray-400 ${isNumericColumn(columnId) ? 'text-right' : ''}`;
+}
+
+function columnCellClassName(columnId: string, paddingY: 'py-2' | 'py-3'): string {
+  if (isCompactColumn(columnId)) {
+    return `w-11 min-w-11 max-w-11 px-2 ${paddingY} text-center align-middle`;
+  }
+  return `px-4 ${paddingY} align-middle ${
+    isNumericColumn(columnId) ? 'text-right tabular-nums' : ''
+  }`;
+}
+
 function ResultCell({
   column,
   row,
@@ -801,20 +803,20 @@ function ResultCell({
       return repeatGroup ? (
         <RepeatStatusCell group={repeatGroup} passThreshold={passThreshold} />
       ) : (
-        <StatusCell status={row.status} label={row.statusLabel} />
+        <ResultStatusSymbol status={row.status} label={row.statusLabel} />
       );
-    case 'test':
-      return (
-        <TestCell
+    case 'expander':
+      return repeatGroup ? (
+        <ExpanderCell
           row={row}
-          repeatGroup={repeatGroup}
           repeatCollapsed={repeatCollapsed}
-          isSelected={isSelected}
           onToggleRepeatGroup={onToggleRepeatGroup}
         />
+      ) : (
+        <span aria-hidden="true" className="block h-5" />
       );
-    case 'model_target':
-      return <ModelTargetCell row={row} />;
+    case 'test':
+      return <TestCell row={row} repeatGroup={repeatGroup} isSelected={isSelected} />;
     case 'score':
       return row.executionError ? (
         <span className="inline-flex rounded-md border border-amber-900/60 bg-amber-950/20 px-2 py-0.5 text-xs font-medium text-amber-300">
@@ -850,72 +852,50 @@ function ResultCell({
   }
 }
 
-function StatusCell({
-  status,
-  label,
-  compact = false,
+function ExpanderCell({
+  row,
+  repeatCollapsed,
+  onToggleRepeatGroup,
 }: {
-  status: string;
-  label: string;
-  compact?: boolean;
+  row: ResultTableRow;
+  repeatCollapsed: boolean;
+  onToggleRepeatGroup: (rowKey: string) => void;
 }) {
-  const tone =
-    status === 'passing'
-      ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
-      : status === 'error'
-        ? 'border-amber-900/60 bg-amber-950/20 text-amber-300'
-        : 'border-red-900/60 bg-red-950/20 text-red-300';
-  const dot =
-    status === 'passing' ? 'bg-emerald-400' : status === 'error' ? 'bg-amber-400' : 'bg-red-400';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs ${tone}`}
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggleRepeatGroup(row.key);
+      }}
+      className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-800 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+      aria-expanded={!repeatCollapsed}
+      aria-label={`${repeatCollapsed ? 'Expand' : 'Collapse'} ${row.testId}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {compact ? label.slice(0, 1) : label}
-    </span>
+      {repeatCollapsed ? '+' : '-'}
+    </button>
   );
 }
 
 function TestCell({
   row,
   repeatGroup,
-  repeatCollapsed,
   isSelected,
-  onToggleRepeatGroup,
 }: {
   row: ResultTableRow;
   repeatGroup?: RepeatRunGroup;
-  repeatCollapsed: boolean;
   isSelected: boolean;
-  onToggleRepeatGroup: (rowKey: string) => void;
 }) {
   return (
     <div className="max-w-[24rem] min-w-0">
-      <div className="flex min-w-0 items-center gap-2">
-        {repeatGroup ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleRepeatGroup(row.key);
-            }}
-            className="shrink-0 rounded-md border border-gray-800 px-2 py-0.5 text-xs text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
-            aria-expanded={!repeatCollapsed}
-            aria-label={`${repeatCollapsed ? 'Expand' : 'Collapse'} ${row.testId}`}
-          >
-            {repeatCollapsed ? '+' : '-'}
-          </button>
-        ) : null}
-        <span
-          className={`block min-w-0 truncate text-left font-medium ${
-            isSelected ? 'text-cyan-200' : 'text-cyan-400'
-          }`}
-          title={row.testId}
-        >
-          {row.testId}
-        </span>
-      </div>
+      <span
+        className={`block min-w-0 truncate text-left font-medium ${
+          isSelected ? 'text-cyan-200' : 'text-cyan-400'
+        }`}
+        title={row.testId}
+      >
+        {row.testId}
+      </span>
       {repeatGroup ? <RepeatSummaryText group={repeatGroup} /> : null}
       {row.result.error ? (
         <div className="mt-0.5 truncate text-xs text-red-300" title={row.result.error}>
@@ -939,6 +919,13 @@ function buildEvalDetailHref(options: {
     return base;
   }
   return `${base}?artifact_dir=${encodeURIComponent(options.artifactDir)}`;
+}
+
+function scrollPanelIntoView(panel: HTMLElement | null) {
+  if (!panel) return;
+  window.requestAnimationFrame(() => {
+    panel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
 }
 
 function ResultDetailPanel({
@@ -972,8 +959,14 @@ function ResultDetailPanel({
   });
   const title = selectedRunPath ? `${row.testId} · ${selectedRunPath}` : row.testId;
   const showAggregateRepeatDetail = repeatGroup && !selectedCaseRun;
+  const panelScrollKey = `${row.key}:${selectedRunPath ?? ''}:${initialTab}`;
+
   return (
-    <aside className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
+    <aside
+      key={panelScrollKey}
+      ref={scrollPanelIntoView}
+      className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]"
+    >
       <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Row detail</p>
@@ -1015,25 +1008,6 @@ function ResultDetailPanel({
         />
       </div>
     </aside>
-  );
-}
-
-function ModelTargetCell({
-  row,
-}: {
-  row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
-}) {
-  return (
-    <div className="max-w-[16rem] min-w-0">
-      <div className="truncate text-gray-300" title={row.targetLabel}>
-        {row.targetLabel}
-      </div>
-      {row.modelLabel ? (
-        <div className="mt-0.5 truncate text-xs text-gray-500" title={row.modelLabel}>
-          {row.modelLabel}
-        </div>
-      ) : null}
-    </div>
   );
 }
 

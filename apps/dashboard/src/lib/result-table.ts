@@ -42,7 +42,6 @@ export interface ResultTableStateInput {
   readonly search?: string;
   readonly target?: string;
   readonly grader?: string;
-  readonly scorer?: string;
   readonly visibleColumnIds?: readonly string[];
 }
 
@@ -324,11 +323,8 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
   };
 }
 
-function hasMeaningfulTarget(rows: readonly ResultTableRow[]): boolean {
-  return rows.some((row) => row.targetLabel !== 'default' || row.modelLabel);
-}
-
 function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly string[]) {
+  const hasRepeatRows = rows.some((row) => (row.result.runs?.length ?? 0) > 1);
   const hasSuite = rows.some((row) => row.suiteLabel);
   const hasCategory = rows.some((row) => row.categoryLabel);
   const hasDuration = rows.some(
@@ -349,13 +345,10 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
 
   const columns: ResultTableColumn[] = [
     { id: 'status', label: 'Status', kind: 'base', defaultVisible: true },
+    ...(hasRepeatRows
+      ? [{ id: 'expander', label: 'Expand', kind: 'base' as const, defaultVisible: true }]
+      : []),
     { id: 'test', label: 'Test ID', kind: 'base', defaultVisible: true },
-    {
-      id: 'model_target',
-      label: 'Model / Target',
-      kind: 'base',
-      defaultVisible: hasMeaningfulTarget(rows),
-    },
     { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasSuite
       ? [{ id: 'suite', label: 'Suite', kind: 'base' as const, defaultVisible: true }]
@@ -392,7 +385,6 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
 }
 
 function normalizeView(value: string | undefined): ResultTableViewId {
-  if (value === 'scorer_errors') return 'grader_errors';
   return RESULT_TABLE_VIEW_PRESETS.some((preset) => preset.id === value)
     ? (value as ResultTableViewId)
     : 'all';
@@ -403,6 +395,23 @@ function defaultVisibleColumnIds(columns: readonly ResultTableColumn[]): string[
   return defaults.length > 0 ? defaults : columns.slice(0, 4).map((column) => column.id);
 }
 
+function includeStructuralColumn(
+  requestedColumns: readonly string[],
+  columns: readonly ResultTableColumn[],
+): string[] {
+  if (!columns.some((column) => column.id === 'expander')) return [...requestedColumns];
+  if (requestedColumns.includes('expander') || !requestedColumns.includes('test')) {
+    return [...requestedColumns];
+  }
+
+  const next = [...requestedColumns];
+  const statusIndex = next.indexOf('status');
+  const testIndex = next.indexOf('test');
+  const insertIndex = statusIndex >= 0 ? statusIndex + 1 : testIndex;
+  next.splice(insertIndex, 0, 'expander');
+  return next;
+}
+
 function normalizeState(
   input: ResultTableStateInput | undefined,
   columns: readonly ResultTableColumn[],
@@ -410,17 +419,15 @@ function normalizeState(
   graderOptions: readonly string[],
 ): ResultTableState {
   const columnIds = new Set(columns.map((column) => column.id));
-  const requestedColumns =
-    input?.visibleColumnIds
-      ?.map((id) => (id.startsWith('scorer:') ? `grader:${id.slice('scorer:'.length)}` : id))
-      .filter((id) => columnIds.has(id)) ?? [];
+  const requestedColumns = input?.visibleColumnIds?.filter((id) => columnIds.has(id)) ?? [];
   const visibleColumnIds =
-    requestedColumns.length > 0 ? requestedColumns : defaultVisibleColumnIds(columns);
+    requestedColumns.length > 0
+      ? includeStructuralColumn(requestedColumns, columns)
+      : defaultVisibleColumnIds(columns);
   const target =
     input?.target && targetOptions.includes(input.target) ? input.target : DEFAULT_TARGET;
-  const requestedGrader = input?.grader ?? input?.scorer;
   const grader =
-    requestedGrader && graderOptions.includes(requestedGrader) ? requestedGrader : DEFAULT_GRADER;
+    input?.grader && graderOptions.includes(input.grader) ? input.grader : DEFAULT_GRADER;
 
   return {
     view: normalizeView(input?.view),

@@ -162,7 +162,7 @@ export function EvalDetail({
   };
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Tab navigation — at the top so Files tab editor fills maximum height */}
       <div className="border-b border-gray-800">
         <div className="flex gap-1 px-4">
@@ -184,7 +184,7 @@ export function EvalDetail({
       </div>
 
       {/* Tab content */}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab === 'checks' && (
           <div className="overflow-auto p-4">
             {showAggregateRepeat ? (
@@ -207,7 +207,7 @@ export function EvalDetail({
           </div>
         )}
         {activeTab === 'files' && (
-          <div className="h-full p-4">
+          <div className="h-full min-h-0 p-4">
             <FilesTab
               result={detailResult}
               runId={runId}
