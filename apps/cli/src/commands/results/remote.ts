@@ -8,6 +8,7 @@ import {
   type NormalizedResultsConfig,
   type ResultsConfig,
   type ResultsRepoStatus,
+  confirmResultsMergeAndPull,
   directPushResultsWithDetails,
   directorySizeBytes,
   getProject,
@@ -367,6 +368,43 @@ export async function syncRemoteResults(
 
   try {
     const status = await syncResultsRepoForProject(config);
+    invalidateGitRunsCache(config.path);
+    return {
+      ...status,
+      run_count: await getRemoteRunCount(config, status),
+    };
+  } catch (error) {
+    const status = await getResultsRepoSyncStatus(config);
+    return {
+      ...status,
+      run_count: await getRemoteRunCount(config, status),
+      last_error: getStatusMessage(error),
+      blocked: true,
+      block_reason: getStatusMessage(error),
+    };
+  }
+}
+
+/**
+ * The Layer 2 "OK" action: the user has merged the pending temp branch into the
+ * target on GitHub. Pull the merged target into the local results checkout and
+ * resume normal sync. Mirrors {@link syncRemoteResults}'s config-load and
+ * error-wrap behavior.
+ */
+export async function confirmRemoteResultsMerge(
+  cwd: string,
+  projectId?: string,
+): Promise<RemoteResultsStatus> {
+  const config = await loadNormalizedResultsConfig(cwd, projectId);
+  if (!config) {
+    return {
+      ...(await getResultsRepoSyncStatus()),
+      run_count: 0,
+    };
+  }
+
+  try {
+    const status = await confirmResultsMergeAndPull(config);
     invalidateGitRunsCache(config.path);
     return {
       ...status,
