@@ -33,3 +33,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 **Gate policy** — The explicit rule that decides whether repeated attempts pass CI, such as `all_attempts_successful`, `any_attempt_successful`, `attempt_success_rate_at_least`, or `mean_pass_rate_at_least`. Without a repeat-run gate policy, AgentV preserves the normal single-run gate behavior and treats repeat statistics as report data.
 
 **Flaky eval outcome** — A repeat-run aggregate whose attempts disagree, or whose failure classification points at verifier, infrastructure, or timeout instability rather than a stable model-quality failure.
+
+## Release Channels
+
+**Stable release** — A package publication channel whose surfaces are treated as compatibility commitments for normal users.
+
+**Next tag** — A prerelease package channel used to validate upcoming AgentV surfaces before they become stable compatibility commitments.
+
+Next-tag-only surfaces may be hard-corrected before stable release when preserving them would encode an unsafe or misleading contract. Stable-release surfaces need an explicit compatibility or migration strategy.

@@ -156,7 +156,7 @@ export interface ResultsPublishOverrides {
   readonly remote?: string;
   readonly auto_push?: boolean;
   readonly require_push?: boolean;
-  readonly push_conflict_policy?: 'block' | 'backup_and_force_push';
+  readonly push_conflict_policy?: 'block';
 }
 
 const REMOTE_RUN_PREFIX = 'remote::';

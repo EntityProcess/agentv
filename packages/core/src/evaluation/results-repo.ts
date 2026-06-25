@@ -388,7 +388,18 @@ export function normalizeResultsConfig(
     (repoUrl && useStorageBranchWorktree ? MANAGED_RESULTS_REMOTE : 'origin');
   const autoPush = config.sync?.auto_push ?? config.auto_push === true;
   const requirePush = config.sync?.require_push === true;
-  const pushConflictPolicy = config.sync?.push_conflict_policy ?? 'block';
+  const configuredPushConflictPolicy = (
+    config.sync as { push_conflict_policy?: unknown } | undefined
+  )?.push_conflict_policy;
+  if (configuredPushConflictPolicy === 'backup_and_force_push') {
+    throw new Error(
+      "results.sync.push_conflict_policy: 'backup_and_force_push' is no longer supported. Remove the field or set it to 'block'; AgentV never force-pushes result branches.",
+    );
+  }
+  if (configuredPushConflictPolicy !== undefined && configuredPushConflictPolicy !== 'block') {
+    throw new Error("results.sync.push_conflict_policy must be 'block'");
+  }
+  const pushConflictPolicy = configuredPushConflictPolicy ?? 'block';
   const resolvedRepoPath = repoPath ? resolveLocalPath(repoPath, baseDir) : undefined;
   const resolvedPath = explicitClonePath
     ? resolveLocalPath(explicitClonePath, baseDir)
@@ -1668,23 +1679,6 @@ function isNonFastForwardPushError(error: unknown): boolean {
 // race where another writer advances the remote between our fetch and push.
 const RESULTS_PUSH_MERGE_MAX_ATTEMPTS = 5;
 
-let warnedForcePushPolicyDeprecation = false;
-// `backup_and_force_push` is retained for config back-compat but no longer force
-// pushes. Layer 1's auto-merge loop handles the common case and genuine
-// conflicts go to a human GitHub merge, so the policy is a no-op alias for the
-// safe default. Warn once per process so existing configs surface the change.
-function warnDeprecatedForcePushPolicyOnce(): void {
-  if (warnedForcePushPolicyDeprecation) {
-    return;
-  }
-  warnedForcePushPolicyDeprecation = true;
-  console.warn(
-    "[agentv] results.sync.push_conflict_policy: 'backup_and_force_push' is deprecated and no " +
-      'longer force-pushes. Results sync now auto-merges concurrent writes and routes genuine ' +
-      'conflicts to a human GitHub merge.',
-  );
-}
-
 async function isAncestorCommit(
   repoDir: string,
   ancestor: string,
@@ -1922,9 +1916,6 @@ async function resolveResultBranchPushConflict(params: {
   readonly targetBranch: string;
   readonly sourceRef: string;
 }): Promise<ResultsBranchPushOutcome> {
-  if (params.normalized.push_conflict_policy === 'backup_and_force_push') {
-    warnDeprecatedForcePushPolicyOnce();
-  }
   await ensureResultsMergeConfig(params.repoDir);
 
   const { repoDir, targetBranch } = params;

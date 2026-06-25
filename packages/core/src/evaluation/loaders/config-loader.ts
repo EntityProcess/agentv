@@ -35,7 +35,7 @@ export type ExecutionDefaults = {
   readonly pool_slots?: number;
 };
 
-export type ResultPushConflictPolicy = 'block' | 'backup_and_force_push';
+export type ResultPushConflictPolicy = 'block';
 
 export type ResultsConfig = {
   readonly mode?: 'github';
@@ -782,21 +782,20 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
       logWarning(`Invalid results.sync.require_push in ${configPath}, expected boolean`);
       return undefined;
     }
-    if (
-      syncObj.push_conflict_policy !== undefined &&
-      syncObj.push_conflict_policy !== 'block' &&
-      syncObj.push_conflict_policy !== 'backup_and_force_push'
-    ) {
+    if (syncObj.push_conflict_policy === 'backup_and_force_push') {
       logWarning(
-        `Invalid results.sync.push_conflict_policy in ${configPath}, expected 'block' or 'backup_and_force_push'`,
+        `results.sync.push_conflict_policy: 'backup_and_force_push' in ${configPath} is no longer supported. Remove the field or set it to 'block'; AgentV never force-pushes result branches.`,
       );
+      return undefined;
+    }
+    if (syncObj.push_conflict_policy !== undefined && syncObj.push_conflict_policy !== 'block') {
+      logWarning(`Invalid results.sync.push_conflict_policy in ${configPath}, expected 'block'`);
       return undefined;
     }
     sync = {
       ...(typeof syncObj.auto_push === 'boolean' && { auto_push: syncObj.auto_push }),
       ...(typeof syncObj.require_push === 'boolean' && { require_push: syncObj.require_push }),
-      ...((syncObj.push_conflict_policy === 'block' ||
-        syncObj.push_conflict_policy === 'backup_and_force_push') && {
+      ...(syncObj.push_conflict_policy === 'block' && {
         push_conflict_policy: syncObj.push_conflict_policy,
       }),
     };

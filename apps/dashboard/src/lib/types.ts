@@ -471,7 +471,7 @@ export interface RemoteStatusResponse {
   local_dir?: string;
   path?: string;
   auto_push?: boolean;
-  push_conflict_policy?: 'block' | 'backup_and_force_push';
+  push_conflict_policy?: 'block';
   branch_prefix?: string;
   run_count?: number;
   last_synced_at?: string;
