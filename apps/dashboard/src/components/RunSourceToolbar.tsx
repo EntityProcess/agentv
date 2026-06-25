@@ -13,6 +13,9 @@ interface RunSourceToolbarProps {
   syncFeedback?: { kind: 'success' | 'warning' | 'error'; message: string } | null;
   /** Pre-formatted "N of M runs on remote (branch)" summary derived from the listed runs. */
   onRemoteSummary?: string;
+  /** Layer 2 "I merged it — resync" handler; resumes canonical sync after a GitHub merge. */
+  onConfirmMerge?: () => void;
+  confirmMergeInFlight?: boolean;
 }
 
 export function RunSourceToolbar({
@@ -22,10 +25,13 @@ export function RunSourceToolbar({
   projectName,
   syncFeedback,
   onRemoteSummary,
+  onConfirmMerge,
+  confirmMergeInFlight,
 }: RunSourceToolbarProps) {
   const remoteConfigured = remoteStatus?.configured === true;
   const syncView = getProjectSyncView(remoteStatus, syncInFlight);
   const syncDisabled = syncInFlight === true || !syncView.canSync;
+  const pendingMerge = syncView.pendingMerge;
   const statusToneClass = {
     neutral: 'border-gray-700 bg-gray-800/70 text-gray-300',
     good: 'border-emerald-800/70 bg-emerald-950/30 text-emerald-300',
@@ -111,6 +117,50 @@ export function RunSourceToolbar({
           enable.
         </p>
       )}
+
+      {pendingMerge ? (
+        <div className="space-y-2 rounded-md border border-yellow-900/60 bg-yellow-950/20 px-3 py-2.5 text-sm text-yellow-200">
+          <p className="font-medium text-yellow-300">Pending merge on GitHub</p>
+          <p className="text-yellow-200/90">
+            Local results were pushed to{' '}
+            <code className="rounded bg-yellow-950/60 px-1 font-mono text-xs text-yellow-200">
+              {pendingMerge.tempBranch}
+            </code>{' '}
+            instead of force-pushing{' '}
+            <code className="rounded bg-yellow-950/60 px-1 font-mono text-xs text-yellow-200">
+              {pendingMerge.targetBranch}
+            </code>
+            {typeof pendingMerge.contributedRunCount === 'number'
+              ? ` (${pendingMerge.contributedRunCount} run${
+                  pendingMerge.contributedRunCount === 1 ? '' : 's'
+                })`
+              : ''}
+            . Merge it on GitHub, then resync.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {pendingMerge.compareUrl ? (
+              <a
+                href={pendingMerge.compareUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="rounded-md border border-yellow-700 bg-yellow-950/40 px-3 py-1.5 text-sm font-medium text-yellow-200 transition-colors hover:bg-yellow-900/40"
+              >
+                Open merge on GitHub ↗
+              </a>
+            ) : null}
+            {onConfirmMerge ? (
+              <button
+                type="button"
+                onClick={onConfirmMerge}
+                disabled={confirmMergeInFlight === true || syncInFlight === true}
+                className="rounded-md border border-cyan-800 bg-cyan-950/40 px-3 py-1.5 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {confirmMergeInFlight ? 'Resyncing...' : 'I merged it — resync'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {syncFeedback ? (
         <div

@@ -15,6 +15,7 @@ import { RunList } from '~/components/RunList';
 import { RunSourceToolbar } from '~/components/RunSourceToolbar';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
+  confirmRemoteResultsMergeApi,
   projectCompareOptions,
   remoteStatusOptions,
   syncRemoteResultsApi,
@@ -136,6 +137,7 @@ function ProjectRunsTab({
   const { data: activeRunsData } = useEvalRuns(projectId);
   const { data: remoteStatus } = useRemoteStatus(projectId);
   const [syncInFlight, setSyncInFlight] = useState(false);
+  const [confirmMergeInFlight, setConfirmMergeInFlight] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<{
     kind: 'success' | 'warning' | 'error';
     message: string;
@@ -173,6 +175,30 @@ function ProjectRunsTab({
         .catch(() => undefined);
     } finally {
       setSyncInFlight(false);
+    }
+  }
+
+  async function handleConfirmMerge() {
+    setConfirmMergeInFlight(true);
+    setSyncFeedback(null);
+    try {
+      const result = await confirmRemoteResultsMergeApi(projectId);
+      queryClient.setQueryData(remoteStatusOptions(projectId).queryKey, result);
+      setSyncFeedback(buildProjectSyncFeedback(result));
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
+        queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
+      ]).catch(() => undefined);
+    } catch (err) {
+      setSyncFeedback(buildProjectSyncErrorFeedback(err, remoteStatus));
+      void queryClient
+        .invalidateQueries({ queryKey: ['remote-status', projectId] })
+        .catch(() => undefined);
+    } finally {
+      setConfirmMergeInFlight(false);
     }
   }
 
@@ -241,6 +267,8 @@ function ProjectRunsTab({
         projectName={projectName}
         syncFeedback={syncFeedback}
         onRemoteSummary={onRemoteSummary}
+        onConfirmMerge={handleConfirmMerge}
+        confirmMergeInFlight={confirmMergeInFlight}
       />
       <RunList
         runs={runs}

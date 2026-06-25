@@ -14,6 +14,18 @@ export type ProjectSyncState =
 
 export type ProjectSyncTone = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
 
+/**
+ * camelCase view of the wire {@link RemoteStatusResponse.pending_merge} block.
+ * Surfaces the GitHub merge hand-off for the Layer 2 human-merge flow.
+ */
+export interface PendingMergeView {
+  tempBranch: string;
+  targetBranch: string;
+  compareUrl?: string;
+  contributedRunCount?: number;
+  createdAt: string;
+}
+
 export interface ProjectSyncView {
   state: ProjectSyncState;
   label: string;
@@ -22,6 +34,25 @@ export interface ProjectSyncView {
   summary: string;
   nextAction?: string;
   canSync: boolean;
+  /** Present only when a Layer 2 conflict pushed local work to a temp branch. */
+  pendingMerge?: PendingMergeView;
+}
+
+/** Translates the snake_case wire pending-merge block into the camelCase view. */
+export function toPendingMergeView(status: RemoteStatusResponse): PendingMergeView | undefined {
+  const pending = status.pending_merge;
+  if (!pending) {
+    return undefined;
+  }
+  return {
+    tempBranch: pending.temp_branch,
+    targetBranch: pending.target_branch,
+    ...(pending.compare_url !== undefined && { compareUrl: pending.compare_url }),
+    ...(pending.contributed_run_count !== undefined && {
+      contributedRunCount: pending.contributed_run_count,
+    }),
+    createdAt: pending.created_at,
+  };
 }
 
 function formatTimestamp(timestamp?: string): string | undefined {
@@ -124,6 +155,21 @@ export function getProjectSyncView(
 
   const state = status.sync_status ?? 'clean';
   if (state === 'needs_human_merge') {
+    const pendingMerge = toPendingMergeView(status);
+    if (pendingMerge) {
+      return {
+        state: 'needs_human_merge',
+        label: 'Pending merge',
+        actionLabel: 'Sync Project',
+        tone: 'warn',
+        summary:
+          status.block_reason ??
+          `Local results could not be auto-merged, so they were pushed to ${pendingMerge.tempBranch} for review.`,
+        nextAction: `No history was rewritten and the canonical branch was left untouched. Merge the branch into ${pendingMerge.targetBranch} on GitHub, then click "I merged it — resync".`,
+        canSync: false,
+        pendingMerge,
+      };
+    }
     return {
       state: 'needs_human_merge',
       label: 'Needs human merge',
