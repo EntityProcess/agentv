@@ -63,7 +63,7 @@ import { getAgentvConfigDir } from './paths.js';
 export interface ProjectResultsSyncConfig {
   autoPush?: boolean;
   requirePush?: boolean;
-  pushConflictPolicy?: 'block' | 'backup_and_force_push';
+  pushConflictPolicy?: 'block';
 }
 
 export interface ProjectResultsConfig {
@@ -105,7 +105,7 @@ export function getProjectsRegistryPath(): string {
 interface ProjectResultsSyncYaml {
   auto_push?: boolean;
   require_push?: boolean;
-  push_conflict_policy?: 'block' | 'backup_and_force_push';
+  push_conflict_policy?: 'block' | string;
 }
 
 interface ProjectResultsYaml {
@@ -148,6 +148,18 @@ function readTrimmedString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+let warnedRemovedBackupAndForcePushPolicy = false;
+
+function warnRemovedBackupAndForcePushPolicy(): void {
+  if (warnedRemovedBackupAndForcePushPolicy) {
+    return;
+  }
+  warnedRemovedBackupAndForcePushPolicy = true;
+  console.warn(
+    "[agentv] projects[].results.sync.push_conflict_policy: 'backup_and_force_push' is no longer supported and was ignored while loading the project registry. Remove the field or set it to 'block'; AgentV never force-pushes result branches.",
+  );
 }
 
 function fromYaml(raw: unknown): ProjectEntry | null {
@@ -208,8 +220,7 @@ function fromYaml(raw: unknown): ProjectEntry | null {
                 ...(typeof sync.require_push === 'boolean'
                   ? { requirePush: sync.require_push }
                   : {}),
-                ...(sync.push_conflict_policy === 'block' ||
-                sync.push_conflict_policy === 'backup_and_force_push'
+                ...(sync.push_conflict_policy === 'block'
                   ? { pushConflictPolicy: sync.push_conflict_policy }
                   : {}),
               },
@@ -219,6 +230,9 @@ function fromYaml(raw: unknown): ProjectEntry | null {
           ? { branchPrefix: r.branch_prefix.trim() }
           : {}),
       };
+      if (sync?.push_conflict_policy === 'backup_and_force_push') {
+        warnRemovedBackupAndForcePushPolicy();
+      }
     }
   }
   return entry;

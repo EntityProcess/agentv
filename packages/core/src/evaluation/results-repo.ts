@@ -256,6 +256,7 @@ export interface ResultsRepoStatus {
   readonly pull_performed?: boolean;
   readonly push_performed?: boolean;
   readonly commit_created?: boolean;
+  readonly auto_merged_remote?: boolean;
   readonly target_branch?: string;
   readonly remote_commit?: string;
   readonly local_commit?: string;
@@ -300,6 +301,7 @@ export interface DirectPushResultsResult {
   readonly block_reason?: string;
   readonly sync_status?: ResultsRepoSyncStatus;
   readonly push_conflict_policy: ResultPushConflictPolicy;
+  readonly auto_merged_remote?: boolean;
   readonly target_branch?: string;
   readonly remote_commit?: string;
   readonly local_commit?: string;
@@ -386,7 +388,18 @@ export function normalizeResultsConfig(
     (repoUrl && useStorageBranchWorktree ? MANAGED_RESULTS_REMOTE : 'origin');
   const autoPush = config.sync?.auto_push ?? config.auto_push === true;
   const requirePush = config.sync?.require_push === true;
-  const pushConflictPolicy = config.sync?.push_conflict_policy ?? 'block';
+  const configuredPushConflictPolicy = (
+    config.sync as { push_conflict_policy?: unknown } | undefined
+  )?.push_conflict_policy;
+  if (configuredPushConflictPolicy === 'backup_and_force_push') {
+    throw new Error(
+      "results.sync.push_conflict_policy: 'backup_and_force_push' is no longer supported. Remove the field or set it to 'block'; AgentV never force-pushes result branches.",
+    );
+  }
+  if (configuredPushConflictPolicy !== undefined && configuredPushConflictPolicy !== 'block') {
+    throw new Error("results.sync.push_conflict_policy must be 'block'");
+  }
+  const pushConflictPolicy = configuredPushConflictPolicy ?? 'block';
   const resolvedRepoPath = repoPath ? resolveLocalPath(repoPath, baseDir) : undefined;
   const resolvedPath = explicitClonePath
     ? resolveLocalPath(explicitClonePath, baseDir)
@@ -1437,6 +1450,7 @@ type ResultsBranchPushDetails = {
   readonly previousRemoteCommit?: string;
   readonly forcePushedCommit?: string;
   readonly leaseCommit?: string;
+  readonly autoMergedRemote?: boolean;
   readonly pendingMerge?: PendingMergeDetails;
 };
 
@@ -1484,6 +1498,7 @@ function pushDetailsToWire(
   | 'previous_remote_commit'
   | 'force_pushed_commit'
   | 'lease_commit'
+  | 'auto_merged_remote'
   | 'pending_merge'
 > {
   if (!details) {
@@ -1503,6 +1518,7 @@ function pushDetailsToWire(
       force_pushed_commit: details.forcePushedCommit,
     }),
     ...(details.leaseCommit !== undefined && { lease_commit: details.leaseCommit }),
+    ...(details.autoMergedRemote === true && { auto_merged_remote: true }),
     ...(details.pendingMerge !== undefined && {
       pending_merge: pendingMergeToWire(details.pendingMerge),
     }),
@@ -1662,23 +1678,6 @@ function isNonFastForwardPushError(error: unknown): boolean {
 // Bounded optimistic retry for the fetch → merge → push loop. Covers the benign
 // race where another writer advances the remote between our fetch and push.
 const RESULTS_PUSH_MERGE_MAX_ATTEMPTS = 5;
-
-let warnedForcePushPolicyDeprecation = false;
-// `backup_and_force_push` is retained for config back-compat but no longer force
-// pushes. Layer 1's auto-merge loop handles the common case and genuine
-// conflicts go to a human GitHub merge, so the policy is a no-op alias for the
-// safe default. Warn once per process so existing configs surface the change.
-function warnDeprecatedForcePushPolicyOnce(): void {
-  if (warnedForcePushPolicyDeprecation) {
-    return;
-  }
-  warnedForcePushPolicyDeprecation = true;
-  console.warn(
-    "[agentv] results.sync.push_conflict_policy: 'backup_and_force_push' is deprecated and no " +
-      'longer force-pushes. Results sync now auto-merges concurrent writes and routes genuine ' +
-      'conflicts to a human GitHub merge.',
-  );
-}
 
 async function isAncestorCommit(
   repoDir: string,
@@ -1917,9 +1916,6 @@ async function resolveResultBranchPushConflict(params: {
   readonly targetBranch: string;
   readonly sourceRef: string;
 }): Promise<ResultsBranchPushOutcome> {
-  if (params.normalized.push_conflict_policy === 'backup_and_force_push') {
-    warnDeprecatedForcePushPolicyOnce();
-  }
   await ensureResultsMergeConfig(params.repoDir);
 
   const { repoDir, targetBranch } = params;
@@ -2017,6 +2013,7 @@ async function resolveResultBranchPushConflict(params: {
     }
 
     let pushSpec = branchCheckedOut ? 'HEAD' : localCommit;
+    let autoMergedRemote = false;
     // Diverged (neither side is an ancestor): commit a real 3-way merge using
     // the artifact-aware drivers. If `git merge` reports a genuine conflict, no
     // history is rewritten and we route to a human GitHub merge.
@@ -2031,6 +2028,7 @@ async function resolveResultBranchPushConflict(params: {
           );
         }
         pushSpec = 'HEAD';
+        autoMergedRemote = true;
       } else {
         const base = await getMergeBaseCommit(repoDir, localCommit, remoteCommit);
         if (!base) {
@@ -2065,6 +2063,7 @@ async function resolveResultBranchPushConflict(params: {
         );
         pushSpec = mergeCommitOut.trim();
         await runGit(['update-ref', localRef, pushSpec, localCommit], { cwd: repoDir });
+        autoMergedRemote = true;
       }
     }
 
@@ -2083,7 +2082,11 @@ async function resolveResultBranchPushConflict(params: {
     const pushedCommit = (await getCommitSha(repoDir, pushSpec)) ?? localCommit;
     return {
       blocked: false,
-      details: { ...details, localCommit: pushedCommit },
+      details: {
+        ...details,
+        localCommit: pushedCommit,
+        ...(autoMergedRemote && { autoMergedRemote }),
+      },
     };
   }
 
@@ -3546,10 +3549,13 @@ function mergeDirectPushResults(
   if (blocked) {
     return blocked;
   }
-  const detailed = [...results].reverse().find((result) => result.backup_ref !== undefined);
+  const detailed = [...results]
+    .reverse()
+    .find((result) => result.backup_ref !== undefined || result.auto_merged_remote === true);
   return {
     changed: results.some((result) => result.changed),
     push_conflict_policy: normalized.push_conflict_policy,
+    ...(detailed?.auto_merged_remote === true && { auto_merged_remote: true }),
     ...(detailed?.backup_ref !== undefined && {
       backup_ref: detailed.backup_ref,
     }),

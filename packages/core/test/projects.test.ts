@@ -161,7 +161,7 @@ describe('projects registry', () => {
     });
   });
 
-  it('round-trips project results config through YAML', () => {
+  it('drops removed project results push policy while preserving other sync config', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
     writeFileSync(
@@ -184,14 +184,21 @@ describe('projects registry', () => {
       'utf-8',
     );
 
+    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
     const registry = loadProjectRegistry();
-    expect(registry.projects[0].results).toEqual({
-      repoUrl: 'https://github.com/EntityProcess/results-project-runs.git',
-      branch: 'agentv-results',
-      path: '/srv/agentv/results/results-project',
-      sync: { autoPush: true, pushConflictPolicy: 'backup_and_force_push' },
-      branchPrefix: 'eval-results',
-    });
+    try {
+      expect(registry.projects[0].results).toEqual({
+        repoUrl: 'https://github.com/EntityProcess/results-project-runs.git',
+        branch: 'agentv-results',
+        path: '/srv/agentv/results/results-project',
+        sync: { autoPush: true },
+        branchPrefix: 'eval-results',
+      });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('backup_and_force_push'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('was ignored'));
+    } finally {
+      warn.mockRestore();
+    }
 
     saveProjectRegistry(registry);
     const yamlOnDisk = readFileSync(registryPath, 'utf-8');
@@ -202,7 +209,7 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('branch: agentv-results');
     expect(yamlOnDisk).toContain('path: /srv/agentv/results/results-project');
     expect(yamlOnDisk).toContain('auto_push: true');
-    expect(yamlOnDisk).toContain('push_conflict_policy: backup_and_force_push');
+    expect(yamlOnDisk).not.toContain('push_conflict_policy:');
     expect(yamlOnDisk).toContain('branch_prefix: eval-results');
     expect(yamlOnDisk).not.toContain('repo_url:');
     expect(yamlOnDisk).not.toContain('localPath:');

@@ -283,6 +283,33 @@ describe('validateConfigFile', () => {
     );
   });
 
+  it('reports backup_and_force_push as a removed push conflict policy', async () => {
+    const filePath = path.join(tempDir, 'removed-push-policy.yaml');
+    await writeFile(
+      filePath,
+      `projects:
+  - id: demo
+    name: Demo
+    repo:
+      path: /tmp/demo
+    results:
+      repo:
+        path: .
+      sync:
+        push_conflict_policy: backup_and_force_push
+`,
+    );
+
+    const result = await validateConfigFile(filePath, { scope: 'global' });
+
+    expect(result.valid).toBe(false);
+    const error = result.errors.find(
+      (entry) => entry.location === 'projects[0].results.sync.push_conflict_policy',
+    );
+    expect(error?.message).toContain('uses removed value');
+    expect(error?.message).toContain("set it to 'block'");
+  });
+
   it.each([
     {
       field: 'repository',

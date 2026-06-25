@@ -205,6 +205,21 @@ describe('buildProjectSyncFeedback', () => {
     expect(feedback.message).toContain('pulled remote results');
   });
 
+  it('surfaces auto-merged remote changes in successful sync feedback', () => {
+    const feedback = buildProjectSyncFeedback({
+      configured: true,
+      available: true,
+      sync_status: 'clean',
+      auto_merged_remote: true,
+      push_performed: true,
+      run_count: 2,
+    });
+
+    expect(feedback.kind).toBe('success');
+    expect(feedback.message).toContain('Merged remote (auto)');
+    expect(feedback.message).toContain('pushed local results');
+  });
+
   it('keeps blocked sync feedback explicit', () => {
     expect(
       buildProjectSyncFeedback({

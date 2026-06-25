@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -238,7 +238,7 @@ describe('parseResultsConfig', () => {
         sync: {
           auto_push: false,
           require_push: true,
-          push_conflict_policy: 'backup_and_force_push',
+          push_conflict_policy: 'block',
         },
       },
       '/tmp/.agentv/config.yaml',
@@ -252,9 +252,31 @@ describe('parseResultsConfig', () => {
       sync: {
         auto_push: false,
         require_push: true,
-        push_conflict_policy: 'backup_and_force_push',
+        push_conflict_policy: 'block',
       },
     });
+  });
+
+  it('rejects removed backup_and_force_push sync policy with migration guidance', () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const result = parseResultsConfig(
+        {
+          repo_path: '.',
+          sync: {
+            auto_push: true,
+            push_conflict_policy: 'backup_and_force_push',
+          },
+        },
+        '/tmp/.agentv/config.yaml',
+      );
+
+      expect(result).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('is no longer supported'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("set it to 'block'"));
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('parses nested repo config for a managed results clone', () => {

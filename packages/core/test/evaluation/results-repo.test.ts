@@ -1296,6 +1296,7 @@ describe('results repo write path', () => {
 
     expect(result.changed).toBe(true);
     expect(result.blocked).toBeFalsy();
+    expect(result.auto_merged_remote).toBe(true);
     expect(result.backup_ref).toBeUndefined();
     expect(result.force_pushed_commit).toBeUndefined();
 
@@ -1327,51 +1328,26 @@ describe('results repo write path', () => {
     ).toBe('');
   }, 30000);
 
-  it('deprecates backup_and_force_push by auto-merging instead of force pushing', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const cloneDir = path.join(rootDir, 'results-clone-push-deprecated-policy');
-    const fixture = await createStaleResultBranchPushFixture({
-      rootDir,
-      remoteDir,
-      seedDir,
-      cloneDir,
-      storageBranch,
-    });
+  it('rejects removed backup_and_force_push policy before syncing', async () => {
+    const sourceDir = path.join(rootDir, 'removed-policy-source');
+    writeRunArtifacts(sourceDir, 'removed-policy', '2026-06-23T10:30:00.000Z');
 
-    const result = await directPushResultsWithDetails({
-      config: {
-        ...fixture.config,
-        sync: { auto_push: true, push_conflict_policy: 'backup_and_force_push' },
-      },
-      sourceDir: fixture.localSourceDir,
-      destinationPath: fixture.localDestinationPath,
-      commitMessage: 'feat(results): deprecated force policy auto-merges',
-    });
-
-    expect(result.changed).toBe(true);
-    expect(result.blocked).toBeFalsy();
-    // The deprecated policy no longer force-pushes or backs anything up.
-    expect(result.backup_ref).toBeUndefined();
-    expect(result.force_pushed_commit).toBeUndefined();
-    expect(
-      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
-    ).toBe('');
-
-    const finalTip = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
-    expect(() =>
-      git(
-        `git --git-dir "${remoteDir}" merge-base --is-ancestor ${fixture.remoteAdvancedCommit} ${finalTip}`,
-        rootDir,
-      ),
-    ).not.toThrow();
-    const remoteFiles = git(
-      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
-      rootDir,
-    );
-    expect(remoteFiles).toContain(`runs/${fixture.localDestinationPath}/benchmark.json`);
-    expect(remoteFiles).toContain('runs/remote-only/2026-06-23T09-30-00-000Z/benchmark.json');
-  }, 30000);
+    await expect(
+      directPushResultsWithDetails({
+        config: {
+          repo_path: rootDir,
+          branch: DEFAULT_RESULTS_BRANCH,
+          sync: {
+            auto_push: true,
+            push_conflict_policy: 'backup_and_force_push',
+          },
+        } as unknown as ResultsConfig,
+        sourceDir,
+        destinationPath: path.join('removed-policy', '2026-06-23T10-30-00-000Z'),
+        commitMessage: 'feat(results): removed policy',
+      }),
+    ).rejects.toThrow(/backup_and_force_push.*no longer supported/);
+  });
 
   it('retries a benign push race without force', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
@@ -1804,6 +1780,7 @@ describe('results repo write path', () => {
       branch: storageBranch,
       upstream: `agentv-results/${storageBranch}`,
     });
+    expect(status.auto_merged_remote).toBeUndefined();
     expect(git(`git show ${storageBranch}:REMOTE_BRANCH.md`, cloneDir)).toBe(
       'branch remote update',
     );
@@ -2011,6 +1988,7 @@ describe('results repo write path', () => {
     expect(status.sync_status).toBe('clean');
     expect(status.blocked).toBe(false);
     expect(status.push_performed).toBe(true);
+    expect(status.auto_merged_remote).toBe(true);
 
     const finalTip = git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir);
     const parents = git(`git --git-dir "${remoteDir}" rev-list --parents -n 1 main`, rootDir).split(

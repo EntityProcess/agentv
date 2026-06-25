@@ -448,16 +448,22 @@ function validateResultsSyncAndBranchPrefix(
           `Field '${location}.sync.require_push' must be a boolean`,
         );
       }
-      if (
+      if (syncRecord.push_conflict_policy === 'backup_and_force_push') {
+        addError(
+          errors,
+          filePath,
+          `${location}.sync.push_conflict_policy`,
+          `Field '${location}.sync.push_conflict_policy' uses removed value 'backup_and_force_push'; remove it or set it to 'block'. AgentV never force-pushes result branches.`,
+        );
+      } else if (
         syncRecord.push_conflict_policy !== undefined &&
-        syncRecord.push_conflict_policy !== 'block' &&
-        syncRecord.push_conflict_policy !== 'backup_and_force_push'
+        syncRecord.push_conflict_policy !== 'block'
       ) {
         addError(
           errors,
           filePath,
           `${location}.sync.push_conflict_policy`,
-          `Field '${location}.sync.push_conflict_policy' must be 'block' or 'backup_and_force_push'`,
+          `Field '${location}.sync.push_conflict_policy' must be 'block'`,
         );
       }
     }

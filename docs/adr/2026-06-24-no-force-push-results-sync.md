@@ -69,9 +69,11 @@ all of it and is safe: a premature OK just pulls a target lacking the local work
 re-diverges on the next push, and re-creates a temp branch — no data loss, no
 force push.
 
-`backup_and_force_push` is **deprecated, not removed**: the config value still
-validates but now auto-merges like the default and emits a one-time deprecation
-notice, so shipped surfaces referencing it keep working.
+`backup_and_force_push` is **hard-deprecated/removed** from supported config:
+the value shipped only on the `next` npm tag before stable release, so AgentV
+now rejects it with migration guidance instead of preserving a compatibility
+alias. Remove the field or set `sync.push_conflict_policy: block`; AgentV never
+force-pushes result branches.
 
 ## Consequences
 
@@ -112,8 +114,9 @@ notice, so shipped surfaces referencing it keep working.
 Delivered in phases under epic av-raf (all non-breaking):
 
 - Phase 0 — `.gitattributes` + `agentv-json` merge driver registration (#1506).
-- Phase 1 — bounded `fetch → merge → push` loop replacing the force-push path;
-  `backup_and_force_push` deprecated (#1506).
+- Phase 1 — bounded `fetch → merge → push` loop replacing the force-push path
+  (#1506); `backup_and_force_push` hard-deprecated before stable release
+  (#1510).
 - Phase 2 — temp-branch fallback + `confirm-merge` (OK-to-resync) API (#1507).
 - Phase 3 — Dashboard **Pending merge** card with the GitHub link + resync button
   (#1508).
