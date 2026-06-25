@@ -336,7 +336,15 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
       row.result.durationMs != null ||
       row.result.runs?.some((caseRun) => caseRun.duration_ms != null),
   );
-  const hasCostOrTokens = rows.some((row) => row.result.costUsd != null || row.tokenTotal != null);
+  const hasCostOrTokens = rows.some(
+    (row) =>
+      row.result.costUsd != null ||
+      row.tokenTotal != null ||
+      row.result.runs?.some(
+        (caseRun) =>
+          caseRun.cost_usd != null || caseRun.total_tokens != null || caseRun.token_usage != null,
+      ),
+  );
   const hasError = rows.some((row) => row.result.error);
 
   const columns: ResultTableColumn[] = [

@@ -106,9 +106,13 @@ export interface EvalCaseRun {
   run_path?: string;
   score?: number;
   verdict?: string;
+  scores?: ScoreEntry[];
+  assertions?: AssertionEntry[];
   error?: string;
   execution_status?: string;
   cost_usd?: number;
+  total_tokens?: number;
+  token_usage?: TokenUsage;
   duration_ms?: number;
   total_tool_calls?: number;
   tool_calls?: Record<string, number>;

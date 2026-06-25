@@ -24,6 +24,8 @@ import type { EvalCaseRun, EvalResult, ScoreEntry } from '~/lib/types';
 import { EvalDetail } from './EvalDetail';
 import { PassRatePill } from './PassRatePill';
 
+type DetailTab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
+
 interface ResultTableProps {
   results: readonly EvalResult[];
   runId: string;
@@ -42,6 +44,9 @@ const QUERY_KEYS = {
   columns: 'results_cols',
   detail: 'results_detail',
 } as const;
+
+const CHECK_MARK = '\u2713';
+const CROSS_MARK = '\u2717';
 
 function readUrlState(): ResultTableStateInput {
   if (typeof window === 'undefined') return {};
@@ -131,6 +136,24 @@ function formatTokens(tokens: number | undefined): string | undefined {
   return `${tokens} tok`;
 }
 
+function tokenUsageTotal(
+  usage: EvalCaseRun['token_usage'] | EvalResult['tokenUsage'],
+): number | undefined {
+  if (!usage) return undefined;
+  const values = [usage.input, usage.output, usage.reasoning, usage.cached].filter(
+    (value): value is number => typeof value === 'number' && Number.isFinite(value),
+  );
+  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) : undefined;
+}
+
+function caseRunTokenTotal(caseRun: EvalCaseRun): number | undefined {
+  return caseRun.total_tokens ?? tokenUsageTotal(caseRun.token_usage);
+}
+
+function caseRunPath(caseRun: EvalCaseRun, index = 0): string {
+  return caseRun.run_path ?? `run-${caseRun.run ?? index + 1}`;
+}
+
 function compactTokenBreakdown(result: EvalResult): string | undefined {
   const usage = result.tokenUsage;
   if (!usage) return undefined;
@@ -167,6 +190,7 @@ export function ResultTable({
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(() => readSelectedRowKey());
   const [selectedRunPath, setSelectedRunPath] = useState<string | null>(null);
   const [selectedDetailFilePath, setSelectedDetailFilePath] = useState<string | null>(null);
+  const [selectedDetailTab, setSelectedDetailTab] = useState<DetailTab>('checks');
   const [collapsedRepeatRows, setCollapsedRepeatRows] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -194,6 +218,13 @@ export function ResultTable({
     () => new Map(model.repeatGroups.map((group) => [group.row.key, group])),
     [model.repeatGroups],
   );
+  const selectedRepeatGroup = selectedRow ? repeatGroupsByRowKey.get(selectedRow.key) : undefined;
+  const selectedCaseRun =
+    selectedRepeatGroup && selectedRunPath
+      ? (selectedRepeatGroup.runs.find(
+          (caseRun, index) => caseRunPath(caseRun, index) === selectedRunPath,
+        ) ?? null)
+      : null;
 
   useEffect(() => {
     const handlePopState = () => {
@@ -201,6 +232,7 @@ export function ResultTable({
       setSelectedRowKey(readSelectedRowKey());
       setSelectedRunPath(null);
       setSelectedDetailFilePath(null);
+      setSelectedDetailTab('checks');
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -231,6 +263,7 @@ export function ResultTable({
     setSelectedRowKey(null);
     setSelectedRunPath(null);
     setSelectedDetailFilePath(null);
+    setSelectedDetailTab('checks');
   }
 
   function toggleColumn(columnId: string) {
@@ -245,12 +278,14 @@ export function ResultTable({
     setSelectedRowKey(rowKey);
     setSelectedRunPath(null);
     setSelectedDetailFilePath(null);
+    setSelectedDetailTab('checks');
   }
 
-  function openRunDetail(rowKey: string, caseRun: EvalCaseRun) {
+  function openRunDetail(rowKey: string, caseRun: EvalCaseRun, initialTab: DetailTab = 'checks') {
     writeSelectedRowKey(rowKey);
     setSelectedRowKey(rowKey);
-    setSelectedRunPath(caseRun.run_path ?? `run-${caseRun.run ?? ''}`);
+    setSelectedRunPath(caseRunPath(caseRun));
+    setSelectedDetailTab(initialTab);
     setSelectedDetailFilePath(primaryRunArtifactPath(caseRun));
   }
 
@@ -259,6 +294,7 @@ export function ResultTable({
     setSelectedRowKey(null);
     setSelectedRunPath(null);
     setSelectedDetailFilePath(null);
+    setSelectedDetailTab('checks');
   }
 
   function toggleRepeatGroup(rowKey: string) {
@@ -422,8 +458,14 @@ export function ResultTable({
             row={selectedRow}
             runId={runId}
             projectId={projectId}
+            repeatGroup={selectedRepeatGroup}
+            selectedCaseRun={selectedCaseRun}
             selectedRunPath={selectedRunPath}
+            initialTab={selectedDetailTab}
             initialFilePath={selectedDetailFilePath}
+            onOpenRunDetail={(caseRun, initialTab) =>
+              openRunDetail(selectedRow.key, caseRun, initialTab)
+            }
             onClose={closeRowDetail}
           />
         )}
@@ -518,7 +560,7 @@ function ResultRowsTable({
                 </tr>
                 {repeatGroup && !collapsed
                   ? repeatGroup.runs.map((caseRun, index) => {
-                      const runPath = caseRun.run_path ?? `run-${caseRun.run ?? index + 1}`;
+                      const runPath = caseRunPath(caseRun, index);
                       const runSelected = selectedRowKey === row.key && selectedRunPath === runPath;
                       return (
                         <tr
@@ -582,17 +624,6 @@ function primaryRunArtifactPath(caseRun: EvalCaseRun): string | null {
   );
 }
 
-function runArtifactSummary(caseRun: EvalCaseRun): string | undefined {
-  const labels = [
-    caseRun.metrics_path ? 'metrics' : undefined,
-    caseRun.timing_path ? 'timing' : undefined,
-    caseRun.grading_path ? 'grading' : undefined,
-    caseRun.transcript_path ? 'transcript' : undefined,
-    caseRun.answer_path ? 'output' : undefined,
-  ].filter((label): label is string => Boolean(label));
-  return labels.length > 0 ? labels.join(', ') : undefined;
-}
-
 function RunResultCell({
   column,
   row,
@@ -610,15 +641,15 @@ function RunResultCell({
   const isExecutionError = caseRun.execution_status === 'execution_error';
   const status = isExecutionError ? 'error' : passed ? 'passing' : 'failing';
   const statusLabel = isExecutionError ? 'Error' : passed ? 'Passing' : 'Failing';
-  const label = caseRun.run_path ?? `run-${caseRun.run ?? index + 1}`;
+  const label = caseRunPath(caseRun, index);
   switch (column.id) {
     case 'status':
-      return <StatusCell status={status} label={statusLabel} compact />;
+      return <RunStatusSymbol status={status} label={statusLabel} />;
     case 'test':
       return <RunTestCell label={label} caseRun={caseRun} />;
     case 'model_target':
       return (
-        <div className="max-w-[16rem] min-w-0 pl-6">
+        <div className="max-w-[16rem] min-w-0">
           <div className="truncate text-gray-400" title={row.targetLabel}>
             {row.targetLabel}
           </div>
@@ -637,14 +668,8 @@ function RunResultCell({
       return <TruncatedMuted value={row.categoryLabel} tone="text-gray-500" />;
     case 'duration':
       return <span className="text-gray-500">{formatDuration(caseRun.duration_ms)}</span>;
-    case 'cost_tokens': {
-      const cost = formatCost(caseRun.cost_usd);
-      return cost ? (
-        <span className="text-gray-500">{cost}</span>
-      ) : (
-        <span className="text-gray-700">-</span>
-      );
-    }
+    case 'cost_tokens':
+      return <RunCostTokenCell caseRun={caseRun} />;
     case 'review':
       return <span className="text-gray-700">-</span>;
     case 'error':
@@ -655,7 +680,6 @@ function RunResultCell({
 }
 
 function RunTestCell({ label, caseRun }: { label: string; caseRun: EvalCaseRun }) {
-  const artifactSummary = runArtifactSummary(caseRun);
   return (
     <div className="max-w-[24rem] min-w-0 pl-6">
       <div className="truncate font-medium text-gray-300" title={label}>
@@ -664,11 +688,6 @@ function RunTestCell({ label, caseRun }: { label: string; caseRun: EvalCaseRun }
       <div className="mt-0.5 flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-600">
         {caseRun.total_tool_calls != null ? (
           <span>{caseRun.total_tool_calls} tool calls</span>
-        ) : null}
-        {artifactSummary ? (
-          <span className="truncate" title={artifactSummary}>
-            {artifactSummary}
-          </span>
         ) : null}
       </div>
       {caseRun.error ? (
@@ -680,16 +699,41 @@ function RunTestCell({ label, caseRun }: { label: string; caseRun: EvalCaseRun }
   );
 }
 
-function RepeatStatusCell({ group }: { group: RepeatRunGroup }) {
-  const tone =
-    group.passedRuns === group.runCount
-      ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
-      : group.passedRuns > 0
-        ? 'border-yellow-900/60 bg-yellow-950/20 text-yellow-300'
-        : 'border-red-900/60 bg-red-950/20 text-red-300';
+function RunStatusSymbol({ status, label }: { status: string; label: string }) {
+  const passing = status === 'passing';
+  const error = status === 'error';
+  const symbol = passing ? CHECK_MARK : CROSS_MARK;
+  const tone = passing ? 'text-emerald-300' : error ? 'text-amber-300' : 'text-red-300';
   return (
-    <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${tone}`}>
-      {group.passedRuns}/{group.runCount} passed
+    <span className={`inline-flex text-base font-semibold ${tone}`} title={label}>
+      {symbol}
+    </span>
+  );
+}
+
+function RepeatStatusCell({
+  group,
+  passThreshold,
+}: {
+  group: RepeatRunGroup;
+  passThreshold: number;
+}) {
+  const passesThreshold = group.passRate >= passThreshold;
+  const symbol = passesThreshold ? CHECK_MARK : CROSS_MARK;
+  const tone = passesThreshold
+    ? 'border-emerald-900/60 bg-emerald-950/20 text-emerald-300'
+    : group.passedRuns > 0
+      ? 'border-yellow-900/60 bg-yellow-950/20 text-yellow-300'
+      : 'border-red-900/60 bg-red-950/20 text-red-300';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${tone}`}
+      title={`${formatPercent(group.passRate)} run success`}
+    >
+      <span>{symbol}</span>
+      <span>
+        {group.passedRuns}/{group.runCount}
+      </span>
     </span>
   );
 }
@@ -713,22 +757,14 @@ function RepeatSummaryText({ group }: { group: RepeatRunGroup }) {
 }
 
 function RepeatScoreCell({ group }: { group: RepeatRunGroup }) {
-  return (
-    <div className="min-w-0 text-right">
-      <PassRatePill rate={group.meanScore} />
-      <div className="mt-0.5 text-xs text-gray-500">mean</div>
-    </div>
-  );
+  return <PassRatePill rate={group.meanScore} />;
 }
 
 function RepeatDurationCell({ group, row }: { group: RepeatRunGroup; row: ResultTableRow }) {
   return (
-    <div className="min-w-0 text-right">
-      <span className="text-gray-400">
-        {formatDuration(group.meanDurationMs ?? row.result.durationMs)}
-      </span>
-      <div className="mt-0.5 text-xs text-gray-500">mean</div>
-    </div>
+    <span className="text-gray-400">
+      {formatDuration(group.meanDurationMs ?? row.result.durationMs)}
+    </span>
   );
 }
 
@@ -763,7 +799,7 @@ function ResultCell({
   switch (column.id) {
     case 'status':
       return repeatGroup ? (
-        <RepeatStatusCell group={repeatGroup} />
+        <RepeatStatusCell group={repeatGroup} passThreshold={passThreshold} />
       ) : (
         <StatusCell status={row.status} label={row.statusLabel} />
       );
@@ -800,7 +836,7 @@ function ResultCell({
         <span className="text-gray-400">{formatDuration(row.result.durationMs)}</span>
       );
     case 'cost_tokens':
-      return <CostTokenCell row={row} />;
+      return <CostTokenCell row={row} repeatGroup={repeatGroup} />;
     case 'review':
       return (
         <span className={row.reviewed ? 'text-emerald-300' : 'text-gray-500'}>
@@ -909,15 +945,23 @@ function ResultDetailPanel({
   row,
   runId,
   projectId,
+  repeatGroup,
+  selectedCaseRun,
   selectedRunPath,
+  initialTab,
   initialFilePath,
+  onOpenRunDetail,
   onClose,
 }: {
   row: ResultTableRow;
   runId: string;
   projectId?: string;
+  repeatGroup?: RepeatRunGroup;
+  selectedCaseRun: EvalCaseRun | null;
   selectedRunPath: string | null;
+  initialTab: DetailTab;
   initialFilePath: string | null;
+  onOpenRunDetail: (caseRun: EvalCaseRun, initialTab?: DetailTab) => void;
   onClose: () => void;
 }) {
   const evalDetailHref = buildEvalDetailHref({
@@ -927,6 +971,7 @@ function ResultDetailPanel({
     artifactDir: row.result.artifact_dir,
   });
   const title = selectedRunPath ? `${row.testId} · ${selectedRunPath}` : row.testId;
+  const showAggregateRepeatDetail = repeatGroup && !selectedCaseRun;
   return (
     <aside className="min-w-0 rounded-lg border border-gray-800 bg-gray-950/80 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)]">
       <div className="flex min-w-0 items-start justify-between gap-3 border-b border-gray-800 px-4 py-3">
@@ -958,12 +1003,15 @@ function ResultDetailPanel({
       </div>
       <div className="h-[36rem] min-h-[28rem] overflow-hidden xl:h-[calc(100vh-9rem)]">
         <EvalDetail
-          key={`${row.key}:${initialFilePath ?? ''}`}
+          key={`${row.key}:${selectedRunPath ?? 'aggregate'}:${initialFilePath ?? ''}`}
           eval={row.result}
           runId={runId}
           projectId={projectId}
-          initialTab={initialFilePath ? 'files' : 'checks'}
+          repeatGroup={showAggregateRepeatDetail ? repeatGroup : undefined}
+          selectedCaseRun={selectedCaseRun}
+          initialTab={initialTab}
           initialSelectedFilePath={initialFilePath}
+          onSelectCaseRun={onOpenRunDetail}
         />
       </div>
     </aside>
@@ -991,11 +1039,27 @@ function ModelTargetCell({
 
 function CostTokenCell({
   row,
+  repeatGroup,
 }: {
   row: ReturnType<typeof buildResultTableModel>['filteredRows'][number];
+  repeatGroup?: RepeatRunGroup;
 }) {
-  const cost = formatCost(row.result.costUsd);
-  const tokens = formatTokens(row.tokenTotal);
+  const repeatCosts =
+    repeatGroup?.runs
+      .map((caseRun) => caseRun.cost_usd)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)) ??
+    [];
+  const repeatTokens =
+    repeatGroup?.runs
+      .map(caseRunTokenTotal)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)) ??
+    [];
+  const repeatCostTotal =
+    repeatCosts.length > 0 ? repeatCosts.reduce((sum, value) => sum + value, 0) : undefined;
+  const repeatTokenTotal =
+    repeatTokens.length > 0 ? repeatTokens.reduce((sum, value) => sum + value, 0) : undefined;
+  const cost = formatCost(row.result.costUsd ?? repeatCostTotal);
+  const tokens = formatTokens(row.tokenTotal ?? repeatTokenTotal);
   const breakdown = compactTokenBreakdown(row.result);
   if (!cost && !tokens) return <span className="text-gray-600">-</span>;
 
@@ -1007,6 +1071,18 @@ function CostTokenCell({
           {tokens}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function RunCostTokenCell({ caseRun }: { caseRun: EvalCaseRun }) {
+  const cost = formatCost(caseRun.cost_usd);
+  const tokens = formatTokens(caseRunTokenTotal(caseRun));
+  if (!cost && !tokens) return <span className="text-gray-700">-</span>;
+  return (
+    <div className="min-w-0 text-right">
+      {cost ? <div className="tabular-nums text-gray-500">{cost}</div> : null}
+      {tokens ? <div className="text-xs tabular-nums text-gray-600">{tokens}</div> : null}
     </div>
   );
 }

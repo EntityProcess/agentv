@@ -169,6 +169,8 @@ describe('result-table model', () => {
               score: 0.2,
               verdict: 'fail',
               duration_ms: 1000,
+              cost_usd: 0.001,
+              total_tokens: 10,
               total_tool_calls: 2,
               metrics_path: 'repeat-case/run-1/metrics.json',
             },
@@ -178,6 +180,8 @@ describe('result-table model', () => {
               score: 1,
               verdict: 'pass',
               duration_ms: 3000,
+              cost_usd: 0.002,
+              total_tokens: 20,
               total_tool_calls: 4,
               timing_path: 'repeat-case/run-2/timing.json',
               grading_path: 'repeat-case/run-2/grading.json',
@@ -203,6 +207,7 @@ describe('result-table model', () => {
       artifactCount: 3,
     });
     expect(model.visibleColumns.map((column) => column.id)).toContain('duration');
+    expect(model.visibleColumns.map((column) => column.id)).toContain('cost_tokens');
     expect(model.filteredRepeatGroups.map((group) => group.row.testId)).toEqual(['repeat-case']);
   });
 
