@@ -619,10 +619,7 @@ function RepeatAggregateChecksTab({
         <div className="grid gap-3 md:grid-cols-4">
           <RunMetricRow label="Run success" value={formatPercent(group.passRate)} />
           <RunMetricRow label="Mean score" value={formatPercent(group.meanScore)} />
-          <RunMetricRow
-            label="Passed runs"
-            value={`${group.passedTrials}/${group.trialCount}`}
-          />
+          <RunMetricRow label="Passed runs" value={`${group.passedTrials}/${group.trialCount}`} />
           <RunMetricRow label="Assertions" value={formatPercent(group.assertionPassRate)} />
         </div>
       </div>
@@ -752,7 +749,9 @@ function TrialChecksTab({
             Open grading JSON
           </button>
         </div>
-        {isLoading ? <p className="mt-3 text-sm text-gray-500">Loading grading artifact...</p> : null}
+        {isLoading ? (
+          <p className="mt-3 text-sm text-gray-500">Loading grading artifact...</p>
+        ) : null}
         {parsed?.error ? <p className="mt-3 text-sm text-red-300">{parsed.error}</p> : null}
         {parsed?.summary ? (
           <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -892,7 +891,9 @@ function TrialTranscriptTab({
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
-        <p className="mt-2 text-sm text-gray-500">This run does not include a transcript artifact.</p>
+        <p className="mt-2 text-sm text-gray-500">
+          This run does not include a transcript artifact.
+        </p>
       </div>
     );
   }

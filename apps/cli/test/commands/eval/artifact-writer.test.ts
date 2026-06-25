@@ -26,14 +26,14 @@ import {
 
 import {
   type AggregateGradingArtifact,
-  type RunSummaryArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
+  type RunSummaryArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
-  buildRunSummaryArtifact,
   buildGradingArtifact,
   buildIndexArtifactEntry,
+  buildRunSummaryArtifact,
   buildTimingArtifact,
   parseJsonlResults,
   writeArtifacts,
@@ -997,11 +997,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexEntry?.metrics_path).toBeUndefined();
 
     const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
-    expect(repeatEntries.sort()).toEqual([
-      'run-1',
-      'run-2',
-      'summary.json',
-    ]);
+    expect(repeatEntries.sort()).toEqual(['run-1', 'run-2', 'summary.json']);
 
     const caseSummary = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
@@ -1367,7 +1363,9 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.metrics_path).toBe('summary-case/run-1/metrics.json');
 
     const summary = MetricsArtifactWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'summary-case', 'run-1', 'metrics.json'), 'utf8')),
+      JSON.parse(
+        await readFile(path.join(testDir, 'summary-case', 'run-1', 'metrics.json'), 'utf8'),
+      ),
     );
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
@@ -1511,10 +1509,14 @@ describe('writeArtifactsFromResults', () => {
     const runSummary = JSON.parse(await readFile(path.join(testDir, 'summary.json'), 'utf8'));
 
     MetricsArtifactWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'aggregate-usage', 'run-1', 'metrics.json'), 'utf8')),
+      JSON.parse(
+        await readFile(path.join(testDir, 'aggregate-usage', 'run-1', 'metrics.json'), 'utf8'),
+      ),
     );
     MetricsArtifactWireSchema.parse(
-      JSON.parse(await readFile(path.join(testDir, 'estimated-usage', 'run-1', 'metrics.json'), 'utf8')),
+      JSON.parse(
+        await readFile(path.join(testDir, 'estimated-usage', 'run-1', 'metrics.json'), 'utf8'),
+      ),
     );
 
     expect(aggregateTiming).toMatchObject({
@@ -1657,7 +1659,12 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptPath = path.join(testDir, 'no-transcript-case', 'run-1', 'transcript-raw.jsonl');
+    const transcriptPath = path.join(
+      testDir,
+      'no-transcript-case',
+      'run-1',
+      'transcript-raw.jsonl',
+    );
     await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
 
     const indexLine = JSON.parse(

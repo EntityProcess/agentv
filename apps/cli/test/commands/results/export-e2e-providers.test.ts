@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type {
-  RunSummaryArtifact,
   GradingArtifact,
+  RunSummaryArtifact,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { exportResults } from '../../../src/commands/results/export.js';

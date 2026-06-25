@@ -281,11 +281,7 @@ export function ResultTable({
     setSelectedDetailTab('checks');
   }
 
-  function openTrialDetail(
-    rowKey: string,
-    trial: EvalCaseTrial,
-    initialTab: DetailTab = 'checks',
-  ) {
+  function openTrialDetail(rowKey: string, trial: EvalCaseTrial, initialTab: DetailTab = 'checks') {
     writeSelectedRowKey(rowKey);
     setSelectedRowKey(rowKey);
     setSelectedTrialPath(caseTrialPath(trial));

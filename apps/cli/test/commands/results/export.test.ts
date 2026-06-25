@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type {
-  RunSummaryArtifact,
   GradingArtifact,
   IndexArtifactEntry,
+  RunSummaryArtifact,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { parseJsonlResults } from '../../../src/commands/eval/artifact-writer.js';
@@ -181,10 +181,7 @@ function readIndex(outputDir: string): IndexArtifactEntry[] {
 }
 
 function readAnswer(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  return readFileSync(
-    path.join(runArtifactDir(outputDir, record), 'outputs', 'answer.md'),
-    'utf8',
-  );
+  return readFileSync(path.join(runArtifactDir(outputDir, record), 'outputs', 'answer.md'), 'utf8');
 }
 
 describe('results export', () => {
@@ -369,9 +366,7 @@ describe('results export', () => {
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/trace.json');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
-    expect(bundle.entries[0].feedback.grading_path).toBe(
-      'privacy/test-private/run-1/grading.json',
-    );
+    expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/run-1/grading.json');
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');
     expect(serialized).toContain('SECRET_PROMPT_TEXT');
