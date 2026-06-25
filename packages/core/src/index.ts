@@ -61,9 +61,10 @@ export {
 } from './evaluation/evaluate.js';
 export {
   RESULT_INDEX_FILENAME,
+  RUN_SUMMARY_FILENAME,
   aggregateRunDir,
   buildAggregateGradingArtifact,
-  buildBenchmarkArtifact,
+  buildRunSummaryArtifact,
   buildGradingArtifact,
   buildIndexArtifactEntry,
   buildResultIndexArtifact,
@@ -73,16 +74,16 @@ export {
   parseJsonlResults,
   writeArtifacts,
   writeArtifactsFromResults,
-  writeInitialBenchmarkArtifact,
+  writeInitialRunSummaryArtifact,
   writePerTestArtifacts,
   type AdditionalResultArtifactsContext,
   type AdditionalResultArtifactsWriter,
   type AdditionalResultIndexFields,
   type AggregateGradingArtifact,
-  type BenchmarkArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
   type ResultIndexArtifact,
+  type RunSummaryArtifact,
   type TimingArtifact,
 } from './evaluation/run-artifacts.js';
 export type {

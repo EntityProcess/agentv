@@ -264,7 +264,7 @@ function writeRemoteRunArtifact(
   const records = Array.isArray(resultRecords) ? resultRecords : [resultRecords];
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
@@ -303,7 +303,7 @@ function writeDirtyRemoteRunArtifact(
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
@@ -354,7 +354,7 @@ function writeLocalRunArtifact(
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl({ ...resultRecord, experiment }));
   writeFileSync(
-    path.join(runDir, 'benchmark.json'),
+    path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
@@ -2679,7 +2679,7 @@ describe('serve app', () => {
       };
       expect(tags.tags.sort()).toEqual(['baseline', 'candidate', 'shared']);
       const benchmark = JSON.parse(
-        readFileSync(path.join(combinedDir, 'benchmark.json'), 'utf8'),
+        readFileSync(path.join(combinedDir, 'summary.json'), 'utf8'),
       ) as {
         metadata: { combined_from_run_ids?: string[]; display_name?: string; timestamp?: string };
       };
@@ -3460,7 +3460,7 @@ describe('serve app', () => {
         }),
       );
       writeFileSync(
-        path.join(runDir, 'benchmark.json'),
+        path.join(runDir, 'summary.json'),
         JSON.stringify(
           {
             metadata: {
@@ -4404,11 +4404,11 @@ describe('serve app', () => {
   //
   // The Dashboard "Resume run" / "Rerun failed cases" buttons need the run dir
   // and the original eval file path to issue a launch request that targets
-  // the same run workspace. handleRunDetail reads benchmark.json's
+  // the same run workspace. handleRunDetail reads summary.json's
   // metadata.eval_file and reports the run dir relative to cwd.
 
   describe('GET /api/runs/:filename (resume metadata)', () => {
-    it('includes run_dir and suite_filter for local runs with benchmark.json', async () => {
+    it('includes run_dir and suite_filter for local runs with summary.json', async () => {
       const runsDir = localResultsExperimentDir(tempDir);
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-05-06T00-00-00-000Z';
@@ -4416,7 +4416,7 @@ describe('serve app', () => {
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
       writeFileSync(
-        path.join(runDir, 'benchmark.json'),
+        path.join(runDir, 'summary.json'),
         JSON.stringify(
           {
             metadata: {
@@ -4446,7 +4446,7 @@ describe('serve app', () => {
       expect(data.suite_filter).toBe('examples/demo.eval.yaml');
     });
 
-    it('omits suite_filter when benchmark.json is missing', async () => {
+    it('omits suite_filter when summary.json is missing', async () => {
       const runsDir = localResultsExperimentDir(tempDir);
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-05-06T00-00-01-000Z';

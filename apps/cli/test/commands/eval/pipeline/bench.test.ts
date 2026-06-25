@@ -85,12 +85,12 @@ describe('pipeline bench', () => {
     expect(lines[0].test_id).toBe('test-01');
     expect(lines[0].score).toBeGreaterThan(0);
 
-    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
+    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'summary.json'), 'utf8'));
     expect(benchmark.metadata.targets).toContain('test-target');
     expect(benchmark.run_summary['test-target']).toBeDefined();
   }, 30_000);
 
-  it('propagates experiment from manifest to index.jsonl and benchmark.json', async () => {
+  it('propagates experiment from manifest to index.jsonl and summary.json', async () => {
     // Overwrite manifest with experiment field
     await writeFile(
       join(OUT_DIR, 'manifest.json'),
@@ -110,7 +110,7 @@ describe('pipeline bench', () => {
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
     expect(entry.experiment).toBe('without_skills');
 
-    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
+    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'summary.json'), 'utf8'));
     expect(benchmark.metadata.experiment).toBe('without_skills');
   }, 30_000);
 
@@ -122,7 +122,7 @@ describe('pipeline bench', () => {
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
     expect(entry.experiment).toBeUndefined();
 
-    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'benchmark.json'), 'utf8'));
+    const benchmark = JSON.parse(await readFile(join(OUT_DIR, 'summary.json'), 'utf8'));
     expect(benchmark.metadata.experiment).toBeUndefined();
   }, 30_000);
 });

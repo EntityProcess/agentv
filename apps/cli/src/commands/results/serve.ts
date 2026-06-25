@@ -640,6 +640,36 @@ function normalizeArtifactRelativePath(relativePath: string): string | undefined
   return segments.join('/');
 }
 
+function requestedArtifactDir(c: C): { value?: string; error?: string } {
+  const raw = c.req.query('artifact_dir')?.trim();
+  if (!raw) {
+    return {};
+  }
+  const normalized = normalizeArtifactRelativePath(raw);
+  if (!normalized) {
+    return { error: 'Invalid artifact_dir' };
+  }
+  return { value: normalized };
+}
+
+function manifestRecordSelection(
+  records: readonly ResultManifestRecord[],
+  evalId: string,
+  artifactDir?: string,
+): { record: ResultManifestRecord; index: number } | undefined {
+  return records
+    .map((record, index) => ({ record, index }))
+    .find(({ record }) => {
+      if (record.test_id !== evalId) {
+        return false;
+      }
+      if (!artifactDir) {
+        return true;
+      }
+      return normalizeArtifactRelativePath(record.artifact_dir ?? '') === artifactDir;
+    });
+}
+
 function relativeRunPathFromNormalizedManifestPath(manifestPath: string): string | undefined {
   const parts = manifestPath.split('/').filter(Boolean);
   const runsIndex = parts.lastIndexOf('runs');
@@ -765,6 +795,46 @@ function displayPathFromArtifactKey(key: string | undefined, runPath: string | u
   return normalizeArtifactRelativePath(normalizedKey.slice(runPrefix.length)) ?? normalizedKey;
 }
 
+function addTrialRunCatalogEntries(
+  entries: ArtifactCatalogEntry[],
+  seen: Set<string>,
+  record: ResultManifestRecord,
+): void {
+  const artifactDir = record.artifact_dir
+    ? normalizeArtifactRelativePath(record.artifact_dir)
+    : undefined;
+  if (!artifactDir) return;
+  for (const trial of record.trials ?? []) {
+    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+    if (!runPath) continue;
+    const runDir = path.posix.join(artifactDir, runPath);
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'result.json'),
+      'artifact',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'grading.json'),
+      'artifact',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'metrics.json'),
+      'artifact',
+    );
+    addDirectArtifactCatalogEntry(
+      entries,
+      seen,
+      path.posix.join(runDir, 'timing.json'),
+      'artifact',
+    );
+  }
+}
+
 function buildResultArtifactCatalog(
   record: ResultManifestRecord,
   options?: { readonly runPath?: string },
@@ -780,7 +850,6 @@ function buildResultArtifactCatalog(
   addPointerArtifactCatalogEntry(entries, seen, trace, 'trace', options?.runPath);
   addPointerArtifactCatalogEntry(entries, seen, answer, 'answer', options?.runPath);
 
-  addDirectArtifactCatalogEntry(entries, seen, record.benchmark_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.summary_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.grading_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.timing_path, 'artifact');
@@ -792,6 +861,7 @@ function buildResultArtifactCatalog(
   addDirectArtifactCatalogEntry(entries, seen, recordWithTrace.trace_path, 'trace');
   addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
+  addTrialRunCatalogEntries(entries, seen, record);
 
   return entries;
 }
@@ -1024,6 +1094,118 @@ function stripHeavyFields(results: readonly EvaluationResult[]) {
       ...(metadata && { metadata }),
       ...(toolCalls && { _toolCalls: toolCalls }),
       ...(graderDurationMs > 0 && { _graderDurationMs: graderDurationMs }),
+    };
+  });
+}
+
+function readArtifactJsonObject(
+  baseDir: string,
+  relativePath: string | undefined,
+): Record<string, unknown> | undefined {
+  if (!relativePath) return undefined;
+  const resolved = resolveReadableRunArtifactFile(baseDir, relativePath);
+  if (!resolved.absolutePath) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(resolved.absolutePath, 'utf8')) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function numberField(record: Record<string, unknown> | undefined, key: string): number | undefined {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function objectField(
+  record: Record<string, unknown> | undefined,
+  key: string,
+): Record<string, unknown> | undefined {
+  const value = record?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function caseTrialArtifactPath(
+  artifactDir: string | undefined,
+  runPath: string | undefined,
+  filePath: string,
+): string | undefined {
+  if (!artifactDir || !runPath) return undefined;
+  return path.posix.join(artifactDir, runPath, filePath);
+}
+
+function buildRepeatTrialReadModels(
+  baseDir: string,
+  record: ResultManifestRecord,
+): Array<Record<string, unknown>> | undefined {
+  if (!record.trials || record.trials.length === 0) return undefined;
+  const artifactDir = record.artifact_dir
+    ? normalizeArtifactRelativePath(record.artifact_dir)
+    : undefined;
+
+  return record.trials.map((trial) => {
+    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+    const metricsPath = caseTrialArtifactPath(artifactDir, runPath, 'metrics.json');
+    const timingPath = caseTrialArtifactPath(artifactDir, runPath, 'timing.json');
+    const gradingPath = caseTrialArtifactPath(artifactDir, runPath, 'grading.json');
+    const transcriptPath = caseTrialArtifactPath(artifactDir, runPath, 'transcript-raw.jsonl');
+    const answerPath = caseTrialArtifactPath(artifactDir, runPath, 'outputs/answer.md');
+    const metrics = readArtifactJsonObject(baseDir, metricsPath);
+    const timing = readArtifactJsonObject(baseDir, timingPath);
+    const toolCalls = objectField(metrics, 'tool_calls');
+    const tokenUsage = objectField(timing, 'token_usage');
+
+    return {
+      ...trial,
+      ...(numberField(timing, 'duration_ms') !== undefined && {
+        duration_ms: numberField(timing, 'duration_ms'),
+      }),
+      ...(numberField(timing, 'total_tokens') !== undefined && {
+        total_tokens: numberField(timing, 'total_tokens'),
+      }),
+      ...(numberField(timing, 'cost_usd') !== undefined && {
+        cost_usd: numberField(timing, 'cost_usd'),
+      }),
+      ...(tokenUsage && { token_usage: tokenUsage }),
+      ...(numberField(metrics, 'total_tool_calls') !== undefined && {
+        total_tool_calls: numberField(metrics, 'total_tool_calls'),
+      }),
+      ...(toolCalls && { tool_calls: toolCalls }),
+      ...(metricsPath && { metrics_path: metricsPath }),
+      ...(timingPath && { timing_path: timingPath }),
+      ...(gradingPath && { grading_path: gradingPath }),
+      ...(transcriptPath && { transcript_path: transcriptPath }),
+      ...(answerPath && { answer_path: answerPath }),
+    };
+  });
+}
+
+function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
+  results: readonly T[],
+  records: readonly ResultManifestRecord[],
+  baseDir: string,
+): T[] {
+  return results.map((result, index) => {
+    const record = records[index];
+    if (!record) return result;
+    const trials = buildRepeatTrialReadModels(baseDir, record);
+    return {
+      ...result,
+      ...(record.aggregation && { aggregation: record.aggregation }),
+      ...(record.artifact_dir && { artifact_dir: record.artifact_dir }),
+      ...(record.summary_path && { summary_path: record.summary_path }),
+      ...(record.grading_path && { grading_path: record.grading_path }),
+      ...(record.timing_path && { timing_path: record.timing_path }),
+      ...(record.metrics_path && { metrics_path: record.metrics_path }),
+      ...(record.transcript_path && { transcript_path: record.transcript_path }),
+      ...(record.output_path && { output_path: record.output_path }),
+      ...(record.answer_path && { answer_path: record.answer_path }),
+      ...(trials && { trials }),
     };
   });
 }
@@ -1460,8 +1642,12 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
     const tagFields = await readRunTagFields(searchDir, meta, projectId);
+    const baseDir = path.dirname(meta.path);
     return c.json({
-      results: attachExternalTraceFields(stripHeavyFields(loaded), records),
+      results: attachExternalTraceFields(
+        attachRunDetailReadModelFields(stripHeavyFields(loaded), records, baseDir),
+        records,
+      ),
       source: meta.source,
       source_label: meta.displayName,
       ...tagFields,
@@ -1509,7 +1695,7 @@ function attachExternalTraceFields<T extends Record<string, unknown>>(
 
 /**
  * Compute `run_dir` (relative to cwd, snake_case) and `suite_filter` (the
- * eval file path stored in benchmark.json metadata) for a local run manifest.
+ * eval file path stored in summary.json metadata) for a local run manifest.
  * Returns whatever fields could be resolved — both are best-effort and only
  * needed by the Dashboard "Resume run" / "Rerun failed" actions.
  */
@@ -1525,9 +1711,9 @@ function deriveResumeMeta(
   // dir as cwd) is unusual but valid — fall through to absolute in that case.
   out.run_dir = relative !== '' && !relative.startsWith('..') ? relative : runDir;
   try {
-    const benchmarkPath = path.join(runDir, 'benchmark.json');
-    if (existsSync(benchmarkPath)) {
-      const parsed = JSON.parse(readFileSync(benchmarkPath, 'utf8')) as {
+    const summaryPath = path.join(runDir, 'summary.json');
+    if (existsSync(summaryPath)) {
+      const parsed = JSON.parse(readFileSync(summaryPath, 'utf8')) as {
         metadata?: { eval_file?: string; planned_test_count?: number };
       };
       const evalFile = parsed.metadata?.eval_file;
@@ -1540,7 +1726,7 @@ function deriveResumeMeta(
       }
     }
   } catch {
-    // benchmark.json missing / unreadable / malformed — leave fields unset.
+    // summary.json missing / unreadable / malformed — leave fields unset.
   }
   return out;
 }
@@ -1647,14 +1833,24 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir, projectId }: D
 
 async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
-    const result = loaded.find((r) => r.testId === evalId);
-    if (!result) return c.json({ error: 'Eval not found' }, 404);
-    const [stripped] = stripHeavyFields([result]);
+    const records = await parseManifestForMeta(searchDir, meta, projectId);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    const result = selection ? loaded[selection.index] : undefined;
+    if (!selection || !result) return c.json({ error: 'Eval not found' }, 404);
+    const baseDir = path.dirname(meta.path);
+    const [stripped] = attachRunDetailReadModelFields(
+      stripHeavyFields([result]),
+      [selection.record],
+      baseDir,
+    );
     return c.json({ eval: stripped });
   } catch {
     return c.json({ error: 'Failed to load eval' }, 500);
@@ -1663,13 +1859,17 @@ async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
 
 async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
   try {
     const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const record = records.find((r) => r.test_id === evalId);
-    if (!record) return c.json({ error: 'Eval not found' }, 404);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    if (!selection) return c.json({ error: 'Eval not found' }, 404);
+    const { record } = selection;
 
     const baseDir = path.dirname(meta.path);
     const catalog = buildResultArtifactCatalog(record, {
@@ -1686,7 +1886,10 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
 
 async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
@@ -1705,8 +1908,9 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
   await ensureRunReadable(searchDir, meta, projectId);
   const records = parseResultManifest(readFileSync(meta.path, 'utf8'));
-  const record = records.find((r) => r.test_id === evalId);
-  if (!record) return c.json({ error: 'Eval not found' }, 404);
+  const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+  if (!selection) return c.json({ error: 'Eval not found' }, 404);
+  const { record } = selection;
   const catalog = buildResultArtifactCatalog(record, {
     runPath: relativeRunPathFromManifestPath(meta.path),
   });
@@ -1729,14 +1933,18 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
 
 async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
   try {
     const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const record = records.find((r) => r.test_id === evalId);
-    if (!record) return c.json({ error: 'Eval not found' }, 404);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    if (!selection) return c.json({ error: 'Eval not found' }, 404);
+    const { record } = selection;
 
     const trace = resolveRecordArtifactPointer(record, 'trace');
     const runPath = relativeRunPathFromManifestPath(meta.path);
@@ -1857,14 +2065,18 @@ async function handleEvalTraceSession(c: C, { searchDir, projectId }: DataContex
 
 async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
-  const evalId = c.req.param('evalId');
+  const evalId = c.req.param('evalId') ?? '';
+  if (!evalId) return c.json({ error: 'Eval id is required' }, 400);
+  const artifactDir = requestedArtifactDir(c);
+  if (artifactDir.error) return c.json({ error: artifactDir.error }, 400);
   const meta = await findRunById(searchDir, filename, projectId);
   if (!meta) return c.json({ error: 'Run not found' }, 404);
 
   try {
     const records = await parseManifestForMeta(searchDir, meta, projectId);
-    const record = records.find((r) => r.test_id === evalId);
-    if (!record) return c.json({ error: 'Eval not found' }, 404);
+    const selection = manifestRecordSelection(records, evalId, artifactDir.value);
+    if (!selection) return c.json({ error: 'Eval not found' }, 404);
+    const { record } = selection;
 
     const transcript = resolveRecordArtifactPointer(record, 'transcript');
     const answer = resolveRecordArtifactPointer(record, 'answer');

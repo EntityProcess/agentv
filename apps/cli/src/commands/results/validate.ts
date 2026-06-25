@@ -5,9 +5,9 @@
  * Checks:
  *   1. Directory follows the `.agentv/results/<experiment>/<timestamp>` naming convention
  *   2. index.jsonl exists and each line has required fields
- *   3. Per-test grading.json exists for every entry in the index
- *   4. Per-test timing.json exists for direct case rows (warning if missing)
- *   5. benchmark.json exists (warning if missing)
+ *   3. Per-case summary.json exists for every entry in the index
+ *   4. Per-run result.json and grading.json exist for every materialized trial
+ *   5. summary.json exists
  *   6. Scores are within [0, 1]
  *   7. index.jsonl entries have `scores[]` array (warning if missing — dashboard needs it)
  *
@@ -34,10 +34,11 @@ interface IndexEntry {
   readonly target?: string;
   readonly scores?: unknown[];
   readonly execution_status?: string;
-  readonly benchmark_path?: string;
   readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
+  readonly artifact_dir?: string;
+  readonly trials?: readonly { readonly run_path?: string }[];
   readonly [key: string]: unknown;
 }
 
@@ -141,10 +142,10 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
         });
       }
 
-      if (!entry.grading_path && !entry.benchmark_path) {
+      if (!entry.summary_path) {
         diagnostics.push({
-          severity: 'warning',
-          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'grading_path' or 'benchmark_path'`,
+          severity: 'error',
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): missing 'summary_path'`,
         });
       }
 
@@ -215,12 +216,23 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       }
     }
 
-    if (entry.benchmark_path) {
-      const benchmarkPath = path.join(runDir, entry.benchmark_path);
-      if (!existsSync(benchmarkPath)) {
+    for (const trial of entry.trials ?? []) {
+      if (!entry.artifact_dir || !trial.run_path) {
+        continue;
+      }
+      const runDirPath = path.join(runDir, entry.artifact_dir, trial.run_path);
+      const resultPath = path.join(runDirPath, 'result.json');
+      const gradingPath = path.join(runDirPath, 'grading.json');
+      if (!existsSync(resultPath)) {
         diagnostics.push({
           severity: 'error',
-          message: `${testId}: benchmark.json not found at '${entry.benchmark_path}'`,
+          message: `${testId}: result.json not found at '${path.posix.join(entry.artifact_dir, trial.run_path, 'result.json')}'`,
+        });
+      }
+      if (!existsSync(gradingPath)) {
+        diagnostics.push({
+          severity: 'error',
+          message: `${testId}: grading.json not found at '${path.posix.join(entry.artifact_dir, trial.run_path, 'grading.json')}'`,
         });
       }
     }
@@ -269,10 +281,10 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
     }
   }
 
-  // Check benchmark.json
-  const benchmarkPath = path.join(runDir, 'benchmark.json');
-  if (!existsSync(benchmarkPath)) {
-    diagnostics.push({ severity: 'warning', message: 'benchmark.json is missing' });
+  // Check run summary.json
+  const summaryPath = path.join(runDir, 'summary.json');
+  if (!existsSync(summaryPath)) {
+    diagnostics.push({ severity: 'error', message: 'summary.json is missing' });
   }
 
   return diagnostics;

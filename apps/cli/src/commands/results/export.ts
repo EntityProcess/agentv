@@ -4,16 +4,16 @@
  *
  * Output structure:
  *   <output-dir>/
- *     benchmark.json           — aggregate scores, pass/fail counts, timing
+ *     summary.json             — run aggregate scores, metadata, and timing
  *     index.jsonl              — per-test manifest with artifact pointers
  *     <test-id>/
- *       grading.json           — per-test grading artifact (assertions, graders)
- *       timing.json            — per-test timing artifact
- *       outputs/answer.md              — human-readable agent response for this test
- *       task/PROMPT.md               — human-readable input messages for this test
+ *       summary.json           — per-case aggregate
+ *       run-1/result.json      — per-run result
+ *       run-1/grading.json     — per-run grading artifact (assertions, graders)
+ *       run-1/metrics.json     — per-run metrics artifact
  *
  * This module delegates artifact building to the shared artifact-writer so
- * that benchmark/grading/timing schemas stay aligned with `agentv eval`.
+ * that summary/grading/timing schemas stay aligned with `agentv eval`.
  *
  * How to extend:
  *   - To change artifact schemas, update artifact-writer.ts (single source of truth).

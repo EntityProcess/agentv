@@ -13,7 +13,7 @@ interface ReportManifestRecord {
   readonly eval_file?: string;
 }
 
-interface BenchmarkMetadata {
+interface RunSummaryMetadata {
   readonly metadata?: {
     readonly eval_file?: string;
   };
@@ -33,15 +33,15 @@ function normalizeEvalFileLabel(value: string | undefined): string | undefined {
     .replace(/\.jsonl$/i, '');
 }
 
-function readBenchmarkEvalFile(sourceFile: string): string | undefined {
-  const benchmarkPath = path.join(path.dirname(sourceFile), 'benchmark.json');
-  if (!existsSync(benchmarkPath)) {
+function readSummaryEvalFile(sourceFile: string): string | undefined {
+  const summaryPath = path.join(path.dirname(sourceFile), 'summary.json');
+  if (!existsSync(summaryPath)) {
     return undefined;
   }
 
   try {
-    const benchmark = JSON.parse(readFileSync(benchmarkPath, 'utf8')) as BenchmarkMetadata;
-    return normalizeEvalFileLabel(benchmark.metadata?.eval_file);
+    const summary = JSON.parse(readFileSync(summaryPath, 'utf8')) as RunSummaryMetadata;
+    return normalizeEvalFileLabel(summary.metadata?.eval_file);
   } catch {
     return undefined;
   }
@@ -55,11 +55,11 @@ function serializeReportResult(
   result: EvaluationResult,
   sourceFile: string,
   manifestRecord?: ReportManifestRecord,
-  benchmarkEvalFile?: string,
+  summaryEvalFile?: string,
 ): Record<string, unknown> {
   const fallbackEvalFile =
     normalizeEvalFileLabel(manifestRecord?.eval_file) ??
-    benchmarkEvalFile ??
+    summaryEvalFile ??
     normalizeEvalFileLabel(result.suite) ??
     path.basename(path.dirname(sourceFile));
 
@@ -90,7 +90,7 @@ export async function loadReportSource(
   sourceFile: string;
   results: EvaluationResult[];
   records: readonly ReportManifestRecord[];
-  benchmarkEvalFile?: string;
+  summaryEvalFile?: string;
 }> {
   const { sourceFile } = await resolveSourceFile(source, cwd);
   const resolvedSourceFile = resolveResultSourcePath(sourceFile, cwd);
@@ -106,7 +106,7 @@ export async function loadReportSource(
     sourceFile: resolvedSourceFile,
     results,
     records,
-    benchmarkEvalFile: readBenchmarkEvalFile(resolvedSourceFile),
+    summaryEvalFile: readSummaryEvalFile(resolvedSourceFile),
   };
 }
 
@@ -114,14 +114,14 @@ export function renderResultsReport(
   results: readonly EvaluationResult[],
   sourceFile: string,
   records: readonly ReportManifestRecord[],
-  benchmarkEvalFile?: string,
+  summaryEvalFile?: string,
 ): string {
   if (!RESULTS_REPORT_TEMPLATE.includes('__DATA_PLACEHOLDER__')) {
     throw new Error('Report template is missing __DATA_PLACEHOLDER__');
   }
 
   const rows = results.map((result, index) =>
-    serializeReportResult(result, sourceFile, records[index], benchmarkEvalFile),
+    serializeReportResult(result, sourceFile, records[index], summaryEvalFile),
   );
   const dataJson = JSON.stringify(rows).replace(/<\//g, '<\\/');
   return RESULTS_REPORT_TEMPLATE.replace('__DATA_PLACEHOLDER__', () => dataJson);
@@ -132,13 +132,13 @@ export async function writeResultsReport(
   outputPath: string | undefined,
   cwd: string,
 ): Promise<{ sourceFile: string; outputPath: string; html: string }> {
-  const { sourceFile, results, records, benchmarkEvalFile } = await loadReportSource(source, cwd);
+  const { sourceFile, results, records, summaryEvalFile } = await loadReportSource(source, cwd);
   const resolvedOutputPath = outputPath
     ? path.isAbsolute(outputPath)
       ? outputPath
       : path.resolve(cwd, outputPath)
     : deriveReportPath(sourceFile);
-  const html = renderResultsReport(results, sourceFile, records, benchmarkEvalFile);
+  const html = renderResultsReport(results, sourceFile, records, summaryEvalFile);
 
   mkdirSync(path.dirname(resolvedOutputPath), { recursive: true });
   writeFileSync(resolvedOutputPath, html, 'utf8');

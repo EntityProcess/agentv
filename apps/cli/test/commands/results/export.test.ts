@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type {
-  BenchmarkArtifact,
+  RunSummaryArtifact,
   GradingArtifact,
   IndexArtifactEntry,
   TimingArtifact,
@@ -168,6 +168,10 @@ function artifactDir(outputDir: string, record: { suite?: string; test_id?: stri
   return path.join(outputDir, ...(record.suite ? [record.suite] : []), testId);
 }
 
+function runArtifactDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
+  return path.join(artifactDir(outputDir, record), 'run-1');
+}
+
 function readIndex(outputDir: string): IndexArtifactEntry[] {
   return readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
     .trim()
@@ -177,7 +181,10 @@ function readIndex(outputDir: string): IndexArtifactEntry[] {
 }
 
 function readAnswer(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  return readFileSync(path.join(artifactDir(outputDir, record), 'outputs', 'answer.md'), 'utf8');
+  return readFileSync(
+    path.join(runArtifactDir(outputDir, record), 'outputs', 'answer.md'),
+    'utf8',
+  );
 }
 
 describe('results export', () => {
@@ -272,7 +279,7 @@ describe('results export', () => {
     });
     expect(first.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      timing_path: 'privacy/test-private/timing.json',
+      timing_path: 'privacy/test-private/run-1/timing.json',
     });
     expect(first.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(first.entries[0].artifact_refs).not.toHaveProperty('output_path');
@@ -349,14 +356,22 @@ describe('results export', () => {
     });
     expect(bundle.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      input_path: 'privacy/test-private/task/PROMPT.md',
-      output_path: 'privacy/test-private/outputs/answer.md',
-      answer_path: 'privacy/test-private/outputs/answer.md',
+      artifact_dir: 'privacy/test-private',
+      summary_path: 'privacy/test-private/summary.json',
+      grading_path: 'privacy/test-private/run-1/grading.json',
+      timing_path: 'privacy/test-private/run-1/timing.json',
+      metrics_path: 'privacy/test-private/run-1/metrics.json',
+      output_path: 'privacy/test-private/run-1/outputs/answer.md',
+      answer_path: 'privacy/test-private/run-1/outputs/answer.md',
+      transcript_path: 'privacy/test-private/run-1/transcript-raw.jsonl',
       trace_path: 'privacy/test-private/trace.json',
     });
+    expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/trace.json');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
-    expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/grading.json');
+    expect(bundle.entries[0].feedback.grading_path).toBe(
+      'privacy/test-private/run-1/grading.json',
+    );
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');
     expect(serialized).toContain('SECRET_PROMPT_TEXT');
@@ -366,16 +381,16 @@ describe('results export', () => {
     expect(serialized).toContain('SECRET_SCORE_EVIDENCE');
   });
 
-  it('should create benchmark.json matching artifact-writer schema', async () => {
+  it('should create summary.json matching artifact-writer schema', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
     await exportResults('eval_2026-03-18.jsonl', content, outputDir);
 
-    const benchmarkPath = path.join(outputDir, 'benchmark.json');
-    expect(existsSync(benchmarkPath)).toBe(true);
+    const summaryPath = path.join(outputDir, 'summary.json');
+    expect(existsSync(summaryPath)).toBe(true);
 
-    const benchmark: BenchmarkArtifact = JSON.parse(readFileSync(benchmarkPath, 'utf8'));
+    const benchmark: RunSummaryArtifact = JSON.parse(readFileSync(summaryPath, 'utf8'));
     expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
     expect(benchmark.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
     // artifact-writer uses string[] for tests_run, not a count
@@ -412,13 +427,16 @@ describe('results export', () => {
       test_id: 'test-greeting',
       target: 'gpt-4o',
       execution_status: 'ok',
-      grading_path: 'demo/test-greeting/grading.json',
-      timing_path: 'demo/test-greeting/timing.json',
-      output_path: 'demo/test-greeting/outputs/answer.md',
-      answer_path: 'demo/test-greeting/outputs/answer.md',
-      transcript_path: 'demo/test-greeting/transcript.jsonl',
-      input_path: 'demo/test-greeting/task/PROMPT.md',
+      artifact_dir: 'demo/test-greeting',
+      summary_path: 'demo/test-greeting/summary.json',
+      grading_path: 'demo/test-greeting/run-1/grading.json',
+      timing_path: 'demo/test-greeting/run-1/timing.json',
+      metrics_path: 'demo/test-greeting/run-1/metrics.json',
+      output_path: 'demo/test-greeting/run-1/outputs/answer.md',
+      answer_path: 'demo/test-greeting/run-1/outputs/answer.md',
+      transcript_path: 'demo/test-greeting/run-1/transcript-raw.jsonl',
     });
+    expect(entries[0]).not.toHaveProperty('input_path');
     expect(entries[0].projection_identity).toMatchObject({
       schema_version: 'agentv.projection_identity.v1',
       dimensions: {
@@ -551,7 +569,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const timingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'timing.json');
+    const timingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'timing.json');
     expect(existsSync(timingPath)).toBe(true);
 
     const timing: TimingArtifact = JSON.parse(readFileSync(timingPath, 'utf8'));
@@ -568,7 +586,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const gradingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'grading.json');
+    const gradingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'grading.json');
     expect(existsSync(gradingPath)).toBe(true);
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
@@ -596,7 +614,7 @@ describe('results export', () => {
     expect(grading.graders?.[0].name).toBe('greeting_quality');
     expect(grading.graders?.[0].type).toBe('llm-grader');
 
-    const perTestTimingPath = path.join(artifactDir(outputDir, RESULT_FULL), 'timing.json');
+    const perTestTimingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'timing.json');
     expect(existsSync(perTestTimingPath)).toBe(true);
   });
 
@@ -606,22 +624,26 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const answerPath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'answer.md');
+    const answerPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'outputs', 'answer.md');
     expect(existsSync(answerPath)).toBe(true);
     expect(readFileSync(answerPath, 'utf8')).toBe('Hello, Alice!');
 
-    const responsePath = path.join(artifactDir(outputDir, RESULT_FULL), 'outputs', 'response.md');
+    const responsePath = path.join(
+      runArtifactDir(outputDir, RESULT_FULL),
+      'outputs',
+      'response.md',
+    );
     expect(existsSync(responsePath)).toBe(false);
   });
 
-  it('should group results by target in benchmark.json', async () => {
+  it('should group results by target in summary.json', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_DIFFERENT_TARGET);
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const benchmark: BenchmarkArtifact = JSON.parse(
-      readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+    const benchmark: RunSummaryArtifact = JSON.parse(
+      readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
     );
 
     expect(benchmark.run_summary['gpt-4o']).toBeDefined();
@@ -644,14 +666,16 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    expect(existsSync(path.join(outputDir, 'benchmark.json'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'summary.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'index.jsonl'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(true);
-    expect(existsSync(path.join(artifactDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(true);
-    expect(existsSync(path.join(artifactDir(outputDir, RESULT_PARTIAL), 'grading.json'))).toBe(
+    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
+    expect(existsSync(path.join(runArtifactDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(
       true,
     );
-    expect(existsSync(path.join(artifactDir(outputDir, RESULT_NO_TRACE), 'grading.json'))).toBe(
+    expect(existsSync(path.join(runArtifactDir(outputDir, RESULT_PARTIAL), 'grading.json'))).toBe(
+      true,
+    );
+    expect(existsSync(path.join(runArtifactDir(outputDir, RESULT_NO_TRACE), 'grading.json'))).toBe(
       true,
     );
   });
@@ -662,8 +686,8 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const benchmark: BenchmarkArtifact = JSON.parse(
-      readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+    const benchmark: RunSummaryArtifact = JSON.parse(
+      readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
     );
 
     expect(benchmark.per_grader_summary).toBeDefined();
@@ -677,6 +701,7 @@ describe('results export', () => {
 
     const answerPath = path.join(
       artifactDir(outputDir, RESULT_DIFFERENT_TARGET),
+      'run-1',
       'outputs',
       'answer.md',
     );
@@ -702,7 +727,7 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     const gradingPath = path.join(
-      artifactDir(outputDir, { ...minimal, target: 'default' }),
+      runArtifactDir(outputDir, { ...minimal, target: 'default' }),
       'grading.json',
     );
     expect(existsSync(gradingPath)).toBe(true);
@@ -712,7 +737,7 @@ describe('results export', () => {
     expect(grading.summary.total).toBe(0);
   });
 
-  it('should write string input to <test-id>/task/PROMPT.md', async () => {
+  it('should not write string input to a generated prompt sidecar', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,
@@ -723,11 +748,11 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(artifactDir(outputDir, resultWithInput), 'task', 'PROMPT.md');
-    expect(existsSync(inputPath)).toBe(true);
-    expect(readFileSync(inputPath, 'utf8')).toBe('What is the capital of France?');
+    expect(existsSync(inputPath)).toBe(false);
+    expect(readIndex(outputDir)[0]).not.toHaveProperty('input_path');
   });
 
-  it('should write Message[] input to <test-id>/task/PROMPT.md as markdown', async () => {
+  it('should not write Message[] input to a generated prompt sidecar', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithMessages = {
       ...RESULT_FULL,
@@ -741,8 +766,8 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     const inputPath = path.join(artifactDir(outputDir, resultWithMessages), 'task', 'PROMPT.md');
-    expect(existsSync(inputPath)).toBe(true);
-    expect(readFileSync(inputPath, 'utf8')).toBe('@[user]:\nHello\n\n@[assistant]:\nHi there!');
+    expect(existsSync(inputPath)).toBe(false);
+    expect(readIndex(outputDir)[0]).not.toHaveProperty('input_path');
   });
 
   it('should not create input file when input is missing', async () => {
@@ -765,8 +790,8 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const benchmark: BenchmarkArtifact = JSON.parse(
-      readFileSync(path.join(outputDir, 'benchmark.json'), 'utf8'),
+    const benchmark: RunSummaryArtifact = JSON.parse(
+      readFileSync(path.join(outputDir, 'summary.json'), 'utf8'),
     );
     expect(benchmark.metadata.targets).toEqual(['unknown']);
     expect(benchmark.metadata.tests_run).toEqual(['unknown']);
