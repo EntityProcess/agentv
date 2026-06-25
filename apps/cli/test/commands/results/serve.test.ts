@@ -1597,7 +1597,7 @@ describe('serve app', () => {
       expect(git('git branch --show-current', cloneDir)).toBe('main');
       expect(
         git(
-          'git show-ref --verify --quiet refs/remotes/agentv-results/agentv-results && echo present || true',
+          'git show-ref --verify --quiet refs/remotes/origin/agentv-results && echo present || true',
           cloneDir,
         ),
       ).toBe('');
@@ -2340,6 +2340,7 @@ describe('serve app', () => {
           '2026-03-26T12-30-00-000Z',
           RESULT_A,
         );
+        git(`git remote set-url origin "${missingRemoteUrl}"`, cloneDir);
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/projects/project-sync-offline/remote/sync', {
           method: 'POST',
@@ -3496,7 +3497,7 @@ describe('serve app', () => {
         autoPush: false,
       });
 
-      const artifactRemoteRef = `refs/remotes/agentv-results/${AGENTV_RESULTS_ARTIFACTS_REF}`;
+      const artifactRemoteRef = `refs/remotes/origin/${AGENTV_RESULTS_ARTIFACTS_REF}`;
       const artifactRefLookup = () =>
         git(
           `git -C "${cloneDir}" show-ref --verify --quiet ${artifactRemoteRef} && echo present || true`,

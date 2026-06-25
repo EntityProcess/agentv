@@ -53,7 +53,6 @@ const GIT_ENV_INHERIT_ALLOWLIST = new Set([
   'GIT_USERNAME',
 ]);
 export const DEFAULT_RESULTS_BRANCH = AGENTV_RESULTS_PRIMARY_REF;
-const MANAGED_RESULTS_REMOTE = 'agentv-results';
 const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // The results branch is a self-rooted orphan whose first commit is a fixed,
 // byte-identical empty-tree genesis. Pinning the message, identity, and dates
@@ -383,9 +382,7 @@ export function normalizeResultsConfig(
   const repo = repoUrl ?? repoPath ?? '';
   const branch = config.branch?.trim() || (repoPath ? DEFAULT_RESULTS_BRANCH : undefined);
   const useStorageBranchWorktree = Boolean(repoPath || (repoUrl && explicitClonePath && branch));
-  const remote =
-    config.remote?.trim() ||
-    (repoUrl && useStorageBranchWorktree ? MANAGED_RESULTS_REMOTE : 'origin');
+  const remote = config.remote?.trim() || 'origin';
   const autoPush = config.sync?.auto_push ?? config.auto_push === true;
   const requirePush = config.sync?.require_push === true;
   const configuredPushConflictPolicy = (
@@ -908,36 +905,6 @@ async function addResultsGitattributesToIndex(
   }
 }
 
-async function ensureResultsRepoRemote(
-  repoDir: string,
-  config: NormalizedResultsConfig,
-): Promise<void> {
-  if (!config.repo_url) {
-    return;
-  }
-
-  const remoteUrl = resolveResultsRepoUrl(config.repo_url);
-  // Same-repo results push to the project's existing remote (typically
-  // `origin`). Never rewrite that remote to a value that is not a real Git
-  // remote URL (e.g. a local results path or `.`), which would otherwise
-  // clobber a correct origin with a synthesized URL.
-  if (!isExplicitRemoteUrl(remoteUrl)) {
-    return;
-  }
-  const { stdout } = await runGit(['remote', 'get-url', config.remote], {
-    cwd: repoDir,
-    check: false,
-  });
-  const existingUrl = stdout.trim();
-  if (!existingUrl) {
-    await runGit(['remote', 'add', config.remote, remoteUrl], { cwd: repoDir });
-    return;
-  }
-  if (existingUrl !== remoteUrl) {
-    await runGit(['remote', 'set-url', config.remote, remoteUrl], { cwd: repoDir });
-  }
-}
-
 function updateStatusFile(
   config: ResultsConfig | NormalizedResultsConfig,
   patch: PersistedStatus,
@@ -977,10 +944,10 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
       await runGit([
         'clone',
         '--filter=blob:none',
+        ...(normalized.remote === 'origin' ? [] : ['--origin', normalized.remote]),
         resolveResultsRepoUrl(normalized.repo_url ?? normalized.repo),
         cloneDir,
       ]);
-      await ensureResultsRepoRemote(cloneDir, normalized);
       await ensureResultsMergeConfig(cloneDir);
       return cloneDir;
     } catch (error) {
@@ -993,7 +960,6 @@ export async function ensureResultsRepoClone(config: ResultsConfig): Promise<str
     throw new Error(`Results repo clone path is not a git repository: ${cloneDir}`);
   }
 
-  await ensureResultsRepoRemote(cloneDir, normalized);
   await ensureResultsMergeConfig(cloneDir);
   return cloneDir;
 }
@@ -2128,7 +2094,6 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
   }
 
   try {
-    await ensureResultsRepoRemote(normalized.path, normalized);
     if (usesStorageBranchWorktree(normalized)) {
       await fetchResultsRepo(normalized.path, normalized.remote, normalized.branch).catch(
         () => undefined,

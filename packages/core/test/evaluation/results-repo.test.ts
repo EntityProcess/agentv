@@ -400,7 +400,7 @@ describe('listGitRuns', () => {
     mkdirSync(defaultRunDir, { recursive: true });
     writeFileSync(
       path.join(defaultRunDir, 'index.jsonl'),
-      [
+      `${[
         JSON.stringify({
           test_id: 'alpha',
           target: 'gpt-4o',
@@ -411,7 +411,7 @@ describe('listGitRuns', () => {
           target: 'gpt-4o',
           timestamp: '2026-05-20T10:00:00.000Z',
         }),
-      ].join('\n') + '\n',
+      ].join('\n')}\n`,
     );
     writeFileSync(
       path.join(defaultRunDir, 'summary.json'),
@@ -437,7 +437,7 @@ describe('listGitRuns', () => {
     mkdirSync(experimentRunDir, { recursive: true });
     writeFileSync(
       path.join(experimentRunDir, 'index.jsonl'),
-      [
+      `${[
         JSON.stringify({
           test_id: 'alpha',
           target: 'claude-sonnet',
@@ -453,7 +453,7 @@ describe('listGitRuns', () => {
           target: 'gpt-4o',
           timestamp: '2026-05-21T11:00:00.000Z',
         }),
-      ].join('\n') + '\n',
+      ].join('\n')}\n`,
     );
     writeFileSync(
       path.join(experimentRunDir, 'summary.json'),
@@ -709,7 +709,7 @@ describe('results repo write path', () => {
     expect(normalized.remote).toBe('origin');
   });
 
-  it('normalizes URL-backed source storage branch config without requiring a local remote name', () => {
+  it('normalizes URL-backed source storage branch config to the existing origin remote', () => {
     const normalized = normalizeResultsConfig(
       {
         repo_url: 'https://github.com/example/source.git',
@@ -725,8 +725,34 @@ describe('results repo write path', () => {
     expect(normalized.repo_path).toBeUndefined();
     expect(normalized.path).toBe('/tmp/source-project');
     expect(normalized.branch).toBe(DEFAULT_RESULTS_BRANCH);
-    expect(normalized.remote).toBe('agentv-results');
+    expect(normalized.remote).toBe('origin');
     expect(normalized.auto_push).toBe(true);
+  });
+
+  it('does not mutate existing checkout remotes while checking sync status', async () => {
+    const sourceRootDir = path.join(rootDir, 'status-source-remote');
+    const configuredResultsRootDir = path.join(rootDir, 'status-configured-results-remote');
+    mkdirSync(sourceRootDir, { recursive: true });
+    mkdirSync(configuredResultsRootDir, { recursive: true });
+    const { remoteDir: sourceRemoteDir } = initializeRemoteRepo(sourceRootDir);
+    const { remoteDir: configuredResultsRemoteDir } =
+      initializeRemoteRepo(configuredResultsRootDir);
+    const projectDir = path.join(rootDir, 'source-project-status-remote-immutable');
+    git(`git clone --quiet "${sourceRemoteDir}" "${projectDir}"`, rootDir);
+    git('git config user.email "test@example.com"', projectDir);
+    git('git config user.name "Test User"', projectDir);
+
+    const originalOrigin = git('git remote get-url origin', projectDir);
+
+    await getResultsRepoSyncStatus({
+      repo_url: `file://${configuredResultsRemoteDir}`,
+      path: projectDir,
+      branch: DEFAULT_RESULTS_BRANCH,
+      sync: { auto_push: true },
+    });
+
+    expect(git('git remote get-url origin', projectDir)).toBe(originalOrigin);
+    expect(git('git remote get-url agentv-results || true', projectDir)).toBe('');
   });
 
   it('publishes current-repo results to an auto-created branch without switching source checkout', async () => {
@@ -921,15 +947,17 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
-  it('publishes URL-backed source results through a managed remote alias', async () => {
+  it('publishes URL-backed source results through the checkout origin without mutating remotes', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const projectDir = path.join(rootDir, 'source-project-url-path');
     mkdirSync(projectDir, { recursive: true });
     git('git init --initial-branch=main --quiet', projectDir);
     git('git config user.email "test@example.com"', projectDir);
     git('git config user.name "Test User"', projectDir);
+    git(`git remote add origin "file://${remoteDir}"`, projectDir);
     writeFileSync(path.join(projectDir, 'README.md'), '# source project\n');
     git('git add README.md && git commit --quiet -m "seed source"', projectDir);
+    const originalOrigin = git('git remote get-url origin', projectDir);
 
     const runTimestamp = '2026-06-22T04-00-00-000Z';
     const runDir = path.join(
@@ -955,7 +983,8 @@ describe('results repo write path', () => {
     });
 
     expect(published).toBe(true);
-    expect(git('git remote get-url agentv-results', projectDir)).toBe(`file://${remoteDir}`);
+    expect(git('git remote get-url origin', projectDir)).toBe(originalOrigin);
+    expect(git('git remote get-url agentv-results || true', projectDir)).toBe('');
     expect(git('git branch --show-current', projectDir)).toBe('main');
     const remoteFiles = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
@@ -1821,7 +1850,7 @@ describe('results repo write path', () => {
       commit_created: false,
       blocked: false,
       branch: storageBranch,
-      upstream: `agentv-results/${storageBranch}`,
+      upstream: `origin/${storageBranch}`,
     });
     expect(status.auto_merged_remote).toBeUndefined();
     expect(git(`git show ${storageBranch}:REMOTE_BRANCH.md`, cloneDir)).toBe(
