@@ -2425,6 +2425,31 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
     expect(result.score).toBeCloseTo(1.0);
   });
 
+  it('does NOT inject implicit llm-grader when expected_output is present with assert', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+
+    const result = await runEvalCase({
+      evalCase: {
+        ...criteriaTestCase,
+        criteria: undefined,
+        expected_output: [{ role: 'assistant', content: 'hello world' }],
+        assertions: [{ name: 'has-hello', type: 'contains' as const, value: 'hello' }],
+      },
+      provider,
+      target: {
+        ...baseTarget,
+        graderTarget: 'grader-target',
+      },
+      evaluators: evaluatorRegistry,
+    });
+
+    expect(result.scores).toHaveLength(1);
+    expect(result.scores?.[0].type).toBe('contains');
+    expect(result.score).toBe(1);
+  });
+
   it('criteria is available as evalCase data for evaluators that consume it', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
