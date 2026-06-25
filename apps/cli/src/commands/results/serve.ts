@@ -96,6 +96,7 @@ import {
 import {
   type SourcedResultFileMeta,
   clearRemoteRunTags,
+  confirmRemoteResultsMerge,
   ensureRemoteRunAvailable,
   findRunById,
   getRemoteResultsStatus,
@@ -3002,6 +3003,9 @@ export function createApp(
   app.post('/api/remote/sync', async (c) =>
     c.json(await syncRemoteResults(searchDir, defaultCtx.projectId)),
   );
+  app.post('/api/remote/sync/confirm-merge', async (c) =>
+    c.json(await confirmRemoteResultsMerge(searchDir, defaultCtx.projectId)),
+  );
   app.get('/api/runs', (c) => handleRuns(c, defaultCtx));
   app.post('/api/runs/combine', (c) => {
     if (readOnly) {
@@ -3120,6 +3124,11 @@ export function createApp(
   app.post('/api/projects/:projectId/remote/sync', (c) =>
     withProject(c, async (ctx, dataCtx) =>
       ctx.json(await syncRemoteResults(dataCtx.searchDir, dataCtx.projectId)),
+    ),
+  );
+  app.post('/api/projects/:projectId/remote/sync/confirm-merge', (c) =>
+    withProject(c, async (ctx, dataCtx) =>
+      ctx.json(await confirmRemoteResultsMerge(dataCtx.searchDir, dataCtx.projectId)),
     ),
   );
   app.get('/api/projects/:projectId/runs', (c) => withProject(c, handleRuns));

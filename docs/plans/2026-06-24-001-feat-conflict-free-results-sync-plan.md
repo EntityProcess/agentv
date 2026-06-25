@@ -147,8 +147,13 @@ already manages a dedicated checkout / storage-branch worktree, so this is a one
 When Layer 1 returns `needs_human_merge`:
 
 1. **Push to a new timestamped temp branch**, never canonical:
-   `agentv/results/v1/sync-<utc_ts>-<rand6>` (create-only push; `<rand6>` avoids
-   same-second collisions between concurrent writers).
+   `agentv/results-sync/<utc_ts>-<branch_slug>-<rand6>` (create-only push;
+   `<branch_slug>` is the slugified target branch and `<rand6>` avoids same-second
+   collisions between concurrent writers). The name is deliberately **flat** under
+   a dedicated `agentv/results-sync/` namespace: a nested
+   `agentv/results/v1/sync-...` ref would D/F-conflict with the canonical
+   `agentv/results/v1` branch (git cannot store one ref as both a file and a
+   directory).
 2. **Surface a link** in the Dashboard:
    - A **compare/PR URL**. With a GitHub remote and `gh`, build
      `https://github.com/<owner>/<repo>/compare/<target>...<temp_branch>?expand=1`
@@ -183,7 +188,7 @@ push.
 
 #### Concurrency
 
-Each writer uses a unique `sync-<ts>-<rand6>` branch, so temp pushes never collide,
+Each writer uses a unique `agentv/results-sync/<ts>-<branch_slug>-<rand6>` branch, so temp pushes never collide,
 and the runs they carry live in disjoint `runs/<exp>/<ts>/` dirs. The target branch
 absorbs N temp PRs through N normal merges. The only true contention is the mutable
 overlay, which Layer 1's JSON-union driver already handles for add/remove; a genuine
@@ -284,7 +289,7 @@ conflicts itself, which keeps the core tiny.
 ### Phase 2 — Temp-branch + OK-to-resync
 
 - Core helpers: `pushResultsSyncBranch()` (create-only push to
-  `sync-<ts>-<rand6>`) and `pullResultsTargetBranch()` (fetch + FF/merge target into
+  `agentv/results-sync/<ts>-<branch_slug>-<rand6>`) and `pullResultsTargetBranch()` (fetch + FF/merge target into
   the local checkout, invoked on OK).
 - API: extend `POST /api/remote/sync` to return a `pending_merge` block
   (`temp_branch`, `compare_url`, `contributed_run_count`); add
@@ -316,7 +321,7 @@ conflicts itself, which keeps the core tiny.
 - Automatic merge detection (tree-equality/ancestor/deletion watching) — replaced by
   an explicit OK.
 - **Temp-branch deletion/cleanup.** The user owns the merge on GitHub, so deleting
-  the merged `sync-<ts>-<rand6>` branch belongs to that same GitHub flow
+  the merged `agentv/results-sync/<ts>-<branch_slug>-<rand6>` branch belongs to that same GitHub flow
   (auto-delete-on-merge, or the user's manual cleanup). AgentV does not delete temp
   branches and does not track them for cleanup. AgentV only creates the temp branch
   and reads the target on OK.
