@@ -1568,7 +1568,7 @@ describe('writeArtifactsFromResults', () => {
     expect(grading.assertions[0].text).toBe('baseline-check');
   });
 
-  it('writes case artifacts at the run root when suite is present', async () => {
+  it('nests case artifacts under the suite when suite is present', async () => {
     const paths = await writeArtifactsFromResults(
       [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
       testDir,
@@ -1579,11 +1579,11 @@ describe('writeArtifactsFromResults', () => {
       .split('\n')
       .map(JSON.parse);
     expect(indexLine.suite).toBe('eval-top-months-chart');
-    expect(indexLine.artifact_dir).toBe('shared-id');
-    expect(indexLine.grading_path).toBe('shared-id/run-1/grading.json');
+    expect(indexLine.artifact_dir).toBe('eval-top-months-chart/shared-id');
+    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
   });
 
-  it('disambiguates duplicate case artifact directories without changing test ids', async () => {
+  it('uses suite namespaces for duplicate test ids in different suites', async () => {
     const firstEval = path.join(testDir, 'suite-a.eval.yaml');
     const secondEval = path.join(testDir, 'suite-b.eval.yaml');
     const sourceTests = [
@@ -1628,7 +1628,7 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults(
       [
         makeResult({ suite: 'suite-a', testId: 'shared-id', target: 'baseline' }),
-        makeResult({ suite: 'suite-b', testId: 'shared-id', target: 'candidate' }),
+        makeResult({ suite: 'suite-b', testId: 'shared-id', target: 'baseline' }),
       ],
       testDir,
       { sourceTests },
@@ -1638,26 +1638,42 @@ describe('writeArtifactsFromResults', () => {
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as IndexArtifactEntry);
-    const firstSuffix = createHash('sha256')
-      .update('evals/suite-a.eval.yaml')
-      .digest('hex')
-      .slice(0, 8);
-    const secondSuffix = createHash('sha256')
-      .update('evals/suite-b.eval.yaml')
-      .digest('hex')
-      .slice(0, 8);
 
     expect(indexLines.map((line) => line.test_id)).toEqual(['shared-id', 'shared-id']);
     expect(indexLines.map((line) => line.artifact_dir)).toEqual([
-      `shared-id__${firstSuffix}`,
-      `shared-id__${secondSuffix}`,
+      'suite-a/shared-id',
+      'suite-b/shared-id',
     ]);
     expect(indexLines.map((line) => line.grading_path)).toEqual([
-      `shared-id__${firstSuffix}/run-1/grading.json`,
-      `shared-id__${secondSuffix}/run-1/grading.json`,
+      'suite-a/shared-id/run-1/grading.json',
+      'suite-b/shared-id/run-1/grading.json',
     ]);
-    expect(await readdir(path.join(testDir, `shared-id__${firstSuffix}`))).toContain('run-1');
-    expect(await readdir(path.join(testDir, `shared-id__${secondSuffix}`))).toContain('run-1');
+    expect(await readdir(path.join(testDir, 'suite-a', 'shared-id'))).toContain('run-1');
+    expect(await readdir(path.join(testDir, 'suite-b', 'shared-id'))).toContain('run-1');
+  });
+
+  it('adds a target segment when a run contains multiple targets', async () => {
+    const paths = await writeArtifactsFromResults(
+      [
+        makeResult({ suite: 'suite-a', testId: 'shared-id', target: 'baseline' }),
+        makeResult({ suite: 'suite-a', testId: 'shared-id', target: 'candidate' }),
+      ],
+      testDir,
+    );
+
+    const indexLines = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+
+    expect(indexLines.map((line) => line.artifact_dir)).toEqual([
+      'suite-a/shared-id/baseline',
+      'suite-a/shared-id/candidate',
+    ]);
+    expect(indexLines.map((line) => line.grading_path)).toEqual([
+      'suite-a/shared-id/baseline/run-1/grading.json',
+      'suite-a/shared-id/candidate/run-1/grading.json',
+    ]);
   });
 
   it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {
