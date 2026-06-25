@@ -1296,6 +1296,7 @@ describe('results repo write path', () => {
 
     expect(result.changed).toBe(true);
     expect(result.blocked).toBeFalsy();
+    expect(result.auto_merged_remote).toBe(true);
     expect(result.backup_ref).toBeUndefined();
     expect(result.force_pushed_commit).toBeUndefined();
 
@@ -1351,6 +1352,7 @@ describe('results repo write path', () => {
 
     expect(result.changed).toBe(true);
     expect(result.blocked).toBeFalsy();
+    expect(result.auto_merged_remote).toBe(true);
     // The deprecated policy no longer force-pushes or backs anything up.
     expect(result.backup_ref).toBeUndefined();
     expect(result.force_pushed_commit).toBeUndefined();
@@ -1804,6 +1806,7 @@ describe('results repo write path', () => {
       branch: storageBranch,
       upstream: `agentv-results/${storageBranch}`,
     });
+    expect(status.auto_merged_remote).toBeUndefined();
     expect(git(`git show ${storageBranch}:REMOTE_BRANCH.md`, cloneDir)).toBe(
       'branch remote update',
     );
@@ -2011,6 +2014,7 @@ describe('results repo write path', () => {
     expect(status.sync_status).toBe('clean');
     expect(status.blocked).toBe(false);
     expect(status.push_performed).toBe(true);
+    expect(status.auto_merged_remote).toBe(true);
 
     const finalTip = git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir);
     const parents = git(`git --git-dir "${remoteDir}" rev-list --parents -n 1 main`, rootDir).split(

@@ -500,6 +500,7 @@ export interface RemoteStatusResponse {
   pull_performed?: boolean;
   push_performed?: boolean;
   commit_created?: boolean;
+  auto_merged_remote?: boolean;
   target_branch?: string;
   remote_commit?: string;
   local_commit?: string;

@@ -256,6 +256,7 @@ export interface ResultsRepoStatus {
   readonly pull_performed?: boolean;
   readonly push_performed?: boolean;
   readonly commit_created?: boolean;
+  readonly auto_merged_remote?: boolean;
   readonly target_branch?: string;
   readonly remote_commit?: string;
   readonly local_commit?: string;
@@ -300,6 +301,7 @@ export interface DirectPushResultsResult {
   readonly block_reason?: string;
   readonly sync_status?: ResultsRepoSyncStatus;
   readonly push_conflict_policy: ResultPushConflictPolicy;
+  readonly auto_merged_remote?: boolean;
   readonly target_branch?: string;
   readonly remote_commit?: string;
   readonly local_commit?: string;
@@ -1437,6 +1439,7 @@ type ResultsBranchPushDetails = {
   readonly previousRemoteCommit?: string;
   readonly forcePushedCommit?: string;
   readonly leaseCommit?: string;
+  readonly autoMergedRemote?: boolean;
   readonly pendingMerge?: PendingMergeDetails;
 };
 
@@ -1484,6 +1487,7 @@ function pushDetailsToWire(
   | 'previous_remote_commit'
   | 'force_pushed_commit'
   | 'lease_commit'
+  | 'auto_merged_remote'
   | 'pending_merge'
 > {
   if (!details) {
@@ -1503,6 +1507,7 @@ function pushDetailsToWire(
       force_pushed_commit: details.forcePushedCommit,
     }),
     ...(details.leaseCommit !== undefined && { lease_commit: details.leaseCommit }),
+    ...(details.autoMergedRemote === true && { auto_merged_remote: true }),
     ...(details.pendingMerge !== undefined && {
       pending_merge: pendingMergeToWire(details.pendingMerge),
     }),
@@ -2017,6 +2022,7 @@ async function resolveResultBranchPushConflict(params: {
     }
 
     let pushSpec = branchCheckedOut ? 'HEAD' : localCommit;
+    let autoMergedRemote = false;
     // Diverged (neither side is an ancestor): commit a real 3-way merge using
     // the artifact-aware drivers. If `git merge` reports a genuine conflict, no
     // history is rewritten and we route to a human GitHub merge.
@@ -2031,6 +2037,7 @@ async function resolveResultBranchPushConflict(params: {
           );
         }
         pushSpec = 'HEAD';
+        autoMergedRemote = true;
       } else {
         const base = await getMergeBaseCommit(repoDir, localCommit, remoteCommit);
         if (!base) {
@@ -2065,6 +2072,7 @@ async function resolveResultBranchPushConflict(params: {
         );
         pushSpec = mergeCommitOut.trim();
         await runGit(['update-ref', localRef, pushSpec, localCommit], { cwd: repoDir });
+        autoMergedRemote = true;
       }
     }
 
@@ -2083,7 +2091,11 @@ async function resolveResultBranchPushConflict(params: {
     const pushedCommit = (await getCommitSha(repoDir, pushSpec)) ?? localCommit;
     return {
       blocked: false,
-      details: { ...details, localCommit: pushedCommit },
+      details: {
+        ...details,
+        localCommit: pushedCommit,
+        ...(autoMergedRemote && { autoMergedRemote }),
+      },
     };
   }
 
@@ -3546,10 +3558,13 @@ function mergeDirectPushResults(
   if (blocked) {
     return blocked;
   }
-  const detailed = [...results].reverse().find((result) => result.backup_ref !== undefined);
+  const detailed = [...results]
+    .reverse()
+    .find((result) => result.backup_ref !== undefined || result.auto_merged_remote === true);
   return {
     changed: results.some((result) => result.changed),
     push_conflict_policy: normalized.push_conflict_policy,
+    ...(detailed?.auto_merged_remote === true && { auto_merged_remote: true }),
     ...(detailed?.backup_ref !== undefined && {
       backup_ref: detailed.backup_ref,
     }),

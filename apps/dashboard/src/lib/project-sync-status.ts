@@ -334,6 +334,7 @@ export function buildProjectSyncFeedback(status: RemoteStatusResponse): {
   const actions = [
     status.commit_created ? 'committed pending metadata' : undefined,
     status.pull_performed ? 'pulled remote results' : undefined,
+    status.auto_merged_remote ? 'Merged remote (auto)' : undefined,
     status.push_performed ? 'pushed local results' : undefined,
   ].filter((action): action is string => action !== undefined);
 
