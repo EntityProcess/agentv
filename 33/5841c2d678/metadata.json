@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "335841c2d678",
+  "strategy": "manual-commit",
+  "branch": "docs/clarify-eval-experiment-boundaries",
+  "checkpoints_count": 4,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/33/5841c2d678/0/metadata.json",
+      "transcript": "/33/5841c2d678/0/full.jsonl",
+      "content_hash": "/33/5841c2d678/0/content_hash.txt",
+      "prompt": "/33/5841c2d678/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 854969,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 18707456,
+    "output_tokens": 57203,
+    "api_call_count": 175
+  }
+}

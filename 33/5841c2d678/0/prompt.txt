@@ -1,0 +1,37 @@
+Create a worktree off latest origin/main in EntityProcess/agentv, then open a draft PR (new bead av-raf.5) that (a) checks whether results.sync.push_conflict_policy: backup_and_force_push ever shipped in a published npm release — hard-remove it     ┃  from the config schema enum with a clear validation/migration error if unreleased, else keep the existing soft-deprecation — and (b) adds an auto_merged_remote boolean signal set only in the diverged 3-way-merge branch of                            ┃  resolveResultBranchPushConflict in packages/core/src/evaluation/results-repo.ts, plumbs it snake_case through mergeDirectPushResults → wire status → dashboard types.ts/project-sync-status.ts → buildProjectSyncFeedback, and renders a "Merged remote  ┃  (auto)" toast in the Dashboard so users know a push silently absorbed concurrent remote changes; never force-push, snake_case wire / camelCase TS, add core + dashboard tests, run bun run typecheck/bun run lint/relevant bun test, and get it reviewed ┃   before squash-merge.
+
+---
+
+use workmux skill
+
+---
+
+please fix the origin URL.
+
+---
+
+continue
+
+---
+
+backup_and_force_push should be hard deprecated
+
+---
+
+anything in next tag can be hard deprecated, maybe document this as learning in the repo.
+
+---
+
+where is dogfood saved for the merge sync
+
+---
+
+ok so summarize what we changed, anything i need to review, what work is outstanding.
+
+---
+
+espawn review agent
+
+---
+
+review agent also needs to validate it works e2e
