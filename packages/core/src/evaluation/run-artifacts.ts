@@ -1126,12 +1126,30 @@ function safeTestId(testId: string | undefined): string {
   return safeArtifactPathSegment(testId, 'unknown');
 }
 
+function safeTarget(target: string | undefined): string {
+  return safeArtifactPathSegment(target, 'unknown');
+}
+
 function getSuite(result: EvaluationResult): string | undefined {
   return result.suite;
 }
 
-function buildArtifactSubdir(result: EvaluationResult): string {
-  return safeTestId(result.testId);
+function sourceSuite(sourceTest: EvalTest | undefined): string | undefined {
+  return sourceTest?.suite;
+}
+
+function buildArtifactSubdir(
+  result: EvaluationResult,
+  sourceTest: EvalTest | undefined,
+  includeTargetSegment: boolean,
+): string {
+  const suite = getSuite(result) ?? sourceSuite(sourceTest);
+  const segments = [
+    ...(suite ? [safeArtifactPathSegment(suite, 'suite')] : []),
+    safeTestId(result.testId ?? sourceTest?.id),
+    ...(includeTargetSegment ? [safeTarget(result.target)] : []),
+  ];
+  return path.posix.join(...segments);
 }
 
 function sourceTestsByTestId(sourceTests: readonly EvalTest[] | undefined) {
@@ -1219,7 +1237,11 @@ function allocateArtifactSubdirs(
   results: readonly EvaluationResult[],
   sourceTests: readonly (EvalTest | undefined)[],
 ): readonly string[] {
-  const baseDirs = results.map((result) => buildArtifactSubdir(result));
+  const targetNames = new Set(results.map((result) => safeTarget(result.target)));
+  const includeTargetSegment = targetNames.size > 1;
+  const baseDirs = results.map((result, index) =>
+    buildArtifactSubdir(result, sourceTests[index], includeTargetSegment),
+  );
   const baseCounts = new Map<string, number>();
   for (const baseDir of baseDirs) {
     baseCounts.set(baseDir, (baseCounts.get(baseDir) ?? 0) + 1);
@@ -1237,14 +1259,12 @@ function allocateArtifactSubdirs(
     }
 
     const suffix = artifactDisambiguationSuffix(results[index], sourceTests[index], nextOccurrence);
-    let candidate = safeArtifactPathSegment(
-      `${baseDir}__${suffix}`,
-      `${baseDir}_${nextOccurrence}`,
-    );
+    let candidate = appendArtifactSubdirSuffix(baseDir, suffix, `${baseDir}_${nextOccurrence}`);
     let collision = 2;
     while (used.has(candidate)) {
-      candidate = safeArtifactPathSegment(
-        `${baseDir}__${suffix}_${collision}`,
+      candidate = appendArtifactSubdirSuffix(
+        baseDir,
+        `${suffix}_${collision}`,
         `${baseDir}_${nextOccurrence}_${collision}`,
       );
       collision += 1;
@@ -1252,6 +1272,19 @@ function allocateArtifactSubdirs(
     used.add(candidate);
     return candidate;
   });
+}
+
+function appendArtifactSubdirSuffix(baseDir: string, suffix: string, fallback: string): string {
+  const segments = baseDir.split('/').filter(Boolean);
+  if (segments.length === 0) {
+    return safeArtifactPathSegment(`${fallback}__${suffix}`, fallback);
+  }
+
+  const last = segments[segments.length - 1] ?? fallback;
+  return path.posix.join(
+    ...segments.slice(0, -1),
+    safeArtifactPathSegment(`${last}__${suffix}`, fallback),
+  );
 }
 
 function toRelativeArtifactPath(outputDir: string, filePath: string): string {
@@ -1503,7 +1536,7 @@ export function buildResultIndexArtifact(
     artifactPointers?: ResultArtifactPointersWire;
   },
 ): ResultIndexArtifact {
-  const artifactSubdir = buildArtifactSubdir(result);
+  const artifactSubdir = buildArtifactSubdir(result, undefined, false);
   const hasAnswer = result.output.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedCaseRuns(result);

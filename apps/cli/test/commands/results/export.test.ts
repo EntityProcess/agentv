@@ -162,13 +162,26 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
-function artifactDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
+function artifactDir(
+  outputDir: string,
+  record: { suite?: string; test_id?: string; target?: string },
+  options: { includeTargetSegment?: boolean } = {},
+): string {
   const testId = record.test_id ?? 'unknown';
-  return path.join(outputDir, ...(record.suite ? [record.suite] : []), testId);
+  return path.join(
+    outputDir,
+    ...(record.suite ? [record.suite] : []),
+    testId,
+    ...(options.includeTargetSegment ? [record.target ?? 'unknown'] : []),
+  );
 }
 
-function runDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  return path.join(artifactDir(outputDir, record), 'run-1');
+function runDir(
+  outputDir: string,
+  record: { suite?: string; test_id?: string; target?: string },
+  options: { includeTargetSegment?: boolean } = {},
+): string {
+  return path.join(artifactDir(outputDir, record, options), 'run-1');
 }
 
 function readIndex(outputDir: string): IndexArtifactEntry[] {
@@ -655,10 +668,35 @@ describe('results export', () => {
 
     expect(existsSync(path.join(outputDir, 'summary.json'))).toBe(true);
     expect(existsSync(path.join(outputDir, 'index.jsonl'))).toBe(true);
-    expect(existsSync(path.join(artifactDir(outputDir, RESULT_FULL), 'summary.json'))).toBe(true);
-    expect(existsSync(path.join(runDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(true);
-    expect(existsSync(path.join(runDir(outputDir, RESULT_PARTIAL), 'grading.json'))).toBe(true);
-    expect(existsSync(path.join(runDir(outputDir, RESULT_NO_TRACE), 'grading.json'))).toBe(true);
+    expect(
+      existsSync(
+        path.join(
+          artifactDir(outputDir, RESULT_FULL, { includeTargetSegment: true }),
+          'summary.json',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(runDir(outputDir, RESULT_FULL, { includeTargetSegment: true }), 'grading.json'),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(
+          runDir(outputDir, RESULT_PARTIAL, { includeTargetSegment: true }),
+          'grading.json',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        path.join(
+          runDir(outputDir, RESULT_NO_TRACE, { includeTargetSegment: true }),
+          'grading.json',
+        ),
+      ),
+    ).toBe(true);
   });
 
   it('should include per-grader summary in summary when scores present', async () => {

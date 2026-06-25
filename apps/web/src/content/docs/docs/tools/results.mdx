@@ -112,6 +112,16 @@ Duplicate policy is explicit:
 
 ### Run observability
 
+AgentV writes readable per-case artifact directories under the run workspace.
+When suite metadata is available, single-target runs use
+`<suite>/<case-id>/run-N/`. Runs with multiple selected targets insert the target
+axis: `<suite>/<case-id>/<target>/run-N/`. If a result has no suite metadata,
+AgentV may keep the compatibility layout `<case-id>/run-N/`.
+
+The folder tree is for human inspection. Tooling should follow `index.jsonl`
+rows and their explicit paths, including `artifact_dir`, `summary_path`,
+`grading_path`, `metrics_path`, and `timing_path`.
+
 Each `run-N/` directory includes `metrics.json` and `timing.json`. `metrics.json`
 is the flattened executor behavior summary for dashboards, comparison exports,
 and metric-style graders. `timing.json` carries the run's duration, token,

@@ -343,15 +343,18 @@ describe('agentv eval CLI', () => {
 
       const results = await readJsonLines(path.join(outputDir, 'index.jsonl'));
       expect(results).toHaveLength(2);
+      const [alpha, beta] = results as Array<{ artifact_dir: string }>;
       await expectFileExists(path.join(outputDir, 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'metrics.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'timing.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'metrics.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'timing.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'grading.json'));
+      expect(alpha.artifact_dir).toBe('sample.test/case-alpha');
+      expect(beta.artifact_dir).toBe('sample.test/case-beta');
+      await expectFileExists(path.join(outputDir, alpha.artifact_dir, 'summary.json'));
+      await expectFileExists(path.join(outputDir, alpha.artifact_dir, 'run-1', 'metrics.json'));
+      await expectFileExists(path.join(outputDir, alpha.artifact_dir, 'run-1', 'timing.json'));
+      await expectFileExists(path.join(outputDir, alpha.artifact_dir, 'run-1', 'grading.json'));
+      await expectFileExists(path.join(outputDir, beta.artifact_dir, 'summary.json'));
+      await expectFileExists(path.join(outputDir, beta.artifact_dir, 'run-1', 'metrics.json'));
+      await expectFileExists(path.join(outputDir, beta.artifact_dir, 'run-1', 'timing.json'));
+      await expectFileExists(path.join(outputDir, beta.artifact_dir, 'run-1', 'grading.json'));
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -369,8 +372,12 @@ describe('agentv eval CLI', () => {
       expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
       await expectFileExists(path.join(outputDir, 'index.jsonl'));
       await expectFileExists(path.join(outputDir, 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
+      const [alpha] = (await readJsonLines(path.join(outputDir, 'index.jsonl'))) as Array<{
+        artifact_dir: string;
+      }>;
+      expect(alpha.artifact_dir).toBe('sample.test/case-alpha');
+      await expectFileExists(path.join(outputDir, alpha.artifact_dir, 'summary.json'));
+      await expectFileExists(path.join(outputDir, alpha.artifact_dir, 'run-1', 'grading.json'));
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }

@@ -167,7 +167,7 @@ function uniqueAssertions(assertions: readonly AssertionEntry[]): AssertionEntry
   });
 }
 
-function buildGraderMap(
+export function buildScoreEntryMap(
   scores: readonly ScoreEntry[] | undefined,
 ): ReadonlyMap<string, ScoreEntry> {
   const map = new Map<string, ScoreEntry>();
@@ -241,7 +241,7 @@ function buildRow(
   const executionError = isExecutionError(result);
   const passing = !executionError && result.score >= passThreshold;
   const status: ResultTableRowStatus = executionError ? 'error' : passing ? 'passing' : 'failing';
-  const graderScores = buildGraderMap(result.scores);
+  const graderScores = buildScoreEntryMap(result.scores);
   const graderNames = [...graderScores.keys()];
   const graderError =
     result.scores?.some((score) => scoreHasFailure(score, passThreshold)) ?? false;
@@ -349,11 +349,11 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
       ? [{ id: 'expander', label: 'Expand', kind: 'base' as const, defaultVisible: true }]
       : []),
     { id: 'test', label: 'Test ID', kind: 'base', defaultVisible: true },
-    { id: 'target', label: 'Target', kind: 'base', defaultVisible: true },
-    { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasSuite
       ? [{ id: 'suite', label: 'Suite', kind: 'base' as const, defaultVisible: true }]
       : []),
+    { id: 'target', label: 'Target', kind: 'base', defaultVisible: true },
+    { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasCategory
       ? [{ id: 'category', label: 'Category', kind: 'base' as const, defaultVisible: false }]
       : []),
