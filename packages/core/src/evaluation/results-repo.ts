@@ -1906,7 +1906,7 @@ async function mergeRemoteIntoCheckedOutBranch(
 }
 
 // Layer 1 of the no-force-push results sync (see
-// docs/plans/2026-06-24-001-feat-conflict-free-results-sync-plan.md). A bounded
+// docs/adr/2026-06-24-no-force-push-results-sync.md). A bounded
 // fetch → merge → push loop: fast-forward when possible, otherwise commit a real
 // 3-way merge using the artifact-aware drivers (union index, agentv-json
 // overlay) and fast-forward the canonical branch onto it. A genuine overlay
