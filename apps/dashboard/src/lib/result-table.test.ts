@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { buildResultTableModel } from './result-table';
+import { buildResultTableModel, buildScoreEntryMap } from './result-table';
 import type { EvalResult } from './types';
 
 function result(overrides: Partial<EvalResult>): EvalResult {
@@ -104,9 +104,9 @@ describe('result-table model', () => {
     expect(model.columns.map((column) => column.id)).toEqual([
       'status',
       'test',
+      'suite',
       'target',
       'score',
-      'suite',
       'category',
       'duration',
       'cost_tokens',
@@ -194,6 +194,45 @@ describe('result-table model', () => {
     expect(model.visibleColumns.map((column) => column.id)).toContain('duration');
     expect(model.visibleColumns.map((column) => column.id)).toContain('cost_tokens');
     expect(model.filteredRepeatGroups.map((group) => group.row.testId)).toEqual(['repeat-case']);
+  });
+
+  it('resolves dynamic grader scores from repeated run attempts', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'repeat-case',
+          score: 0.75,
+          scores: [{ name: 'contains-smoke output', type: 'contains', score: 0.75 }],
+          runs: [
+            {
+              run: 1,
+              run_path: 'run-1',
+              score: 0.5,
+              verdict: 'fail',
+              scores: [{ name: 'contains-smoke output', type: 'contains', score: 0.5 }],
+            },
+            {
+              run: 2,
+              run_path: 'run-2',
+              score: 1,
+              verdict: 'pass',
+              scores: [{ name: 'contains-smoke output', type: 'contains', score: 1 }],
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(model.visibleColumns.map((column) => column.id)).toContain(
+      'grader:contains-smoke output',
+    );
+    const group = model.repeatGroups[0];
+    expect(group?.meanScore).toBe(0.75);
+    expect(buildScoreEntryMap(group?.runs[0]?.scores).get('contains-smoke output')?.score).toBe(
+      0.5,
+    );
+    expect(buildScoreEntryMap(group?.runs[1]?.scores).get('contains-smoke output')?.score).toBe(1);
   });
 
   it('keeps the repeat expander visible for saved result table column URLs', () => {

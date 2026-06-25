@@ -18,6 +18,7 @@ import {
   type ResultTableState,
   type ResultTableStateInput,
   buildResultTableModel,
+  buildScoreEntryMap,
 } from '~/lib/result-table';
 import type { EvalCaseRun, EvalResult, ScoreEntry } from '~/lib/types';
 
@@ -636,6 +637,16 @@ function RunResultCell({
   const status = isExecutionError ? 'error' : passed ? 'passing' : 'failing';
   const statusLabel = isExecutionError ? 'Error' : passed ? 'Passing' : 'Failing';
   const label = caseRunPath(caseRun, index);
+  if (column.id.startsWith('grader:')) {
+    const graderName = column.id.slice('grader:'.length);
+    return (
+      <GraderScoreCell
+        score={buildScoreEntryMap(caseRun.scores).get(graderName)}
+        passThreshold={passThreshold}
+      />
+    );
+  }
+
   switch (column.id) {
     case 'status':
       return <ResultStatusSymbol status={status} label={statusLabel} />;

@@ -66,6 +66,8 @@ interface RunListItemView {
   ts: { date: string; full: string };
   isActive: boolean;
   label: string;
+  experimentName: string;
+  targetName: string;
   display: RunDisplay;
   errors: number;
   qualityCount: number;
@@ -73,6 +75,14 @@ interface RunListItemView {
   passedCount: number;
   failedCount: number;
   metadataDirty: boolean;
+}
+
+function runExperimentName(run: RunMeta): string {
+  return run.experiment?.trim() || 'default';
+}
+
+function runTargetName(run: RunMeta): string {
+  return run.target?.trim() || '-';
 }
 
 function formatDate(ts: string | undefined | null): { date: string; full: string } {
@@ -100,6 +110,8 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
   const isActive = run.status === 'starting' || run.status === 'running';
   const display = formatRunDisplay(run, { includePassRate: false });
   const label = display.label;
+  const experimentName = runExperimentName(run);
+  const targetName = runTargetName(run);
   const errors = executionErrorCount(run);
   const qualityCount = Math.max(0, run.test_count - errors);
   const passing = qualityCount > 0 ? run.pass_rate >= passThreshold : errors === 0;
@@ -112,6 +124,8 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
     ts,
     isActive,
     label,
+    experimentName,
+    targetName,
     display,
     errors,
     qualityCount,
@@ -414,6 +428,8 @@ export function RunList({
             run,
             ts,
             label,
+            experimentName,
+            targetName,
             display,
             errors,
             qualityCount,
@@ -450,15 +466,13 @@ export function RunList({
                   <RunNameLink
                     projectId={projectId}
                     runId={run.filename}
-                    label={display.primary}
+                    label={experimentName}
                     title={display.title}
                     className="block truncate text-sm font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                   />
-                  {display.secondary ? (
-                    <p className="mt-0.5 truncate text-xs text-gray-500" title={display.title}>
-                      {display.secondary}
-                    </p>
-                  ) : null}
+                  <p className="mt-0.5 truncate text-xs text-gray-500" title={targetName}>
+                    {targetName}
+                  </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <RemoteIndicator onRemote={run.on_remote === true} branch={remoteBranch} />
                     {metadataDirty ? <PendingSyncBadge /> : null}
@@ -507,8 +521,8 @@ export function RunList({
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
               {enableCombine && <th className="w-10 px-4 py-3" />}
-              <th className="w-8 px-4 py-3" />
-              <th className="w-[22rem] px-4 py-3 font-medium text-gray-400">Run</th>
+              <th className="w-[16rem] px-4 py-3 font-medium text-gray-400">Experiment</th>
+              <th className="w-[14rem] px-4 py-3 font-medium text-gray-400">Target</th>
               <th className="px-4 py-3 font-medium text-gray-400">Remote</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Failures</th>
@@ -524,6 +538,8 @@ export function RunList({
                 run,
                 ts,
                 label,
+                experimentName,
+                targetName,
                 display,
                 errors,
                 qualityCount,
@@ -553,33 +569,31 @@ export function RunList({
                       />
                     </td>
                   )}
-                  {/* Status dot — spinner for active runs, otherwise quality pass/fail. */}
-                  <td className="px-4 py-3 text-center">
-                    <RunStatusMark view={view} />
-                  </td>
-
-                  {/* Run name */}
-                  <td className="w-[22rem] max-w-[22rem] px-4 py-3">
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
+                  {/* Experiment */}
+                  <td className="w-[16rem] max-w-[16rem] px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <RunStatusMark view={view} className="shrink-0" />
+                      <div className="min-w-0">
                         <RunNameLink
                           projectId={projectId}
                           runId={run.filename}
-                          label={display.primary}
+                          label={experimentName}
                           title={display.title}
                           className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         />
-                        {metadataDirty ? <PendingSyncBadge /> : null}
                       </div>
-                      {display.secondary ? (
-                        <div
-                          className="mt-0.5 truncate text-xs text-gray-500"
-                          title={display.title}
-                        >
-                          {display.secondary}
-                        </div>
-                      ) : null}
+                      {metadataDirty ? <PendingSyncBadge /> : null}
                     </div>
+                  </td>
+
+                  {/* Target */}
+                  <td
+                    className={`w-[14rem] max-w-[14rem] truncate px-4 py-3 ${
+                      targetName === '-' ? 'text-gray-600' : 'text-gray-300'
+                    }`}
+                    title={targetName}
+                  >
+                    {targetName}
                   </td>
 
                   {/* Remote presence */}
