@@ -331,7 +331,11 @@ function hasMeaningfulTarget(rows: readonly ResultTableRow[]): boolean {
 function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly string[]) {
   const hasSuite = rows.some((row) => row.suiteLabel);
   const hasCategory = rows.some((row) => row.categoryLabel);
-  const hasDuration = rows.some((row) => row.result.durationMs != null);
+  const hasDuration = rows.some(
+    (row) =>
+      row.result.durationMs != null ||
+      row.result.runs?.some((caseRun) => caseRun.duration_ms != null),
+  );
   const hasCostOrTokens = rows.some((row) => row.result.costUsd != null || row.tokenTotal != null);
   const hasError = rows.some((row) => row.result.error);
 

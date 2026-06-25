@@ -6,7 +6,7 @@
  * Assertions are grouped by grader name.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -40,6 +40,8 @@ interface EvalDetailProps {
   eval: EvalResult;
   runId: string;
   projectId?: string;
+  initialTab?: Tab;
+  initialSelectedFilePath?: string | null;
 }
 
 type Tab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
@@ -56,11 +58,22 @@ function findFirstFile(nodes: FileNode[]): string | null {
   return null;
 }
 
-export function EvalDetail({ eval: result, runId, projectId }: EvalDetailProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('checks');
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+export function EvalDetail({
+  eval: result,
+  runId,
+  projectId,
+  initialTab = 'checks',
+  initialSelectedFilePath = null,
+}: EvalDetailProps) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(initialSelectedFilePath);
   const { data: config } = useStudioConfig(projectId);
   const isReadOnly = config?.read_only === true;
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+    setSelectedFilePath(initialSelectedFilePath);
+  }, [initialTab, initialSelectedFilePath]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'checks', label: 'Checks' },

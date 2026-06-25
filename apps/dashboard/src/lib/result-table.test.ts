@@ -202,6 +202,7 @@ describe('result-table model', () => {
       totalToolCalls: 6,
       artifactCount: 3,
     });
+    expect(model.visibleColumns.map((column) => column.id)).toContain('duration');
     expect(model.filteredRepeatGroups.map((group) => group.row.testId)).toEqual(['repeat-case']);
   });
 
