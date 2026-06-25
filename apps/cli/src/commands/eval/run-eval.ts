@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { constants, existsSync, mkdirSync } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { createRequire as createNodeRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -89,8 +89,8 @@ import type { TaskBundleTargetSelection } from './task-bundle.js';
 import { WipCheckpointLoop } from './wip-checkpoint.js';
 
 const DEFAULT_WORKERS = 3;
-const require = createRequire(import.meta.url);
-const micromatch = require('micromatch') as {
+const loadCjsModule = createNodeRequire(import.meta.url);
+const micromatch = loadCjsModule('micromatch') as {
   isMatch(id: string, pattern: string): boolean;
 };
 
