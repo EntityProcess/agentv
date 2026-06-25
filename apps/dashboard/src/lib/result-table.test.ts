@@ -104,6 +104,7 @@ describe('result-table model', () => {
     expect(model.columns.map((column) => column.id)).toEqual([
       'status',
       'test',
+      'target',
       'score',
       'suite',
       'category',
@@ -209,14 +210,23 @@ describe('result-table model', () => {
         }),
       ],
       state: {
-        visibleColumnIds: ['status', 'test', 'model_target', 'score', 'suite', 'duration'],
+        visibleColumnIds: [
+          'status',
+          'test',
+          'target',
+          'model_target',
+          'score',
+          'suite',
+          'duration',
+        ],
       },
     });
 
-    expect(model.visibleColumns.map((column) => column.id).slice(0, 3)).toEqual([
+    expect(model.visibleColumns.map((column) => column.id).slice(0, 4)).toEqual([
       'status',
       'expander',
       'test',
+      'target',
     ]);
     expect(model.visibleColumns.map((column) => column.id)).not.toContain('model_target');
   });

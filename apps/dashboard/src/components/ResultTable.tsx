@@ -643,6 +643,8 @@ function RunResultCell({
       return <span aria-hidden="true" className="block h-5" />;
     case 'test':
       return <RunTestCell label={label} caseRun={caseRun} />;
+    case 'target':
+      return <TargetCell target={row.targetLabel} tone="text-gray-500" />;
     case 'score':
       return <PassRatePill rate={caseRun.score ?? 0} />;
     case 'suite':
@@ -817,6 +819,8 @@ function ResultCell({
       );
     case 'test':
       return <TestCell row={row} repeatGroup={repeatGroup} isSelected={isSelected} />;
+    case 'target':
+      return <TargetCell target={row.targetLabel} />;
     case 'score':
       return row.executionError ? (
         <span className="inline-flex rounded-md border border-amber-900/60 bg-amber-950/20 px-2 py-0.5 text-xs font-medium text-amber-300">
@@ -850,6 +854,14 @@ function ResultCell({
     default:
       return <span className="text-gray-600">-</span>;
   }
+}
+
+function TargetCell({ target, tone = 'text-gray-300' }: { target: string; tone?: string }) {
+  return (
+    <div className={`max-w-[14rem] truncate ${tone}`} title={target}>
+      {target}
+    </div>
+  );
 }
 
 function ExpanderCell({
