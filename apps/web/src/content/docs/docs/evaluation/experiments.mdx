@@ -6,17 +6,23 @@ sidebar:
 ---
 
 Experiments define **how** eval cases run: target or target matrix, setup,
-scripts, timeout, sandbox, case filters, and repeat-run policy. Eval files stay
-focused on **what** is tested: prompts, datasets, assertions, and task fixtures.
+scripts, timeout, sandbox, eval file selection, case filters, and repeat-run
+policy. Eval files stay focused on **what** is tested: prompts, datasets,
+assertions, and task fixtures.
 
 ## Experiment YAML
+
+Experiment files use the `*.exp.yaml` convention. Eval suites use
+`*.eval.yaml` or `EVAL.yaml`.
 
 Committed experiments conventionally live under `experiments/`:
 
 ```yaml
 name: baseline
 target: codex-gpt5
-evals: "agent-*"
+eval_suites:
+  - evals/**/*.eval.yaml
+eval_cases: "agent-*"
 timeout_seconds: 720
 repeat:
   count: 4
@@ -30,6 +36,13 @@ scripts:
 
 Wire fields use `snake_case`. AgentV translates to internal `camelCase` when it
 loads the file.
+
+Use `eval_suites` for eval suite file paths or globs. The syntax matches
+positional CLI eval paths, including directories, globs, and `!` negation
+patterns, and is resolved from the project root/current working directory. Use
+`eval_cases` for case or test-id filtering inside the selected suites. Existing
+experiments that use `evals` as a case filter keep working as a legacy alias for
+`eval_cases`; do not use `evals` in new experiment files.
 
 ## Repeat runs
 
@@ -140,14 +153,18 @@ scripts:
 Run a specific experiment:
 
 ```bash
-bun agentv eval evals/suite.eval.yaml --experiment experiments/default.yaml
+bun agentv eval --experiment experiments/default.exp.yaml
 ```
+
+When the experiment defines `eval_suites`, positional eval paths are optional.
+If positional eval paths are provided, they override `eval_suites` for that ad
+hoc run; `eval_cases` still applies as a case filter.
 
 If no experiment is passed, AgentV checks `.agentv/config.yaml` for a default:
 
 ```yaml
 experiments:
-  default: experiments/default.yaml
+  default: experiments/default.exp.yaml
 ```
 
 If no default is configured, AgentV keeps the old behavior and uses the

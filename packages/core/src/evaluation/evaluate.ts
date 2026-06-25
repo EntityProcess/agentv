@@ -287,7 +287,7 @@ export interface EvalRunArtifacts {
  * @example Load from YAML
  * ```typescript
  * const { summary } = await evaluate({
- *   specFile: './evals/my-eval.yaml',
+ *   specFile: './evals/my-eval.eval.yaml',
  *   filter: 'greeting-*',
  * });
  * ```

@@ -8,10 +8,32 @@ sidebar:
 ## Run an Evaluation
 
 ```bash
-agentv eval evals/my-eval.yaml
+agentv eval evals/my-eval.eval.yaml
 ```
 
 Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`. When no experiment is defined, AgentV uses `.agentv/results/default/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts. Use this generated run folder as the portable audit surface: copy or sync the run directory, not a hand-authored parallel bundle.
+
+An experiment can also select eval files directly:
+
+```yaml
+# experiments/repeat-matrix.exp.yaml
+name: repeat-matrix
+eval_suites:
+  - evals/dashboard-repeat.eval.yaml
+targets:
+  - baseline
+  - candidate
+repeat:
+  count: 2
+  strategy: mean
+```
+
+```bash
+agentv eval --experiment experiments/repeat-matrix.exp.yaml
+```
+
+CLI positional eval paths override `eval_suites` for one-off runs. Experiment
+`eval_cases` filters case/test IDs over whichever suites were selected.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -44,7 +66,7 @@ The `duration_ms`, `started_at`, and `ended_at` fields are present on every grad
 Run against a different target than specified in the eval file:
 
 ```bash
-agentv eval --target my-target evals/**/*.yaml
+agentv eval --target my-target evals/**/*.eval.yaml
 ```
 
 ### Experiment Label
@@ -52,8 +74,8 @@ agentv eval --target my-target evals/**/*.yaml
 Tag a pipeline run with an experiment name to track different conditions (e.g. with vs without skills):
 
 ```bash
-agentv pipeline run evals/my-eval.yaml --experiment with_skills
-agentv pipeline run evals/my-eval.yaml --experiment without_skills
+agentv pipeline run evals/my-eval.eval.yaml --experiment with_skills
+agentv pipeline run evals/my-eval.eval.yaml --experiment without_skills
 ```
 
 The experiment label is written to `manifest.json` and propagated to each entry in `index.jsonl` by `pipeline bench`. The eval file stays the same across experiments — what changes is the environment. Dashboards can filter and compare results by experiment.
@@ -63,7 +85,7 @@ The experiment label is written to `manifest.json` and propagated to each entry 
 Run a single test by ID:
 
 ```bash
-agentv eval --test-id case-123 evals/my-eval.yaml
+agentv eval --test-id case-123 evals/my-eval.eval.yaml
 ```
 
 ### Dry Run
@@ -71,7 +93,7 @@ agentv eval --test-id case-123 evals/my-eval.yaml
 Test the harness flow with mock responses (does not call real providers):
 
 ```bash
-agentv eval --dry-run evals/my-eval.yaml
+agentv eval --dry-run evals/my-eval.eval.yaml
 ```
 
 :::note
@@ -84,7 +106,7 @@ Write all artifacts (`index.jsonl`, `summary.json`, per-case summaries, and
 `run-N` details) to a specific directory:
 
 ```bash
-agentv eval evals/my-eval.yaml --output ./my-results
+agentv eval evals/my-eval.eval.yaml --output ./my-results
 ```
 
 `--output` is a run directory, not a file path. The canonical manifest is always
@@ -95,7 +117,7 @@ agentv eval evals/my-eval.yaml --output ./my-results
 The run directory is the complete artifact boundary. Use `<output>/index.jsonl` for scripts, CI summaries, and downstream tools:
 
 ```bash
-agentv eval evals/my-eval.yaml --output ./my-results
+agentv eval evals/my-eval.eval.yaml --output ./my-results
 cat ./my-results/index.jsonl
 ```
 
@@ -170,7 +192,7 @@ result-oriented workflows. For full-fidelity span inspection, export OTLP JSON e
 agentv inspect stats .agentv/results/default/<timestamp>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
-agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
+agentv eval evals/my-eval.eval.yaml --otel-file traces/eval.otlp.json
 
 # Inspect the OTLP export
 agentv inspect show traces/eval.otlp.json --tree
@@ -188,13 +210,13 @@ Stream traces directly to an observability backend during evaluation using `--ex
 
 ```bash
 # Use a built-in CLI backend resolver (braintrust, langfuse, confident)
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust
+agentv eval evals/my-eval.eval.yaml --export-otel --otel-backend braintrust
 
 # Include message content and tool I/O in spans (disabled by default for privacy)
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
+agentv eval evals/my-eval.eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
 
 # Group messages into turn spans for multi-turn evaluations
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-group-turns
+agentv eval evals/my-eval.eval.yaml --export-otel --otel-backend braintrust --otel-group-turns
 ```
 
 #### Braintrust
@@ -209,7 +231,7 @@ export BRAINTRUST_PROJECT=my-project    # associates traces with a Braintrust pr
 Run an eval with traces sent to Braintrust:
 
 ```bash
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
+agentv eval evals/my-eval.eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
 ```
 
 The following environment variables control project association (at least one is required):
@@ -238,7 +260,7 @@ export LANGFUSE_PUBLIC_KEY=pk-...
 export LANGFUSE_SECRET_KEY=sk-...
 # Optional: export LANGFUSE_HOST=https://cloud.langfuse.com
 
-agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse --otel-capture-content
+agentv eval evals/my-eval.eval.yaml --export-otel --otel-backend langfuse --otel-capture-content
 ```
 
 #### Local Backend Resolvers
@@ -257,7 +279,7 @@ export default {
 ```
 
 ```bash
-agentv eval evals/my-eval.yaml --export-otel --otel-backend my-backend
+agentv eval evals/my-eval.eval.yaml --export-otel --otel-backend my-backend
 ```
 
 Backend resolvers keep platform-specific endpoint, header, and project-routing logic outside
@@ -272,7 +294,7 @@ For generic OTLP export without a backend resolver, configure via environment va
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://your-backend/v1/traces
 export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
 
-agentv eval evals/my-eval.yaml --export-otel
+agentv eval evals/my-eval.eval.yaml --export-otel
 ```
 
 ### Parallelism
@@ -280,10 +302,10 @@ agentv eval evals/my-eval.yaml --export-otel
 The `--workers N` flag controls how many **test cases run in parallel within each eval file** (default: 3). Eval files always run sequentially — one file completes before the next starts.
 
 ```bash
-agentv eval evals/my-eval.yaml --workers 4
+agentv eval evals/my-eval.eval.yaml --workers 4
 # Up to 4 test cases from the file run concurrently
 
-agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
+agentv eval evals/file1.eval.yaml evals/file2.eval.yaml evals/file3.eval.yaml --workers 3
 # Files run one at a time; within each file, up to 3 test cases run in parallel
 ```
 
@@ -295,16 +317,16 @@ Use workspace mode and finish policies instead of multiple conflicting booleans:
 
 ```bash
 # Mode: pooled | temp | static
-agentv eval evals/my-eval.yaml --workspace-mode pooled
+agentv eval evals/my-eval.eval.yaml --workspace-mode pooled
 
 # Static mode path
-agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/workspace
+agentv eval evals/my-eval.eval.yaml --workspace-mode static --workspace-path /path/to/workspace
 
 # Pooled reset policy override: standard | full (CLI override)
-agentv eval evals/my-eval.yaml --workspace-clean full
+agentv eval evals/my-eval.eval.yaml --workspace-clean full
 
 # Finish policy overrides: keep | cleanup (CLI)
-agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
+agentv eval evals/my-eval.eval.yaml --retain-on-success cleanup --retain-on-failure keep
 ```
 
 Equivalent eval YAML:
@@ -340,16 +362,16 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 
 ```bash
 # Resume the last run — no args needed; AgentV finds it from .agentv/cache.json
-agentv eval evals/my-eval.yaml --resume
+agentv eval evals/my-eval.eval.yaml --resume
 
 # Or target a specific run dir explicitly
-agentv eval evals/my-eval.yaml --output .agentv/results/default/<timestamp> --resume
+agentv eval evals/my-eval.eval.yaml --output .agentv/results/default/<timestamp> --resume
 
 # Re-run errors AND failed cases against the last run dir
-agentv eval evals/my-eval.yaml --rerun-failed
+agentv eval evals/my-eval.eval.yaml --rerun-failed
 
 # Re-run only execution errors from any prior run by path
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp>/index.jsonl
+agentv eval evals/my-eval.eval.yaml --retry-errors .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
@@ -405,7 +427,7 @@ The threshold also controls JUnit XML pass/fail: tests with scores below the thr
 Check eval files for schema errors without executing:
 
 ```bash
-agentv validate evals/my-eval.yaml
+agentv validate evals/my-eval.eval.yaml
 ```
 
 ## Run a Single Assertion
@@ -444,7 +466,7 @@ agentv import claude --list
 agentv import claude --session-id <uuid>
 
 # Run graders against the imported transcript
-agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl
+agentv eval evals/my-eval.eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl
 ```
 
 See the [Import tool docs](/docs/tools/import/) for all providers and options.
@@ -533,7 +555,7 @@ includes a note that the version mismatch may be the cause.
 Use `--strict` in CI pipelines to enforce version requirements:
 
 ```bash
-agentv eval --strict evals/my-eval.yaml
+agentv eval --strict evals/my-eval.eval.yaml
 ```
 
 ## Config File Defaults

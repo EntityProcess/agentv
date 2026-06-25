@@ -533,7 +533,168 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs a native experiment file with eval selection and run knobs', async () => {
+  it('uses experiment eval_suites without positional eval paths', async () => {
+    const fixture = await createFixture();
+    try {
+      const experimentsDir = path.join(fixture.suiteDir, 'experiments');
+      await mkdir(experimentsDir, { recursive: true });
+      await writeFile(
+        path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
+        'eval_patterns:\n  - unused.test.yaml\n',
+        'utf8',
+      );
+      await writeFile(
+        path.join(fixture.suiteDir, 'unused.test.yaml'),
+        [
+          'description: config discovery should not win over experiment eval_suites',
+          'target: missing-target',
+          'tests:',
+          '  - id: case-unused',
+          '    criteria: System responds with unused',
+          '    input: unused',
+          '    expected_output: unused',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      const experimentPath = path.join(experimentsDir, 'repeat-matrix.exp.yaml');
+      await writeFile(
+        experimentPath,
+        [
+          'name: repeat-matrix',
+          'targets:',
+          '  - file-target',
+          '  - cli-target',
+          'eval_suites:',
+          '  - sample.test.yaml',
+          'eval_cases: case-alpha',
+          'repeat:',
+          '  count: 2',
+          '  strategy: mean',
+          'early_exit: false',
+          'workers: 1',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const timestamp = '2026-06-25T06-49-34-908Z';
+      const { stdout, exitCode } = await runCli(
+        fixture,
+        ['eval', '--experiment', 'experiments/repeat-matrix.exp.yaml'],
+        { AGENTV_RUN_TIMESTAMP: timestamp },
+      );
+
+      expect(exitCode).toBe(0);
+      const outputPath = extractOutputPath(stdout);
+      expect(outputPath).toBe(
+        path.join(
+          fixture.suiteDir,
+          '.agentv',
+          'results',
+          'repeat-matrix',
+          timestamp,
+          'index.jsonl',
+        ),
+      );
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        filter: 'case-alpha',
+        evalCaseIds: ['case-alpha'],
+        maxConcurrency: 1,
+        runs: {
+          count: 2,
+          strategy: 'mean',
+          earlyExit: false,
+        },
+        resultCount: 1,
+      });
+
+      const results = (await readJsonLines(outputPath)) as Array<Record<string, unknown>>;
+      expect(results).toHaveLength(2);
+      expect(results.map((result) => result.test_id)).toEqual(['case-alpha', 'case-alpha']);
+      expect(new Set(results.map((result) => result.target))).toEqual(
+        new Set(['file-target', 'cli-target']),
+      );
+
+      const summary = JSON.parse(
+        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
+      ) as { metadata?: Record<string, unknown> };
+      expect(summary.metadata?.experiment).toBe('repeat-matrix');
+      expect(summary.metadata?.experiment_config).toMatchObject({
+        name: 'repeat-matrix',
+        source_path: experimentPath,
+        targets: ['file-target', 'cli-target'],
+        eval_suites: ['sample.test.yaml'],
+        eval_cases: 'case-alpha',
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('lets positional eval paths override experiment eval_suites', async () => {
+    const fixture = await createFixture();
+    try {
+      const experimentsDir = path.join(fixture.suiteDir, 'experiments');
+      await mkdir(experimentsDir, { recursive: true });
+      await writeFile(
+        path.join(fixture.suiteDir, 'unused.test.yaml'),
+        [
+          'description: experiment eval_suites should be ignored when CLI paths are present',
+          'target: missing-target',
+          'tests:',
+          '  - id: case-unused',
+          '    criteria: System responds with unused',
+          '    input: unused',
+          '    expected_output: unused',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        path.join(experimentsDir, 'override.exp.yaml'),
+        [
+          'name: override-exp',
+          'target: cli-target',
+          'eval_suites:',
+          '  - unused.test.yaml',
+          'eval_cases: case-alpha',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--experiment',
+        'experiments/override.exp.yaml',
+      ]);
+
+      expect(exitCode).toBe(0);
+      const outputPath = extractOutputPath(stdout);
+      const results = (await readJsonLines(outputPath)) as Array<Record<string, unknown>>;
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        test_id: 'case-alpha',
+        target: 'cli-target',
+      });
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        target: 'cli-target',
+        filter: 'case-alpha',
+        evalCaseIds: ['case-alpha'],
+        resultCount: 1,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('runs a native experiment file with legacy case filtering, discovery, and run knobs', async () => {
     const fixture = await createFixture();
     try {
       const experimentsDir = path.join(fixture.suiteDir, 'experiments');
@@ -557,7 +718,7 @@ describe('agentv eval CLI', () => {
         ].join('\n'),
         'utf8',
       );
-      const experimentPath = path.join(experimentsDir, 'default.yaml');
+      const experimentPath = path.join(experimentsDir, 'default.exp.yaml');
       await writeFile(
         experimentPath,
         [
@@ -580,11 +741,7 @@ describe('agentv eval CLI', () => {
         'utf8',
       );
 
-      const { stdout, exitCode } = await runCli(fixture, [
-        'eval',
-        '--experiment',
-        'experiments/default.yaml',
-      ]);
+      const { stdout, exitCode } = await runCli(fixture, ['eval', '--experiment', 'default']);
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
@@ -614,7 +771,7 @@ describe('agentv eval CLI', () => {
         name: 'native-exp',
         source_path: experimentPath,
         target: 'cli-target',
-        evals: 'case-alpha',
+        eval_cases: 'case-alpha',
         repeat: {
           count: 2,
           strategy: 'mean',

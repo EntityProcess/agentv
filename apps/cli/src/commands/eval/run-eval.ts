@@ -617,8 +617,23 @@ function resolveExperimentFilePath(cwd: string, experimentRef: string): string |
     return existsSync(experimentPath) ? experimentPath : undefined;
   }
 
-  for (const ext of ['yaml', 'yml', 'ts', 'js', 'mts', 'mjs']) {
-    const candidate = path.resolve(cwd, 'experiments', `${experimentRef}.${ext}`);
+  for (const fileName of [
+    `${experimentRef}.exp.yaml`,
+    `${experimentRef}.exp.yml`,
+    `${experimentRef}.experiment.yaml`,
+    `${experimentRef}.experiment.yml`,
+    `${experimentRef}.yaml`,
+    `${experimentRef}.yml`,
+    `${experimentRef}.experiment.ts`,
+    `${experimentRef}.experiment.js`,
+    `${experimentRef}.experiment.mts`,
+    `${experimentRef}.experiment.mjs`,
+    `${experimentRef}.ts`,
+    `${experimentRef}.js`,
+    `${experimentRef}.mts`,
+    `${experimentRef}.mjs`,
+  ]) {
+    const candidate = path.resolve(cwd, 'experiments', fileName);
     if (existsSync(candidate)) {
       return candidate;
     }
@@ -650,7 +665,7 @@ function applyExperimentOptions(
   const workspaceMode =
     options.workspaceMode ?? readExperimentWorkspaceMode(experiment.workspace?.mode);
   const workspacePath = options.workspacePath ?? readExperimentWorkspacePath(experiment.workspace);
-  const experimentFilter = normalizeExperimentCaseFilter(experiment.evals);
+  const experimentFilter = normalizeExperimentCaseFilter(experiment.evalCases);
 
   return {
     ...options,
@@ -725,15 +740,27 @@ function readExperimentWorkspacePath(
 }
 
 function normalizeExperimentCaseFilter(
-  evals: ExperimentConfig['evals'] | undefined,
+  evalCases: ExperimentConfig['evalCases'] | undefined,
 ): NormalizedOptions['filter'] {
-  if (typeof evals === 'string') {
-    return evals;
+  if (typeof evalCases === 'string') {
+    return evalCases;
   }
-  if (!Array.isArray(evals)) {
+  if (!Array.isArray(evalCases)) {
     return undefined;
   }
-  return evals.length === 1 ? evals[0] : [...evals];
+  return evalCases.length === 1 ? evalCases[0] : [...evalCases];
+}
+
+function normalizeExperimentEvalSuiteInputs(
+  evalSuites: ExperimentConfig['evalSuites'] | undefined,
+): readonly string[] {
+  if (typeof evalSuites === 'string') {
+    return [evalSuites];
+  }
+  if (!Array.isArray(evalSuites)) {
+    return [];
+  }
+  return [...evalSuites];
 }
 
 async function runExperimentSteps(params: {
@@ -1529,12 +1556,17 @@ export async function runEvalCommand(
     experiment: resolvedExperiment.name,
   };
 
+  const experimentEvalSuiteInputs = normalizeExperimentEvalSuiteInputs(
+    options.experimentConfig?.evalSuites,
+  );
   const evalPathInputs =
     input.testFiles.length > 0
       ? [...input.testFiles]
-      : options.experimentConfig?.evals !== undefined
-        ? [...(yamlConfig?.eval_patterns ?? DEFAULT_EVAL_PATTERNS)]
-        : [];
+      : experimentEvalSuiteInputs.length > 0
+        ? [...experimentEvalSuiteInputs]
+        : options.experimentConfig?.evalCases !== undefined
+          ? [...(yamlConfig?.eval_patterns ?? DEFAULT_EVAL_PATTERNS)]
+          : [];
   if (evalPathInputs.length === 0 && process.stdin.isTTY) {
     const { launchInteractiveWizard } = await import('./interactive.js');
     await launchInteractiveWizard();

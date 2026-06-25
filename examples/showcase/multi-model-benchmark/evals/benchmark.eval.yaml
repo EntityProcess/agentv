@@ -10,7 +10,7 @@
 #
 # Usage:
 #   agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-#     --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml
+#     --experiment examples/showcase/multi-model-benchmark/experiments/default.exp.yaml
 
 description: Multi-model benchmark — accuracy, completeness, and clarity across models
 tags: [multi-provider]

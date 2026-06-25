@@ -6,16 +6,15 @@ behavior in committed experiment files.
 ## Files
 
 - `evals/dataset.eval.yaml` defines the two task cases.
-- `experiments/default.yaml` runs the cases with `pass_at_k`.
-- `experiments/mean.yaml` aggregates repeated scores with `mean`.
-- `experiments/confidence-interval.yaml` aggregates repeated scores with a 95%
+- `experiments/default.exp.yaml` runs the cases with `pass_at_k`.
+- `experiments/mean.exp.yaml` aggregates repeated scores with `mean`.
+- `experiments/confidence-interval.exp.yaml` aggregates repeated scores with a 95%
   confidence interval lower bound.
 
 ## Run
 
 ```bash
-bun agentv eval examples/features/runs/evals/dataset.eval.yaml \
-  --experiment examples/features/runs/experiments/default.yaml
+bun agentv eval --experiment examples/features/runs/experiments/default.exp.yaml
 ```
 
 Swap the experiment path to try the other strategies.
@@ -25,6 +24,9 @@ Swap the experiment path to try the other strategies.
 The repeat block now lives on the experiment, not in `eval.yaml`:
 
 ```yaml
+eval_suites:
+  - examples/features/runs/evals/dataset.eval.yaml
+eval_cases: "*"
 repeat:
   count: 2
   strategy: pass_at_k

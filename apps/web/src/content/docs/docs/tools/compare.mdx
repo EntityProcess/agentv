@@ -12,9 +12,9 @@ The `compare` command computes deltas between two evaluation runs for A/B testin
 Run two evaluations and compare them:
 
 ```bash
-agentv eval evals/my-eval.yaml --output .agentv/results/default/before
+agentv eval evals/my-eval.eval.yaml --output .agentv/results/default/before
 # ... make changes to your agent ...
-agentv eval evals/my-eval.yaml --output .agentv/results/default/after
+agentv eval evals/my-eval.eval.yaml --output .agentv/results/default/after
 agentv compare .agentv/results/default/before/index.jsonl .agentv/results/default/after/index.jsonl
 ```
 

@@ -65,6 +65,8 @@ export type ExperimentConfigWire = {
   readonly targets?: readonly ExperimentTargetRefWire[];
   readonly model?: string;
   readonly agent_options?: Record<string, unknown>;
+  readonly eval_suites?: string | readonly string[];
+  readonly eval_cases?: string | readonly string[];
   readonly evals?: string | readonly string[];
   readonly scripts?: readonly ExperimentScriptWire[];
   readonly repeat?: ExperimentRepeatWire;
@@ -85,7 +87,8 @@ export type ExperimentConfig = {
   readonly targets?: readonly ExperimentTargetRef[];
   readonly model?: string;
   readonly agentOptions?: Record<string, unknown>;
-  readonly evals?: string | readonly string[];
+  readonly evalSuites?: string | readonly string[];
+  readonly evalCases?: string | readonly string[];
   readonly scripts?: readonly ExperimentScript[];
   readonly repeat?: ExperimentRepeat;
   readonly runs?: number;
@@ -108,7 +111,8 @@ export type ExperimentArtifactMetadata = {
   readonly target?: string;
   readonly targets?: readonly string[];
   readonly model?: string;
-  readonly evals?: string | readonly string[];
+  readonly eval_suites?: string | readonly string[];
+  readonly eval_cases?: string | readonly string[];
   readonly repeat?: {
     readonly count: number;
     readonly strategy: RunStrategy;
@@ -149,6 +153,7 @@ export function isExperimentFileReference(value: string): boolean {
 export function deriveExperimentNameFromPath(filePath: string): string {
   return path
     .basename(filePath)
+    .replace(/\.exp\.(ya?ml)$/i, '')
     .replace(/\.experiment\.(ya?ml|[cm]?[jt]s)$/i, '')
     .replace(/\.(ya?ml|[cm]?[jt]s)$/i, '');
 }
@@ -187,7 +192,11 @@ export function normalizeExperimentConfig(
   const targets = readTargets(rawConfig.targets);
   const model = readOptionalString(rawConfig.model, 'model');
   const agentOptions = readOptionalRecord(rawConfig.agent_options ?? rawConfig.agentOptions);
-  const evals = readOptionalStringOrStringArray(rawConfig.evals, 'evals');
+  const evalSuites = readOptionalStringOrStringArray(
+    rawConfig.eval_suites ?? rawConfig.evalSuites,
+    'eval_suites',
+  );
+  const evalCases = readExperimentEvalCases(rawConfig);
   const scripts = readScriptArray(rawConfig.scripts, 'scripts');
   const repeat = readRepeat(rawConfig.repeat);
   const runs = readOptionalPositiveInteger(rawConfig.runs, 'runs');
@@ -215,7 +224,8 @@ export function normalizeExperimentConfig(
     ...(targets !== undefined && { targets }),
     ...(model !== undefined && { model }),
     ...(agentOptions !== undefined && { agentOptions }),
-    ...(evals !== undefined && { evals }),
+    ...(evalSuites !== undefined && { evalSuites }),
+    ...(evalCases !== undefined && { evalCases }),
     ...(scripts !== undefined && { scripts }),
     ...(repeat !== undefined && { repeat }),
     ...(runs !== undefined && { runs }),
@@ -257,7 +267,8 @@ export function buildExperimentArtifactMetadata(
     ...(config.target !== undefined && { target: config.target }),
     ...(targets && targets.length > 0 && { targets }),
     ...(config.model !== undefined && { model: config.model }),
-    ...(config.evals !== undefined && { evals: config.evals }),
+    ...(config.evalSuites !== undefined && { eval_suites: config.evalSuites }),
+    ...(config.evalCases !== undefined && { eval_cases: config.evalCases }),
     ...(config.repeat !== undefined && {
       repeat: {
         count: config.repeat.count,
@@ -323,6 +334,19 @@ function readTargets(raw: unknown): readonly ExperimentTargetRef[] | undefined {
       ...(hooks !== undefined && { hooks }),
     };
   });
+}
+
+function readExperimentEvalCases(
+  rawConfig: Record<string, unknown>,
+): string | readonly string[] | undefined {
+  const canonical = rawConfig.eval_cases ?? rawConfig.evalCases;
+  const legacy = rawConfig.evals;
+  if (canonical !== undefined && legacy !== undefined) {
+    throw new Error(
+      'Experiment eval_cases and evals cannot both be set. Use eval_cases for case/test-id filters.',
+    );
+  }
+  return readOptionalStringOrStringArray(canonical ?? legacy, 'eval_cases');
 }
 
 function readScriptArray(raw: unknown, location: string): readonly ExperimentScript[] | undefined {

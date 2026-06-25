@@ -1,8 +1,8 @@
 name: repeat-runs-confidence-interval
 target: llm
-evals:
-  - math-basics
-  - capital-knowledge
+eval_suites:
+  - examples/features/runs/evals/dataset.eval.yaml
+eval_cases: "*"
 repeat:
   count: 5
   strategy: confidence_interval

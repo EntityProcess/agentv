@@ -44,10 +44,10 @@ describe('defineConfig execution defaults', () => {
   it('accepts typed experiment defaults', () => {
     const config = defineConfig({
       defaultExperiment: 'smoke',
-      experiments: { default: 'experiments/default.yaml' },
+      experiments: { default: 'experiments/default.exp.yaml' },
     });
     expect(config.defaultExperiment).toBe('smoke');
-    expect(config.experiments?.default).toBe('experiments/default.yaml');
+    expect(config.experiments?.default).toBe('experiments/default.exp.yaml');
   });
 
   it('rejects non-boolean verbose', () => {

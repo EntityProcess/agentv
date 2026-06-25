@@ -198,7 +198,7 @@ To relocate the agentv home directory, set `HOME` or `USERPROFILE` to point to t
 
 ```powershell
 $env:USERPROFILE = "D:\Users\$env:USERNAME"
-agentv eval evals/my-eval.yaml
+agentv eval evals/my-eval.eval.yaml
 ```
 
 ### Long-path support for relocated home directories
@@ -235,7 +235,7 @@ tree is checked out, but the active phase should be visible in the terminal.
 ### Enable verbose logging
 
 ```bash
-agentv eval evals/my-eval.yaml --verbose
+agentv eval evals/my-eval.eval.yaml --verbose
 ```
 
 Verbose mode logs each setup phase with timestamps. Look for:
@@ -286,7 +286,7 @@ Workspace pooling is **enabled by default** for shared workspaces with repos. Th
 To disable pooling for a run:
 
 ```bash
-agentv eval evals/my-eval.yaml --no-pool
+agentv eval evals/my-eval.eval.yaml --no-pool
 ```
 
 See the [Workspace Pool](/docs/guides/workspace-pool/) guide for details on pool configuration, clean modes, concurrency, and drift detection.

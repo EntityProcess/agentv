@@ -107,7 +107,8 @@ agent: codex
 model: openai/gpt-5.5
 agent_options:
   reasoning_effort: high
-evals: "agent-042-*"
+eval_suites: "evals/**/*.eval.yaml"
+eval_cases: "agent-042-*"
 scripts:
   - build
   - script: bun test
@@ -173,10 +174,10 @@ otherwise AgentV derives the name from the file basename.
 
 Later CLI phases should add:
 
-- `agentv eval --experiment experiments/baseline.yaml`.
-- `agentv eval --experiment baseline` resolving `experiments/baseline.yaml`
+- `agentv eval --experiment experiments/baseline.exp.yaml`.
+- `agentv eval --experiment baseline` resolving `experiments/baseline.exp.yaml`
   before falling back to a label.
-- `agentv eval --experiments "experiments/*.yaml"` for matrices.
+- `agentv eval --experiments "experiments/*.exp.yaml"` for matrices.
 - Experiment `evals` filters AgentV case IDs. When no eval paths are provided,
   file discovery uses `.agentv/config.yaml eval_patterns` or AgentV's default
   eval patterns.
@@ -187,7 +188,7 @@ Phase 1 is additive. It introduces experiment config loading and default
 resolution without changing how eval execution applies targets or workspace
 settings.
 
-Phase 2 moves examples to committed `experiments/default.yaml` files while
+Phase 2 moves examples to committed `experiments/default.exp.yaml` files while
 leaving existing `eval.yaml execution` fields in place.
 
 Phase 3 applies experiment runtime fields in the runner: target selection, eval
@@ -277,10 +278,10 @@ Test Scenarios:
 
 - `agentv eval evals/foo/eval.yaml` still writes under
   `.agentv/results/default/<timestamp>/`.
-- Configured `experiments.default: experiments/default.yaml` with `name:
+- Configured `experiments.default: experiments/default.exp.yaml` with `name:
   baseline` writes under `.agentv/results/baseline/<timestamp>/`.
 - `--experiment smoke` writes under `.agentv/results/smoke/<timestamp>/`.
-- `--experiment experiments/smoke.yaml` uses the file's `name` when present.
+- `--experiment experiments/smoke.exp.yaml` uses the file's `name` when present.
 - Missing path-like experiment values fail clearly.
 
 ### U4. Runner Field Application
@@ -345,7 +346,7 @@ Files:
 Approach:
 
 Document eval versus experiment authoring. Add at least one example with
-`eval.yaml` plus `experiments/default.yaml`, and one A/B pair such as baseline
+`*.eval.yaml` plus `experiments/default.exp.yaml`, and one A/B pair such as baseline
 versus with-skill.
 
 Test Scenarios:
@@ -384,7 +385,7 @@ Phase 1 targeted checks:
 - `bun test packages/core/test/evaluation` for loader and config coverage once
   tests exist.
 - CLI-level test for default experiment run layout.
-- A dry-run fixture using `experiments/default.yaml` to prove the resolved
+- A dry-run fixture using `experiments/default.exp.yaml` to prove the resolved
   experiment name reaches artifacts.
 - Existing eval-only dry-run fixture to prove fallback stays `default`.
 

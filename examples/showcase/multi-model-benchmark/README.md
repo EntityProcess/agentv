@@ -19,7 +19,7 @@ multi-model-benchmark/
 ├── evals/
 │   └── benchmark.eval.yaml          # Eval definition (task cases + metrics)
 ├── experiments/
-│   └── default.yaml                 # Targets, repeat policy, and run knobs
+│   └── default.exp.yaml             # Targets, repeat policy, and run knobs
 └── prompts/
     ├── accuracy-rubric.md           # Factual correctness grader (weight 3.0)
     ├── completeness-rubric.md       # Coverage grader (weight 2.0)
@@ -37,8 +37,7 @@ From the repository root:
 
 ```bash
 # Run the full matrix (all targets × all tests × 2 repeat attempts)
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml
+bun agentv eval --experiment examples/showcase/multi-model-benchmark/experiments/default.exp.yaml
 ```
 
 ### Cost & Safety
@@ -49,8 +48,7 @@ To run against a single target first:
 
 ```bash
 # Test with just one model before running the full matrix
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml \
+bun agentv eval --experiment examples/showcase/multi-model-benchmark/experiments/default.exp.yaml \
   --target copilot
 ```
 
@@ -132,11 +130,9 @@ targets:
   - copilot
   - claude
   - gemini-llm
-evals:
-  - factual-*
-  - analytical-comparison
-  - creative-explanation
-  - structured-list
+eval_suites:
+  - examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
+eval_cases: "*"
 repeat:
   count: 2
   strategy: pass_at_k

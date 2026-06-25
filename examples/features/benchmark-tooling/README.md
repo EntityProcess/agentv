@@ -127,7 +127,7 @@ Use `agentv compare` directly on the canonical run manifest for pairwise or matr
 
 ```bash
 # 1. Run a matrix evaluation that produces a canonical run workspace
-bun agentv eval my-eval.yaml
+bun agentv eval my-eval.eval.yaml
 
 # 2. Compare any two targets from the same run
 bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
@@ -282,7 +282,7 @@ bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
 
 ```bash
 # 1. Run multi-model evaluation
-bun agentv eval my-eval.yaml
+bun agentv eval my-eval.eval.yaml
 
 # 2. Compare two targets from the run manifest
 bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \

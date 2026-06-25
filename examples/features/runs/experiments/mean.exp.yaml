@@ -1,8 +1,8 @@
 name: repeat-runs-mean
 target: llm
-evals:
-  - math-basics
-  - capital-knowledge
+eval_suites:
+  - examples/features/runs/evals/dataset.eval.yaml
+eval_cases: "*"
 repeat:
   count: 3
   strategy: mean
