@@ -19,7 +19,12 @@ describe('experiment config', () => {
       agent: 'codex',
       model: 'openai/gpt-5.5',
       agent_options: { reasoning_effort: 'high' },
-      evals: 'evals/**/*.eval.yaml',
+      suites: [
+        {
+          ref: 'evals/support.eval.yaml',
+          select: { test_ids: ['refund-eligibility', 'missing-order-date'] },
+        },
+      ],
       scripts: ['build', { script: 'bun test', timeout_seconds: 120 }],
       runs: 3,
       early_exit: false,
@@ -36,7 +41,12 @@ describe('experiment config', () => {
       agent: 'codex',
       model: 'openai/gpt-5.5',
       agentOptions: { reasoning_effort: 'high' },
-      evals: 'evals/**/*.eval.yaml',
+      suites: [
+        {
+          ref: 'evals/support.eval.yaml',
+          select: { testIds: ['refund-eligibility', 'missing-order-date'] },
+        },
+      ],
       scripts: [{ script: 'build' }, { script: 'bun test', timeoutSeconds: 120 }],
       runs: 3,
       earlyExit: false,
@@ -63,6 +73,34 @@ describe('experiment config', () => {
       strategy: 'confidence_interval',
       costLimitUsd: 0,
     });
+  });
+
+  it('normalizes suite references with suite-local test id selectors', () => {
+    const config = normalizeExperimentConfig({
+      suites: [
+        {
+          ref: 'evals/support-regression.eval.yaml',
+          select: {
+            test_ids: ['refund-eligibility', 'missing-order-date'],
+          },
+        },
+        {
+          ref: 'evals/billing-*.eval.yaml',
+        },
+      ],
+    });
+
+    expect(config.suites).toEqual([
+      {
+        ref: 'evals/support-regression.eval.yaml',
+        select: {
+          testIds: ['refund-eligibility', 'missing-order-date'],
+        },
+      },
+      {
+        ref: 'evals/billing-*.eval.yaml',
+      },
+    ]);
   });
 
   it('accepts the prerelease trials costLimitUsd spelling only inside repeat', () => {
@@ -123,6 +161,12 @@ describe('experiment config', () => {
       /repeat and runs/,
     );
     expect(() => normalizeExperimentConfig({ sandbox: 'host' })).toThrow(/sandbox/);
+    expect(() => normalizeExperimentConfig({ suites: [] })).toThrow(/suites/);
+    expect(() =>
+      normalizeExperimentConfig({
+        suites: [{ ref: 'evals/support.eval.yaml', select: { test_ids: [] } }],
+      }),
+    ).toThrow(/suites\[0\]\.select\.test_ids/);
   });
 
   it('builds safe snake_case artifact metadata', () => {
@@ -132,6 +176,12 @@ describe('experiment config', () => {
       agent_options: { secret: 'not persisted' },
       setup: [{ script: 'bun install' }],
       scripts: [{ script: 'bun test' }],
+      suites: [
+        {
+          ref: 'evals/support.eval.yaml',
+          select: { test_ids: ['refund-*'] },
+        },
+      ],
       repeat: { count: 2, strategy: 'mean', cost_limit_usd: 0.5 },
       early_exit: true,
       timeout_seconds: 120,
@@ -143,6 +193,12 @@ describe('experiment config', () => {
     expect(metadata).toMatchObject({
       name: 'baseline',
       target: 'codex',
+      suites: [
+        {
+          ref: 'evals/support.eval.yaml',
+          select: { test_ids: ['refund-*'] },
+        },
+      ],
       repeat: {
         count: 2,
         strategy: 'mean',

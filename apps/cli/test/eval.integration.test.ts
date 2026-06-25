@@ -518,7 +518,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs a native experiment file with eval selection and run knobs', async () => {
+  it('runs a native experiment file with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {
       const experimentsDir = path.join(fixture.suiteDir, 'experiments');
@@ -548,7 +548,11 @@ describe('agentv eval CLI', () => {
         [
           'name: native-exp',
           'target: cli-target',
-          'evals: case-alpha',
+          'suites:',
+          '  - ref: sample.test.yaml',
+          '    select:',
+          '      test_ids:',
+          '        - case-alpha',
           'timeout_seconds: 12',
           'workers: 4',
           'repeat:',
@@ -580,6 +584,7 @@ describe('agentv eval CLI', () => {
         target: 'cli-target',
         agentTimeoutMs: 12000,
         maxConcurrency: 4,
+        evalCaseIds: ['case-alpha'],
         trials: {
           count: 2,
           strategy: 'mean',
@@ -599,7 +604,14 @@ describe('agentv eval CLI', () => {
         name: 'native-exp',
         source_path: experimentPath,
         target: 'cli-target',
-        evals: 'case-alpha',
+        suites: [
+          {
+            ref: 'sample.test.yaml',
+            select: {
+              test_ids: ['case-alpha'],
+            },
+          },
+        ],
         repeat: {
           count: 2,
           strategy: 'mean',

@@ -48,6 +48,19 @@ const ExperimentTargetRefSchema = z.union([
     .strict(),
 ]);
 
+const ExperimentSuiteSelectSchema = z
+  .object({
+    test_ids: z.array(z.string().min(1)).min(1),
+  })
+  .strict();
+
+const ExperimentSuiteRefSchema = z
+  .object({
+    ref: z.string().min(1),
+    select: ExperimentSuiteSelectSchema.optional(),
+  })
+  .strict();
+
 export const ExperimentFileSchema = z
   .object({
     name: z.string().min(1).optional(),
@@ -56,7 +69,7 @@ export const ExperimentFileSchema = z
     targets: z.array(ExperimentTargetRefSchema).min(1).optional(),
     model: z.string().min(1).optional(),
     agent_options: JsonObjectSchema.optional(),
-    evals: StringOrStringArraySchema.optional(),
+    suites: z.array(ExperimentSuiteRefSchema).min(1).optional(),
     scripts: z.array(ExperimentScriptSchema).optional(),
     repeat: ExperimentRepeatSchema.optional(),
     runs: z.number().int().min(1).optional(),

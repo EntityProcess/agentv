@@ -60,21 +60,35 @@
           "properties": {},
           "additionalProperties": {}
         },
-        "evals": {
-          "anyOf": [
-            {
-              "type": "string",
-              "minLength": 1
-            },
-            {
-              "type": "array",
-              "items": {
+        "suites": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
                 "type": "string",
                 "minLength": 1
               },
-              "minItems": 1
-            }
-          ]
+              "select": {
+                "type": "object",
+                "properties": {
+                  "test_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": ["test_ids"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["ref"],
+            "additionalProperties": false
+          },
+          "minItems": 1
         },
         "scripts": {
           "type": "array",

@@ -14,8 +14,7 @@ behavior in committed experiment files.
 ## Run
 
 ```bash
-bun agentv eval examples/features/trials/evals/dataset.eval.yaml \
-  --experiment examples/features/trials/experiments/default.yaml
+bun agentv eval --experiment examples/features/trials/experiments/default.yaml
 ```
 
 Swap the experiment path to try the other strategies.
