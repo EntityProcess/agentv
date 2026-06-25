@@ -20,7 +20,7 @@ AbortSignal threading.
    (not red). On click, optimistic local "Stopping…" label until the
    next status poll flips to terminal.
 4. **Resume detection for partial runs** — Persist `planned_test_count` in
-   `benchmark.json.metadata` at run start (early write), updated at end.
+   `summary.json.metadata` at run start (early write), updated at end.
    Run-detail API surfaces the number; Studio computes
    `shouldShowResumeActions(results, isReadOnly, plannedTestCount?)` as
    `executionError OR results.length < plannedTestCount`. No
@@ -63,9 +63,9 @@ AbortSignal threading.
 
 ### Resume — planned_test_count
 - `apps/cli/src/commands/eval/artifact-writer.ts`
-  - Extend `BenchmarkArtifact.metadata` with optional
+  - Extend `RunSummaryArtifact.metadata` with optional
     `planned_test_count?: number`.
-  - Add `writeInitialBenchmarkArtifact(runDir, { evalFile, targets,
+  - Add `writeInitialRunSummaryArtifact(runDir, { evalFile, targets,
     plannedTestCount, experiment })` that writes a stub at run start
     (`run_summary: {}`, `metadata` pre-filled).
 - `apps/cli/src/commands/eval/run-eval.ts` — call the initial writer
@@ -116,7 +116,7 @@ AbortSignal threading.
 
 ## Out-of-scope cleanups noted
 
-The benchmark.json write happens entirely at end-of-run today. Writing a
+The summary.json write happens entirely at end-of-run today. Writing a
 stub at start means a run that crashes before the first test still has a
 metadata file on disk — that may obsolete some of the fallback logic in
 `deriveResumeMeta`. We are not consolidating that here; this PR only adds

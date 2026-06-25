@@ -28,11 +28,11 @@ The first research doc is load-bearing for the single-ref git model, compact der
 
 ## Problem Frame
 
-AgentV already has the beginning of a git-native results store. `packages/core/src/evaluation/results-repo.ts` defaults to `agentv/results/v1`, creates a deterministic orphan genesis commit, lists remote runs with `git ls-tree`, reads `benchmark.json` blobs through `git cat-file --batch`, publishes run trees without checking out the storage branch, and has support for the heavy artifact sidecar ref `agentv/artifacts/v1`.
+AgentV already has the beginning of a git-native results store. `packages/core/src/evaluation/results-repo.ts` defaults to `agentv/results/v1`, creates a deterministic orphan genesis commit, lists remote runs with `git ls-tree`, reads `summary.json` blobs through `git cat-file --batch`, publishes run trees without checking out the storage branch, and has support for the heavy artifact sidecar ref `agentv/artifacts/v1`.
 
 The next storage beads need one reviewed contract before implementation splits across retention, object storage, publication export, path-sharding assessment, and mutable operations. Without that contract, each bead could accidentally create its own branch layout, backend abstraction, transcript boundary, or dashboard read model.
 
-The product boundary stays unchanged: AgentV remains the repo-native and workspace-native source of truth for run artifacts. Object storage, SQLite, and publication exports are storage tiers, caches, or derived projections over AgentV artifacts. Phoenix is link-out correlation only when safe `external_trace` metadata points at independently emitted spans; it is not an AgentV artifact projection or storage tier. A `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite, and the per-run `benchmark.json` artifact keeps that artifact name.
+The product boundary stays unchanged: AgentV remains the repo-native and workspace-native source of truth for run artifacts. Object storage, SQLite, and publication exports are storage tiers, caches, or derived projections over AgentV artifacts. Phoenix is link-out correlation only when safe `external_trace` metadata points at independently emitted spans; it is not an AgentV artifact projection or storage tier. A `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite, and the per-run `summary.json` artifact keeps that artifact name.
 
 ---
 
@@ -65,7 +65,7 @@ The product boundary stays unchanged: AgentV remains the repo-native and workspa
 ### Retention, Export, And Oplog
 
 - R16. av-dcs implements prune/compact for git and hybrid modes, including migration of existing git-sidecar transcript payloads before compaction when hybrid object storage is configured.
-- R17. av-kxa implements compact publication as a regenerable derived export from `benchmark.json`, `index.jsonl`, and run artifacts, with no required `eval.txt`.
+- R17. av-kxa implements compact publication as a regenerable derived export from `summary.json`, `index.jsonl`, and run artifacts, with no required `eval.txt`.
 - R18. av-8un implements raw mutable operations as per-actor append-only segments, folds tags with add-wins semantics first, and later supports `run.delete` and `run.restore` tombstones.
 - R19. Dashboard reads materialized final state stored with run/result data, not raw oplog segments.
 
@@ -82,7 +82,7 @@ The product boundary stays unchanged: AgentV remains the repo-native and workspa
 
 - KTD1. Use `git-native`, `hybrid`, and `blob-native` as storage backend modes. The current `results.mode: github` is transport-era naming and should not become the long-term storage-mode field.
 - KTD2. Add new wire fields in snake_case, such as `storage_mode` and `object_store`, while keeping TypeScript internals in camelCase, such as `storageMode` and `objectStore`.
-- KTD3. Keep the git-backed listing contract centered on `benchmark.json` and `index.jsonl`. Do not add a new canonical SQL, JSON index, or `eval.txt` authoring surface.
+- KTD3. Keep the git-backed listing contract centered on `summary.json` and `index.jsonl`. Do not add a new canonical SQL, JSON index, or `eval.txt` authoring surface.
 - KTD4. Keep `agentv/results/v1`, `agentv/artifacts/v1`, and `agentv/oplog/v1` as sibling refs. Do not use refs like `agentv/results/v1/artifacts`.
 - KTD5. Use one artifact sidecar ref with typed path prefixes. Start with prefixes such as `transcripts/`, `traces/`, `raw-logs/`, `outputs/`, and `screenshots/`; do not use one branch per artifact type unless measurement later proves it is needed.
 - KTD6. Do not shard `runs/` in this spec. The lightweight measurement below shows current realistic scale is acceptable, and av-thr owns deeper profiling before any layout change.
@@ -108,7 +108,7 @@ The product boundary stays unchanged: AgentV remains the repo-native and workspa
 
 ## Lightweight Path-Sharding Measurement
 
-I ran a temp-only Git measurement on 2026-06-21 using the current `runs/<experiment>/<timestamp>/` shape. Each synthetic run had a small `benchmark.json` and `index.jsonl`; the measurement approximates `listGitRuns()` by listing tree paths and batch-reading all `benchmark.json` blobs.
+I ran a temp-only Git measurement on 2026-06-21 using the current `runs/<experiment>/<timestamp>/` shape. Each synthetic run had a small `summary.json` and `index.jsonl`; the measurement approximates `listGitRuns()` by listing tree paths and batch-reading all `summary.json` blobs.
 
 | Runs | `git ls-tree` | `git cat-file --batch` for benchmarks | Benchmark paths |
 | ---: | ---: | ---: | ---: |
@@ -145,7 +145,7 @@ flowchart TB
 
 | Mode | Listing/index strategy | Heavy artifact strategy | Raw oplog location | Retention strategy |
 | --- | --- | --- | --- | --- |
-| `git-native` | `git ls-tree` over `agentv/results/v1:runs/**`, batch-read `benchmark.json`, read `index.jsonl` for detail | `agentv/artifacts/v1` sidecar ref with typed prefixes | `agentv/oplog/v1` | av-dcs prune/compact refs plus eventual GitHub GC |
+| `git-native` | `git ls-tree` over `agentv/results/v1:runs/**`, batch-read `summary.json`, read `index.jsonl` for detail | `agentv/artifacts/v1` sidecar ref with typed prefixes | `agentv/oplog/v1` | av-dcs prune/compact refs plus eventual GitHub GC |
 | `hybrid` | Same git listing for metadata, benchmark, index, synopsis, and materialized state | Content-addressed B2 objects, with git pointers | `agentv/oplog/v1` unless explicitly moved later | av-dcs git compaction plus B2 lifecycle rules |
 | `blob-native` | Bucket manifest is the fast path; `ListObjectsV2` over stable prefixes is fallback/rebuild | All artifacts are B2 objects | Object-store oplog prefix | Bucket lifecycle, manifest compaction, and delete tombstones |
 
@@ -189,7 +189,7 @@ flowchart TB
 
 **Listing/index strategy by mode:**
 
-- `git-native`: `listGitRuns()` remains the fast path. It lists `runs/**/benchmark.json` on `agentv/results/v1`, batch-reads those JSON blobs, and uses `index.jsonl` only when callers need per-test detail.
+- `git-native`: `listGitRuns()` remains the fast path. It lists `runs/**/summary.json` on `agentv/results/v1`, batch-reads those JSON blobs, and uses `index.jsonl` only when callers need per-test detail.
 - `hybrid`: same listing as `git-native`; heavy payloads are not required for list views. Pointer records in `index.jsonl` decide whether detail reads use git sidecar or S3.
 - `blob-native`: maintain a bucket manifest, for example a compact run listing object under a stable prefix, as the fast path. Use paginated `ListObjectsV2` over `runs/` or manifest prefixes as a rebuild/fallback path. Manifest reads are cheaper for Dashboard; ListObjectsV2 is simpler but can become expensive and pagination-sensitive.
 
@@ -355,9 +355,9 @@ Current pointer construction and publish-time key rewrite are not fully aligned.
 - `apps/cli/src/commands/results/export.ts`
   - Keep `buildProjectionBundleFromExportedIndex()` as a pattern for derived exports.
   - Add av-kxa export entry points for rollup/synopsis output, either as flags on `results export` or a new subcommand if the UX is clearer.
-  - Read from `benchmark.json`, `index.jsonl`, and selected run artifacts.
+  - Read from `summary.json`, `index.jsonl`, and selected run artifacts.
 - New helper, suggested file `apps/cli/src/commands/results/publication-export.ts`
-  - Build per-eval rollup JSON from `benchmark.json` plus `index.jsonl`.
+  - Build per-eval rollup JSON from `summary.json` plus `index.jsonl`.
   - Build per-test/run synopsis records with status, duration, pass/fail, score, target, and artifact pointers.
   - Keep output compact enough for static sites and leaderboard-like views.
 - `apps/cli/src/commands/eval/artifact-writer.ts`
@@ -373,7 +373,7 @@ Current pointer construction and publish-time key rewrite are not fully aligned.
 
 **No required `eval.txt`:**
 
-`benchmark.json` already carries eval/run metadata, and `index.jsonl` is the durable per-test contract. If a human-readable label is useful, derive it in the export from existing metadata. Do not require an authored or generated `eval.txt` file.
+`summary.json` already carries eval/run metadata, and `index.jsonl` is the durable per-test contract. If a human-readable label is useful, derive it in the export from existing metadata. Do not require an authored or generated `eval.txt` file.
 
 **Acceptance criteria:**
 
@@ -547,7 +547,7 @@ Object keys should be content-addressed, such as `sha256/<hash>` under an AgentV
 - **Child refs under `agentv/results/v1/*`:** Rejected because Git refs are path-like and a ref cannot safely coexist with child refs beneath the same path.
 - **Branch-per-artifact-type sidecars:** Rejected until measurement proves a need. One `agentv/artifacts/v1` ref with typed prefixes is simpler to validate, fetch, compact, and migrate.
 - **Canonical `transcript.json`:** Rejected because it duplicates `outputs/transcript.jsonl` and creates drift risk. JSON object summaries should be derived indexes or synopses with different names.
-- **Required `eval.txt`:** Rejected because `benchmark.json` and `index.jsonl` already carry the durable machine-readable contract, and publication is derived.
+- **Required `eval.txt`:** Rejected because `summary.json` and `index.jsonl` already carry the durable machine-readable contract, and publication is derived.
 - **B2-native APIs:** Rejected because Backblaze B2's S3-compatible endpoint lets AgentV use standard S3 clients, MinIO CI, and portable user configuration.
 - **Vercel Blob as a dependency:** Rejected because it is provider-specific and weaker than the desired content-addressed private bucket model.
 - **SQLite as canonical storage:** Rejected because it would move AgentV away from portable run artifacts. SQLite is a rebuildable projection only.
@@ -563,7 +563,7 @@ Object keys should be content-addressed, such as `sha256/<hash>` under an AgentV
 - **Blob-native listing scalability:** Use bucket manifests for fast Dashboard reads and keep paginated `ListObjectsV2` as rebuild/fallback.
 - **Oplog fold ambiguity:** Start with tags and deterministic add-wins semantics; defer richer CRDTs until a concrete mutable field needs them.
 - **Stale materialized state:** Store oplog watermarks and surface stale state as sync/reconcile status.
-- **Overloading project/benchmark terms:** Keep project registry language separate from per-run `benchmark.json` artifacts.
+- **Overloading project/benchmark terms:** Keep project registry language separate from per-run `summary.json` artifacts.
 
 ---
 
@@ -578,7 +578,7 @@ For downstream implementation beads:
 
 - av-dsc: run unit tests for config parsing, object-store client, pointer verification, MinIO integration, and real B2 dogfood when credentials are present.
 - av-dcs: run tmp-git integration tests proving pruned runs disappear, retained runs list and open in Dashboard, migration verifies checksums, compaction is idempotent, and source worktrees are not switched.
-- av-kxa: test compact export determinism from `benchmark.json`, `index.jsonl`, and run artifacts; prove no required `eval.txt`.
+- av-kxa: test compact export determinism from `summary.json`, `index.jsonl`, and run artifacts; prove no required `eval.txt`.
 - av-8un: test per-actor append, no-conflict publishing, tag fold ordering, add-wins concurrent add/remove, `run.delete`/`run.restore` tombstones, materialized watermark staleness, and migration from existing tag overlays.
 - av-thr: repeat the path-sharding measurement with realistic artifacts, cold/warm partial clone cases, list/detail Dashboard routes, 50-200 run realistic volumes, and low-thousands stress cases.
 - av-7uu and av-kve.5: test that list/aggregate paths do not read transcript bodies or trace sidecars and that SQLite can be deleted/rebuilt.

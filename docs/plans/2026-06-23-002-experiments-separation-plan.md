@@ -203,7 +203,7 @@ surface where compatibility is not required.
 ## Artifact Impact
 
 Existing artifact writers already accept an experiment label. Phase 1 should
-continue writing the resolved experiment name to `benchmark.json`, `index.jsonl`,
+continue writing the resolved experiment name to `summary.json`, `index.jsonl`,
 trace envelopes, and results repository paths.
 
 Later artifact work should add:

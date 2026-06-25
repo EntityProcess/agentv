@@ -16,7 +16,7 @@ one artifact sidecar namespace, retention and compaction rules, a compact
 publication export, an append-only mutable-operation log, and an S3-compatible
 object-storage tier.
 
-The canonical AgentV run artifacts stay `benchmark.json`, `index.jsonl`, per-test
+The canonical AgentV run artifacts stay `summary.json`, `index.jsonl`, per-test
 grading/timing files, `outputs/trace.json`, and derived transcript artifacts.
 GitHub and Backblaze B2 are storage/publication targets over those artifacts.
 Dashboard and Hugging Face are viewers or publication surfaces. Phoenix is only
@@ -29,7 +29,7 @@ emitted spans; it is not an AgentV artifact projection or storage backend.
 
 `packages/core/src/evaluation/results-repo.ts` already implements the first git-native
 slice: `agentv/results/v1` is the default results branch, `runs/**` is listed with
-`git ls-tree`, `benchmark.json` blobs are read with `git cat-file --batch`, and the
+`git ls-tree`, `summary.json` blobs are read with `git cat-file --batch`, and the
 branch root is a deterministic orphan genesis. Current mutable tags live under
 `metadata/runs/**`, and heavy transcript sidecars are still written inside each run
 workspace by `packages/core/src/evaluation/run-artifacts.ts`.
@@ -49,7 +49,7 @@ without creating another hosted results platform inside AgentV.
 - Pin the git-native ref and path layout for `agentv/results/v1`,
   `agentv/artifacts/v1`, and `agentv/oplog/v1`.
 - Define retention, compaction, and migration rules for run metadata and heavy artifacts.
-- Define compact publication export as a derived artifact over `benchmark.json` and
+- Define compact publication export as a derived artifact over `summary.json` and
   `index.jsonl`, with no required `eval.txt`.
 - Define the mutable operation log and add-wins tag set semantics.
 - Define the Backblaze B2 S3-compatible object tier and secret-loading boundary.
@@ -106,7 +106,7 @@ without creating another hosted results platform inside AgentV.
   artifact payloads without deleting index metadata prematurely.
 - R12. Transcript migration must support transcripts under
   `agentv/artifacts/v1` while preserving existing logical artifact references.
-- R13. Publication export must be compact and derived from `benchmark.json` plus
+- R13. Publication export must be compact and derived from `summary.json` plus
   `index.jsonl`; it must not require an authored or generated `eval.txt`.
 
 ### Mutable Operations
@@ -129,14 +129,14 @@ without creating another hosted results platform inside AgentV.
 ## Key Technical Decisions
 
 - KTD1. Backend mode is a storage concern, not a product model. Use `git-native`,
-  `hybrid`, and `blob-native` as storage modes while keeping `benchmark.json` and
+  `hybrid`, and `blob-native` as storage modes while keeping `summary.json` and
   `index.jsonl` as the artifact contract that readers consume.
 - KTD2. Do not overload the existing `results.mode: github` field. Add
   `results.storage_mode` with values `git-native`, `hybrid`, and `blob-native`, and
   normalize missing `storage_mode` to `git-native`. Put object-store settings under
   `results.object_store`.
 - KTD3. The git tree remains the index for git-backed modes. `listGitRuns()` should
-  continue to list `runs/**/benchmark.json` from `agentv/results/v1`; no separate
+  continue to list `runs/**/summary.json` from `agentv/results/v1`; no separate
   branch-local `index/runs.jsonl` is introduced.
 - KTD4. Use one artifact sidecar namespace named `artifacts`. Do not introduce
   `artifact-blobs`, `blobs`, or per-artifact refs. Prefix by artifact class, for example
@@ -187,7 +187,7 @@ flowchart TB
 
 | Mode | Canonical index/listing | Artifact payloads | Mutable ops | Git dependency |
 | --- | --- | --- | --- | --- |
-| `git-native` | `git ls-tree -r agentv/results/v1 -- runs/` plus `git cat-file --batch` for `benchmark.json` | `agentv/artifacts/v1` stores payload bytes | `agentv/oplog/v1` | Required |
+| `git-native` | `git ls-tree -r agentv/results/v1 -- runs/` plus `git cat-file --batch` for `summary.json` | `agentv/artifacts/v1` stores payload bytes | `agentv/oplog/v1` | Required |
 | `hybrid` | Same primary git ref as `git-native` | Object storage stores selected payload bytes; git stores locators under the artifact namespace | `agentv/oplog/v1` | Required for index/oplog |
 | `blob-native` | Bucket manifest under the results namespace, with `ListObjectsV2` fallback by prefix | Object storage stores all payloads | Bucket oplog prefix | None |
 
@@ -195,7 +195,7 @@ flowchart TB
 
 ```text
 agentv/results/v1
-  runs/<experiment>/<timestamp>/benchmark.json
+  runs/<experiment>/<timestamp>/summary.json
   runs/<experiment>/<timestamp>/index.jsonl
   runs/<experiment>/<timestamp>/<test-artifacts except moved heavy payloads>
   metadata/runs/<experiment>/<timestamp>/materialized-tags.json
@@ -254,15 +254,15 @@ rewriting all results code at once.
 
 **Per-mode listing/index strategy:**
 
-- `git-native`: list `runs/**/benchmark.json` with `git ls-tree`; batch-read
+- `git-native`: list `runs/**/summary.json` with `git ls-tree`; batch-read
   benchmark blobs with `git cat-file --batch`; materialize run details lazily with
   `materializeGitRun()`.
-- `hybrid`: list from the same git ref and read the same `benchmark.json` blobs.
+- `hybrid`: list from the same git ref and read the same `summary.json` blobs.
   Artifact locators in `index.jsonl` or sidecar manifests decide whether bytes come
   from git artifacts or object storage.
 - `blob-native`: read a compact run manifest from bucket storage first. If the
   manifest is missing or stale, fall back to `ListObjectsV2` over
-  `runs/**/benchmark.json`-equivalent objects, rebuild the manifest, and continue.
+  `runs/**/summary.json`-equivalent objects, rebuild the manifest, and continue.
   Use continuation tokens because S3 listing returns a bounded page per request.
 
 **Test plan:**
@@ -274,7 +274,7 @@ rewriting all results code at once.
   - Proves the adapter interface can list runs in all modes from fixtures.
 - `packages/core/test/evaluation/results-repo.test.ts`
   - Existing git-native tests must keep passing.
-  - Add coverage that `git-native` listing remains one `runs/**/benchmark.json`
+  - Add coverage that `git-native` listing remains one `runs/**/summary.json`
     tree scan, not a committed index file.
 - `apps/cli/test/commands/results/serve.test.ts`
   - Dashboard `/api/runs` response shape stays stable across adapter-backed sources.
@@ -319,7 +319,7 @@ ref. Do not add windowed or per-run branches. Do not shard paths before measurem
 
 - Primary ref `agentv/results/v1`:
   - Owns `runs/**` and lightweight materialized metadata.
-  - Lists runs only through `runs/**/benchmark.json`.
+  - Lists runs only through `runs/**/summary.json`.
 - Artifact ref `agentv/artifacts/v1`:
   - Owns payload classes under `transcripts/`, `raw-logs/`, and `screenshots/`.
   - May store payload bytes in `git-native`.
@@ -452,7 +452,7 @@ for rerun, comparison, grading, or adapter ingestion.
   - `apps/cli/src/commands/results/publication.ts`
   - `packages/core/src/evaluation/results-publication.ts`
 - `packages/core/src/evaluation/run-artifacts.ts`
-  - Remains the source for `benchmark.json`, `index.jsonl`, and per-test artifact
+  - Remains the source for `summary.json`, `index.jsonl`, and per-test artifact
     schemas.
 - `apps/web/src/content/docs/docs/tools/results.mdx`
   - Document that publication export reads completed run artifacts and does not
@@ -463,10 +463,10 @@ for rerun, comparison, grading, or adapter ingestion.
 - Inputs:
   - completed run workspace;
   - `index.jsonl` manifest;
-  - `benchmark.json`;
+  - `summary.json`;
   - optional sidecar-resolved artifact references for selected public payloads.
 - Outputs:
-  - compact `benchmark.json` and `index.jsonl` or a derived `publication.json`;
+  - compact `summary.json` and `index.jsonl` or a derived `publication.json`;
   - optional static assets for selected summaries;
   - no required `eval.txt`.
 - Privacy:
@@ -476,7 +476,7 @@ for rerun, comparison, grading, or adapter ingestion.
 **Test plan:**
 
 - `apps/cli/test/commands/results/export.test.ts`
-  - Publication export succeeds with only `benchmark.json` and `index.jsonl`.
+  - Publication export succeeds with only `summary.json` and `index.jsonl`.
   - Publication export fails clearly when the manifest is not an AgentV result row.
   - Payload opt-in includes only selected sidecar files.
 - `apps/cli/test/commands/results/report.test.ts`
@@ -615,7 +615,7 @@ results:
   - BWS injects or exports the S3 endpoint, region, bucket, access key id, and secret
     access key into environment variables before AgentV runs.
   - AgentV config interpolates variable names or reads environment variables directly.
-- Never persist resolved BWS values into `benchmark.json`, `index.jsonl`, oplog records,
+- Never persist resolved BWS values into `summary.json`, `index.jsonl`, oplog records,
   Dashboard responses, docs examples, or project registry files.
 
 **Test plan:**
@@ -740,14 +740,14 @@ results:
   `apps/web/src/content/docs/docs/tools/results.mdx`,
   `apps/cli/test/commands/results/export.test.ts`
 - **Approach:** Keep publication export read-only over completed run artifacts. Use
-  `parseJsonlResults()` and `benchmark.json` metadata as inputs. If a new command is
+  `parseJsonlResults()` and `summary.json` metadata as inputs. If a new command is
   clearer than another export option, keep it under `agentv results` but document it as
   projection-only.
 - **Patterns to follow:** `loadExportSource()` and `deriveOutputDir()` in
   `apps/cli/src/commands/results/export.ts`; `results report` docs for static output
   framing.
 - **Test scenarios:**
-  - Given a run with `index.jsonl` and `benchmark.json`, publication export succeeds
+  - Given a run with `index.jsonl` and `summary.json`, publication export succeeds
     with no `eval.txt`.
   - Given an invalid JSONL input that is not an AgentV result row, publication export
     fails with the existing result-row schema guidance.
@@ -873,7 +873,7 @@ results:
 - `packages/core/src/evaluation/results-repo.ts` for deterministic genesis,
   `directPushResults()`, `listGitRuns()`, and `materializeGitRun()`.
 - `packages/core/src/evaluation/run-artifacts.ts` and
-  `apps/cli/src/commands/eval/artifact-writer.ts` for `benchmark.json`,
+  `apps/cli/src/commands/eval/artifact-writer.ts` for `summary.json`,
   `index.jsonl`, `outputs/trace.json`, and transcript sidecars.
 - `apps/cli/src/commands/results/remote.ts`,
   `apps/cli/src/commands/results/remote-metadata.ts`,

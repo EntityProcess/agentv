@@ -7,13 +7,13 @@ Bead: `av-eval-output-config-surface-4e2`
 
 The eval run command currently exposes several overlapping ways to choose where results go:
 
-- `--output <dir>` / `-o <dir>` is the canonical run artifact directory. It writes `index.jsonl`, `benchmark.json`, `timing.json`, run source metadata, and per-test artifacts under that directory.
+- `--output <dir>` / `-o <dir>` is the canonical run artifact directory. It writes `index.jsonl`, `summary.json`, `timing.json`, run source metadata, and per-test artifacts under that directory.
 - `agentv.config.ts` `output.dir` exists, but current CLI normalization routes it through the legacy `outPath` branch, so it behaves like a file path rather than the documented output directory.
 - `agentv.config.ts` `output.format` is accepted by `defineConfig()` but eval runs ignore it.
 - `--out <path>` is deprecated and currently treated as a file path whose dirname becomes the artifact directory.
 - `--artifacts <dir>` is deprecated and currently aliases the artifact directory.
 - `--output-format` is deprecated and ignored because run directories always use `index.jsonl`.
-- `--benchmark-json` was a deprecated extra Agent Skills compatibility output path outside this cleanup's requested removal set; a follow-up cleanup removes that flag and keeps the run directory `benchmark.json` as canonical.
+- `--benchmark-json` was a deprecated extra Agent Skills compatibility output path outside this cleanup's requested removal set; a follow-up cleanup removes that flag and keeps the run directory `summary.json` as canonical.
 - Dashboard launch paths already pass `--output <dir>` and expect `<dir>/index.jsonl`.
 - Repository docs/examples still contain old `agentv eval --out <file>` guidance in compare workflows, grader-score helper comments, and local scripts.
 
@@ -49,7 +49,7 @@ Removed now:
 
 Warned/scheduled:
 
-- `--benchmark-json` is removed by the follow-up cleanup after auditing for consumers; use `--output <dir>` and read `<dir>/benchmark.json` instead of requesting a second benchmark file.
+- `--benchmark-json` is removed by the follow-up cleanup after auditing for consumers; use `--output <dir>` and read `<dir>/summary.json` instead of requesting a second benchmark file.
 
 ## Migration
 

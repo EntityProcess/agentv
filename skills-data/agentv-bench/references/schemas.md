@@ -85,7 +85,7 @@ Tracks version progression in Improve mode. Located at workspace root.
 
 ## grading.json
 
-Output from the grader agent. Located at `<run-dir>/grading.json`.
+Output from the grader agent. Located at `<case-dir>/run-N/grading.json`.
 
 **Important:** The `assertions` array must use the fields `text`, `passed`, and `evidence` — downstream tooling depends on these exact field names.
 
@@ -164,7 +164,7 @@ Output from the grader agent. Located at `<run-dir>/grading.json`.
 
 ## metrics.json
 
-Output from the executor agent. Located at `<run-dir>/metrics.json`.
+Output from the executor agent. Located at `<case-dir>/run-N/metrics.json`.
 
 ```json
 {
@@ -198,7 +198,7 @@ Output from the executor agent. Located at `<run-dir>/metrics.json`.
 
 ## timing.json
 
-Wall clock timing for a run. Located at `<run-dir>/timing.json`.
+Wall clock timing for a run attempt. Located at `<case-dir>/run-N/timing.json`.
 
 **How to capture:** When a subagent task completes, the task notification includes `total_tokens` and `duration_ms`. Save these immediately — they are not persisted anywhere else and cannot be recovered after the fact.
 
@@ -218,9 +218,9 @@ Wall clock timing for a run. Located at `<run-dir>/timing.json`.
 
 ---
 
-## benchmark.json
+## summary.json
 
-Output from Benchmark mode. Located at `benchmarks/<timestamp>/benchmark.json`.
+Output from Benchmark mode. Located at the run root `summary.json`.
 
 ```json
 {
@@ -304,7 +304,7 @@ Output from Benchmark mode. Located at `benchmarks/<timestamp>/benchmark.json`.
   - `delta`: Difference strings like `"+0.50"`, `"+13.0"`, `"+1700"`
 - `notes`: Freeform observations from the analyzer
 
-**Important:** The viewer reads these field names exactly. Using `config` instead of `configuration`, or putting `pass_rate` at the top level of a run instead of nested under `result`, will cause the viewer to show empty/zero values. Always reference this schema when generating benchmark.json manually.
+**Important:** The viewer reads these field names exactly. Using `config` instead of `configuration`, or putting `pass_rate` at the top level of a run instead of nested under `result`, will cause the viewer to show empty/zero values. Always reference this schema when generating summary.json manually.
 
 ---
 

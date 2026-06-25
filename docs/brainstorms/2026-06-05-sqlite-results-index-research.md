@@ -16,7 +16,7 @@ The main benefit of SQLite is not just faster run-list rendering. It is high-vol
 
 - GitHub issue `#1259` is the main prior scaling issue. It identified `/api/runs` polling as O(N runs x manifest reads) and originally proposed an append-only run index.
 - PR `#1260` implemented append-only `index/runs.jsonl`, then was closed/rejected because it introduced drift, migration, growth, and commit-SHA amend complexity.
-- PR `#1261` merged the current git-native approach: `git ls-tree` plus `git cat-file --batch` over committed `benchmark.json` files, cursor pagination, lazy run materialization, and an `Agentv-Run:` commit trailer.
+- PR `#1261` merged the current git-native approach: `git ls-tree` plus `git cat-file --batch` over committed `summary.json` files, cursor pagination, lazy run materialization, and an `Agentv-Run:` commit trailer.
 - PRs `#994`, `#1258`, `#1296`, and `#1297` cover remote result sync and per-project result repo configuration.
 - PR `#741` moved canonical result consumers to run workspaces with `index.jsonl`; PR `#940` removed legacy flat manifest loading from canonical flows.
 - PR `#1040` added mutable local `tags.json` sidecars for per-run comparison; remote runs remain read-only.
@@ -26,7 +26,7 @@ The main benefit of SQLite is not just faster run-list rendering. It is high-vol
 
 ## Current Code Grounding
 
-- Remote result repo listing is in `packages/core/src/evaluation/results-repo.ts`. `listGitRuns()` reads remote `benchmark.json` blobs from `origin/main`.
+- Remote result repo listing is in `packages/core/src/evaluation/results-repo.ts`. `listGitRuns()` reads remote `summary.json` blobs from `origin/main`.
 - Dashboard result merge/list logic is in `apps/cli/src/commands/results/remote.ts`. It merges local run scans with remote git-native listing and uses a 60 second in-memory TTL cache.
 - Dashboard handlers in `apps/cli/src/commands/results/serve.ts` still enrich many views by loading `index.jsonl` per run after listing. This affects run lists, experiments, targets, compare, and analytics.
 - Local run discovery still uses `listResultFilesFromRunsDir()` in `apps/cli/src/commands/inspect/utils.ts`, which recursively scans `.agentv/results/runs/`.
@@ -46,7 +46,7 @@ This should be avoided. A committed SQLite database is binary, hard to review, p
 
 ### 3. Git-Native Only, Further Optimized
 
-Keep SQLite out for now and extend the current git-native path to batch-read remote `index.jsonl` blobs in addition to `benchmark.json`. This may be enough if profiling shows `git cat-file --batch` remains fast at the target scale.
+Keep SQLite out for now and extend the current git-native path to batch-read remote `index.jsonl` blobs in addition to `summary.json`. This may be enough if profiling shows `git cat-file --batch` remains fast at the target scale.
 
 ### 4. Append-Only JSONL Index
 
@@ -57,14 +57,14 @@ Already tried in PR `#1260` and rejected.
 Build SQLite as a local, disposable projection:
 
 - `results_index_meta(key, value)`
-- `runs(project_id, source, run_id, manifest_path, benchmark_path, ref, benchmark_blob_sha, manifest_blob_sha, experiment, target, timestamp, test_count, pass_rate, avg_score, size_bytes, updated_at)`
+- `runs(project_id, source, run_id, manifest_path, summary_path, ref, benchmark_blob_sha, manifest_blob_sha, experiment, target, timestamp, test_count, pass_rate, avg_score, size_bytes, updated_at)`
 - `run_tests(project_id, run_id, test_id, suite, category, target, score, execution_status, duration_ms, cost_usd, token_usage_json, scores_json)`
 - Optional later: `run_scores(project_id, run_id, test_id, grader_name, grader_type, score, verdict, duration_ms)` if drift needs grader-level breakdowns instead of only top-level test scores.
 
 Sync behavior:
 
 1. On Dashboard startup and `POST /api/remote/sync`, fetch remote results repos.
-2. Use `git ls-tree` with blob SHAs to detect changed remote `benchmark.json` and `index.jsonl` files.
+2. Use `git ls-tree` with blob SHAs to detect changed remote `summary.json` and `index.jsonl` files.
 3. Batch-read only changed blobs with `git cat-file --batch`.
 4. Upsert run and test summary rows.
 5. For local runs, scan `.agentv/results/runs/`, fingerprint `index.jsonl` by mtime/size or hash, and upsert changed rows.

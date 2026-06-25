@@ -242,7 +242,7 @@ agentv pipeline bench <run-dir>
 agentv results validate <run-dir>
 ```
 
-`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `benchmark.json`.
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `summary.json`.
 
 > **Diagnosing `pass_rate=0`:** If `pipeline bench` reports `pass_rate=0` across the board, do **not** assume the tests genuinely failed. First verify the grading pipeline ran correctly: check that `<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each test. If these files are absent or empty, the grader subagents failed to produce output (most common cause: `agents/grader.md` was not embedded in the subagent prompts — see Phase 2). Treat `pass_rate=0` as a real signal only after confirming grader results exist.
 
@@ -251,7 +251,7 @@ agentv results validate <run-dir>
 All artifacts use established schemas — see `references/schemas.md` for the full definitions. Do not modify the structure. Key artifacts per run:
 - **grading.json**: per-test assertions with `{text, passed, evidence}`, plus summary
 - **timing.json**: `{total_tokens, duration_ms, total_duration_seconds}`
-- **benchmark.json**: per-target aggregate `{pass_rate, time_seconds, tokens}`
+- **summary.json**: per-target aggregate `{pass_rate, time_seconds, tokens}`
 
 Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
@@ -426,7 +426,7 @@ The `references/` directory has additional documentation:
 - `references/subagent-pipeline.md` — Detailed subagent-mode pipeline commands and output structure
 - `references/description-optimization.md` — Skill description optimization workflow
 - `references/environment-adaptation.md` — Provider-specific notes and CI/headless behavior
-- `references/schemas.md` — JSON schemas for all artifacts (grading.json, benchmark.json, etc.)
+- `references/schemas.md` — JSON schemas for all artifacts (grading.json, summary.json, etc.)
 - `references/migrating-from-skill-creator.md` — Guide for users coming from Anthropic's skill-creator
 
 ---

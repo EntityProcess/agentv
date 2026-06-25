@@ -132,7 +132,7 @@ Each cycle is a standard eval run. Autoresearch session metadata lives in `_auto
     index.jsonl
     grading.json
     timing.json
-    benchmark.json
+    summary.json
     report.html
   2026-04-15T10-35-00/             # cycle 2 — standard run artifacts
     ...

@@ -324,9 +324,9 @@ LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.js
 ```
 
 **Output:**
-- `<test-id>/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
+- `<test-id>/run-1/grading.json` — merged grading with `graders`, `assertions`, `summary.pass_rate`
 - `index.jsonl` — one JSON line per test: `{test_id, score, pass, graders: [...]}`
-- `benchmark.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
+- `summary.json` — aggregate stats: `{metadata: {targets}, run_summary: {<target>: {mean, stddev, n}}}`
 
 ### Agent-Mode Workflow
 
