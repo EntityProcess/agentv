@@ -723,7 +723,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(result.failureReasonCode).toBe('provider_error');
   });
 
-  it('copies and indexes raw provider logs from normal per-case evaluation artifacts', async () => {
+  it('copies raw provider logs from normal per-case evaluation artifacts', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-raw-provider-log-'));
     const rawLogPath = path.join(tempDir, 'provider-native-session.jsonl');
     writeFileSync(rawLogPath, '{"event":"provider-native"}\n', 'utf8');
@@ -750,11 +750,13 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     await writeArtifactsFromResults([result], outputDir);
 
     const artifactDir = path.join(outputDir, 'test-dataset', 'case-1');
-    const outputsDir = path.join(artifactDir, 'outputs');
-    expect(readFileSync(path.join(artifactDir, 'provider.log'), 'utf8')).toBe(
+    const runDir = path.join(artifactDir, 'run-1');
+    const outputsDir = path.join(runDir, 'outputs');
+    expect(readFileSync(path.join(runDir, 'provider.log'), 'utf8')).toBe(
       '{"event":"provider-native"}\n',
     );
-    expect(readdirSync(artifactDir)).toContain('transcript.jsonl');
+    expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
+    expect(readdirSync(runDir)).toContain('transcript.json');
     expect(readdirSync(outputsDir)).not.toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.json');
 
@@ -762,9 +764,9 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, unknown>);
-    expect(indexRows[0]?.raw_provider_log_path).toBe('test-dataset/case-1/provider.log');
-    expect(indexRows[0]?.trace_path).toBe('test-dataset/case-1/trace.json');
-    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/transcript.jsonl');
+    expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
+    expect(indexRows[0]?.trace_path).toBeUndefined();
+    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/run-1/transcript-raw.jsonl');
   });
 
   it('reports failed progress status for batch item errors', async () => {
