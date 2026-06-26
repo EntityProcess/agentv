@@ -13,6 +13,21 @@ import {
 } from './__fixtures__/structured-transcript';
 
 describe('TranscriptTimeline', () => {
+  function renderStructuredTranscript() {
+    const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
+    return renderToStaticMarkup(
+      <TranscriptTimeline
+        entries={parsed.entries}
+        finalAnswer={'{"answer":42,"source":"src/app.ts"}'}
+        answerPath="final-json-answer__codex/outputs/answer.md"
+        transcriptPath="final-json-answer__codex/transcript.jsonl"
+        answerHref="/api/raw-answer"
+        transcriptHref="/api/raw-transcript"
+        transcriptDownloadHref="/api/download-transcript"
+      />,
+    );
+  }
+
   it('parses canonical transcript JSONL rows in chronological order', () => {
     const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
 
@@ -46,19 +61,34 @@ describe('TranscriptTimeline', () => {
     );
   });
 
-  it('renders final answer separately from prior assistant/tool context with raw JSONL access', () => {
-    const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
-    const html = renderToStaticMarkup(
-      <TranscriptTimeline
-        entries={parsed.entries}
-        finalAnswer={'{"answer":42,"source":"src/app.ts"}'}
-        answerPath="final-json-answer__codex/outputs/answer.md"
-        transcriptPath="final-json-answer__codex/transcript.jsonl"
-        answerHref="/api/raw-answer"
-        transcriptHref="/api/raw-transcript"
-        transcriptDownloadHref="/api/download-transcript"
-      />,
-    );
+  it('keeps the first and final chronological messages expanded by default', () => {
+    const html = renderStructuredTranscript();
+
+    expect(html).toMatch(/data-testid="message-row-1" data-expanded="true"/);
+    expect(html).toMatch(/data-testid="message-row-3" data-expanded="true"/);
+  });
+
+  it('keeps middle user or assistant messages collapsed by default', () => {
+    const html = renderStructuredTranscript();
+
+    expect(html).toMatch(/data-testid="message-row-2" data-expanded="false"/);
+  });
+
+  it('keeps tool calls collapsed by default', () => {
+    const html = renderStructuredTranscript();
+
+    expect(html).toMatch(/data-testid="tool-call-call-read-1" data-expanded="false"/);
+  });
+
+  it('renders expand and collapse controls for tool calls', () => {
+    const html = renderStructuredTranscript();
+
+    expect(html).toContain('Expand all tool calls');
+    expect(html).toContain('Collapse all tool calls');
+  });
+
+  it('renders final answer separately from prior assistant/tool context with normalized JSONL access', () => {
+    const html = renderStructuredTranscript();
 
     expect(html).toContain('Final answer');
     expect(html).toContain('Transcript timeline');
@@ -68,8 +98,8 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('Arguments');
     expect(html).toContain('Result');
     expect(html).toContain('success');
-    expect(html).toContain('Open raw JSONL');
-    expect(html).toContain('Download JSONL');
+    expect(html).toContain('Open normalized JSONL');
+    expect(html).toContain('Download normalized JSONL');
     expect(html).toContain('{&quot;answer&quot;:42,&quot;source&quot;:&quot;src/app.ts&quot;}');
   });
 });
