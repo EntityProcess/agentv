@@ -100,7 +100,10 @@ Because this is an average, the final score is the fraction of passing children 
 
 ### OR Logic (Strict)
 
-For a strict OR, add a custom code-grader aggregator and return `1.0` when any child score passes:
+For a strict OR, add a custom code-grader aggregator and return `1.0` when any child score passes.
+
+Composite aggregator execution accepts either a direct script path or a shell command.
+The `bun run` form is the recommended pattern:
 
 ```yaml
 assertions:
@@ -108,7 +111,7 @@ assertions:
     type: composite
     aggregator:
       type: code-grader
-      path: ./scripts/or-aggregator.js
+      path: bun run ../scripts/or-aggregator.js
     assertions:
       - name: mentions-paris
         type: contains
@@ -132,8 +135,7 @@ console.log(
     verdict: anyPassed ? 'pass' : 'fail',
     assertions: [{ text: `Any-or gate: ${anyPassed ? 'passed' : 'failed'}`, passed: anyPassed }],
   }),
-);
-```
+  );
 ```
 
 ### Code Grader Aggregator
@@ -143,7 +145,7 @@ Run a custom command to decide the final score based on all grader results:
 ```yaml
 aggregator:
   type: code-grader
-  path: node ./scripts/safety-gate.js
+  path: bun run ./scripts/safety-gate.js
   cwd: ./graders  # optional working directory
 ```
 

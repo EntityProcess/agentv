@@ -56,9 +56,34 @@ tests:
             prompt: ../prompts/technical-accuracy.md
         aggregator:
           type: code-grader
-          path: node ../scripts/safety-gate-aggregator.js
+          path: bun run ../scripts/safety-gate-aggregator.js
 
-  # Example 3: LLM Grader Aggregator
+  # Example 3: Strict OR with a local code-grader aggregator
+  - id: strict-or-local
+    input:
+      - role: user
+        content: "Where is Paris?"
+    expected_output:
+      - role: assistant
+        content: |
+          Paris is the capital city of France.
+    criteria: |
+      The response should include either Paris or the phrase "capital of France".
+    assertions:
+      - name: strict_or
+        type: composite
+        assertions:
+          - name: mentions-paris
+            type: contains
+            value: Paris
+          - name: mentions-capital
+            type: contains
+            value: capital
+        aggregator:
+          type: code-grader
+          path: bun run ../scripts/or-aggregator.js
+
+  # Example 4: LLM Grader Aggregator
   - id: llm-grader-conflict-resolution
     # Baseline note: aggregator may report minor omissions (score ~0.9).
     input:
@@ -84,7 +109,7 @@ tests:
           type: llm-grader
           prompt: ../prompts/conflict-resolution.md
 
-  # Example 4: Nested Composite Graders
+  # Example 5: Nested Composite Graders
   - id: nested-composite
     input:
       - role: user
