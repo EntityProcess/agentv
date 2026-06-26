@@ -174,6 +174,26 @@ suite context such as workspace, shared input, and shared assertions. Use this
 mode only when the imported file is a case corpus or when dropping suite context
 is the desired behavior.
 
+Suite files still support raw-case shorthand imports. A string-valued `tests`
+field or a string entry inside the `tests` list is equivalent to an include
+entry with `type: tests`:
+
+```yaml
+tests: ./cases.yaml
+```
+
+```yaml
+tests:
+  - ./cases/*.cases.yaml
+  - include: ./suites/*.eval.yaml
+    type: suite
+```
+
+The shorthand is only for raw case files or directories. Importing another eval
+suite must use object form with `include:` and `type: suite`, so authors cannot
+accidentally drop or preserve suite context without saying which behavior they
+want.
+
 Do not use `import:` or `kind:` for `tests:` include entries.
 
 Parent suite-level task fields should not silently override imported suite task
