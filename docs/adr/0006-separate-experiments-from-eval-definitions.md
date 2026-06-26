@@ -275,12 +275,21 @@ The canonical writer path is:
 ```
 
 There is no `.agentv/results/runs` segment in canonical writer output. There is
-also no default nested suite segment when the result group is already the eval
-name.
+also no default nested suite segment when the result group is already the same
+eval suite being run directly.
 
-If a wrapper eval imports many suites, individual test artifacts retain source
-suite metadata in manifests and index rows. AgentV should not add a redundant
-directory segment by default only to represent source suite membership.
+If a wrapper eval imports another suite with `type: suite`, test artifacts from
+that imported suite are nested under the imported suite identity:
+
+```text
+.agentv/results/<wrapper-eval-name>/<timestamp>/<imported-suite-name>/<test-id>/...
+```
+
+The suite segment is required for imported suites because wrapper evals can
+compose many suites with overlapping test IDs, and the directory tree should
+remain inspectable without reading every manifest row. Test artifacts from tests
+owned directly by the wrapper eval can still live directly under `<test-id>`.
+All cases should also retain source suite metadata in manifests and index rows.
 
 ## Consequences
 
