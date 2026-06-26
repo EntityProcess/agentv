@@ -210,6 +210,7 @@ export async function writePerTestArtifacts(
     experiment?: string;
     runId?: string;
     duplicatePolicy?: ExportDuplicatePolicy;
+    resultGroup?: string;
     cwd?: string;
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
@@ -218,6 +219,7 @@ export async function writePerTestArtifacts(
 ): Promise<void> {
   await writeCorePerTestArtifacts(results, outputDir, {
     experiment: options?.experiment,
+    resultGroup: options?.resultGroup,
     runId: options?.runId,
     duplicatePolicy: options?.duplicatePolicy,
     sourceTests: options?.sourceTests,
@@ -235,6 +237,7 @@ export async function writeArtifactsFromResults(
     plannedTestCount?: number;
     runId?: string;
     duplicatePolicy?: ExportDuplicatePolicy;
+    resultGroup?: string;
     cwd?: string;
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
@@ -252,6 +255,7 @@ export async function writeArtifactsFromResults(
     plannedTestCount: options?.plannedTestCount,
     runId: options?.runId,
     duplicatePolicy: options?.duplicatePolicy,
+    resultGroup: options?.resultGroup,
     sourceTests: options?.sourceTests,
     additionalArtifacts: createTaskBundleArtifactsWriter(options),
   });

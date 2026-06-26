@@ -176,6 +176,23 @@ describe('buildGradingArtifact', () => {
       passed_attempts: 1,
       total_attempts: 2,
     });
+
+    const passAll = buildGradingArtifact(
+      makeResult({
+        aggregation: {
+          strategy: 'pass_all',
+          passedAttempts: 1,
+          totalAttempts: 2,
+          min: 0.4,
+        },
+      }),
+    );
+    expect(passAll.aggregation).toEqual({
+      strategy: 'pass_all',
+      passed_attempts: 1,
+      total_attempts: 2,
+      min: 0.4,
+    });
   });
 
   it('uses top-level assertions when no grader scores', () => {
@@ -1719,6 +1736,80 @@ describe('writeArtifactsFromResults', () => {
       .split('\n')
       .map(JSON.parse);
     expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
+  });
+
+  it('does not prefix artifact paths with suite when it matches the result group', async () => {
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      testDir,
+      { resultGroup: 'eval-top-months-chart' },
+    );
+
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+    expect(indexLine.suite).toBe('eval-top-months-chart');
+    expect(indexLine.grading_path).toBe('shared-id/run-1/grading.json');
+  });
+
+  it('prefixes imported suite artifacts even when the suite matches the result group', async () => {
+    const sourceTests = [
+      {
+        id: 'shared-id',
+        suite: 'eval-top-months-chart',
+        source: {
+          evalFilePath: 'evals/imported.eval.yaml',
+          evalFileAbsolutePath: path.join(testDir, 'evals/imported.eval.yaml'),
+          importedSuiteName: 'eval-top-months-chart',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id',
+          graderDefinitions: [],
+          references: [],
+        },
+      } as EvalTest,
+    ];
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      testDir,
+      { resultGroup: 'eval-top-months-chart', sourceTests },
+    );
+
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
+  });
+
+  it('uses the imported suite name for wrapper suite artifact paths', async () => {
+    const sourceTests = [
+      {
+        id: 'shared-id',
+        suite: 'wrapper-suite',
+        source: {
+          evalFilePath: 'evals/imported.eval.yaml',
+          evalFileAbsolutePath: path.join(testDir, 'evals/imported.eval.yaml'),
+          importedSuiteName: 'imported-suite',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id',
+          graderDefinitions: [],
+          references: [],
+        },
+      } as EvalTest,
+    ];
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ suite: 'wrapper-suite', testId: 'shared-id', target: 'baseline' })],
+      testDir,
+      { resultGroup: 'wrapper-suite', sourceTests },
+    );
+
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+    expect(indexLine.artifact_dir).toBe('imported-suite/shared-id');
+    expect(indexLine.grading_path).toBe('imported-suite/shared-id/run-1/grading.json');
   });
 
   it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {

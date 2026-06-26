@@ -18,12 +18,15 @@ Comprehensive docs: https://agentv.dev
 
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
-Eval files define what is tested: prompts, datasets, assertions, and task fixtures.
-Experiment files define how those evals run: targets, setup, scripts, timeout,
-sandbox, suite selection, and repeat-run policy. Use `experiments/*.yaml` for
-committed run configurations. In eval YAML, keep `tests[]` as the atomic eval
-definition. In experiment YAML, reference eval suites with `suites[]` and select
-suite-local tests with `select.test_ids[]`.
+Eval files define what is tested and how it runs: prompts, datasets, assertions,
+task fixtures, and the inline `experiment:` runtime block. Use `tests[]` include
+entries for composition. `type: suite` preserves imported suite context;
+`type: tests` imports raw cases only. String-valued `tests` and string entries
+inside `tests[]` are raw-case import shorthand for direct paths, directories, and
+globs; suite imports must use `include:` with `type: suite`. Use scoped `run:`
+on include entries or individual tests only for `threshold`, `repeat`,
+`timeout_seconds`, and `budget_usd`; keep target selection, setup, and workspace
+mutation under the parent `experiment:`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
@@ -89,9 +92,7 @@ tests:
         content: "What's my name?"
     expected_output: "Your name is Alice."
     assertions:
-      - type: rubrics
-        criteria:
-          - Correctly recalls the user's name from earlier in the conversation
+      - Correctly recalls the user's name from earlier in the conversation
 ```
 
 **Guidelines:** preserve exact wording in `expected_output`; aim for 5–15 tests per transcript; pick exchanges that test different capabilities.
@@ -100,7 +101,7 @@ tests:
 
 ```yaml
 description: Example eval
-execution:
+experiment:
   target: default
 
 tests:
@@ -109,16 +110,14 @@ tests:
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
     assertions:
-      - type: rubrics
-        criteria:
-          - Greeting is friendly and warm
-          - Offers to help
+      - Greeting is friendly and warm
+      - Offers to help
 ```
 
 ## Eval File Structure
 
-**Required:** `tests` (array or string path)
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `suite`, `workspace`, `assertions`, `input`
+**Required:** `tests` (array or string raw-case path)
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `experiment`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -202,22 +201,29 @@ The external file can be YAML (array of test objects) or JSONL.
 `assertions` defines graders at the suite level or per-test level. It is the canonical field for all graders:
 
 ```yaml
-# Suite-level (appended to every test)
+# Mix exact checks with rubric shorthand when both matter.
 assertions:
   - type: is-json
     required: true
   - type: contains
     value: "status"
+  - Correctly answers the user's question
+  - Explains the reasoning clearly
 
 tests:
   - id: test-1
-    criteria: Returns JSON
+    criteria: Returns a useful status payload
     input: Get status
-    # Per-test assertions (runs before suite-level)
     assertions:
       - type: equals
         value: '{"status": "ok"}'
+      - Explains what the status means
 ```
+
+Plain strings in `assertions` are rubric criteria and are the preferred shape for
+qualitative agent behavior. Use deterministic assertions (`contains`, `regex`,
+`is-json`, `equals`) only for exact machine-verifiable outputs, and code graders
+when the check must inspect files, run commands, or validate structured state.
 
 ## How `criteria` and `assertions` Interact
 
@@ -227,7 +233,7 @@ tests:
 |----------|-------------|----------|
 | `criteria` + **no `assertions`** | Implicit `llm-grader` runs automatically against `criteria` | No |
 | `criteria` + **`assertions` with only deterministic graders** (contains, regex, etc.) | Only declared graders run. `criteria` is **not evaluated**. | Yes — warns that no grader will consume criteria |
-| `criteria` + **`assertions` with a grader** (`llm-grader`, `code-grader`, `rubrics`) | Declared graders run. Graders receive `criteria` as input. | No |
+| `criteria` + **`assertions` with rubric shorthand or a grader** (plain strings, `llm-grader`, `code-grader`, `rubrics`) | Declared graders run. Graders receive `criteria` as input. | No |
 
 ### No assertions → implicit llm-grader
 
@@ -243,7 +249,9 @@ tests:
 
 ### assertions present → no implicit grader
 
-When `assertions` is defined, **only the declared graders run**. If you want an LLM grader alongside deterministic checks, declare it explicitly:
+When `assertions` is defined, **only the declared graders run**. For semantic
+checks, add plain rubric strings. If you need a custom LLM prompt or grader
+target, declare `llm-grader` explicitly:
 
 ```yaml
 tests:
@@ -251,7 +259,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-grader       # must be explicit when assertions is present
+      - Explains why the bug happens
       - type: contains
         value: "fix"
 ```
@@ -506,16 +514,13 @@ Binary check: is the output valid JSON?
 
 ### rubrics
 ```yaml
-- type: rubrics
-  criteria:
-    - id: accuracy
-      outcome: Correctly identifies the denied party
-      weight: 5.0
-    - id: reasoning
-      outcome: Provides clear reasoning
-      weight: 3.0
+- Correctly identifies the denied party
+- Provides clear reasoning
 ```
-LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
+LLM-judged structured evaluation. Plain strings are the preferred shorthand.
+Use `type: rubrics` only when you need weighted criteria, `required: false`,
+`min_score`, or score ranges. Criteria items support `id`, `outcome`, `weight`,
+and `required` fields.
 Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
 See `references/rubric-grader.md` for score-range mode and scoring formula.
@@ -766,7 +771,6 @@ Do not invent a separate Opik-specific eval surface. Keep the eval definition in
 ## Schemas
 
 - Eval file: `references/eval-schema.json`
-- Experiment file: `references/experiment-schema.json`
 - Config: `references/config-schema.json`
 
 ## Accessing reference files
@@ -775,14 +779,12 @@ To load a specific reference without pulling the entire skill into context:
 
 ```bash
 agentv skills get agentv-eval-writer --ref eval-schema.json
-agentv skills get agentv-eval-writer --ref experiment-schema.json
 ```
 
 Or resolve the skill directory and read files directly:
 
 ```bash
 cat $(agentv skills path agentv-eval-writer)/references/eval-schema.json
-cat $(agentv skills path agentv-eval-writer)/references/experiment-schema.json
 ```
 
 Use `--full` to retrieve every file in the skill at once.

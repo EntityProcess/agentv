@@ -1,33 +1,30 @@
 # Repeat Runs
 
-This example keeps the eval file focused on the task and puts repeat/run-count
-behavior in committed experiment files.
+This example keeps the runnable contract in one eval file. The inline
+`experiment:` block configures target selection and repeat/run-count behavior.
 
 ## Files
 
-- `evals/dataset.eval.yaml` defines the two task cases.
-- `experiments/default.yaml` runs the cases with `pass_at_k`.
-- `experiments/mean.yaml` aggregates repeated scores with `mean`.
-- `experiments/confidence-interval.yaml` aggregates repeated scores with a 95%
-  confidence interval lower bound.
+- `evals/dataset.eval.yaml` defines the task cases and inline runtime config.
 
 ## Run
 
 ```bash
-bun agentv eval --experiment examples/features/trials/experiments/default.yaml
+bun agentv eval examples/features/trials/evals/dataset.eval.yaml
 ```
 
-Swap the experiment path to try the other strategies.
+Edit `experiment.repeat.strategy` to try `mean` or `confidence_interval`.
 
 ## Migration from old `execution.trials`
 
-The repeat block now lives on the experiment, not in `eval.yaml`:
+The repeat block now lives under `experiment:` in `eval.yaml`:
 
 ```yaml
-repeat:
-  count: 2
-  strategy: pass_at_k
-  cost_limit_usd: 1.00
+experiment:
+  repeat:
+    count: 2
+    strategy: pass_at_k
+    cost_limit_usd: 1.00
 ```
 
 Field mapping:

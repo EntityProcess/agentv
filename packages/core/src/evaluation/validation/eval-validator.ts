@@ -1,5 +1,6 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import fg from 'fast-glob';
 
 import { interpolateEnv } from '../interpolation.js';
 import { loadCasesFromDirectory, loadCasesFromFile } from '../loaders/case-file-loader.js';
@@ -12,6 +13,11 @@ import type { ValidationError, ValidationResult } from './types.js';
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 type JsonObject = { readonly [key: string]: JsonValue };
 type JsonArray = readonly JsonValue[];
+type SuiteImportStackEntry = {
+  readonly identity: string;
+  readonly displayPath: string;
+  readonly filePath: string;
+};
 
 /** Assertion grader types that require a string `value` field. */
 const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
@@ -48,6 +54,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'input_files',
   'tests',
   'target',
+  'experiment',
   'execution',
   'assertions',
   'evaluators',
@@ -56,6 +63,11 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'metadata',
   'governance',
 ]);
+
+/** Known fields on tests[] include entries. */
+const KNOWN_INCLUDE_FIELDS = new Set(['include', 'type', 'select', 'run']);
+const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
+const KNOWN_REPEAT_STRATEGIES = new Set(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']);
 
 /**
  * Deprecated top-level fields with migration hints.
@@ -80,6 +92,7 @@ const KNOWN_TEST_FIELDS = new Set([
   'evaluators',
   'rubrics',
   'execution',
+  'run',
   'workspace',
   'metadata',
   'conversation_id',
@@ -157,6 +170,31 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isIncludeEntry(value: JsonObject): value is JsonObject & { include: string } {
+  return typeof value.include === 'string' && value.include.trim().length > 0;
+}
+
+async function canonicalEvalFileIdentity(filePath: string): Promise<string> {
+  const absolutePath = path.resolve(filePath);
+  return realpath(absolutePath).catch(() => absolutePath);
+}
+
+function displayEvalImportPath(filePath: string): string {
+  const relativePath = path.relative(process.cwd(), filePath);
+  return relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath)
+    ? relativePath
+    : filePath;
+}
+
+function formatCircularImportChain(
+  stack: readonly SuiteImportStackEntry[],
+  repeated: SuiteImportStackEntry,
+): string {
+  const start = stack.findIndex((entry) => entry.identity === repeated.identity);
+  const cycle = [...(start >= 0 ? stack.slice(start) : stack), repeated];
+  return cycle.map((entry) => entry.displayPath).join(' -> ');
+}
+
 /**
  * Validate an eval file (agentv-eval-v2 schema).
  */
@@ -200,6 +238,15 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
 
+  if (parsed.experiment !== undefined && parsed.execution !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath: absolutePath,
+      location: 'experiment',
+      message: "Use either top-level 'experiment' or legacy 'execution', not both.",
+    });
+  }
+
   // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
     const deprecationMessage = DEPRECATED_TOP_LEVEL_FIELDS.get(key);
@@ -228,65 +275,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
     await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
-
-    const externalCasesPath = path.resolve(path.dirname(absolutePath), cases);
-    let isDir = false;
-    try {
-      const pathStat = await stat(externalCasesPath);
-      isDir = pathStat.isDirectory();
-    } catch {
-      // Path doesn't exist — fall through to file validation
-    }
-
-    if (isDir) {
-      // Directory path: load and validate discovered cases
-      try {
-        const dirCases = await loadCasesFromDirectory(externalCasesPath);
-        for (let i = 0; i < dirCases.length; i++) {
-          const dirCase = dirCases[i];
-          await validateWorkspaceConfig(
-            dirCase.workspace,
-            absolutePath,
-            errors,
-            `tests[${i}].workspace`,
-          );
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push({
-          severity: 'error',
-          filePath: absolutePath,
-          location: 'tests',
-          message,
-        });
-      }
-    } else {
-      // File path: validate extension and load
-      validateTestsStringPath(cases, absolutePath, errors);
-      const ext = path.extname(cases).toLowerCase();
-      if (VALID_TEST_FILE_EXTENSIONS.has(ext)) {
-        try {
-          const externalCases = await loadCasesFromFile(externalCasesPath);
-          for (let i = 0; i < externalCases.length; i++) {
-            const externalCase = externalCases[i];
-            await validateWorkspaceConfig(
-              externalCase.workspace,
-              absolutePath,
-              errors,
-              `tests[${i}].workspace`,
-            );
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          errors.push({
-            severity: 'error',
-            filePath: absolutePath,
-            location: 'tests',
-            message,
-          });
-        }
-      }
-    }
+    await validateRawCaseImportPath(cases, absolutePath, 'tests', errors);
 
     return {
       valid: errors.filter((e) => e.severity === 'error').length === 0,
@@ -318,16 +307,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     // Tests array items can be file references (e.g., "file://cases/accuracy.yaml")
     if (typeof evalCase === 'string') {
-      if (evalCase.startsWith('file://')) {
-        validateTestsStringPath(evalCase, absolutePath, errors);
-      } else {
-        errors.push({
-          severity: 'error',
-          filePath: absolutePath,
-          location,
-          message: 'Test case string must be a file reference (file://...)',
-        });
-      }
+      await validateRawCaseImportPath(evalCase, absolutePath, location, errors);
       continue;
     }
 
@@ -338,6 +318,11 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         location,
         message: 'Eval case must be an object',
       });
+      continue;
+    }
+
+    if (isIncludeEntry(evalCase)) {
+      validateIncludeEntry(evalCase, location, absolutePath, errors);
       continue;
     }
 
@@ -438,6 +423,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       validateAssertArray(assertField, location, absolutePath, errors, customAssertionTypes);
     }
 
+    validateRunOverride(evalCase.run, `${location}.run`, absolutePath, errors);
+
     // Cross-field validation for conversation mode
     validateConversationMode(evalCase, location, absolutePath, errors);
 
@@ -450,6 +437,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   }
 
   await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+  await validateSuiteImportCycles(absolutePath, parsed, errors);
 
   return {
     valid: errors.filter((e) => e.severity === 'error').length === 0,
@@ -457,6 +445,238 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     fileType: 'eval',
     errors,
   };
+}
+
+function validateIncludeEntry(
+  entry: JsonObject,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  for (const key of Object.keys(entry)) {
+    if (!KNOWN_INCLUDE_FIELDS.has(key)) {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Unknown field '${key}'. This field will be ignored.`,
+      });
+    }
+  }
+
+  if (typeof entry.include !== 'string' || entry.include.trim().length === 0) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.include`,
+      message: "Invalid 'include' field (must be a non-empty string)",
+    });
+  }
+
+  if (entry.type === undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.type`,
+      message: "Missing 'type' field (must be 'suite' or 'tests')",
+    });
+  } else if (entry.type !== 'suite' && entry.type !== 'tests') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.type`,
+      message: "Invalid 'type' field (must be 'suite' or 'tests')",
+    });
+  }
+
+  validateIncludeSelect(entry.select, `${location}.select`, filePath, errors);
+  validateRunOverride(entry.run, `${location}.run`, filePath, errors);
+}
+
+function validateRunOverride(
+  run: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (run === undefined) {
+    return;
+  }
+  if (!isObject(run)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'run' override (must be an object)",
+    });
+    return;
+  }
+
+  for (const key of Object.keys(run)) {
+    if (!KNOWN_RUN_OVERRIDE_FIELDS.has(key)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message:
+          'Invalid run override field. Supported fields: threshold, repeat, timeout_seconds, budget_usd.',
+      });
+    }
+  }
+
+  const threshold = run.threshold;
+  if (
+    threshold !== undefined &&
+    (typeof threshold !== 'number' || threshold < 0 || threshold > 1)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.threshold`,
+      message: "Invalid 'threshold' field (must be a number between 0 and 1)",
+    });
+  }
+
+  const timeoutSeconds = run.timeout_seconds;
+  if (timeoutSeconds !== undefined && (typeof timeoutSeconds !== 'number' || timeoutSeconds <= 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.timeout_seconds`,
+      message: "Invalid 'timeout_seconds' field (must be a positive number)",
+    });
+  }
+
+  const budgetUsd = run.budget_usd;
+  if (budgetUsd !== undefined && (typeof budgetUsd !== 'number' || budgetUsd <= 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.budget_usd`,
+      message: "Invalid 'budget_usd' field (must be a positive number)",
+    });
+  }
+
+  validateRepeatOverride(run.repeat, `${location}.repeat`, filePath, errors);
+}
+
+function validateRepeatOverride(
+  repeat: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (repeat === undefined) {
+    return;
+  }
+  if (!isObject(repeat)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'repeat' field (must be an object)",
+    });
+    return;
+  }
+
+  if (typeof repeat.count !== 'number' || !Number.isInteger(repeat.count) || repeat.count < 1) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.count`,
+      message: "Invalid 'count' field (must be a positive integer)",
+    });
+  }
+
+  if (
+    repeat.strategy !== undefined &&
+    (typeof repeat.strategy !== 'string' || !KNOWN_REPEAT_STRATEGIES.has(repeat.strategy))
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.strategy`,
+      message:
+        "Invalid 'strategy' field (must be pass_at_k, pass_all, mean, or confidence_interval)",
+    });
+  }
+
+  const costLimit = repeat.cost_limit_usd;
+  if (costLimit !== undefined && (typeof costLimit !== 'number' || costLimit < 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.cost_limit_usd`,
+      message: "Invalid 'cost_limit_usd' field (must be a non-negative number)",
+    });
+  }
+}
+
+function validateIncludeSelect(
+  select: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (select === undefined || typeof select === 'string') {
+    return;
+  }
+  if (Array.isArray(select)) {
+    if (!select.every((value) => typeof value === 'string')) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message: "Invalid 'select' field (array values must be strings)",
+      });
+    }
+    return;
+  }
+  if (!isObject(select)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'select' field (must be a string, string array, or object)",
+    });
+    return;
+  }
+
+  for (const [key, value] of Object.entries(select)) {
+    if (key !== 'test_ids' && key !== 'tags' && key !== 'metadata') {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Unknown field '${key}'. This field will be ignored.`,
+      });
+      continue;
+    }
+
+    if (key === 'metadata') {
+      if (!isObject(value)) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.metadata`,
+          message: "Invalid 'metadata' selector (must be an object)",
+        });
+      }
+      continue;
+    }
+
+    if (
+      typeof value !== 'string' &&
+      !(Array.isArray(value) && value.every((entry) => typeof entry === 'string'))
+    ) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Invalid '${key}' selector (must be a string or string array)`,
+      });
+    }
+  }
 }
 
 async function validateWorkspaceConfig(
@@ -751,15 +971,186 @@ function validateTestsStringPath(
   testsPath: string,
   filePath: string,
   errors: ValidationError[],
-): void {
-  const ext = path.extname(testsPath);
-  if (!VALID_TEST_FILE_EXTENSIONS.has(ext)) {
+  location = 'tests',
+): boolean {
+  const normalizedPath = testsPath.startsWith('file://')
+    ? testsPath.slice('file://'.length)
+    : testsPath;
+  if (/\.eval\.ya?ml$/i.test(normalizedPath)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message:
+        'tests shorthand imports raw case files only. Use an include entry with type: suite to import eval suites.',
+    });
+    return false;
+  }
+  const ext = path.extname(normalizedPath);
+  if (ext && !VALID_TEST_FILE_EXTENSIONS.has(ext)) {
     errors.push({
       severity: 'warning',
       filePath,
-      location: 'tests',
+      location,
       message: `Unsupported file extension '${ext}' for tests path '${testsPath}'. Supported extensions: ${[...VALID_TEST_FILE_EXTENSIONS].join(', ')}`,
     });
+    return false;
+  }
+  return true;
+}
+
+function hasGlobMagic(value: string): boolean {
+  return /[*?[\]{}()!+@]/.test(value);
+}
+
+async function validateRawCaseImportPath(
+  testsPath: string,
+  filePath: string,
+  location: string,
+  errors: ValidationError[],
+): Promise<void> {
+  if (!validateTestsStringPath(testsPath, filePath, errors, location)) {
+    return;
+  }
+
+  const rawPath = testsPath.startsWith('file://') ? testsPath.slice('file://'.length) : testsPath;
+  const absolutePath = path.resolve(path.dirname(filePath), rawPath);
+  try {
+    const caseFiles = hasGlobMagic(rawPath)
+      ? (
+          await fg(absolutePath.replaceAll('\\', '/'), {
+            onlyFiles: true,
+            absolute: true,
+          })
+        ).sort()
+      : [absolutePath];
+
+    let caseIndex = 0;
+    for (const casePath of caseFiles) {
+      const pathStat = await stat(casePath).catch(() => undefined);
+      const externalCases = pathStat?.isDirectory()
+        ? await loadCasesFromDirectory(casePath)
+        : await loadCasesFromFile(casePath);
+      for (const externalCase of externalCases) {
+        await validateWorkspaceConfig(
+          externalCase.workspace,
+          filePath,
+          errors,
+          `${location}[${caseIndex}].workspace`,
+        );
+        caseIndex += 1;
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message,
+    });
+  }
+}
+
+async function resolveSuiteIncludePaths(
+  includePath: string,
+  evalFileDir: string,
+): Promise<readonly SuiteImportStackEntry[]> {
+  const absolutePattern = path.resolve(evalFileDir, includePath);
+  const matches = hasGlobMagic(includePath)
+    ? (
+        await fg(absolutePattern.replaceAll('\\', '/'), {
+          onlyFiles: true,
+          absolute: true,
+        })
+      ).sort()
+    : [absolutePattern];
+  const seen = new Set<string>();
+  const resolved: SuiteImportStackEntry[] = [];
+  for (const match of matches) {
+    const identity = await canonicalEvalFileIdentity(match);
+    if (seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+    resolved.push({
+      identity,
+      filePath: path.resolve(match),
+      displayPath: displayEvalImportPath(path.resolve(match)),
+    });
+  }
+  return resolved;
+}
+
+async function validateSuiteImportCycles(
+  filePath: string,
+  parsed: JsonObject,
+  errors: ValidationError[],
+): Promise<void> {
+  const root: SuiteImportStackEntry = {
+    identity: await canonicalEvalFileIdentity(filePath),
+    filePath,
+    displayPath: displayEvalImportPath(filePath),
+  };
+  await validateSuiteImportCyclesFromParsed(filePath, parsed, [root], errors);
+}
+
+async function validateSuiteImportCyclesFromParsed(
+  currentFilePath: string,
+  parsed: JsonObject,
+  stack: readonly SuiteImportStackEntry[],
+  errors: ValidationError[],
+): Promise<void> {
+  const tests = parsed.tests;
+  if (!Array.isArray(tests)) {
+    return;
+  }
+
+  for (let i = 0; i < tests.length; i++) {
+    const entry = tests[i];
+    if (!isObject(entry) || !isIncludeEntry(entry)) {
+      continue;
+    }
+    const includePath = entry.include.trim();
+    if (entry.type !== 'suite') {
+      continue;
+    }
+
+    const location = `tests[${i}].include`;
+    const resolvedSuites = await resolveSuiteIncludePaths(
+      includePath,
+      path.dirname(currentFilePath),
+    );
+    for (const resolvedSuite of resolvedSuites) {
+      if (stack.some((ancestor) => ancestor.identity === resolvedSuite.identity)) {
+        errors.push({
+          severity: 'error',
+          filePath: currentFilePath,
+          location,
+          message: `Circular eval suite import: ${formatCircularImportChain(stack, resolvedSuite)}`,
+        });
+        continue;
+      }
+
+      let childParsed: unknown;
+      try {
+        childParsed = interpolateEnv(
+          parseYamlValue(await readFile(resolvedSuite.filePath, 'utf8')),
+          process.env,
+        );
+      } catch {
+        continue;
+      }
+      if (!isObject(childParsed)) {
+        continue;
+      }
+      await validateSuiteImportCyclesFromParsed(
+        resolvedSuite.filePath,
+        childParsed,
+        [...stack, resolvedSuite],
+        errors,
+      );
+    }
   }
 }
 

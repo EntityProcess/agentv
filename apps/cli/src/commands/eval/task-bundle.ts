@@ -736,6 +736,9 @@ function buildPortableEvalCase(
   if (test.metadata && Object.keys(test.metadata).length > 0) {
     testCase.metadata = rewritePathsDeep(test.metadata, rewrites);
   }
+  if (test.run && Object.keys(test.run).length > 0) {
+    testCase.run = rewritePathsDeep(test.run, rewrites);
+  }
   if (test.conversation_id) {
     testCase.conversation_id = test.conversation_id;
   }

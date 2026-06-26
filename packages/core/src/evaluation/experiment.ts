@@ -1,10 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
-import type { TrialStrategy } from './types.js';
-import { parseYamlValue } from './yaml-loader.js';
+import type { EvalRunOverride, TrialStrategy } from './types.js';
 
 export type ExperimentSandbox = 'auto' | 'docker' | 'vercel';
 
@@ -24,27 +20,6 @@ export type ExperimentTargetRef =
       readonly hooks?: Record<string, unknown>;
     };
 
-export type ExperimentScriptWire =
-  | string
-  | {
-      readonly command?: string | readonly string[];
-      readonly script?: string | readonly string[];
-      readonly timeout_seconds?: number;
-      readonly cwd?: string;
-      readonly env?: Record<string, string>;
-    };
-
-export type ExperimentScript = {
-  readonly command?: readonly string[];
-  readonly script?: string | readonly string[];
-  readonly timeoutSeconds?: number;
-  readonly cwd?: string;
-  readonly env?: Record<string, string>;
-};
-
-export type ExperimentSetupFn = (sandbox: unknown) => void | Promise<void>;
-export type ExperimentSetup = readonly ExperimentScript[] | ExperimentSetupFn;
-
 export type ExperimentRepeatWire = {
   readonly count?: number;
   readonly strategy?: TrialStrategy;
@@ -58,25 +33,6 @@ export type ExperimentRepeat = {
   readonly costLimitUsd?: number;
 };
 
-export type ExperimentSuiteSelectWire = {
-  readonly test_ids?: readonly string[];
-  readonly testIds?: readonly string[];
-};
-
-export type ExperimentSuiteSelect = {
-  readonly testIds: readonly string[];
-};
-
-export type ExperimentSuiteRefWire = {
-  readonly ref: string;
-  readonly select?: ExperimentSuiteSelectWire;
-};
-
-export type ExperimentSuiteRef = {
-  readonly ref: string;
-  readonly select?: ExperimentSuiteSelect;
-};
-
 export type ExperimentConfigWire = {
   readonly name?: string;
   readonly agent?: string;
@@ -84,17 +40,15 @@ export type ExperimentConfigWire = {
   readonly targets?: readonly ExperimentTargetRefWire[];
   readonly model?: string;
   readonly agent_options?: Record<string, unknown>;
-  readonly suites?: readonly ExperimentSuiteRefWire[];
-  readonly scripts?: readonly ExperimentScriptWire[];
   readonly repeat?: ExperimentRepeatWire;
   readonly runs?: number;
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
   readonly workers?: number;
+  readonly threshold?: number;
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
   readonly workspace?: Record<string, unknown>;
-  readonly setup?: readonly ExperimentScriptWire[] | ExperimentSetupFn;
 };
 
 export type ExperimentConfig = {
@@ -104,35 +58,25 @@ export type ExperimentConfig = {
   readonly targets?: readonly ExperimentTargetRef[];
   readonly model?: string;
   readonly agentOptions?: Record<string, unknown>;
-  readonly suites?: readonly ExperimentSuiteRef[];
-  readonly scripts?: readonly ExperimentScript[];
   readonly repeat?: ExperimentRepeat;
   readonly runs?: number;
   readonly earlyExit?: boolean;
   readonly timeoutSeconds?: number;
   readonly workers?: number;
+  readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
   readonly workspace?: Record<string, unknown>;
-  readonly setup?: ExperimentSetup;
-  readonly sourcePath?: string;
   readonly fingerprint?: string;
 };
 
 export type ExperimentArtifactMetadata = {
   readonly name?: string;
-  readonly source_path?: string;
   readonly fingerprint?: string;
   readonly agent?: string;
   readonly target?: string;
   readonly targets?: readonly string[];
   readonly model?: string;
-  readonly suites?: readonly {
-    readonly ref: string;
-    readonly select?: {
-      readonly test_ids: readonly string[];
-    };
-  }[];
   readonly repeat?: {
     readonly count: number;
     readonly strategy: TrialStrategy;
@@ -142,65 +86,29 @@ export type ExperimentArtifactMetadata = {
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
   readonly workers?: number;
+  readonly threshold?: number;
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
 };
 
-type NormalizeOptions = {
-  readonly sourcePath?: string;
-};
-
-const EXPERIMENT_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.ts', '.js', '.mts', '.mjs']);
 const VALID_SANDBOXES: ReadonlySet<string> = new Set(['auto', 'docker', 'vercel']);
 const VALID_REPEAT_STRATEGIES: ReadonlySet<string> = new Set([
   'pass_at_k',
+  'pass_all',
   'mean',
   'confidence_interval',
 ]);
 
-export function isExperimentFileReference(value: string): boolean {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return false;
-  }
-  return (
-    trimmed.includes('/') ||
-    trimmed.includes('\\') ||
-    EXPERIMENT_FILE_EXTENSIONS.has(path.extname(trimmed).toLowerCase())
-  );
-}
+const RUN_OVERRIDE_FIELDS: ReadonlySet<string> = new Set([
+  'threshold',
+  'repeat',
+  'timeout_seconds',
+  'timeoutSeconds',
+  'budget_usd',
+  'budgetUsd',
+]);
 
-export function deriveExperimentNameFromPath(filePath: string): string {
-  return path
-    .basename(filePath)
-    .replace(/\.experiment\.(ya?ml|[cm]?[jt]s)$/i, '')
-    .replace(/\.(ya?ml|[cm]?[jt]s)$/i, '');
-}
-
-export async function loadExperimentConfig(filePath: string): Promise<ExperimentConfig> {
-  const resolvedPath = path.resolve(filePath);
-  const ext = path.extname(resolvedPath).toLowerCase();
-  let rawConfig: unknown;
-
-  if (ext === '.yaml' || ext === '.yml') {
-    rawConfig = parseYamlValue(await readFile(resolvedPath, 'utf8'));
-  } else if (EXPERIMENT_FILE_EXTENSIONS.has(ext)) {
-    const moduleUrl = pathToFileURL(resolvedPath).href;
-    const mod = await import(moduleUrl);
-    rawConfig = mod.default ?? mod.config ?? mod;
-  } else {
-    throw new Error(
-      `Unsupported experiment file extension '${ext}'. Use .yaml, .yml, .ts, .js, .mts, or .mjs.`,
-    );
-  }
-
-  return normalizeExperimentConfig(rawConfig, { sourcePath: resolvedPath });
-}
-
-export function normalizeExperimentConfig(
-  rawConfig: unknown,
-  options: NormalizeOptions = {},
-): ExperimentConfig {
+export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig {
   if (!isRecord(rawConfig)) {
     throw new Error('Experiment config must be an object.');
   }
@@ -211,8 +119,7 @@ export function normalizeExperimentConfig(
   const targets = readTargets(rawConfig.targets);
   const model = readOptionalString(rawConfig.model, 'model');
   const agentOptions = readOptionalRecord(rawConfig.agent_options ?? rawConfig.agentOptions);
-  const suites = readSuites(rawConfig.suites);
-  const scripts = readScriptArray(rawConfig.scripts, 'scripts');
+  rejectExperimentLifecycleCommands(rawConfig);
   const repeat = readRepeat(rawConfig.repeat);
   const runs = readOptionalPositiveInteger(rawConfig.runs, 'runs');
   if (repeat !== undefined && runs !== undefined) {
@@ -224,13 +131,13 @@ export function normalizeExperimentConfig(
     'timeout_seconds',
   );
   const workers = readOptionalPositiveInteger(rawConfig.workers, 'workers');
+  const threshold = readOptionalThreshold(rawConfig.threshold);
   const budgetUsd = readOptionalPositiveNumber(
     rawConfig.budget_usd ?? rawConfig.budgetUsd,
     'budget_usd',
   );
   const sandbox = readOptionalSandbox(rawConfig.sandbox);
   const workspace = readOptionalRecord(rawConfig.workspace);
-  const setup = readSetup(rawConfig.setup);
 
   const configWithoutFingerprint: Omit<ExperimentConfig, 'fingerprint'> = {
     ...(name !== undefined && { name }),
@@ -239,23 +146,51 @@ export function normalizeExperimentConfig(
     ...(targets !== undefined && { targets }),
     ...(model !== undefined && { model }),
     ...(agentOptions !== undefined && { agentOptions }),
-    ...(suites !== undefined && { suites }),
-    ...(scripts !== undefined && { scripts }),
     ...(repeat !== undefined && { repeat }),
     ...(runs !== undefined && { runs }),
     ...(earlyExit !== undefined && { earlyExit }),
     ...(timeoutSeconds !== undefined && { timeoutSeconds }),
     ...(workers !== undefined && { workers }),
+    ...(threshold !== undefined && { threshold }),
     ...(budgetUsd !== undefined && { budgetUsd }),
     ...(sandbox !== undefined && { sandbox }),
     ...(workspace !== undefined && { workspace }),
-    ...(setup !== undefined && { setup }),
-    ...(options.sourcePath !== undefined && { sourcePath: options.sourcePath }),
   };
 
   return {
     ...configWithoutFingerprint,
     fingerprint: fingerprintExperimentConfig(configWithoutFingerprint),
+  };
+}
+
+export function normalizeExperimentRunOverride(rawConfig: unknown): EvalRunOverride {
+  if (!isRecord(rawConfig)) {
+    throw new Error('Run override must be an object.');
+  }
+  for (const key of Object.keys(rawConfig)) {
+    if (!RUN_OVERRIDE_FIELDS.has(key)) {
+      throw new Error(
+        `Invalid run override field '${key}'. Scoped run overrides support only threshold, repeat, timeout_seconds, and budget_usd.`,
+      );
+    }
+  }
+
+  const threshold = readOptionalThreshold(rawConfig.threshold);
+  const repeat = readRepeat(rawConfig.repeat);
+  const timeoutSeconds = readOptionalPositiveNumber(
+    rawConfig.timeout_seconds ?? rawConfig.timeoutSeconds,
+    'timeout_seconds',
+  );
+  const budgetUsd = readOptionalPositiveNumber(
+    rawConfig.budget_usd ?? rawConfig.budgetUsd,
+    'budget_usd',
+  );
+
+  return {
+    ...(threshold !== undefined && { threshold }),
+    ...(repeat !== undefined && { repeat }),
+    ...(timeoutSeconds !== undefined && { timeoutSeconds }),
+    ...(budgetUsd !== undefined && { budgetUsd }),
   };
 }
 
@@ -275,13 +210,11 @@ export function buildExperimentArtifactMetadata(
     .filter((target) => target.trim().length > 0);
   return {
     ...(config.name !== undefined && { name: config.name }),
-    ...(config.sourcePath !== undefined && { source_path: config.sourcePath }),
     ...(config.fingerprint !== undefined && { fingerprint: config.fingerprint }),
     ...(config.agent !== undefined && { agent: config.agent }),
     ...(config.target !== undefined && { target: config.target }),
     ...(targets && targets.length > 0 && { targets }),
     ...(config.model !== undefined && { model: config.model }),
-    ...(config.suites !== undefined && { suites: config.suites.map(toSuiteArtifactMetadata) }),
     ...(config.repeat !== undefined && {
       repeat: {
         count: config.repeat.count,
@@ -295,22 +228,9 @@ export function buildExperimentArtifactMetadata(
     ...(config.earlyExit !== undefined && { early_exit: config.earlyExit }),
     ...(config.timeoutSeconds !== undefined && { timeout_seconds: config.timeoutSeconds }),
     ...(config.workers !== undefined && { workers: config.workers }),
+    ...(config.threshold !== undefined && { threshold: config.threshold }),
     ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
     ...(config.sandbox !== undefined && { sandbox: config.sandbox }),
-  };
-}
-
-function toSuiteArtifactMetadata(suite: ExperimentSuiteRef): {
-  readonly ref: string;
-  readonly select?: { readonly test_ids: readonly string[] };
-} {
-  return {
-    ref: suite.ref,
-    ...(suite.select !== undefined && {
-      select: {
-        test_ids: suite.select.testIds,
-      },
-    }),
   };
 }
 
@@ -361,156 +281,6 @@ function readTargets(raw: unknown): readonly ExperimentTargetRef[] | undefined {
       ...(hooks !== undefined && { hooks }),
     };
   });
-}
-
-function readSuites(raw: unknown): readonly ExperimentSuiteRef[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!Array.isArray(raw)) {
-    throw new Error('Experiment suites must be an array.');
-  }
-  if (raw.length === 0) {
-    throw new Error('Experiment suites must not be empty.');
-  }
-  return raw.map((entry, index): ExperimentSuiteRef => {
-    if (!isRecord(entry)) {
-      throw new Error(`Experiment suites[${index}] must be an object.`);
-    }
-    const ref = readRequiredString(entry.ref, `suites[${index}].ref`);
-    const select = readSuiteSelect(entry.select, `suites[${index}].select`);
-    return {
-      ref,
-      ...(select !== undefined && { select }),
-    };
-  });
-}
-
-function readSuiteSelect(raw: unknown, location: string): ExperimentSuiteSelect | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!isRecord(raw)) {
-    throw new Error(`Experiment ${location} must be an object.`);
-  }
-  const testIds = readOptionalStringArray(raw.test_ids ?? raw.testIds, `${location}.test_ids`);
-  if (testIds === undefined) {
-    throw new Error(`Experiment ${location}.test_ids is required when select is set.`);
-  }
-  return { testIds };
-}
-
-function readScriptArray(raw: unknown, location: string): readonly ExperimentScript[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!Array.isArray(raw)) {
-    throw new Error(`Experiment ${location} must be an array.`);
-  }
-  return raw.map((entry, index) => readScript(entry, `${location}[${index}]`));
-}
-
-function readSetup(raw: unknown): ExperimentSetup | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw === 'function') {
-    return raw as ExperimentSetupFn;
-  }
-  return readScriptArray(raw, 'setup');
-}
-
-function readScript(raw: unknown, location: string): ExperimentScript {
-  if (typeof raw === 'string') {
-    const script = raw.trim();
-    if (!script) {
-      throw new Error(`Experiment ${location} must not be empty.`);
-    }
-    return { script };
-  }
-  if (!isRecord(raw)) {
-    throw new Error(`Experiment ${location} must be a string or object.`);
-  }
-
-  const command = readOptionalCommand(raw.command, `${location}.command`);
-  const script = readOptionalStringOrStringArray(raw.script, `${location}.script`);
-  if (command === undefined && script === undefined) {
-    throw new Error(`Experiment ${location} must define command or script.`);
-  }
-
-  const timeoutSeconds = readOptionalPositiveNumber(
-    raw.timeout_seconds ?? raw.timeoutSeconds,
-    `${location}.timeout_seconds`,
-  );
-  const cwd = readOptionalString(raw.cwd, `${location}.cwd`);
-  const env = readOptionalStringRecord(raw.env, `${location}.env`);
-
-  return {
-    ...(command !== undefined && { command }),
-    ...(script !== undefined && { script }),
-    ...(timeoutSeconds !== undefined && { timeoutSeconds }),
-    ...(cwd !== undefined && { cwd }),
-    ...(env !== undefined && { env }),
-  };
-}
-
-function readOptionalCommand(raw: unknown, location: string): readonly string[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw === 'string') {
-    const command = raw.trim();
-    if (!command) {
-      throw new Error(`Experiment ${location} must not be empty.`);
-    }
-    return ['sh', '-c', command];
-  }
-  if (
-    Array.isArray(raw) &&
-    raw.length > 0 &&
-    raw.every((entry) => typeof entry === 'string' && entry.trim())
-  ) {
-    return raw.map((entry) => entry.trim());
-  }
-  throw new Error(`Experiment ${location} must be a string or string array.`);
-}
-
-function readOptionalStringOrStringArray(
-  raw: unknown,
-  location: string,
-): string | readonly string[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      throw new Error(`Experiment ${location} must not be empty.`);
-    }
-    return trimmed;
-  }
-  if (
-    Array.isArray(raw) &&
-    raw.length > 0 &&
-    raw.every((entry) => typeof entry === 'string' && entry.trim())
-  ) {
-    return raw.map((entry) => entry.trim());
-  }
-  throw new Error(`Experiment ${location} must be a string or string array.`);
-}
-
-function readOptionalStringArray(raw: unknown, location: string): readonly string[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (
-    Array.isArray(raw) &&
-    raw.length > 0 &&
-    raw.every((entry) => typeof entry === 'string' && entry.trim())
-  ) {
-    return raw.map((entry) => entry.trim());
-  }
-  throw new Error(`Experiment ${location} must be a non-empty string array.`);
 }
 
 function readOptionalString(raw: unknown, location: string): string | undefined {
@@ -581,6 +351,16 @@ function readOptionalNonNegativeNumber(raw: unknown, location: string): number |
   return raw;
 }
 
+function readOptionalThreshold(raw: unknown): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== 'number' || raw < 0 || raw > 1) {
+    throw new Error('Experiment threshold must be a number between 0 and 1.');
+  }
+  return raw;
+}
+
 function readOptionalPositiveNumber(raw: unknown, location: string): number | undefined {
   if (raw === undefined) {
     return undefined;
@@ -611,25 +391,21 @@ function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {
   return raw;
 }
 
-function readOptionalStringRecord(
-  raw: unknown,
-  location: string,
-): Record<string, string> | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!isRecord(raw)) {
-    throw new Error(`Experiment ${location} must be an object.`);
-  }
-  const entries = Object.entries(raw);
-  if (!entries.every((entry): entry is [string, string] => typeof entry[1] === 'string')) {
-    throw new Error(`Experiment ${location} values must be strings.`);
-  }
-  return Object.fromEntries(entries);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function rejectExperimentLifecycleCommands(rawConfig: Record<string, unknown>): void {
+  if (rawConfig.setup !== undefined) {
+    throw new Error(
+      'Experiment setup is not supported. Use workspace.hooks for repo setup or targets[].hooks for runner setup.',
+    );
+  }
+  if (rawConfig.scripts !== undefined) {
+    throw new Error(
+      'Experiment scripts are not supported. Use workspace.hooks for repo setup or targets[].hooks for runner setup.',
+    );
+  }
 }
 
 function toStableJsonValue(value: unknown): unknown {

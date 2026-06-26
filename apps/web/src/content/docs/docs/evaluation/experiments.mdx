@@ -5,175 +5,219 @@ sidebar:
   order: 2
 ---
 
-Experiments define **how** eval cases run: target or target matrix, setup,
-scripts, timeout, sandbox, case filters, and repeat-run policy. Eval files stay
-focused on **what** is tested: prompts, datasets, assertions, and task fixtures.
-
-## Experiment YAML
-
-Committed experiments conventionally live under `experiments/`:
+AgentV eval files are the only runnable authoring artifact. Use top-level
+`experiment:` inside `eval.yaml` for runtime choices: targets, workers,
+timeout, sandbox/runtime knobs, budgets, thresholds, and repeat-run policy.
 
 ```yaml
-name: baseline
-target: codex-gpt5
-suites:
-  - ref: evals/support-regression.eval.yaml
-    select:
-      test_ids:
-        - refund-eligibility
-        - missing-order-date
-timeout_seconds: 720
-repeat:
-  count: 4
-  strategy: pass_at_k
-  cost_limit_usd: 2.00
-setup:
-  - script: bun install
-scripts:
-  - build
+name: support-regression
+
+experiment:
+  targets: [codex-gpt5, claude-sonnet]
+  workers: 2
+  timeout_seconds: 720
+  repeat:
+    count: 4
+    strategy: pass_at_k
+    cost_limit_usd: 2.00
+
+workspace:
+  hooks:
+    before_all:
+      command: ["bash", "-lc", "bun install && bun run build"]
+
+tests:
+  - id: refund-eligibility
+    input: Can this customer get a refund?
+    criteria: Applies the refund policy correctly
 ```
 
-Wire fields use `snake_case`. AgentV translates to internal `camelCase` when it
-loads the file.
+`execution:` is accepted only as a legacy top-level alias for existing eval
+files. Do not use both `experiment:` and `execution:` in the same eval.
 
-## Suites and test selection
+## Tests Imports
 
-Eval files keep `tests[]` as the canonical atomic test definition. Experiments
-reference one or more reusable eval suites through `suites[]`:
-
-```yaml
-suites:
-  - ref: evals/support-regression.eval.yaml
-  - ref: evals/billing-*.eval.yaml
-```
-
-Use suite-local `select.test_ids[]` to run only specific tests from a suite. The
-values match `tests[].id` inside that suite and use the same glob semantics as
-`--test-id`:
+Use `tests[]` for composition, imports, and selection.
 
 ```yaml
-suites:
-  - ref: evals/support-regression.eval.yaml
+tests:
+  - include: evals/support/*.eval.yaml
+    type: suite
     select:
       test_ids:
         - refund-*
         - missing-order-date
+      tags: regression
+      metadata:
+        priority: high
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
+  - include: cases/*.cases.yaml
+    type: tests
+  - include: cases/regression.jsonl
+    type: tests
+  - cases/smoke/*.cases.yaml
 ```
 
-## Repeat runs
+`type: suite` preserves the imported suite's task contract: metadata,
+`workspace`, shared `input`, shared `assertions`, and tests. The child suite's
+`experiment:` or legacy `execution:` runtime block is ignored; the parent eval's
+runtime block controls the run.
 
-`repeat` is the full AgentV replacement for the old eval-level
-`execution.trials` shape. It supports the same core strategies:
+`type: tests` imports only raw test entries. It intentionally drops shared
+context from an imported eval suite, so parent suite fields apply to those raw
+cases.
+
+`tests[].select.test_ids` filters imported test IDs with glob patterns.
+`tests[].select.tags` filters each imported case's effective `metadata.tags`.
+Effective case tags are suite-first and deduped:
+`suite.tags + suite.metadata.tags + test.metadata.tags`. Top-level suite `tags`
+still remain suite identity metadata for discovery and reporting; selection reads
+the merged case metadata view. `tests[].select.metadata` filters case metadata by
+key/value, where selector values may be scalars or lists. Globbed include paths
+are resolved in deterministic path order, then test order.
+
+String-valued `tests` and string entries inside `tests[]` are raw-case import
+shorthand. They are equivalent to `include` with `type: tests` and may point at
+raw case files, directories, or globs. Importing another eval suite must use
+object form with `include:` and `type: suite`.
+
+Suite imports are resolved as a deterministic include graph. Circular `type:
+suite` imports fail validation with the import chain; raw-case shorthand does
+not recursively load suite runtime blocks.
+
+Imported suite artifacts are nested under the source suite name inside a wrapper
+eval result directory, for example
+`.agentv/results/<wrapper-eval>/<timestamp>/<imported-suite>/<test-id>/...`.
+Direct tests owned by the wrapper eval and raw case imports live directly under
+`<test-id>/...`.
+
+## Scoped Run Overrides
+
+Use scoped `run:` blocks for result interpretation and scheduling policies that
+vary by include group or test case. Precedence is:
+
+```text
+test.run > tests[].run > experiment
+```
 
 ```yaml
-repeat:
-  count: 3
-  strategy: mean
-  cost_limit_usd: 1.50
+experiment:
+  target: agent
+  threshold: 0.8
+  repeat:
+    count: 3
+    strategy: pass_at_k
+
+tests:
+  - include: ./evals/flaky-agentic/**/*.eval.yaml
+    type: suite
+    select:
+      tags: [agentic]
+    run:
+      repeat:
+        count: 3
+        strategy: pass_at_k
+
+  - include: ./evals/regression/**/*.eval.yaml
+    type: suite
+    select:
+      tags: [must-pass]
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
+
+  - id: critical-case
+    input: "..."
+    criteria: Must pass exactly
+    run:
+      threshold: 1.0
+      repeat:
+        count: 1
+```
+
+Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and
+`budget_usd`. Candidate-changing fields such as `target` and `targets` stay
+parent-level under `experiment:`. Workspace mutation belongs in
+`workspace.hooks`, and runner-specific setup belongs in `targets[].hooks`.
+
+## Lifecycle Ownership
+
+`experiment:` configures evaluation policy. It does not own commands that
+prepare files, dependencies, repos, or target-specific runner state.
+
+| Need | Put it in |
+| --- | --- |
+| Install dependencies, build the repo, seed files | `workspace.hooks.before_all` |
+| Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
+| Configure an agent runner or provider variant | `targets[].hooks` |
+| Choose targets, repeats, pass policy, budget, threshold | `experiment` |
+
+```yaml
+workspace:
+  hooks:
+    before_all:
+      command: ["bash", "-lc", "bun install && bun run build"]
+
+targets:
+  - name: agent-with-skills
+    provider: codex
+    hooks:
+      before_each:
+        command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
+
+experiment:
+  target: agent-with-skills
+  repeat:
+    count: 3
+    strategy: pass_at_k
+```
+
+## Repeat Runs
+
+`repeat` supports the same core strategies as repeated attempts:
+
+```yaml
+experiment:
+  repeat:
+    count: 3
+    strategy: mean
+    cost_limit_usd: 1.50
 ```
 
 Supported strategies:
 
 | Strategy | Behavior |
 | --- | --- |
-| `pass_at_k` | Uses the best passing attempt; early-exits by default unless the experiment sets `early_exit: false` |
+| `pass_at_k` | Uses the best passing attempt; early-exits by default unless `early_exit: false` is set |
+| `pass_all` | Uses the weakest attempt score, so every repeated attempt must meet the threshold |
 | `mean` | Aggregates repeated attempt scores by mean |
 | `confidence_interval` | Uses the lower bound of a 95% confidence interval as the conservative score |
 
-`repeat.cost_limit_usd` caps repeat-run spend. `repeat.costLimitUsd` is also
-accepted for prerelease trial-schema parity, but new YAML should use
-`cost_limit_usd`.
-
-## Vercel-compatible shorthand
-
-AgentV also accepts Vercel-style top-level `runs` and `early_exit`:
+AgentV also accepts `runs` and `early_exit` under `experiment:` as shorthand for
+repeat-run policy:
 
 ```yaml
-runs: 4
-early_exit: true
+experiment:
+  runs: 4
+  early_exit: true
 ```
 
-This is shorthand for a `pass_at_k` repeat run. Use `repeat` when you need
-AgentV-specific strategy or cost-limit fields.
+Do not set both `repeat` and `runs` in the same runtime block.
 
-Do not set both `repeat` and `runs` in the same experiment. `repeat` is the
-canonical AgentV shape; `runs` exists only for Vercel-compatible shorthand.
+## Result Layout
 
-Vercel defines the requested run count at the experiment level. Some result
-summaries show fewer actual runs for a case because `earlyExit: true` stops
-remaining attempts after the first pass; smoke runs can also force one run.
-AgentV follows the same experiment-level placement while keeping the richer
-`repeat` block for AgentV strategies.
-
-Repeat-enabled cases use a Vercel-style physical layout with AgentV aggregate
-provenance:
+Default eval runs write to:
 
 ```text
-<run-dir>/index.jsonl
-<run-dir>/summary.json
-<run-dir>/<suite>/<case-id>/summary.json
-<run-dir>/<suite>/<case-id>/run-1/result.json
-<run-dir>/<suite>/<case-id>/run-1/grading.json
-<run-dir>/<suite>/<case-id>/run-1/metrics.json
-<run-dir>/<suite>/<case-id>/run-1/timing.json
-<run-dir>/<suite>/<case-id>/run-1/transcript.json
-<run-dir>/<suite>/<case-id>/run-1/transcript-raw.jsonl
-<run-dir>/<suite>/<case-id>/run-1/outputs/answer.md
+.agentv/results/<eval-name>/<timestamp>/
 ```
 
-The repeated case aggregate folder uses `summary.json` for run-count, pass-rate,
-fingerprint, and flattened snake_case timing fields such as
-`mean_duration_ms`.
-Each `run-N/result.json` is the per-attempt manifest and includes
-`grading_path`, transcript/output paths, and embedded timing/o11y metrics. Each
-attempt also keeps AgentV `grading.json`, `metrics.json`, and `timing.json`
-sidecars for detailed inspection.
-Root `index.jsonl` and root `summary.json` remain stable for existing CI
-summary scripts and uploaded artifact consumers.
-
-## Targets and setup
-
-Experiments reuse targets from `.agentv/targets.yaml`; they do not define a new
-provider registry.
-
-```yaml
-targets:
-  - copilot
-  - claude
-  - name: gemini-with-hooks
-    use_target: gemini
-```
-
-Setup and scripts belong on the experiment because they are often the A/B
-variable:
-
-```yaml
-setup:
-  - script: cp skills/with-docs/AGENTS.md AGENTS.md
-scripts:
-  - script: bun test
-    timeout_seconds: 120
-```
-
-## Running experiments
-
-Run a specific experiment:
-
-```bash
-bun agentv eval --experiment experiments/default.yaml
-```
-
-If no experiment is passed, AgentV checks `.agentv/config.yaml` for a default:
-
-```yaml
-experiments:
-  default: experiments/default.yaml
-```
-
-If no default is configured, AgentV keeps the old behavior and uses the
-`default` experiment label.
-
-## Schema
-
-The generated JSON Schema is available at
-`skills-data/agentv-eval-writer/references/experiment-schema.json`.
+Imported source suite metadata appears in `index.jsonl` rows and manifests.
+AgentV does not add a redundant suite directory when the result group is already
+the eval name.

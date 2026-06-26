@@ -5,21 +5,21 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases and graders for an evaluation run. Runtime choices such as target matrices, setup, scripts, and repeat runs belong in [experiments](/docs/evaluation/experiments/). AgentV supports two eval formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and inline runtime block for an evaluation run. Runtime choices such as target matrices, thresholds, budgets, and repeat runs belong under top-level [`experiment:`](/docs/evaluation/experiments/). Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 
 ## Suites
 
-An eval file is a **suite**: it binds test cases to task context, assertions, and reusable fixtures. Runtime choices such as target matrices, setup, and run counts belong in experiments. Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
+An eval file is a **suite**: it binds test cases to task context, assertions, reusable fixtures, and the inline runtime block. Test cases can be inline, loaded from an external file via `tests: ./cases.yaml`, or imported with `tests[].include`.
 
 ## YAML Format
 
-The primary format. A single file contains metadata, execution config, and tests:
+The primary format. A single file contains metadata, inline runtime config, and tests:
 
 ```yaml
 description: Math problem solving evaluation
-execution:
+experiment:
   target: default
 
 assertions:
@@ -40,9 +40,9 @@ tests:
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
-| `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
+| `experiment` | Runtime policy (`target`, `targets`, `workers`, `repeat`, `threshold`, `timeout_seconds`, `budget_usd`, etc.) |
 | `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
-| `tests` | Array of individual tests, or a string path to an external file or directory |
+| `tests` | Array of individual tests, include entries, or a string path to an external file or directory. Tests and include entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
@@ -79,6 +79,9 @@ tests:
 ### Suite-level Assertions
 
 The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `execution.skip_defaults: true`.
+For semantic or agent-behavior checks, prefer plain assertion strings first;
+AgentV treats them as rubric criteria. Use deterministic assertions or code
+graders when the expected output is exact or requires programmatic inspection.
 
 ```yaml
 description: API response validation
@@ -87,6 +90,8 @@ assertions:
     required: true
   - type: contains
     value: "status"
+  - Correctly answers the user's question
+  - Explains the reasoning clearly
 
 tests:
   - id: health-check
@@ -94,7 +99,10 @@ tests:
     input: Check API health
 ```
 
-`assertions` supports all grader types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
+`assertions` supports rubric shorthand strings, deterministic assertion types
+(`contains`, `regex`, `is_json`, `equals`), `rubrics`, LLM graders, and code
+graders. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for
+per-test assertions usage.
 
 ### Assertion Includes
 
@@ -188,8 +196,8 @@ Per-test `input_files` overrides the suite-level value (it does not merge). To o
 
 ### PROMPT.md Fallback
 
-For Vercel-style eval directories, a test may omit `input` and keep the task
-prompt in Markdown instead. AgentV resolves the prompt in this order:
+For directory-style evals, a test may omit `input` and keep the task prompt in
+Markdown instead. AgentV resolves the prompt in this order:
 
 1. If the effective `input_files` contains a file named exactly `PROMPT.md`, that file becomes the test prompt.
 2. Otherwise, if a `PROMPT.md` exists beside the `EVAL.yaml`, that file becomes the test prompt.
@@ -222,12 +230,25 @@ Instead of inlining tests in the same file, you can point `tests` to an external
 ```yaml
 name: my-eval
 description: My evaluation suite
-execution:
+experiment:
   target: default
 tests: ./cases.yaml
 ```
 
-The path is resolved relative to the eval file's directory. The external file should contain a YAML array of test objects or a JSONL file with one test per line.
+The path is resolved relative to the eval file's directory. The external file
+should contain a YAML array of test objects or a JSONL file with one test per
+line. String entries inside a `tests:` list work the same way and may use direct
+paths, directories, or globs:
+
+```yaml
+tests:
+  - ./cases/*.cases.yaml
+  - include: ./suites/*.eval.yaml
+    type: suite
+```
+
+String shorthand is raw-case-only. Import eval suites with object entries using
+`include:` and `type: suite`.
 
 ### Tests as Directory Path
 
@@ -360,7 +381,7 @@ An optional YAML sidecar file provides metadata and execution config. Place it a
 ```yaml
 description: Math evaluation dataset
 suite: math-tests
-execution:
+experiment:
   target: azure-base
 assertions:
   - name: correctness

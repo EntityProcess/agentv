@@ -8,7 +8,6 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { EvalFileSchema } from '../src/evaluation/validation/eval-file.schema.js';
-import { ExperimentFileSchema } from '../src/evaluation/validation/experiment-file.schema.js';
 
 async function writeSchema(options: {
   readonly schema: Parameters<typeof zodToJsonSchema>[0];
@@ -46,12 +45,4 @@ await writeSchema({
   title: 'AgentV Eval File',
   description: 'Schema for AgentV evaluation YAML files (.eval.yaml)',
   outputFile: 'eval-schema.json',
-});
-
-await writeSchema({
-  schema: ExperimentFileSchema,
-  name: 'ExperimentFile',
-  title: 'AgentV Experiment File',
-  description: 'Schema for AgentV experiment YAML files (experiments/*.yaml)',
-  outputFile: 'experiment-schema.json',
 });

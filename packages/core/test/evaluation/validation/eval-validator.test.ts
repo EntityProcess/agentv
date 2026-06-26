@@ -34,6 +34,148 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates inline experiment runtime and tests include entries', async () => {
+    const filePath = path.join(tempDir, 'inline-experiment-include.yaml');
+    await writeFile(
+      filePath,
+      `name: wrapper
+experiment:
+  targets: [codex, claude]
+  workers: 2
+tests:
+  - include: ./evals/**/*.eval.yaml
+    type: suite
+    select:
+      test_ids: [pr50857-*]
+      tags: [sql-migration]
+      metadata:
+        type: [e2e, regression]
+        priority: high
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
+      timeout_seconds: 120
+      budget_usd: 2
+  - include: ./cases/**/*.cases.yaml
+    type: tests
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects include entries without type', async () => {
+    const filePath = path.join(tempDir, 'include-missing-type.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - include: ./cases/**/*.cases.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.message.includes("Missing 'type'"))).toBe(true);
+  });
+
+  it('rejects eval files with both experiment and legacy execution', async () => {
+    const filePath = path.join(tempDir, 'runtime-conflict.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  target: codex
+execution:
+  target: claude
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.message.includes('experiment'))).toBe(true);
+  });
+
+  it('rejects scoped run overrides that include target-changing fields', async () => {
+    const filePath = path.join(tempDir, 'invalid-run-override.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+    run:
+      threshold: 1.0
+      target: other-agent
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.location === 'tests[0].run.target')).toBe(true);
+  });
+
+  it('rejects direct circular suite imports', async () => {
+    const filePath = path.join(tempDir, 'validator-self-cycle.eval.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - include: validator-self-cycle.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) => error.message.includes('Circular eval suite import')),
+    ).toBe(true);
+    expect(
+      result.errors.some((error) => /validator-self-cycle\.eval\.yaml/.test(error.message)),
+    ).toBe(true);
+  });
+
+  it('rejects indirect circular suite imports', async () => {
+    const aPath = path.join(tempDir, 'validator-a.eval.yaml');
+    const bPath = path.join(tempDir, 'validator-b.eval.yaml');
+    await writeFile(
+      aPath,
+      `tests:
+  - include: validator-b.eval.yaml
+    type: suite
+`,
+    );
+    await writeFile(
+      bPath,
+      `tests:
+  - include: validator-a.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(aPath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) =>
+        /validator-a\.eval\.yaml.*validator-b\.eval\.yaml.*validator-a\.eval\.yaml/.test(
+          error.message,
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it('validates eval file that omits input when sibling PROMPT.md exists', async () => {
     const evalDir = path.join(tempDir, 'prompt-md-fallback');
     await mkdir(evalDir, { recursive: true });

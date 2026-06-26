@@ -408,8 +408,8 @@ describe('agentv eval CLI', () => {
       await expectFileExists(path.join(outputDir, 'summary.json'));
       for (const row of canonicalResults) {
         expect(row.transcript_path).toMatch(/run-1\/transcript\.jsonl$/);
-        expect(row.transcript_raw_path).toMatch(/run-1\/transcript-raw\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
+        expect(row.transcript_raw_path).toMatch(/run-1\/transcript-raw\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_raw_path as string));
       }
     } finally {
@@ -521,11 +521,9 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs a native experiment file with suite test selection and run knobs', async () => {
+  it('runs inline experiment config with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {
-      const experimentsDir = path.join(fixture.suiteDir, 'experiments');
-      await mkdir(experimentsDir, { recursive: true });
       await writeFile(
         path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
         'eval_patterns:\n  - sample.test.yaml\n  - unused.test.yaml\n',
@@ -545,38 +543,40 @@ describe('agentv eval CLI', () => {
         ].join('\n'),
         'utf8',
       );
-      const experimentPath = path.join(experimentsDir, 'default.yaml');
+      const wrapperPath = path.join(fixture.suiteDir, 'native-exp.eval.yaml');
       await writeFile(
-        experimentPath,
+        wrapperPath,
         [
           'name: native-exp',
-          'target: cli-target',
-          'suites:',
-          '  - ref: sample.test.yaml',
-          '    select:',
-          '      test_ids:',
-          '        - case-alpha',
-          'timeout_seconds: 12',
-          'workers: 4',
-          'repeat:',
-          '  count: 2',
-          '  strategy: mean',
-          '  cost_limit_usd: 1.25',
-          'early_exit: false',
-          'setup:',
-          '  - script: "printf setup > ../experiment-setup.txt"',
-          'scripts:',
-          '  - script: "printf script > ../experiment-script.txt"',
+          'experiment:',
+          '  name: native-exp',
+          '  target: cli-target',
+          '  timeout_seconds: 12',
+          '  workers: 4',
+          '  threshold: 0.8',
+          '  budget_usd: 3',
+          '  repeat:',
+          '    count: 2',
+          '    strategy: mean',
+          '    cost_limit_usd: 1.25',
+          '  early_exit: false',
+          'tests:',
+          '  - include: sample.test.yaml',
+          '    type: suite',
+          '    select: case-alpha',
+          '    run:',
+          '      threshold: 1.0',
+          '      timeout_seconds: 5',
+          '      budget_usd: 0.75',
+          '      repeat:',
+          '        count: 3',
+          '        strategy: pass_all',
           '',
         ].join('\n'),
         'utf8',
       );
 
-      const { stdout, exitCode } = await runCli(fixture, [
-        'eval',
-        '--experiment',
-        'experiments/default.yaml',
-      ]);
+      const { stdout, exitCode } = await runCli(fixture, ['eval', wrapperPath]);
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
@@ -585,19 +585,16 @@ describe('agentv eval CLI', () => {
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
         target: 'cli-target',
-        agentTimeoutMs: 12000,
+        agentTimeoutMs: 5000,
         maxConcurrency: 4,
         evalCaseIds: ['case-alpha'],
+        budgetUsd: 0.75,
+        threshold: 1,
         trials: {
-          count: 2,
-          strategy: 'mean',
-          costLimitUsd: 1.25,
-          earlyExit: false,
+          count: 3,
+          strategy: 'pass_all',
         },
       });
-
-      await expectFileExists(path.join(fixture.suiteDir, 'experiment-setup.txt'));
-      await expectFileExists(path.join(fixture.suiteDir, 'experiment-script.txt'));
 
       const benchmark = JSON.parse(
         await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
@@ -605,16 +602,7 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
         name: 'native-exp',
-        source_path: experimentPath,
         target: 'cli-target',
-        suites: [
-          {
-            ref: 'sample.test.yaml',
-            select: {
-              test_ids: ['case-alpha'],
-            },
-          },
-        ],
         repeat: {
           count: 2,
           strategy: 'mean',
@@ -627,6 +615,76 @@ describe('agentv eval CLI', () => {
       expect(
         (benchmark.metadata?.experiment_config as Record<string, unknown>).fingerprint,
       ).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('keeps inline experiment runtime isolated across multiple eval files', async () => {
+    const fixture = await createFixture();
+    try {
+      const firstPath = path.join(fixture.suiteDir, 'first.eval.yaml');
+      const secondPath = path.join(fixture.suiteDir, 'second.eval.yaml');
+      await writeFile(
+        firstPath,
+        [
+          'name: first',
+          'experiment:',
+          '  target: cli-target',
+          '  timeout_seconds: 11',
+          '  workers: 1',
+          '  budget_usd: 0.11',
+          'tests:',
+          '  - id: first-case',
+          '    input: first',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        secondPath,
+        [
+          'name: second',
+          'experiment:',
+          '  target: file-target',
+          '  timeout_seconds: 22',
+          '  workers: 2',
+          '  budget_usd: 0.22',
+          'tests:',
+          '  - id: second-case',
+          '    input: second',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { stdout, exitCode } = await runCli(fixture, ['eval', firstPath, secondPath]);
+
+      expect(exitCode).toBe(0);
+      const outputPath = extractOutputPath(stdout);
+      expect(outputPath).toContain(`${path.sep}multi-eval${path.sep}`);
+
+      const diagnostics = await readDiagnostics(fixture);
+      const calls = diagnostics.calls as Array<Record<string, unknown>>;
+      expect(calls).toHaveLength(2);
+      expect(calls[0]).toMatchObject({
+        target: 'cli-target',
+        agentTimeoutMs: 11_000,
+        maxConcurrency: 1,
+        budgetUsd: 0.11,
+        runBudgetCapUsd: 0.11,
+        evalCaseIds: ['first-case'],
+      });
+      expect(calls[1]).toMatchObject({
+        target: 'file-target',
+        agentTimeoutMs: 22_000,
+        maxConcurrency: 2,
+        budgetUsd: 0.22,
+        runBudgetCapUsd: 0.22,
+        evalCaseIds: ['second-case'],
+      });
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }

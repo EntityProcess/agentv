@@ -182,6 +182,12 @@ export type TrialAggregationArtifact =
       readonly total_attempts: number;
     }
   | {
+      readonly strategy: 'pass_all';
+      readonly passed_attempts: number;
+      readonly total_attempts: number;
+      readonly min: number;
+    }
+  | {
       readonly strategy: 'mean';
       readonly mean: number;
       readonly min: number;
@@ -552,6 +558,13 @@ function toTrialAggregationArtifact(
         strategy: aggregation.strategy,
         passed_attempts: aggregation.passedAttempts,
         total_attempts: aggregation.totalAttempts,
+      };
+    case 'pass_all':
+      return {
+        strategy: aggregation.strategy,
+        passed_attempts: aggregation.passedAttempts,
+        total_attempts: aggregation.totalAttempts,
+        min: aggregation.min,
       };
     case 'mean':
       return {
@@ -1268,10 +1281,17 @@ function getSuite(result: EvaluationResult): string | undefined {
   return result.suite;
 }
 
-function buildArtifactSubdir(result: EvaluationResult): string {
+function buildArtifactSubdir(
+  result: EvaluationResult,
+  resultGroup?: string,
+  sourceTest?: EvalTest,
+): string {
   const segments = [];
   const evalSet = getSuite(result);
-  if (evalSet) {
+  const importedSuiteName = sourceTest?.source?.importedSuiteName;
+  if (importedSuiteName !== undefined) {
+    segments.push(safeArtifactPathSegment(importedSuiteName, 'default'));
+  } else if (evalSet && evalSet !== resultGroup) {
     segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
   segments.push(safeTestId(result.testId));
@@ -1286,7 +1306,35 @@ function findResultSourceTest(
   result: EvaluationResult,
   testByTestId: ReadonlyMap<string, EvalTest>,
 ): EvalTest | undefined {
-  return testByTestId.get(result.testId ?? 'unknown');
+  const testId = result.testId ?? 'unknown';
+  const suite = getSuite(result);
+  if (suite) {
+    const suiteMatch = testByTestId.get(sourceTestLookupKey(suite, testId));
+    if (suiteMatch) {
+      return suiteMatch;
+    }
+  }
+  return testByTestId.get(testId);
+}
+
+function sourceTestLookupKey(suite: string, testId: string): string {
+  return `${suite}\u0000${testId}`;
+}
+
+function buildSourceTestLookup(
+  sourceTests: readonly EvalTest[] | undefined,
+): Map<string, EvalTest> {
+  const tests = sourceTests ?? [];
+  const lookup = new Map<string, EvalTest>();
+  for (const test of tests) {
+    if (test.suite) {
+      lookup.set(sourceTestLookupKey(test.suite, test.id), test);
+    }
+    if (!lookup.has(test.id)) {
+      lookup.set(test.id, test);
+    }
+  }
+  return lookup;
 }
 
 function resolveEnvelopeEvalPath(
@@ -1873,11 +1921,12 @@ async function collectAdditionalIndexFields(
   if (!additionalArtifacts) {
     return undefined;
   }
+  const sourceTest = findResultSourceTest(result, testByTestId);
   return additionalArtifacts({
     result,
     outputDir,
     testDir,
-    sourceTest: testByTestId.get(result.testId ?? 'unknown'),
+    sourceTest,
     sourceTestsById: testByTestId,
   });
 }
@@ -1890,17 +1939,19 @@ export async function writePerTestArtifacts(
     evalFile?: string;
     runId?: string;
     duplicatePolicy?: ExportDuplicatePolicy;
+    resultGroup?: string;
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
   },
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
   const duplicatePolicy = options?.duplicatePolicy ?? 'update';
-  const testByTestId = new Map((options?.sourceTests ?? []).map((test) => [test.id, test]));
+  const testByTestId = buildSourceTestLookup(options?.sourceTests);
   const indexRecords: ResultIndexArtifact[] = [];
 
   for (const result of results) {
-    const artifactSubdir = buildArtifactSubdir(result);
+    const sourceTest = findResultSourceTest(result, testByTestId);
+    const artifactSubdir = buildArtifactSubdir(result, options?.resultGroup, sourceTest);
     const testDir = path.join(outputDir, artifactSubdir);
     await mkdir(testDir, { recursive: true });
     const envelope = buildTraceEnvelopeSidecar({
@@ -1995,6 +2046,7 @@ export async function writeArtifactsFromResults(
     plannedTestCount?: number;
     runId?: string;
     duplicatePolicy?: ExportDuplicatePolicy;
+    resultGroup?: string;
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
   },
@@ -2011,11 +2063,12 @@ export async function writeArtifactsFromResults(
   const existingRecords = await readExistingIndexRecords(outputDir);
   const existingByIdentity = existingRecordsByProjectionIdentity(existingRecords);
   const indexRecords: unknown[] = [];
-  const testByTestId = new Map((options?.sourceTests ?? []).map((test) => [test.id, test]));
+  const testByTestId = buildSourceTestLookup(options?.sourceTests);
   const emittedIdentityIds = new Set<string>();
 
   const plans = results.map((result) => {
-    const artifactSubdir = buildArtifactSubdir(result);
+    const sourceTest = findResultSourceTest(result, testByTestId);
+    const artifactSubdir = buildArtifactSubdir(result, options?.resultGroup, sourceTest);
     const testDir = path.join(outputDir, artifactSubdir);
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const envelope = buildTraceEnvelopeSidecar({

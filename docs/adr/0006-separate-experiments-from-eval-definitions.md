@@ -59,8 +59,6 @@ experiment:
     strategy: pass_at_k
   timeout_seconds: 900
   budget_usd: 2.00
-  setup:
-    - command: ./scripts/install-skills.sh
 
 tests:
   - include: ./evals/cargowise/**/*.eval.yaml
@@ -100,12 +98,32 @@ The old experiment runtime fields are ported into the parent eval file:
 - repeat policy such as `count` and `pass_at_k`
 - timeout
 - budget
-- runtime setup commands
 - other run-time controls that do not define the task itself
 
 Suite or case workspace fields remain task-owned when they define what is being
-evaluated. Experiment setup remains parent-owned when it changes the candidate
-or run condition being measured against the same task.
+evaluated.
+
+## Lifecycle Ownership
+
+`experiment:` owns evaluation policy, not lifecycle mutation. Commands that
+prepare or reset files, dependencies, repos, or runner-specific configuration
+must stay with the lifecycle surface that actually owns that work:
+
+- `workspace.hooks` prepare or reset the workspace under test. Dependency
+  installs, builds, fixture generation, case resets, and repo seeding belong
+  here.
+- `targets[].hooks` prepare the target runner or provider variant. Agent
+  discovery files, provider-specific config, and target-specific harness setup
+  belong here.
+- `experiment:` selects runtime policy: target or target matrix, workers,
+  repeat strategy, threshold, timeout, budget, sandbox/runtime knobs, and result
+  identity.
+
+This differs from external experiment formats that allow generic scripts on the
+experiment object. AgentV keeps those scripts in workspace or target hooks so a
+multi-file command such as `agentv eval a.eval.yaml b.eval.yaml` remains a batch
+of independent eval-suite runs, rather than one implicit wrapper experiment with
+shared mutable setup.
 
 ## Tests Import Surface
 
@@ -259,10 +277,11 @@ scheduling:
 - `timeout_seconds`
 - `budget_usd`
 
-Fields that change the candidate or system under test, such as `target`,
-`targets`, runtime setup, and workspace mutation, should remain at the parent
-`experiment:` level unless a later ADR accepts narrower per-group semantics.
-Keeping candidate-changing knobs out of scoped overrides preserves comparable
+Fields that change the candidate or system under test, such as `target` and
+`targets`, should remain at the parent `experiment:` level unless a later ADR
+accepts narrower per-group semantics. Workspace mutation stays in
+`workspace.hooks`; runner setup stays in `targets[].hooks`. Keeping
+candidate-changing knobs out of scoped overrides preserves comparable
 experiment groups and avoids silently mixing different systems under one result
 group.
 

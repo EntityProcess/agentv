@@ -1,8 +1,14 @@
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import fg from 'fast-glob';
 import micromatch from 'micromatch';
 import { stringify as stringifyYaml } from 'yaml';
 
+import {
+  type ExperimentConfig,
+  normalizeExperimentConfig,
+  normalizeExperimentRunOverride,
+} from './experiment.js';
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import { interpolateEnv, interpolateTemplateVars } from './interpolation.js';
 import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
@@ -47,6 +53,7 @@ import type {
   ConversationTurn,
   DockerWorkspaceConfig,
   EvalGraderSource,
+  EvalRunOverride,
   EvalSourceReference,
   EvalTest,
   EvalTestSource,
@@ -95,12 +102,56 @@ type LoadOptions = {
   readonly filter?: string | readonly string[];
   /** Category derived from the eval file's directory path */
   readonly category?: string;
+  /** Internal DFS stack for detecting circular `type: suite` imports. */
+  readonly suiteImportStack?: readonly SuiteImportStackEntry[];
+};
+
+type SuiteImportStackEntry = {
+  readonly identity: string;
+  readonly displayPath: string;
 };
 
 function matchesFilter(id: string, filter: string | readonly string[]): boolean {
   return typeof filter === 'string'
     ? micromatch.isMatch(id, filter)
     : filter.some((pattern) => micromatch.isMatch(id, pattern));
+}
+
+async function canonicalEvalFileIdentity(filePath: string): Promise<string> {
+  const absolutePath = path.resolve(filePath);
+  return realpath(absolutePath).catch(() => absolutePath);
+}
+
+async function dedupeResolvedPathsByIdentity(
+  resolvedPaths: readonly string[],
+): Promise<readonly string[]> {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const resolvedPath of resolvedPaths) {
+    const identity = await canonicalEvalFileIdentity(resolvedPath);
+    if (seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+    deduped.push(resolvedPath);
+  }
+  return deduped;
+}
+
+function displayEvalImportPath(filePath: string): string {
+  const relativePath = path.relative(process.cwd(), filePath);
+  return relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath)
+    ? relativePath
+    : filePath;
+}
+
+function formatCircularImportChain(
+  stack: readonly SuiteImportStackEntry[],
+  repeated: SuiteImportStackEntry,
+): string {
+  const start = stack.findIndex((entry) => entry.identity === repeated.identity);
+  const cycle = [...(start >= 0 ? stack.slice(start) : stack), repeated];
+  return cycle.map((entry) => entry.displayPath).join(' -> ');
 }
 
 type RawTestSuite = JsonObject & {
@@ -110,6 +161,7 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `tests` instead */
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
@@ -145,6 +197,7 @@ type RawEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly evaluator?: JsonValue;
   readonly execution?: JsonValue;
+  readonly run?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
   /** @deprecated Use `assertions` instead */
@@ -277,6 +330,8 @@ export type EvalSuiteResult = {
   readonly failOnError?: import('./types.js').FailOnError;
   /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
   readonly threshold?: number;
+  /** Top-level runtime block from `experiment:` or legacy `execution:`. */
+  readonly experimentConfig?: ExperimentConfig;
   /** Resolved workspace.path from the eval YAML (after env-var expansion), if set */
   readonly workspacePath?: string;
   /** Inline target definition from a TS eval config. */
@@ -363,9 +418,22 @@ async function loadTestsFromYaml(
   options?: LoadOptions,
 ): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject; suiteWorkspacePath?: string }> {
   const absoluteTestPath = path.resolve(evalFilePath);
+  const currentImport: SuiteImportStackEntry = {
+    identity: await canonicalEvalFileIdentity(absoluteTestPath),
+    displayPath: displayEvalImportPath(absoluteTestPath),
+  };
+  const importStack = options?.suiteImportStack ?? [];
+  if (importStack.some((entry) => entry.identity === currentImport.identity)) {
+    throw new Error(
+      `Circular eval suite import: ${formatCircularImportChain(importStack, currentImport)}`,
+    );
+  }
   const rawFile = await readFile(absoluteTestPath, 'utf8');
 
-  return loadTestsFromParsedYamlValue(parseYamlValue(rawFile), evalFilePath, repoRoot, options);
+  return loadTestsFromParsedYamlValue(parseYamlValue(rawFile), evalFilePath, repoRoot, {
+    ...options,
+    suiteImportStack: [...importStack, currentImport],
+  });
 }
 
 async function loadTestsFromParsedYamlValue(
@@ -401,6 +469,9 @@ async function loadTestsFromParsedYamlValue(
     suiteNameFromFile && suiteNameFromFile.length > 0 ? suiteNameFromFile : fallbackSuiteName;
 
   const rawTestCases = resolveTests(suite);
+  // Top-level `metadata:` is inherited by cases. Suite identity tags are parsed
+  // separately by parseMetadata() and are not case tags.
+  const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm-grader';
   const suitePreprocessors = await parsePreprocessors(
@@ -413,40 +484,32 @@ async function loadTestsFromParsedYamlValue(
   // Parse suite-level workspace config (default for all cases)
   const evalFileDir = path.dirname(absoluteTestPath);
 
-  // Resolve tests: string path to external file/directory, inline array, or error
+  const importedSuiteTests: EvalTest[] = [];
+  // Resolve tests: string path to external file/directory, inline array, include entries, or error
   let expandedTestCases: readonly JsonValue[];
   if (typeof rawTestCases === 'string') {
-    const externalPath = path.resolve(evalFileDir, rawTestCases);
-    let isDir = false;
-    try {
-      const pathStat = await stat(externalPath);
-      isDir = pathStat.isDirectory();
-    } catch {
-      // Path doesn't exist — fall through to loadCasesFromFile for its error message
-    }
-    if (isDir) {
-      expandedTestCases = await loadCasesFromDirectory(externalPath);
-    } else {
-      expandedTestCases = await loadCasesFromFile(externalPath);
-    }
+    expandedTestCases = await loadRawCasesFromShorthand(rawTestCases, evalFileDir);
   } else if (Array.isArray(rawTestCases)) {
-    // Inline array: expand any file:// references
-    expandedTestCases = await expandFileReferences(rawTestCases, evalFileDir);
+    const expanded = await expandInlineTestEntries({
+      entries: rawTestCases,
+      evalFileDir,
+      repoRoot,
+      suiteMetadataPayload,
+      options,
+    });
+    expandedTestCases = expanded.rawCases;
+    importedSuiteTests.push(...expanded.importedSuiteTests);
   } else {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
 
   const suiteWorkspace = await resolveWorkspaceConfig(suite.workspace, evalFileDir);
 
-  // Suite-level metadata defaults. Top-level `metadata:` is inherited by each case.
-  // Top-level `governance:` wins over `metadata.governance:` for compatibility.
-  const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
-
   const rawSuiteInput = suite.input;
   const rawSuiteInputFiles = suite.input_files;
 
   // Extract global target from execution.target (or legacy root-level target)
-  const rawGlobalExecution = isJsonObject(suite.execution) ? suite.execution : undefined;
+  const rawGlobalExecution = readSuiteRuntimeBlock(suite, evalFilePath);
   const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
 
   // Build global execution context, including suite-level assertions (which is a sibling of execution)
@@ -499,6 +562,10 @@ async function loadTestsFromParsedYamlValue(
       (caseExecution.threshold as number) <= 1
         ? (caseExecution.threshold as number)
         : undefined;
+    const caseRun = mergeRunOverrides(
+      caseThreshold !== undefined ? { threshold: caseThreshold } : undefined,
+      normalizeRunOverride(renderedCase.run, `test '${id ?? 'unknown'}'.run`),
+    );
 
     // Resolve input with shorthand support (pass suite-level input_files for merge)
     const effectiveSuiteInputFiles =
@@ -726,7 +793,8 @@ async function loadTestsFromParsedYamlValue(
       workspace: mergedWorkspace,
       metadata,
       targets: caseTargets,
-      ...(caseThreshold !== undefined ? { threshold: caseThreshold } : {}),
+      ...(caseRun?.threshold !== undefined ? { threshold: caseRun.threshold } : {}),
+      ...(caseRun !== undefined ? { run: caseRun } : {}),
       ...(mode ? { mode } : {}),
       ...(turns && turns.length > 0 ? { turns } : {}),
       ...(aggregation ? { aggregation } : {}),
@@ -750,7 +818,11 @@ async function loadTestsFromParsedYamlValue(
     results.push(testCase);
   }
 
-  return { tests: results, parsed: suite, suiteWorkspacePath: suiteWorkspace?.path };
+  return {
+    tests: [...importedSuiteTests, ...results],
+    parsed: suite,
+    suiteWorkspacePath: suiteWorkspace?.path,
+  };
 }
 
 function buildEvalSuiteResult(
@@ -761,6 +833,7 @@ function buildEvalSuiteResult(
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
+  const experimentConfig = normalizeSuiteExperimentConfig(parsed);
 
   return {
     tests,
@@ -772,8 +845,382 @@ function buildEvalSuiteResult(
     ...(metadata !== undefined && { metadata }),
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
+    ...(experimentConfig !== undefined && { experimentConfig }),
     ...(suiteWorkspacePath !== undefined && { workspacePath: suiteWorkspacePath }),
   };
+}
+
+type IncludeEntryType = 'suite' | 'tests';
+
+type ExpandedInlineTestEntries = {
+  readonly rawCases: readonly JsonValue[];
+  readonly importedSuiteTests: readonly EvalTest[];
+};
+
+type IncludeSelect = {
+  readonly testIds?: string | readonly string[];
+  readonly tags?: string | readonly string[];
+  readonly metadata?: Record<string, unknown>;
+};
+
+function normalizeRunOverride(value: unknown, label: string): EvalRunOverride | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  try {
+    return normalizeExperimentRunOverride(value);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid ${label}: ${reason}`);
+  }
+}
+
+function mergeRunOverrides(
+  base: EvalRunOverride | undefined,
+  override: EvalRunOverride | undefined,
+): EvalRunOverride | undefined {
+  if (!base) {
+    return override;
+  }
+  if (!override) {
+    return base;
+  }
+  return {
+    ...base,
+    ...override,
+  };
+}
+
+function applyRunOverrideToTest(test: EvalTest, includeRun: EvalRunOverride | undefined): EvalTest {
+  const run = mergeRunOverrides(includeRun, test.run);
+  if (!run) {
+    return test;
+  }
+  return {
+    ...test,
+    run,
+  };
+}
+
+function markSuiteImportedTest(test: EvalTest): EvalTest {
+  return {
+    ...test,
+    source: {
+      ...(test.source ?? {
+        evalFilePath: '',
+        evalFileAbsolutePath: '',
+        testId: test.id,
+        testSnapshotYaml: '',
+        graderDefinitions: [],
+        references: [],
+      }),
+      importedSuiteName: test.suite ?? 'default',
+    },
+  };
+}
+
+function applyRunOverrideToRawCase(
+  testCase: JsonObject,
+  includeRun: EvalRunOverride | undefined,
+): JsonObject {
+  if (!includeRun) {
+    return testCase;
+  }
+  const caseRun = normalizeRunOverride(
+    testCase.run,
+    `test '${String(testCase.id ?? 'unknown')}'.run`,
+  );
+  const run = mergeRunOverrides(includeRun, caseRun);
+  return run ? { ...testCase, run: run as unknown as JsonObject } : testCase;
+}
+
+function isIncludeEntry(value: JsonValue): value is JsonObject & { include: string } {
+  return (
+    isJsonObject(value) && typeof value.include === 'string' && value.include.trim().length > 0
+  );
+}
+
+function hasGlobMagic(value: string): boolean {
+  return /[*?[\]{}()!+@]/.test(value);
+}
+
+function normalizeIncludeEntryType(value: unknown, includePath: string): IncludeEntryType {
+  if (value === 'suite' || value === 'tests') {
+    return value;
+  }
+  if (value === undefined) {
+    throw new Error(`Missing tests[].type for include '${includePath}'. Use 'suite' or 'tests'.`);
+  }
+  throw new Error(`Invalid tests[].type for include '${includePath}'. Use 'suite' or 'tests'.`);
+}
+
+function readStringPatterns(value: unknown, label: string): string | readonly string[] | undefined {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+  if (Array.isArray(value)) {
+    const patterns = value.filter(
+      (item): item is string => typeof item === 'string' && item.trim().length > 0,
+    );
+    if (patterns.length > 0) {
+      return patterns.map((item) => item.trim());
+    }
+  }
+  if (value !== undefined) {
+    throw new Error(`Invalid ${label}. Use a glob string or a non-empty array of glob strings.`);
+  }
+  return undefined;
+}
+
+function readSelectPatterns(value: unknown, label: string): IncludeSelect | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value === 'string' || Array.isArray(value)) {
+    return { testIds: readStringPatterns(value, label) };
+  }
+  if (!isJsonObject(value)) {
+    throw new Error(`Invalid ${label}. Use a selector object, glob string, or glob string array.`);
+  }
+  const testIds = readStringPatterns(value.test_ids ?? value.testIds, `${label}.test_ids`);
+  const tags = readStringPatterns(value.tags, `${label}.tags`);
+  const metadata = value.metadata;
+  if (metadata !== undefined && !isJsonObject(metadata)) {
+    throw new Error(`Invalid ${label}.metadata. Use an object of metadata key/value filters.`);
+  }
+  return {
+    ...(testIds !== undefined && { testIds }),
+    ...(tags !== undefined && { tags }),
+    ...(isJsonObject(metadata) && { metadata: metadata as Record<string, unknown> }),
+  };
+}
+
+function matchesAnyPattern(value: string, patterns: string | readonly string[]): boolean {
+  return typeof patterns === 'string'
+    ? micromatch.isMatch(value, patterns)
+    : patterns.some((pattern) => micromatch.isMatch(value, pattern));
+}
+
+function metadataValueMatches(actual: unknown, expected: unknown): boolean {
+  if (Array.isArray(expected)) {
+    return expected.some((entry) => metadataValueMatches(actual, entry));
+  }
+  if (Array.isArray(actual)) {
+    return actual.some((entry) => metadataValueMatches(entry, expected));
+  }
+  return actual === expected;
+}
+
+function metadataMatches(
+  metadata: Record<string, unknown> | undefined,
+  selector: Record<string, unknown> | undefined,
+): boolean {
+  if (!selector || Object.keys(selector).length === 0) {
+    return true;
+  }
+  if (!metadata) {
+    return false;
+  }
+  return Object.entries(selector).every(([key, expected]) =>
+    metadataValueMatches(metadata[key], expected),
+  );
+}
+
+function tagsMatch(
+  metadata: Record<string, unknown> | undefined,
+  tags: string | readonly string[] | undefined,
+): boolean {
+  if (!tags) {
+    return true;
+  }
+  const rawTags = metadata?.tags;
+  const actualTags =
+    typeof rawTags === 'string'
+      ? [rawTags]
+      : Array.isArray(rawTags)
+        ? rawTags.filter((tag): tag is string => typeof tag === 'string')
+        : [];
+  return actualTags.some((tag) => matchesAnyPattern(tag, tags));
+}
+
+function evalTestMatchesSelect(test: EvalTest, select: IncludeSelect | undefined): boolean {
+  if (!select) {
+    return true;
+  }
+  const metadata = isJsonObject(test.metadata)
+    ? (test.metadata as Record<string, unknown>)
+    : undefined;
+  return (
+    (select.testIds ? matchesAnyPattern(test.id, select.testIds) : true) &&
+    tagsMatch(metadata, select.tags) &&
+    metadataMatches(metadata, select.metadata)
+  );
+}
+
+function rawCaseEffectiveMetadata(
+  raw: JsonObject,
+  suiteMetadataPayload: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const metadata = isJsonObject(raw.metadata)
+    ? ({ ...(raw.metadata as Record<string, unknown>) } as Record<string, unknown>)
+    : undefined;
+  return mergeSuiteMetadataPayload(metadata, suiteMetadataPayload);
+}
+
+function rawCaseMatchesSelect(
+  testCase: JsonObject,
+  select: IncludeSelect | undefined,
+  suiteMetadataPayload: Record<string, unknown> | undefined,
+): boolean {
+  if (!select) {
+    return true;
+  }
+  const id = typeof testCase.id === 'string' ? testCase.id : undefined;
+  const metadata = rawCaseEffectiveMetadata(testCase, suiteMetadataPayload);
+  return (
+    (select.testIds ? (id ? matchesAnyPattern(id, select.testIds) : false) : true) &&
+    tagsMatch(metadata, select.tags) &&
+    metadataMatches(metadata, select.metadata)
+  );
+}
+
+async function resolveIncludePaths(
+  includePath: string,
+  evalFileDir: string,
+): Promise<readonly string[]> {
+  const absolutePattern = path.resolve(evalFileDir, includePath);
+  if (hasGlobMagic(includePath)) {
+    const matches = await fg(absolutePattern.replaceAll('\\', '/'), {
+      onlyFiles: true,
+      absolute: true,
+    });
+    return dedupeResolvedPathsByIdentity([...new Set(matches.sort())]);
+  }
+  return [absolutePattern];
+}
+
+async function loadRawCasesForInclude(includePath: string): Promise<readonly JsonObject[]> {
+  if (/\.eval\.ya?ml$/i.test(includePath)) {
+    const raw = interpolateEnv(
+      parseYamlValue(await readFile(includePath, 'utf8')),
+      process.env,
+    ) as unknown;
+    if (!isJsonObject(raw)) {
+      throw new Error(`Imported eval suite must be a YAML object: ${includePath}`);
+    }
+    const tests = resolveTests(raw as RawTestSuite);
+    if (typeof tests === 'string') {
+      const externalPath = path.resolve(path.dirname(includePath), tests);
+      const pathStat = await stat(externalPath).catch(() => undefined);
+      return pathStat?.isDirectory()
+        ? loadCasesFromDirectory(externalPath)
+        : loadCasesFromFile(externalPath);
+    }
+    if (Array.isArray(tests)) {
+      const expanded = await expandFileReferences(tests, path.dirname(includePath));
+      return expanded.filter(isJsonObject);
+    }
+    return [];
+  }
+  const pathStat = await stat(includePath).catch(() => undefined);
+  return pathStat?.isDirectory()
+    ? loadCasesFromDirectory(includePath)
+    : loadCasesFromFile(includePath);
+}
+
+async function loadRawCasesFromShorthand(
+  rawPath: string,
+  evalFileDir: string,
+): Promise<readonly JsonObject[]> {
+  const resolvedPaths = await resolveIncludePaths(rawPath.trim(), evalFileDir);
+  const rawCases: JsonObject[] = [];
+  for (const resolvedPath of resolvedPaths) {
+    if (/\.eval\.ya?ml$/i.test(resolvedPath)) {
+      throw new Error(
+        `tests shorthand imports raw case files only. Use an include entry with type: suite to import eval suites: ${rawPath}`,
+      );
+    }
+    rawCases.push(...(await loadRawCasesForInclude(resolvedPath)));
+  }
+  return rawCases;
+}
+
+async function expandInlineTestEntries(params: {
+  readonly entries: readonly JsonValue[];
+  readonly evalFileDir: string;
+  readonly repoRoot: URL | string;
+  readonly suiteMetadataPayload?: Record<string, unknown>;
+  readonly options?: LoadOptions;
+}): Promise<ExpandedInlineTestEntries> {
+  const withFileReferences = await expandFileReferences(params.entries, params.evalFileDir);
+  const rawCases: JsonValue[] = [];
+  const importedSuiteTests: EvalTest[] = [];
+
+  for (const entry of withFileReferences) {
+    if (typeof entry === 'string' && entry.trim().length > 0) {
+      rawCases.push(...(await loadRawCasesFromShorthand(entry, params.evalFileDir)));
+      continue;
+    }
+
+    if (!isIncludeEntry(entry)) {
+      rawCases.push(entry);
+      continue;
+    }
+
+    const includePath = entry.include.trim();
+    const mode = normalizeIncludeEntryType(entry.type, includePath);
+    const select = readSelectPatterns(entry.select, `tests[].select for include '${includePath}'`);
+    const includeRun = normalizeRunOverride(entry.run, `tests[].run for include '${includePath}'`);
+    const resolvedPaths = await resolveIncludePaths(includePath, params.evalFileDir);
+
+    for (const resolvedPath of resolvedPaths) {
+      if (mode === 'suite') {
+        const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
+          ...params.options,
+          filter: select?.testIds,
+        });
+        const selectedTests = params.options?.filter
+          ? suite.tests.filter((test) => matchesFilter(test.id, params.options?.filter ?? ''))
+          : suite.tests;
+        importedSuiteTests.push(
+          ...selectedTests
+            .filter((test) => evalTestMatchesSelect(test, select))
+            .map(markSuiteImportedTest)
+            .map((test) => applyRunOverrideToTest(test, includeRun)),
+        );
+      } else {
+        const importedCases = await loadRawCasesForInclude(resolvedPath);
+        const filteredCases = select
+          ? importedCases.filter((testCase) =>
+              rawCaseMatchesSelect(testCase, select, params.suiteMetadataPayload),
+            )
+          : importedCases;
+        rawCases.push(
+          ...filteredCases.map((testCase) => applyRunOverrideToRawCase(testCase, includeRun)),
+        );
+      }
+    }
+  }
+
+  return { rawCases, importedSuiteTests };
+}
+
+function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
+  if (suite.experiment !== undefined && suite.execution !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: use either 'experiment' or legacy 'execution', not both.`,
+    );
+  }
+  const runtime = suite.experiment ?? suite.execution;
+  return isJsonObject(runtime) ? runtime : undefined;
+}
+
+function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | undefined {
+  const runtime = readSuiteRuntimeBlock(parsed as RawTestSuite, 'eval file');
+  if (!runtime) {
+    return undefined;
+  }
+  return normalizeExperimentConfig(runtime);
 }
 
 const SOURCE_SECRET_KEY_PATTERN =
@@ -1397,6 +1844,12 @@ function extractSuiteMetadataPayload(suite: RawTestSuite): Record<string, unknow
     ? ({ ...(suite.metadata as Record<string, unknown>) } as Record<string, unknown>)
     : {};
 
+  const suiteTags = readMetadataTags(suite.tags);
+  const metadataTags = readMetadataTags(payload.tags);
+  if (suiteTags.length > 0 || metadataTags.length > 0) {
+    payload.tags = dedupeMetadataArray([...suiteTags, ...metadataTags]);
+  }
+
   const top = (suite as JsonObject).governance;
   if (isJsonObject(top)) {
     payload.governance = top as Record<string, unknown>;
@@ -1408,6 +1861,29 @@ function extractSuiteMetadataPayload(suite: RawTestSuite): Record<string, unknow
   }
 
   return Object.keys(payload).length > 0 ? payload : undefined;
+}
+
+function readMetadataTags(value: unknown): readonly string[] {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return [value.trim()];
+  }
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  }
+  return [];
+}
+
+function dedupeMetadataArray(values: readonly unknown[]): readonly unknown[] {
+  const seen = new Set<string>();
+  const out: unknown[] = [];
+  for (const value of values) {
+    const key = typeof value === 'string' ? value : JSON.stringify(value);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(value);
+    }
+  }
+  return out;
 }
 
 /**
@@ -1425,16 +1901,7 @@ function mergeSuiteMetadataPayload(
   for (const [key, suiteVal] of Object.entries(suitePayload)) {
     const caseVal = result[key];
     if (Array.isArray(suiteVal) && Array.isArray(caseVal)) {
-      const seen = new Set<string>();
-      const out: unknown[] = [];
-      for (const v of [...suiteVal, ...caseVal]) {
-        const k = typeof v === 'string' ? v : JSON.stringify(v);
-        if (!seen.has(k)) {
-          seen.add(k);
-          out.push(v);
-        }
-      }
-      result[key] = out;
+      result[key] = dedupeMetadataArray([...suiteVal, ...caseVal]);
     } else if (isJsonObject(suiteVal) && isJsonObject(caseVal)) {
       result[key] = mergeSuiteMetadataPayload(
         caseVal as Record<string, unknown>,

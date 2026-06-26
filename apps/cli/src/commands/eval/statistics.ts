@@ -84,7 +84,7 @@ function buildHistogram(values: readonly number[]): readonly HistogramBin[] {
 
 export function calculateEvaluationSummary(
   results: readonly EvaluationResult[],
-  options?: { threshold?: number },
+  options?: { threshold?: number; thresholdLabel?: string; useExecutionStatus?: boolean },
 ): EvaluationSummary {
   const total = results.length;
 
@@ -139,11 +139,11 @@ export function calculateEvaluationSummary(
   const executionErrorCount = executionErrors.length;
   const scoreThreshold = options?.threshold;
   const passedCount =
-    scoreThreshold !== undefined
+    scoreThreshold !== undefined && options?.useExecutionStatus !== true
       ? qualityResults.filter((r) => r.score >= scoreThreshold).length
       : results.filter((r) => r.executionStatus === 'ok').length;
   const qualityFailureCount =
-    scoreThreshold !== undefined
+    scoreThreshold !== undefined && options?.useExecutionStatus !== true
       ? qualityResults.filter((r) => r.score < scoreThreshold).length
       : results.filter((r) => r.executionStatus === 'quality_failure').length;
 
@@ -186,7 +186,7 @@ function formatScore(value: number): string {
 
 export function formatEvaluationSummary(
   summary: EvaluationSummary,
-  options?: { threshold?: number },
+  options?: { threshold?: number; thresholdLabel?: string; useExecutionStatus?: boolean },
 ): string {
   if (summary.total === 0) {
     return '\nNo results to summarize';
@@ -209,6 +209,7 @@ export function formatEvaluationSummary(
   // Overall verdict: all non-error cases must score >= per-test threshold.
   const gradedCount = summary.total - summary.executionErrorCount;
   const threshold = options?.threshold ?? 0.8;
+  const thresholdText = options?.thresholdLabel ?? `${Math.round(threshold * 100)}%`;
   const allExecutionErrors = summary.total > 0 && summary.executionErrorCount === summary.total;
   const overallPassed =
     !allExecutionErrors &&
@@ -226,7 +227,7 @@ export function formatEvaluationSummary(
   } else {
     overallVerdict = overallPassed ? 'PASS' : 'FAIL';
     verdictColor = overallPassed ? '\x1b[32m' : '\x1b[31m';
-    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} scored >= ${Math.round(threshold * 100)}%, mean: ${formatScore(summary.mean)})`;
+    verdictText = `RESULT: ${overallVerdict}  (${summary.passedCount}/${summary.total} scored >= ${thresholdText}, mean: ${formatScore(summary.mean)})`;
   }
 
   lines.push('\n==================================================');

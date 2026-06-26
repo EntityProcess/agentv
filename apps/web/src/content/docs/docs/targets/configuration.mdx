@@ -91,6 +91,9 @@ targets:
 ### Workspace Lifecycle Hooks
 
 Run commands and reset/cleanup policies at different lifecycle points using `workspace.hooks`. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
+Use workspace hooks for repo preparation such as dependency installs, builds,
+fixture generation, and per-case resets. Use target hooks for runner-specific
+setup.
 
 ```yaml
 workspace:
@@ -239,12 +242,12 @@ Use `cwd` on a target to run in an existing directory (shared across tests). If 
 
 Eval files can define per-target hooks that run setup/teardown scripts to customize the workspace for each target variant. This enables comparing different harness configurations (e.g., baseline vs with-plugins) in a single eval file.
 
-Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config.
+Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config. Keep installs, builds, fixture generation, and case resets in `workspace.hooks`.
 
-Target hooks are defined in the eval file's `execution.targets` array using object form:
+Target hooks are defined in the eval file's `experiment.targets` array using object form:
 
 ```yaml
-execution:
+experiment:
   targets:
     - baseline                          # string shorthand (no hooks)
     - name: with-skills                 # object form with hooks

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 interface ResolvedTargetLike {
@@ -25,6 +25,7 @@ interface RunEvaluationOptionsLike {
     readonly costLimitUsd?: number;
     readonly earlyExit?: boolean;
   };
+  readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly runBudgetTracker?: {
     readonly budgetCapUsd?: number;
@@ -181,6 +182,7 @@ async function maybeWriteDiagnostics(
     budgetUsd: options.budgetUsd ?? null,
     maxConcurrency: options.maxConcurrency ?? null,
     trials: options.trials ?? null,
+    threshold: options.threshold ?? null,
     hasRunBudgetTracker: options.runBudgetTracker !== undefined,
     runBudgetCapUsd: options.runBudgetTracker?.budgetCapUsd ?? null,
     replayRecording: options.replayRecording ?? null,
@@ -199,7 +201,17 @@ async function maybeWriteDiagnostics(
     resultCount: results.length,
   } satisfies Record<string, unknown>;
 
-  await writeFile(diagnosticsPath, JSON.stringify(payload, null, 2), 'utf8');
+  const priorCalls = await readFile(diagnosticsPath, 'utf8')
+    .then((raw) => {
+      const parsed = JSON.parse(raw) as { readonly calls?: unknown };
+      return Array.isArray(parsed.calls) ? parsed.calls : [parsed];
+    })
+    .catch(() => []);
+  await writeFile(
+    diagnosticsPath,
+    JSON.stringify({ ...payload, calls: [...priorCalls, payload] }, null, 2),
+    'utf8',
+  );
 }
 
 async function maybeWritePromptDump(

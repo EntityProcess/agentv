@@ -13,9 +13,7 @@ import {
   extractThreshold,
   loadConfig,
   parseExecutionDefaults,
-  parseExperimentsConfig,
   parseResultsConfig,
-  resolveDefaultExperimentReference,
   resolveResultsConfigForProject,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
@@ -241,30 +239,30 @@ describe('loadConfig', () => {
     }
   });
 
-  it('loads configured default experiment references', async () => {
+  it('ignores removed configured experiment defaults', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-default-experiment-'));
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const projectDir = path.join(tempDir, 'project');
       const evalDir = path.join(projectDir, 'evals');
       const localConfigDir = path.join(projectDir, '.agentv');
       mkdirSync(evalDir, { recursive: true });
       mkdirSync(localConfigDir, { recursive: true });
-      writeFileSync(
-        path.join(localConfigDir, 'config.yaml'),
-        'experiments:\n  default: experiments/default.yaml\n',
-      );
+      writeFileSync(path.join(localConfigDir, 'config.yaml'), 'experiments:\n  default: smoke\n');
 
       const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
 
-      expect(config?.experiments?.default).toBe('experiments/default.yaml');
-      expect(resolveDefaultExperimentReference(config)).toBe('experiments/default.yaml');
+      expect(config).not.toHaveProperty('experiments');
+      expect(warnSpy.mock.calls.some((call) => String(call[0]).includes('experiments'))).toBe(true);
     } finally {
+      warnSpy.mockRestore();
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it('supports top-level default_experiment as a compatibility shorthand', async () => {
+  it('ignores removed top-level default_experiment shorthand', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-default-experiment-alias-'));
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const projectDir = path.join(tempDir, 'project');
       const evalDir = path.join(projectDir, 'evals');
@@ -275,19 +273,14 @@ describe('loadConfig', () => {
 
       const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
 
-      expect(config?.default_experiment).toBe('smoke');
-      expect(resolveDefaultExperimentReference(config)).toBe('smoke');
+      expect(config).not.toHaveProperty('default_experiment');
+      expect(
+        warnSpy.mock.calls.some((call) => String(call[0]).includes('default_experiment')),
+      ).toBe(true);
     } finally {
+      warnSpy.mockRestore();
       rmSync(tempDir, { recursive: true, force: true });
     }
-  });
-});
-
-describe('parseExperimentsConfig', () => {
-  it('parses experiments.default', () => {
-    expect(parseExperimentsConfig({ default: 'experiments/default.yaml' }, 'config.yaml')).toEqual({
-      default: 'experiments/default.yaml',
-    });
   });
 });
 

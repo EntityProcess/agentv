@@ -49,4 +49,82 @@ describe('EvalFileSchema input shorthand', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts inline experiment runtime and include selection entries', () => {
+    const result = EvalFileSchema.safeParse({
+      name: 'wrapper',
+      experiment: {
+        targets: ['codex', 'claude'],
+        workers: 2,
+        threshold: 0.8,
+        repeat: { count: 2, strategy: 'mean' },
+      },
+      tests: [
+        {
+          include: './evals/**/*.eval.yaml',
+          type: 'suite',
+          select: {
+            test_ids: ['pr50857-*'],
+            tags: ['sql-migration'],
+            metadata: {
+              type: ['e2e', 'regression'],
+              priority: 'high',
+            },
+          },
+          run: {
+            threshold: 1,
+            repeat: { count: 2, strategy: 'pass_all' },
+            timeout_seconds: 120,
+            budget_usd: 2,
+          },
+        },
+        {
+          include: './cases/**/*.cases.yaml',
+          type: 'tests',
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects eval files that set both experiment and legacy execution', () => {
+    const result = EvalFileSchema.safeParse({
+      experiment: { target: 'codex' },
+      execution: { target: 'claude' },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects experiment lifecycle commands', () => {
+    const result = EvalFileSchema.safeParse({
+      experiment: {
+        setup: [{ script: 'bun install' }],
+        scripts: ['bun test'],
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects scoped run overrides that change the target or setup', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          id: 'case-1',
+          input: 'Question',
+          criteria: 'Goal',
+          run: {
+            target: 'other-agent',
+            setup: [{ script: 'bun install' }],
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

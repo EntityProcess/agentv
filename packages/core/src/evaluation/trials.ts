@@ -1,6 +1,7 @@
 import type {
   ConfidenceIntervalAggregation,
   MeanAggregation,
+  PassAllAggregation,
   PassAtKAggregation,
   TrialAggregation,
   TrialResult,
@@ -17,6 +18,8 @@ export function aggregateTrials(
   switch (config.strategy) {
     case 'pass_at_k':
       return aggregatePassAtK(trials);
+    case 'pass_all':
+      return aggregatePassAll(trials);
     case 'mean':
       return aggregateMean(trials);
     case 'confidence_interval':
@@ -39,6 +42,26 @@ function aggregatePassAtK(trials: readonly TrialResult[]): {
 
   return {
     score: bestTrial.score,
+    aggregation,
+  };
+}
+
+function aggregatePassAll(trials: readonly TrialResult[]): {
+  score: number;
+  aggregation: PassAllAggregation;
+} {
+  const passedAttempts = trials.filter((t) => t.verdict === 'pass').length;
+  const min = Math.min(...trials.map((trial) => trial.score));
+
+  const aggregation: PassAllAggregation = {
+    strategy: 'pass_all',
+    passedAttempts,
+    totalAttempts: trials.length,
+    min,
+  };
+
+  return {
+    score: min,
     aggregation,
   };
 }
