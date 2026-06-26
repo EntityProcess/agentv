@@ -1300,8 +1300,10 @@ function buildArtifactSubdir(
 ): string {
   const segments = [];
   const evalSet = getSuite(result);
-  const isImportedSuiteTest = sourceTest?.source?.importedSuiteName !== undefined;
-  if (evalSet && (isImportedSuiteTest || evalSet !== resultGroup)) {
+  const importedSuiteName = sourceTest?.source?.importedSuiteName;
+  if (importedSuiteName !== undefined) {
+    segments.push(safeArtifactPathSegment(importedSuiteName, 'default'));
+  } else if (evalSet && evalSet !== resultGroup) {
     segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
   segments.push(safeTestId(result.testId));

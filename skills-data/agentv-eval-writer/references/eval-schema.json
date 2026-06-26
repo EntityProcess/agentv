@@ -16106,68 +16106,7 @@
               "additionalProperties": {}
             },
             "scripts": {
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "command": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "script": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "timeout_seconds": {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0
-                      },
-                      "cwd": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "env": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                ]
-              }
+              "not": {}
             },
             "repeat": {
               "type": "object",
@@ -16214,68 +16153,7 @@
               "additionalProperties": {}
             },
             "setup": {
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "command": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "script": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "timeout_seconds": {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0
-                      },
-                      "cwd": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "env": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                ]
-              }
+              "not": {}
             }
           },
           "additionalProperties": false
@@ -18660,68 +18538,7 @@
               "additionalProperties": {}
             },
             "scripts": {
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "command": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "script": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "timeout_seconds": {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0
-                      },
-                      "cwd": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "env": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                ]
-              }
+              "not": {}
             },
             "repeat": {
               "type": "object",
@@ -18768,68 +18585,7 @@
               "additionalProperties": {}
             },
             "setup": {
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "command": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "script": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1
-                          }
-                        ]
-                      },
-                      "timeout_seconds": {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0
-                      },
-                      "cwd": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "env": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                ]
-              }
+              "not": {}
             }
           },
           "additionalProperties": false

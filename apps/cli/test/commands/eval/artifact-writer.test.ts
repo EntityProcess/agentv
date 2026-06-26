@@ -1787,6 +1787,36 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
   });
 
+  it('uses the imported suite name for wrapper suite artifact paths', async () => {
+    const sourceTests = [
+      {
+        id: 'shared-id',
+        suite: 'wrapper-suite',
+        source: {
+          evalFilePath: 'evals/imported.eval.yaml',
+          evalFileAbsolutePath: path.join(testDir, 'evals/imported.eval.yaml'),
+          importedSuiteName: 'imported-suite',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id',
+          graderDefinitions: [],
+          references: [],
+        },
+      } as EvalTest,
+    ];
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ suite: 'wrapper-suite', testId: 'shared-id', target: 'baseline' })],
+      testDir,
+      { resultGroup: 'wrapper-suite', sourceTests },
+    );
+
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+    expect(indexLine.artifact_dir).toBe('imported-suite/shared-id');
+    expect(indexLine.grading_path).toBe('imported-suite/shared-id/run-1/grading.json');
+  });
+
   it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {
     const sourceRoot = path.join(testDir, 'src');
     await mkdir(sourceRoot, { recursive: true });
