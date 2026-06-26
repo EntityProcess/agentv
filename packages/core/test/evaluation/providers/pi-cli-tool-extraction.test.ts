@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { _internal } from '../../../src/evaluation/providers/pi-cli.js';
+import { buildTraceEnvelopeFromEvaluationResult } from '../../../src/evaluation/trace-envelope.js';
+import { buildTraceFromMessages } from '../../../src/evaluation/trace.js';
+import type { EvaluationResult } from '../../../src/evaluation/types.js';
+import { traceEnvelopeToNormalizedTranscriptJsonLines } from '../../../src/import/types.js';
 
 const { extractMessages, extractToolCallsFromEvents } = _internal;
 
@@ -14,12 +18,14 @@ describe('pi-cli tool call extraction from events', () => {
         toolName: 'read',
         toolCallId: 'tc-1',
         args: { path: '.agents/skills/csv-analyzer/SKILL.md' },
+        timestamp: '2026-06-26T09:00:00.000Z',
       },
       {
         type: 'tool_execution_end',
         toolName: 'read',
         toolCallId: 'tc-1',
         result: 'skill content here',
+        timestamp: '2026-06-26T09:00:00.025Z',
       },
       { type: 'message_end' },
       {
@@ -42,6 +48,8 @@ describe('pi-cli tool call extraction from events', () => {
       file_path: '.agents/skills/csv-analyzer/SKILL.md',
     });
     expect(toolCalls[0].output).toBe('skill content here');
+    expect(toolCalls[0].status).toBe('ok');
+    expect(toolCalls[0].durationMs).toBe(25);
   });
 
   it('should inject event tool calls into messages when content has no tool calls', () => {
@@ -76,7 +84,7 @@ describe('pi-cli tool call extraction from events', () => {
     });
   });
 
-  it('should not duplicate tool calls already present in messages', () => {
+  it('should join event tool results into existing message tool calls without duplicating', () => {
     const events = [
       {
         type: 'tool_execution_start',
@@ -112,6 +120,102 @@ describe('pi-cli tool call extraction from events', () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].toolCalls).toHaveLength(1);
+    expect(messages[0].toolCalls?.[0]).toMatchObject({
+      tool: 'Read',
+      id: 'tc-1',
+      input: {
+        path: '.agents/skills/csv-analyzer/SKILL.md',
+        file_path: '.agents/skills/csv-analyzer/SKILL.md',
+      },
+      output: 'content',
+      status: 'ok',
+    });
+  });
+
+  it('emits normalized transcript tool_use.result for Pi event result payloads', () => {
+    const events = [
+      {
+        type: 'tool_execution_start',
+        toolName: 'bash',
+        toolCallId: 'tc-bash',
+        args: { command: 'cat package.json' },
+        timestamp: '2026-06-26T09:00:00.000Z',
+      },
+      {
+        type: 'tool_execution_end',
+        toolName: 'bash',
+        toolCallId: 'tc-bash',
+        result: { stdout: '{"scripts":{"test":"bun test"}}' },
+        timestamp: '2026-06-26T09:00:00.040Z',
+      },
+      {
+        type: 'agent_end',
+        messages: [
+          {
+            role: 'assistant',
+            content: [
+              { type: 'text', text: 'Checking scripts.' },
+              {
+                type: 'tool_use',
+                name: 'bash',
+                id: 'tc-bash',
+                input: { command: 'cat package.json' },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const output = extractMessages(events);
+    const trace = buildTraceFromMessages({
+      input: [{ role: 'user', content: 'Check the package script.' }],
+      output,
+      finalOutput: 'Checking scripts.',
+      target: 'pi-cli',
+      testId: 'pi-tool-result-normalized',
+      startTime: '2026-06-26T09:00:00.000Z',
+      endTime: '2026-06-26T09:00:00.040Z',
+    });
+    const result: EvaluationResult = {
+      timestamp: '2026-06-26T09:00:00.000Z',
+      testId: 'pi-tool-result-normalized',
+      suite: 'pi-cli',
+      score: 1,
+      assertions: [{ text: 'ok', passed: true }],
+      target: 'pi-cli',
+      durationMs: 40,
+      startTime: '2026-06-26T09:00:00.000Z',
+      endTime: '2026-06-26T09:00:00.040Z',
+      input: [{ role: 'user', content: 'Check the package script.' }],
+      output: 'Checking scripts.',
+      executionStatus: 'ok',
+      trace,
+    };
+    const envelope = buildTraceEnvelopeFromEvaluationResult(result, {
+      source: {
+        kind: 'pi_session',
+        provider: 'pi',
+        format: 'jsonl',
+      },
+      capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
+    });
+
+    const rows = traceEnvelopeToNormalizedTranscriptJsonLines(envelope);
+    const assistant = rows.find((row) => row.type === 'assistant');
+    const toolUse = assistant?.content.find((block) => block.type === 'tool_use');
+
+    expect(toolUse).toMatchObject({
+      type: 'tool_use',
+      id: 'tc-bash',
+      name: 'Bash',
+      input: { command: 'cat package.json' },
+      result: {
+        status: 'success',
+        output: { stdout: '{"scripts":{"test":"bun test"}}' },
+        duration_ms: 40,
+      },
+    });
   });
 
   it('should handle multiple tool execution events', () => {
