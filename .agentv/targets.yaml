@@ -43,10 +43,9 @@ targets:
   - name: copilot-sdk-azure
     provider: copilot-sdk
     model: ${{ AZURE_DEPLOYMENT_NAME }}
-    byok:
-      type: azure
-      base_url: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
+    subprovider: azure
+    base_url: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
     grader_target: grader
     stream_log: raw
 
