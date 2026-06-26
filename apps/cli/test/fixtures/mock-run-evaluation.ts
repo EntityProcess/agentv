@@ -19,6 +19,8 @@ interface RunEvaluationOptionsLike {
   readonly evalCases?: ReadonlyArray<unknown>;
   readonly verbose?: boolean;
   readonly maxConcurrency?: number;
+  readonly workspaceMode?: string;
+  readonly workspacePath?: string;
   readonly trials?: {
     readonly count: number;
     readonly strategy: string;
@@ -181,6 +183,8 @@ async function maybeWriteDiagnostics(
     envLocalOnly: process.env.CLI_ENV_LOCAL_ONLY ?? null,
     budgetUsd: options.budgetUsd ?? null,
     maxConcurrency: options.maxConcurrency ?? null,
+    workspaceMode: options.workspaceMode ?? null,
+    workspacePath: options.workspacePath ?? null,
     trials: options.trials ?? null,
     threshold: options.threshold ?? null,
     hasRunBudgetTracker: options.runBudgetTracker !== undefined,
