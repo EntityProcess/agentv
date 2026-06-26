@@ -55,6 +55,7 @@ export interface ResultManifestRecord {
   readonly answer_path?: string;
   readonly trace_path?: string;
   readonly transcript_path?: string;
+  readonly transcript_raw_path?: string;
   readonly metrics_path?: string;
   readonly raw_provider_log_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
@@ -86,6 +87,7 @@ export type ArtifactPointer =
 
 export interface ArtifactPointerMap {
   readonly transcript_path?: string;
+  readonly transcript_raw_path?: string;
   readonly answer_path?: string;
   readonly transcript?: ArtifactPointer;
   readonly answer?: ArtifactPointer;

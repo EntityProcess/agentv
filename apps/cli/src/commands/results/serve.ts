@@ -858,6 +858,7 @@ function buildResultArtifactCatalog(
   addDirectArtifactCatalogEntry(entries, seen, record.response_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.answer_path, 'answer');
   addDirectArtifactCatalogEntry(entries, seen, record.transcript_path, 'transcript');
+  addDirectArtifactCatalogEntry(entries, seen, record.transcript_raw_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, recordWithTrace.trace_path, 'trace');
   addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
@@ -1153,7 +1154,8 @@ function buildRepeatTrialReadModels(
     const metricsPath = caseTrialArtifactPath(artifactDir, runPath, 'metrics.json');
     const timingPath = caseTrialArtifactPath(artifactDir, runPath, 'timing.json');
     const gradingPath = caseTrialArtifactPath(artifactDir, runPath, 'grading.json');
-    const transcriptPath = caseTrialArtifactPath(artifactDir, runPath, 'transcript-raw.jsonl');
+    const transcriptPath = caseTrialArtifactPath(artifactDir, runPath, 'transcript.jsonl');
+    const transcriptRawPath = caseTrialArtifactPath(artifactDir, runPath, 'transcript-raw.jsonl');
     const answerPath = caseTrialArtifactPath(artifactDir, runPath, 'outputs/answer.md');
     const metrics = readArtifactJsonObject(baseDir, metricsPath);
     const timing = readArtifactJsonObject(baseDir, timingPath);
@@ -1180,6 +1182,7 @@ function buildRepeatTrialReadModels(
       ...(timingPath && { timing_path: timingPath }),
       ...(gradingPath && { grading_path: gradingPath }),
       ...(transcriptPath && { transcript_path: transcriptPath }),
+      ...(transcriptRawPath && { transcript_raw_path: transcriptRawPath }),
       ...(answerPath && { answer_path: answerPath }),
     };
   });
@@ -1203,6 +1206,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
       ...(record.timing_path && { timing_path: record.timing_path }),
       ...(record.metrics_path && { metrics_path: record.metrics_path }),
       ...(record.transcript_path && { transcript_path: record.transcript_path }),
+      ...(record.transcript_raw_path && { transcript_raw_path: record.transcript_raw_path }),
       ...(record.output_path && { output_path: record.output_path }),
       ...(record.answer_path && { answer_path: record.answer_path }),
       ...(trials && { trials }),

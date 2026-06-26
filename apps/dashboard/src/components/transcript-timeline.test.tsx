@@ -17,13 +17,9 @@ describe('TranscriptTimeline', () => {
     const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
 
     expect(parsed.error).toBeUndefined();
-    expect(parsed.entries.map((entry) => entry.role)).toEqual([
-      'user',
-      'assistant',
-      'tool',
-      'assistant',
-    ]);
+    expect(parsed.entries.map((entry) => entry.role)).toEqual(['user', 'assistant', 'assistant']);
     expect(parsed.entries[1].tool_calls?.[0]?.tool).toBe('read_file');
+    expect(parsed.entries[1].tool_calls?.[0]?.status).toBe('success');
   });
 
   it('rejects malformed optional tool_calls fields before rendering', () => {
@@ -68,10 +64,10 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('Transcript timeline');
     expect(html).toContain('User');
     expect(html).toContain('Assistant');
-    expect(html).toContain('Tool result');
     expect(html).toContain('read_file');
     expect(html).toContain('Arguments');
     expect(html).toContain('Result');
+    expect(html).toContain('success');
     expect(html).toContain('Open raw JSONL');
     expect(html).toContain('Download JSONL');
     expect(html).toContain('{&quot;answer&quot;:42,&quot;source&quot;:&quot;src/app.ts&quot;}');

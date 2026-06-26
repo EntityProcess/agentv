@@ -756,7 +756,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       '{"event":"provider-native"}\n',
     );
     expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
-    expect(readdirSync(runDir)).toContain('transcript.json');
+    expect(readdirSync(runDir)).toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.json');
 
@@ -766,7 +766,10 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       .map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
     expect(indexRows[0]?.trace_path).toBeUndefined();
-    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/run-1/transcript-raw.jsonl');
+    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/run-1/transcript.jsonl');
+    expect(indexRows[0]?.transcript_raw_path).toBe(
+      'test-dataset/case-1/run-1/transcript-raw.jsonl',
+    );
   });
 
   it('reports failed progress status for batch item errors', async () => {
