@@ -516,10 +516,10 @@ function resolveRecordArtifactPointer(
 ): ResolvedArtifactPointer {
   const pointer =
     kind === 'transcript'
-      ? (record.transcript ?? record.artifacts?.transcript ?? record.artifact_pointers?.transcript)
+      ? record.artifact_pointers?.transcript
       : kind === 'trace'
-        ? (record.artifact_pointers?.trace ?? record.artifacts?.trace)
-        : record.artifacts?.answer;
+        ? record.artifact_pointers?.trace
+        : undefined;
   const pointerPath = artifactPointerPath(pointer);
   const description = artifactPointerDescription(pointer);
   const ref = artifactPointerRef(pointer);
@@ -539,13 +539,12 @@ function resolveRecordArtifactPointer(
     };
   }
 
-  const recordWithTrace = record as ResultManifestRecord & { readonly trace_path?: string };
   const directPath =
     kind === 'transcript'
-      ? (record.transcript_path ?? record.artifacts?.transcript_path)
+      ? record.transcript_path
       : kind === 'trace'
-        ? (recordWithTrace.trace_path ?? nonEmptyString(record.artifacts?.trace_path))
-        : (record.answer_path ?? record.artifacts?.answer_path ?? record.output_path);
+        ? record.trace_path
+        : (record.answer_path ?? record.output_path);
   if (directPath) {
     return { path: directPath, description: directPath };
   }
@@ -844,7 +843,6 @@ function buildResultArtifactCatalog(
   const transcript = resolveRecordArtifactPointer(record, 'transcript');
   const trace = resolveRecordArtifactPointer(record, 'trace');
   const answer = resolveRecordArtifactPointer(record, 'answer');
-  const recordWithTrace = record as ResultManifestRecord & { readonly trace_path?: string };
 
   addPointerArtifactCatalogEntry(entries, seen, transcript, 'transcript', options?.runPath);
   addPointerArtifactCatalogEntry(entries, seen, trace, 'trace', options?.runPath);
@@ -859,7 +857,7 @@ function buildResultArtifactCatalog(
   addDirectArtifactCatalogEntry(entries, seen, record.answer_path, 'answer');
   addDirectArtifactCatalogEntry(entries, seen, record.transcript_path, 'transcript');
   addDirectArtifactCatalogEntry(entries, seen, record.transcript_raw_path, 'artifact');
-  addDirectArtifactCatalogEntry(entries, seen, recordWithTrace.trace_path, 'trace');
+  addDirectArtifactCatalogEntry(entries, seen, record.trace_path, 'trace');
   addDirectArtifactCatalogEntry(entries, seen, record.eval_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.targets_path, 'artifact');
   addTrialRunCatalogEntries(entries, seen, record);
