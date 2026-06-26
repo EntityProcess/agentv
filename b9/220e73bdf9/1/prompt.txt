@@ -1,1 +1,23 @@
-push
+please remove the accidental root artifacts root.txt and nested and push directly to main
+
+---
+
+once done clean up and checkout latest main
+
+---
+
+also this is a message from another agent, please confirm agentv eval still works. try with both  code grader and live llm grader, maybe run some existing examples in this repo.
+
+  I also verified the bun run path docs update is present in the final state (path: bun run ../scripts/or-aggregator.js) and the strict-OR example script is documented in the composite README.
+
+  I also ran the requested dry-run command:
+  bun agentv eval run examples/features/composite/evals/dataset.eval.yaml --test-id strict-or-local --dry-run
+  It fails before execution on an existing local CLI import error (Export named 'mergeConfigObjects' not found ...), so that isn’t related to this docs change.
+
+---
+
+can you removeo byok since it's no longer supported
+
+---
+
+what did byok get replaced with
