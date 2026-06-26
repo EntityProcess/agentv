@@ -946,6 +946,8 @@ export interface EvalTestSource {
   readonly evalFilePath: string;
   readonly evalFileAbsolutePath: string;
   readonly evalFileRepoPath?: string;
+  /** Set when this test came from a `tests[].include` entry with `type: suite`. */
+  readonly importedSuiteName?: string;
   readonly testId: string;
   readonly testSnapshotYaml: string;
   readonly graderDefinitions: readonly EvalGraderSource[];
@@ -1013,6 +1015,8 @@ export interface EvalTest {
   readonly targets?: readonly string[];
   /** Per-test score threshold override (0-1). Resolution: CLI > test > suite > DEFAULT_THRESHOLD. */
   readonly threshold?: number;
+  /** Scoped runtime interpretation/scheduling overrides. */
+  readonly run?: EvalRunOverride;
   /** Conversation evaluation mode. When 'conversation', turns[] drives turn-by-turn LLM evaluation. */
   readonly mode?: ConversationMode;
   /** Ordered turns for conversation evaluation. Each turn generates a fresh LLM call. */
@@ -1056,7 +1060,7 @@ export type EvalCase = EvalTest;
 /**
  * Supported trial aggregation strategies.
  */
-export type TrialStrategy = 'pass_at_k' | 'mean' | 'confidence_interval';
+export type TrialStrategy = 'pass_at_k' | 'pass_all' | 'mean' | 'confidence_interval';
 
 /**
  * Configuration for running multiple trials per eval case.
@@ -1102,6 +1106,16 @@ export interface PassAtKAggregation {
 }
 
 /**
+ * Aggregation metadata for pass_all strategy.
+ */
+export interface PassAllAggregation {
+  readonly strategy: 'pass_all';
+  readonly passedAttempts: number;
+  readonly totalAttempts: number;
+  readonly min: number;
+}
+
+/**
  * Aggregation metadata for mean strategy.
  */
 export interface MeanAggregation {
@@ -1125,7 +1139,18 @@ export interface ConfidenceIntervalAggregation {
 /**
  * Discriminated union of trial aggregation results.
  */
-export type TrialAggregation = PassAtKAggregation | MeanAggregation | ConfidenceIntervalAggregation;
+export type TrialAggregation =
+  | PassAtKAggregation
+  | PassAllAggregation
+  | MeanAggregation
+  | ConfidenceIntervalAggregation;
+
+export interface EvalRunOverride {
+  readonly threshold?: number;
+  readonly repeat?: TrialsConfig;
+  readonly timeoutSeconds?: number;
+  readonly budgetUsd?: number;
+}
 
 /**
  * Primary classification of evaluation outcome.

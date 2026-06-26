@@ -519,11 +519,9 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs a native experiment file with suite test selection and run knobs', async () => {
+  it('runs inline experiment config with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {
-      const experimentsDir = path.join(fixture.suiteDir, 'experiments');
-      await mkdir(experimentsDir, { recursive: true });
       await writeFile(
         path.join(fixture.suiteDir, '.agentv', 'config.yaml'),
         'eval_patterns:\n  - sample.test.yaml\n  - unused.test.yaml\n',
@@ -543,38 +541,44 @@ describe('agentv eval CLI', () => {
         ].join('\n'),
         'utf8',
       );
-      const experimentPath = path.join(experimentsDir, 'default.yaml');
+      const wrapperPath = path.join(fixture.suiteDir, 'native-exp.eval.yaml');
       await writeFile(
-        experimentPath,
+        wrapperPath,
         [
           'name: native-exp',
-          'target: cli-target',
-          'suites:',
-          '  - ref: sample.test.yaml',
-          '    select:',
-          '      test_ids:',
-          '        - case-alpha',
-          'timeout_seconds: 12',
-          'workers: 4',
-          'repeat:',
-          '  count: 2',
-          '  strategy: mean',
-          '  cost_limit_usd: 1.25',
-          'early_exit: false',
-          'setup:',
-          '  - script: "printf setup > ../experiment-setup.txt"',
-          'scripts:',
-          '  - script: "printf script > ../experiment-script.txt"',
+          'experiment:',
+          '  name: native-exp',
+          '  target: cli-target',
+          '  timeout_seconds: 12',
+          '  workers: 4',
+          '  threshold: 0.8',
+          '  budget_usd: 3',
+          '  repeat:',
+          '    count: 2',
+          '    strategy: mean',
+          '    cost_limit_usd: 1.25',
+          '  early_exit: false',
+          '  setup:',
+          '    - script: "printf setup > experiment-setup.txt"',
+          '  scripts:',
+          '    - script: "printf script > experiment-script.txt"',
+          'tests:',
+          '  - include: sample.test.yaml',
+          '    type: suite',
+          '    select: case-alpha',
+          '    run:',
+          '      threshold: 1.0',
+          '      timeout_seconds: 5',
+          '      budget_usd: 0.75',
+          '      repeat:',
+          '        count: 3',
+          '        strategy: pass_all',
           '',
         ].join('\n'),
         'utf8',
       );
 
-      const { stdout, exitCode } = await runCli(fixture, [
-        'eval',
-        '--experiment',
-        'experiments/default.yaml',
-      ]);
+      const { stdout, exitCode } = await runCli(fixture, ['eval', wrapperPath]);
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
@@ -583,14 +587,14 @@ describe('agentv eval CLI', () => {
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
         target: 'cli-target',
-        agentTimeoutMs: 12000,
+        agentTimeoutMs: 5000,
         maxConcurrency: 4,
         evalCaseIds: ['case-alpha'],
+        budgetUsd: 0.75,
+        threshold: 1,
         trials: {
-          count: 2,
-          strategy: 'mean',
-          costLimitUsd: 1.25,
-          earlyExit: false,
+          count: 3,
+          strategy: 'pass_all',
         },
       });
 
@@ -603,16 +607,7 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
         name: 'native-exp',
-        source_path: experimentPath,
         target: 'cli-target',
-        suites: [
-          {
-            ref: 'sample.test.yaml',
-            select: {
-              test_ids: ['case-alpha'],
-            },
-          },
-        ],
         repeat: {
           count: 2,
           strategy: 'mean',

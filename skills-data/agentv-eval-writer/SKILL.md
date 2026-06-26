@@ -18,12 +18,15 @@ Comprehensive docs: https://agentv.dev
 
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
-Eval files define what is tested: prompts, datasets, assertions, and task fixtures.
-Experiment files define how those evals run: targets, setup, scripts, timeout,
-sandbox, suite selection, and repeat-run policy. Use `experiments/*.yaml` for
-committed run configurations. In eval YAML, keep `tests[]` as the atomic eval
-definition. In experiment YAML, reference eval suites with `suites[]` and select
-suite-local tests with `select.test_ids[]`.
+Eval files define what is tested and how it runs: prompts, datasets, assertions,
+task fixtures, and the inline `experiment:` runtime block. Use `tests[]` include
+entries for composition. `type: suite` preserves imported suite context;
+`type: tests` imports raw cases only. String-valued `tests` and string entries
+inside `tests[]` are raw-case import shorthand for direct paths, directories, and
+globs; suite imports must use `include:` with `type: suite`. Use scoped `run:`
+on include entries or individual tests only for `threshold`, `repeat`,
+`timeout_seconds`, and `budget_usd`; keep target selection, setup, and workspace
+mutation under the parent `experiment:`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
@@ -100,7 +103,7 @@ tests:
 
 ```yaml
 description: Example eval
-execution:
+experiment:
   target: default
 
 tests:
@@ -117,8 +120,8 @@ tests:
 
 ## Eval File Structure
 
-**Required:** `tests` (array or string path)
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `execution`, `suite`, `workspace`, `assertions`, `input`
+**Required:** `tests` (array or string raw-case path)
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `experiment`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -766,7 +769,6 @@ Do not invent a separate Opik-specific eval surface. Keep the eval definition in
 ## Schemas
 
 - Eval file: `references/eval-schema.json`
-- Experiment file: `references/experiment-schema.json`
 - Config: `references/config-schema.json`
 
 ## Accessing reference files
@@ -775,14 +777,12 @@ To load a specific reference without pulling the entire skill into context:
 
 ```bash
 agentv skills get agentv-eval-writer --ref eval-schema.json
-agentv skills get agentv-eval-writer --ref experiment-schema.json
 ```
 
 Or resolve the skill directory and read files directly:
 
 ```bash
 cat $(agentv skills path agentv-eval-writer)/references/eval-schema.json
-cat $(agentv skills path agentv-eval-writer)/references/experiment-schema.json
 ```
 
 Use `--full` to retrieve every file in the skill at once.

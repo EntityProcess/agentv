@@ -176,18 +176,19 @@ tests:
 
   it('merges arbitrary suite metadata into each case and lets case scalars override', async () => {
     const { filePath, dir } = createTempYaml(`
+tags: [cargowise, database]
 metadata:
   source_repo: https://github.com/virattt/dexter
   source_commit: 8d9419829f443f84b804d033bb2c3b1fbd788629
   source_file: src/evals/dataset/finance_agent.csv
-  tags: [suite]
+  tags: [sql, database]
 tests:
   - id: case-1
     criteria: "Answer"
     input: "Query"
     metadata:
       source_file: override.csv
-      tags: [case]
+      tags: [review, sql]
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -195,7 +196,7 @@ tests:
       source_repo: 'https://github.com/virattt/dexter',
       source_commit: '8d9419829f443f84b804d033bb2c3b1fbd788629',
       source_file: 'override.csv',
-      tags: ['suite', 'case'],
+      tags: ['cargowise', 'database', 'sql', 'review'],
     });
   });
 

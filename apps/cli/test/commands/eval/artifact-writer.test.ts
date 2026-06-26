@@ -190,6 +190,23 @@ describe('buildGradingArtifact', () => {
       passed_attempts: 1,
       total_attempts: 2,
     });
+
+    const passAll = buildGradingArtifact(
+      makeResult({
+        aggregation: {
+          strategy: 'pass_all',
+          passedAttempts: 1,
+          totalAttempts: 2,
+          min: 0.4,
+        },
+      }),
+    );
+    expect(passAll.aggregation).toEqual({
+      strategy: 'pass_all',
+      passed_attempts: 1,
+      total_attempts: 2,
+      min: 0.4,
+    });
   });
 
   it('uses top-level assertions when no grader scores', () => {
@@ -1710,6 +1727,50 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults(
       [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
       testDir,
+    );
+
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
+  });
+
+  it('does not prefix artifact paths with suite when it matches the result group', async () => {
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      testDir,
+      { resultGroup: 'eval-top-months-chart' },
+    );
+
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+    expect(indexLine.suite).toBe('eval-top-months-chart');
+    expect(indexLine.grading_path).toBe('shared-id/run-1/grading.json');
+  });
+
+  it('prefixes imported suite artifacts even when the suite matches the result group', async () => {
+    const sourceTests = [
+      {
+        id: 'shared-id',
+        suite: 'eval-top-months-chart',
+        source: {
+          evalFilePath: 'evals/imported.eval.yaml',
+          evalFileAbsolutePath: path.join(testDir, 'evals/imported.eval.yaml'),
+          importedSuiteName: 'eval-top-months-chart',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id',
+          graderDefinitions: [],
+          references: [],
+        },
+      } as EvalTest,
+    ];
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      testDir,
+      { resultGroup: 'eval-top-months-chart', sourceTests },
     );
 
     const [indexLine] = (await readFile(paths.indexPath, 'utf8'))

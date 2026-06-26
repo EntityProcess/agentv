@@ -17,9 +17,7 @@ Demonstrates a complete **multi-model × multi-metric × variability** evaluatio
 multi-model-benchmark/
 ├── README.md                        # This file
 ├── evals/
-│   └── benchmark.eval.yaml          # Eval definition (task cases + metrics)
-├── experiments/
-│   └── default.yaml                 # Targets, repeat policy, and run knobs
+│   └── benchmark.eval.yaml          # Eval definition, targets, repeat policy, and metrics
 └── prompts/
     ├── accuracy-rubric.md           # Factual correctness grader (weight 3.0)
     ├── completeness-rubric.md       # Coverage grader (weight 2.0)
@@ -37,19 +35,18 @@ From the repository root:
 
 ```bash
 # Run the full matrix (all targets × all tests × 2 repeat attempts)
-bun agentv eval --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml
+bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
 ```
 
 ### Cost & Safety
 
-The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 repeat attempts × 3 grader calls each, expect roughly **90 LLM calls**. A `repeat.cost_limit_usd: 2.00` cap is set in the experiment file.
+The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 repeat attempts × 3 grader calls each, expect roughly **90 LLM calls**. A `experiment.repeat.cost_limit_usd: 2.00` cap is set in the eval file.
 
 To run against a single target first:
 
 ```bash
 # Test with just one model before running the full matrix
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-  --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml \
   --target copilot
 ```
 
@@ -59,16 +56,16 @@ The eval produces a canonical run workspace with `target` in each `index.jsonl` 
 
 ```bash
 # N-way matrix — see all models at once
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
+agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl
 
 # Designate a baseline for CI regression gating
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline copilot
+agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl --baseline copilot
 
 # Pairwise: compare two specific targets
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline copilot --candidate claude
+agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl --baseline copilot --candidate claude
 
 # JSON output for CI integration
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
+agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl --json
 ```
 
 ### Expected Output
@@ -96,13 +93,14 @@ Pairwise Summary:
 
 ### 1. Targets Matrix
 
-The experiment `targets` array runs every test against each listed model:
+The inline `experiment.targets` array runs every test against each listed model:
 
 ```yaml
-targets:
-  - copilot       # e.g., gpt-5-mini
-  - claude        # e.g., claude-haiku
-  - gemini-llm   # e.g., gemini-flash
+experiment:
+  targets:
+    - copilot       # e.g., gpt-5-mini
+    - claude        # e.g., claude-haiku
+    - gemini-llm   # e.g., gemini-flash
 ```
 
 ### 2. Weighted Graders
@@ -123,26 +121,19 @@ Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
 ### 3. Experiment repeat
 
-Each test runs twice through the committed experiment. `pass_at_k` uses early-exit
-ergonomics by default: a case can stop once any attempt succeeds.
+Each test runs twice through the inline experiment block. `pass_at_k` uses
+early-exit ergonomics by default: a case can stop once any attempt succeeds.
 
 ```yaml
-targets:
-  - copilot
-  - claude
-  - gemini-llm
-suites:
-  - ref: examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
-    select:
-      test_ids:
-        - factual-*
-        - analytical-comparison
-        - creative-explanation
-        - structured-list
-repeat:
-  count: 2
-  strategy: pass_at_k
-  cost_limit_usd: 2.00
+experiment:
+  targets:
+    - copilot
+    - claude
+    - gemini-llm
+  repeat:
+    count: 2
+    strategy: pass_at_k
+    cost_limit_usd: 2.00
 ```
 
 This surfaces non-determinism — if a model passes on run 1 but fails on run 2,

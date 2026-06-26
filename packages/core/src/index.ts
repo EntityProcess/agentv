@@ -23,10 +23,8 @@ export {
 } from './evaluation/loaders/agent-skills-parser.js';
 export {
   loadConfig,
-  resolveDefaultExperimentReference,
   resolveResultsConfigForProject,
   type AgentVConfig as AgentVYamlConfig,
-  type ExperimentsConfig,
   type ResultsConfig,
 } from './evaluation/loaders/config-loader.js';
 export {

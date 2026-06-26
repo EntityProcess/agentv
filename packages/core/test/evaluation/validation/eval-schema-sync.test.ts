@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { EvalFileSchema } from '../../../src/evaluation/validation/eval-file.schema.js';
-import { ExperimentFileSchema } from '../../../src/evaluation/validation/experiment-file.schema.js';
 
 describe('generated schema sync', () => {
   it('keeps eval-schema.json synced with the Zod schema', async () => {
@@ -31,30 +30,6 @@ describe('generated schema sync', () => {
     };
 
     // Compare (ignoring formatting differences)
-    expect(JSON.parse(JSON.stringify(committed))).toEqual(JSON.parse(JSON.stringify(expected)));
-  });
-
-  it('keeps experiment-schema.json synced with the Zod schema', async () => {
-    const repoRoot = path.resolve(import.meta.dirname, '../../../../..');
-    const schemaPath = path.join(
-      repoRoot,
-      'skills-data/agentv-eval-writer/references/experiment-schema.json',
-    );
-
-    const committed = JSON.parse(await readFile(schemaPath, 'utf8'));
-    const generated = zodToJsonSchema(ExperimentFileSchema, {
-      name: 'ExperimentFile',
-      $refStrategy: 'none',
-      target: 'jsonSchema2019-09',
-    });
-
-    const expected = {
-      $schema: 'https://json-schema.org/draft/2019-09/schema',
-      title: 'AgentV Experiment File',
-      description: 'Schema for AgentV experiment YAML files (experiments/*.yaml)',
-      ...generated,
-    };
-
     expect(JSON.parse(JSON.stringify(committed))).toEqual(JSON.parse(JSON.stringify(expected)));
   });
 });

@@ -70,17 +70,9 @@ export type HooksConfig = {
   readonly before_session?: string;
 };
 
-export type ExperimentsConfig = {
-  /** Default experiment label or path used when `agentv eval` omits --experiment. */
-  readonly default?: string;
-};
-
 export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
-  /** Compatibility shorthand for experiments.default. */
-  readonly default_experiment?: string;
-  readonly experiments?: ExperimentsConfig;
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
@@ -191,13 +183,15 @@ function parseConfigObject(
       (parsed as Record<string, unknown>).execution,
       configPath,
     );
-    const defaultExperiment = parseDefaultExperiment(
+    warnRemovedExperimentPointer(
       (parsed as Record<string, unknown>).default_experiment,
       configPath,
+      'default_experiment',
     );
-    const experiments = parseExperimentsConfig(
+    warnRemovedExperimentPointer(
       (parsed as Record<string, unknown>).experiments,
       configPath,
+      'experiments',
     );
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
@@ -205,8 +199,6 @@ function parseConfigObject(
     return {
       required_version: requiredVersion as string | undefined,
       eval_patterns: evalPatterns as readonly string[] | undefined,
-      ...(defaultExperiment && { default_experiment: defaultExperiment }),
-      ...(experiments && { experiments }),
       execution: executionDefaults,
       results,
       ...(hooks && { hooks }),
@@ -217,17 +209,26 @@ function parseConfigObject(
   }
 }
 
+function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | undefined {
+  if (suite.experiment !== undefined && suite.execution !== undefined) {
+    throw new Error("Use either top-level 'experiment' or legacy 'execution', not both.");
+  }
+  const runtime = suite.experiment ?? suite.execution;
+  if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) {
+    return undefined;
+  }
+  return runtime as Record<string, unknown>;
+}
+
 /**
  * Extract target name from parsed eval suite (checks execution.target then falls back to root-level target).
  */
 export function extractTargetFromSuite(suite: JsonObject): string | undefined {
-  // Check execution.target first (new location), fallback to root-level target (legacy)
-  const execution = suite.execution;
-  if (execution && typeof execution === 'object' && !Array.isArray(execution)) {
-    const executionTarget = (execution as Record<string, unknown>).target;
-    if (typeof executionTarget === 'string' && executionTarget.trim().length > 0) {
-      return executionTarget.trim();
-    }
+  // Check experiment.target first, then legacy execution.target, then root-level target.
+  const runtime = getSuiteRuntimeBlock(suite);
+  const runtimeTarget = runtime?.target;
+  if (typeof runtimeTarget === 'string' && runtimeTarget.trim().length > 0) {
+    return runtimeTarget.trim();
   }
 
   // Fallback to legacy root-level target
@@ -247,12 +248,12 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
 export function extractTargetRefsFromSuite(
   suite: JsonObject,
 ): readonly EvalTargetRef[] | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+  const runtime = getSuiteRuntimeBlock(suite);
+  if (!runtime) {
     return undefined;
   }
 
-  const targets = (execution as Record<string, unknown>).targets;
+  const targets = runtime.targets;
   if (!Array.isArray(targets)) {
     return undefined;
   }
@@ -353,12 +354,12 @@ function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
  * Extract workers count from suite-level execution block.
  */
 export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+  const runtime = getSuiteRuntimeBlock(suite);
+  if (!runtime) {
     return undefined;
   }
 
-  const workers = (execution as Record<string, unknown>).workers;
+  const workers = runtime.workers;
   if (typeof workers === 'number' && Number.isInteger(workers) && workers >= 1 && workers <= 50) {
     return workers;
   }
@@ -397,12 +398,11 @@ export interface CacheConfig {
  * Returns undefined when no cache config is specified.
  */
 export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+  const executionObj = getSuiteRuntimeBlock(suite);
+  if (!executionObj) {
     return undefined;
   }
 
-  const executionObj = execution as Record<string, unknown>;
   const cache = executionObj.cache;
 
   if (cache === undefined || cache === null) {
@@ -430,12 +430,10 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
  * Returns undefined when not specified.
  */
 export function extractBudgetUsd(suite: JsonObject): number | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+  const executionObj = getSuiteRuntimeBlock(suite);
+  if (!executionObj) {
     return undefined;
   }
-
-  const executionObj = execution as Record<string, unknown>;
 
   // Reject the old key with a clear error
   if ('total_budget_usd' in executionObj || 'totalBudgetUsd' in executionObj) {
@@ -464,12 +462,11 @@ export function extractBudgetUsd(suite: JsonObject): number | undefined {
  * Returns undefined when not specified.
  */
 export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+  const executionObj = getSuiteRuntimeBlock(suite);
+  if (!executionObj) {
     return undefined;
   }
 
-  const executionObj = execution as Record<string, unknown>;
   const raw = executionObj.fail_on_error ?? executionObj.failOnError;
 
   if (raw === undefined || raw === null) {
@@ -490,12 +487,11 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
  * Returns undefined when not specified.
  */
 export function extractThreshold(suite: JsonObject): number | undefined {
-  const execution = suite.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
+  const executionObj = getSuiteRuntimeBlock(suite);
+  if (!executionObj) {
     return undefined;
   }
 
-  const executionObj = execution as Record<string, unknown>;
   const raw = executionObj.threshold;
 
   if (raw === undefined || raw === null) {
@@ -586,44 +582,13 @@ export function parseExecutionDefaults(
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
 }
 
-export function resolveDefaultExperimentReference(
-  config: AgentVConfig | null | undefined,
-): string | undefined {
-  return config?.experiments?.default ?? config?.default_experiment;
-}
-
-function parseDefaultExperiment(raw: unknown, configPath: string): string | undefined {
+function warnRemovedExperimentPointer(raw: unknown, configPath: string, key: string): void {
   if (raw === undefined || raw === null) {
-    return undefined;
+    return;
   }
-  const value = readTrimmedString(raw);
-  if (!value) {
-    logWarning(`Invalid default_experiment in ${configPath}, expected non-empty string`);
-    return undefined;
-  }
-  return value;
-}
-
-export function parseExperimentsConfig(
-  raw: unknown,
-  configPath: string,
-): ExperimentsConfig | undefined {
-  if (raw === undefined || raw === null) {
-    return undefined;
-  }
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
-    logWarning(`Invalid experiments in ${configPath}, expected object`);
-    return undefined;
-  }
-
-  const obj = raw as Record<string, unknown>;
-  const defaultExperiment = readTrimmedString(obj.default);
-  if (obj.default !== undefined && !defaultExperiment) {
-    logWarning(`Invalid experiments.default in ${configPath}, expected non-empty string`);
-    return undefined;
-  }
-
-  return defaultExperiment ? { default: defaultExperiment } : undefined;
+  logWarning(
+    `${key} in ${configPath} is ignored. Runtime configuration now belongs in eval.yaml under experiment:.`,
+  );
 }
 
 function isFilesystemPath(p: string): boolean {

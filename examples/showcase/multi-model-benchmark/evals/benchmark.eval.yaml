@@ -3,17 +3,27 @@
 # Demonstrates multi-model × multi-metric × variability workflow:
 #   - Targets matrix: runs every test against multiple models
 #   - Weighted graders: accuracy (3×), completeness (2×), clarity (1×)
-#   - Experiment repeat: pass@k with 2 attempts to measure variability
+#   - Inline experiment repeat: pass@k with 2 attempts to measure variability
 #
 # Default targets use low-cost models for safe experimentation.
 # Override with: agentv eval ... --target <name>
 #
 # Usage:
-#   agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
-#     --experiment examples/showcase/multi-model-benchmark/experiments/default.yaml
+#   agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
 
+name: multi-model-benchmark
 description: Multi-model benchmark — accuracy, completeness, and clarity across models
 tags: [multi-provider]
+
+experiment:
+  targets:
+    - copilot
+    - claude
+    - gemini-llm
+  repeat:
+    count: 2
+    strategy: pass_at_k
+    cost_limit_usd: 2.00
 
 assertions:
   - name: accuracy

@@ -9,7 +9,7 @@ import {
 } from '../../../src/commands/eval/result-layout.js';
 
 describe('result layout', () => {
-  it('groups default run directories under the default experiment', () => {
+  it('groups default run directories under the default result group', () => {
     const cwd = '/repo';
     const timestamp = new Date('2026-06-22T12:34:56.789Z');
 
@@ -18,7 +18,7 @@ describe('result layout', () => {
     );
   });
 
-  it('groups named experiment run directories under the experiment', () => {
+  it('groups named run directories under the result group', () => {
     expect(buildDefaultRunDirFromName('/repo', 'with-skills', '2026-run')).toBe(
       path.join('/repo', '.agentv', 'results', 'with-skills', '2026-run'),
     );

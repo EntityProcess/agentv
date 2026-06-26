@@ -49,6 +49,27 @@ describe('aggregateTrials', () => {
     });
   });
 
+  describe('pass_all strategy', () => {
+    it('uses the weakest attempt score so every attempt must pass', () => {
+      const config: TrialsConfig = { count: 3, strategy: 'pass_all' };
+      const trials: TrialResult[] = [
+        { attempt: 1, score: 1, verdict: 'pass' },
+        { attempt: 2, score: 0.7, verdict: 'fail' },
+        { attempt: 3, score: 0.9, verdict: 'pass' },
+      ];
+
+      const result = aggregateTrials(trials, config);
+
+      expect(result.score).toBe(0.7);
+      expect(result.aggregation.strategy).toBe('pass_all');
+      if (result.aggregation.strategy === 'pass_all') {
+        expect(result.aggregation.passedAttempts).toBe(2);
+        expect(result.aggregation.totalAttempts).toBe(3);
+        expect(result.aggregation.min).toBe(0.7);
+      }
+    });
+  });
+
   describe('mean strategy', () => {
     it('averages scores correctly', () => {
       const trials: TrialResult[] = [

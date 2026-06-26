@@ -366,6 +366,71 @@ const ExecutionSchema = z.object({
   threshold: z.number().min(0).max(1).optional(),
 });
 
+const StringOrStringArraySchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
+
+const ExperimentScriptSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      command: StringOrStringArraySchema.optional(),
+      script: StringOrStringArraySchema.optional(),
+      timeout_seconds: z.number().gt(0).optional(),
+      cwd: z.string().min(1).optional(),
+      env: z.record(z.string()).optional(),
+    })
+    .strict()
+    .refine((value) => value.command !== undefined || value.script !== undefined, {
+      message: 'Experiment step must define command or script.',
+    }),
+]);
+
+const ExperimentRepeatSchema = z
+  .object({
+    count: z.number().int().min(1),
+    strategy: z.enum(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']).optional(),
+    cost_limit_usd: z.number().min(0).optional(),
+    costLimitUsd: z.number().min(0).optional(),
+  })
+  .strict();
+
+const RunOverrideSchema = z
+  .object({
+    threshold: z.number().min(0).max(1).optional(),
+    repeat: ExperimentRepeatSchema.optional(),
+    timeout_seconds: z.number().gt(0).optional(),
+    budget_usd: z.number().gt(0).optional(),
+  })
+  .strict();
+
+const ExperimentTargetRefSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      name: z.string().min(1),
+      use_target: z.string().min(1).optional(),
+      hooks: JsonObjectSchema.optional(),
+    })
+    .strict(),
+]);
+
+const ExperimentRuntimeSchema = ExecutionSchema.extend({
+  agent: z.string().min(1).optional(),
+  model: z.string().min(1).optional(),
+  agent_options: JsonObjectSchema.optional(),
+  targets: z.array(ExperimentTargetRefSchema).min(1).optional(),
+  scripts: z.array(ExperimentScriptSchema).optional(),
+  repeat: ExperimentRepeatSchema.optional(),
+  runs: z.number().int().min(1).optional(),
+  early_exit: z.boolean().optional(),
+  timeout_seconds: z.number().gt(0).optional(),
+  budget_usd: z.number().gt(0).optional(),
+  sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
+  workspace: JsonObjectSchema.optional(),
+  setup: z.array(ExperimentScriptSchema).optional(),
+}).refine((value) => value.repeat === undefined || value.runs === undefined, {
+  message: 'Use repeat or runs, not both.',
+});
+
 /** Per-turn assertion: string shorthand (becomes rubric) or full evaluator config */
 const TurnAssertionSchema = z.union([z.string(), EvaluatorSchema]);
 
@@ -390,6 +455,7 @@ const EvalTestSchema = z.object({
   assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   execution: ExecutionSchema.optional(),
+  run: RunOverrideSchema.optional(),
   workspace: WorkspaceSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   conversation_id: z.string().optional(),
@@ -403,40 +469,74 @@ const EvalTestSchema = z.object({
   window_size: z.number().int().min(1).optional(),
 });
 
+const SelectPatternSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
+const SelectMetadataValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.union([z.string(), z.number(), z.boolean()])).min(1),
+]);
+const TestIncludeSelectSchema = z
+  .object({
+    test_ids: SelectPatternSchema.optional(),
+    tags: SelectPatternSchema.optional(),
+    metadata: z.record(SelectMetadataValueSchema).optional(),
+  })
+  .strict();
+
+const TestIncludeSchema = z
+  .object({
+    include: z.string().min(1),
+    type: z.enum(['suite', 'tests']).optional(),
+    select: z.union([SelectPatternSchema, TestIncludeSelectSchema]).optional(),
+    run: RunOverrideSchema.optional(),
+  })
+  .strict();
+
+const TestsSchema = z.union([
+  z.array(z.union([EvalTestSchema, TestIncludeSchema, z.string().min(1)])),
+  z.string().min(1),
+]);
+
 // ---------------------------------------------------------------------------
 // Top-level eval file
 // ---------------------------------------------------------------------------
 
-export const EvalFileSchema = z.object({
-  $schema: z.string().optional(),
-  // Metadata
-  name: z
-    .string()
-    .regex(/^[a-z0-9-]+$/)
-    .optional(),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  version: z.string().optional(),
-  author: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  license: z.string().optional(),
-  requires: z.object({ agentv: z.string().optional() }).optional(),
-  // Suite-level input
-  input: InputSchema.optional(),
-  // Suite-level input_files shorthand
-  input_files: z.array(z.string()).optional(),
-  // Tests (array or external file path)
-  tests: z.union([z.array(EvalTestSchema), z.string()]),
-  // Deprecated aliases
-  eval_cases: z.union([z.array(EvalTestSchema), z.string()]).optional(),
-  // Target
-  target: z.string().optional(),
-  // Execution
-  execution: ExecutionSchema.optional(),
-  // Suite-level assertions
-  assertions: z.array(EvaluatorSchema).optional(),
-  // Suite-level content preprocessors shared by evaluators
-  preprocessors: z.array(PreprocessorSchema).optional(),
-  // Workspace (inline object or path to external workspace YAML file)
-  workspace: z.union([WorkspaceSchema, z.string()]).optional(),
-});
+export const EvalFileSchema = z
+  .object({
+    $schema: z.string().optional(),
+    // Metadata
+    name: z
+      .string()
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
+    description: z.string().optional(),
+    category: z.string().optional(),
+    version: z.string().optional(),
+    author: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    license: z.string().optional(),
+    requires: z.object({ agentv: z.string().optional() }).optional(),
+    // Suite-level input
+    input: InputSchema.optional(),
+    // Suite-level input_files shorthand
+    input_files: z.array(z.string()).optional(),
+    // Tests (array, include entries, or external file path)
+    tests: TestsSchema,
+    // Deprecated aliases
+    eval_cases: TestsSchema.optional(),
+    // Target
+    target: z.string().optional(),
+    // Runtime. `experiment` is canonical; `execution` is a legacy top-level alias.
+    experiment: ExperimentRuntimeSchema.optional(),
+    execution: ExperimentRuntimeSchema.optional(),
+    // Suite-level assertions
+    assertions: z.array(EvaluatorSchema).optional(),
+    // Suite-level content preprocessors shared by evaluators
+    preprocessors: z.array(PreprocessorSchema).optional(),
+    // Workspace (inline object or path to external workspace YAML file)
+    workspace: z.union([WorkspaceSchema, z.string()]).optional(),
+  })
+  .refine((value) => value.experiment === undefined || value.execution === undefined, {
+    message: "Use either top-level 'experiment' or legacy 'execution', not both.",
+  });

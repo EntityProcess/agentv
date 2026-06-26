@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 import {
   DEFAULT_THRESHOLD,
+  type EvalRunOverride,
   type EvalTargetRef,
   type EvalTest,
   type EvaluationCache,
@@ -25,14 +26,10 @@ import {
   buildTraceFromMessages,
   runEvaluation as defaultRunEvaluation,
   deriveCategory,
-  deriveExperimentNameFromPath,
   ensureVSCodeSubagents,
-  isExperimentFileReference,
   loadConfig,
-  loadExperimentConfig,
   loadTestSuite,
   loadTsConfig,
-  resolveDefaultExperimentReference,
   resolveTargetDefinition,
   shouldEnableCache,
   shouldSkipCacheForTemperature,
@@ -124,6 +121,7 @@ interface NormalizedOptions {
   readonly dryRunDelayMin: number;
   readonly dryRunDelayMax: number;
   readonly agentTimeoutSeconds?: number;
+  readonly cliAgentTimeoutSeconds?: number;
   readonly maxRetries: number;
   readonly cache: boolean;
   readonly cachePath?: string;
@@ -150,6 +148,7 @@ interface NormalizedOptions {
   readonly model?: string;
   readonly outputMessages: number | 'all';
   readonly threshold?: number;
+  readonly cliThreshold?: number;
   readonly tags: readonly string[];
   readonly excludeTags: readonly string[];
   readonly transcript?: string;
@@ -160,8 +159,8 @@ interface NormalizedOptions {
   readonly experimentMetadata?: ExperimentArtifactMetadata;
   readonly experimentTargetRefs?: readonly EvalTargetRef[];
   readonly experimentTrialsConfig?: TrialsConfig;
-  readonly suiteFiltersByEvalFile?: ReadonlyMap<string, string | readonly string[]>;
   readonly budgetUsd?: number;
+  readonly cliBudgetUsd?: number;
   readonly sourceMetadataByEvalFile?: ReadonlyMap<string, Record<string, unknown>>;
   readonly resultsOverrides?: ResultsPublishOverrides;
 }
@@ -422,6 +421,8 @@ function normalizeOptions(
   }
 
   const cliAgentTimeout = normalizeOptionalNumber(rawOptions.agentTimeout);
+  const cliThreshold = normalizeOptionalNumber(rawOptions.threshold);
+  const cliBudgetUsd = normalizeOptionalNumber(rawOptions.budgetUsd);
   const configAgentTimeoutSeconds =
     config?.execution?.agentTimeoutMs != null ? config.execution.agentTimeoutMs / 1000 : undefined;
 
@@ -479,6 +480,7 @@ function normalizeOptions(
     dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
     dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
     agentTimeoutSeconds: cliAgentTimeout ?? configAgentTimeoutSeconds,
+    cliAgentTimeoutSeconds: cliAgentTimeout,
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
     cache: cliCache,
     cachePath: cliCachePath,
@@ -523,14 +525,16 @@ function normalizeOptions(
     graderTarget: normalizeString(rawOptions.graderTarget),
     model: normalizeString(rawOptions.model),
     outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
-    threshold: normalizeOptionalNumber(rawOptions.threshold),
+    threshold: cliThreshold,
+    cliThreshold,
     tags: normalizeStringArray(rawOptions.tag),
     excludeTags: normalizeStringArray(rawOptions.excludeTag),
     transcript: normalizeString(rawOptions.transcript),
     recordReplay: normalizeString(rawOptions.recordReplay),
     recordReplayVariant: normalizeString(rawOptions.recordReplayVariant),
     experiment: normalizeString(rawOptions.experiment),
-    budgetUsd: normalizeOptionalNumber(rawOptions.budgetUsd),
+    budgetUsd: cliBudgetUsd,
+    cliBudgetUsd,
     sourceMetadataByEvalFile: normalizeSourceMetadataByEvalFile(
       rawOptions.sourceMetadataByEvalFile,
     ),
@@ -566,69 +570,33 @@ async function ensureFileExists(filePath: string, description: string): Promise<
 
 function buildDefaultOutputPathForExperiment(
   cwd: string,
-  experiment: string | undefined,
+  resultGroup: string | undefined,
   runDirName: string,
 ): string {
-  const runDir = buildDefaultRunDirFromName(cwd, experiment, runDirName);
+  const runDir = buildDefaultRunDirFromName(cwd, resultGroup, runDirName);
   mkdirSync(runDir, { recursive: true });
   return path.join(runDir, 'index.jsonl');
 }
 
-function normalizeTsDefaultExperiment(
-  config: Awaited<ReturnType<typeof loadTsConfig>> | null,
-): string | undefined {
+function deriveEvalResultGroupName(evalFilePath: string | undefined): string {
+  if (!evalFilePath) {
+    return 'eval';
+  }
   return (
-    normalizeString(config?.experiments?.default) ?? normalizeString(config?.defaultExperiment)
+    path
+      .basename(evalFilePath)
+      .replace(/\.eval\.ya?ml$/i, '')
+      .replace(/\.ya?ml$/i, '')
+      .replace(/[^A-Za-z0-9._-]/g, '-') || 'eval'
   );
 }
 
 type ResolvedExperimentForRun = {
   readonly name?: string;
-  readonly config?: ExperimentConfig;
 };
 
-async function resolveExperimentForRun(params: {
-  readonly cwd: string;
-  readonly explicitExperiment?: string;
-  readonly yamlDefaultExperiment?: string;
-  readonly tsDefaultExperiment?: string;
-}): Promise<ResolvedExperimentForRun> {
-  const experimentRef =
-    params.explicitExperiment ?? params.yamlDefaultExperiment ?? params.tsDefaultExperiment;
-  if (!experimentRef) {
-    return {};
-  }
-
-  const experimentPath = resolveExperimentFilePath(params.cwd, experimentRef);
-  if (!experimentPath) {
-    if (isExperimentFileReference(experimentRef)) {
-      throw new Error(`Experiment file not found: ${experimentRef}`);
-    }
-    return { name: experimentRef };
-  }
-
-  const config = await loadExperimentConfig(experimentPath);
-  return {
-    name: config.name ?? deriveExperimentNameFromPath(experimentPath),
-    config,
-  };
-}
-
-function resolveExperimentFilePath(cwd: string, experimentRef: string): string | undefined {
-  if (isExperimentFileReference(experimentRef)) {
-    const experimentPath = path.isAbsolute(experimentRef)
-      ? experimentRef
-      : path.resolve(cwd, experimentRef);
-    return existsSync(experimentPath) ? experimentPath : undefined;
-  }
-
-  for (const ext of ['yaml', 'yml', 'ts', 'js', 'mts', 'mjs']) {
-    const candidate = path.resolve(cwd, 'experiments', `${experimentRef}.${ext}`);
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  return undefined;
+function resolveExperimentForRun(explicitExperiment?: string): ResolvedExperimentForRun {
+  return explicitExperiment ? { name: explicitExperiment } : {};
 }
 
 function applyExperimentOptions(
@@ -664,6 +632,7 @@ function applyExperimentOptions(
     workspaceMode: workspacePath ? 'static' : workspaceMode,
     workspacePath,
     budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
+    threshold: options.threshold ?? experiment.threshold,
     experimentConfig: experiment,
     experimentMetadata: buildExperimentArtifactMetadata(experiment),
     experimentTargetRefs: options.cliTargets.length === 0 ? experimentTargetRefs : undefined,
@@ -715,6 +684,89 @@ function buildExperimentTrialsConfig(experiment: ExperimentConfig): TrialsConfig
   };
 }
 
+type EffectiveRunPolicy = {
+  readonly trialsConfig?: TrialsConfig;
+  readonly threshold?: number;
+  readonly timeoutSeconds?: number;
+  readonly budgetUsd?: number;
+  readonly hasScopedOverride: boolean;
+};
+
+function buildRunOverrideTrialsConfig(run: EvalRunOverride | undefined): TrialsConfig | undefined {
+  const repeat = run?.repeat;
+  if (!repeat || repeat.count <= 1) {
+    return undefined;
+  }
+  return {
+    count: repeat.count,
+    strategy: repeat.strategy,
+    ...(repeat.costLimitUsd !== undefined && { costLimitUsd: repeat.costLimitUsd }),
+    ...(repeat.earlyExit !== undefined && { earlyExit: repeat.earlyExit }),
+  };
+}
+
+function resolveEffectiveRunPolicy(params: {
+  readonly test: EvalTest;
+  readonly options: NormalizedOptions;
+  readonly defaultTrialsConfig?: TrialsConfig;
+  readonly defaultThreshold?: number;
+  readonly defaultTimeoutSeconds?: number;
+  readonly defaultBudgetUsd?: number;
+}): EffectiveRunPolicy {
+  const { test, options, defaultTrialsConfig, defaultThreshold, defaultTimeoutSeconds } = params;
+  const run = test.run;
+  const threshold = options.cliThreshold ?? run?.threshold ?? test.threshold ?? defaultThreshold;
+  const timeoutSeconds =
+    options.cliAgentTimeoutSeconds ?? run?.timeoutSeconds ?? defaultTimeoutSeconds;
+  const budgetUsd = run?.budgetUsd ?? params.defaultBudgetUsd;
+  const trialsConfig = buildRunOverrideTrialsConfig(run) ?? defaultTrialsConfig;
+  return {
+    ...(trialsConfig !== undefined && { trialsConfig }),
+    ...(threshold !== undefined && { threshold }),
+    ...(timeoutSeconds !== undefined && { timeoutSeconds }),
+    ...(budgetUsd !== undefined && { budgetUsd }),
+    hasScopedOverride: run !== undefined || test.threshold !== undefined,
+  };
+}
+
+function runPolicyKey(policy: EffectiveRunPolicy): string {
+  return JSON.stringify({
+    trialsConfig: policy.trialsConfig,
+    threshold: policy.threshold,
+    timeoutSeconds: policy.timeoutSeconds,
+    budgetUsd: policy.budgetUsd,
+  });
+}
+
+function groupTestsByRunPolicy(params: {
+  readonly tests: readonly EvalTest[];
+  readonly options: NormalizedOptions;
+  readonly defaultTrialsConfig?: TrialsConfig;
+  readonly defaultThreshold?: number;
+  readonly defaultTimeoutSeconds?: number;
+  readonly defaultBudgetUsd?: number;
+}): readonly { readonly policy: EffectiveRunPolicy; readonly tests: readonly EvalTest[] }[] {
+  const groups = new Map<string, { policy: EffectiveRunPolicy; tests: EvalTest[] }>();
+  for (const test of params.tests) {
+    const policy = resolveEffectiveRunPolicy({
+      test,
+      options: params.options,
+      defaultTrialsConfig: params.defaultTrialsConfig,
+      defaultThreshold: params.defaultThreshold,
+      defaultTimeoutSeconds: params.defaultTimeoutSeconds,
+      defaultBudgetUsd: params.defaultBudgetUsd,
+    });
+    const key = runPolicyKey(policy);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.tests.push(test);
+    } else {
+      groups.set(key, { policy, tests: [test] });
+    }
+  }
+  return [...groups.values()];
+}
+
 function readExperimentWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
   return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
 }
@@ -726,53 +778,10 @@ function readExperimentWorkspacePath(
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-type ExperimentSuiteSelection = {
-  readonly testFiles: readonly string[];
-  readonly filtersByEvalFile: ReadonlyMap<string, string | readonly string[]>;
-};
-
 function matchesTestFilter(id: string, filter: string | readonly string[]): boolean {
   return typeof filter === 'string'
     ? micromatch.isMatch(id, filter)
     : filter.some((pattern) => micromatch.isMatch(id, pattern));
-}
-
-async function resolveExperimentSuiteSelection(
-  suites: ExperimentConfig['suites'] | undefined,
-  cwd: string,
-): Promise<ExperimentSuiteSelection | undefined> {
-  if (!suites || suites.length === 0) {
-    return undefined;
-  }
-
-  const testFiles = new Set<string>();
-  const selectedTestIdsByEvalFile = new Map<string, string[]>();
-
-  for (const suite of suites) {
-    const resolvedSuiteFiles = await resolveEvalPaths([suite.ref], cwd);
-    for (const testFilePath of resolvedSuiteFiles) {
-      const resolvedPath = path.resolve(testFilePath);
-      testFiles.add(resolvedPath);
-      if (suite.select?.testIds && suite.select.testIds.length > 0) {
-        const existing = selectedTestIdsByEvalFile.get(resolvedPath) ?? [];
-        selectedTestIdsByEvalFile.set(resolvedPath, [...existing, ...suite.select.testIds]);
-      }
-    }
-  }
-
-  const filtersByEvalFile = new Map<string, string | readonly string[]>();
-  for (const [testFilePath, testIds] of selectedTestIdsByEvalFile.entries()) {
-    const uniqueTestIds = [...new Set(testIds)];
-    filtersByEvalFile.set(
-      testFilePath,
-      uniqueTestIds.length === 1 ? uniqueTestIds[0] : uniqueTestIds,
-    );
-  }
-
-  return {
-    testFiles: [...testFiles],
-    filtersByEvalFile,
-  };
 }
 
 async function runExperimentSteps(params: {
@@ -849,10 +858,10 @@ function shellCommand(script: string): readonly string[] {
 
 function resolveExperimentStepCwd(
   cwd: string,
-  experimentConfig: ExperimentConfig | undefined,
+  _experimentConfig: ExperimentConfig | undefined,
   stepCwd: string | undefined,
 ): string {
-  const base = experimentConfig?.sourcePath ? path.dirname(experimentConfig.sourcePath) : cwd;
+  const base = cwd;
   if (!stepCwd) {
     return base;
   }
@@ -1066,9 +1075,12 @@ async function prepareFileMetadata(params: {
     filter: suiteFilter ?? options.filter,
     category,
   });
+  const effectiveOptions = applyExperimentOptions(options, suite.experimentConfig);
   const testCases =
-    suiteFilter && options.filter
-      ? suite.tests.filter((testCase) => matchesTestFilter(testCase.id, options.filter ?? ''))
+    suiteFilter && effectiveOptions.filter
+      ? suite.tests.filter((testCase) =>
+          matchesTestFilter(testCase.id, effectiveOptions.filter ?? ''),
+        )
       : suite.tests;
   const testIds = testCases.map((value) => value.id);
   const suiteTargets = suite.targets;
@@ -1078,7 +1090,7 @@ async function prepareFileMetadata(params: {
       testIds,
       testCases,
       selections: [],
-      trialsConfig: options.experimentTrialsConfig,
+      trialsConfig: effectiveOptions.experimentTrialsConfig,
       suiteTargets,
       yamlWorkers: suite.workers,
       yamlCache: suite.cacheConfig?.enabled,
@@ -1093,7 +1105,7 @@ async function prepareFileMetadata(params: {
 
   let selections: { selection: TargetSelection; inlineTargetLabel: string }[];
 
-  if (options.transcript) {
+  if (effectiveOptions.transcript) {
     // --transcript mode: bypass target resolution entirely.
     // Create a synthetic TargetSelection for the transcript provider.
     const transcriptSelection: TargetSelection = {
@@ -1105,15 +1117,15 @@ async function prepareFileMetadata(params: {
       },
       targetName: 'transcript',
       targetSource: 'cli',
-      targetsFilePath: options.transcript,
+      targetsFilePath: effectiveOptions.transcript,
     };
     selections = [
       {
         selection: transcriptSelection,
-        inlineTargetLabel: `transcript (${path.basename(options.transcript)})`,
+        inlineTargetLabel: `transcript (${path.basename(effectiveOptions.transcript)})`,
       },
     ];
-  } else if (suite.inlineTarget && options.cliTargets.length === 0) {
+  } else if (suite.inlineTarget && effectiveOptions.cliTargets.length === 0) {
     const targetDefinition = suite.inlineTarget;
     const resolvedTarget = options.dryRun
       ? ({
@@ -1144,7 +1156,7 @@ async function prepareFileMetadata(params: {
         inlineTargetLabel: resolveTargetLabel(targetDefinition.name, resolvedTarget.name),
       },
     ];
-  } else if (suite.providerFactory && options.cliTargets.length === 0) {
+  } else if (suite.providerFactory && effectiveOptions.cliTargets.length === 0) {
     const taskTarget: ResolvedTarget = {
       kind: 'mock',
       name: 'custom-task',
@@ -1165,10 +1177,10 @@ async function prepareFileMetadata(params: {
     ];
   } else {
     // Determine target names: CLI --target flags override YAML
-    const cliTargets = options.cliTargets;
+    const cliTargets = effectiveOptions.cliTargets;
     const suiteTargets = suite.targets;
     const suiteTargetRefs = suite.targetRefs;
-    const experimentTargetRefs = options.experimentTargetRefs;
+    const experimentTargetRefs = effectiveOptions.experimentTargetRefs;
 
     // Resolve which target names to use (precedence: CLI/experiment > suite YAML targets > default)
     let targetNames: readonly string[];
@@ -1190,11 +1202,11 @@ async function prepareFileMetadata(params: {
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: options.targetsPath,
-        dryRun: options.dryRun,
-        dryRunDelay: options.dryRunDelay,
-        dryRunDelayMin: options.dryRunDelayMin,
-        dryRunDelayMax: options.dryRunDelayMax,
+        explicitTargetsPath: effectiveOptions.targetsPath,
+        dryRun: effectiveOptions.dryRun,
+        dryRunDelay: effectiveOptions.dryRunDelay,
+        dryRunDelayMin: effectiveOptions.dryRunDelayMin,
+        dryRunDelayMax: effectiveOptions.dryRunDelayMax,
         env: process.env,
         targetNames,
         targetRefs,
@@ -1210,12 +1222,12 @@ async function prepareFileMetadata(params: {
         testFilePath,
         repoRoot,
         cwd,
-        explicitTargetsPath: options.targetsPath,
-        cliTargetName: targetNames.length === 1 ? targetNames[0] : options.target,
-        dryRun: options.dryRun,
-        dryRunDelay: options.dryRunDelay,
-        dryRunDelayMin: options.dryRunDelayMin,
-        dryRunDelayMax: options.dryRunDelayMax,
+        explicitTargetsPath: effectiveOptions.targetsPath,
+        cliTargetName: targetNames.length === 1 ? targetNames[0] : effectiveOptions.target,
+        dryRun: effectiveOptions.dryRun,
+        dryRunDelay: effectiveOptions.dryRunDelay,
+        dryRunDelayMin: effectiveOptions.dryRunDelayMin,
+        dryRunDelayMax: effectiveOptions.dryRunDelayMax,
         env: process.env,
       });
 
@@ -1241,7 +1253,7 @@ async function prepareFileMetadata(params: {
     testIds,
     testCases,
     selections,
-    trialsConfig: options.experimentTrialsConfig,
+    trialsConfig: effectiveOptions.experimentTrialsConfig,
     suiteTargets,
     yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
@@ -1293,6 +1305,7 @@ async function runSingleEvalFile(params: {
   readonly inlineTargetLabel: string;
   readonly testCases: readonly EvalTest[];
   readonly trialsConfig?: TrialsConfig;
+  readonly agentTimeoutSeconds?: number;
   readonly matrixMode?: boolean;
   readonly budgetUsd?: number;
   readonly runBudgetTracker?: RunBudgetTracker;
@@ -1320,6 +1333,7 @@ async function runSingleEvalFile(params: {
     inlineTargetLabel,
     testCases,
     trialsConfig,
+    agentTimeoutSeconds,
     matrixMode,
     budgetUsd,
     runBudgetTracker,
@@ -1361,9 +1375,7 @@ async function runSingleEvalFile(params: {
   }
 
   const agentTimeoutMs =
-    options.agentTimeoutSeconds != null
-      ? Math.max(0, options.agentTimeoutSeconds) * 1000
-      : undefined;
+    agentTimeoutSeconds != null ? Math.max(0, agentTimeoutSeconds) * 1000 : undefined;
 
   // Resolve workers: CLI flag > eval YAML execution.workers > target setting > default
   const workerPreference = workersOverride ?? options.workers;
@@ -1440,7 +1452,7 @@ async function runSingleEvalFile(params: {
     failOnError,
     graderTarget: options.graderTarget,
     model: options.model,
-    threshold: options.threshold,
+    threshold: params.threshold,
     targetHooks: resolvedTargetSelection.targetHooks,
     replayRecording,
     providerFactory,
@@ -1562,38 +1574,31 @@ export async function runEvalCommand(
   }
 
   let options = normalizeOptions(input.rawOptions, config, yamlConfig?.execution);
-  const resolvedExperiment = await resolveExperimentForRun({
-    cwd,
-    explicitExperiment: options.experiment,
-    yamlDefaultExperiment: resolveDefaultExperimentReference(yamlConfig),
-    tsDefaultExperiment: normalizeTsDefaultExperiment(config),
-  });
-  options = {
-    ...applyExperimentOptions(options, resolvedExperiment.config),
-    experiment: resolvedExperiment.name,
-  };
-
-  const suiteSelection = await resolveExperimentSuiteSelection(
-    options.experimentConfig?.suites,
-    cwd,
-  );
-  const evalPathInputs =
-    input.testFiles.length > 0
-      ? [...input.testFiles]
-      : suiteSelection
-        ? [...suiteSelection.testFiles]
-        : [];
+  const resolvedExperiment = resolveExperimentForRun(options.experiment);
+  const evalPathInputs = input.testFiles.length > 0 ? [...input.testFiles] : [];
   if (evalPathInputs.length === 0 && process.stdin.isTTY) {
     const { launchInteractiveWizard } = await import('./interactive.js');
     await launchInteractiveWizard();
     return undefined;
   }
   const resolvedTestFiles = await resolveEvalPaths(evalPathInputs, cwd);
+  const fallbackResultGroupName =
+    resolvedTestFiles.length === 1 ? deriveEvalResultGroupName(resolvedTestFiles[0]) : 'multi-eval';
+  const primarySuite =
+    resolvedTestFiles.length > 0
+      ? await loadTestSuite(resolvedTestFiles[0], repoRoot, {
+          verbose: options.verbose,
+          filter: options.filter,
+          category: deriveCategory(path.relative(cwd, resolvedTestFiles[0])),
+        })
+      : undefined;
+  const resultGroupName =
+    resolvedTestFiles.length === 1
+      ? (primarySuite?.metadata?.name ?? fallbackResultGroupName)
+      : fallbackResultGroupName;
   options = {
-    ...options,
-    ...(suiteSelection !== undefined && {
-      suiteFiltersByEvalFile: suiteSelection.filtersByEvalFile,
-    }),
+    ...applyExperimentOptions(options, primarySuite?.experimentConfig),
+    experiment: resolvedExperiment.name ?? resultGroupName,
   };
 
   if (!process.env.AGENTV_EXPERIMENT) {
@@ -1732,8 +1737,8 @@ export async function runEvalCommand(
     mkdirSync(runDir, { recursive: true });
     outputPath = path.join(runDir, 'index.jsonl');
   } else {
-    // Default: .agentv/results/<experiment>/<timestamp>/, using "default" when unspecified.
-    outputPath = buildDefaultOutputPathForExperiment(cwd, options.experiment, runDirName);
+    // Default: .agentv/results/<eval-name>/<timestamp>/.
+    outputPath = buildDefaultOutputPathForExperiment(cwd, resultGroupName, runDirName);
     runDir = path.dirname(outputPath);
   }
   if (!process.env.AGENTV_RUN_TIMESTAMP) {
@@ -1867,7 +1872,7 @@ export async function runEvalCommand(
       repoRoot,
       cwd,
       options,
-      suiteFilter: options.suiteFiltersByEvalFile?.get(path.resolve(testFilePath)),
+      suiteFilter: undefined,
     });
     fileMetadata.set(testFilePath, meta);
   }
@@ -2092,6 +2097,7 @@ export async function runEvalCommand(
   // Eval files run sequentially; within each file, --workers N test cases run in parallel.
   // This matches industry practice (promptfoo, deepeval, OpenAI Evals) and avoids cross-file
   // workspace races without any grouping complexity.
+  let hasScopedRunPolicies = false;
   try {
     for (const testFilePath of activeTestFiles) {
       // Run-level budget check: skip remaining files if budget exceeded
@@ -2166,45 +2172,59 @@ export async function runEvalCommand(
           }
 
           try {
-            const result = await runSingleEvalFile({
-              testFilePath,
-              cwd,
-              repoRoot,
+            const runGroups = groupTestsByRunPolicy({
+              tests: filteredTestCases,
               options,
-              outputWriter,
-              otelExporter,
-              cache,
-              evaluationRunner,
-              workersOverride: perFileWorkers,
-              yamlWorkers: targetPrep.yamlWorkers,
-              progressReporter,
-              seenTestCases,
-              displayIdTracker,
-              selection,
-              inlineTargetLabel,
-              testCases: filteredTestCases,
-              trialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
-              matrixMode: targetPrep.selections.length > 1,
-              budgetUsd: targetPrep.budgetUsd,
-              runBudgetTracker,
-              failOnError: targetPrep.failOnError,
-              threshold: resolvedThreshold,
-              providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
+              defaultTrialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
+              defaultThreshold: resolvedThreshold,
+              defaultTimeoutSeconds: options.agentTimeoutSeconds,
+              defaultBudgetUsd: targetPrep.budgetUsd,
             });
+            const groupResults: EvaluationResult[] = [];
+            for (const group of runGroups) {
+              hasScopedRunPolicies ||= group.policy.hasScopedOverride;
+              const result = await runSingleEvalFile({
+                testFilePath,
+                cwd,
+                repoRoot,
+                options,
+                outputWriter,
+                otelExporter,
+                cache,
+                evaluationRunner,
+                workersOverride: perFileWorkers,
+                yamlWorkers: targetPrep.yamlWorkers,
+                progressReporter,
+                seenTestCases,
+                displayIdTracker,
+                selection,
+                inlineTargetLabel,
+                testCases: group.tests,
+                trialsConfig: options.transcript ? undefined : group.policy.trialsConfig,
+                agentTimeoutSeconds: group.policy.timeoutSeconds,
+                matrixMode: targetPrep.selections.length > 1,
+                budgetUsd: group.policy.budgetUsd,
+                runBudgetTracker,
+                failOnError: targetPrep.failOnError,
+                threshold: group.policy.threshold,
+                providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
+              });
+              groupResults.push(...result.results);
+            }
             const evalFile = path.relative(cwd, testFilePath);
             const existingSummary = remoteEvalSummaries.find(
               (summary) => summary.evalFile === evalFile,
             );
             if (existingSummary) {
-              existingSummary.results.push(...result.results);
+              existingSummary.results.push(...groupResults);
             } else {
               remoteEvalSummaries.push({
                 evalFile,
-                results: [...result.results],
+                results: [...groupResults],
               });
             }
 
-            return result.results;
+            return groupResults;
           } catch (fileError) {
             // before_all or other setup failures should not abort the entire run.
             // Mark all tests in this file as errors and continue with other files.
@@ -2277,8 +2297,11 @@ export async function runEvalCommand(
       summaryResults = deduplicateByTestIdTarget(parseJsonlResults(content));
     }
 
-    const thresholdOpts =
-      resolvedThreshold !== undefined ? { threshold: resolvedThreshold } : undefined;
+    const thresholdOpts = hasScopedRunPolicies
+      ? { thresholdLabel: 'configured threshold(s)', useExecutionStatus: true }
+      : resolvedThreshold !== undefined
+        ? { threshold: resolvedThreshold }
+        : undefined;
     const summary = calculateEvaluationSummary(summaryResults, thresholdOpts);
     console.log(formatEvaluationSummary(summary, thresholdOpts));
     if (
@@ -2312,6 +2335,7 @@ export async function runEvalCommand(
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
         await writePerTestArtifacts(allResults, runDir, {
           experiment: normalizeExperimentName(options.experiment),
+          resultGroup: resultGroupName,
           cwd,
           repoRoot,
           sourceTests,
@@ -2335,6 +2359,7 @@ export async function runEvalCommand(
             evalFile,
             experiment: normalizeExperimentName(options.experiment),
             experimentMetadata: options.experimentMetadata,
+            resultGroup: resultGroupName,
             cwd,
             repoRoot,
             sourceTests,

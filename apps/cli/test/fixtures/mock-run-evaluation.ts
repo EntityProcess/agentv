@@ -25,6 +25,7 @@ interface RunEvaluationOptionsLike {
     readonly costLimitUsd?: number;
     readonly earlyExit?: boolean;
   };
+  readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly runBudgetTracker?: {
     readonly budgetCapUsd?: number;
@@ -181,6 +182,7 @@ async function maybeWriteDiagnostics(
     budgetUsd: options.budgetUsd ?? null,
     maxConcurrency: options.maxConcurrency ?? null,
     trials: options.trials ?? null,
+    threshold: options.threshold ?? null,
     hasRunBudgetTracker: options.runBudgetTracker !== undefined,
     runBudgetCapUsd: options.runBudgetTracker?.budgetCapUsd ?? null,
     replayRecording: options.replayRecording ?? null,
