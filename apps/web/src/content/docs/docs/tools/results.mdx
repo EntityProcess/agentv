@@ -127,11 +127,13 @@ Every case uses aggregate `summary.json`, then stores attempt details under
 
 `transcript-raw.jsonl` preserves native provider or harness transcript bytes
 when they are available, while `transcript.jsonl` is the normalized
-conversation transcript with joined `tool_use.result` blocks. Full trace detail
-stays in `trace.json` (`agentv.trace.v1`) when emitted. `summary.json` remains
-the run-level aggregate summary, and `index.jsonl` carries lightweight explicit
-paths such as `transcript_path`, `transcript_raw_path`, and `metrics_path` plus
-artifact pointers only when detached payload publishing needs them.
+conversation transcript with joined `tool_use.result` blocks. AgentV does not
+persist a public `trace.json` sidecar in run bundles; external observability
+systems can be linked through safe `external_trace` metadata when available.
+`summary.json` remains the run-level aggregate summary, and `index.jsonl`
+carries lightweight explicit paths such as `transcript_path`,
+`transcript_raw_path`, and `metrics_path` plus artifact pointers only when
+detached payload publishing needs them.
 Duration, token, and cost usage remains in `timing.json`, including source
 labels such as `provider_reported`, `token_estimated`, `aggregate`, or
 `unavailable`.
@@ -164,11 +166,11 @@ Agent Skills eval artifacts map into AgentV like this:
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
-| Per-attempt sidecars | Trace, normalized transcript, metrics, and raw provider evidence | `run-N/transcript.jsonl`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, `provider.log` when present |
+| Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `run-N/transcript.jsonl`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, `provider.log` when present |
 | Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `run-N/timing.json` |
 | Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
-| Transcript/log outlier analysis | Normalized transcript, raw evidence, and canonical trace | `transcript.jsonl` for portable review; `transcript-raw.jsonl` for native evidence; `trace.json` for full detail |
+| Transcript/log outlier analysis | Normalized transcript, raw evidence, metrics, and optional external trace link | `transcript.jsonl` for portable review; `transcript-raw.jsonl` for native evidence; `metrics.json` for behavior summaries; `external_trace` for link-out correlation |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle
@@ -206,9 +208,8 @@ export `index.jsonl` and use `artifact_refs.status: "emitted"`.
 
 Raw prompt text, final output, and tool arguments/results are excluded by
 default, and raw-bearing artifact refs such as `grading_path`, `input_path`,
-`answer_path`, `transcript_path`, and `trace_path` are omitted from
-metadata-only bundles. To include raw payloads and raw-bearing refs in the
-bundle, opt in explicitly:
+`answer_path`, and `transcript_path` are omitted from metadata-only bundles. To
+include raw payloads and raw-bearing refs in the bundle, opt in explicitly:
 
 ```bash
 agentv results export <run-workspace-or-index.jsonl> --dry-run --include-raw-content

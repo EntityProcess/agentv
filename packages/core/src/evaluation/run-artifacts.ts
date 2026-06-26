@@ -35,25 +35,14 @@ import {
 import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import {
-  AGENTV_RESULTS_ARTIFACTS_REF,
   CANONICAL_METRICS_ARTIFACT_PATH,
-  CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
-  type ResultArtifactFamily,
-  type ResultArtifactPointerWire,
   type ResultArtifactPointersWire,
-  TRACE_JSON_MEDIA_TYPE,
-  TRANSCRIPT_JSONL_MEDIA_TYPE,
-  TRANSCRIPT_SCHEMA_VERSION,
-  type TranscriptArtifactPointerWire,
-  toResultArtifactPointerWire,
 } from './result-artifact-contract.js';
 import { normalizeResultRow } from './result-row-schema.js';
 import {
-  EXECUTION_TRACE_SCHEMA_VERSION,
   type TraceEnvelope,
   buildTraceEnvelopeFromEvaluationResult,
-  toTraceEnvelopeWire,
   traceEnvelopeToTranscriptMessages,
 } from './trace-envelope.js';
 import { type TokenUsage, type TraceSummary, buildTraceFromMessages } from './trace.js';
@@ -303,7 +292,6 @@ export interface IndexArtifactEntry {
   readonly summary_path?: string;
   readonly output_path?: string;
   readonly answer_path?: string;
-  readonly trace_path?: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
   readonly metrics_path?: string;
@@ -1349,7 +1337,6 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     source: { path: RESULT_INDEX_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
-      trace_path: CANONICAL_TRACE_ARTIFACT_PATH,
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
       metrics_path: CANONICAL_METRICS_ARTIFACT_PATH,
@@ -1357,84 +1344,6 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     },
     duplicatePolicy: params.duplicatePolicy,
   });
-}
-
-async function writeTraceEnvelopeSidecar(
-  params: TraceEnvelopeSidecarParams,
-): Promise<TraceEnvelope> {
-  const envelope = buildTraceEnvelopeSidecar(params);
-  await writeFile(
-    path.join(params.testDir, CANONICAL_TRACE_ARTIFACT_PATH),
-    `${JSON.stringify(toTraceEnvelopeWire(envelope), null, 2)}\n`,
-    'utf8',
-  );
-  return envelope;
-}
-
-function buildSidecarArtifactKey(family: ResultArtifactFamily, runRelativePath: string): string {
-  return path.posix.join(family, runRelativePath);
-}
-
-async function buildArtifactPointer(params: {
-  readonly filePath: string;
-  readonly runRelativePath: string;
-  readonly family: ResultArtifactFamily;
-  readonly schemaVersion: string;
-  readonly mediaType: string;
-}): Promise<ResultArtifactPointerWire> {
-  const content = await readFile(params.filePath);
-  const sha256 = createHash('sha256').update(content).digest('hex');
-  return toResultArtifactPointerWire({
-    ref: AGENTV_RESULTS_ARTIFACTS_REF,
-    key: buildSidecarArtifactKey(params.family, params.runRelativePath),
-    objectVersion: `sha256:${sha256}`,
-    path: params.runRelativePath,
-    sha256,
-    size: content.byteLength,
-    schemaVersion: params.schemaVersion,
-    mediaType: params.mediaType,
-    family: params.family,
-  });
-}
-
-async function buildTracePointer(
-  outputDir: string,
-  tracePath: string,
-): Promise<ResultArtifactPointerWire> {
-  return buildArtifactPointer({
-    filePath: tracePath,
-    runRelativePath: toRelativeArtifactPath(outputDir, tracePath),
-    family: 'traces',
-    schemaVersion: EXECUTION_TRACE_SCHEMA_VERSION,
-    mediaType: TRACE_JSON_MEDIA_TYPE,
-  });
-}
-
-async function buildTranscriptPointer(
-  outputDir: string,
-  transcriptPath: string,
-): Promise<TranscriptArtifactPointerWire> {
-  const pointer = await buildArtifactPointer({
-    filePath: transcriptPath,
-    runRelativePath: toRelativeArtifactPath(outputDir, transcriptPath),
-    family: 'transcripts',
-    schemaVersion: TRANSCRIPT_SCHEMA_VERSION,
-    mediaType: TRANSCRIPT_JSONL_MEDIA_TYPE,
-  });
-  return pointer as TranscriptArtifactPointerWire;
-}
-
-async function buildArtifactPointers(params: {
-  readonly outputDir: string;
-  readonly tracePath: string;
-  readonly transcriptPath?: string;
-}): Promise<ResultArtifactPointersWire> {
-  return {
-    trace: await buildTracePointer(params.outputDir, params.tracePath),
-    ...(params.transcriptPath
-      ? { transcript: await buildTranscriptPointer(params.outputDir, params.transcriptPath) }
-      : {}),
-  };
 }
 
 export function buildIndexArtifactEntry(
@@ -1447,7 +1356,6 @@ export function buildIndexArtifactEntry(
     summaryPath?: string;
     outputPath?: string;
     answerPath?: string;
-    tracePath?: string;
     transcriptPath?: string;
     transcriptRawPath?: string;
     metricsPath?: string;
@@ -1496,9 +1404,6 @@ export function buildIndexArtifactEntry(
       : undefined,
     answer_path: options.answerPath
       ? toRelativeArtifactPath(options.outputDir, options.answerPath)
-      : undefined,
-    trace_path: options.tracePath
-      ? toRelativeArtifactPath(options.outputDir, options.tracePath)
       : undefined,
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
@@ -1640,14 +1545,12 @@ function buildMetricsArtifactPayload(params: {
   readonly result: EvaluationResult;
   readonly envelope: TraceEnvelope;
   readonly transcriptPath?: string;
-  readonly traceArtifactPath?: string;
   readonly transcriptArtifactPath?: string;
   readonly gradingArtifactPath?: string;
   readonly timingArtifactPath?: string | null;
   readonly timing?: TimingArtifact;
 }): ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact } {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
-    tracePath: params.traceArtifactPath,
     transcriptPath:
       params.transcriptArtifactPath ??
       (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
@@ -1663,7 +1566,6 @@ async function writeMetricsArtifact(params: {
   readonly result: EvaluationResult;
   readonly envelope: TraceEnvelope;
   readonly transcriptPath?: string;
-  readonly traceArtifactPath?: string;
   readonly transcriptArtifactPath?: string;
   readonly gradingArtifactPath?: string;
   readonly timingArtifactPath?: string | null;

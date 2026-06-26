@@ -81,13 +81,10 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
   const runDir = path.join(projectDir, '.agentv', 'results', 'default', 'run-002');
   const artifactDir = path.join(runDir, 'alpha');
   mkdirSync(artifactDir, { recursive: true });
-  const traceContent = Buffer.from('{"schema_version":"agentv.trace.v1","spans":[]}\n');
   const transcriptContent = Buffer.from(
     '{"schema_version":"agentv.transcript.v1","role":"assistant","content":"ok"}\n',
   );
-  writeFileSync(path.join(artifactDir, 'trace.json'), traceContent);
   writeFileSync(path.join(artifactDir, 'transcript.jsonl'), transcriptContent);
-  const traceSha = sha256Hex(traceContent);
   const transcriptSha = sha256Hex(transcriptContent);
   writeFileSync(
     path.join(runDir, 'index.jsonl'),
@@ -95,17 +92,6 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
       test_id: 'alpha',
       score: 1,
       artifact_pointers: {
-        trace: {
-          ref: AGENTV_RESULTS_ARTIFACTS_REF,
-          key: 'traces/alpha/trace.json',
-          object_version: `sha256:${traceSha}`,
-          path: 'alpha/trace.json',
-          sha256: traceSha,
-          size: traceContent.byteLength,
-          schema_version: 'agentv.trace.v1',
-          media_type: 'application/vnd.agentv.trace.v1+json',
-          family: 'traces',
-        },
         transcript: {
           ref: AGENTV_RESULTS_ARTIFACTS_REF,
           key: 'transcripts/alpha/transcript.jsonl',
@@ -236,7 +222,7 @@ describe('maybeAutoExportRunArtifacts', () => {
         rootDir,
       ),
     );
-    expect(index.artifact_pointers.trace.key).toBe('runs/default/run-002/alpha/trace.json');
+    expect(index.artifact_pointers).not.toHaveProperty('trace');
     expect(index.artifact_pointers.transcript.key).toBe(
       'runs/default/run-002/alpha/transcript.jsonl',
     );
@@ -244,7 +230,7 @@ describe('maybeAutoExportRunArtifacts', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_ARTIFACTS_REF}`,
       rootDir,
     );
-    expect(artifactTree).toContain('runs/default/run-002/alpha/trace.json');
+    expect(artifactTree).not.toContain('runs/default/run-002/alpha/trace.json');
     expect(artifactTree).toContain('runs/default/run-002/alpha/transcript.jsonl');
   }, 20_000);
 

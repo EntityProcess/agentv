@@ -266,16 +266,17 @@ function writeRunArtifactsWithPointers(
   runDir: string,
   experiment: string,
   timestamp: string,
+  options: { readonly includeLegacyTracePointer?: boolean } = {},
 ): void {
   writeRunArtifacts(runDir, experiment, timestamp);
   const artifactDir = path.join(runDir, 'alpha');
   mkdirSync(artifactDir, { recursive: true });
-  const traceContent = Buffer.from(
-    JSON.stringify({
+  const legacyTraceContent = Buffer.from(
+    `${JSON.stringify({
       schema_version: 'agentv.trace.v1',
       test_id: 'alpha',
       spans: [],
-    }),
+    })}\n`,
   );
   const transcriptContent = Buffer.from(
     `${JSON.stringify({
@@ -285,10 +286,12 @@ function writeRunArtifactsWithPointers(
       content: 'sidecar transcript',
     })}\n`,
   );
-  writeFileSync(path.join(artifactDir, 'trace.json'), traceContent);
+  if (options.includeLegacyTracePointer) {
+    writeFileSync(path.join(artifactDir, 'trace.json'), legacyTraceContent);
+  }
   writeFileSync(path.join(artifactDir, 'transcript.jsonl'), transcriptContent);
 
-  const traceSha = sha256Hex(traceContent);
+  const legacyTraceSha = sha256Hex(legacyTraceContent);
   const transcriptSha = sha256Hex(transcriptContent);
   writeFileSync(
     path.join(runDir, 'index.jsonl'),
@@ -296,17 +299,21 @@ function writeRunArtifactsWithPointers(
       test_id: 'alpha',
       score: 1,
       artifact_pointers: {
-        trace: {
-          ref: AGENTV_RESULTS_REFS.artifacts,
-          key: 'traces/alpha/trace.json',
-          object_version: `sha256:${traceSha}`,
-          path: 'alpha/trace.json',
-          sha256: traceSha,
-          size: traceContent.byteLength,
-          schema_version: 'agentv.trace.v1',
-          media_type: 'application/vnd.agentv.trace.v1+json',
-          family: 'traces',
-        },
+        ...(options.includeLegacyTracePointer
+          ? {
+              trace: {
+                ref: AGENTV_RESULTS_REFS.artifacts,
+                key: 'traces/alpha/trace.json',
+                object_version: `sha256:${legacyTraceSha}`,
+                path: 'alpha/trace.json',
+                sha256: legacyTraceSha,
+                size: legacyTraceContent.byteLength,
+                schema_version: 'agentv.trace.v1',
+                media_type: 'application/vnd.agentv.trace.v1+json',
+                family: 'traces',
+              },
+            }
+          : {}),
         transcript: {
           ref: AGENTV_RESULTS_REFS.artifacts,
           key: 'transcripts/alpha/transcript.jsonl',
@@ -1581,7 +1588,9 @@ describe('results repo write path', () => {
       ...createResultsConfig(remoteDir, cloneDir),
       branch: storageBranch,
     };
-    writeRunArtifactsWithPointers(sourceDir, 'sidecar', '2026-06-21T12:00:00.000Z');
+    writeRunArtifactsWithPointers(sourceDir, 'sidecar', '2026-06-21T12:00:00.000Z', {
+      includeLegacyTracePointer: true,
+    });
 
     await expect(
       directPushResults({
@@ -1605,7 +1614,7 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
     );
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/trace.json`);
+    expect(artifactTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
     expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
     expect(artifactTree).not.toContain(`runs/${destinationPath}/summary.json`);
     expect(artifactTree).not.toContain(`runs/${destinationPath}/index.jsonl`);
@@ -1616,6 +1625,8 @@ describe('results repo write path', () => {
         rootDir,
       ).toString('utf8'),
     );
+    expect(index.artifact_pointers).not.toHaveProperty('trace');
+    expect(index.artifact_pointers).toHaveProperty('transcript');
     for (const pointer of Object.values(index.artifact_pointers) as Array<{
       key: string;
       path: string;
@@ -1705,7 +1716,7 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
     );
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/trace.json`);
+    expect(artifactTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
     expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
 
     await expect(

@@ -10,7 +10,7 @@
  * sidecars should use explicit path fields such as `metrics_path`.
  *
  * Git remote publishing treats the configured results branch as the
- * metadata/control plane and stores transcript or trace payload bytes whose
+ * metadata/control plane and stores transcript payload bytes whose
  * `ref` is `agentv/artifacts/v1` on that artifact ref at the published pointer
  * `key` (`runs/<run-path>/<pointer.path>` for the git backend).
  */
@@ -25,14 +25,12 @@ export const AGENTV_RESULTS_REFS = {
   oplog: AGENTV_RESULTS_OPLOG_REF,
 } as const;
 
-export const CANONICAL_TRACE_ARTIFACT_PATH = 'trace.json' as const;
 export const CANONICAL_TRANSCRIPT_ARTIFACT_PATH = 'transcript.jsonl' as const;
 export const CANONICAL_METRICS_ARTIFACT_PATH = 'metrics.json' as const;
 
 export const TRANSCRIPT_SCHEMA_VERSION = 'agentv.transcript.v1' as const;
 export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;
 export const TRANSCRIPT_JSONL_MEDIA_TYPE = 'application/x-ndjson' as const;
-export const TRACE_JSON_MEDIA_TYPE = 'application/vnd.agentv.trace.v1+json' as const;
 export const METRICS_JSON_MEDIA_TYPE = 'application/vnd.agentv.metrics.v1+json' as const;
 
 export type AgentVResultsRefName = (typeof AGENTV_RESULTS_REFS)[keyof typeof AGENTV_RESULTS_REFS];
@@ -81,7 +79,6 @@ export type TranscriptArtifactPointerWire = ResultArtifactPointerWire & {
 };
 
 export interface ResultArtifactPointersWire {
-  readonly trace?: ResultArtifactPointerWire;
   readonly transcript?: TranscriptArtifactPointerWire;
 }
 

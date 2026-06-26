@@ -103,7 +103,9 @@ path fields:
 
 Do not use `artifact_pointers` as the discovery path for ordinary per-run
 transcript sidecars. `artifact_pointers` remains an offload indirection for large
-detached payload bytes.
+detached transcript payload bytes. AgentV run bundles do not persist or
+advertise a public `trace.json`/`trace_path` sidecar; external observability
+systems can be correlated through `external_trace` link metadata when available.
 
 AgentV may derive additional event-oriented projections from `transcript.jsonl`
 for Dashboard queries, tool-trajectory scoring, OpenTelemetry/OpenInference

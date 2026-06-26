@@ -514,11 +514,16 @@ function resolveRecordArtifactPointer(
   record: ResultManifestRecord,
   kind: 'transcript' | 'answer' | 'trace',
 ): ResolvedArtifactPointer {
+  const legacyArtifactPointers = record.artifact_pointers as
+    | (ResultManifestRecord['artifact_pointers'] & {
+        readonly trace?: NonNullable<ResultManifestRecord['artifact_pointers']>['transcript'];
+      })
+    | undefined;
   const pointer =
     kind === 'transcript'
       ? record.artifact_pointers?.transcript
       : kind === 'trace'
-        ? record.artifact_pointers?.trace
+        ? legacyArtifactPointers?.trace
         : undefined;
   const pointerPath = artifactPointerPath(pointer);
   const description = artifactPointerDescription(pointer);
@@ -1059,8 +1064,8 @@ function traceSessionArtifactResponse(
 
 function missingTraceMessage(): string {
   return [
-    'This result does not include canonical trace.json metadata.',
-    'Dashboard trace sessions require an agentv.trace.v1 sidecar artifact.',
+    'This result does not include legacy trace artifact metadata.',
+    'Dashboard transcript inspection uses transcript.jsonl for current run bundles.',
   ].join(' ');
 }
 

@@ -193,17 +193,6 @@ describe('results combine', () => {
         metrics_path: 'demo/test-a/metrics.json',
         raw_provider_log_path: 'demo/test-a/provider.log',
         artifact_pointers: {
-          trace: {
-            ref: 'agentv/artifacts/v1',
-            key: 'traces/demo/test-a/trace.json',
-            object_version: 'sha256:trace',
-            path: 'demo/test-a/trace.json',
-            sha256: 'trace',
-            size: 18,
-            schema_version: 'agentv.trace.v1',
-            media_type: 'application/vnd.agentv.trace.v1+json',
-            family: 'traces',
-          },
           transcript: {
             ref: 'agentv/artifacts/v1',
             key: 'transcripts/demo/test-a/transcript.jsonl',
@@ -263,23 +252,20 @@ describe('results combine', () => {
 
     const [record] = readIndex(combined.manifestPath);
     expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
-    expect(record.trace_path).toBe('sources/source-1/demo/test-a/trace.json');
+    expect(record).not.toHaveProperty('trace_path');
     expect(record.transcript_path).toBe('sources/source-1/demo/test-a/transcript.jsonl');
     expect(record.metrics_path).toBe('sources/source-1/demo/test-a/metrics.json');
     expect(record.raw_provider_log_path).toBe('sources/source-1/demo/test-a/provider.log');
     expect(record.artifact_pointers).toMatchObject({
-      trace: {
-        key: 'traces/sources/source-1/demo/test-a/trace.json',
-        path: 'sources/source-1/demo/test-a/trace.json',
-      },
       transcript: {
         key: 'transcripts/sources/source-1/demo/test-a/transcript.jsonl',
         path: 'sources/source-1/demo/test-a/transcript.jsonl',
       },
     });
+    expect(record.artifact_pointers).not.toHaveProperty('trace');
     expect(record.artifact_pointers).not.toHaveProperty('metrics');
     expect(existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/trace.json'))).toBe(
-      true,
+      false,
     );
     expect(
       existsSync(path.join(combined.runDir, 'sources/source-1/demo/test-a/transcript.jsonl')),

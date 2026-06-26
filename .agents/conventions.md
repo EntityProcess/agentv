@@ -126,9 +126,9 @@ If you spot a camelCase key already on disk or in a response, treat it as a bug 
 
 ## Result Artifact Pointers
 
-`artifact_pointers` are for offloading large detached payload bytes from the results metadata/control plane. They describe where payloads such as trace or transcript files live when a run is projected to `agentv/artifacts/v1` or a future object store, including `key`, `object_version`, `sha256`, `size`, `media_type`, and `schema_version`.
+`artifact_pointers` are for offloading large detached payload bytes from the results metadata/control plane. They describe where payloads such as transcript files live when a run is projected to `agentv/artifacts/v1` or a future object store, including `key`, `object_version`, `sha256`, `size`, `media_type`, and `schema_version`.
 
-Do not add an `artifact_pointers.*` entry just because a new per-case artifact exists. Normal sidecars that stay in the run tree should be discoverable through explicit path fields on `index.jsonl`, manifests, or trace envelope artifacts, for example `metrics_path` for `outputs/metrics.json`.
+Do not add an `artifact_pointers.*` entry just because a new per-case artifact exists. Normal sidecars that stay in the run tree should be discoverable through explicit path fields on `index.jsonl` or manifests, for example `metrics_path` for `outputs/metrics.json`.
 
 Before adding a new pointer family, verify that the artifact is large enough or detached enough to benefit from offloading and that published result repos should avoid carrying those payload bytes on the primary results branch.
 
