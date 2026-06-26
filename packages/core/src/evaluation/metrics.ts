@@ -882,7 +882,7 @@ export function buildMetricsArtifact(
         path: tracePath ?? CANONICAL_TRACE_ARTIFACT_PATH,
       },
       source_artifacts: dropUndefined({
-        trace_path: tracePath,
+        trace_path: options.tracePath,
         transcript_path: options.transcriptPath,
         grading_path: options.gradingPath,
         timing_path: options.timingPath,
