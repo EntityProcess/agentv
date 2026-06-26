@@ -489,7 +489,11 @@ function normalizeToolResultStatus(
 function normalizedToolResult(
   toolCall: ToolCall,
 ): Extract<NormalizedTranscriptContentBlock, { type: 'tool_use' }>['result'] | undefined {
-  if (toolCall.output === undefined) {
+  const hasResult =
+    toolCall.status !== undefined ||
+    toolCall.durationMs !== undefined ||
+    toolCall.output !== undefined;
+  if (!hasResult) {
     return undefined;
   }
   return dropUndefined({
@@ -503,10 +507,6 @@ function normalizedToolMetadata(toolCall: ToolCall): Record<string, unknown> | u
   const metadata = dropUndefined({
     start_time: toolCall.startTime,
     end_time: toolCall.endTime,
-    status:
-      toolCall.status && toolCall.output === undefined
-        ? normalizeToolResultStatus(toolCall.status)
-        : undefined,
   });
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }

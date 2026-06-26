@@ -853,7 +853,6 @@ async function writeTrialRunArtifacts(params: {
     filePath: metricsPath,
     result,
     envelope,
-    traceArtifactPath: CANONICAL_TRACE_ARTIFACT_PATH,
     transcriptArtifactPath: transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
     gradingArtifactPath: 'grading.json',
     timingArtifactPath: 'timing.json',
@@ -1648,7 +1647,7 @@ function buildMetricsArtifactPayload(params: {
   readonly timing?: TimingArtifact;
 }): ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact } {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
-    tracePath: params.traceArtifactPath ?? CANONICAL_TRACE_ARTIFACT_PATH,
+    tracePath: params.traceArtifactPath,
     transcriptPath:
       params.transcriptArtifactPath ??
       (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),

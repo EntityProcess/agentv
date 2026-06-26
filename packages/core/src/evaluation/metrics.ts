@@ -186,7 +186,7 @@ export const MetricsArtifactWireSchema = z
       .strict(),
     source_artifacts: z
       .object({
-        trace_path: z.string(),
+        trace_path: z.string().optional(),
         transcript_path: z.string().optional(),
         grading_path: z.string().optional(),
         timing_path: z.string().optional(),
@@ -864,7 +864,7 @@ export function buildMetricsArtifact(
     generatedAt?: string;
   } = {},
 ): MetricsArtifactWire {
-  const tracePath = options.tracePath ?? CANONICAL_TRACE_ARTIFACT_PATH;
+  const tracePath = options.tracePath;
   return MetricsArtifactWireSchema.parse(
     dropUndefined({
       schema_version: METRICS_SCHEMA_VERSION,
@@ -879,7 +879,7 @@ export function buildMetricsArtifact(
         artifact_id: envelope.artifactId,
         trace_id: envelope.trace.traceId,
         root_span_id: envelope.trace.rootSpanId,
-        path: tracePath,
+        path: tracePath ?? CANONICAL_TRACE_ARTIFACT_PATH,
       },
       source_artifacts: dropUndefined({
         trace_path: tracePath,

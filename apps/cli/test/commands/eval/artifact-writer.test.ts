@@ -1153,6 +1153,13 @@ describe('writeArtifactsFromResults', () => {
             status: 'ok' as const,
             durationMs: 25,
           },
+          {
+            tool: 'Bash',
+            id: 'bash-1',
+            input: { command: 'bun test missing.test.ts' },
+            status: 'error' as const,
+            durationMs: 10,
+          },
         ],
       },
     ];
@@ -1217,6 +1224,16 @@ describe('writeArtifactsFromResults', () => {
             status: 'success',
             output: 'file contents',
             duration_ms: 25,
+          },
+        },
+        {
+          type: 'tool_use',
+          id: 'bash-1',
+          name: 'Bash',
+          input: { command: 'bun test missing.test.ts' },
+          result: {
+            status: 'error',
+            duration_ms: 10,
           },
         },
       ],
@@ -1350,11 +1367,14 @@ describe('writeArtifactsFromResults', () => {
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
     expect(summary.source_artifacts).toMatchObject({
-      trace_path: 'trace.json',
       transcript_path: 'transcript.jsonl',
       grading_path: 'grading.json',
       timing_path: 'timing.json',
     });
+    expect(summary.source_artifacts).not.toHaveProperty('trace_path');
+    await expect(
+      readFile(path.join(testDir, 'summary-case', 'run-1', 'trace.json'), 'utf8'),
+    ).rejects.toThrow();
     expect(summary.metrics.total_turns).toBe(2);
     expect(summary.metrics.total_tool_calls).toBe(4);
     expect(summary.metrics.total_steps).toBe(2);
