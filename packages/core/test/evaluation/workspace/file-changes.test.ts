@@ -124,9 +124,13 @@ describe('workspace file-changes', () => {
     expect(diff).toContain('post-baseline change');
     expect(diff).not.toContain('pre-existing-untracked.txt');
     expect(git('git status --short --untracked-files=all', workspacePath)).toContain('M hello.txt');
-    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('D delete-me.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(
+      'D delete-me.txt',
+    );
     expect(git('git status --short --untracked-files=all', workspacePath)).toContain('?? new.txt');
-    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('?? pre-existing-untracked.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(
+      '?? pre-existing-untracked.txt',
+    );
   });
 
   it('captureFileChanges detects added/modified/deleted files', async () => {

@@ -154,10 +154,7 @@ export async function captureFileChanges(
     return withTemporaryGitIndex(workspacePath, async (opts) => {
       await execAsync(`git read-tree ${baselineCommit}`, opts);
       await execAsync('git add -A', opts);
-      const { stdout } = await execAsync(
-        `git diff ${baselineCommit} --submodule=diff`,
-        opts,
-      );
+      const { stdout } = await execAsync(`git diff ${baselineCommit} --submodule=diff`, opts);
       return stdout.trim();
     });
   });
