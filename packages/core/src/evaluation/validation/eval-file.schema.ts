@@ -366,24 +366,6 @@ const ExecutionSchema = z.object({
   threshold: z.number().min(0).max(1).optional(),
 });
 
-const StringOrStringArraySchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
-
-const ExperimentScriptSchema = z.union([
-  z.string().min(1),
-  z
-    .object({
-      command: StringOrStringArraySchema.optional(),
-      script: StringOrStringArraySchema.optional(),
-      timeout_seconds: z.number().gt(0).optional(),
-      cwd: z.string().min(1).optional(),
-      env: z.record(z.string()).optional(),
-    })
-    .strict()
-    .refine((value) => value.command !== undefined || value.script !== undefined, {
-      message: 'Experiment step must define command or script.',
-    }),
-]);
-
 const ExperimentRepeatSchema = z
   .object({
     count: z.number().int().min(1),
@@ -418,7 +400,7 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   model: z.string().min(1).optional(),
   agent_options: JsonObjectSchema.optional(),
   targets: z.array(ExperimentTargetRefSchema).min(1).optional(),
-  scripts: z.array(ExperimentScriptSchema).optional(),
+  scripts: z.never().optional(),
   repeat: ExperimentRepeatSchema.optional(),
   runs: z.number().int().min(1).optional(),
   early_exit: z.boolean().optional(),
@@ -426,7 +408,7 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   budget_usd: z.number().gt(0).optional(),
   sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
   workspace: JsonObjectSchema.optional(),
-  setup: z.array(ExperimentScriptSchema).optional(),
+  setup: z.never().optional(),
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
   message: 'Use repeat or runs, not both.',
 });

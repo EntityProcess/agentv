@@ -20,27 +20,6 @@ export type ExperimentTargetRef =
       readonly hooks?: Record<string, unknown>;
     };
 
-export type ExperimentScriptWire =
-  | string
-  | {
-      readonly command?: string | readonly string[];
-      readonly script?: string | readonly string[];
-      readonly timeout_seconds?: number;
-      readonly cwd?: string;
-      readonly env?: Record<string, string>;
-    };
-
-export type ExperimentScript = {
-  readonly command?: readonly string[];
-  readonly script?: string | readonly string[];
-  readonly timeoutSeconds?: number;
-  readonly cwd?: string;
-  readonly env?: Record<string, string>;
-};
-
-export type ExperimentSetupFn = (sandbox: unknown) => void | Promise<void>;
-export type ExperimentSetup = readonly ExperimentScript[] | ExperimentSetupFn;
-
 export type ExperimentRepeatWire = {
   readonly count?: number;
   readonly strategy?: TrialStrategy;
@@ -61,7 +40,6 @@ export type ExperimentConfigWire = {
   readonly targets?: readonly ExperimentTargetRefWire[];
   readonly model?: string;
   readonly agent_options?: Record<string, unknown>;
-  readonly scripts?: readonly ExperimentScriptWire[];
   readonly repeat?: ExperimentRepeatWire;
   readonly runs?: number;
   readonly early_exit?: boolean;
@@ -71,7 +49,6 @@ export type ExperimentConfigWire = {
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
   readonly workspace?: Record<string, unknown>;
-  readonly setup?: readonly ExperimentScriptWire[] | ExperimentSetupFn;
 };
 
 export type ExperimentConfig = {
@@ -81,7 +58,6 @@ export type ExperimentConfig = {
   readonly targets?: readonly ExperimentTargetRef[];
   readonly model?: string;
   readonly agentOptions?: Record<string, unknown>;
-  readonly scripts?: readonly ExperimentScript[];
   readonly repeat?: ExperimentRepeat;
   readonly runs?: number;
   readonly earlyExit?: boolean;
@@ -91,7 +67,6 @@ export type ExperimentConfig = {
   readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
   readonly workspace?: Record<string, unknown>;
-  readonly setup?: ExperimentSetup;
   readonly fingerprint?: string;
 };
 
@@ -144,7 +119,7 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
   const targets = readTargets(rawConfig.targets);
   const model = readOptionalString(rawConfig.model, 'model');
   const agentOptions = readOptionalRecord(rawConfig.agent_options ?? rawConfig.agentOptions);
-  const scripts = readScriptArray(rawConfig.scripts, 'scripts');
+  rejectExperimentLifecycleCommands(rawConfig);
   const repeat = readRepeat(rawConfig.repeat);
   const runs = readOptionalPositiveInteger(rawConfig.runs, 'runs');
   if (repeat !== undefined && runs !== undefined) {
@@ -163,7 +138,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
   );
   const sandbox = readOptionalSandbox(rawConfig.sandbox);
   const workspace = readOptionalRecord(rawConfig.workspace);
-  const setup = readSetup(rawConfig.setup);
 
   const configWithoutFingerprint: Omit<ExperimentConfig, 'fingerprint'> = {
     ...(name !== undefined && { name }),
@@ -172,7 +146,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     ...(targets !== undefined && { targets }),
     ...(model !== undefined && { model }),
     ...(agentOptions !== undefined && { agentOptions }),
-    ...(scripts !== undefined && { scripts }),
     ...(repeat !== undefined && { repeat }),
     ...(runs !== undefined && { runs }),
     ...(earlyExit !== undefined && { earlyExit }),
@@ -182,7 +155,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     ...(budgetUsd !== undefined && { budgetUsd }),
     ...(sandbox !== undefined && { sandbox }),
     ...(workspace !== undefined && { workspace }),
-    ...(setup !== undefined && { setup }),
   };
 
   return {
@@ -311,105 +283,6 @@ function readTargets(raw: unknown): readonly ExperimentTargetRef[] | undefined {
   });
 }
 
-function readScriptArray(raw: unknown, location: string): readonly ExperimentScript[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!Array.isArray(raw)) {
-    throw new Error(`Experiment ${location} must be an array.`);
-  }
-  return raw.map((entry, index) => readScript(entry, `${location}[${index}]`));
-}
-
-function readSetup(raw: unknown): ExperimentSetup | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw === 'function') {
-    return raw as ExperimentSetupFn;
-  }
-  return readScriptArray(raw, 'setup');
-}
-
-function readScript(raw: unknown, location: string): ExperimentScript {
-  if (typeof raw === 'string') {
-    const script = raw.trim();
-    if (!script) {
-      throw new Error(`Experiment ${location} must not be empty.`);
-    }
-    return { script };
-  }
-  if (!isRecord(raw)) {
-    throw new Error(`Experiment ${location} must be a string or object.`);
-  }
-
-  const command = readOptionalCommand(raw.command, `${location}.command`);
-  const script = readOptionalStringOrStringArray(raw.script, `${location}.script`);
-  if (command === undefined && script === undefined) {
-    throw new Error(`Experiment ${location} must define command or script.`);
-  }
-
-  const timeoutSeconds = readOptionalPositiveNumber(
-    raw.timeout_seconds ?? raw.timeoutSeconds,
-    `${location}.timeout_seconds`,
-  );
-  const cwd = readOptionalString(raw.cwd, `${location}.cwd`);
-  const env = readOptionalStringRecord(raw.env, `${location}.env`);
-
-  return {
-    ...(command !== undefined && { command }),
-    ...(script !== undefined && { script }),
-    ...(timeoutSeconds !== undefined && { timeoutSeconds }),
-    ...(cwd !== undefined && { cwd }),
-    ...(env !== undefined && { env }),
-  };
-}
-
-function readOptionalCommand(raw: unknown, location: string): readonly string[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw === 'string') {
-    const command = raw.trim();
-    if (!command) {
-      throw new Error(`Experiment ${location} must not be empty.`);
-    }
-    return ['sh', '-c', command];
-  }
-  if (
-    Array.isArray(raw) &&
-    raw.length > 0 &&
-    raw.every((entry) => typeof entry === 'string' && entry.trim())
-  ) {
-    return raw.map((entry) => entry.trim());
-  }
-  throw new Error(`Experiment ${location} must be a string or string array.`);
-}
-
-function readOptionalStringOrStringArray(
-  raw: unknown,
-  location: string,
-): string | readonly string[] | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      throw new Error(`Experiment ${location} must not be empty.`);
-    }
-    return trimmed;
-  }
-  if (
-    Array.isArray(raw) &&
-    raw.length > 0 &&
-    raw.every((entry) => typeof entry === 'string' && entry.trim())
-  ) {
-    return raw.map((entry) => entry.trim());
-  }
-  throw new Error(`Experiment ${location} must be a string or string array.`);
-}
-
 function readOptionalString(raw: unknown, location: string): string | undefined {
   if (raw === undefined) {
     return undefined;
@@ -518,25 +391,21 @@ function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {
   return raw;
 }
 
-function readOptionalStringRecord(
-  raw: unknown,
-  location: string,
-): Record<string, string> | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (!isRecord(raw)) {
-    throw new Error(`Experiment ${location} must be an object.`);
-  }
-  const entries = Object.entries(raw);
-  if (!entries.every((entry): entry is [string, string] => typeof entry[1] === 'string')) {
-    throw new Error(`Experiment ${location} values must be strings.`);
-  }
-  return Object.fromEntries(entries);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function rejectExperimentLifecycleCommands(rawConfig: Record<string, unknown>): void {
+  if (rawConfig.setup !== undefined) {
+    throw new Error(
+      'Experiment setup is not supported. Use workspace.hooks for repo setup or targets[].hooks for runner setup.',
+    );
+  }
+  if (rawConfig.scripts !== undefined) {
+    throw new Error(
+      'Experiment scripts are not supported. Use workspace.hooks for repo setup or targets[].hooks for runner setup.',
+    );
+  }
 }
 
 function toStableJsonValue(value: unknown): unknown {

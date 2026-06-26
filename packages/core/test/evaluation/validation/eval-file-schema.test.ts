@@ -98,6 +98,18 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects experiment lifecycle commands', () => {
+    const result = EvalFileSchema.safeParse({
+      experiment: {
+        setup: [{ script: 'bun install' }],
+        scripts: ['bun test'],
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects scoped run overrides that change the target or setup', () => {
     const result = EvalFileSchema.safeParse({
       tests: [

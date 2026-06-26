@@ -14,7 +14,6 @@ describe('inline experiment config', () => {
       agent: 'codex',
       model: 'openai/gpt-5.5',
       agent_options: { reasoning_effort: 'high' },
-      scripts: ['build', { script: 'bun test', timeout_seconds: 120 }],
       runs: 3,
       early_exit: false,
       timeout_seconds: 900,
@@ -23,7 +22,6 @@ describe('inline experiment config', () => {
       budget_usd: 1.25,
       sandbox: 'auto',
       workspace: { mode: 'static', path: './workspace' },
-      setup: [{ script: 'bun install' }],
     });
 
     expect(config).toMatchObject({
@@ -33,7 +31,6 @@ describe('inline experiment config', () => {
       agent: 'codex',
       model: 'openai/gpt-5.5',
       agentOptions: { reasoning_effort: 'high' },
-      scripts: [{ script: 'build' }, { script: 'bun test', timeoutSeconds: 120 }],
       runs: 3,
       earlyExit: false,
       timeoutSeconds: 900,
@@ -41,7 +38,6 @@ describe('inline experiment config', () => {
       budgetUsd: 1.25,
       sandbox: 'auto',
       workspace: { mode: 'static', path: './workspace' },
-      setup: [{ script: 'bun install' }],
     });
     expect(config.fingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -90,15 +86,19 @@ describe('inline experiment config', () => {
       /repeat and runs/,
     );
     expect(() => normalizeExperimentConfig({ sandbox: 'host' })).toThrow(/sandbox/);
+    expect(() => normalizeExperimentConfig({ setup: [{ script: 'bun install' }] })).toThrow(
+      /setup is not supported/,
+    );
+    expect(() => normalizeExperimentConfig({ scripts: ['bun test'] })).toThrow(
+      /scripts are not supported/,
+    );
   });
 
-  it('builds safe snake_case artifact metadata without setup and script bodies', () => {
+  it('builds safe snake_case artifact metadata without agent options', () => {
     const config = normalizeExperimentConfig({
       name: 'baseline',
       target: 'codex',
       agent_options: { secret: 'not persisted' },
-      setup: [{ script: 'bun install' }],
-      scripts: [{ script: 'bun test' }],
       repeat: { count: 2, strategy: 'mean', cost_limit_usd: 0.5 },
       early_exit: true,
       timeout_seconds: 120,

@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import { constants, existsSync, mkdirSync } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { createRequire as createNodeRequire } from 'node:module';
@@ -15,7 +14,6 @@ import {
   type ExecutionDefaults,
   type ExperimentArtifactMetadata,
   type ExperimentConfig,
-  type ExperimentScript,
   type FailOnError,
   type OtelTraceExporter as OtelTraceExporterType,
   type ResolvedTarget,
@@ -784,154 +782,6 @@ function matchesTestFilter(id: string, filter: string | readonly string[]): bool
     : filter.some((pattern) => micromatch.isMatch(id, pattern));
 }
 
-async function runExperimentSteps(params: {
-  readonly label: 'setup' | 'script';
-  readonly steps: readonly ExperimentScript[] | undefined;
-  readonly cwd: string;
-  readonly experimentConfig?: ExperimentConfig;
-}): Promise<void> {
-  const steps = params.steps ?? [];
-  if (steps.length === 0) {
-    return;
-  }
-
-  for (let index = 0; index < steps.length; index++) {
-    const step = steps[index];
-    const command = buildExperimentStepCommand(step);
-    const cwd = resolveExperimentStepCwd(params.cwd, params.experimentConfig, step.cwd);
-    console.log(`Experiment ${params.label} ${index + 1}/${steps.length}: ${command.display}`);
-    await runExperimentCommand(command.argv, {
-      cwd,
-      env: step.env,
-      timeoutMs: step.timeoutSeconds ? step.timeoutSeconds * 1000 : undefined,
-      label: `experiment ${params.label}`,
-    });
-  }
-}
-
-async function runExperimentSetup(params: {
-  readonly config: ExperimentConfig | undefined;
-  readonly cwd: string;
-  readonly runDir: string;
-}): Promise<void> {
-  const setup = params.config?.setup;
-  if (typeof setup === 'function') {
-    console.log('Experiment setup: running TypeScript setup()');
-    await setup({
-      cwd: params.cwd,
-      runDir: params.runDir,
-      experiment: params.config,
-      env: process.env,
-    });
-    return;
-  }
-  await runExperimentSteps({
-    label: 'setup',
-    steps: setup,
-    cwd: params.cwd,
-    experimentConfig: params.config,
-  });
-}
-
-function buildExperimentStepCommand(step: ExperimentScript): {
-  readonly argv: readonly string[];
-  readonly display: string;
-} {
-  if (step.command && step.command.length > 0) {
-    return { argv: step.command, display: step.command.join(' ') };
-  }
-  if (typeof step.script === 'string' && step.script.trim().length > 0) {
-    return {
-      argv: shellCommand(step.script),
-      display: step.script,
-    };
-  }
-  if (Array.isArray(step.script) && step.script.length > 0) {
-    return { argv: step.script, display: step.script.join(' ') };
-  }
-  throw new Error('Experiment step must define command or script.');
-}
-
-function shellCommand(script: string): readonly string[] {
-  return process.platform === 'win32' ? ['cmd', '/c', script] : ['sh', '-c', script];
-}
-
-function resolveExperimentStepCwd(
-  cwd: string,
-  _experimentConfig: ExperimentConfig | undefined,
-  stepCwd: string | undefined,
-): string {
-  const base = cwd;
-  if (!stepCwd) {
-    return base;
-  }
-  return path.isAbsolute(stepCwd) ? stepCwd : path.resolve(base, stepCwd);
-}
-
-async function runExperimentCommand(
-  argv: readonly string[],
-  options: {
-    readonly cwd: string;
-    readonly env?: Record<string, string>;
-    readonly timeoutMs?: number;
-    readonly label: string;
-  },
-): Promise<void> {
-  if (argv.length === 0) {
-    throw new Error(`${options.label} command must not be empty.`);
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const cmd = argv[0];
-    if (!cmd) {
-      reject(new Error(`${options.label} command must not be empty.`));
-      return;
-    }
-    const args = argv.slice(1);
-    const child = spawn(cmd, args, {
-      cwd: options.cwd,
-      env: options.env ? { ...process.env, ...options.env } : process.env,
-      stdio: 'inherit',
-    });
-    let completed = false;
-    const timeout =
-      options.timeoutMs !== undefined
-        ? setTimeout(() => {
-            if (!completed) {
-              completed = true;
-              child.kill('SIGKILL');
-              reject(new Error(`${options.label} timed out after ${options.timeoutMs}ms`));
-            }
-          }, options.timeoutMs)
-        : undefined;
-
-    child.on('error', (error) => {
-      if (completed) {
-        return;
-      }
-      completed = true;
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      reject(error);
-    });
-    child.on('exit', (code) => {
-      if (completed) {
-        return;
-      }
-      completed = true;
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`${options.label} exited with code ${code ?? 'unknown'}`));
-      }
-    });
-  });
-}
-
 type ProgressReporter = {
   readonly isInteractive: boolean;
   start(): void;
@@ -1042,6 +892,7 @@ async function prepareFileMetadata(params: {
   readonly options: NormalizedOptions;
   readonly suiteFilter?: string | readonly string[];
 }): Promise<{
+  readonly options: NormalizedOptions;
   readonly testIds: readonly string[];
   readonly testCases: readonly EvalTest[];
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
@@ -1084,9 +935,14 @@ async function prepareFileMetadata(params: {
       : suite.tests;
   const testIds = testCases.map((value) => value.id);
   const suiteTargets = suite.targets;
+  const defaultBudgetUsd =
+    effectiveOptions.cliBudgetUsd === undefined
+      ? (effectiveOptions.budgetUsd ?? suite.budgetUsd)
+      : suite.budgetUsd;
 
   if (testCases.length === 0) {
     return {
+      options: effectiveOptions,
       testIds,
       testCases,
       selections: [],
@@ -1095,7 +951,7 @@ async function prepareFileMetadata(params: {
       yamlWorkers: suite.workers,
       yamlCache: suite.cacheConfig?.enabled,
       yamlCachePath: suite.cacheConfig?.cachePath,
-      budgetUsd: suite.budgetUsd,
+      budgetUsd: defaultBudgetUsd,
       failOnError: suite.failOnError,
       threshold: suite.threshold,
       tags: suite.metadata?.tags,
@@ -1250,6 +1106,7 @@ async function prepareFileMetadata(params: {
   }
 
   return {
+    options: effectiveOptions,
     testIds,
     testCases,
     selections,
@@ -1258,7 +1115,7 @@ async function prepareFileMetadata(params: {
     yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
-    budgetUsd: suite.budgetUsd,
+    budgetUsd: defaultBudgetUsd,
     failOnError: suite.failOnError,
     threshold: suite.threshold,
     tags: suite.metadata?.tags,
@@ -1597,7 +1454,7 @@ export async function runEvalCommand(
       ? (primarySuite?.metadata?.name ?? fallbackResultGroupName)
       : fallbackResultGroupName;
   options = {
-    ...applyExperimentOptions(options, primarySuite?.experimentConfig),
+    ...options,
     experiment: resolvedExperiment.name ?? resultGroupName,
   };
 
@@ -1816,12 +1673,6 @@ export async function runEvalCommand(
 
   console.log(`Artifact directory: ${runDir}`);
 
-  await runExperimentSetup({
-    config: options.experimentConfig,
-    cwd,
-    runDir,
-  });
-
   // Log file export paths
   if (options.otelFile) {
     console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
@@ -1835,17 +1686,19 @@ export async function runEvalCommand(
   const seenTestCases = new Set<string>();
   const displayIdTracker = createDisplayIdTracker();
 
-  // Run-level budget tracker: caps total cost across all eval files in this run.
-  const runBudgetTracker = options.budgetUsd ? new RunBudgetTracker(options.budgetUsd) : undefined;
+  // CLI --budget-usd is invocation-wide. Inline experiment.budget_usd is handled per eval file.
+  const runBudgetTracker = options.cliBudgetUsd
+    ? new RunBudgetTracker(options.cliBudgetUsd)
+    : undefined;
   if (runBudgetTracker) {
     console.log(`Run budget cap: $${runBudgetTracker.budgetCapUsd.toFixed(2)}`);
   }
 
-  // Each file gets the full worker budget — no splitting across files
-  const perFileWorkers = options.workers;
+  // Each file gets its own worker policy from CLI/config or that file's experiment block.
   const fileMetadata = new Map<
     string,
     {
+      readonly options: NormalizedOptions;
       readonly testIds: readonly string[];
       readonly testCases: readonly EvalTest[];
       readonly selections: readonly {
@@ -1921,7 +1774,9 @@ export async function runEvalCommand(
     console.log(`Replay recording: ${path.resolve(options.recordReplay)}`);
   }
 
-  // Resolve suite-level threshold: CLI --threshold takes precedence over YAML execution.threshold.
+  // Resolve a global summary threshold only when the CLI supplies one or the first
+  // active eval file is the only source of runtime policy. Multi-file runs with
+  // inline thresholds are summarized from per-result execution status instead.
   const yamlThreshold = firstMeta?.threshold;
   const resolvedThreshold = options.threshold ?? yamlThreshold;
   if (resolvedThreshold !== undefined && (resolvedThreshold < 0 || resolvedThreshold > 1)) {
@@ -2030,6 +1885,14 @@ export async function runEvalCommand(
 
   // Use only files that survived tag filtering.
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
+  const singleActiveFileMetadata =
+    activeTestFiles.length === 1 ? fileMetadata.get(activeTestFiles[0]) : undefined;
+  const runExperimentMetadata = singleActiveFileMetadata?.options.experimentMetadata;
+  const hasPerFileRuntimeThresholds =
+    options.cliThreshold === undefined &&
+    activeTestFiles.some(
+      (activeTestFile) => fileMetadata.get(activeTestFile)?.options.threshold !== undefined,
+    );
 
   // --transcript: create a shared TranscriptProvider and validate entry count
   let transcriptProviderFactory:
@@ -2068,7 +1931,7 @@ export async function runEvalCommand(
       evalFile,
       plannedTestCount: totalEvalCount,
       experiment: normalizeExperimentName(options.experiment),
-      experimentMetadata: options.experimentMetadata,
+      experimentMetadata: runExperimentMetadata,
     });
   }
 
@@ -2100,11 +1963,19 @@ export async function runEvalCommand(
   let hasScopedRunPolicies = false;
   try {
     for (const testFilePath of activeTestFiles) {
+      const targetPrep = fileMetadata.get(testFilePath);
+      if (!targetPrep) {
+        throw new Error(`Missing metadata for ${testFilePath}`);
+      }
+      const fileOptions = targetPrep.options;
+      const fileBudgetTracker =
+        runBudgetTracker ??
+        (fileOptions.budgetUsd !== undefined
+          ? new RunBudgetTracker(fileOptions.budgetUsd)
+          : undefined);
       // Run-level budget check: skip remaining files if budget exceeded
-      if (runBudgetTracker?.isExceeded()) {
-        const targetPrep = fileMetadata.get(testFilePath);
-        if (!targetPrep) continue;
-        const budgetMsg = `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`;
+      if (fileBudgetTracker?.isExceeded()) {
+        const budgetMsg = `Run budget exceeded ($${fileBudgetTracker.currentCostUsd.toFixed(4)} / $${fileBudgetTracker.budgetCapUsd.toFixed(4)})`;
         console.log(`\n⚠ ${budgetMsg} — skipping ${path.basename(testFilePath)}`);
         for (const { selection } of targetPrep.selections) {
           const skippedResults: EvaluationResult[] = targetPrep.testCases.map((testCase) => ({
@@ -2131,18 +2002,13 @@ export async function runEvalCommand(
             target: selection.targetName,
           }));
           for (const r of skippedResults) {
-            await outputWriter.append(withSourceMetadata(r, testFilePath, options));
+            await outputWriter.append(withSourceMetadata(r, testFilePath, fileOptions));
           }
           allResults.push(
-            ...skippedResults.map((r) => withSourceMetadata(r, testFilePath, options)),
+            ...skippedResults.map((r) => withSourceMetadata(r, testFilePath, fileOptions)),
           );
         }
         continue;
-      }
-
-      const targetPrep = fileMetadata.get(testFilePath);
-      if (!targetPrep) {
-        throw new Error(`Missing metadata for ${testFilePath}`);
       }
 
       // Run all targets concurrently (each target has its own worker limit)
@@ -2174,10 +2040,10 @@ export async function runEvalCommand(
           try {
             const runGroups = groupTestsByRunPolicy({
               tests: filteredTestCases,
-              options,
-              defaultTrialsConfig: options.transcript ? undefined : targetPrep.trialsConfig,
-              defaultThreshold: resolvedThreshold,
-              defaultTimeoutSeconds: options.agentTimeoutSeconds,
+              options: fileOptions,
+              defaultTrialsConfig: fileOptions.transcript ? undefined : targetPrep.trialsConfig,
+              defaultThreshold: fileOptions.threshold ?? targetPrep.threshold,
+              defaultTimeoutSeconds: fileOptions.agentTimeoutSeconds,
               defaultBudgetUsd: targetPrep.budgetUsd,
             });
             const groupResults: EvaluationResult[] = [];
@@ -2187,12 +2053,12 @@ export async function runEvalCommand(
                 testFilePath,
                 cwd,
                 repoRoot,
-                options,
+                options: fileOptions,
                 outputWriter,
                 otelExporter,
                 cache,
                 evaluationRunner,
-                workersOverride: perFileWorkers,
+                workersOverride: fileOptions.workers,
                 yamlWorkers: targetPrep.yamlWorkers,
                 progressReporter,
                 seenTestCases,
@@ -2200,11 +2066,11 @@ export async function runEvalCommand(
                 selection,
                 inlineTargetLabel,
                 testCases: group.tests,
-                trialsConfig: options.transcript ? undefined : group.policy.trialsConfig,
+                trialsConfig: fileOptions.transcript ? undefined : group.policy.trialsConfig,
                 agentTimeoutSeconds: group.policy.timeoutSeconds,
                 matrixMode: targetPrep.selections.length > 1,
                 budgetUsd: group.policy.budgetUsd,
-                runBudgetTracker,
+                runBudgetTracker: fileBudgetTracker,
                 failOnError: targetPrep.failOnError,
                 threshold: group.policy.threshold,
                 providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
@@ -2259,7 +2125,7 @@ export async function runEvalCommand(
                   target: selection.targetName,
                 },
                 testFilePath,
-                options,
+                fileOptions,
               ),
             );
             for (const errResult of errorResults) {
@@ -2297,11 +2163,12 @@ export async function runEvalCommand(
       summaryResults = deduplicateByTestIdTarget(parseJsonlResults(content));
     }
 
-    const thresholdOpts = hasScopedRunPolicies
-      ? { thresholdLabel: 'configured threshold(s)', useExecutionStatus: true }
-      : resolvedThreshold !== undefined
-        ? { threshold: resolvedThreshold }
-        : undefined;
+    const thresholdOpts =
+      hasScopedRunPolicies || hasPerFileRuntimeThresholds
+        ? { thresholdLabel: 'configured threshold(s)', useExecutionStatus: true }
+        : resolvedThreshold !== undefined
+          ? { threshold: resolvedThreshold }
+          : undefined;
     const summary = calculateEvaluationSummary(summaryResults, thresholdOpts);
     console.log(formatEvaluationSummary(summary, thresholdOpts));
     if (
@@ -2315,7 +2182,9 @@ export async function runEvalCommand(
     // Exit code: 2 when all tests are execution errors (no evaluation performed),
     // 1 when any test scored below threshold.
     const allExecutionErrors = summary.total > 0 && summary.executionErrorCount === summary.total;
-    const thresholdFailed = resolvedThreshold !== undefined && summary.qualityFailureCount > 0;
+    const thresholdFailed =
+      (thresholdOpts?.useExecutionStatus === true || resolvedThreshold !== undefined) &&
+      summary.qualityFailureCount > 0;
 
     // Print matrix summary when multiple targets were evaluated
     if (isMatrixMode && summaryResults.length > 0) {
@@ -2344,7 +2213,7 @@ export async function runEvalCommand(
         const { summaryPath } = await aggregateRunDir(runDir, {
           evalFile,
           experiment: normalizeExperimentName(options.experiment),
-          experimentMetadata: options.experimentMetadata,
+          experimentMetadata: runExperimentMetadata,
         });
         const indexPath = path.join(runDir, 'index.jsonl');
         console.log(`Artifact workspace updated: ${runDir}`);
@@ -2358,7 +2227,7 @@ export async function runEvalCommand(
           {
             evalFile,
             experiment: normalizeExperimentName(options.experiment),
-            experimentMetadata: options.experimentMetadata,
+            experimentMetadata: runExperimentMetadata,
             resultGroup: resultGroupName,
             cwd,
             repoRoot,
@@ -2461,13 +2330,6 @@ export async function runEvalCommand(
       wipCleanedUp = true;
       await wipLoop.stopAndDeleteWipBranch();
     }
-
-    await runExperimentSteps({
-      label: 'script',
-      steps: options.experimentConfig?.scripts,
-      cwd,
-      experimentConfig: options.experimentConfig,
-    });
 
     return {
       executionErrorCount: summary.executionErrorCount,
