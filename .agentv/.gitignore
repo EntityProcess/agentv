@@ -3,3 +3,5 @@ results/
 logs/
 cache/
 cache.json
+config.local.yaml
+config.local.yml

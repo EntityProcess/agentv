@@ -6,11 +6,12 @@
  * matching the "project" terminology used by Arize Phoenix, Langfuse,
  * Braintrust, W&B Weave, and LangSmith.
  *
- * The registry lives under `projects:` in `~/.agentv/config.yaml` and is the
- * single source of truth for which projects Dashboard shows. Dashboard re-reads
- * the file on every `/api/projects` request, so edits (direct, via
- * POST /api/projects, via the CLI's --add/--remove, or via a Kubernetes
- * ConfigMap mount) are reflected without restarting `agentv serve`.
+ * The registry lives under `projects:` in `~/.agentv/config.yaml`, optionally
+ * overlaid by `~/.agentv/config.local.yaml`, and is the single source of truth
+ * for which projects Dashboard shows. Dashboard re-reads the files on every
+ * `/api/projects` request, so edits (direct, via POST /api/projects, via the
+ * CLI's --add/--remove, or via a Kubernetes ConfigMap mount) are reflected
+ * without restarting `agentv serve`.
  *
  * YAML format (all keys snake_case per AGENTS.md §"Wire Format Convention"):
  *   projects:
@@ -36,9 +37,11 @@
  *   subsequent runs — git pull --ff-only
  *
  * Concurrency: the registry assumes a single writer. All mutating calls
- * (add/remove/touchProject) do read-modify-write on config.yaml without a
- * lock, preserving unrelated top-level config keys. Dashboard's HTTP handlers
- * are serialized by Node's
+ * (add/remove/touchProject) do read-modify-write on the owning registry file
+ * without a lock, preserving unrelated top-level config keys. If
+ * `config.local.yaml` already has a top-level `projects:` key, mutations stay
+ * there so local-only paths and result remotes are not silently moved into
+ * portable `config.yaml`. Dashboard's HTTP handlers are serialized by Node's
  * single-threaded event loop, which satisfies the 24/7 deployment case.
  * Run only one `agentv` process against a given home at a time.
  *
@@ -54,6 +57,11 @@ import path from 'node:path';
 
 import { stringify as stringifyYaml } from 'yaml';
 
+import {
+  AGENTV_CONFIG_FILE_NAME,
+  getLocalConfigPath,
+  mergeConfigObjects,
+} from './config-overlays.js';
 import { interpolateEnv } from './evaluation/interpolation.js';
 import { parseYamlValue } from './evaluation/yaml-loader.js';
 import { getAgentvConfigDir } from './paths.js';
@@ -94,7 +102,7 @@ export interface ProjectRegistry {
 // ── Registry path ───────────────────────────────────────────────────────
 
 export function getProjectsRegistryPath(): string {
-  return path.join(getAgentvConfigDir(), 'config.yaml');
+  return path.join(getAgentvConfigDir(), AGENTV_CONFIG_FILE_NAME);
 }
 
 // ── Load / Save ─────────────────────────────────────────────────────────
@@ -306,12 +314,12 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
 
 export function loadProjectRegistry(): ProjectRegistry {
   const registryPath = getProjectsRegistryPath();
-  if (!existsSync(registryPath)) {
+  const localRegistryPath = getLocalConfigPath(registryPath);
+  if (!existsSync(registryPath) && !existsSync(localRegistryPath)) {
     return { projects: [] };
   }
   try {
-    const raw = readFileSync(registryPath, 'utf-8');
-    const parsed = parseYamlValue(raw) as { projects?: unknown } | null | undefined;
+    const parsed = readMergedHomeConfig(registryPath) as { projects?: unknown } | null | undefined;
     if (!parsed || typeof parsed !== 'object') {
       return { projects: [] };
     }
@@ -328,7 +336,7 @@ export function loadProjectRegistry(): ProjectRegistry {
 }
 
 export function saveProjectRegistry(registry: ProjectRegistry): void {
-  const registryPath = getProjectsRegistryPath();
+  const registryPath = getProjectsRegistryWritePath();
   const dir = path.dirname(registryPath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
@@ -347,6 +355,25 @@ function readHomeConfig(configPath: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function readMergedHomeConfig(configPath: string): Record<string, unknown> {
+  const base = readHomeConfig(configPath);
+  const local = readHomeConfig(getLocalConfigPath(configPath));
+  return Object.keys(base).length > 0 && Object.keys(local).length > 0
+    ? mergeConfigObjects(base, local)
+    : Object.keys(local).length > 0
+      ? local
+      : base;
+}
+
+function getProjectsRegistryWritePath(): string {
+  const registryPath = getProjectsRegistryPath();
+  const localRegistryPath = getLocalConfigPath(registryPath);
+  const localConfig = readHomeConfig(localRegistryPath);
+  return Object.prototype.hasOwnProperty.call(localConfig, 'projects')
+    ? localRegistryPath
+    : registryPath;
 }
 
 // ── CRUD operations ─────────────────────────────────────────────────────

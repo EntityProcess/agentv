@@ -1,11 +1,13 @@
 /**
  * Dashboard configuration loader.
  *
- * Reads dashboard-specific settings from the `dashboard:` section of config.yaml.
- * Project-local `.agentv/config.yaml` takes precedence over the global
- * `${AGENTV_HOME:-~/.agentv}/config.yaml`, with legacy `studio:` and root-level
- * threshold keys still accepted for compatibility. Saving writes only to the
- * project-local file and preserves unrelated fields.
+ * Reads dashboard-specific settings from the `dashboard:` section of
+ * config.yaml plus optional config.local.yaml overlays. Project-local
+ * `.agentv/config.yaml` / `.agentv/config.local.yaml` takes precedence over the
+ * global `${AGENTV_HOME:-~/.agentv}/config.yaml` pair, with legacy `studio:`
+ * and root-level threshold keys still accepted for compatibility. Saving
+ * writes only to the project-local config.yaml file and preserves unrelated
+ * fields.
  *
  * config.yaml format:
  *   required_version: ">=4.2.0"
@@ -23,7 +25,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_THRESHOLD, getAgentvConfigDir, parseYamlValue } from '@agentv/core';
+import {
+  DEFAULT_THRESHOLD,
+  getAgentvConfigDir,
+  getLocalConfigPath,
+  mergeConfigObjects,
+  parseYamlValue,
+} from '@agentv/core';
 import { stringify as stringifyYaml } from 'yaml';
 
 export interface StudioConfig {
@@ -37,7 +45,8 @@ const DEFAULTS: StudioConfig = {
 };
 
 /**
- * Load dashboard config from `config.yaml` in the given `.agentv/` directory.
+ * Load dashboard config from `config.yaml` in the given `.agentv/` directory,
+ * overlaid by sibling `config.local.yaml` when present.
  * Reads from `dashboard.threshold`, falling back to `dashboard.pass_threshold`,
  * `studio.threshold`, `studio.pass_threshold`, then root-level `pass_threshold`
  * for backward compatibility.
@@ -47,11 +56,11 @@ const DEFAULTS: StudioConfig = {
 export function loadStudioConfig(agentvDir: string): StudioConfig {
   const localConfigPath = path.join(agentvDir, 'config.yaml');
   const globalConfigPath = path.join(getAgentvConfigDir(), 'config.yaml');
-  const localConfig = loadParsedConfig(localConfigPath);
+  const localConfig = loadParsedConfigPair(localConfigPath);
   const globalConfig =
-    path.resolve(globalConfigPath) === path.resolve(localConfigPath)
+    path.resolve(path.dirname(globalConfigPath)) === path.resolve(path.dirname(localConfigPath))
       ? undefined
-      : loadParsedConfig(globalConfigPath);
+      : loadParsedConfigPair(globalConfigPath);
 
   const threshold = [
     readThreshold(localConfig?.dashboard),
@@ -79,6 +88,13 @@ function loadParsedConfig(configPath: string): Record<string, unknown> | undefin
   const parsed = parseYamlValue(raw);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
   return parsed as Record<string, unknown>;
+}
+
+function loadParsedConfigPair(configPath: string): Record<string, unknown> | undefined {
+  const base = loadParsedConfig(configPath);
+  const local = loadParsedConfig(getLocalConfigPath(configPath));
+  if (base && local) return mergeConfigObjects(base, local);
+  return local ?? base;
 }
 
 function readThreshold(section: unknown): number | undefined {

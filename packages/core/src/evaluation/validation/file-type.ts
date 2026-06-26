@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import {
+  AGENTV_LOCAL_CONFIG_FILE_NAME,
+  AGENTV_LOCAL_CONFIG_YML_FILE_NAME,
+  isAgentVConfigFileName,
+} from '../../config-overlays.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { FileType } from './types.js';
 
@@ -11,7 +16,7 @@ const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
 /**
  * Detect file type by reading $schema field from YAML file.
  * If $schema is missing, infers type from filename/path:
- * - config.yaml under .agentv folder → 'config'
+ * - config.yaml/config.local.yaml under .agentv folder → 'config'
  * - targets.yaml under .agentv folder → 'targets'
  * - All other YAML files → 'eval' (default)
  */
@@ -60,9 +65,16 @@ function inferFileTypeFromPath(filePath: string): FileType {
   const normalized = path.normalize(filePath).replace(/\\/g, '/');
   const basename = path.basename(filePath);
 
+  if (
+    basename === AGENTV_LOCAL_CONFIG_FILE_NAME ||
+    basename === AGENTV_LOCAL_CONFIG_YML_FILE_NAME
+  ) {
+    return 'config';
+  }
+
   // Check if file is under .agentv folder
   if (normalized.includes('/.agentv/')) {
-    if (basename === 'config.yaml' || basename === 'config.yml') {
+    if (isAgentVConfigFileName(basename)) {
       return 'config';
     }
     if (basename === 'targets.yaml' || basename === 'targets.yml') {

@@ -1,6 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import {
+  AGENTV_CONFIG_FILE_NAME,
+  getLocalConfigPath,
+  isPlainConfigObject,
+  mergeConfigObjects,
+} from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
 import { interpolateEnv } from '../interpolation.js';
 import type {
@@ -83,43 +89,82 @@ export type AgentVConfig = {
 /**
  * Load optional AgentV YAML configuration.
  *
- * Project-local `.agentv/config.yaml` files are searched from the eval file
- * directory up to the repo root. If no project-local config is found, AgentV
- * falls back to the home/global config at `${AGENTV_HOME:-~/.agentv}/config.yaml`.
- * The first valid project-local file wins for normal settings. Registered
- * project bindings such as result repos live in the home config `projects:`
- * registry and are resolved by Dashboard/remote-results code separately.
+ * Project-local `.agentv/config.yaml` and `.agentv/config.local.yaml` files
+ * are searched from the eval file directory up to the repo root. The first
+ * directory with either file is the project-local config source. If no
+ * project-local config is found, AgentV falls back to the home/global pair at
+ * `${AGENTV_HOME:-~/.agentv}/config.yaml` plus `config.local.yaml`.
+ *
+ * Within a pair, `config.yaml` loads first and `config.local.yaml` overlays it:
+ * plain objects deep-merge, arrays replace, and scalar overlay values win.
+ * Registered project bindings such as result repos live in the home config
+ * `projects:` registry and are resolved by Dashboard/remote-results code
+ * separately.
  */
 export async function loadConfig(
   evalFilePath: string,
   repoRoot: string,
 ): Promise<AgentVConfig | null> {
   const directories = buildDirectoryChain(evalFilePath, repoRoot);
-  const globalConfigPath = path.join(getAgentvConfigDir(), 'config.yaml');
+  const globalConfigPath = path.join(getAgentvConfigDir(), AGENTV_CONFIG_FILE_NAME);
 
   for (const directory of directories) {
-    const configPath = path.join(directory, '.agentv', 'config.yaml');
+    const configPath = path.join(directory, '.agentv', AGENTV_CONFIG_FILE_NAME);
 
-    if (!(await fileExists(configPath))) {
+    if (!(await configPairExists(configPath))) {
       continue;
     }
 
-    const config = await readConfigFile(configPath);
-    if (config) {
-      return config;
-    }
+    return readConfigFilePair(configPath);
   }
 
-  return (await fileExists(globalConfigPath)) ? readConfigFile(globalConfigPath) : null;
+  return (await configPairExists(globalConfigPath)) ? readConfigFilePair(globalConfigPath) : null;
 }
 
-async function readConfigFile(configPath: string): Promise<AgentVConfig | null> {
+async function configPairExists(configPath: string): Promise<boolean> {
+  return (await fileExists(configPath)) || (await fileExists(getLocalConfigPath(configPath)));
+}
+
+async function readConfigObjectFile(
+  configPath: string,
+): Promise<Record<string, unknown> | undefined> {
+  if (!(await fileExists(configPath))) {
+    return undefined;
+  }
   try {
     const rawConfig = await readFile(configPath, 'utf8');
-    const parsed = interpolateEnv(parseYamlValue(rawConfig), process.env) as unknown;
+    const parsed = parseYamlValue(rawConfig) as unknown;
+
+    if (!isPlainConfigObject(parsed)) {
+      logWarning(`Invalid AgentV config format at ${configPath}`);
+      return undefined;
+    }
+    return parsed;
+  } catch (error) {
+    logWarning(`Could not read AgentV config at ${configPath}: ${(error as Error).message}`);
+    return undefined;
+  }
+}
+
+async function readConfigFilePair(configPath: string): Promise<AgentVConfig | null> {
+  const base = await readConfigObjectFile(configPath);
+  const local = await readConfigObjectFile(getLocalConfigPath(configPath));
+  const rawMerged = base && local ? mergeConfigObjects(base, local) : (local ?? base);
+  if (!rawMerged) {
+    return null;
+  }
+  return parseConfigObject(rawMerged, local ? getLocalConfigPath(configPath) : configPath);
+}
+
+function parseConfigObject(
+  rawConfig: Record<string, unknown>,
+  configPath: string,
+): AgentVConfig | null {
+  try {
+    const parsed = interpolateEnv(rawConfig, process.env) as unknown;
 
     if (!isJsonObject(parsed)) {
-      logWarning(`Invalid config.yaml format at ${configPath}`);
+      logWarning(`Invalid AgentV config format at ${configPath}`);
       return null;
     }
 
@@ -167,7 +212,7 @@ async function readConfigFile(configPath: string): Promise<AgentVConfig | null> 
       ...(hooks && { hooks }),
     };
   } catch (error) {
-    logWarning(`Could not read config.yaml at ${configPath}: ${(error as Error).message}`);
+    logWarning(`Could not parse AgentV config at ${configPath}: ${(error as Error).message}`);
     return null;
   }
 }

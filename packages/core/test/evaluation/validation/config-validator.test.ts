@@ -110,6 +110,34 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('infers AGENTV_HOME config.local.yaml as global', async () => {
+    const previousAgentvHome = process.env.AGENTV_HOME;
+    const homeDir = path.join(tempDir, 'agentv-home-local');
+    const filePath = path.join(homeDir, 'config.local.yaml');
+    await mkdir(homeDir, { recursive: true });
+    await writeFile(
+      filePath,
+      `projects:
+  - id: agentv
+    name: AgentV
+    repo:
+      path: /srv/agentv
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+    );
+
+    try {
+      process.env.AGENTV_HOME = homeDir;
+      const result = await validateConfigFile(filePath);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    } finally {
+      if (previousAgentvHome === undefined) process.env.AGENTV_HOME = undefined;
+      else process.env.AGENTV_HOME = previousAgentvHome;
+    }
+  });
+
   it('accepts URL-backed source storage branch results in global project config', async () => {
     const filePath = path.join(tempDir, 'global-config-repo-path.yaml');
     await writeFile(
