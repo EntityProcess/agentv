@@ -528,17 +528,30 @@ agentv eval --strict evals/my-eval.yaml
 
 ## Config File Defaults
 
-Set default execution options so you don't have to pass them on every CLI invocation. Project-local `.agentv/config.yaml`, home/global `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`), and `agentv.config.ts` are supported.
+Set default execution options so you don't have to pass them on every CLI invocation. Project-local `.agentv/config.yaml`, project-local `.agentv/config.local.yaml`, home/global `$AGENTV_HOME/config.yaml` plus `$AGENTV_HOME/config.local.yaml` (or `~/.agentv/...`), and `agentv.config.ts` are supported.
 
-Project-local YAML config takes precedence over home/global YAML config. AgentV uses the first config file it finds; it does not merge project and global YAML files.
+Project-local YAML config takes precedence over home/global YAML config. AgentV uses the first config directory it finds; it does not merge project and global YAML directories.
 
-### YAML config (`.agentv/config.yaml` or `$AGENTV_HOME/config.yaml`)
+Within one config directory, AgentV reads `config.yaml` first and `config.local.yaml` second. The local overlay wins: plain objects deep-merge, arrays replace, and scalar values from `config.local.yaml` override `config.yaml`.
+
+Use `config.yaml` for portable defaults that can be committed with the eval project. Use `config.local.yaml` for machine-local overrides such as private paths, local result remotes, Dashboard project registry entries, or temporary execution defaults. Project-local `config.local.yaml` is gitignored by default.
+
+### YAML config (`config.yaml` plus optional `config.local.yaml`)
 
 ```yaml
 execution:
   verbose: true
   keep_workspaces: false
   otel_file: .agentv/results/otel-{timestamp}.json
+```
+
+Example local overlay:
+
+```yaml
+execution:
+  keep_workspaces: true
+eval_patterns:
+  - "local-evals/**/*.eval.yaml"
 ```
 
 | Field | CLI equivalent | Type | Default | Description |
@@ -563,7 +576,7 @@ export default defineConfig({
 
 The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `2026-03-05T14-30-00-000Z`) at execution time.
 
-**Precedence:** CLI flags > project-local `.agentv/config.yaml` > home/global `$AGENTV_HOME/config.yaml` (or `~/.agentv/config.yaml`) > `agentv.config.ts` > built-in defaults.
+**Precedence:** CLI flags > project-local `.agentv/config.local.yaml` over `.agentv/config.yaml` > home/global `$AGENTV_HOME/config.local.yaml` over `$AGENTV_HOME/config.yaml` (or `~/.agentv/...`) > `agentv.config.ts` > built-in defaults.
 
 ## Response Cache
 
@@ -641,7 +654,7 @@ The replay provider never invokes the live target. It only returns the recorded 
 
 ### AGENTV_HOME
 
-Override AgentV's lightweight home/config directory. This directory stores files such as `config.yaml`, `version-check.json`, `last-config.json`, and managed helper binaries. Registered Dashboard projects live under `projects:` in this home `config.yaml`.
+Override AgentV's lightweight home/config directory. This directory stores files such as `config.yaml`, `config.local.yaml`, `version-check.json`, `last-config.json`, and managed helper binaries. Registered Dashboard projects live under `projects:` in the home config pair.
 
 ```bash
 # Linux/macOS
@@ -655,6 +668,28 @@ set AGENTV_HOME=D:\agentv-config
 ```
 
 When unset, AgentV uses `~/.agentv`.
+
+For local workspaces, put portable registry defaults in `$AGENTV_HOME/config.yaml` and machine-local project paths or result remotes in `$AGENTV_HOME/config.local.yaml`:
+
+```yaml
+projects:
+  - id: agentv
+    name: AgentV
+    repo:
+      path: /home/user/projects/agentv
+    results:
+      repo:
+        path: /home/user/agentv-results
+        branch: agentv/results/v1
+```
+
+When running AgentV from a worktree that needs environment from a primary checkout, load the primary `.env` through the runtime instead of shell-sourcing it:
+
+```bash
+bun --env-file /home/user/projects/agentv/.env apps/cli/src/cli.ts eval evals/smoke.eval.yaml
+```
+
+This keeps `.env` parsing in Bun's dotenv loader and avoids executing shell syntax from an environment file.
 
 ### AGENTV_DATA_DIR
 

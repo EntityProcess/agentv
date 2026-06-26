@@ -147,6 +147,16 @@ export {
   type WipWorktreeHandle,
 } from './evaluation/results-repo.js';
 export {
+  AGENTV_CONFIG_FILE_NAME,
+  AGENTV_CONFIG_YML_FILE_NAME,
+  AGENTV_LOCAL_CONFIG_FILE_NAME,
+  AGENTV_LOCAL_CONFIG_YML_FILE_NAME,
+  getLocalConfigPath,
+  isAgentVConfigFileName,
+  isPlainConfigObject,
+  mergeConfigObjects,
+} from './config-overlays.js';
+export {
   getAgentvConfigDir,
   getAgentvHome,
   getAgentvDataDir,

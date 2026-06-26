@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { getLocalConfigPath } from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
 import { interpolateEnv } from '../interpolation.js';
 import { parseYamlValue } from '../yaml-loader.js';
@@ -146,7 +147,9 @@ export async function validateConfigFile(
 
 function inferConfigScope(filePath: string): 'project' | 'global' {
   const globalConfigPath = path.resolve(getAgentvConfigDir(), 'config.yaml');
-  if (path.resolve(filePath) === globalConfigPath) {
+  const globalLocalConfigPath = path.resolve(getLocalConfigPath(globalConfigPath));
+  const resolvedPath = path.resolve(filePath);
+  if (resolvedPath === globalConfigPath || resolvedPath === globalLocalConfigPath) {
     return 'global';
   }
   return filePath.split(/[\\/]/).includes('.agentv') ? 'project' : 'global';

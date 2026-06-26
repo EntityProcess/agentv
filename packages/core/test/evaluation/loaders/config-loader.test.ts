@@ -94,6 +94,121 @@ describe('loadConfig', () => {
     }
   });
 
+  it('overlays project-local .agentv/config.local.yaml on .agentv/config.yaml', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-config-overlay-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        [
+          'eval_patterns:',
+          '  - "**/*.base.eval.yaml"',
+          'execution:',
+          '  verbose: true',
+          '  pool_slots: 2',
+          'results:',
+          '  repo:',
+          '    path: .',
+          '    branch: base-results',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(localConfigDir, 'config.local.yaml'),
+        [
+          'eval_patterns:',
+          '  - "**/*.local.eval.yaml"',
+          'execution:',
+          '  keep_workspaces: true',
+          'results:',
+          '  repo:',
+          '    branch: local-results',
+          '',
+        ].join('\n'),
+      );
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.eval_patterns).toEqual(['**/*.local.eval.yaml']);
+      expect(config?.execution).toEqual({
+        verbose: true,
+        keep_workspaces: true,
+        pool_slots: 2,
+      });
+      expect(config?.results).toEqual({
+        mode: 'github',
+        repo_path: '.',
+        branch: 'local-results',
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('treats project-local config.local.yaml alone as configured and does not fall back global', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-only-overlay-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      const homeDir = path.join(tempDir, 'home');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        'eval_patterns:\n  - "**/*.global.eval.yaml"\n',
+      );
+      writeFileSync(
+        path.join(localConfigDir, 'config.local.yaml'),
+        'execution:\n  keep_workspaces: true\n',
+      );
+
+      await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.eval_patterns).toBeUndefined();
+        expect(config?.execution).toEqual({ keep_workspaces: true });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('overlays AGENTV_HOME/config.local.yaml on AGENTV_HOME/config.yaml', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-global-config-overlay-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const homeDir = path.join(tempDir, 'home');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(homeDir, { recursive: true });
+      writeFileSync(
+        path.join(homeDir, 'config.yaml'),
+        'execution:\n  verbose: true\n  pool_slots: 4\neval_patterns:\n  - "**/*.base.eval.yaml"\n',
+      );
+      writeFileSync(
+        path.join(homeDir, 'config.local.yaml'),
+        'execution:\n  keep_workspaces: true\neval_patterns:\n  - "**/*.local.eval.yaml"\n',
+      );
+
+      await withOptionalEnv('AGENTV_HOME', homeDir, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.eval_patterns).toEqual(['**/*.local.eval.yaml']);
+        expect(config?.execution).toEqual({
+          verbose: true,
+          keep_workspaces: true,
+          pool_slots: 4,
+        });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('does not merge global results into project-local config', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-results-isolated-'));
     try {

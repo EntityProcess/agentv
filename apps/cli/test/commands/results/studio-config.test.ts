@@ -104,6 +104,19 @@ describe('loadStudioConfig', () => {
     expect(config.threshold).toBe(0.9);
   });
 
+  it('overlays config.local.yaml on config.yaml for dashboard settings', () => {
+    writeFileSync(
+      path.join(tempDir, 'config.yaml'),
+      'dashboard:\n  app_name: base evals\n  threshold: 0.6\n',
+    );
+    writeFileSync(path.join(tempDir, 'config.local.yaml'), 'dashboard:\n  threshold: 0.9\n');
+
+    const config = loadStudioConfig(tempDir);
+
+    expect(config.appName).toBe('base evals');
+    expect(config.threshold).toBe(0.9);
+  });
+
   it('falls back to legacy studio section when dashboard has no threshold', () => {
     writeFileSync(
       path.join(tempDir, 'config.yaml'),

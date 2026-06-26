@@ -20,6 +20,10 @@ examples/**/*.results.jsonl
 **/.agentv/cache/
 **/.agentv/cache.json
 **/.agentv/version-check.json
+**/.agentv/config.local.yaml
+**/.agentv/config.local.yml
+!examples/**/.agentv/config.local.yaml
+!examples/**/.agentv/config.local.yml
 
 # Local agent orchestrator config (may contain secrets)
 agent-orchestrator.yaml

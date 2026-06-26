@@ -323,6 +323,72 @@ dashboard:
     expect(yamlOnDisk).toContain('projects:');
   });
 
+  it('loads project registry entries from AGENTV_HOME config.local.yaml', () => {
+    const registryPath = getProjectsRegistryPath();
+    const localRegistryPath = path.join(path.dirname(registryPath), 'config.local.yaml');
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(
+      localRegistryPath,
+      `projects:
+  - id: local-results
+    name: Local Results
+    repo:
+      path: /srv/agentv/source
+    results:
+      repo:
+        path: /srv/agentv/results/local-results
+        branch: agentv/results/v1
+      sync:
+        require_push: true
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    const registry = loadProjectRegistry();
+
+    expect(registry.projects).toHaveLength(1);
+    expect(registry.projects[0]).toMatchObject({
+      id: 'local-results',
+      path: '/srv/agentv/source',
+      results: {
+        repoPath: '/srv/agentv/results/local-results',
+        branch: 'agentv/results/v1',
+        sync: { requirePush: true },
+      },
+    });
+  });
+
+  it('keeps registry mutations in config.local.yaml when the overlay owns projects', () => {
+    const registryPath = getProjectsRegistryPath();
+    const localRegistryPath = path.join(path.dirname(registryPath), 'config.local.yaml');
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(registryPath, 'dashboard:\n  app_name: AgentV\n', 'utf-8');
+    writeFileSync(
+      localRegistryPath,
+      `projects:
+  - id: local-only
+    name: Local Only
+    repo:
+      path: /srv/agentv/source
+    added_at: "2026-01-01T00:00:00Z"
+    last_opened_at: "2026-01-01T00:00:00Z"
+`,
+      'utf-8',
+    );
+
+    touchProject('local-only');
+
+    const baseYaml = readFileSync(registryPath, 'utf-8');
+    const localYaml = readFileSync(localRegistryPath, 'utf-8');
+    expect(baseYaml).toContain('dashboard:');
+    expect(baseYaml).not.toContain('projects:');
+    expect(localYaml).toContain('projects:');
+    expect(localYaml).toContain('id: local-only');
+    expect(localYaml).not.toContain('dashboard:');
+  });
+
   it('interpolates env vars in repo_url', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
