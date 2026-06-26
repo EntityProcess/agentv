@@ -888,7 +888,7 @@ describe('writeArtifactsFromResults', () => {
       'result.json',
       'timing.json',
       'transcript-raw.jsonl',
-      'transcript.json',
+      'transcript.jsonl',
     ]);
 
     const alphaGrading: GradingArtifact = JSON.parse(
@@ -1044,7 +1044,7 @@ describe('writeArtifactsFromResults', () => {
         'result.json',
         'timing.json',
         'transcript-raw.jsonl',
-        'transcript.json',
+        'transcript.jsonl',
       ]);
     }
 
@@ -1060,7 +1060,8 @@ describe('writeArtifactsFromResults', () => {
       duration_seconds: 2,
       model: 'test-target',
       grading_path: './grading.json',
-      transcript_path: './transcript.json',
+      metrics_path: './metrics.json',
+      transcript_path: './transcript.jsonl',
       transcript_raw_path: './transcript-raw.jsonl',
       output_paths: { answer: './outputs/answer.md' },
       timing: {
@@ -1082,7 +1083,8 @@ describe('writeArtifactsFromResults', () => {
     ) as Record<string, unknown>;
     expect(runTwoResult).toMatchObject({
       grading_path: './grading.json',
-      transcript_path: './transcript.json',
+      metrics_path: './metrics.json',
+      transcript_path: './transcript.jsonl',
       transcript_raw_path: './transcript-raw.jsonl',
       timing: {
         duration_ms: 4000,
@@ -1136,7 +1138,7 @@ describe('writeArtifactsFromResults', () => {
     expect(timingOne.duration_ms).toBe(0);
   });
 
-  it('writes transcript.jsonl as provider-neutral v1 rows projected from the execution trace', async () => {
+  it('writes normalized transcript.jsonl rows plus raw transcript evidence', async () => {
     const input = [{ role: 'user' as const, content: 'Inspect artifact output' }];
     const output = [
       {
@@ -1145,8 +1147,18 @@ describe('writeArtifactsFromResults', () => {
         toolCalls: [
           {
             tool: 'Read',
+            id: 'read-1',
             input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
             output: 'file contents',
+            status: 'ok' as const,
+            durationMs: 25,
+          },
+          {
+            tool: 'Bash',
+            id: 'bash-1',
+            input: { command: 'bun test missing.test.ts' },
+            status: 'error' as const,
+            durationMs: 10,
           },
         ],
       },
@@ -1177,80 +1189,64 @@ describe('writeArtifactsFromResults', () => {
 
     await writeArtifactsFromResults(results, testDir);
 
-    const transcriptPath = path.join(testDir, 'transcript-case', 'run-1', 'transcript-raw.jsonl');
+    const transcriptPath = path.join(testDir, 'transcript-case', 'run-1', 'transcript.jsonl');
     const transcriptLines = (await readFile(transcriptPath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
 
-    const transcriptMessages = JSON.parse(
-      await readFile(path.join(testDir, 'transcript-case', 'run-1', 'transcript.json'), 'utf8'),
-    );
+    const rawTranscriptLines = (
+      await readFile(path.join(testDir, 'transcript-case', 'run-1', 'transcript-raw.jsonl'), 'utf8')
+    )
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
 
-    expect(Array.isArray(transcriptMessages)).toBe(true);
-    expect(transcriptMessages).toHaveLength(2);
     expect(transcriptLines).toHaveLength(2);
     expect(transcriptLines[0]).toMatchObject({
+      v: 1,
+      agent: 'codex',
+      type: 'user',
+      content: [{ type: 'text', text: 'Inspect artifact output' }],
+    });
+    expect(transcriptLines[1]).toMatchObject({
+      v: 1,
+      agent: 'codex',
+      type: 'assistant',
+      content: [
+        { type: 'text', text: 'Reading artifact-writer.ts' },
+        {
+          type: 'tool_use',
+          id: 'read-1',
+          name: 'Read',
+          input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
+          result: {
+            status: 'success',
+            output: 'file contents',
+            duration_ms: 25,
+          },
+        },
+        {
+          type: 'tool_use',
+          id: 'bash-1',
+          name: 'Bash',
+          input: { command: 'bun test missing.test.ts' },
+          result: {
+            status: 'error',
+            duration_ms: 10,
+          },
+        },
+      ],
+    });
+    expect(transcriptLines[1]).not.toHaveProperty('schema_version');
+    expect(transcriptLines[1]).not.toHaveProperty('o11y');
+    expect(rawTranscriptLines[0]).toMatchObject({
       schema_version: 'agentv.transcript.v1',
       test_id: 'transcript-case',
       target: 'codex',
       message_index: 0,
       role: 'user',
-      content: 'Inspect artifact output',
-      transcript_token_usage: { input: 100, output: 40, cached: 10, reasoning: 5 },
-      transcript_duration_ms: 4200,
-      transcript_cost_usd: 0.25,
-      capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
-      trace: {
-        schema_version: 'agentv.trace.v1',
-        artifact_id: expect.any(String),
-        trace_id: expect.any(String),
-        span_id: expect.any(String),
-      },
-      source: {
-        kind: 'agentv_run',
-        provider: 'codex',
-        session_id: 'session-123',
-        path: 'index.jsonl',
-        format: 'agentv_result',
-        version: '1',
-      },
     });
-    expect(transcriptLines[0].source.metadata).toMatchObject({
-      target: 'codex',
-      provider_session_id: 'session-123',
-      eval_case_id: 'transcript-case',
-    });
-    expect(transcriptLines[1]).toMatchObject({
-      schema_version: 'agentv.transcript.v1',
-      test_id: 'transcript-case',
-      target: 'codex',
-      message_index: 1,
-      role: 'assistant',
-      content: 'Reading artifact-writer.ts',
-      tool_calls: [
-        {
-          tool: 'Read',
-          input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
-          output: 'file contents',
-          status: 'ok',
-          trace: {
-            schema_version: 'agentv.trace.v1',
-            artifact_id: expect.any(String),
-            trace_id: expect.any(String),
-          },
-        },
-      ],
-      capture: { content: 'full', redaction_level: 'none', redacted_fields: [] },
-      source: {
-        kind: 'agentv_run',
-        provider: 'codex',
-        session_id: 'session-123',
-      },
-    });
-    expect(transcriptLines[1].tool_calls[0].trace.span_id).toBeTruthy();
-    expect(transcriptLines[1]).not.toHaveProperty('provider_session_id');
-    expect(transcriptLines[1]).not.toHaveProperty('providerSessionId');
     await expect(
       readFile(path.join(testDir, 'transcript-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
@@ -1259,7 +1255,8 @@ describe('writeArtifactsFromResults', () => {
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine).not.toHaveProperty('trace_path');
-    expect(indexLine.transcript_path).toBe('transcript-case/run-1/transcript-raw.jsonl');
+    expect(indexLine.transcript_path).toBe('transcript-case/run-1/transcript.jsonl');
+    expect(indexLine.transcript_raw_path).toBe('transcript-case/run-1/transcript-raw.jsonl');
     expect(indexLine.metrics_path).toBe('transcript-case/run-1/metrics.json');
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
 
@@ -1370,11 +1367,14 @@ describe('writeArtifactsFromResults', () => {
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
     expect(summary.source_artifacts).toMatchObject({
-      trace_path: 'transcript.json',
-      transcript_path: 'transcript-raw.jsonl',
+      transcript_path: 'transcript.jsonl',
       grading_path: 'grading.json',
       timing_path: 'timing.json',
     });
+    expect(summary.source_artifacts).not.toHaveProperty('trace_path');
+    await expect(
+      readFile(path.join(testDir, 'summary-case', 'run-1', 'trace.json'), 'utf8'),
+    ).rejects.toThrow();
     expect(summary.metrics.total_turns).toBe(2);
     expect(summary.metrics.total_tool_calls).toBe(4);
     expect(summary.metrics.total_steps).toBe(2);
@@ -1553,7 +1553,7 @@ describe('writeArtifactsFromResults', () => {
     });
   });
 
-  it('copies optional raw provider logs as non-canonical evidence', async () => {
+  it('copies optional raw provider logs as raw transcript evidence', async () => {
     const rawLogPath = path.join(testDir, 'provider-source.log');
     const rawLog = [
       '# provider-native stream log',
@@ -1578,23 +1578,30 @@ describe('writeArtifactsFromResults', () => {
     expect(await readFile(copiedRawLogPath, 'utf8')).toBe(rawLog);
 
     const transcriptPath = path.join(testDir, 'raw-log-case', 'run-1', 'transcript-raw.jsonl');
-    await expect(readFile(transcriptPath, 'utf8')).resolves.toContain(
-      '"schema_version":"agentv.transcript.v1"',
-    );
+    await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);
     await expect(
       readFile(path.join(testDir, 'raw-log-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
 
-    const transcriptMessages = JSON.parse(
-      await readFile(path.join(testDir, 'raw-log-case', 'run-1', 'transcript.json'), 'utf8'),
-    );
-    expect(Array.isArray(transcriptMessages)).toBe(true);
+    const transcriptLines = (
+      await readFile(path.join(testDir, 'raw-log-case', 'run-1', 'transcript.jsonl'), 'utf8')
+    )
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    expect(transcriptLines[0]).toMatchObject({
+      v: 1,
+      agent: 'codex',
+      type: 'assistant',
+      content: [{ type: 'text', text: 'Raw log copied' }],
+    });
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
     );
     expect(indexLine.raw_provider_log_path).toBeUndefined();
-    expect(indexLine.transcript_path).toBe('raw-log-case/run-1/transcript-raw.jsonl');
+    expect(indexLine.transcript_path).toBe('raw-log-case/run-1/transcript.jsonl');
+    expect(indexLine.transcript_raw_path).toBe('raw-log-case/run-1/transcript-raw.jsonl');
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
@@ -1641,7 +1648,7 @@ describe('writeArtifactsFromResults', () => {
     expect(JSON.stringify(indexLine)).not.toContain('api_key');
 
     const transcriptJson = await readFile(
-      path.join(testDir, 'external-trace-case', 'run-1', 'transcript.json'),
+      path.join(testDir, 'external-trace-case', 'run-1', 'transcript.jsonl'),
       'utf8',
     );
     expect(transcriptJson).not.toContain('secret');

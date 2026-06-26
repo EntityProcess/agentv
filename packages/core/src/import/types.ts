@@ -133,6 +133,60 @@ export interface TranscriptJsonLine {
   };
 }
 
+export type NormalizedTranscriptTurnType = 'system' | 'user' | 'assistant';
+export type NormalizedToolResultStatus = 'success' | 'error' | 'cancelled' | 'unknown';
+
+export interface NormalizedTranscriptRawRef {
+  readonly line?: number;
+  readonly start_line?: number;
+  readonly end_line?: number;
+  readonly id?: string;
+}
+
+export type NormalizedTranscriptContentBlock =
+  | {
+      readonly type: 'text';
+      readonly text: string;
+      readonly raw_refs?: readonly NormalizedTranscriptRawRef[];
+    }
+  | {
+      readonly type: 'tool_use';
+      readonly id: string;
+      readonly name: string;
+      readonly input: unknown;
+      readonly result?: {
+        readonly status: NormalizedToolResultStatus;
+        readonly output?: unknown;
+        readonly duration_ms?: number;
+      };
+      readonly raw_refs?: readonly NormalizedTranscriptRawRef[];
+      readonly metadata?: Readonly<Record<string, unknown>>;
+    }
+  | {
+      readonly type: 'image';
+      readonly source: string;
+      readonly mime_type?: string;
+      readonly metadata?: Readonly<Record<string, unknown>>;
+    }
+  | {
+      readonly type: 'thinking';
+      readonly text: string;
+      readonly raw_refs?: readonly NormalizedTranscriptRawRef[];
+    };
+
+export interface NormalizedTranscriptJsonLine {
+  readonly v: 1;
+  readonly agent: string;
+  readonly type: NormalizedTranscriptTurnType;
+  readonly content: readonly NormalizedTranscriptContentBlock[];
+  readonly ts?: string;
+  readonly id?: string;
+  readonly model?: string;
+  readonly input_tokens?: number;
+  readonly output_tokens?: number;
+  readonly raw_refs?: readonly NormalizedTranscriptRawRef[];
+}
+
 /**
  * Grouped replayable transcript reconstructed from per-message rows.
  */
@@ -414,6 +468,244 @@ function projectedToolCalls(
     }
     return toTranscriptToolCall(toolCall, projection);
   });
+}
+
+function normalizedTurnType(role: string): NormalizedTranscriptTurnType | undefined {
+  if (role === 'system' || role === 'user' || role === 'assistant') {
+    return role;
+  }
+  return undefined;
+}
+
+function normalizeToolResultStatus(
+  status: ToolCall['status'] | undefined,
+): NormalizedToolResultStatus {
+  if (status === 'ok') return 'success';
+  if (status === 'cancelled') return 'cancelled';
+  if (status === 'error' || status === 'timeout') return 'error';
+  return 'unknown';
+}
+
+function normalizedToolResult(
+  toolCall: ToolCall,
+): Extract<NormalizedTranscriptContentBlock, { type: 'tool_use' }>['result'] | undefined {
+  const hasResult =
+    toolCall.status !== undefined ||
+    toolCall.durationMs !== undefined ||
+    toolCall.output !== undefined;
+  if (!hasResult) {
+    return undefined;
+  }
+  return dropUndefined({
+    status: normalizeToolResultStatus(toolCall.status),
+    output: toolCall.output,
+    duration_ms: toolCall.durationMs,
+  }) as Extract<NormalizedTranscriptContentBlock, { type: 'tool_use' }>['result'];
+}
+
+function normalizedToolMetadata(toolCall: ToolCall): Record<string, unknown> | undefined {
+  const metadata = dropUndefined({
+    start_time: toolCall.startTime,
+    end_time: toolCall.endTime,
+  });
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+function normalizedToolBlock(
+  toolCall: ToolCall,
+  messageIndex: number,
+  toolIndex: number,
+): NormalizedTranscriptContentBlock {
+  return dropUndefined({
+    type: 'tool_use',
+    id: toolCall.id ?? `tool_${messageIndex + 1}_${toolIndex + 1}`,
+    name: toolCall.tool,
+    input: toolCall.input ?? {},
+    result: normalizedToolResult(toolCall),
+    metadata: normalizedToolMetadata(toolCall),
+  }) as NormalizedTranscriptContentBlock;
+}
+
+function normalizedImageMetadata(
+  block: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const metadata = Object.fromEntries(
+    Object.entries(block).filter(
+      ([key]) => key !== 'type' && key !== 'source' && key !== 'media_type' && key !== 'mime_type',
+    ),
+  );
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+function normalizedContentBlocks(
+  message: Message,
+  messageIndex: number,
+): NormalizedTranscriptContentBlock[] {
+  const blocks: NormalizedTranscriptContentBlock[] = [];
+  const content = message.content;
+
+  if (typeof content === 'string') {
+    if (content.length > 0) {
+      blocks.push({ type: 'text', text: content });
+    }
+  } else if (Array.isArray(content)) {
+    for (const contentBlock of content) {
+      const block: unknown = contentBlock;
+      if (!isRecord(block) || typeof block.type !== 'string') {
+        continue;
+      }
+      if (block.type === 'text' && typeof block.text === 'string') {
+        blocks.push({ type: 'text', text: block.text });
+      } else if (
+        (block.type === 'thinking' || block.type === 'reasoning') &&
+        typeof block.text === 'string'
+      ) {
+        blocks.push({ type: 'thinking', text: block.text });
+      } else if (block.type === 'image' && typeof block.source === 'string') {
+        blocks.push(
+          dropUndefined({
+            type: 'image',
+            source: block.source,
+            mime_type:
+              typeof block.mime_type === 'string'
+                ? block.mime_type
+                : typeof block.media_type === 'string'
+                  ? block.media_type
+                  : undefined,
+            metadata: normalizedImageMetadata(block),
+          }) as NormalizedTranscriptContentBlock,
+        );
+      }
+    }
+  }
+
+  for (const [toolIndex, toolCall] of (message.toolCalls ?? []).entries()) {
+    blocks.push(normalizedToolBlock(toolCall, messageIndex, toolIndex));
+  }
+
+  return blocks;
+}
+
+function modelFromSource(source: TranscriptJsonLine['source']): string | undefined {
+  if (source.model) {
+    return source.model;
+  }
+  const model = source.metadata?.model;
+  return typeof model === 'string' && model.length > 0 ? model : undefined;
+}
+
+function normalizedTurnId(message: Message): string | undefined {
+  const metadata = message.metadata;
+  if (!metadata) {
+    return undefined;
+  }
+  for (const key of ['message_id', 'id', 'span_id']) {
+    const value = metadata[key];
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function applyToolResultToPriorTurn(
+  turns: NormalizedTranscriptJsonLine[],
+  message: Message,
+  messageIndex: number,
+): boolean {
+  const name = message.name;
+  for (let turnIndex = turns.length - 1; turnIndex >= 0; turnIndex -= 1) {
+    const turn = turns[turnIndex];
+    const content = [...turn.content];
+    const blockIndex = content.findIndex((block) => {
+      if (block.type !== 'tool_use' || block.result !== undefined) {
+        return false;
+      }
+      return name ? block.name === name || block.id === name : true;
+    });
+    if (blockIndex < 0) {
+      continue;
+    }
+    const block = content[blockIndex];
+    if (block.type !== 'tool_use') {
+      return false;
+    }
+    content[blockIndex] = {
+      ...block,
+      result: {
+        status: 'success',
+        output: message.content,
+        duration_ms: message.durationMs,
+      },
+    };
+    turns[turnIndex] = { ...turn, content };
+    return true;
+  }
+
+  turns.push({
+    v: 1,
+    agent: 'agentv',
+    type: 'assistant',
+    content: [
+      {
+        type: 'tool_use',
+        id: normalizedTurnId(message) ?? `tool_${messageIndex + 1}`,
+        name: name ?? 'tool',
+        input: {},
+        result: {
+          status: 'success',
+          output: message.content,
+          duration_ms: message.durationMs,
+        },
+      },
+    ],
+    ts: message.startTime ?? message.endTime,
+  });
+  return true;
+}
+
+export function traceEnvelopeToNormalizedTranscriptJsonLines(
+  envelope: TraceEnvelope,
+): NormalizedTranscriptJsonLine[] {
+  const messages = traceEnvelopeToTranscriptMessages(envelope);
+  const summary = traceEnvelopeToTraceSummary(envelope);
+  const source = sourceFromEnvelope(envelope, summary);
+  const agent = source.provider ?? envelope.eval.target ?? 'agentv';
+  const model = modelFromSource(source);
+  const turns: NormalizedTranscriptJsonLine[] = [];
+
+  messages.forEach((message, index) => {
+    if (message.role === 'tool' || message.role === 'function') {
+      applyToolResultToPriorTurn(turns, message, index);
+      return;
+    }
+
+    const type = normalizedTurnType(message.role);
+    if (!type) {
+      return;
+    }
+
+    const content = normalizedContentBlocks(message, index);
+    if (content.length === 0) {
+      return;
+    }
+
+    turns.push(
+      dropUndefined({
+        v: 1,
+        agent,
+        type,
+        ts: message.startTime,
+        id: normalizedTurnId(message),
+        model,
+        input_tokens: type === 'assistant' ? message.tokenUsage?.input : undefined,
+        output_tokens: type === 'assistant' ? message.tokenUsage?.output : undefined,
+        content,
+      }) as unknown as NormalizedTranscriptJsonLine,
+    );
+  });
+
+  return turns;
 }
 
 export function traceEnvelopeToTranscriptJsonLines(

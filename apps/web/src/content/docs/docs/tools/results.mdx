@@ -121,15 +121,17 @@ token/cost usage.
 
 Every case uses aggregate `summary.json`, then stores attempt details under
 `run-N/`. Each `run-N/` contains a compact per-attempt manifest `result.json`,
-`grading.json`, `metrics.json`, `timing.json`, `transcript.json`,
+`grading.json`, `metrics.json`, `timing.json`, `transcript.jsonl`,
 `transcript-raw.jsonl`, and `outputs/answer.md`. The `result.json` file carries
-`grading_path`, transcript/output paths, and embedded timing/o11y metrics.
+`grading_path`, `metrics_path`, transcript, and output paths.
 
-`transcript-raw.jsonl` remains the ordered conversational/log compatibility
-projection. Full trace detail stays in `trace.json` (`agentv.trace.v1`) when
-emitted. `summary.json` remains the run-level aggregate summary, and
-`index.jsonl` carries lightweight explicit paths such as `metrics_path` plus
-the trace/transcript artifact pointers used for detached payload publishing.
+`transcript-raw.jsonl` preserves native provider or harness transcript bytes
+when they are available, while `transcript.jsonl` is the normalized
+conversation transcript with joined `tool_use.result` blocks. Full trace detail
+stays in `trace.json` (`agentv.trace.v1`) when emitted. `summary.json` remains
+the run-level aggregate summary, and `index.jsonl` carries lightweight explicit
+paths such as `transcript_path`, `transcript_raw_path`, and `metrics_path` plus
+artifact pointers only when detached payload publishing needs them.
 Duration, token, and cost usage remains in `timing.json`, including source
 labels such as `provider_reported`, `token_estimated`, `aggregate`, or
 `unavailable`.
@@ -162,11 +164,11 @@ Agent Skills eval artifacts map into AgentV like this:
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
-| Per-attempt sidecars | Trace, transcript, metrics, and raw provider evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, `provider.log` when present |
+| Per-attempt sidecars | Trace, normalized transcript, metrics, and raw provider evidence | `run-N/transcript.jsonl`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, `provider.log` when present |
 | Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `run-N/timing.json` |
 | Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
-| Transcript/log outlier analysis | Ordered transcript and canonical trace | `transcript.jsonl` for log compatibility; `trace.json` for full detail |
+| Transcript/log outlier analysis | Normalized transcript, raw evidence, and canonical trace | `transcript.jsonl` for portable review; `transcript-raw.jsonl` for native evidence; `trace.json` for full detail |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle

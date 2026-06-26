@@ -120,6 +120,7 @@ export interface EvalCaseTrial {
   timing_path?: string;
   grading_path?: string;
   transcript_path?: string;
+  transcript_raw_path?: string;
   answer_path?: string;
 }
 
@@ -255,6 +256,7 @@ export interface EvalResult {
   timing_path?: string;
   metrics_path?: string;
   transcript_path?: string;
+  transcript_raw_path?: string;
   output_path?: string;
   answer_path?: string;
 }
@@ -297,6 +299,7 @@ export type TranscriptArtifactStatus = 'ok' | 'missing' | 'dangling' | 'unsuppor
 export interface TranscriptArtifactResponse {
   status: TranscriptArtifactStatus;
   transcript_path?: string;
+  transcript_raw_path?: string;
   answer_path?: string;
   answer_content?: string;
   content?: string;

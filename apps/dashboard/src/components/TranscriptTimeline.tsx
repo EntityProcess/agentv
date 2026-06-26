@@ -33,6 +33,8 @@ export interface TranscriptJsonLine {
   target: string;
   message_index: number;
   role: string;
+  agent?: string;
+  model?: string;
   name?: string;
   content?: unknown;
   tool_calls?: readonly Record<string, unknown>[];
@@ -115,6 +117,70 @@ function isTranscriptJsonLine(value: unknown): value is TranscriptJsonLine {
   );
 }
 
+function isNormalizedTranscriptLine(value: unknown): value is Record<string, unknown> {
+  return (
+    isRecord(value) &&
+    value.v === 1 &&
+    typeof value.agent === 'string' &&
+    (value.type === 'system' || value.type === 'user' || value.type === 'assistant') &&
+    Array.isArray(value.content)
+  );
+}
+
+function normalizeToolUseBlock(block: Record<string, unknown>): Record<string, unknown> {
+  const result = isRecord(block.result) ? block.result : undefined;
+  return {
+    id: typeof block.id === 'string' ? block.id : undefined,
+    tool: typeof block.name === 'string' ? block.name : 'tool',
+    input: block.input,
+    output: result?.output,
+    status: typeof result?.status === 'string' ? result.status : undefined,
+    duration_ms: typeof result?.duration_ms === 'number' ? result.duration_ms : undefined,
+    metadata: isRecord(block.metadata) ? block.metadata : undefined,
+  };
+}
+
+function normalizedTranscriptLineToTimelineEntry(
+  value: Record<string, unknown>,
+  messageIndex: number,
+): TranscriptJsonLine {
+  const content = value.content as readonly unknown[];
+  const toolCalls = content
+    .filter(
+      (block): block is Record<string, unknown> => isRecord(block) && block.type === 'tool_use',
+    )
+    .map(normalizeToolUseBlock);
+  const inputTokens = typeof value.input_tokens === 'number' ? value.input_tokens : undefined;
+  const outputTokens = typeof value.output_tokens === 'number' ? value.output_tokens : undefined;
+  const tokenUsage =
+    inputTokens !== undefined || outputTokens !== undefined
+      ? {
+          input: inputTokens ?? 0,
+          output: outputTokens ?? 0,
+        }
+      : undefined;
+
+  return {
+    test_id: '',
+    target: value.agent as string,
+    message_index: messageIndex,
+    role: value.type as string,
+    agent: value.agent as string,
+    model: typeof value.model === 'string' ? value.model : undefined,
+    content,
+    tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+    start_time: typeof value.ts === 'string' ? value.ts : undefined,
+    token_usage: tokenUsage,
+    metadata: typeof value.id === 'string' ? { id: value.id } : undefined,
+    source: {
+      provider: value.agent as string,
+      session_id: '',
+      model: typeof value.model === 'string' ? value.model : undefined,
+      timestamp: typeof value.ts === 'string' ? value.ts : undefined,
+    },
+  };
+}
+
 export function parseTranscriptJsonl(rawJsonl: string): TranscriptParseResult {
   const entries: TranscriptJsonLine[] = [];
   const lines = rawJsonl.split(/\r?\n/);
@@ -125,6 +191,10 @@ export function parseTranscriptJsonl(rawJsonl: string): TranscriptParseResult {
 
     try {
       const parsed = JSON.parse(line) as unknown;
+      if (isNormalizedTranscriptLine(parsed)) {
+        entries.push(normalizedTranscriptLineToTimelineEntry(parsed, entries.length));
+        continue;
+      }
       if (!isTranscriptJsonLine(parsed)) {
         return {
           entries,
@@ -220,10 +290,16 @@ function formatContent(value: unknown): string {
         if (isRecord(block) && block.type === 'text' && typeof block.text === 'string') {
           return block.text;
         }
+        if (isRecord(block) && block.type === 'thinking' && typeof block.text === 'string') {
+          return `Thinking:\n${block.text}`;
+        }
+        if (isRecord(block) && block.type === 'image' && typeof block.source === 'string') {
+          return `Image: ${block.source}`;
+        }
         return undefined;
       })
       .filter((text): text is string => text !== undefined);
-    if (textBlocks.length === value.length && textBlocks.length > 0) {
+    if (textBlocks.length > 0) {
       return textBlocks.join('\n');
     }
   }
@@ -473,8 +549,8 @@ function TranscriptSummary({
   transcriptPath,
 }: { entries: readonly TranscriptJsonLine[]; transcriptPath?: string }) {
   const first = entries[0];
-  const provider = first?.source?.provider;
-  const model = first?.source?.model;
+  const provider = first?.source?.provider ?? first?.agent;
+  const model = first?.source?.model ?? first?.model;
   const sessionId = first?.source?.session_id;
   const duration = formatDurationMs(first?.transcript_duration_ms);
   const tokenUsage = formatTokenUsage(first?.transcript_token_usage);

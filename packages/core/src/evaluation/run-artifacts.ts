@@ -11,7 +11,10 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { traceEnvelopeToTranscriptJsonLines } from '../import/types.js';
+import {
+  traceEnvelopeToNormalizedTranscriptJsonLines,
+  traceEnvelopeToTranscriptJsonLines,
+} from '../import/types.js';
 import type { ExperimentArtifactMetadata } from './experiment.js';
 import {
   type ExternalTraceMetadataWire,
@@ -302,6 +305,7 @@ export interface IndexArtifactEntry {
   readonly answer_path?: string;
   readonly trace_path?: string;
   readonly transcript_path?: string;
+  readonly transcript_raw_path?: string;
   readonly metrics_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly raw_provider_log_path?: string;
@@ -349,6 +353,7 @@ export interface VercelRunResultArtifact {
   readonly duration_seconds: number;
   readonly model: string;
   readonly grading_path: string;
+  readonly metrics_path: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
   readonly o11y: {
@@ -743,7 +748,8 @@ function buildVercelRunResultArtifact(params: {
     duration_seconds: resultDurationSeconds(params.result),
     model: params.result.target ?? 'unknown',
     grading_path: './grading.json',
-    transcript_path: params.hasTranscript ? './transcript.json' : undefined,
+    metrics_path: `./${CANONICAL_METRICS_ARTIFACT_PATH}`,
+    transcript_path: params.hasTranscript ? `./${CANONICAL_TRANSCRIPT_ARTIFACT_PATH}` : undefined,
     transcript_raw_path: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
     o11y: {
       total_turns: metrics.total_turns,
@@ -822,7 +828,9 @@ async function writeTrialRunArtifacts(params: {
     duplicatePolicy: params.duplicatePolicy,
   });
   const hasTranscript = hasTranscriptProjection(result, envelope);
-  const transcriptPath = hasTranscript ? path.join(runDir, 'transcript.json') : undefined;
+  const transcriptPath = hasTranscript
+    ? path.join(runDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
+    : undefined;
   const transcriptRawPath = hasTranscript ? path.join(runDir, 'transcript-raw.jsonl') : undefined;
 
   await mkdir(runDir, { recursive: true });
@@ -838,19 +846,14 @@ async function writeTrialRunArtifacts(params: {
     await copyRawProviderLogArtifact(rawProviderLogSource, runDir);
   }
   if (transcriptPath && transcriptRawPath) {
-    await writeFile(
-      transcriptPath,
-      `${JSON.stringify(traceEnvelopeToTranscriptMessages(envelope), null, 2)}\n`,
-      'utf8',
-    );
-    await writeTranscriptJsonl(transcriptRawPath, result, envelope);
+    await writeNormalizedTranscriptJsonl(transcriptPath, envelope);
+    await writeRawTranscriptJsonl(transcriptRawPath, result, envelope);
   }
   const metricsArtifact = await writeMetricsArtifact({
     filePath: metricsPath,
     result,
     envelope,
-    traceArtifactPath: 'transcript.json',
-    transcriptArtifactPath: transcriptRawPath ? 'transcript-raw.jsonl' : undefined,
+    transcriptArtifactPath: transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
     gradingArtifactPath: 'grading.json',
     timingArtifactPath: 'timing.json',
     timing,
@@ -1446,6 +1449,7 @@ export function buildIndexArtifactEntry(
     answerPath?: string;
     tracePath?: string;
     transcriptPath?: string;
+    transcriptRawPath?: string;
     metricsPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
@@ -1498,6 +1502,9 @@ export function buildIndexArtifactEntry(
       : undefined,
     transcript_path: options.transcriptPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
+      : undefined,
+    transcript_raw_path: options.transcriptRawPath
+      ? toRelativeArtifactPath(options.outputDir, options.transcriptRawPath)
       : undefined,
     metrics_path: options.metricsPath
       ? toRelativeArtifactPath(options.outputDir, options.metricsPath)
@@ -1565,6 +1572,10 @@ export function buildResultIndexArtifact(
       isSingleRun && hasAnswer ? path.posix.join(singleRunDir, 'outputs', 'answer.md') : undefined,
     transcript_path:
       isSingleRun && hasTranscript
+        ? path.posix.join(singleRunDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
+        : undefined,
+    transcript_raw_path:
+      isSingleRun && hasTranscript
         ? path.posix.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined,
     artifact_pointers: options?.artifactPointers,
@@ -1588,7 +1599,17 @@ function hasTranscriptProjection(result: EvaluationResult, envelope: TraceEnvelo
   return result.output.length > 0 || traceEnvelopeToTranscriptMessages(envelope).length > 0;
 }
 
-async function writeTranscriptJsonl(
+async function writeNormalizedTranscriptJsonl(
+  filePath: string,
+  envelope: TraceEnvelope,
+): Promise<void> {
+  const lines = traceEnvelopeToNormalizedTranscriptJsonLines(envelope);
+  const content =
+    lines.length > 0 ? `${lines.map((line) => JSON.stringify(line)).join('\n')}\n` : '';
+  await writeFile(filePath, content, 'utf8');
+}
+
+async function writeGeneratedRawTranscriptJsonl(
   filePath: string,
   result: EvaluationResult,
   envelope: TraceEnvelope,
@@ -1602,6 +1623,19 @@ async function writeTranscriptJsonl(
   await writeFile(filePath, content, 'utf8');
 }
 
+async function writeRawTranscriptJsonl(
+  filePath: string,
+  result: EvaluationResult,
+  envelope: TraceEnvelope,
+): Promise<void> {
+  const rawSource = rawProviderLogSourcePath(result);
+  if (rawSource) {
+    await copyFile(rawSource, filePath);
+    return;
+  }
+  await writeGeneratedRawTranscriptJsonl(filePath, result, envelope);
+}
+
 function buildMetricsArtifactPayload(params: {
   readonly result: EvaluationResult;
   readonly envelope: TraceEnvelope;
@@ -1613,7 +1647,7 @@ function buildMetricsArtifactPayload(params: {
   readonly timing?: TimingArtifact;
 }): ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact } {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
-    tracePath: params.traceArtifactPath ?? CANONICAL_TRACE_ARTIFACT_PATH,
+    tracePath: params.traceArtifactPath,
     transcriptPath:
       params.transcriptArtifactPath ??
       (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
@@ -2006,6 +2040,10 @@ export async function writePerTestArtifacts(
         : undefined;
     const singleTranscriptPath =
       isSingleRun && hasTranscriptProjection(result, envelope)
+        ? path.join(singleRunDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
+        : undefined;
+    const singleTranscriptRawPath =
+      isSingleRun && hasTranscriptProjection(result, envelope)
         ? path.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined;
     const singleGradingPath = isSingleRun ? path.join(singleRunDir, 'grading.json') : undefined;
@@ -2033,6 +2071,7 @@ export async function writePerTestArtifacts(
         outputPath: singleAnswerPath,
         answerPath: singleAnswerPath,
         transcriptPath: singleTranscriptPath,
+        transcriptRawPath: singleTranscriptRawPath,
         extraIndexFields,
         projectionIdentity,
         duplicatePolicy,
@@ -2099,6 +2138,10 @@ export async function writeArtifactsFromResults(
         : undefined;
     const singleTranscriptPath =
       isSingleRun && hasTranscriptProjection(result, envelope)
+        ? path.join(singleRunDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
+        : undefined;
+    const singleTranscriptRawPath =
+      isSingleRun && hasTranscriptProjection(result, envelope)
         ? path.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined;
     const singleGradingPath = isSingleRun ? path.join(singleRunDir, 'grading.json') : undefined;
@@ -2114,6 +2157,7 @@ export async function writeArtifactsFromResults(
       isSingleRun,
       singleAnswerPath,
       singleTranscriptPath,
+      singleTranscriptRawPath,
       singleGradingPath,
       singleTimingPath,
       singleMetricsPath,
@@ -2190,6 +2234,7 @@ export async function writeArtifactsFromResults(
         outputPath: plan.singleAnswerPath,
         answerPath: plan.singleAnswerPath,
         transcriptPath: plan.singleTranscriptPath,
+        transcriptRawPath: plan.singleTranscriptRawPath,
         extraIndexFields,
         projectionIdentity: plan.projectionIdentity,
         duplicatePolicy,
