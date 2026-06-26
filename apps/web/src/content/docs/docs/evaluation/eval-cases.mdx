@@ -67,7 +67,13 @@ When suite-level `input` is defined in the eval file, those messages are prepend
 
 ## Expected Output
 
-Optional reference response for comparison by graders. A string expands to a single assistant message:
+Optional reference response for comparison by graders. `expected_output` is passive reference
+data: it is stored on the case and passed to graders, but it does not choose a grader by
+itself when `assertions` is present. Add an explicit `llm-grader`, `code-grader`,
+`field-accuracy`, or another reference-aware grader when you want the reference answer
+evaluated.
+
+A string expands to a single assistant message:
 
 ```yaml
 expected_output: "42"
@@ -332,13 +338,16 @@ Required gates are evaluated after all graders run. If any required grader falls
 - Suite-level `assertions` graders are appended automatically.
 - Set `execution.skip_defaults: true` on a test to skip suite-level defaults.
 
-## How `criteria` and `assertions` Interact
+## How Reference Fields and `assertions` Interact
 
-The `criteria` field is a **data field** that describes what the response should accomplish. It is not an grader itself — how it gets used depends on whether `assertions` is present.
+The `criteria` and `expected_output` fields are **data fields** that describe what the
+response should accomplish. They are not graders themselves — how they get used depends
+on whether `assertions` is present.
 
 ### No `assertions` — implicit LLM grader
 
-When a test has no `assertions` field, a default `llm-grader` grader runs automatically and uses `criteria` as the evaluation prompt:
+When a test has no `assertions` field, a default `llm-grader` grader runs automatically
+and uses the case context, including `criteria` and `expected_output` when present:
 
 ```yaml
 tests:
@@ -363,7 +372,23 @@ tests:
 
 ### `assertions` present — explicit graders only
 
-When `assertions` is defined, only the declared graders run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
+When `assertions` is defined, only the declared graders run. No implicit grader is added
+because `criteria` or `expected_output` exists. Graders that are declared (such as
+`llm-grader`, `code-grader`, or `rubrics`) receive the case context, including
+`criteria` and `expected_output`, as input automatically.
+
+This means a case with `expected_output` and only deterministic assertions evaluates only
+those deterministic assertions:
+
+```yaml
+tests:
+  - id: deterministic-reference
+    input: "What is 2 + 2?"
+    expected_output: "4"        # reference data only
+    assertions:
+      - type: contains          # only this grader runs
+        value: "4"
+```
 
 If `assertions` contains only deterministic graders (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
 

@@ -18,13 +18,23 @@ The grader agent uses this to evaluate assertions without the CLI.
 
 - `id` (string, required) — unique test identifier
 - `input` (string | object | Message | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`; object shorthand preserves structured user content when the object has no top-level `role`. Top-level `role` is reserved for message objects.
-- `expected_output` (string | Message[], optional) — reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`
+- `expected_output` (string | Message[], optional) — passive reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`. It is available to declared graders, but does not add an implicit grader when `assertions` is present.
 - `criteria` (string, optional) — human-readable success criteria
 - `assertions` (array, optional) — grader assertions
 - `conversation_id` (string, optional) — groups related tests
 - `execution` (object, optional) — per-test execution override
 
 ## 2. Assertion Types and Grading Recipes
+
+### Default grader contract
+
+When a test has no `assertions`, AgentV uses the default `llm-grader` with the case context,
+including `criteria` and `expected_output` when present.
+
+When `assertions` is present, the list is explicit: run only the declared
+assertions/graders. `expected_output` remains reference data for graders that consume it,
+such as `llm-grader`, `code-grader`, or `field-accuracy`; it does not trigger an additional
+default `llm-grader`.
 
 For each assertion type: YAML config fields, grading recipe (exact pseudocode for deterministic types), and PASS/FAIL conditions.
 

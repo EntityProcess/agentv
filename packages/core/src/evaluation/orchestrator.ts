@@ -2608,6 +2608,9 @@ async function runEvaluatorsForCase(options: {
     dependencyResults,
   } = options;
 
+  // Declared assertions are the complete grader list for the case. Reference
+  // data such as expected_output stays on evalCase for graders that read it,
+  // but does not add an implicit llm-grader.
   if (evalCase.assertions && evalCase.assertions.length > 0) {
     return runEvaluatorList({
       evalCase,
