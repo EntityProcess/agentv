@@ -948,10 +948,10 @@ function normalizeIncludeEntryType(value: unknown, includePath: string): Include
   if (value === 'suite' || value === 'tests') {
     return value;
   }
-  if (value !== undefined) {
-    throw new Error(`Invalid tests[].type for include '${includePath}'. Use 'suite' or 'tests'.`);
+  if (value === undefined) {
+    throw new Error(`Missing tests[].type for include '${includePath}'. Use 'suite' or 'tests'.`);
   }
-  return /\.eval\.ya?ml$/i.test(includePath) ? 'suite' : 'tests';
+  throw new Error(`Invalid tests[].type for include '${includePath}'. Use 'suite' or 'tests'.`);
 }
 
 function readStringPatterns(value: unknown, label: string): string | readonly string[] | undefined {

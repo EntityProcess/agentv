@@ -69,6 +69,21 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('rejects include entries without type', async () => {
+    const filePath = path.join(tempDir, 'include-missing-type.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - include: ./cases/**/*.cases.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.message.includes("Missing 'type'"))).toBe(true);
+  });
+
   it('rejects eval files with both experiment and legacy execution', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(

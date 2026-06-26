@@ -487,7 +487,7 @@ const TestIncludeSelectSchema = z
 const TestIncludeSchema = z
   .object({
     include: z.string().min(1),
-    type: z.enum(['suite', 'tests']).optional(),
+    type: z.enum(['suite', 'tests']),
     select: z.union([SelectPatternSchema, TestIncludeSelectSchema]).optional(),
     run: RunOverrideSchema.optional(),
   })

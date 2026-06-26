@@ -115,9 +115,11 @@ describe('eval.yaml inline experiment and tests imports', () => {
       [
         'tests:',
         '  - include: cases/*.cases.yaml',
+        '    type: tests',
         '    select:',
         '      test_ids: ["a-*", "b-1"]',
         '  - include: cases/*.jsonl',
+        '    type: tests',
         '',
       ].join('\n'),
     );

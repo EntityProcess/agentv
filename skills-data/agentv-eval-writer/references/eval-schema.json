@@ -6920,7 +6920,7 @@
                         "additionalProperties": false
                       }
                     },
-                    "required": ["include"],
+                    "required": ["include", "type"],
                     "additionalProperties": false
                   },
                   {
@@ -13707,7 +13707,7 @@
                         "additionalProperties": false
                       }
                     },
-                    "required": ["include"],
+                    "required": ["include", "type"],
                     "additionalProperties": false
                   },
                   {

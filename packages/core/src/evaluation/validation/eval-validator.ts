@@ -473,7 +473,14 @@ function validateIncludeEntry(
     });
   }
 
-  if (entry.type !== undefined && entry.type !== 'suite' && entry.type !== 'tests') {
+  if (entry.type === undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.type`,
+      message: "Missing 'type' field (must be 'suite' or 'tests')",
+    });
+  } else if (entry.type !== 'suite' && entry.type !== 'tests') {
     errors.push({
       severity: 'error',
       filePath,
@@ -1105,9 +1112,7 @@ async function validateSuiteImportCyclesFromParsed(
       continue;
     }
     const includePath = entry.include.trim();
-    const isSuiteImport =
-      entry.type === 'suite' || (entry.type === undefined && /\.eval\.ya?ml$/i.test(includePath));
-    if (!isSuiteImport) {
+    if (entry.type !== 'suite') {
       continue;
     }
 
