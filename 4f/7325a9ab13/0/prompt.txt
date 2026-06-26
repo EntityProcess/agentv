@@ -1,0 +1,21 @@
+in agentv what happens when both expected_output and assertions is defined. does expected_output call llm grader or does it get ignored.
+
+---
+
+do you think the codebase was intuitive enough that you could easily find the answer or it needs to be refactored
+
+---
+
+ok can you apply the simplify code skill to do that. $worktree
+
+---
+
+also how do i push checkpopints for entire c li
+
+---
+
+i cannot see any sessions in entire dashboard
+
+---
+
+i meant for entireio/cli which we setup in this repo and configured in .entire folder
