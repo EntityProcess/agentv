@@ -32,7 +32,7 @@ assertions:
 Each sub-grader runs independently, then the aggregator combines their results.
 Use `assertions` for composite members. `graders` is still accepted for backward compatibility.
 
-If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested grader groups.
+If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `code-grader`, `llm-grader`) or nested grader groups.
 
 ## Aggregator Types
 
@@ -55,6 +55,85 @@ The score is calculated as:
 
 ```
 final_score = sum(score_i * weight_i) / sum(weight_i)
+```
+
+## Composition Patterns
+
+### AND Logic
+
+Use a `threshold` aggregator with `1.0` so all child graders must pass:
+
+```yaml
+assertions:
+  - name: all_must_pass
+    type: composite
+    aggregator:
+      type: threshold
+      threshold: 1.0
+    assertions:
+      - name: mentions-capital
+        type: contains
+        value: capital
+      - name: mentions-paris
+        type: contains
+        value: Paris
+```
+
+### OR Logic (Approximate)
+
+`weighted_average` can work for “any should pass” when your child scores are binary (`0`/`1`):
+
+```yaml
+assertions:
+  - name: any_match
+    type: composite
+    aggregator:
+      type: weighted_average
+    assertions:
+      - type: contains
+        value: Paris
+      - type: icontains
+        value: "the capital of france is paris"
+```
+
+Because this is an average, the final score is the fraction of passing children (`1/2` here when one assertion passes). If you want `pass` on any single hit with binary children, set the parent test threshold to `1 / N` (for two children, `0.5`), or use a custom aggregator below.
+
+### OR Logic (Strict)
+
+For a strict OR, add a custom code-grader aggregator and return `1.0` when any child score passes:
+
+```yaml
+assertions:
+  - name: strict_or
+    type: composite
+    aggregator:
+      type: code-grader
+      path: ./scripts/or-aggregator.js
+    assertions:
+      - name: mentions-paris
+        type: contains
+        value: Paris
+      - name: mentions-capital
+        type: contains
+        value: capital
+```
+
+```javascript
+// examples/features/composite/scripts/or-aggregator.js
+const fs = require('node:fs');
+
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+const results = Object.values(payload.results);
+const anyPassed = results.some((r) => (r.verdict ?? 'fail') === 'pass');
+
+console.log(
+  JSON.stringify({
+    score: anyPassed ? 1 : 0,
+    verdict: anyPassed ? 'pass' : 'fail',
+    assertions: [{ text: `Any-or gate: ${anyPassed ? 'passed' : 'failed'}`, passed: anyPassed }],
+  }),
+);
+```
 ```
 
 ### Code Grader Aggregator

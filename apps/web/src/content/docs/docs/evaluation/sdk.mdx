@@ -356,6 +356,32 @@ const { results, summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
+A strict OR is easy with `assert` inline handlers:
+
+```typescript
+import { evaluate } from '@agentv/sdk';
+
+const { summary } = await evaluate({
+  tests: [
+    {
+      id: 'capital',
+      input: 'What is the capital of France?',
+      expectedOutput: 'Paris',
+      assert: [
+        ({ output }) => ({
+          name: 'capital-or-phrase',
+          score: ((output ?? '').includes('Paris') || /capital of france/i.test(output ?? '')) ? 1 : 0,
+        }),
+      ],
+    },
+  ],
+  task: async (input) => `Agent: ${input}`,
+  threshold: 0.8,
+});
+
+console.log(`${summary.passed}/${summary.total} passed`);
+```
+
 Auto-discovers the `default` target from `.agentv/targets.yaml` and `.env` credentials.
 
 ### File-Based via `specFile`
