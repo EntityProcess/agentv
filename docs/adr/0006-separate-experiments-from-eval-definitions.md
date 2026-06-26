@@ -65,6 +65,11 @@ experiment:
 tests:
   - include: ./evals/cargowise/**/*.eval.yaml
     type: suite
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
     select:
       test_ids:
         - pr50857-*
@@ -175,6 +180,71 @@ Parent suite-level task fields should not silently override imported suite task
 fields. Explicit override syntax can be considered later if a concrete use case
 needs it, but the default composition model must not merge task contracts in a
 surprising way.
+
+## Runtime Overrides
+
+The parent `experiment:` block is the default runtime policy for the whole eval.
+Some evals need stricter or looser policy for a selected group of tests, such as
+`pass_at_k` for stochastic agentic tasks and `pass_all` for hard regression
+gates. AgentV supports scoped runtime overrides for scoring and scheduling
+policy without creating separate experiment files.
+
+Runtime override precedence is:
+
+```text
+test.run > tests[].run > experiment
+```
+
+Group-level overrides live beside `include`, `type`, and `select`:
+
+```yaml
+tests:
+  - include: ./evals/flaky-agentic/**/*.eval.yaml
+    type: suite
+    select:
+      tags: [agentic]
+    run:
+      repeat:
+        count: 3
+        strategy: pass_at_k
+
+  - include: ./evals/regression/**/*.eval.yaml
+    type: suite
+    select:
+      tags: [must-pass]
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
+```
+
+Case-level overrides use the same `run:` key:
+
+```yaml
+tests:
+  - id: critical-case
+    input: "..."
+    run:
+      threshold: 1.0
+      repeat:
+        count: 1
+```
+
+Initial scoped override fields should focus on result interpretation and
+scheduling:
+
+- `threshold`
+- `repeat`
+- `timeout_seconds`
+- `budget_usd`
+
+Fields that change the candidate or system under test, such as `target`,
+`targets`, runtime setup, and workspace mutation, should remain at the parent
+`experiment:` level unless a later ADR accepts narrower per-group semantics.
+Keeping candidate-changing knobs out of scoped overrides preserves comparable
+experiment groups and avoids silently mixing different systems under one result
+group.
 
 ## WTG Motivation
 
