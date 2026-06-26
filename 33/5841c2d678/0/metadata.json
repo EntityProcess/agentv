@@ -3,7 +3,7 @@
   "checkpoint_id": "335841c2d678",
   "session_id": "019efc87-fa98-7971-91df-0c9512a065da",
   "strategy": "manual-commit",
-  "created_at": "2026-06-26T01:04:51.049790053Z",
+  "created_at": "2026-06-26T01:14:05.247801355Z",
   "branch": "docs/clarify-eval-experiment-boundaries",
   "checkpoints_count": 4,
   "files_touched": [
@@ -19,14 +19,14 @@
     "turn_count": 4
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-26T01:04:50.93589111Z",
-    "agent_lines": 33,
-    "agent_removed": 0,
+    "calculated_at": "2026-06-26T01:14:05.118510989Z",
+    "agent_lines": 29,
+    "agent_removed": 28,
     "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 33,
-    "total_lines_changed": 33,
+    "total_committed": 29,
+    "total_lines_changed": 57,
     "agent_percentage": 100,
     "metric_version": 2
   }
