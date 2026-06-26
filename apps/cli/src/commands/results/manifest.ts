@@ -61,8 +61,6 @@ export interface ResultManifestRecord {
   readonly raw_provider_log_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly external_trace?: ExternalTraceMetadataWire;
-  readonly transcript?: ArtifactPointer;
-  readonly artifacts?: ArtifactPointerMap;
   readonly response_path?: string;
   readonly artifact_dir?: string;
   readonly task_dir?: string;
@@ -71,28 +69,6 @@ export interface ResultManifestRecord {
   readonly files_path?: string;
   readonly graders_path?: string;
   readonly metadata?: Record<string, unknown>;
-}
-
-export type ArtifactPointer =
-  | string
-  | {
-      readonly path?: unknown;
-      readonly artifact_path?: unknown;
-      readonly relative_path?: unknown;
-      readonly ref?: unknown;
-      readonly storage?: unknown;
-      readonly uri?: unknown;
-      readonly href?: unknown;
-      readonly [key: string]: unknown;
-    };
-
-export interface ArtifactPointerMap {
-  readonly transcript_path?: string;
-  readonly transcript_raw_path?: string;
-  readonly answer_path?: string;
-  readonly transcript?: ArtifactPointer;
-  readonly answer?: ArtifactPointer;
-  readonly [key: string]: unknown;
 }
 
 export interface ManifestHydrationOptions {

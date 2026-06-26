@@ -131,6 +131,8 @@ Use live dogfood before marking PRs ready when they affect eval execution, exper
 - For local OpenAI-compatible grading through the OAuth proxy, use `endpoint: http://127.0.0.1:10531/v1`, but still route `api_key` and `model` through environment references such as `${{ LOCAL_OPENAI_PROXY_API_KEY }}` and `${{ LOCAL_OPENAI_PROXY_MODEL }}`. Literal secrets and literal model values are intentionally rejected by target validation unless a resolver explicitly allows them.
 - Preserve review evidence in `agentv-private` on an `evidence/<bead-or-feature-slug>` branch. Include the run bundle, source eval/experiment/targets files, a short README, an artifact tree, and screenshots when folder structure or UI behavior is under review.
 - If comparing against an external convention such as Vercel `agent-eval`, verify both semantic provenance and the physical `run-N` artifact layout for repeat runs.
+- For transcript/result artifact contract changes, try the same provider spread before merging: `pi-cli`, `codex-sdk`, and `copilot-sdk` through the local OpenAI-compatible endpoint when available. If a provider cannot run live, record the exact blocker, the run bundle or command output, and whether coverage moved to fixture/regression tests.
+- If dogfood or review changes the durable verification playbook, update this file or `AGENTS.md` in the same PR. Use `docs/solutions/` for longer reusable lessons rather than relying on PR comments or private evidence as the only source.
 
 ## Checking Grader Score Ranges
 
