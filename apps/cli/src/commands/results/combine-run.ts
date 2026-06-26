@@ -369,6 +369,7 @@ const MANIFEST_PATH_FIELDS = [
   'response_path',
   'trace_path',
   'transcript_path',
+  'transcript_raw_path',
   'metrics_path',
   'raw_provider_log_path',
   'task_dir',

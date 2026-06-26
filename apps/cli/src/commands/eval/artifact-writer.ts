@@ -99,6 +99,7 @@ export function buildIndexArtifactEntry(
     answerPath?: string;
     tracePath?: string;
     transcriptPath?: string;
+    transcriptRawPath?: string;
     metricsPath?: string;
     rawProviderLogPath?: string;
     responsePath?: string;

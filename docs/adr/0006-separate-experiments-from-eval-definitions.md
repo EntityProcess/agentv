@@ -1,218 +1,351 @@
-# 6. Separate experiments from eval definitions
+# 6. Keep experiment runtime inline in eval YAML
 
-Date: 2026-06-23
+Date: 2026-06-26
 
 ## Status
 
-Proposed
+Accepted
+
+Supersedes: the 2026-06-23 proposal in this file to separate experiment files
+from eval definitions.
 
 ## Context
 
-AgentV currently treats an experiment as a run label. The label is threaded
-through evaluation config and recorded in run artifacts, but the agent, model,
-harness, repeat count, timeout, sandbox, and setup choices mostly remain in
-`eval.yaml` `execution` fields or CLI flags.
+AgentV needs a stable authoring contract for repo-native evals, run-time knobs,
+suite composition, and portable result artifacts.
 
-That conflates two concerns:
+The previous proposal split experiments into separate committed artifacts such
+as `experiment.yaml` or `experiments/default.yaml`. That proposal correctly
+separated task definition from run-time configuration, but it introduced a
+second runnable authoring surface before the shape had shipped. Because the
+separate experiment surface was added this week and has not shipped to real
+external consumers, AgentV can converge hard now instead of preserving a second
+config model or migration alias.
 
-- The eval definition is the task contract: prompt, dataset, workspace fixture
-  required by the task, and assertions or graders.
-- The experiment is the run contract: which agent or target is under test, which
-  model and harness are used, how many runs to execute, what setup is injected,
-  and which eval cases are selected.
+The final design keeps the product boundary smaller:
 
-The public Vercel `agent-eval` ecosystem is a useful reference point. The
-`vercel/next.js` evals keep task fixtures under `evals/`, while experiments are
-generated or committed separately. `vercel/next-evals-oss` commits many
-`experiments/*.ts` variants and stores results under experiment-specific
-directories. The useful pattern is the vocabulary and ownership split, not a
-requirement that AgentV adopt Vercel's package as its core runtime.
+- `eval.yaml` is the only runnable authoring artifact.
+- `experiment:` is an inline run-time block inside `eval.yaml`.
+- `tests:` is the composition, import, and selection surface.
+- result bundles are written under `.agentv/results/<eval-name>/<timestamp>/`.
 
-This decision must also preserve AgentV's existing product boundary:
-
-- AgentV stays repo-native and zero-infra by default.
-- Portable run artifacts remain the source of truth.
-- Core primitives should stay small and composable.
-- Public wire formats use `snake_case`; TypeScript internals use `camelCase`.
-- `project` means the run, trace, and experiment container; `benchmark` means a
-  curated eval suite.
-
-## Vocabulary
-
-An eval suite is a frozen task-definition boundary. It includes suite metadata,
-shared prompt/context, case references, shared assertions or graders, and
-task-owned workspace fixtures. AgentV's LLM-judge, code-grader, deterministic
-assertions, and hidden or explicit evaluation criteria belong here.
-
-An eval case is one atomic task inside a suite. It includes the case id, prompt
-or input, criteria, expected output or reference behavior, case metadata, and
-case-specific workspace overrides. A suite can inline cases, point to
-`cases.yaml`/JSONL, or use a directory convention where each case owns files such
-as `TASK.txt`, `PROMPT.md`, `answer/`, or `grader.test.ts`.
-
-In that directory-convention form, `EVAL.yaml` may be thin or inferred by a
-loader, but the suite layer is still present conceptually: the directory
-convention plus runner adapter is the suite contract. This distinction matters
-because AgentV is a reusable framework, not a single benchmark harness whose
-suite semantics can live only in code.
-
-An experiment is a committed or generated run definition. It declares which
-agent, target, provider, model, harness options, setup steps, run count, timeout,
-sandbox, and case selector are used. Setup that changes the system under test,
-such as installing dependencies or dropping an `AGENTS.md` or skill file, belongs
-here because it is an A/B variable.
-
-An execution compatibility block is the legacy `eval.yaml` location for runner
-selection and runtime controls. It remains supported during migration but should
-stop being the canonical home for experiment-level choices.
+This keeps AgentV repo-native and zero-infra by default, avoids a new public
+artifact type, and still lets wrapper evals run multiple imported suites with a
+single parent run-time policy.
 
 ## Decision
 
-Experiments and eval definitions are separate public configuration surfaces in
-AgentV.
+AgentV will not have a separate experiment artifact surface.
 
-Eval files remain YAML-authored by default. They should capture what is tested:
-task inputs, datasets, assertions, and task fixtures. They should not be the
-canonical place for which agent, model, harness, setup injection, sandbox, or run
-matrix executes the task.
+Do not introduce or document:
 
-For simple projects, an eval-only run remains valid. AgentV treats the implicit
-experiment label as `default` unless a committed experiment is configured. For
-specialized harnesses that already have a strong directory contract, AgentV may
-support loaders that infer the suite from the directory instead of requiring a
-separate YAML file, but those loaders must still lower into the same suite/case
-concepts.
+- `experiment.yaml`
+- `experiments/default.yaml`
+- config pointers to external experiment files
+- committed experiment files as the canonical authoring path
 
-Experiment files will live under `experiments/` by convention. AgentV will
-support YAML as the canonical authoring path for the abstraction story and TypeScript
-as the power-user escape hatch:
+The only runnable authoring artifact is `eval.yaml` or another `*.eval.yaml`
+file. Runtime controls live in an inline `experiment:` block:
 
 ```yaml
-name: copilot-gpt55-withskill
-target: copilot-gpt55
-model: openai/gpt-5.5
-evals: "agent-042-*"
-scripts:
-  - build
-repeat:
-  count: 3
-  strategy: pass_at_k
-  cost_limit_usd: 2.00
-early_exit: false
-timeout_seconds: 900
-sandbox: auto
-setup:
-  - script: bun install
-  - script: cp skills/copilot/AGENTS.md AGENTS.md
+name: cargowise-sql-migration-codex
+
+experiment:
+  target: agent
+  workers: 4
+  threshold: 0.8
+  repeat:
+    count: 3
+    strategy: pass_at_k
+  timeout_seconds: 900
+  budget_usd: 2.00
+  setup:
+    - command: ./scripts/install-skills.sh
+
+tests:
+  - include: ./evals/cargowise/**/*.eval.yaml
+    type: suite
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
+    select:
+      test_ids:
+        - pr50857-*
+        - pr51200-online-*
+      tags:
+        - sql-migration
+        - review
+      metadata:
+        type:
+          - e2e
+          - regression
+        priority: high
+
+  - include: ./evals/cases/**/*.cases.yaml
+    type: tests
 ```
 
-## Workspace boundary
+`experiment:` is canonical for new eval YAML. `execution:` remains a legacy
+alias only for already-existing eval files. Docs, examples, schema snapshots,
+and new fixtures should use `experiment:`. New surfaces should not teach
+`execution:` except when documenting compatibility for old eval files.
 
-Workspace config belongs with the eval suite or case when it defines the task
-scenario being replayed. Examples:
+The old experiment runtime fields are ported into the parent eval file:
 
-- clone `org/repo` at a specific `commit` or `base_commit`;
-- copy starter files, failing tests, fixtures, or issue prompts;
-- run task-owned setup hooks that prepare the repo state required by the case;
-- declare per-case repo pins or fixture overrides.
+- target or target matrix
+- workers
+- thresholds
+- repeat policy such as `count` and `pass_at_k`
+- timeout
+- budget
+- runtime setup commands
+- other run-time controls that do not define the task itself
 
-Experiment setup belongs with the experiment when it changes the runtime
-condition being compared. Examples:
+Suite or case workspace fields remain task-owned when they define what is being
+evaluated. Experiment setup remains parent-owned when it changes the candidate
+or run condition being measured against the same task.
 
-- choose `codex` versus `claude` targets;
-- inject an `AGENTS.md`, skill, guideline file, or tool config for an A/B run;
-- choose repeat/run policy, timeout, workers, budget, or sandbox mode;
-- select a subset of suites or cases for a run campaign.
+## Tests Import Surface
 
-Rule of thumb: if changing it changes the task being evaluated, put it in the
-suite or case workspace. If changing it changes the candidate or run condition
-measured against the same task, put it in the experiment.
+`tests:` is the only composition, import, and selection surface.
 
-## Directory-style evals
+`include:` accepts direct paths and glob patterns. Include entries are
+structurally identified by the `include` field, so their `type:` field can use
+the ordinary AgentV wire-format discriminator without ambiguity:
 
-Convex-style harnesses are a useful counterexample to requiring YAML for every
-case. A product-specific benchmark can encode each case as a directory with a
-task prompt, reference solution, and executable grader. In AgentV terms, that is
-not `experiment -> eval case` with no suite; it is an implicit suite contract
-provided by the loader:
+- `include: **/*.eval.yaml` imports eval suites.
+- `include: **/*.cases.yaml` imports raw cases.
+- `include: **/*.jsonl` imports raw cases.
+
+`select:` filters imported cases with the same general selection shape used by
+old experiment suite selection. `select.test_ids` filters by test id and maps
+directly from old `suites[].select.test_ids`; values may be a string or list of
+strings and use existing glob semantics where currently supported.
+`select.metadata` filters against each imported test's effective case
+`metadata`, after suite-level arbitrary `metadata:` inheritance, top-level suite
+`tags`, and case-level `metadata:` merge. Values may be scalars or lists.
+`select.tags` is shorthand for filtering effective case `metadata.tags`, with a
+string or list of strings. Do not add a separate `case_types` field; use
+`select.metadata.type` for case type selection.
+
+Effective case tags are:
 
 ```text
-evals/<category>/<case>/
-  TASK.txt          # case input
-  answer/           # reference fixture
-  grader.test.ts    # code-grader assertion
+dedupe(suite.tags + suite.metadata.tags + case.metadata.tags)
 ```
 
-AgentV should support this as an import/loader shape when useful, but the core
-contract remains `experiment -> eval suite -> eval case`. The experiment applies
-runtime bindings to the selected suites/cases; it does not own the prompt,
-expected behavior, or grading contract.
-
-`config.yaml` will gain a default experiment pointer so existing `agentv eval`
-usage keeps working:
+For example, this case has effective case tags `cargowise`, `database`,
+`sql-migration`, and `review`:
 
 ```yaml
-experiments:
-  default: experiments/default.yaml
+tags: [cargowise, database]
+metadata:
+  tags: [sql-migration]
+tests:
+  - id: case-1
+    metadata:
+      tags: [review]
 ```
 
-If no default experiment is configured, AgentV keeps the current behavior and
-uses the `default` experiment label. Existing `eval.yaml`-only repositories
-remain valid.
+Suite tags stay suite identity metadata for discovery and reporting, but they
+also flow into effective case tags so `select.tags` can operate on one case-level
+view:
 
-Legacy `eval.yaml execution` fields that select targets, targets matrices,
-workers, cache, budget, thresholds, and workspace runtime behavior will
-continue to parse as a compatibility shim until docs and examples have moved.
-The prerelease `execution.trials` surface is hard-removed with no alias: run
-counts live on the experiment as canonical `repeat` config, with Vercel-style
-`runs`/`early_exit` accepted as shorthand for `pass_at_k`.
+```yaml
+tags: [cargowise]
+tests:
+  - id: case-1
+```
 
-AgentV should adopt Vercel's structure and lowest-common-denominator contract
-ideas, not depend on `@vercel/agent-eval` as core infrastructure in this phase.
-The package's `ExperimentConfig` shape is a strong public reference for
-experiment vocabulary: agent, model, agent options, case filter, scripts, runs,
-early exit, timeout, sandbox, and setup. A direct dependency would force AgentV
-to absorb Vercel's fixture model, sandbox assumptions, result caching semantics,
-and TypeScript-first authoring story before those boundaries are stable for
-AgentV.
+In that example, `case-1` matches `select.tags: cargowise`.
+
+Imported tests run in deterministic order: resolved path first, then the test
+order inside each resolved source.
+
+`type: suite` preserves the imported suite task contract. That includes suite
+metadata, `workspace`, shared `input`, shared `assertions`, and tests. The child
+suite's `experiment:` block, or legacy `execution:` block, is ignored and
+replaced by the parent eval's `experiment:` block.
+
+`type: tests` imports only raw test entries. It intentionally drops shared
+suite context such as workspace, shared input, and shared assertions. Use this
+mode only when the imported file is a case corpus or when dropping suite context
+is the desired behavior.
+
+Suite files still support raw-case shorthand imports. A string-valued `tests`
+field or a string entry inside the `tests` list is equivalent to an include
+entry with `type: tests`:
+
+```yaml
+tests: ./cases.yaml
+```
+
+```yaml
+tests:
+  - ./cases/*.cases.yaml
+  - include: ./suites/*.eval.yaml
+    type: suite
+```
+
+The shorthand is only for raw case files or directories. Importing another eval
+suite must use object form with `include:` and `type: suite`, so authors cannot
+accidentally drop or preserve suite context without saying which behavior they
+want.
+
+Do not use `import:` or `kind:` for `tests:` include entries.
+
+Parent suite-level task fields should not silently override imported suite task
+fields. Explicit override syntax can be considered later if a concrete use case
+needs it, but the default composition model must not merge task contracts in a
+surprising way.
+
+## Runtime Overrides
+
+The parent `experiment:` block is the default runtime policy for the whole eval.
+Some evals need stricter or looser policy for a selected group of tests, such as
+`pass_at_k` for stochastic agentic tasks and `pass_all` for hard regression
+gates. AgentV supports scoped runtime overrides for scoring and scheduling
+policy without creating separate experiment files.
+
+Runtime override precedence is:
+
+```text
+test.run > tests[].run > experiment
+```
+
+Group-level overrides live beside `include`, `type`, and `select`:
+
+```yaml
+tests:
+  - include: ./evals/flaky-agentic/**/*.eval.yaml
+    type: suite
+    select:
+      tags: [agentic]
+    run:
+      repeat:
+        count: 3
+        strategy: pass_at_k
+
+  - include: ./evals/regression/**/*.eval.yaml
+    type: suite
+    select:
+      tags: [must-pass]
+    run:
+      threshold: 1.0
+      repeat:
+        count: 2
+        strategy: pass_all
+```
+
+Case-level overrides use the same `run:` key:
+
+```yaml
+tests:
+  - id: critical-case
+    input: "..."
+    run:
+      threshold: 1.0
+      repeat:
+        count: 1
+```
+
+Initial scoped override fields should focus on result interpretation and
+scheduling:
+
+- `threshold`
+- `repeat`
+- `timeout_seconds`
+- `budget_usd`
+
+Fields that change the candidate or system under test, such as `target`,
+`targets`, runtime setup, and workspace mutation, should remain at the parent
+`experiment:` level unless a later ADR accepts narrower per-group semantics.
+Keeping candidate-changing knobs out of scoped overrides preserves comparable
+experiment groups and avoids silently mixing different systems under one result
+group.
+
+## WTG Motivation
+
+The WTG database migration eval
+`evals/cargowise/database/data-transformation-pr50857-e2e.eval.yaml` has
+suite-level `execution`, `workspace`, `input`, and `assertions`.
+
+When a wrapper eval imports it with `type: suite`, AgentV must preserve its
+shared `workspace`, `input`, and `assertions` because those fields are part of
+the task contract. Its `execution` block is the legacy spelling for child
+runtime configuration. Under this decision, the child runtime block is treated
+as child `experiment`/legacy `execution` and ignored in favor of the parent
+wrapper eval's `experiment:`.
+
+This is the motivating distinction:
+
+- task context from imported suites is preserved;
+- child runtime policy from imported suites is replaced by the parent runtime
+  policy;
+- raw-case imports do not inherit suite context.
+
+## Result Layout
+
+The canonical writer path is:
+
+```text
+.agentv/results/<eval-name>/<timestamp>/...
+```
+
+There is no `.agentv/results/runs` segment in canonical writer output. There is
+also no default nested suite segment when the result group is already the same
+eval suite being run directly.
+
+If a wrapper eval imports another suite with `type: suite`, test artifacts from
+that imported suite are nested under the imported suite identity:
+
+```text
+.agentv/results/<wrapper-eval-name>/<timestamp>/<imported-suite-name>/<test-id>/...
+```
+
+The suite segment is required for imported suites because wrapper evals can
+compose many suites with overlapping test IDs, and the directory tree should
+remain inspectable without reading every manifest row. Test artifacts from tests
+owned directly by the wrapper eval can still live directly under `<test-id>`.
+All cases should also retain source suite metadata in manifests and index rows.
 
 ## Consequences
 
 Positive:
 
-- Evals become portable task definitions that can be run against multiple agents
-  without editing the task file.
-- A/B setup variants such as baseline versus skill injection become reviewable,
-  committed experiment files.
-- Existing artifact paths already use experiment labels, so this decision extends
-  an established storage axis instead of introducing a parallel result concept.
-- The default experiment pointer gives old repos a non-breaking migration path.
-- AgentV can align with Vercel conventions while preserving YAML authoring,
-  LLM-judge assertions, workspace fixtures, and Git-backed artifacts.
+- AgentV has one runnable YAML authoring surface instead of two.
+- The schema stays easier for humans and AI agents to understand.
+- Runtime fields still have a clear home without external experiment pointers.
+- Wrapper evals can compose suites while applying one parent run policy.
+- Same-week unshipped experiment-file work can be removed without carrying
+  long-term compatibility aliases.
 
 Negative:
 
-- The migration creates two valid locations for some runtime controls until
-  deprecation completes.
-- The CLI must resolve explicit experiments, configured defaults, and legacy
-  label-only runs without surprising users.
-- Artifact readers need a richer experiment fingerprint and provenance model
-  beyond the current string label.
+- A parent eval that imports suites now carries both task composition and
+  runtime policy in one file, so docs must explain the boundary clearly.
+- Existing `execution:` examples need to migrate to `experiment:` over time,
+  while the loader keeps `execution:` as a legacy alias for already-existing
+  evals.
+- Explicit task-context override syntax is deferred, so authors who need
+  overrides must create a new suite or wait for a focused override design.
 
 ## Non-Goals
 
-- Do not replace AgentV's evaluator engine with `@vercel/agent-eval` in the
-  initial migration.
-- Do not convert AgentV eval YAML into Vercel `PROMPT.md` plus `EVAL.ts`.
-- Do not move LLM-judge assertions out of eval definitions.
-- Do not make Phoenix, Harbor, Opik, Vercel Sandbox, or another external system
-  required for local execution.
-- Do not break existing `eval.yaml` files or current result artifacts.
+- Do not add separate `experiment.yaml` files or an `experiments/` convention.
+- Do not add config pointers to external experiment files.
+- Do not present committed experiment files as canonical docs examples.
+- Do not make child suite runtime blocks participate in parent wrapper runtime
+  selection.
+- Do not silently override imported suite task fields from parent suite fields.
+- Do not encode source suite membership by adding redundant default result path
+  segments.
 
 ## References
 
-- Vercel `agent-eval`: https://github.com/vercel-labs/agent-eval
-- Vercel Next.js eval results: https://github.com/vercel/next-evals-oss
-- Anthropic Skills schema vocabulary: https://github.com/anthropics/skills/blob/main/skills/skill-creator/references/schemas.md
-- Hugging Face Datasets vocabulary: https://huggingface.co/docs/datasets/en/package_reference/main_classes
-- OpenInference trace vocabulary: https://arize-ai.github.io/openinference/spec/
+- Strategy: [STRATEGY.md](../../STRATEGY.md)
+- Roadmap: [ROADMAP.md](../../ROADMAP.md)
+- Product boundary: [.agents/product-boundary.md](../../.agents/product-boundary.md)
+- Technical conventions: [.agents/conventions.md](../../.agents/conventions.md)

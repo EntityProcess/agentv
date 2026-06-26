@@ -680,9 +680,49 @@ function extractMessages(events: unknown[]): readonly Message[] {
  * Scan JSONL events for tool_execution_start / tool_execution_end pairs and
  * reconstruct ToolCall objects from them.
  */
+function eventTimestampIso(record: Record<string, unknown>): string | undefined {
+  const timestamp = record.timestamp ?? record.time;
+  if (typeof timestamp === 'string') {
+    return timestamp;
+  }
+  if (typeof timestamp === 'number' && Number.isFinite(timestamp)) {
+    return new Date(timestamp).toISOString();
+  }
+  return undefined;
+}
+
+function deriveDurationMs(
+  startTime: string | undefined,
+  endTime: string | undefined,
+): number | undefined {
+  if (!startTime || !endTime) {
+    return undefined;
+  }
+  const start = Date.parse(startTime);
+  const end = Date.parse(endTime);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return undefined;
+  }
+  return end - start;
+}
+
+function toolStatusFromEvent(record: Record<string, unknown>): ToolCall['status'] | undefined {
+  if (record.error) {
+    return 'error';
+  }
+  const status = record.status;
+  if (status === 'ok' || status === 'error' || status === 'timeout' || status === 'cancelled') {
+    return status;
+  }
+  return undefined;
+}
+
 function extractToolCallsFromEvents(events: unknown[]): ToolCall[] {
-  const starts = new Map<string, { tool: string; input: unknown }>();
-  const results = new Map<string, unknown>();
+  const starts = new Map<string, { tool: string; input: unknown; startTime?: string }>();
+  const results = new Map<
+    string,
+    { output: unknown; status?: ToolCall['status']; endTime?: string; durationMs?: number }
+  >();
 
   for (const event of events) {
     if (!event || typeof event !== 'object') continue;
@@ -690,49 +730,88 @@ function extractToolCallsFromEvents(events: unknown[]): ToolCall[] {
     const type = r.type;
     if (type === 'tool_execution_start' && typeof r.toolName === 'string') {
       const id = typeof r.toolCallId === 'string' ? r.toolCallId : undefined;
-      starts.set(id ?? `anon-${starts.size}`, { tool: r.toolName, input: r.args });
+      starts.set(id ?? `anon-${starts.size}`, {
+        tool: r.toolName,
+        input: r.args,
+        startTime: eventTimestampIso(r),
+      });
     } else if (type === 'tool_execution_end') {
       const id = typeof r.toolCallId === 'string' ? r.toolCallId : undefined;
-      if (id) results.set(id, r.result);
+      if (id) {
+        results.set(id, {
+          output: r.result,
+          status: toolStatusFromEvent(r) ?? (Object.hasOwn(r, 'result') ? 'ok' : undefined),
+          endTime: eventTimestampIso(r),
+          durationMs: toFiniteNumber(r.durationMs ?? r.duration_ms),
+        });
+      }
     }
   }
 
   const toolCalls: ToolCall[] = [];
-  for (const [id, { tool, input }] of starts) {
+  for (const [id, { tool, input, startTime }] of starts) {
+    const result = results.get(id);
     toolCalls.push(
       normalizeToolCall('pi-cli', {
         tool,
         input: input as Record<string, unknown> | undefined,
         id: id.startsWith('anon-') ? undefined : id,
-        output: results.get(id),
+        output: result?.output,
+        status: result?.status,
+        startTime,
+        endTime: result?.endTime,
+        durationMs: result?.durationMs ?? deriveDurationMs(startTime, result?.endTime),
       }),
     );
   }
   return toolCalls;
 }
 
+function toolCallDedupKey(toolCall: ToolCall): string {
+  return `${toolCall.tool}:${JSON.stringify(toolCall.input)}`;
+}
+
+function mergeToolCallEvidence(existing: ToolCall, eventToolCall: ToolCall): ToolCall {
+  return {
+    ...existing,
+    output: existing.output ?? eventToolCall.output,
+    status: existing.status ?? eventToolCall.status,
+    startTime: existing.startTime ?? eventToolCall.startTime,
+    endTime: existing.endTime ?? eventToolCall.endTime,
+    durationMs: existing.durationMs ?? eventToolCall.durationMs,
+  };
+}
+
 /**
- * Merge event-sourced tool calls into messages. For each tool call, if it
- * already exists (by id) in some message, skip it. Otherwise, append it to
- * the last assistant message (creating one if needed).
+ * Merge event-sourced tool calls into messages. Existing calls are enriched
+ * with stream result/timing evidence; missing calls are appended to the last
+ * assistant message, creating one if needed.
  */
 function injectEventToolCalls(messages: Message[], eventToolCalls: ToolCall[]): void {
-  const existingIds = new Set<string>();
-  const existingTools = new Set<string>();
-  for (const msg of messages) {
-    if (!msg.toolCalls) continue;
-    for (const tc of msg.toolCalls) {
-      if (tc.id) existingIds.add(tc.id);
-      // Track tool+input combos to avoid duplicates when there's no id
-      existingTools.add(`${tc.tool}:${JSON.stringify(tc.input)}`);
+  const missing: ToolCall[] = [];
+  for (const eventToolCall of eventToolCalls) {
+    let merged = false;
+    for (const [messageIndex, msg] of messages.entries()) {
+      if (!msg.toolCalls) continue;
+      const toolIndex = msg.toolCalls.findIndex((toolCall) => {
+        if (eventToolCall.id && toolCall.id === eventToolCall.id) {
+          return true;
+        }
+        return toolCallDedupKey(toolCall) === toolCallDedupKey(eventToolCall);
+      });
+      if (toolIndex < 0) {
+        continue;
+      }
+      const toolCalls = [...msg.toolCalls];
+      toolCalls[toolIndex] = mergeToolCallEvidence(toolCalls[toolIndex], eventToolCall);
+      messages[messageIndex] = { ...msg, toolCalls };
+      merged = true;
+      break;
+    }
+    if (!merged) {
+      missing.push(eventToolCall);
     }
   }
-
-  const missing = eventToolCalls.filter((tc) => {
-    if (tc.id && existingIds.has(tc.id)) return false;
-    if (existingTools.has(`${tc.tool}:${JSON.stringify(tc.input)}`)) return false;
-    return true;
-  });
 
   if (missing.length === 0) return;
 

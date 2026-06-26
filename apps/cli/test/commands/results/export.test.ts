@@ -360,7 +360,8 @@ describe('results export', () => {
       metrics_path: 'privacy/test-private/run-1/metrics.json',
       output_path: 'privacy/test-private/run-1/outputs/answer.md',
       answer_path: 'privacy/test-private/run-1/outputs/answer.md',
-      transcript_path: 'privacy/test-private/run-1/transcript-raw.jsonl',
+      transcript_path: 'privacy/test-private/run-1/transcript.jsonl',
+      transcript_raw_path: 'privacy/test-private/run-1/transcript-raw.jsonl',
       trace_path: 'privacy/test-private/trace.json',
     });
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
@@ -429,7 +430,8 @@ describe('results export', () => {
       metrics_path: 'demo/test-greeting/run-1/metrics.json',
       output_path: 'demo/test-greeting/run-1/outputs/answer.md',
       answer_path: 'demo/test-greeting/run-1/outputs/answer.md',
-      transcript_path: 'demo/test-greeting/run-1/transcript-raw.jsonl',
+      transcript_path: 'demo/test-greeting/run-1/transcript.jsonl',
+      transcript_raw_path: 'demo/test-greeting/run-1/transcript-raw.jsonl',
     });
     expect(entries[0]).not.toHaveProperty('input_path');
     expect(entries[0].projection_identity).toMatchObject({
