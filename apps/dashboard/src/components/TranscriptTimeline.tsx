@@ -152,15 +152,28 @@ function isNormalizedTranscriptLine(value: unknown): value is Record<string, unk
 
 function normalizeToolUseBlock(block: Record<string, unknown>): Record<string, unknown> {
   const result = isRecord(block.result) ? block.result : undefined;
+  const metadata = mergeToolMetadata(block.metadata, result?.metadata);
   return {
     id: typeof block.id === 'string' ? block.id : undefined,
     tool: typeof block.name === 'string' ? block.name : 'tool',
     input: block.input,
     output: result?.output,
+    error: result?.error,
     status: typeof result?.status === 'string' ? result.status : undefined,
     duration_ms: typeof result?.duration_ms === 'number' ? result.duration_ms : undefined,
-    metadata: isRecord(block.metadata) ? block.metadata : undefined,
+    metadata,
   };
+}
+
+function mergeToolMetadata(blockMetadata: unknown, resultMetadata: unknown): unknown {
+  const hasBlockMetadata = isRecord(blockMetadata);
+  const hasResultMetadata = isRecord(resultMetadata);
+  if (hasBlockMetadata && hasResultMetadata) {
+    return { ...blockMetadata, result: resultMetadata };
+  }
+  if (hasBlockMetadata) return blockMetadata;
+  if (hasResultMetadata) return resultMetadata;
+  return undefined;
 }
 
 function normalizedTranscriptLineToTimelineEntry(

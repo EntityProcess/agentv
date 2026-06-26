@@ -87,6 +87,45 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('Collapse all tool calls');
   });
 
+  it('preserves joined tool result error and metadata from normalized rows', () => {
+    const parsed = parseTranscriptJsonl(
+      JSON.stringify({
+        v: 1,
+        agent: 'codex',
+        type: 'assistant',
+        content: [
+          { type: 'text', text: 'Trying the shell.' },
+          {
+            type: 'tool_use',
+            id: 'call-fail-1',
+            name: 'bash',
+            input: { command: 'false' },
+            metadata: { cwd: '/tmp/agentv-fixture' },
+            result: {
+              status: 'error',
+              output: { exit_code: 1 },
+              error: { message: 'command failed' },
+              metadata: { signal: 'SIGTERM' },
+              duration_ms: 12,
+            },
+          },
+        ],
+      }),
+    );
+    const html = renderToStaticMarkup(
+      <TranscriptTimeline
+        entries={parsed.entries}
+        transcriptPath="failing-shell__codex/transcript.jsonl"
+        transcriptHref="/api/raw-transcript"
+        transcriptDownloadHref="/api/download-transcript"
+      />,
+    );
+
+    expect(html).toContain('command failed');
+    expect(html).toContain('SIGTERM');
+    expect(html).toContain('/tmp/agentv-fixture');
+  });
+
   it('renders final answer separately from prior assistant/tool context with normalized JSONL access', () => {
     const html = renderStructuredTranscript();
 
