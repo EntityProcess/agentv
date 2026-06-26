@@ -31,7 +31,8 @@
 
 import { exec as execCallback } from 'node:child_process';
 import { readdirSync, statSync } from 'node:fs';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -59,6 +60,25 @@ function gitExecOpts(workspacePath: string) {
 }
 
 /**
+ * Execute git commands against an isolated temporary index.
+ * This keeps mutation out of the workspace user's real index.
+ */
+async function withTemporaryGitIndex<T>(
+  workspacePath: string,
+  run: (opts: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<T>,
+): Promise<T> {
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'agentv-git-index-'));
+  try {
+    return await run({
+      ...gitExecOpts(workspacePath),
+      env: { ...gitExecOpts(workspacePath).env, GIT_INDEX_FILE: path.join(tempDir, 'index') },
+    });
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
  * Initialize a git baseline for workspace file change tracking.
  *
  * Runs `git init` directly in the workspace, stages all files, and creates
@@ -66,6 +86,25 @@ function gitExecOpts(workspacePath: string) {
  */
 export async function initializeBaseline(workspacePath: string): Promise<string> {
   const opts = gitExecOpts(workspacePath);
+
+  try {
+    const { stdout: insideWorkTree } = await execAsync('git rev-parse --is-inside-work-tree', opts);
+    if (insideWorkTree.trim() === 'true') {
+      const { stdout: head } = await execAsync('git rev-parse HEAD', opts);
+      const baselineHead = head.trim();
+      const { stdout: status } = await execAsync(
+        'git status --porcelain --untracked-files=all',
+        opts,
+      );
+
+      if (status.trim() === '') {
+        return baselineHead;
+      }
+      return await createPrivateBaselineCommit(workspacePath, baselineHead);
+    }
+  } catch {
+    // Not already a Git worktree; fall through to create a private workspace repo.
+  }
 
   await execAsync('git init', opts);
   await execAsync('git add -A', opts);
@@ -76,6 +115,27 @@ export async function initializeBaseline(workspacePath: string): Promise<string>
 
   const { stdout } = await execAsync('git rev-parse HEAD', opts);
   return stdout.trim();
+}
+
+async function createPrivateBaselineCommit(
+  workspacePath: string,
+  parentCommit: string,
+): Promise<string> {
+  return withTemporaryGitIndex(workspacePath, async (opts) => {
+    await execAsync(`git read-tree ${parentCommit}`, opts);
+    await execAsync('git add -A', opts);
+    const { stdout: tree } = await execAsync('git write-tree', opts);
+    const { stdout: commit } = await execAsync(
+      `git -c user.email=agentv@localhost -c user.name=agentv commit-tree ${tree.trim()} -p ${parentCommit} -m "agentv-baseline"`,
+      opts,
+    );
+    const commitHash = commit.trim();
+    await execAsync(
+      `git update-ref refs/agentv/workspace-baselines/${commitHash} ${commitHash}`,
+      opts,
+    );
+    return commitHash;
+  });
 }
 
 /**
@@ -90,31 +150,34 @@ export async function captureFileChanges(
   workspacePath: string,
   baselineCommit: string,
 ): Promise<string> {
-  const opts = gitExecOpts(workspacePath);
-
-  // Stage new files in nested repos so they appear in the submodule diff
-  await stageNestedRepoChanges(workspacePath);
-
-  // Stage parent-level changes
-  await execAsync('git add -A', opts);
-
-  // Use --submodule=diff to expand nested repo changes into individual file diffs
-  const { stdout } = await execAsync(`git diff ${baselineCommit} --submodule=diff`, opts);
-
-  return stdout.trim();
+  return withNestedRepoChanges(workspacePath, async () => {
+    return withTemporaryGitIndex(workspacePath, async (opts) => {
+      await execAsync(`git read-tree ${baselineCommit}`, opts);
+      await execAsync('git add -A', opts);
+      const { stdout } = await execAsync(`git diff ${baselineCommit} --submodule=diff`, opts);
+      return stdout.trim();
+    });
+  });
 }
 
 /**
  * Find immediate child directories that contain a `.git/` directory
  * and stage all their changes so they appear in the parent's submodule diff.
  */
-async function stageNestedRepoChanges(workspacePath: string): Promise<void> {
+async function withNestedRepoChanges<T>(workspacePath: string, run: () => Promise<T>): Promise<T> {
   let entries: string[];
   try {
     entries = readdirSync(workspacePath);
   } catch {
-    return;
+    return run();
   }
+
+  const stagedNestedRepos: Array<{
+    nestedIndexPath: string;
+    backupPath: string;
+    backupDir: string;
+    hadBackup: boolean;
+  }> = [];
 
   for (const entry of entries) {
     if (entry === '.git' || entry === 'node_modules') continue;
@@ -126,8 +189,34 @@ async function stageNestedRepoChanges(workspacePath: string): Promise<void> {
       continue;
     }
     // Stage all files in the nested repo
+    const nestedIndexPath = path.join(childPath, '.git', 'index');
     const childOpts = gitExecOpts(childPath);
+    const backupDir = await mkdtemp(path.join(tmpdir(), 'agentv-nested-index-'));
+    const nestedIndexBackup = path.join(backupDir, 'index');
+    const hadNestedIndex = await copyFile(nestedIndexPath, nestedIndexBackup)
+      .then(() => true)
+      .catch(() => false);
+    stagedNestedRepos.push({
+      nestedIndexPath,
+      backupPath: nestedIndexBackup,
+      backupDir,
+      hadBackup: hadNestedIndex,
+    });
+    await execAsync('git read-tree HEAD', childOpts);
     await execAsync('git add -A', childOpts);
+  }
+
+  try {
+    return await run();
+  } finally {
+    for (const staged of stagedNestedRepos) {
+      if (staged.hadBackup) {
+        await copyFile(staged.backupPath, staged.nestedIndexPath).catch(() => {});
+      } else {
+        await rm(staged.nestedIndexPath, { force: true }).catch(() => {});
+      }
+      await rm(staged.backupDir, { recursive: true, force: true }).catch(() => {});
+    }
   }
 }
 

@@ -17,6 +17,9 @@ import {
 // Clean env for git commands — strip GIT_DIR/GIT_WORK_TREE so tests
 // don't accidentally target the parent repo (e.g. when run from git hooks).
 const { GIT_DIR: _, GIT_WORK_TREE: __, ...cleanEnv } = process.env;
+function git(command: string, cwd: string): string {
+  return execSync(command, { cwd, env: cleanEnv, encoding: 'utf8' }).trim();
+}
 
 describe('workspace file-changes', () => {
   let workspacePath: string;
@@ -36,6 +39,98 @@ describe('workspace file-changes', () => {
 
     // Baseline commit should be a valid git hash
     expect(baselineCommit).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it('uses the AgentV identity for newly initialized workspace repos', async () => {
+    const baselineCommit = await initializeBaseline(workspacePath);
+
+    expect(git(`git show -s --format='%an <%ae>' ${baselineCommit}`, workspacePath)).toBe(
+      'agentv <agentv@localhost>',
+    );
+    expect(git(`git show -s --format='%cn <%ce>' ${baselineCommit}`, workspacePath)).toBe(
+      'agentv <agentv@localhost>',
+    );
+  });
+
+  it('uses HEAD without creating a baseline commit in clean existing repos', async () => {
+    git('git init', workspacePath);
+    git('git config user.name "Existing Repo User"', workspacePath);
+    git('git config user.email "existing@example.test"', workspacePath);
+    git('git add -A', workspacePath);
+    git('git commit -m "existing baseline"', workspacePath);
+    const originalHead = git('git rev-parse HEAD', workspacePath);
+    const originalRef = git('git symbolic-ref --short HEAD', workspacePath);
+
+    const baselineCommit = await initializeBaseline(workspacePath);
+
+    expect(baselineCommit).toBe(originalHead);
+    expect(git('git rev-list --count HEAD', workspacePath)).toBe('1');
+    expect(git('git log -1 --format=%s', workspacePath)).toBe('existing baseline');
+    expect(git('git symbolic-ref --short HEAD', workspacePath)).toBe(originalRef);
+  });
+
+  it('creates a private baseline commit in dirty existing repos without moving HEAD', async () => {
+    git('git init', workspacePath);
+    git('git config user.name "Existing Repo User"', workspacePath);
+    git('git config user.email "existing@example.test"', workspacePath);
+    await writeFile(path.join(workspacePath, 'tracked.txt'), 'tracked\n', 'utf8');
+    git('git add -A', workspacePath);
+    git('git commit -m "existing baseline"', workspacePath);
+    const originalHead = git('git rev-parse HEAD', workspacePath);
+    const originalRef = git('git symbolic-ref --short HEAD', workspacePath);
+
+    // Introduce pre-existing dirt
+    await writeFile(path.join(workspacePath, 'hello.txt'), 'pre-existing dirty change\n', 'utf8');
+
+    const baselineCommit = await initializeBaseline(workspacePath);
+    const refList = git('git for-each-ref --format="%(refname:short)" refs/agentv', workspacePath);
+
+    expect(git('git rev-parse HEAD', workspacePath)).toBe(originalHead);
+    expect(git('git symbolic-ref --short HEAD', workspacePath)).toBe(originalRef);
+    expect(git('git log -1 --format=%s', workspacePath)).toBe('existing baseline');
+    expect(git(`git show -s --format='%an <%ae>' ${baselineCommit}`, workspacePath)).toBe(
+      'agentv <agentv@localhost>',
+    );
+    expect(refList).toContain(`workspace-baselines/${baselineCommit}`);
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('M hello.txt');
+  });
+
+  it('captureFileChanges excludes pre-existing dirty state and includes only target edits', async () => {
+    git('git init', workspacePath);
+    git('git config user.name "Existing Repo User"', workspacePath);
+    git('git config user.email "existing@example.test"', workspacePath);
+    await writeFile(path.join(workspacePath, 'tracked.txt'), 'tracked baseline\n', 'utf8');
+    await writeFile(path.join(workspacePath, 'delete-me.txt'), 'to delete\n', 'utf8');
+    git('git add -A', workspacePath);
+    git('git commit -m "existing baseline"', workspacePath);
+
+    await writeFile(path.join(workspacePath, 'hello.txt'), 'pre-existing dirty change\n', 'utf8');
+    await writeFile(path.join(workspacePath, 'pre-existing-untracked.txt'), 'ignore me\n', 'utf8');
+
+    const baselineCommit = await initializeBaseline(workspacePath);
+
+    await writeFile(path.join(workspacePath, 'hello.txt'), 'post-baseline change\n', 'utf8');
+    await writeFile(path.join(workspacePath, 'new.txt'), 'new file\n', 'utf8');
+    await rm(path.join(workspacePath, 'delete-me.txt'));
+
+    const diff = await captureFileChanges(workspacePath, baselineCommit);
+
+    expect(diff).toContain('hello.txt');
+    expect(diff).toContain('post-baseline change');
+    expect(diff).toContain('new.txt');
+    expect(diff).toContain('new file');
+    expect(diff).toContain('delete-me.txt');
+    expect(diff).toContain('pre-existing dirty change');
+    expect(diff).toContain('post-baseline change');
+    expect(diff).not.toContain('pre-existing-untracked.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('M hello.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(
+      'D delete-me.txt',
+    );
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('?? new.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(
+      '?? pre-existing-untracked.txt',
+    );
   });
 
   it('captureFileChanges detects added/modified/deleted files', async () => {
