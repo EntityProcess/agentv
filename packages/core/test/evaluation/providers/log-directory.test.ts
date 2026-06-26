@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { resolveDefaultProviderLogDir } from '../../../src/evaluation/providers/log-directory.js';
@@ -14,8 +16,10 @@ describe('resolveDefaultProviderLogDir', () => {
     }
   });
 
-  it('places default provider logs inside the case folder for the active run', () => {
-    process.env.AGENTV_RUN_DIR = path.join('/repo', '.agentv', 'results', 'default', 'run-001');
+  it('places default provider stream captures outside the active run bundle', () => {
+    const runDir = path.join('/repo', '.agentv', 'results', 'default', 'run-001');
+    process.env.AGENTV_RUN_DIR = runDir;
+    const runHash = createHash('sha256').update(path.resolve(runDir)).digest('hex').slice(0, 12);
 
     expect(
       resolveDefaultProviderLogDir('copilot-cli', {
@@ -24,11 +28,9 @@ describe('resolveDefaultProviderLogDir', () => {
       }),
     ).toBe(
       path.join(
-        '/repo',
-        '.agentv',
-        'results',
-        'default',
-        'run-001',
+        tmpdir(),
+        'agentv-provider-streams',
+        `run-001-${runHash}`,
         'demo-suite',
         'case_one',
         'logs',

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { ProviderRequest } from './types.js';
@@ -16,6 +18,9 @@ export function resolveDefaultProviderLogDir(
 ): string | undefined {
   const runDir = process.env.AGENTV_RUN_DIR?.trim();
   if (runDir) {
+    const runSegment = safePathSegment(path.basename(runDir), 'run');
+    const runHash = createHash('sha256').update(path.resolve(runDir)).digest('hex').slice(0, 12);
+    const captureRoot = path.join(tmpdir(), 'agentv-provider-streams', `${runSegment}-${runHash}`);
     if (request?.evalCaseId) {
       const segments = [
         request.suite ? safePathSegment(request.suite, 'default') : undefined,
@@ -23,9 +28,9 @@ export function resolveDefaultProviderLogDir(
         'logs',
         providerName,
       ].filter((segment): segment is string => segment !== undefined);
-      return path.join(path.resolve(runDir), ...segments);
+      return path.join(captureRoot, ...segments);
     }
-    return path.join(path.resolve(runDir), '_logs', providerName);
+    return path.join(captureRoot, '_logs', providerName);
   }
   return undefined;
 }

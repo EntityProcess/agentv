@@ -445,10 +445,9 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 Each result row's `artifact_dir` is a case-local folder under the timestamped
 run bundle. It can include `transcript.jsonl`, `transcript-raw.jsonl`,
-`provider.log`, `grading.json`, `timing.json`, `metrics.json`, and generated
-outputs under `outputs/`. The run root does not contain a mixed transcript
-artifact; use each index row's `transcript_path` to find the per-result
-transcript.
+`grading.json`, `timing.json`, `metrics.json`, and generated outputs under
+`outputs/`. The run root does not contain a mixed transcript artifact; use each
+index row's `transcript_path` to find the per-result transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
 entries such as `artifact_pointers.transcript` carry the storage `ref`, artifact
@@ -480,12 +479,12 @@ usage, cost, source metadata, capture state, and trace pointers.
 Provider-native payloads can appear only inside opaque nested fields such as
 `metadata`, `source.metadata`, tool `input`, or tool `output`.
 
-When an agent provider captures a native stream or session log, the result row
-may also include `raw_provider_log_path`, pointing at
-`provider.log`. That file is raw evidence copied byte-for-byte from
-the provider log and is not parsed, normalized, or required for replay, import,
-Agent Skills conversion, or grading. AgentV does not write or maintain a
-parallel `outputs/transcript.json` source of truth.
+When an agent provider captures a native stream or session log, AgentV writes
+that byte-for-byte evidence to `transcript-raw.jsonl` and records it with
+`transcript_raw_path`. New eval runs do not also copy the same stream to
+`provider.log`; `raw_provider_log_path` is only a legacy/imported pointer when
+older bundles or external sources already provide one. AgentV does not write or
+maintain a parallel `outputs/transcript.json` source of truth.
 
 Use the transcript when you need a compact portable message/event projection
 over the trace, including exports to role/content arrays for chat-template or
