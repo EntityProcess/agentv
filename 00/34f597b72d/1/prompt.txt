@@ -29,3 +29,15 @@ basically it doesn't require any core code change, it's just documentation.. can
 ---
 
 please push to PR from worktree
+
+---
+
+i'm not sure if  aggregator:
+      type: code-grader
+      path: ./scripts/or-aggregator.js
+
+works. can you ensure we have an example that runs.
+
+---
+
+also i thougth the pattern was to use bun run not specify a path wich can be anythign.
