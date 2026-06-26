@@ -37,10 +37,22 @@ This decision must also preserve AgentV's existing product boundary:
 
 ## Vocabulary
 
-An eval is a frozen task definition. It includes the prompt or dataset, expected
-behavior, task-owned workspace fixtures, and assertions. AgentV's LLM-judge,
-code-grader, deterministic assertions, and hidden or explicit evaluation
-criteria belong here.
+An eval suite is a frozen task-definition boundary. It includes suite metadata,
+shared prompt/context, case references, shared assertions or graders, and
+task-owned workspace fixtures. AgentV's LLM-judge, code-grader, deterministic
+assertions, and hidden or explicit evaluation criteria belong here.
+
+An eval case is one atomic task inside a suite. It includes the case id, prompt
+or input, criteria, expected output or reference behavior, case metadata, and
+case-specific workspace overrides. A suite can inline cases, point to
+`cases.yaml`/JSONL, or use a directory convention where each case owns files such
+as `TASK.txt`, `PROMPT.md`, `answer/`, or `grader.test.ts`.
+
+In that directory-convention form, `EVAL.yaml` may be thin or inferred by a
+loader, but the suite layer is still present conceptually: the directory
+convention plus runner adapter is the suite contract. This distinction matters
+because AgentV is a reusable framework, not a single benchmark harness whose
+suite semantics can live only in code.
 
 An experiment is a committed or generated run definition. It declares which
 agent, target, provider, model, harness options, setup steps, run count, timeout,
@@ -61,6 +73,13 @@ Eval files remain YAML-authored by default. They should describe what is tested:
 task inputs, datasets, assertions, and task fixtures. They should not be the
 canonical place for which agent, model, harness, setup injection, sandbox, or run
 matrix executes the task.
+
+For simple projects, an eval-only run remains valid. AgentV treats the implicit
+experiment label as `default` unless a committed experiment is configured. For
+specialized harnesses that already have a strong directory contract, AgentV may
+support loaders that infer the suite from the directory instead of requiring a
+separate YAML file, but those loaders must still lower into the same suite/case
+concepts.
 
 Experiment files will live under `experiments/` by convention. AgentV will
 support YAML as the canonical authoring path for the abstraction story and TypeScript
@@ -84,6 +103,48 @@ setup:
   - script: bun install
   - script: cp skills/copilot/AGENTS.md AGENTS.md
 ```
+
+## Workspace boundary
+
+Workspace config belongs with the eval suite or case when it defines the task
+scenario being replayed. Examples:
+
+- clone `org/repo` at a specific `commit` or `base_commit`;
+- copy starter files, failing tests, fixtures, or issue prompts;
+- run task-owned setup hooks that prepare the repo state required by the case;
+- declare per-case repo pins or fixture overrides.
+
+Experiment setup belongs with the experiment when it changes the runtime
+condition being compared. Examples:
+
+- choose `codex` versus `claude` targets;
+- inject an `AGENTS.md`, skill, guideline file, or tool config for an A/B run;
+- choose repeat/run policy, timeout, workers, budget, or sandbox mode;
+- select a subset of suites or cases for a run campaign.
+
+Rule of thumb: if changing it changes the task being evaluated, put it in the
+suite or case workspace. If changing it changes the candidate or run condition
+measured against the same task, put it in the experiment.
+
+## Directory-style evals
+
+Convex-style harnesses are a useful counterexample to requiring YAML for every
+case. A product-specific benchmark can encode each case as a directory with a
+task prompt, reference solution, and executable grader. In AgentV terms, that is
+not `experiment -> eval case` with no suite; it is an implicit suite contract
+provided by the loader:
+
+```text
+evals/<category>/<case>/
+  TASK.txt          # case input
+  answer/           # reference fixture
+  grader.test.ts    # code-grader assertion
+```
+
+AgentV should support this as an import/loader shape when useful, but the core
+contract remains `experiment -> eval suite -> eval case`. The experiment applies
+runtime bindings to the selected suites/cases; it does not own the prompt,
+expected behavior, or grading contract.
 
 `config.yaml` will gain a default experiment pointer so existing `agentv eval`
 usage keeps working:
