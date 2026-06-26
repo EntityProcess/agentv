@@ -456,7 +456,7 @@ Recommended defaults are included so implementation is not blocked.
 Local AgentV inputs read for this spec:
 
 - `docs/plans/trace-evaluation-architecture.md`
-- `docs/adr/2026-06-11-phoenix-observability-adapter.md`
+- `docs/adr/0001-keep-phoenix-observability-integration-out-of-core.md`
 - `packages/core/src/evaluation/trace.ts`
 - `packages/core/src/observability/otel-exporter.ts`
 - `packages/core/src/observability/otlp-json-file-exporter.ts`

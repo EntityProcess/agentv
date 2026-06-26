@@ -72,4 +72,4 @@ is a no-force-push merge loop.
 
 ## Related
 
-- docs/adr/2026-06-24-no-force-push-results-sync.md
+- docs/adr/0007-conflict-free-results-sync-without-force-push.md

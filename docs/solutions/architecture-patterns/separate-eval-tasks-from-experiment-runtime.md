@@ -129,7 +129,7 @@ The dashboard should discover runs from root manifests and learn case locations 
 
 ## Related
 
-- `docs/adr/2026-06-23-experiments-vs-eval-separation.md` - architecture decision for the split
+- `docs/adr/0006-separate-experiments-from-eval-definitions.md` - architecture decision for the split
 - `docs/plans/2026-06-23-002-experiments-separation-plan.md` - phased implementation plan
 - `docs/plans/2026-06-23-001-feat-repeat-runs-flaky-evals-plan.md` - repeat-run placement reconciled to experiments
 - `docs/solutions/best-practices/prefer-isolated-runtime-boundaries-for-agent-sdk-providers.md` - adjacent guidance on keeping provider runtime instability outside artifact finalization

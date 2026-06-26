@@ -1,8 +1,10 @@
-# ADR: Keep Opik export as a post-run adapter over AgentV result bundles
+# 3. Keep Opik export as a post-run adapter over AgentV result bundles
 
 Date: 2026-06-18
 
-Status: Proposed
+## Status
+
+Proposed
 
 ## Context
 

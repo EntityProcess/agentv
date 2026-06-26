@@ -1,8 +1,10 @@
-# ADR: Replace @agentv/eval with @agentv/sdk as the public TypeScript SDK
+# 4. Replace @agentv/eval with @agentv/sdk as the public TypeScript SDK
 
 Date: 2026-06-18
 
-Status: Accepted
+## Status
+
+Accepted
 
 Update 2026-06-22: `@agentv/eval` has been deprecated on npm and removed from
 this repository. `@agentv/sdk` is the only lightweight TypeScript SDK package

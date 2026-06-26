@@ -1,8 +1,10 @@
-# ADR: Keep Harbor benchmark execution behind a runner boundary
+# 2. Keep Harbor benchmark execution behind a runner boundary
 
 Date: 2026-06-17
 
-Status: Proposed
+## Status
+
+Proposed
 
 ## Context
 
@@ -49,7 +51,7 @@ experiment concern. Harbor execution should follow the same split:
 - Harbor-authored YAML remains Harbor's own config surface when the standard
   suite needs Harbor-specific task packaging or verifier settings.
 
-This means the examples below describe the desired logical fields, but new
+This means the examples below show the desired logical fields, but new
 runtime fields should be placed on an experiment unless they are genuinely part
 of the benchmark suite identity. Do not put candidate agent/model binding in the
 eval file for new AgentV-native examples.

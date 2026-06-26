@@ -1,8 +1,12 @@
-# ADR: Keep Phoenix observability integration out of core
+# 1. Keep Phoenix observability integration out of core
 
 Date: 2026-06-11
 
-Status: Superseded in part by [2026-06-21 Phoenix read-only correlation boundary](2026-06-21-phoenix-read-only-correlation-boundary.md)
+## Status
+
+Superseded
+
+Superseded in part by [5. Keep Phoenix read-only at the AgentV artifact boundary](0005-keep-phoenix-read-only-at-agentv-artifact-boundary.md).
 
 This ADR remains useful for the narrower point that Phoenix-specific behavior
 does not belong in `packages/core`. Its earlier allowance for Phoenix dataset,
