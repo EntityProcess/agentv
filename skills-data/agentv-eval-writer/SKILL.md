@@ -92,9 +92,7 @@ tests:
         content: "What's my name?"
     expected_output: "Your name is Alice."
     assertions:
-      - type: rubrics
-        criteria:
-          - Correctly recalls the user's name from earlier in the conversation
+      - Correctly recalls the user's name from earlier in the conversation
 ```
 
 **Guidelines:** preserve exact wording in `expected_output`; aim for 5–15 tests per transcript; pick exchanges that test different capabilities.
@@ -112,10 +110,8 @@ tests:
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
     assertions:
-      - type: rubrics
-        criteria:
-          - Greeting is friendly and warm
-          - Offers to help
+      - Greeting is friendly and warm
+      - Offers to help
 ```
 
 ## Eval File Structure
@@ -205,22 +201,29 @@ The external file can be YAML (array of test objects) or JSONL.
 `assertions` defines graders at the suite level or per-test level. It is the canonical field for all graders:
 
 ```yaml
-# Suite-level (appended to every test)
+# Mix exact checks with rubric shorthand when both matter.
 assertions:
   - type: is-json
     required: true
   - type: contains
     value: "status"
+  - Correctly answers the user's question
+  - Explains the reasoning clearly
 
 tests:
   - id: test-1
-    criteria: Returns JSON
+    criteria: Returns a useful status payload
     input: Get status
-    # Per-test assertions (runs before suite-level)
     assertions:
       - type: equals
         value: '{"status": "ok"}'
+      - Explains what the status means
 ```
+
+Plain strings in `assertions` are rubric criteria and are the preferred shape for
+qualitative agent behavior. Use deterministic assertions (`contains`, `regex`,
+`is-json`, `equals`) only for exact machine-verifiable outputs, and code graders
+when the check must inspect files, run commands, or validate structured state.
 
 ## How `criteria` and `assertions` Interact
 
@@ -230,7 +233,7 @@ tests:
 |----------|-------------|----------|
 | `criteria` + **no `assertions`** | Implicit `llm-grader` runs automatically against `criteria` | No |
 | `criteria` + **`assertions` with only deterministic graders** (contains, regex, etc.) | Only declared graders run. `criteria` is **not evaluated**. | Yes — warns that no grader will consume criteria |
-| `criteria` + **`assertions` with a grader** (`llm-grader`, `code-grader`, `rubrics`) | Declared graders run. Graders receive `criteria` as input. | No |
+| `criteria` + **`assertions` with rubric shorthand or a grader** (plain strings, `llm-grader`, `code-grader`, `rubrics`) | Declared graders run. Graders receive `criteria` as input. | No |
 
 ### No assertions → implicit llm-grader
 
@@ -246,7 +249,9 @@ tests:
 
 ### assertions present → no implicit grader
 
-When `assertions` is defined, **only the declared graders run**. If you want an LLM grader alongside deterministic checks, declare it explicitly:
+When `assertions` is defined, **only the declared graders run**. For semantic
+checks, add plain rubric strings. If you need a custom LLM prompt or grader
+target, declare `llm-grader` explicitly:
 
 ```yaml
 tests:
@@ -254,7 +259,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-grader       # must be explicit when assertions is present
+      - Explains why the bug happens
       - type: contains
         value: "fix"
 ```
@@ -509,16 +514,13 @@ Binary check: is the output valid JSON?
 
 ### rubrics
 ```yaml
-- type: rubrics
-  criteria:
-    - id: accuracy
-      outcome: Correctly identifies the denied party
-      weight: 5.0
-    - id: reasoning
-      outcome: Provides clear reasoning
-      weight: 3.0
+- Correctly identifies the denied party
+- Provides clear reasoning
 ```
-LLM-judged structured evaluation with weighted criteria. Criteria items support `id`, `outcome`, `weight`, and `required` fields.
+LLM-judged structured evaluation. Plain strings are the preferred shorthand.
+Use `type: rubrics` only when you need weighted criteria, `required: false`,
+`min_score`, or score ranges. Criteria items support `id`, `outcome`, `weight`,
+and `required` fields.
 Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
 See `references/rubric-grader.md` for score-range mode and scoring formula.

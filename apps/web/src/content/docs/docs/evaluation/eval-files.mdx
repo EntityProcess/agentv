@@ -79,6 +79,9 @@ tests:
 ### Suite-level Assertions
 
 The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `execution.skip_defaults: true`.
+For semantic or agent-behavior checks, prefer plain assertion strings first;
+AgentV treats them as rubric criteria. Use deterministic assertions or code
+graders when the expected output is exact or requires programmatic inspection.
 
 ```yaml
 description: API response validation
@@ -87,6 +90,8 @@ assertions:
     required: true
   - type: contains
     value: "status"
+  - Correctly answers the user's question
+  - Explains the reasoning clearly
 
 tests:
   - id: health-check
@@ -94,7 +99,10 @@ tests:
     input: Check API health
 ```
 
-`assertions` supports all grader types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
+`assertions` supports rubric shorthand strings, deterministic assertion types
+(`contains`, `regex`, `is_json`, `equals`), `rubrics`, LLM graders, and code
+graders. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for
+per-test assertions usage.
 
 ### Assertion Includes
 
@@ -373,7 +381,7 @@ An optional YAML sidecar file provides metadata and execution config. Place it a
 ```yaml
 description: Math evaluation dataset
 suite: math-tests
-execution:
+experiment:
   target: azure-base
 assertions:
   - name: correctness

@@ -25,8 +25,8 @@ tests:
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier for the test |
 | `criteria` | Yes | Description of what a correct response should contain |
-| `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input` |
-| `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_output` |
+| `input` | Yes | Input sent to the target (string, object, or message array) |
+| `expected_output` | No | Expected response for comparison (string, object, or message array) |
 | `execution` | No | Per-case execution overrides (for example `target`, `skip_defaults`) |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
@@ -189,9 +189,29 @@ supporting files, see [Benchmark Provenance](/docs/guides/benchmark-provenance/)
 
 The `assertions` field defines graders directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
 
+### Rubric Shorthand
+
+For semantic or agent-behavior checks, prefer plain strings in `assertions`.
+AgentV groups the strings into a rubric grader automatically:
+
+```yaml
+tests:
+  - id: bug-fix-review
+    criteria: Finds and fixes the bug
+    input: Review this failing parser implementation.
+    assertions:
+      - Identifies the root cause of the parser failure
+      - Proposes a concrete code change
+      - Adds or updates a regression test
+```
+
+Use this shape for qualitative requirements. It is less brittle than checking
+for exact substrings in an agent response.
+
 ### Deterministic Assertions
 
-These graders run without an LLM call and produce binary (0 or 1) scores:
+Use deterministic assertions for exact machine-verifiable outputs. These graders
+run without an LLM call and produce binary (0 or 1) scores:
 
 | Type | Value | Description |
 |------|-------|-------------|
@@ -278,9 +298,10 @@ tests:
 
 Assertion graders auto-generate a `name` when one is not provided (e.g., `contains-DENIED`, `is_json`).
 
-### Rubric Assertions
+### Advanced Rubric Assertions
 
-Use `type: rubrics` with a `criteria` array to define structured LLM-graded evaluation criteria inline:
+Use `type: rubrics` with a `criteria` array only when you need weights,
+required flags, or score ranges:
 
 ```yaml
 tests:
@@ -374,8 +395,8 @@ tests:
 
 When `assertions` is defined, only the declared graders run. No implicit grader is added
 because `criteria` or `expected_output` exists. Graders that are declared (such as
-`llm-grader`, `code-grader`, or `rubrics`) receive the case context, including
-`criteria` and `expected_output`, as input automatically.
+plain rubric strings, `llm-grader`, `code-grader`, or `rubrics`) receive the case
+context, including `criteria` and `expected_output`, as input automatically.
 
 This means a case with `expected_output` and only deterministic assertions evaluates only
 those deterministic assertions:
@@ -394,11 +415,12 @@ If `assertions` contains only deterministic graders (like `contains` or `regex`)
 
 ```
 Warning: Test 'my-test': criteria is defined but no grader in assertions
-will evaluate it. Add 'type: llm-grader' to assertions, or remove criteria
-if it is documentation-only.
+will evaluate it. Add a rubric assertion string or another grader to assertions,
+or remove criteria if it is documentation-only.
 ```
 
-To use `criteria` alongside deterministic checks, add a grader explicitly:
+To use `criteria` alongside deterministic checks, add a rubric assertion string
+or another grader explicitly:
 
 ```yaml
 tests:
@@ -406,7 +428,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-grader        # explicit — receives criteria automatically
+      - Explains why the bug happens
       - type: contains
         value: "fix"
 ```
@@ -423,7 +445,7 @@ tests:
     criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
-      - type: llm-grader
+      - type: llm-grader        # use explicit form for custom preprocessors
         preprocessors:
           - type: xlsx
             command: ["bun", "run", "scripts/preprocessors/xlsx-to-json.ts"]
