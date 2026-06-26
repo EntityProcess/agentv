@@ -63,12 +63,23 @@ experiment:
     - command: ./scripts/install-skills.sh
 
 tests:
-  - include: ./evals/cargowise/database/*.eval.yaml
-    import: suite
-    select: "pr50857-*"
+  - include: ./evals/cargowise/**/*.eval.yaml
+    type: suite
+    select:
+      test_ids:
+        - pr50857-*
+        - pr51200-online-*
+      tags:
+        - sql-migration
+        - review
+      metadata:
+        type:
+          - e2e
+          - regression
+        priority: high
 
   - include: ./evals/cases/**/*.cases.yaml
-    import: tests
+    type: tests
 ```
 
 `experiment:` is canonical for new eval YAML. `execution:` remains a legacy
@@ -95,26 +106,70 @@ or run condition being measured against the same task.
 
 `tests:` is the only composition, import, and selection surface.
 
-`include:` accepts direct paths and glob patterns. The file extension and
-`import:` mode determine how the import is interpreted:
+`include:` accepts direct paths and glob patterns. Include entries are
+structurally identified by the `include` field, so their `type:` field can use
+the ordinary AgentV wire-format discriminator without ambiguity:
 
 - `include: **/*.eval.yaml` imports eval suites.
 - `include: **/*.cases.yaml` imports raw cases.
 - `include: **/*.jsonl` imports raw cases.
 
-`select:` filters imported test ids with one glob pattern or a list of glob
-patterns. Imported tests run in deterministic order: resolved path first, then
-the test order inside each resolved source.
+`select:` filters imported cases with the same general selection shape used by
+old experiment suite selection. `select.test_ids` filters by test id and maps
+directly from old `suites[].select.test_ids`; values may be a string or list of
+strings and use existing glob semantics where currently supported.
+`select.metadata` filters against each imported test's effective case
+`metadata`, after suite-level arbitrary `metadata:` inheritance, top-level suite
+`tags`, and case-level `metadata:` merge. Values may be scalars or lists.
+`select.tags` is shorthand for filtering effective case `metadata.tags`, with a
+string or list of strings. Do not add a separate `case_types` field; use
+`select.metadata.type` for case type selection.
 
-`import: suite` preserves the imported suite task contract. That includes suite
+Effective case tags are:
+
+```text
+dedupe(suite.tags + suite.metadata.tags + case.metadata.tags)
+```
+
+For example, this case has effective case tags `cargowise`, `database`,
+`sql-migration`, and `review`:
+
+```yaml
+tags: [cargowise, database]
+metadata:
+  tags: [sql-migration]
+tests:
+  - id: case-1
+    metadata:
+      tags: [review]
+```
+
+Suite tags stay suite identity metadata for discovery and reporting, but they
+also flow into effective case tags so `select.tags` can operate on one case-level
+view:
+
+```yaml
+tags: [cargowise]
+tests:
+  - id: case-1
+```
+
+In that example, `case-1` matches `select.tags: cargowise`.
+
+Imported tests run in deterministic order: resolved path first, then the test
+order inside each resolved source.
+
+`type: suite` preserves the imported suite task contract. That includes suite
 metadata, `workspace`, shared `input`, shared `assertions`, and tests. The child
 suite's `experiment:` block, or legacy `execution:` block, is ignored and
 replaced by the parent eval's `experiment:` block.
 
-`import: tests` imports only raw test entries. It intentionally drops shared
+`type: tests` imports only raw test entries. It intentionally drops shared
 suite context such as workspace, shared input, and shared assertions. Use this
 mode only when the imported file is a case corpus or when dropping suite context
 is the desired behavior.
+
+Do not use `import:` or `kind:` for `tests:` include entries.
 
 Parent suite-level task fields should not silently override imported suite task
 fields. Explicit override syntax can be considered later if a concrete use case
@@ -127,7 +182,7 @@ The WTG database migration eval
 `evals/cargowise/database/data-transformation-pr50857-e2e.eval.yaml` has
 suite-level `execution`, `workspace`, `input`, and `assertions`.
 
-When a wrapper eval imports it with `import: suite`, AgentV must preserve its
+When a wrapper eval imports it with `type: suite`, AgentV must preserve its
 shared `workspace`, `input`, and `assertions` because those fields are part of
 the task contract. Its `execution` block is the legacy spelling for child
 runtime configuration. Under this decision, the child runtime block is treated
