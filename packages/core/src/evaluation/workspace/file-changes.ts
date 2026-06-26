@@ -31,7 +31,7 @@
 
 import { exec as execCallback } from 'node:child_process';
 import { readdirSync, statSync } from 'node:fs';
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -150,17 +150,16 @@ export async function captureFileChanges(
   workspacePath: string,
   baselineCommit: string,
 ): Promise<string> {
-  // Stage new files in nested repos so they appear in the submodule diff
-  await stageNestedRepoChanges(workspacePath);
-
-  return withTemporaryGitIndex(workspacePath, async (opts) => {
-    await execAsync(`git read-tree ${baselineCommit}`, opts);
-    await execAsync('git add -A', opts);
-    const { stdout } = await execAsync(
-      `git diff --cached ${baselineCommit} --submodule=diff`,
-      opts,
-    );
-    return stdout.trim();
+  return withNestedRepoChanges(workspacePath, async () => {
+    return withTemporaryGitIndex(workspacePath, async (opts) => {
+      await execAsync(`git read-tree ${baselineCommit}`, opts);
+      await execAsync('git add -A', opts);
+      const { stdout } = await execAsync(
+        `git diff ${baselineCommit} --submodule=diff`,
+        opts,
+      );
+      return stdout.trim();
+    });
   });
 }
 
@@ -168,13 +167,20 @@ export async function captureFileChanges(
  * Find immediate child directories that contain a `.git/` directory
  * and stage all their changes so they appear in the parent's submodule diff.
  */
-async function stageNestedRepoChanges(workspacePath: string): Promise<void> {
+async function withNestedRepoChanges<T>(workspacePath: string, run: () => Promise<T>): Promise<T> {
   let entries: string[];
   try {
     entries = readdirSync(workspacePath);
   } catch {
-    return;
+    return run();
   }
+
+  const stagedNestedRepos: Array<{
+    nestedIndexPath: string;
+    backupPath: string;
+    backupDir: string;
+    hadBackup: boolean;
+  }> = [];
 
   for (const entry of entries) {
     if (entry === '.git' || entry === 'node_modules') continue;
@@ -186,10 +192,34 @@ async function stageNestedRepoChanges(workspacePath: string): Promise<void> {
       continue;
     }
     // Stage all files in the nested repo
-    await withTemporaryGitIndex(childPath, async (childOpts) => {
-      await execAsync('git read-tree HEAD', childOpts);
-      await execAsync('git add -A', childOpts);
+    const nestedIndexPath = path.join(childPath, '.git', 'index');
+    const childOpts = gitExecOpts(childPath);
+    const backupDir = await mkdtemp(path.join(tmpdir(), 'agentv-nested-index-'));
+    const nestedIndexBackup = path.join(backupDir, 'index');
+    const hadNestedIndex = await copyFile(nestedIndexPath, nestedIndexBackup)
+      .then(() => true)
+      .catch(() => false);
+    stagedNestedRepos.push({
+      nestedIndexPath,
+      backupPath: nestedIndexBackup,
+      backupDir,
+      hadBackup: hadNestedIndex,
     });
+    await execAsync('git read-tree HEAD', childOpts);
+    await execAsync('git add -A', childOpts);
+  }
+
+  try {
+    return await run();
+  } finally {
+    for (const staged of stagedNestedRepos) {
+      if (staged.hadBackup) {
+        await copyFile(staged.backupPath, staged.nestedIndexPath).catch(() => {});
+      } else {
+        await rm(staged.nestedIndexPath, { force: true }).catch(() => {});
+      }
+      await rm(staged.backupDir, { recursive: true, force: true }).catch(() => {});
+    }
   }
 }
 

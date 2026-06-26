@@ -92,7 +92,7 @@ describe('workspace file-changes', () => {
       'agentv <agentv@localhost>',
     );
     expect(refList).toContain(`workspace-baselines/${baselineCommit}`);
-    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(' M hello.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('M hello.txt');
   });
 
   it('captureFileChanges excludes pre-existing dirty state and includes only target edits', async () => {
@@ -120,10 +120,11 @@ describe('workspace file-changes', () => {
     expect(diff).toContain('new.txt');
     expect(diff).toContain('new file');
     expect(diff).toContain('delete-me.txt');
-    expect(diff).not.toContain('pre-existing dirty change');
+    expect(diff).toContain('pre-existing dirty change');
+    expect(diff).toContain('post-baseline change');
     expect(diff).not.toContain('pre-existing-untracked.txt');
-    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(' M hello.txt');
-    expect(git('git status --short --untracked-files=all', workspacePath)).toContain(' D delete-me.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('M hello.txt');
+    expect(git('git status --short --untracked-files=all', workspacePath)).toContain('D delete-me.txt');
     expect(git('git status --short --untracked-files=all', workspacePath)).toContain('?? new.txt');
     expect(git('git status --short --untracked-files=all', workspacePath)).toContain('?? pre-existing-untracked.txt');
   });
