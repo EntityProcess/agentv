@@ -6,10 +6,11 @@ import {
   type ExternalTraceMetadataWire,
   type ResultArtifactPointersWire,
   type TraceSummary,
-  type TranscriptJsonLine,
   buildTraceFromMessages,
+  fromTraceEnvelopeWire,
   toCamelCaseDeep,
-  traceFromTranscriptJsonLines,
+  traceEnvelopeToTraceSummary,
+  traceEnvelopeToTranscriptMessages,
 } from '@agentv/core';
 
 import type { GradingArtifact, TimingArtifact } from '../eval/artifact-writer.js';
@@ -103,14 +104,6 @@ export interface ManifestHydrationOptions {
   readonly hydrateTranscriptTrace?: boolean;
 }
 
-function parseJsonlLines<T>(content: string): T[] {
-  return content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as T);
-}
-
 function parseResultRows(content: string, sourceLabel?: string): ResultManifestRecord[] {
   return content
     .split(/\r?\n/)
@@ -164,33 +157,6 @@ function readOptionalJson<T>(baseDir: string, relativePath: string | undefined):
   }
 }
 
-function nonEmptyString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
-}
-
-function artifactPointerPath(pointer: ArtifactPointer | undefined): string | undefined {
-  if (typeof pointer === 'string') {
-    return nonEmptyString(pointer);
-  }
-  if (!pointer) {
-    return undefined;
-  }
-  return (
-    nonEmptyString(pointer.path) ??
-    nonEmptyString(pointer.artifact_path) ??
-    nonEmptyString(pointer.relative_path)
-  );
-}
-
-function resolveTranscriptPath(record: ResultManifestRecord): string | undefined {
-  return (
-    record.transcript_path ??
-    record.artifact_pointers?.transcript?.path ??
-    record.artifacts?.transcript_path ??
-    artifactPointerPath(record.transcript ?? record.artifacts?.transcript)
-  );
-}
-
 function hydrateInput(
   baseDir: string,
   record: ResultManifestRecord,
@@ -219,19 +185,46 @@ function hydrateOutput(
   return responseText.trimEnd();
 }
 
+function hydrateTraceEnvelope(
+  baseDir: string,
+  record: ResultManifestRecord,
+): EvaluationResult['trace'] | undefined {
+  const traceWire = readOptionalJson<unknown>(baseDir, record.trace_path);
+  if (!traceWire) {
+    return undefined;
+  }
+
+  try {
+    const envelope = fromTraceEnvelopeWire(traceWire);
+    const summary = traceEnvelopeToTraceSummary(envelope);
+    return buildTraceFromMessages({
+      output: traceEnvelopeToTranscriptMessages(envelope),
+      summary: summary.trace,
+      finalOutput: hydrateOutput(baseDir, record),
+      tokenUsage: summary.tokenUsage,
+      costUsd: summary.costUsd,
+      durationMs: summary.durationMs,
+      startTime: summary.startTime,
+      endTime: summary.endTime,
+      provider: envelope.source.provider,
+      target: record.target ?? envelope.eval.target,
+      testId: record.test_id ?? envelope.eval.testId,
+      conversationId: envelope.eval.runId,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 function hydrateTrace(
   baseDir: string,
   record: ResultManifestRecord,
   options: ManifestHydrationOptions,
 ): EvaluationResult['trace'] {
   if (options.hydrateTranscriptTrace !== false) {
-    const transcriptText = readOptionalText(baseDir, resolveTranscriptPath(record));
-    if (transcriptText) {
-      try {
-        return traceFromTranscriptJsonLines(parseJsonlLines<TranscriptJsonLine>(transcriptText));
-      } catch {
-        // Fall through to a minimal trace below.
-      }
+    const trace = hydrateTraceEnvelope(baseDir, record);
+    if (trace) {
+      return trace;
     }
   }
 
