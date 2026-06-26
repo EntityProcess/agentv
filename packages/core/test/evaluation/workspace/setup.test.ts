@@ -113,4 +113,40 @@ describe('prepareSharedWorkspaceSetup', () => {
     expect(readFileSync(path.join(repoDir, 'tracked.txt'), 'utf8')).toBe('clean\n');
     expect(existsSync(path.join(repoDir, 'stale.txt'))).toBe(false);
   }, 30_000);
+
+  it('uses CLI workspacePath as an existing static workspace without materializing repos', async () => {
+    const existingWorkspace = path.join(tmpDir, 'existing-workspace');
+    mkdirSync(existingWorkspace, { recursive: true });
+    writeFileSync(path.join(existingWorkspace, 'marker.txt'), 'already prepared\n', 'utf8');
+
+    const evalCase: EvalTest = {
+      id: 'case-1',
+      question: 'test',
+      criteria: 'ok',
+      workspace: {
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://example.com/repo-a.git',
+            commit: 'main',
+          },
+        ],
+      },
+    };
+
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-cli-workspace-path',
+      evalCases: [evalCase],
+      evalDir: tmpDir,
+      workspacePath: existingWorkspace,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBe(existingWorkspace);
+    expect(setup.repoManager).toBeUndefined();
+    expect(readFileSync(path.join(existingWorkspace, 'marker.txt'), 'utf8')).toBe(
+      'already prepared\n',
+    );
+    expect(existsSync(path.join(existingWorkspace, 'repo-a'))).toBe(false);
+  });
 });

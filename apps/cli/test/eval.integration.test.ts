@@ -505,6 +505,31 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('keeps --workspace-path as a static workspace override for existing workspaces', async () => {
+    const fixture = await createFixture();
+    try {
+      const workspacePath = path.join(fixture.baseDir, 'prepared-workspace');
+      await mkdir(workspacePath, { recursive: true });
+
+      const result = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--workspace-path',
+        workspacePath,
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        workspaceMode: 'static',
+        workspacePath,
+        resultCount: 2,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('passes run-level budget tracking through to the evaluator', async () => {
     const fixture = await createFixture();
     try {
