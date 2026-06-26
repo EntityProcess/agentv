@@ -3,7 +3,7 @@
   "checkpoint_id": "4f7325a9ab13",
   "strategy": "manual-commit",
   "branch": "docs/adrs-cli-migration",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "adrs.toml",
     "docs/adr/0001-keep-phoenix-observability-integration-out-of-core.md",
@@ -43,10 +43,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 289097,
+    "input_tokens": 66215,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 1434880,
-    "output_tokens": 10830,
-    "api_call_count": 26
+    "cache_read_tokens": 877056,
+    "output_tokens": 2575,
+    "api_call_count": 8
   }
 }
