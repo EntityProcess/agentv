@@ -7,7 +7,7 @@
  * artifact links supplied by the caller.
  */
 
-import type { ReactNode } from 'react';
+import { type ReactNode, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 
 import type { FileNode } from '~/lib/types';
 
@@ -101,6 +101,29 @@ const ROLE_STYLES: Record<
   },
 };
 
+interface ToolCallViewModel {
+  id: string;
+  call: Record<string, unknown>;
+  index: number;
+  name: string;
+  status?: string;
+  duration?: string;
+}
+
+interface TranscriptMessageViewModel {
+  id: string;
+  anchorId: string;
+  line: TranscriptJsonLine;
+  ordinal: number;
+  roleStyle: { container: string; badge: string; label: string; accent: string };
+  content: string;
+  duration?: string;
+  tokenUsage?: string;
+  toolCalls: ToolCallViewModel[];
+}
+
+type TranscriptFilter = 'all' | 'messages' | 'with-tools' | 'tool-results';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -129,15 +152,28 @@ function isNormalizedTranscriptLine(value: unknown): value is Record<string, unk
 
 function normalizeToolUseBlock(block: Record<string, unknown>): Record<string, unknown> {
   const result = isRecord(block.result) ? block.result : undefined;
+  const metadata = mergeToolMetadata(block.metadata, result?.metadata);
   return {
     id: typeof block.id === 'string' ? block.id : undefined,
     tool: typeof block.name === 'string' ? block.name : 'tool',
     input: block.input,
     output: result?.output,
+    error: result?.error,
     status: typeof result?.status === 'string' ? result.status : undefined,
     duration_ms: typeof result?.duration_ms === 'number' ? result.duration_ms : undefined,
-    metadata: isRecord(block.metadata) ? block.metadata : undefined,
+    metadata,
   };
+}
+
+function mergeToolMetadata(blockMetadata: unknown, resultMetadata: unknown): unknown {
+  const hasBlockMetadata = isRecord(blockMetadata);
+  const hasResultMetadata = isRecord(resultMetadata);
+  if (hasBlockMetadata && hasResultMetadata) {
+    return { ...blockMetadata, result: resultMetadata };
+  }
+  if (hasBlockMetadata) return blockMetadata;
+  if (hasResultMetadata) return resultMetadata;
+  return undefined;
 }
 
 function normalizedTranscriptLineToTimelineEntry(
@@ -350,6 +386,83 @@ function toolCallOutput(call: Record<string, unknown>): unknown {
   return pickPayload(call, ['output', 'result', 'content']);
 }
 
+function transcriptMessageId(line: TranscriptJsonLine, ordinal: number): string {
+  return `${line.message_index}-${line.role}-${ordinal}`;
+}
+
+function buildTranscriptViewModel(
+  entries: readonly TranscriptJsonLine[],
+): TranscriptMessageViewModel[] {
+  return [...entries]
+    .sort((first, second) => first.message_index - second.message_index)
+    .map((line, ordinal) => {
+      const roleStyle = ROLE_STYLES[line.role] ?? {
+        container: 'border-gray-800 bg-gray-900',
+        badge: 'border-gray-700 bg-gray-800 text-gray-300',
+        label: line.role,
+        accent: 'text-gray-300',
+      };
+      const id = transcriptMessageId(line, ordinal);
+      const toolCalls = (
+        Array.isArray(line.tool_calls) ? line.tool_calls.filter(isRecord) : []
+      ).map((call, index) => {
+        const callId = pickString(call, ['id', 'call_id', 'tool_call_id']);
+        return {
+          id: `${id}-tool-${callId ?? index}`,
+          call,
+          index,
+          name: toolCallName(call, index),
+          status: pickString(call, ['status']),
+          duration:
+            typeof call.duration_ms === 'number' ? formatDurationMs(call.duration_ms) : undefined,
+        };
+      });
+
+      return {
+        id,
+        anchorId: `message-${ordinal + 1}`,
+        line,
+        ordinal,
+        roleStyle,
+        content: formatContent(line.content),
+        duration: formatDurationMs(line.duration_ms),
+        tokenUsage: formatTokenUsage(line.token_usage),
+        toolCalls,
+      };
+    });
+}
+
+function defaultExpandedMessageIds(messages: readonly TranscriptMessageViewModel[]): Set<string> {
+  const ids = new Set<string>();
+  if (messages[0]) ids.add(messages[0].id);
+  const finalMessage = messages[messages.length - 1];
+  if (finalMessage) ids.add(finalMessage.id);
+  return ids;
+}
+
+function summarizeRoleCounts(messages: readonly TranscriptMessageViewModel[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const message of messages) {
+    counts.set(message.line.role, (counts.get(message.line.role) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function summarizeToolCounts(messages: readonly TranscriptMessageViewModel[]): {
+  total: number;
+  byName: Map<string, number>;
+} {
+  const byName = new Map<string, number>();
+  let total = 0;
+  for (const message of messages) {
+    for (const call of message.toolCalls) {
+      total += 1;
+      byName.set(call.name, (byName.get(call.name) ?? 0) + 1);
+    }
+  }
+  return { total, byName };
+}
+
 function hasValue(value: unknown): boolean {
   return (
     value !== undefined && value !== null && !(typeof value === 'string' && value.length === 0)
@@ -424,23 +537,39 @@ function OpenFileButton({
   );
 }
 
-function ToolCallDetails({ call, index }: { call: Record<string, unknown>; index: number }) {
-  const name = toolCallName(call, index);
+function ToolCallDetails({
+  toolCall,
+  expanded,
+  onToggle,
+}: {
+  toolCall: ToolCallViewModel;
+  expanded: boolean;
+  onToggle: (toolCallId: string, expanded: boolean) => void;
+}) {
+  const { call, index, name, status, duration } = toolCall;
   const callId = pickString(call, ['id', 'call_id', 'tool_call_id']);
-  const status = pickString(call, ['status']);
-  const duration =
-    typeof call.duration_ms === 'number' ? formatDurationMs(call.duration_ms) : undefined;
   const metadata = isRecord(call.metadata) ? call.metadata : undefined;
 
   return (
-    <details className="rounded-md border border-gray-800 bg-gray-950/80 p-3">
-      <summary className="cursor-pointer text-sm font-medium text-gray-200">
-        <span>Tool call</span>
-        <span className="ml-2 rounded-md border border-amber-900/60 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-300">
-          {name}
+    <details
+      className="rounded-md border border-gray-800 bg-gray-950/80 p-3"
+      open={expanded}
+      data-testid={`tool-call-${callId ?? index}`}
+      data-expanded={expanded ? 'true' : 'false'}
+      onToggle={(event: SyntheticEvent<HTMLDetailsElement>) =>
+        onToggle(toolCall.id, event.currentTarget.open)
+      }
+    >
+      <summary className="cursor-pointer list-none text-sm font-medium text-gray-200">
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500">{expanded ? '-' : '+'}</span>
+          <span>Tool call</span>
+          <span className="rounded-md border border-amber-900/60 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-300">
+            {name}
+          </span>
+          {status && <span className="text-xs text-gray-500">{status}</span>}
+          {duration && <span className="tabular-nums text-xs text-gray-500">{duration}</span>}
         </span>
-        {status && <span className="ml-2 text-xs text-gray-500">{status}</span>}
-        {duration && <span className="ml-2 tabular-nums text-xs text-gray-500">{duration}</span>}
       </summary>
       <div className="mt-3 space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -479,38 +608,68 @@ function ToolResultDetails({ line }: { line: TranscriptJsonLine }) {
   );
 }
 
-function TranscriptMessageCard({ line, ordinal }: { line: TranscriptJsonLine; ordinal: number }) {
-  const roleStyle = ROLE_STYLES[line.role] ?? {
-    container: 'border-gray-800 bg-gray-900',
-    badge: 'border-gray-700 bg-gray-800 text-gray-300',
-    label: line.role,
-    accent: 'text-gray-300',
-  };
-  const content = formatContent(line.content);
-  const duration = formatDurationMs(line.duration_ms);
-  const tokenUsage = formatTokenUsage(line.token_usage);
-  const toolCalls = Array.isArray(line.tool_calls) ? line.tool_calls.filter(isRecord) : [];
+function TranscriptMessageCard({
+  message,
+  expanded,
+  expandedToolIds,
+  onToggleMessage,
+  onToggleTool,
+}: {
+  message: TranscriptMessageViewModel;
+  expanded: boolean;
+  expandedToolIds: ReadonlySet<string>;
+  onToggleMessage: (messageId: string, expanded: boolean) => void;
+  onToggleTool: (toolCallId: string, expanded: boolean) => void;
+}) {
+  const { line, ordinal, roleStyle, content, duration, tokenUsage, toolCalls } = message;
 
   return (
-    <article className={`rounded-lg border p-4 ${roleStyle.container}`}>
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${roleStyle.badge}`}>
-            {roleStyle.label}
-          </span>
-          {line.name && (
-            <span className={`truncate text-sm font-medium ${roleStyle.accent}`}>{line.name}</span>
-          )}
+    <details
+      id={message.anchorId}
+      className={`scroll-mt-6 rounded-lg border ${roleStyle.container}`}
+      open={expanded}
+      data-testid={`message-row-${ordinal + 1}`}
+      data-expanded={expanded ? 'true' : 'false'}
+      onToggle={(event: SyntheticEvent<HTMLDetailsElement>) =>
+        onToggleMessage(message.id, event.currentTarget.open)
+      }
+    >
+      <summary className="cursor-pointer list-none px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-500">{expanded ? '-' : '+'}</span>
+            <span
+              className={`rounded-md border px-2 py-0.5 text-xs font-medium ${roleStyle.badge}`}
+            >
+              {roleStyle.label}
+            </span>
+            {line.name && (
+              <span className={`truncate text-sm font-medium ${roleStyle.accent}`}>
+                {line.name}
+              </span>
+            )}
+            {toolCalls.length > 0 && (
+              <span className="rounded-md border border-amber-900/60 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-300">
+                {toolCalls.length} tool {toolCalls.length === 1 ? 'call' : 'calls'}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+            <a
+              href={`#${message.anchorId}`}
+              className="tabular-nums text-gray-400 hover:text-cyan-300 hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              #{ordinal + 1}
+            </a>
+            {line.start_time && <span>{line.start_time}</span>}
+            {duration && <span className="tabular-nums">{duration}</span>}
+            {tokenUsage && <span>{tokenUsage}</span>}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <span className="tabular-nums">#{ordinal + 1}</span>
-          {line.start_time && <span>{line.start_time}</span>}
-          {duration && <span className="tabular-nums">{duration}</span>}
-          {tokenUsage && <span>{tokenUsage}</span>}
-        </div>
-      </header>
+      </summary>
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-3 border-t border-gray-800/70 px-4 py-3">
         {line.role === 'tool' || line.role === 'function' ? (
           <ToolResultDetails line={line} />
         ) : content.trim().length > 0 ? (
@@ -523,8 +682,13 @@ function TranscriptMessageCard({ line, ordinal }: { line: TranscriptJsonLine; or
 
         {toolCalls.length > 0 && (
           <div className="space-y-2">
-            {toolCalls.map((call, index) => (
-              <ToolCallDetails key={`${line.message_index}-${index}`} call={call} index={index} />
+            {toolCalls.map((call) => (
+              <ToolCallDetails
+                key={call.id}
+                toolCall={call}
+                expanded={expandedToolIds.has(call.id)}
+                onToggle={onToggleTool}
+              />
             ))}
           </div>
         )}
@@ -540,25 +704,38 @@ function TranscriptMessageCard({ line, ordinal }: { line: TranscriptJsonLine; or
           </details>
         )}
       </div>
-    </article>
+    </details>
   );
 }
 
 function TranscriptSummary({
-  entries,
+  messages,
   transcriptPath,
-}: { entries: readonly TranscriptJsonLine[]; transcriptPath?: string }) {
-  const first = entries[0];
+}: { messages: readonly TranscriptMessageViewModel[]; transcriptPath?: string }) {
+  const first = messages[0]?.line;
   const provider = first?.source?.provider ?? first?.agent;
   const model = first?.source?.model ?? first?.model;
   const sessionId = first?.source?.session_id;
   const duration = formatDurationMs(first?.transcript_duration_ms);
   const tokenUsage = formatTokenUsage(first?.transcript_token_usage);
   const cost = formatCurrency(first?.transcript_cost_usd);
+  const roleCounts = summarizeRoleCounts(messages);
+  const toolCounts = summarizeToolCounts(messages);
 
   return (
     <div className="flex flex-wrap gap-2">
-      <MetadataPill>{entries.length} messages</MetadataPill>
+      <MetadataPill>{messages.length} messages</MetadataPill>
+      {Array.from(roleCounts.entries()).map(([role, count]) => (
+        <MetadataPill key={role}>
+          {role}: {count}
+        </MetadataPill>
+      ))}
+      {toolCounts.total > 0 && <MetadataPill>{toolCounts.total} tool calls</MetadataPill>}
+      {Array.from(toolCounts.byName.entries()).map(([name, count]) => (
+        <MetadataPill key={name}>
+          {name}: {count}
+        </MetadataPill>
+      ))}
       {provider && <MetadataPill>provider: {provider}</MetadataPill>}
       {model && <MetadataPill>model: {model}</MetadataPill>}
       {sessionId && <MetadataPill>session: {sessionId}</MetadataPill>}
@@ -567,6 +744,53 @@ function TranscriptSummary({
       {cost && <MetadataPill>cost: {cost}</MetadataPill>}
       {transcriptPath && <MetadataPill>{transcriptPath}</MetadataPill>}
     </div>
+  );
+}
+
+function filterTranscriptMessages(
+  messages: readonly TranscriptMessageViewModel[],
+  filter: TranscriptFilter,
+): TranscriptMessageViewModel[] {
+  switch (filter) {
+    case 'messages':
+      return messages.filter(
+        (message) => message.line.role !== 'tool' && message.line.role !== 'function',
+      );
+    case 'with-tools':
+      return messages.filter((message) => message.toolCalls.length > 0);
+    case 'tool-results':
+      return messages.filter(
+        (message) => message.line.role === 'tool' || message.line.role === 'function',
+      );
+    case 'all':
+      return [...messages];
+  }
+}
+
+function FilterButton({
+  active,
+  count,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        active
+          ? 'rounded-md border border-cyan-800 bg-cyan-950/40 px-3 py-1.5 text-sm text-cyan-200'
+          : 'rounded-md border border-gray-800 bg-gray-950 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200'
+      }
+    >
+      {children}
+      <span className="ml-2 text-xs text-gray-500">{count}</span>
+    </button>
   );
 }
 
@@ -580,65 +804,164 @@ export function TranscriptTimeline({
   transcriptDownloadHref,
   onOpenFile,
 }: TranscriptTimelineProps) {
-  const sortedEntries = [...entries].sort(
-    (first, second) => first.message_index - second.message_index,
+  const messages = useMemo(() => buildTranscriptViewModel(entries), [entries]);
+  const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(() =>
+    defaultExpandedMessageIds(messages),
   );
+  const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(() => new Set());
+  const [filter, setFilter] = useState<TranscriptFilter>('all');
   const hasCanonicalAnswer = !!answerPath;
+  const allToolIds = useMemo(
+    () => messages.flatMap((message) => message.toolCalls.map((toolCall) => toolCall.id)),
+    [messages],
+  );
+  const visibleMessages = useMemo(
+    () => filterTranscriptMessages(messages, filter),
+    [messages, filter],
+  );
+  const messageCount = messages.filter(
+    (message) => message.line.role !== 'tool' && message.line.role !== 'function',
+  ).length;
+  const toolResultCount = messages.filter(
+    (message) => message.line.role === 'tool' || message.line.role === 'function',
+  ).length;
+  const withToolsCount = messages.filter((message) => message.toolCalls.length > 0).length;
+
+  useEffect(() => {
+    setExpandedMessageIds(defaultExpandedMessageIds(messages));
+    setExpandedToolIds(new Set());
+    setFilter('all');
+  }, [messages]);
+
+  function setMessageExpanded(messageId: string, expanded: boolean) {
+    setExpandedMessageIds((current) => {
+      const next = new Set(current);
+      if (expanded) {
+        next.add(messageId);
+      } else {
+        next.delete(messageId);
+      }
+      return next;
+    });
+  }
+
+  function setToolExpanded(toolCallId: string, expanded: boolean) {
+    setExpandedToolIds((current) => {
+      const next = new Set(current);
+      if (expanded) {
+        next.add(toolCallId);
+      } else {
+        next.delete(toolCallId);
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-4">
-      <section className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-medium text-emerald-300">Final answer</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Highlighted from canonical <code>outputs/answer.md</code>; transcript context stays
-              below.
-            </p>
+      {hasCanonicalAnswer && (
+        <section className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-medium text-emerald-300">Final answer</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Highlighted from canonical <code>outputs/answer.md</code>; transcript context stays
+                below.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <OpenFileButton path={answerPath} onOpenFile={onOpenFile}>
+                Open answer.md in Files
+              </OpenFileButton>
+              <ActionLink href={answerHref}>Open answer.md</ActionLink>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <OpenFileButton path={answerPath} onOpenFile={onOpenFile}>
-              Open answer.md in Files
-            </OpenFileButton>
-            <ActionLink href={answerHref}>Open answer.md</ActionLink>
-          </div>
-        </div>
-        {hasCanonicalAnswer ? (
           <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md border border-emerald-900/40 bg-gray-950/80 p-3 text-sm leading-6 text-gray-100">
             {finalAnswer && finalAnswer.trim().length > 0 ? finalAnswer : 'answer.md is empty.'}
           </pre>
-        ) : (
-          <p className="mt-3 rounded-md border border-gray-800 bg-gray-950/60 p-3 text-sm text-gray-400">
-            No canonical <code>outputs/answer.md</code> artifact was found. The transcript viewer
-            does not fall back to <code>response.md</code>.
-          </p>
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-gray-300">Transcript timeline</h3>
-            <TranscriptSummary entries={sortedEntries} transcriptPath={transcriptPath} />
+            <TranscriptSummary messages={messages} transcriptPath={transcriptPath} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <OpenFileButton path={transcriptPath} onOpenFile={onOpenFile}>
-              Open raw JSONL in Files
+              Open transcript.jsonl in Files
             </OpenFileButton>
-            <ActionLink href={transcriptHref}>Open raw JSONL</ActionLink>
+            <ActionLink href={transcriptHref}>Open normalized JSONL</ActionLink>
             <ActionLink href={transcriptDownloadHref} download>
-              Download JSONL
+              Download normalized JSONL
             </ActionLink>
           </div>
         </div>
       </section>
 
+      <section className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <FilterButton
+              active={filter === 'all'}
+              count={messages.length}
+              onClick={() => setFilter('all')}
+            >
+              All
+            </FilterButton>
+            <FilterButton
+              active={filter === 'messages'}
+              count={messageCount}
+              onClick={() => setFilter('messages')}
+            >
+              Messages
+            </FilterButton>
+            <FilterButton
+              active={filter === 'with-tools'}
+              count={withToolsCount}
+              onClick={() => setFilter('with-tools')}
+            >
+              Has tools
+            </FilterButton>
+            <FilterButton
+              active={filter === 'tool-results'}
+              count={toolResultCount}
+              onClick={() => setFilter('tool-results')}
+            >
+              Tool results
+            </FilterButton>
+          </div>
+          {allToolIds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setExpandedToolIds(new Set(allToolIds))}
+                className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-amber-800 hover:text-amber-200"
+              >
+                Expand all tool calls
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandedToolIds(new Set())}
+                className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:text-gray-100"
+              >
+                Collapse all tool calls
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
       <div className="space-y-3">
-        {sortedEntries.map((entry, index) => (
+        {visibleMessages.map((message) => (
           <TranscriptMessageCard
-            key={`${entry.message_index}-${entry.role}-${index}`}
-            line={entry}
-            ordinal={index}
+            key={message.id}
+            message={message}
+            expanded={expandedMessageIds.has(message.id)}
+            expandedToolIds={expandedToolIds}
+            onToggleMessage={setMessageExpanded}
+            onToggleTool={setToolExpanded}
           />
         ))}
       </div>
