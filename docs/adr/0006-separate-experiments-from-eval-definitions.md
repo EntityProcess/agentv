@@ -1,8 +1,10 @@
-# ADR: Separate experiments from eval definitions
+# 6. Separate experiments from eval definitions
 
 Date: 2026-06-23
 
-Status: Proposed
+## Status
+
+Proposed
 
 ## Context
 
@@ -66,10 +68,10 @@ stop being the canonical home for experiment-level choices.
 
 ## Decision
 
-AgentV will make experiments first-class configuration units separate from
-eval definitions.
+Experiments and eval definitions are separate public configuration surfaces in
+AgentV.
 
-Eval files remain YAML-authored by default. They should describe what is tested:
+Eval files remain YAML-authored by default. They should capture what is tested:
 task inputs, datasets, assertions, and task fixtures. They should not be the
 canonical place for which agent, model, harness, setup injection, sandbox, or run
 matrix executes the task.

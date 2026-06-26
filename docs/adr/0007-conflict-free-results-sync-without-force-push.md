@@ -1,8 +1,10 @@
-# ADR: Conflict-free results sync without force push
+# 7. Conflict-free results sync without force push
 
 Date: 2026-06-24
 
-Status: Accepted
+## Status
+
+Accepted
 
 Bead: av-raf
 

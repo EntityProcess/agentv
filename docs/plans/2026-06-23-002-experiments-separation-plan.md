@@ -2,7 +2,7 @@
 title: "feat: Separate experiments from eval definitions"
 type: feat
 date: 2026-06-23
-origin: docs/adr/2026-06-23-experiments-vs-eval-separation.md
+origin: docs/adr/0006-separate-experiments-from-eval-definitions.md
 ---
 
 # feat: Separate experiments from eval definitions
@@ -222,7 +222,7 @@ experiment sidecars should use explicit path fields.
 
 Files:
 
-- `docs/adr/2026-06-23-experiments-vs-eval-separation.md`
+- `docs/adr/0006-separate-experiments-from-eval-definitions.md`
 - `docs/plans/2026-06-23-002-experiments-separation-plan.md`
 
 Approach:

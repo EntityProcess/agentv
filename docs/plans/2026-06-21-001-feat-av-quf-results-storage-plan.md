@@ -880,7 +880,7 @@ results:
   `apps/cli/src/commands/results/serve.ts`, and
   `apps/cli/src/commands/results/export.ts` for current CLI/Dashboard remote,
   metadata, serving, and export behavior.
-- `docs/adr/2026-06-18-opik-post-run-export-boundary.md` for the adapter boundary
+- `docs/adr/0003-keep-opik-export-as-post-run-adapter-over-agentv-result-bundles.md` for the adapter boundary
   that keeps AgentV run bundles canonical.
 - Backblaze B2 S3-compatible docs:
   `https://www.backblaze.com/docs/cloud-storage-call-the-s3-compatible-api` and

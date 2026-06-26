@@ -1,8 +1,10 @@
-# ADR: Keep Phoenix read-only at the AgentV artifact boundary
+# 5. Keep Phoenix read-only at the AgentV artifact boundary
 
 Date: 2026-06-21
 
-Status: Accepted
+## Status
+
+Accepted
 
 ## Context
 

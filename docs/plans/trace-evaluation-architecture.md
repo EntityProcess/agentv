@@ -3,7 +3,7 @@ title: Trace Evaluation Architecture
 type: feat
 status: superseded
 date: 2026-06-04
-superseded_by: docs/adr/2026-06-21-phoenix-read-only-correlation-boundary.md
+superseded_by: docs/adr/0005-keep-phoenix-read-only-at-agentv-artifact-boundary.md
 ---
 
 # Trace Evaluation Architecture
@@ -19,7 +19,7 @@ separate versioned document that users produce.
 
 Update, 2026-06-21: This plan is no longer active. Phoenix-specific parts are superseded by
 the read-only Phoenix correlation boundary in
-[docs/adr/2026-06-21-phoenix-read-only-correlation-boundary.md](../adr/2026-06-21-phoenix-read-only-correlation-boundary.md).
+[docs/adr/0005-keep-phoenix-read-only-at-agentv-artifact-boundary.md](../adr/0005-keep-phoenix-read-only-at-agentv-artifact-boundary.md).
 Do not use this plan as current Phoenix product scope. AgentV does not export,
 import, or project completed runs, traces, transcripts, datasets, experiments,
 or indexes into Phoenix. Phoenix is optional link-out correlation only when

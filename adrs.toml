@@ -1,0 +1,8 @@
+# ADRs are managed with https://github.com/joshrotenberg/adrs.
+# Keep the singular directory name: the adrs CLI defaults to doc/adr.
+adr_dir = "docs/adr"
+mode = "compatible"
+
+[templates]
+format = "nygard"
+variant = "bare"
