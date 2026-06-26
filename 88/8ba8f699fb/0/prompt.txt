@@ -1,0 +1,241 @@
+Can you check my beds are ready and let me know what is the next thing you will be working on
+
+---
+
+I reckon that we should spend time on get sink remote and branch structure and transcripts
+
+---
+
+see https://github.com/EntityProcess/agentv-beads/issues/2
+
+---
+
+$coordinator lets do this.
+
+---
+
+any other beads ready
+
+---
+
+let's spawn more workmux workers for the beads in direction
+
+---
+
+can we do bead workmux hardening too if it's necessary might improve overall coordinstion
+
+---
+
+I've taken over the workmux worker. the other workers are done or blocked.
+
+---
+
+do we need code review and dog fooding for high risk prs
+
+---
+
+lets do that then. I'll let you co-ordinate
+
+---
+
+maybe agentv/artifacts/v1 is better?
+
+---
+
+in that case beads also need updating to avoid confusions
+
+---
+
+check status and unblock
+
+---
+
+do we need code review and dog fooding for high risk prs
+
+---
+
+acheck status. merge anything that has passed review
+
+---
+
+I see a lot of idle workmux workers. please get them all unblocked anything that needs to be merged measure through PR. otherwise get them cleaned up if they are finished
+
+---
+
+why did you merge directly with no PR Can you ensure that agents MD makes it clear that every merge requires a PR and if it's a big PR then we need to have meaningful commits for each change. I think it's fine to replace the last commit using force push so we have proper PR workflow
+
+---
+
+ok then can you create an eval under evals/self with this tricky scenario using past commit before our two recent commits but replace agents MD and .agents with current one. spawn worker to do this but after confirming your understanding
+
+---
+
+actually I misunderstood I just checked the commit is from PR1462 so we do actually have a PR does that mean that we should just delete the last commit we just pushed
+
+---
+
+ok it's fine then in that case make our local main the same as the remote main we don't want divergence
+
+---
+
+now we can go back to the evals. how do we ensure that the evals don't cost too much money by reproducing their entire multi-agent workflow are we able to have the previous commit checked out before the instructions and then ask it some smaller question that can still provide the same level of proof
+
+---
+
+Can you create the beads for this and spawn worker to do it you are only coordinating
+
+---
+
+we also need to ensure that dog food results are push to a branch in agent v private repository. The branch name should correspond with the same branch as the public agent v repository that we've created the work tree for. create a bead for this as well and spawn agent to work on this. The danger of these two units of work is the evaluation could cause the agent to create commits of PRs in the live public repository. The Evel should make it clear that it's getting an answer of what the agent would do but ensure that the agent does not actually do anything because there's no guardrail in the eval preventing commands to be run
+
+---
+
+for the earlier work we completed with PR 1462, you can close the issue in the beads repository but leave a comment proving that you completed the specifications of each bead. Close the beads if they are really done link to your dog food screenshots and sure that the screenshots are uploaded and give me the link to each dog food that was done
+
+---
+
+also did you finish creating the bed and delegated workers for the two evals
+
+---
+
+So is that worker a responsible for both evals
+
+---
+
+for the dog food and did we set up a repository and check their branches were created if so can you give me the links to those repositories so I can expect the branch structure. typo inspect not expect
+
+---
+
+no I mean the transcript and other artefacts how did you do the dog fooding. when you synchronise the remote branch it should push the runs to a non-default branch where do I see this happen. it's dog fooding the logic and the commands and the output not necessarily the dashboard UI
+
+---
+
+the worker is done. can you spawn worker to do follow up fixes
+
+---
+
+also how can such  bug slip through. don't we have tests for this. And if the ref is not correct won't it not display properly in dashboard
+
+---
+
+I don't get it. we put the transcript in the artifacts branch and yet you say it is in results branch. which is it. are we getting duplicate sources of truth
+
+---
+
+for the dashboard to display the transcript does it need to have two clones
+
+---
+
+but later we will migrate the transcripts and traces to s3. should it be a git LFS adapter on the branch
+
+---
+
+8so does this still mean we should have extra clone to get artifacts or we only download them when dashboard opens the specific transcript
+
+---
+
+ok ask the worker to dog food it properly and test performance
+
+---
+
+thanks ensure also issue and bead is updated
+
+---
+
+is worker done
+
+---
+
+we have 3 idle workers can they merge their work or do they need unblocking
+
+---
+
+what was the conclusion about the performance
+
+---
+
+my instruction was to have the transcript separate but in the dashboard UI it resolves it from artifacts branch as though it is in the results branch when user views it
+
+---
+
+also spawn worker to close out most of the agentv issues especially the old ones. I guess most of the issues are covered by our latest private issues and beads.
+
+---
+
+if we want to let people know we are working on them then just consolidate it in a couple of epic issues without referring to beads.
+
+---
+
+What else have you been working on we need to check the status of the other workers
+
+---
+
+I think we still have beds related to Phoenix and also fixes to branch artefacts
+
+---
+
+Also check if we have any idle workers that need unblocking if they have finished then we should review and merge
+
+---
+
+I thought we had a coordinator for the Phoenix work rather than you coordinating yourself
+
+---
+
+Is there any work that we can start on besides Phoenix
+
+---
+
+spawn coordinator for av-quf and all related and followup beads
+
+---
+
+https://github.com/EntityProcess/agentv/issues/1432 should be closed . that's already been merged. Can you spawn another issue triage worker and check whether any issues are no longer relevant have PR's merged or resolved some other way
+
+---
+
+lworker is done please close it. what about other workers how to get to next steps
+
+---
+
+there are a couple of workers idle now. please unblock or meege
+
+---
+
+I see 3 draft PRs. when can we merge them.
+
+---
+
+I thought we had a coordinator worker for Phoenix and it was working on a number of beads. what happened to that.
+
+---
+
+check status of beads. what work is outstanding. should we spawn more workers. when can we close issues 4 and 5 in https://github.com/EntityProcess/agentv-beads/issues
+
+---
+
+can input shorthand be merged
+
+---
+
+Can you clean up stale workers . I'll ensure we're making progress with Phoenix
+
+---
+
+why did you remove the coordinator again
+
+---
+
+Also are there any other tasks that Phoenix needs work on I doubt there's only one task
+
+---
+
+are there any tasks that are non phoenix related that we can start on
+
+---
+
+can we dogfood WiseTechGlobal/agentv-deploy. the projects that appear should be WTG.AI.Prompts, WiseTechAcademy.Evals
+
+---
+
+for WiseTechAcademy.Evals use wtalms as the target instead of wtglms-stg for this machine, set that via .env. other machines use wtglms-stg. also we need to test using docker instead of k8.

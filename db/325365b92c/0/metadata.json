@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "db325365b92c",
+  "session_id": "1afc31c8-d97f-4331-bae9-b6417f1b79a9",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-23T05:19:17.389161014Z",
+  "branch": "fix/copilot-sdk-epipe",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "packages/core/src/evaluation/providers/copilot-sdk.ts",
+    "packages/core/src/evaluation/providers/pi-coding-agent.ts",
+    "packages/core/test/evaluation/providers/copilot-sdk.test.ts",
+    "packages/core/test/evaluation/providers/pi-coding-agent.test.ts"
+  ],
+  "agent": "Copilot CLI",
+  "model": "",
+  "turn_id": "3b49dd7aaebd",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-23T05:19:17.368111039Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 20,
+    "human_modified": 42,
+    "human_removed": 0,
+    "total_committed": 20,
+    "total_lines_changed": 62,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 185,
+      "user_lines_removed": 42,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".workmux/PROMPT-dashboard-vercel-playground-ux.md": 70,
+        "packages/core/src/evaluation/providers/copilot-sdk.ts": 16,
+        "packages/core/src/evaluation/providers/pi-coding-agent.ts": 16,
+        "packages/core/test/evaluation/providers/copilot-sdk.test.ts": 72,
+        "packages/core/test/evaluation/providers/pi-coding-agent.test.ts": 11
+      },
+      "user_removed_per_file": {
+        "packages/core/src/evaluation/providers/copilot-sdk.ts": 2,
+        "packages/core/src/evaluation/providers/pi-coding-agent.ts": 28,
+        "packages/core/test/evaluation/providers/copilot-sdk.test.ts": 12
+      }
+    }
+  ]
+}

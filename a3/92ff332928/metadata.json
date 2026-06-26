@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "a392ff332928",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/plugin/marketplace.json",
+    "plugins/agentv-claude-trace/.claude-plugin/plugin.json",
+    "plugins/agentv-claude-trace/README.md",
+    "plugins/agentv-claude-trace/bun.lock",
+    "plugins/agentv-claude-trace/hooks.json",
+    "plugins/agentv-claude-trace/hooks/post-tool-use.ts",
+    "plugins/agentv-claude-trace/hooks/session-end.ts",
+    "plugins/agentv-claude-trace/hooks/session-start.ts",
+    "plugins/agentv-claude-trace/hooks/stop.ts",
+    "plugins/agentv-claude-trace/hooks/user-prompt-submit.ts",
+    "plugins/agentv-claude-trace/lib/otel.ts",
+    "plugins/agentv-claude-trace/lib/state.ts",
+    "plugins/agentv-claude-trace/lib/types.ts",
+    "plugins/agentv-claude-trace/package.json",
+    "plugins/agentv-claude-trace/test/state.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a3/92ff332928/0/metadata.json",
+      "transcript": "/a3/92ff332928/0/full.jsonl",
+      "content_hash": "/a3/92ff332928/0/content_hash.txt",
+      "prompt": "/a3/92ff332928/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36058,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 230656,
+    "output_tokens": 2958,
+    "api_call_count": 10
+  }
+}

@@ -1,0 +1,9 @@
+can you update the entire config so other machines i use wont push to public agentv
+
+---
+
+since settings.json is pointing to private repo perhaps we don't need it we just need settings.local.json which is gitignored right
+
+---
+
+ok lets doe that. so does that mean settings.json will still be there. i guess similar setup as https://github.com/microsoft/skills/ except we have additional settings.local.json to override the remote right

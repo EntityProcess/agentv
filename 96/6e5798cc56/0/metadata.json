@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "966e5798cc56",
+  "session_id": "019ee806-d388-7483-8379-6bd746934098",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-22T11:28:01.527946553Z",
+  "branch": "fix/openai-codex-target-env",
+  "checkpoints_count": 45,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "473cc7f4e601",
+  "token_usage": {
+    "input_tokens": 4004167,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 87619584,
+    "output_tokens": 326399,
+    "api_call_count": 760
+  },
+  "session_metrics": {
+    "turn_count": 45
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "335841c2d678",
+  "session_id": "019efc87-fa98-7971-91df-0c9512a065da",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-26T01:14:05.247801355Z",
+  "branch": "docs/clarify-eval-experiment-boundaries",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "docs/adr/2026-06-17-harbor-runner-boundary.md",
+    "docs/adr/2026-06-23-experiments-vs-eval-separation.md"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "9d4530438e9f",
+  "checkpoint_transcript_start": 1343,
+  "transcript_lines_at_start": 1343,
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-26T01:14:05.118510989Z",
+    "agent_lines": 29,
+    "agent_removed": 28,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 29,
+    "total_lines_changed": 57,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

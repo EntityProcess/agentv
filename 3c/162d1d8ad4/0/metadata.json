@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "3c162d1d8ad4",
+  "session_id": "019ee806-d388-7483-8379-6bd746934098",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-22T22:51:21.91995686Z",
+  "branch": "docs/contract-design-standards",
+  "checkpoints_count": 45,
+  "save_step_count": 1,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "473cc7f4e601",
+  "token_usage": {
+    "input_tokens": 4004167,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 87619584,
+    "output_tokens": 326399,
+    "api_call_count": 760
+  },
+  "session_metrics": {
+    "turn_count": 45
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-22T22:51:21.261942189Z",
+    "agent_lines": 3,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 4,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

@@ -1,0 +1,1 @@
+can you update the entire config so other machines i use wont push to public agentv

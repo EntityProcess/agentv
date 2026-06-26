@@ -1,0 +1,1 @@
+remove agentv-claude-trace plugin no longer needed, can merge directly

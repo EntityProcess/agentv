@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "0034f597b72d",
+  "strategy": "manual-commit",
+  "branch": "docs/composite-bun-run-aggregator",
+  "checkpoints_count": 50,
+  "files_touched": [
+    "apps/web/src/content/docs/docs/graders/composite.mdx",
+    "examples/features/composite/README.md",
+    "examples/features/composite/evals/dataset.eval.yaml",
+    "examples/features/composite/scripts/or-aggregator.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/00/34f597b72d/0/metadata.json",
+      "transcript": "/00/34f597b72d/0/full.jsonl",
+      "content_hash": "/00/34f597b72d/0/content_hash.txt",
+      "prompt": "/00/34f597b72d/0/prompt.txt"
+    },
+    {
+      "metadata": "/00/34f597b72d/1/metadata.json",
+      "transcript": "/00/34f597b72d/1/full.jsonl",
+      "content_hash": "/00/34f597b72d/1/content_hash.txt",
+      "prompt": "/00/34f597b72d/1/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5551297,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 137221760,
+    "output_tokens": 395255,
+    "api_call_count": 1190
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-06-26T13:36:27.290341813Z",
+    "agent_lines": 170,
+    "agent_removed": 7,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 170,
+    "total_lines_changed": 177,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

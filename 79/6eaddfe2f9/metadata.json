@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "796eaddfe2f9",
+  "strategy": "manual-commit",
+  "branch": "ci/update-actions-node24",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/dependency-audit.yml",
+    ".github/workflows/evals.yml",
+    ".github/workflows/publish.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/79/6eaddfe2f9/0/metadata.json",
+      "transcript": "/79/6eaddfe2f9/0/full.jsonl",
+      "content_hash": "/79/6eaddfe2f9/0/content_hash.txt",
+      "prompt": "/79/6eaddfe2f9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 548012,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 13929728,
+    "output_tokens": 43334,
+    "api_call_count": 111
+  }
+}

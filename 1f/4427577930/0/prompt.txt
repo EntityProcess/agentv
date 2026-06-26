@@ -1,0 +1,61 @@
+can you save this as entireio checkpoint
+
+---
+
+actually revert the commit, just create the issue triage in agentv-private repo issue
+
+---
+
+agentv watch - i don't understand the purpose of this. seems like that's what exporting to opik would achieve
+
+---
+
+but agentv currently does workspace setup right? can it be used to setup the environmt and human can use the agent. is that the expected outcome?
+
+---
+
+so then what would be  the command surface. i think agentv prepare would be a better command since eval would indicate it's an evaluation? is this called human evals
+
+---
+
+so then should agentv evaluate using the transcript / session. would it need to import the session
+
+---
+
+also should agentv prepare send the import prompt. what use case are we serving. any examples from other eval frameworks to understand what problem we are solving and to prove this problem exists. refer to ai-research-wiki repo under tsoyang-org
+
+---
+
+i don't think we need watch, can just remove it. just need prepare workspace. that achieves what the orginal issue was asking for anyway. if we want otel we can configure hookks in the harness itself (e.g. opik) and agentv can grade the opik traces
+
+---
+
+then update the issue, and update beads with this scope andi mpelemntation plan. we're going to delegate impleemtnation workers soon
+
+---
+
+$coordinator  ensure beads are clear enough for hand off then spawn agents to implement agentv prepare
+
+---
+
+also for https://github.com/EntityProcess/agentv/issues/1140  validate is not the appropriate subcommand since the scope is portability whereas evals can still be valid even if not portable. currently when running evals it creates self contained directory containing evals folder so we should reuse logic there for bundled evals which has all the infrooatmion to run
+
+---
+
+for the prepare worker spawn that should be done in parallel it's separate work
+
+---
+
+has they been has prepare workers finished, can we proceed to next steps
+
+---
+
+I didn't say the main branch in remote updated has all prepare work being pushed
+
+---
+
+Can we push our work
+
+---
+
+not sure why author is release-check please change it back to christso in precious commits. are we able to amend

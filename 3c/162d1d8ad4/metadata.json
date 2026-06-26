@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "3c162d1d8ad4",
+  "strategy": "manual-commit",
+  "branch": "docs/contract-design-standards",
+  "checkpoints_count": 62,
+  "files_touched": [
+    ".agents/product-boundary.md",
+    "AGENTS.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/162d1d8ad4/0/metadata.json",
+      "transcript": "/3c/162d1d8ad4/0/full.jsonl",
+      "content_hash": "/3c/162d1d8ad4/0/content_hash.txt",
+      "prompt": "/3c/162d1d8ad4/0/prompt.txt"
+    },
+    {
+      "metadata": "/3c/162d1d8ad4/1/metadata.json",
+      "transcript": "/3c/162d1d8ad4/1/full.jsonl",
+      "content_hash": "/3c/162d1d8ad4/1/content_hash.txt",
+      "prompt": "/3c/162d1d8ad4/1/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4493591,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 96925312,
+    "output_tokens": 366692,
+    "api_call_count": 892
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-06-22T22:51:27.13025303Z",
+    "agent_lines": 10,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10,
+    "total_lines_changed": 10,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

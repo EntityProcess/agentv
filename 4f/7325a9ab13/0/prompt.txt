@@ -1,0 +1,13 @@
+can you enable push sessions (or remove the disabler). and we configure the checkpoint remote locally. similar to https://github.com/microsoft/skills/blob/main/.entire/settings.json
+
+---
+
+what types of strategies are there.
+
+---
+
+ok so what do you recommend
+
+---
+
+so then do i need to run the dashboard locallly

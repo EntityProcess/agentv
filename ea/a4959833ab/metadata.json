@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "eaa4959833ab",
+  "strategy": "manual-commit",
+  "branch": "fix/openai-codex-target-env",
+  "checkpoints_count": 66,
+  "files_touched": [
+    "apps/cli/package.json",
+    "bun.lock",
+    "packages/core/package.json",
+    "packages/core/src/evaluation/orchestrator.ts",
+    "packages/core/src/evaluation/providers/codex.ts",
+    "packages/core/src/evaluation/providers/copilot-sdk.ts",
+    "packages/core/src/evaluation/providers/targets.ts",
+    "packages/core/src/evaluation/providers/types.ts",
+    "packages/core/src/evaluation/validation/targets-validator.ts",
+    "packages/core/test/evaluation/providers/codex-sdk.test.ts",
+    "packages/core/test/evaluation/providers/copilot-sdk.test.ts",
+    "packages/core/test/evaluation/providers/targets.test.ts",
+    "packages/core/test/evaluation/validation/targets-validator.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ea/a4959833ab/0/metadata.json",
+      "transcript": "/ea/a4959833ab/0/full.jsonl",
+      "content_hash": "/ea/a4959833ab/0/content_hash.txt",
+      "prompt": "/ea/a4959833ab/0/prompt.txt"
+    },
+    {
+      "metadata": "/ea/a4959833ab/1/metadata.json",
+      "transcript": "/ea/a4959833ab/1/full.jsonl",
+      "content_hash": "/ea/a4959833ab/1/content_hash.txt",
+      "prompt": "/ea/a4959833ab/1/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7183736,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 149065856,
+    "output_tokens": 533167,
+    "api_call_count": 1271
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-06-22T07:03:01.105883618Z",
+    "agent_lines": 578,
+    "agent_removed": 92,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 578,
+    "total_lines_changed": 670,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
