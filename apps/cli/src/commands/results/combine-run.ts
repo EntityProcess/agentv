@@ -15,6 +15,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -367,7 +368,6 @@ const MANIFEST_PATH_FIELDS = [
   'input_path',
   'output_path',
   'response_path',
-  'trace_path',
   'transcript_path',
   'transcript_raw_path',
   'metrics_path',
@@ -380,7 +380,6 @@ const MANIFEST_PATH_FIELDS = [
 ] as const;
 
 const POINTER_FAMILIES = {
-  trace: 'traces',
   transcript: 'transcripts',
 } as const;
 
@@ -467,15 +466,29 @@ function rewriteArtifactPointers(
     return undefined;
   }
 
-  return {
-    trace: rewriteArtifactPointer('trace', pointers.trace, sourceBaseDir, outputDir, sourceIndex),
-    transcript: rewriteTranscriptArtifactPointer(
-      pointers.transcript,
-      sourceBaseDir,
-      outputDir,
-      sourceIndex,
-    ),
-  };
+  const transcript = rewriteTranscriptArtifactPointer(
+    pointers.transcript,
+    sourceBaseDir,
+    outputDir,
+    sourceIndex,
+  );
+  return transcript ? { transcript } : undefined;
+}
+
+function removeCopiedDeprecatedTraceArtifact(
+  row: SelectedRow,
+  outputDir: string,
+  sourceBaseDir: string,
+): void {
+  const tracePath = row.record.trace_path;
+  if (!tracePath || !isSafeRelativeArtifactPath(tracePath)) {
+    return;
+  }
+  if (!existsSync(path.join(sourceBaseDir, tracePath))) {
+    return;
+  }
+  const copiedTracePath = path.join(outputDir, `sources/source-${row.source.index + 1}`, tracePath);
+  rmSync(copiedTracePath, { force: true });
 }
 
 function rewriteAndCopyRecord(
@@ -501,13 +514,8 @@ function rewriteAndCopyRecord(
     row.source.index,
   );
   rewritten.artifact_pointers = artifactPointers;
-  if (
-    row.record.trace_path &&
-    rewritten.trace_path === row.record.trace_path &&
-    artifactPointers?.trace?.path
-  ) {
-    rewritten.trace_path = artifactPointers.trace.path;
-  }
+  removeCopiedDeprecatedTraceArtifact(row, outputDir, sourceBaseDir);
+  rewritten.trace_path = undefined;
   if (
     row.record.transcript_path &&
     rewritten.transcript_path === row.record.transcript_path &&

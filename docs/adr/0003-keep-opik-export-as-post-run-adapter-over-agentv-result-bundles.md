@@ -4,7 +4,12 @@ Date: 2026-06-18
 
 ## Status
 
-Proposed
+Superseded by the 2026-06-20 Phoenix/observability boundary and ADR 0008.
+
+AgentV no longer persists or advertises public `outputs/trace.json` /
+`trace_path` run-bundle sidecars. The durable public run artifact contract is
+`index.jsonl`, grading/timing/metrics artifacts, normalized transcript
+sidecars, answer outputs, and optional `external_trace` link metadata.
 
 ## Context
 
@@ -14,7 +19,6 @@ AgentV already has the post-run artifacts an Opik exporter should consume:
 - per-test grading, timing, answer, and transcript artifacts from
   `packages/core/src/evaluation/run-artifacts.ts`, with the CLI wrapper in
   `apps/cli/src/commands/eval/artifact-writer.ts`;
-- canonical trace sidecars in `outputs/trace.json` using `agentv.trace.v1`;
 - in-memory `EvaluationResult` and `TraceEnvelope` read models in `packages/core/src/evaluation/types.ts` and `packages/core/src/evaluation/trace-envelope.ts`.
 
 That is the correct product boundary. AgentV remains the runner, gate, and artifact source of truth. Opik should be a projection over completed AgentV runs, not the runtime owner of AgentV execution.
@@ -24,10 +28,10 @@ Two existing constraints matter:
 1. `av-vwa.16.4` is the planned vendor-neutral projection bundle that external adapters should consume.
 2. `av-vwa.16.2` is the planned stable external identity and duplicate-policy work.
 
-There is also a privacy mismatch in current artifact generation: the canonical
-trace envelope builder defaults to metadata-only capture, but
-`run-artifacts.ts` currently overrides that and writes `outputs/trace.json`
-sidecars with full content capture.
+There was also a privacy mismatch in an older artifact design: the canonical
+trace envelope builder defaulted to metadata-only capture, while result
+artifacts could persist full content capture. The current public run-bundle
+contract avoids that persisted trace sidecar surface.
 
 ## Audit
 
@@ -91,7 +95,8 @@ The future Opik adapter should consume one of these equivalent inputs:
    - `summary.json`
    - per-test `grading.json`
    - per-test `timing.json`
-   - per-test `outputs/trace.json`
+   - per-test `metrics.json`
+   - per-test `transcript.jsonl`
 
 The adapter should emit or upload Opik-native objects only after the AgentV run is complete.
 

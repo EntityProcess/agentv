@@ -62,7 +62,6 @@ export interface ProjectionBundleEntry {
     readonly trace_id: string;
     readonly root_span_id: string;
     readonly span_count: number;
-    readonly envelope_ref?: string;
   };
   readonly trace_envelope: TraceEnvelopeWire;
   readonly feedback: {
@@ -101,7 +100,7 @@ export type ProjectionBundleArtifactRefs = Partial<
     | 'targets_path'
     | 'files_path'
     | 'graders_path'
-  > & { readonly trace_path: string }
+  >
 > & {
   readonly status: 'planned_export' | 'emitted';
 };
@@ -147,13 +146,6 @@ function shortHash(parts: readonly string[], length = 20): string {
   return createHash('sha256').update(parts.join('\n')).digest('hex').slice(0, length);
 }
 
-function tracePathFor(indexEntry: IndexArtifactEntry): string | undefined {
-  return (
-    indexEntry.trace_path ??
-    (indexEntry.artifact_dir ? path.posix.join(indexEntry.artifact_dir, 'trace.json') : undefined)
-  );
-}
-
 function artifactRefs(
   indexEntry: IndexArtifactEntry,
   options: {
@@ -181,7 +173,6 @@ function artifactRefs(
     transcript_path: indexEntry.transcript_path,
     transcript_raw_path: indexEntry.transcript_raw_path,
     metrics_path: indexEntry.metrics_path,
-    trace_path: tracePathFor(indexEntry),
     task_dir: indexEntry.task_dir,
     eval_path: indexEntry.eval_path,
     targets_path: indexEntry.targets_path,
@@ -274,13 +265,11 @@ function buildEntry(
 ): ProjectionBundleEntry {
   const includeRawContent = options.includeRawContent ?? false;
   const sourcePath = toPortablePath(options.sourceFile, options.cwd);
-  const plannedIndexEntry = buildResultIndexArtifact(result);
   const envelope = buildTraceEnvelopeFromEvaluationResult(result, {
     evalPath: sourcePath,
     runId: options.runId,
     source: { kind: 'agentv_run', path: sourcePath, format: 'agentv_result' },
     artifacts: {
-      trace_path: tracePathFor(indexRecord ?? plannedIndexEntry),
       answer_path: result.output.length > 0 ? 'outputs/answer.md' : undefined,
     },
     duplicatePolicy: options.duplicatePolicy,
@@ -334,7 +323,6 @@ function buildEntry(
       trace_id: envelopeWire.trace.trace_id,
       root_span_id: envelopeWire.trace.root_span_id,
       span_count: envelopeWire.trace.spans.length,
-      envelope_ref: refs.trace_path,
     }),
     trace_envelope: envelopeWire,
     feedback,

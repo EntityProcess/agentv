@@ -174,12 +174,12 @@ row keys.
 
 Rows without `schema_version`, `capture`, or `trace` from older AgentV transcript
 exports remain replayable. New eval run artifacts write the v1 shape.
-For eval run artifacts, `transcript.jsonl` is derived from
-`trace.json`; it is a portable message/event projection, not a second
-canonical trace source or a provider-native session dump. Provider-native
-session or stream logs, when captured during an eval run, are separate raw
-evidence artifacts referenced by `raw_provider_log_path`; Agent Skills import,
-convert, transpile, and run paths do not require them.
+For eval run artifacts, `transcript.jsonl` is the portable message/event
+projection. AgentV does not persist a public `trace.json` run sidecar, and the
+transcript is not a provider-native session dump. Provider-native session or
+stream logs, when captured during an eval run, are separate raw evidence
+artifacts referenced by `raw_provider_log_path`; Agent Skills import, convert,
+transpile, and run paths do not require them.
 
 ## What Gets Parsed
 

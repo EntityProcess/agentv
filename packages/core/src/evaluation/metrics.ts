@@ -2,19 +2,15 @@
  * AgentV metrics v1.
  *
  * This is a derived per-case executor metrics projection over `EvaluationResult`
- * and `agentv.trace.v1`. It aligns with AgentV's case-local `metrics.json`
+ * and the internal trace envelope. It aligns with AgentV's case-local `metrics.json`
  * while carrying the compact Vercel-style observability fields. It is not the
- * canonical trace store; full detail stays in `trace.json`, ordered
- * transcript compatibility rows stay in `transcript.jsonl`, and
+ * canonical trace store; portable transcript detail stays in `transcript.jsonl`, and
  * duration/token/cost usage stays in `timing.json`.
  */
 
 import { z } from 'zod';
 import type { Message, ToolCall } from './providers/types.js';
-import {
-  CANONICAL_TRACE_ARTIFACT_PATH,
-  METRICS_SCHEMA_VERSION,
-} from './result-artifact-contract.js';
+import { METRICS_SCHEMA_VERSION } from './result-artifact-contract.js';
 import { EXECUTION_TRACE_SCHEMA_VERSION, type TraceEnvelope } from './trace-envelope.js';
 import type { TraceEvent } from './trace.js';
 import type { EvaluationResult } from './types.js';
@@ -181,12 +177,10 @@ export const MetricsArtifactWireSchema = z
         artifact_id: z.string(),
         trace_id: z.string(),
         root_span_id: z.string(),
-        path: z.string(),
       })
       .strict(),
     source_artifacts: z
       .object({
-        trace_path: z.string().optional(),
         transcript_path: z.string().optional(),
         grading_path: z.string().optional(),
         timing_path: z.string().optional(),
@@ -857,14 +851,12 @@ export function buildMetricsArtifact(
   result: EvaluationResult,
   envelope: TraceEnvelope,
   options: {
-    tracePath?: string;
     transcriptPath?: string;
     gradingPath?: string;
     timingPath?: string;
     generatedAt?: string;
   } = {},
 ): MetricsArtifactWire {
-  const tracePath = options.tracePath;
   return MetricsArtifactWireSchema.parse(
     dropUndefined({
       schema_version: METRICS_SCHEMA_VERSION,
@@ -879,10 +871,8 @@ export function buildMetricsArtifact(
         artifact_id: envelope.artifactId,
         trace_id: envelope.trace.traceId,
         root_span_id: envelope.trace.rootSpanId,
-        path: tracePath ?? CANONICAL_TRACE_ARTIFACT_PATH,
       },
       source_artifacts: dropUndefined({
-        trace_path: tracePath,
         transcript_path: options.transcriptPath,
         grading_path: options.gradingPath,
         timing_path: options.timingPath,

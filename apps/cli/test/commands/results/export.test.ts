@@ -362,11 +362,12 @@ describe('results export', () => {
       answer_path: 'privacy/test-private/run-1/outputs/answer.md',
       transcript_path: 'privacy/test-private/run-1/transcript.jsonl',
       transcript_raw_path: 'privacy/test-private/run-1/transcript-raw.jsonl',
-      trace_path: 'privacy/test-private/trace.json',
     });
+    expect(bundle.entries[0].artifact_refs).not.toHaveProperty('trace_path');
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
-    expect(bundle.entries[0].trace.envelope_ref).toBe('privacy/test-private/trace.json');
+    expect(bundle.entries[0].trace).not.toHaveProperty('envelope_ref');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
+    expect(bundle.entries[0].trace_envelope.artifacts).not.toHaveProperty('trace_path');
     expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/run-1/grading.json');
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');

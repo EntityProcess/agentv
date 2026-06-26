@@ -149,6 +149,26 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
         });
       }
 
+      if (typeof entry.trace_path === 'string') {
+        diagnostics.push({
+          severity: 'error',
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): trace_path is no longer supported; use transcript_path and metrics_path`,
+        });
+      }
+
+      const artifactPointers = entry.artifact_pointers;
+      if (
+        artifactPointers &&
+        typeof artifactPointers === 'object' &&
+        !Array.isArray(artifactPointers) &&
+        Object.hasOwn(artifactPointers, 'trace')
+      ) {
+        diagnostics.push({
+          severity: 'error',
+          message: `index.jsonl line ${i + 1} (${entry.test_id ?? '?'}): artifact_pointers.trace is no longer supported`,
+        });
+      }
+
       if (!entry.scores || !Array.isArray(entry.scores) || entry.scores.length === 0) {
         diagnostics.push({
           severity: 'warning',

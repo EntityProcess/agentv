@@ -2969,12 +2969,10 @@ function artifactSidecarPointers(record: unknown): ArtifactSidecarPointer[] {
   }
 
   const pointers: ArtifactSidecarPointer[] = [];
-  for (const pointer of Object.values(record.artifact_pointers)) {
-    if (!isRecord(pointer)) {
-      continue;
-    }
+  const pointer = record.artifact_pointers.transcript;
+  if (isRecord(pointer)) {
     if (pointer.ref !== AGENTV_RESULTS_ARTIFACTS_REF || typeof pointer.path !== 'string') {
-      continue;
+      return pointers;
     }
     pointers.push({
       path: pointer.path,
@@ -2993,6 +2991,10 @@ function artifactSidecarKey(destinationPath: string, pointerPath: string): strin
     normalizeDestinationPath(destinationPath),
     normalizeDestinationPath(pointerPath),
   );
+}
+
+function isDeprecatedTraceArtifactPath(relativePath: string): boolean {
+  return relativePath === 'trace.json' || relativePath.endsWith('/trace.json');
 }
 
 function collectArtifactSidecarPointers(sourceDir: string): ArtifactSidecarPointer[] {
@@ -3098,18 +3100,27 @@ function rewritePublishedIndexLine(line: string, destinationPath: string): strin
   }
 
   let changed = false;
-  for (const pointer of Object.values(record.artifact_pointers)) {
-    if (!isRecord(pointer)) {
-      continue;
-    }
-    if (pointer.ref !== AGENTV_RESULTS_ARTIFACTS_REF || typeof pointer.path !== 'string') {
-      continue;
-    }
+  const pointer = record.artifact_pointers.transcript;
+  if (
+    isRecord(pointer) &&
+    pointer.ref === AGENTV_RESULTS_ARTIFACTS_REF &&
+    typeof pointer.path === 'string'
+  ) {
     const key = artifactSidecarKey(destinationPath, pointer.path);
     if (pointer.key !== key) {
       pointer.key = key;
       changed = true;
     }
+    if (
+      Object.keys(record.artifact_pointers).length !== 1 ||
+      record.artifact_pointers.transcript !== pointer
+    ) {
+      changed = true;
+    }
+    record.artifact_pointers = { transcript: pointer };
+  } else {
+    record.artifact_pointers = undefined;
+    changed = true;
   }
 
   return changed ? JSON.stringify(record) : line;
@@ -3142,6 +3153,9 @@ async function preparePublishedResultsSource(params: {
           .join('\n');
         mkdirSync(path.dirname(destinationFile), { recursive: true });
         writeFileSync(destinationFile, rewritten);
+        continue;
+      }
+      if (isDeprecatedTraceArtifactPath(relativeFile)) {
         continue;
       }
       if (omittedPaths.has(relativeFile)) {

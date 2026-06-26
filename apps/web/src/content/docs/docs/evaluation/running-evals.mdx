@@ -441,20 +441,20 @@ agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.json
 
 See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
-## Transcript And Trace Artifacts
+## Transcript And Result Artifacts
 
 Each result row's `artifact_dir` is a case-local folder under the timestamped
-run bundle. It can include `trace.json`, `transcript.jsonl`, `provider.log`,
-`grading.json`, `timing.json`, `metrics.json`, and generated outputs under
-`outputs/`. The run root does not contain a mixed transcript artifact; use each
-index row's `transcript_path` to find the per-result transcript.
+run bundle. It can include `transcript.jsonl`, `transcript-raw.jsonl`,
+`provider.log`, `grading.json`, `timing.json`, `metrics.json`, and generated
+outputs under `outputs/`. The run root does not contain a mixed transcript
+artifact; use each index row's `transcript_path` to find the per-result
+transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
-entries such as `artifact_pointers.trace` and `artifact_pointers.transcript`
-carry the storage `ref`, artifact `key`, canonical run-relative `path`,
-`object_version`, `sha256`, `size`, `schema_version`, and `media_type` so
-viewers and exports can migrate from git refs to object storage without changing
-the run record contract.
+entries such as `artifact_pointers.transcript` carry the storage `ref`, artifact
+`key`, canonical run-relative `path`, `object_version`, `sha256`, `size`,
+`schema_version`, and `media_type` so viewers and exports can migrate from git
+refs to object storage without changing the run record contract.
 
 When automatic remote publishing sees pointers whose `ref` is
 `agentv/artifacts/v1`, it also pushes those payload bytes to the
@@ -462,17 +462,16 @@ When automatic remote publishing sees pointers whose `ref` is
 `runs/<run-path>/<pointer.path>` and rewrites the published pointer `key` to
 that backend object key. The configured results branch is the metadata/control
 plane for `index.jsonl`, `summary.json`, tags, and pointers; it does not
-duplicate canonical trace/transcript payload bodies when those rows name
-`agentv/artifacts/v1`. Local pre-publish run workspaces can still contain the
-files beside the manifest, and Dashboard resolves the published pointers lazily
-when a transcript or trace view requests the payload. AgentV keeps this explicit
-pointer/backend contract instead of using Git LFS as the core abstraction so
-S3, B2, or other object stores can use the same `key`, `object_version`,
-`sha256`, `size`, `media_type`, and `schema_version` fields later.
+duplicate canonical transcript payload bodies when those rows name
+`agentv/artifacts/v1`. Dashboard resolves the published pointers lazily when a
+transcript view requests the payload. AgentV keeps this explicit pointer/backend
+contract instead of using Git LFS as the core abstraction so S3, B2, or other
+object stores can use the same `key`, `object_version`, `sha256`, `size`,
+`media_type`, and `schema_version` fields later.
 
-`trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
-It stores the canonical span graph, source metadata, capture/redaction policy,
-conversion warnings, score provenance, and opaque evidence references.
+AgentV does not persist a public `trace.json` sidecar in run bundles. Use
+`external_trace` metadata for link-out correlation when another observability
+system already owns spans.
 
 `transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
 It uses provider-neutral `agentv.transcript.v1` rows with stable top-level fields

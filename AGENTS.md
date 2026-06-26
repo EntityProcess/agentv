@@ -48,7 +48,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - When dogfood or review reveals a durable workflow lesson, capture it in this guide or the relevant `.agents/*.md` guide before merge; do not leave durable agent instructions only in PR comments, Bead comments, or private evidence. Use `docs/solutions/` for fuller reusable writeups.
 - Wire formats are `snake_case`; internal TypeScript is `camelCase`. Translate only at the boundary.
 - In AgentV, a `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite. Do not collapse those terms.
-- `artifact_pointers` are an offload indirection for large detached payload bytes, such as trace and transcript artifacts. Do not use them as the discovery path for ordinary per-case sidecars; expose those with explicit index/manifest path fields such as `metrics_path`.
+- `artifact_pointers` are an offload indirection for large detached payload bytes, such as transcript artifacts. Do not use them as the discovery path for ordinary per-case sidecars; expose those with explicit index/manifest path fields such as `metrics_path`.
 
 ## Repo Map
 

@@ -1,27 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  AGENTV_RESULTS_ARTIFACTS_REF,
   CANONICAL_METRICS_ARTIFACT_PATH,
-  CANONICAL_TRACE_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
-  EXECUTION_TRACE_SCHEMA_VERSION,
   type EvalTest,
   type EvaluationResult,
   type GraderResult,
   METRICS_SCHEMA_VERSION,
   MetricsArtifactWireSchema,
-  TRACE_JSON_MEDIA_TYPE,
-  TRANSCRIPT_JSONL_MEDIA_TYPE,
-  TRANSCRIPT_SCHEMA_VERSION,
-  TraceEnvelopeWireSchema,
   buildTraceFromMessages,
-  fromTraceEnvelopeWire,
   parseYamlValue,
-  traceEnvelopeToTranscriptJsonLines,
 } from '@agentv/core';
 
 import {
@@ -83,10 +73,6 @@ function makeEvaluatorResult(overrides: Partial<GraderResult> = {}): GraderResul
     ],
     ...overrides,
   } as GraderResult;
-}
-
-function sha256Hex(content: Buffer): string {
-  return createHash('sha256').update(content).digest('hex');
 }
 
 // ---------------------------------------------------------------------------
@@ -1250,6 +1236,9 @@ describe('writeArtifactsFromResults', () => {
     await expect(
       readFile(path.join(testDir, 'transcript-case', 'transcript.json'), 'utf8'),
     ).rejects.toThrow();
+    await expect(
+      readFile(path.join(testDir, 'transcript-case', 'run-1', 'trace.json'), 'utf8'),
+    ).rejects.toThrow();
 
     const indexLine = JSON.parse(
       (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
@@ -1366,6 +1355,12 @@ describe('writeArtifactsFromResults', () => {
     );
 
     expect(summary.schema_version).toBe(METRICS_SCHEMA_VERSION);
+    expect(summary.trace).toMatchObject({
+      schema_version: 'agentv.trace.v1',
+      trace_id: expect.any(String),
+      root_span_id: expect.any(String),
+    });
+    expect(summary.trace).not.toHaveProperty('path');
     expect(summary.source_artifacts).toMatchObject({
       transcript_path: 'transcript.jsonl',
       grading_path: 'grading.json',

@@ -26,13 +26,13 @@ function localTreeRootedAtTestDir(prefix: string): FileNode[] {
   ];
 }
 
-function gitTraceEntry(prefix: string): ArtifactCatalogEntry {
+function gitTranscriptEntry(prefix: string): ArtifactCatalogEntry {
   return {
-    displayPath: `${prefix}/outputs/trace.json`,
-    kind: 'trace',
+    displayPath: `${prefix}/transcript.jsonl`,
+    kind: 'transcript',
     storage: 'git',
     ref: 'agentv/artifacts/v1',
-    key: `runs/default/2026-06-22T01-12-44-924Z/${prefix}/outputs/trace.json`,
+    key: `runs/default/2026-06-22T01-12-44-924Z/${prefix}/transcript.jsonl`,
   };
 }
 
@@ -45,22 +45,18 @@ describe('overlayCatalogFileNodes', () => {
 
   it('overlays git artifacts into the existing folder instead of a duplicate subtree', () => {
     const files = localTreeRootedAtTestDir(prefix);
-    overlayCatalogFileNodes(files, [gitTraceEntry(prefix)], prefix);
+    overlayCatalogFileNodes(files, [gitTranscriptEntry(prefix)], prefix);
 
     // No duplicate `wtg-academy-n1-test` root node was created.
     expect(findByName(files, 'wtg-academy-n1-test')).toBeUndefined();
 
-    // trace.json merged into the existing top-level `outputs` folder...
-    const outputs = findByName(files, 'outputs');
-    expect(outputs?.type).toBe('dir');
-    const trace = findByName(outputs?.children ?? [], 'trace.json');
-    expect(trace).toBeDefined();
-    // ...alongside the local answer.md, and with its full manifest-relative path
-    // preserved for content reads.
-    expect(findByName(outputs?.children ?? [], 'answer.md')).toBeDefined();
-    expect(trace?.path).toBe(`${prefix}/outputs/trace.json`);
-    expect(trace?.storage).toBe('git');
-    expect(trace?.ref).toBe('agentv/artifacts/v1');
+    // transcript.jsonl merged into the existing top-level test artifact view
+    // with its full manifest-relative path preserved for content reads.
+    const transcript = findByName(files, 'transcript.jsonl');
+    expect(transcript).toBeDefined();
+    expect(transcript?.path).toBe(`${prefix}/transcript.jsonl`);
+    expect(transcript?.storage).toBe('git');
+    expect(transcript?.ref).toBe('agentv/artifacts/v1');
   });
 
   it('does not re-add local files already present in the tree', () => {
@@ -80,8 +76,8 @@ describe('overlayCatalogFileNodes', () => {
   it('falls back to full-path nesting when no root prefix applies', () => {
     const files: FileNode[] = [];
     const entry: ArtifactCatalogEntry = {
-      displayPath: 'outputs/trace.json',
-      kind: 'trace',
+      displayPath: 'outputs/transcript.jsonl',
+      kind: 'transcript',
       storage: 'git',
       ref: 'agentv/artifacts/v1',
     };
@@ -89,6 +85,8 @@ describe('overlayCatalogFileNodes', () => {
 
     const outputs = findByName(files, 'outputs');
     expect(outputs?.type).toBe('dir');
-    expect(findByName(outputs?.children ?? [], 'trace.json')?.path).toBe('outputs/trace.json');
+    expect(findByName(outputs?.children ?? [], 'transcript.jsonl')?.path).toBe(
+      'outputs/transcript.jsonl',
+    );
   });
 });

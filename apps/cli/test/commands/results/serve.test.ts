@@ -3148,7 +3148,7 @@ describe('serve app', () => {
       };
       expect(traceData.schema_version).toBe('agentv.dashboard.trace_artifact.v1');
       expect(traceData.status).toBe('missing');
-      expect(traceData.message).toContain('trace.json');
+      expect(traceData.message).toContain('transcript.jsonl');
 
       const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
       expect(detailRes.status).toBe(200);
