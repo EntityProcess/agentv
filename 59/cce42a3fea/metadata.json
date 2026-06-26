@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "59cce42a3fea",
+  "strategy": "manual-commit",
+  "branch": "chore/remove-root-artifacts",
+  "checkpoints_count": 42,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/59/cce42a3fea/0/metadata.json",
+      "transcript": "/59/cce42a3fea/0/full.jsonl",
+      "content_hash": "/59/cce42a3fea/0/content_hash.txt",
+      "prompt": "/59/cce42a3fea/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5138081,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 127772288,
+    "output_tokens": 328916,
+    "api_call_count": 1021
+  }
+}
