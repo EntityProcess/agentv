@@ -723,7 +723,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(result.failureReasonCode).toBe('provider_error');
   });
 
-  it('copies raw provider logs from normal per-case evaluation artifacts', async () => {
+  it('stores raw provider logs once as transcript-raw evidence', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-raw-provider-log-'));
     const rawLogPath = path.join(tempDir, 'provider-native-session.jsonl');
     writeFileSync(rawLogPath, '{"event":"provider-native"}\n', 'utf8');
@@ -752,10 +752,11 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     const artifactDir = path.join(outputDir, 'test-dataset', 'case-1');
     const runDir = path.join(artifactDir, 'run-1');
     const outputsDir = path.join(runDir, 'outputs');
-    expect(readFileSync(path.join(runDir, 'provider.log'), 'utf8')).toBe(
+    expect(readdirSync(runDir)).not.toContain('provider.log');
+    expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
+    expect(readFileSync(path.join(runDir, 'transcript-raw.jsonl'), 'utf8')).toBe(
       '{"event":"provider-native"}\n',
     );
-    expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
     expect(readdirSync(runDir)).toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.json');

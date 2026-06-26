@@ -177,9 +177,11 @@ exports remain replayable. New eval run artifacts write the v1 shape.
 For eval run artifacts, `transcript.jsonl` is the portable message/event
 projection. AgentV does not persist a public `trace.json` run sidecar, and the
 transcript is not a provider-native session dump. Provider-native session or
-stream logs, when captured during an eval run, are separate raw evidence
-artifacts referenced by `raw_provider_log_path`; Agent Skills import, convert,
-transpile, and run paths do not require them.
+stream logs, when captured during a new eval run, are preserved in
+`transcript-raw.jsonl` and referenced by `transcript_raw_path`;
+`raw_provider_log_path` is a legacy/imported pointer when older bundles or
+external sources already provide one. Agent Skills import, convert, transpile,
+and run paths do not require those legacy log pointers.
 
 ## What Gets Parsed
 

@@ -1565,7 +1565,7 @@ describe('writeArtifactsFromResults', () => {
     });
   });
 
-  it('copies optional raw provider logs as raw transcript evidence', async () => {
+  it('writes optional raw provider logs only as raw transcript evidence', async () => {
     const rawLogPath = path.join(testDir, 'provider-source.log');
     const rawLog = [
       '# provider-native stream log',
@@ -1587,7 +1587,7 @@ describe('writeArtifactsFromResults', () => {
     await writeArtifactsFromResults(results, testDir);
 
     const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'run-1', 'provider.log');
-    expect(await readFile(copiedRawLogPath, 'utf8')).toBe(rawLog);
+    await expect(readFile(copiedRawLogPath, 'utf8')).rejects.toThrow();
 
     const transcriptPath = path.join(testDir, 'raw-log-case', 'run-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);

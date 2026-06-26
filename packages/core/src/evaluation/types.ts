@@ -1218,8 +1218,8 @@ export interface EvaluationResult {
   readonly trace: Trace;
   /**
    * Optional local provider-native session/stream log captured by a provider.
-   * Artifact writers copy this byte-for-byte into the run bundle as raw,
-   * non-canonical evidence and expose only the run-local pointer.
+   * Artifact writers copy this byte-for-byte into `transcript-raw.jsonl`
+   * as raw, non-canonical evidence.
    */
   readonly rawProviderLogPath?: string;
   /** Path to the temporary workspace directory (included on failure for debugging) */

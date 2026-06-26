@@ -842,10 +842,6 @@ async function writeTrialRunArtifacts(params: {
   if (answerOutputPath) {
     await writeFile(answerOutputPath, result.output, 'utf8');
   }
-  const rawProviderLogSource = rawProviderLogSourcePath(result);
-  if (rawProviderLogSource) {
-    await copyRawProviderLogArtifact(rawProviderLogSource, runDir);
-  }
   if (transcriptPath && transcriptRawPath) {
     await writeNormalizedTranscriptJsonl(transcriptPath, envelope);
     await writeRawTranscriptJsonl(transcriptRawPath, result, envelope);
@@ -1355,17 +1351,6 @@ function rawProviderLogSourcePath(result: EvaluationResult): string | undefined 
   return sourcePath ? sourcePath : undefined;
 }
 
-async function copyRawProviderLogArtifact(sourcePath: string, testDir: string): Promise<string> {
-  const destinationPath = path.join(testDir, 'provider.log');
-  if (path.resolve(sourcePath) === path.resolve(destinationPath)) {
-    return destinationPath;
-  }
-
-  await mkdir(path.dirname(destinationPath), { recursive: true });
-  await copyFile(sourcePath, destinationPath);
-  return destinationPath;
-}
-
 interface TraceEnvelopeSidecarParams {
   readonly result: EvaluationResult;
   readonly outputDir: string;
@@ -1388,7 +1373,6 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
       metrics_path: CANONICAL_METRICS_ARTIFACT_PATH,
-      raw_provider_log_path: rawProviderLogSourcePath(params.result) ? 'provider.log' : undefined,
     },
     duplicatePolicy: params.duplicatePolicy,
   });

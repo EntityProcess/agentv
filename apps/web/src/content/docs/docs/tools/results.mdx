@@ -166,7 +166,7 @@ Agent Skills eval artifacts map into AgentV like this:
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
-| Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `run-N/transcript.jsonl`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, `provider.log` when present |
+| Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `run-N/transcript.jsonl`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json` |
 | Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `run-N/timing.json` |
 | Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
