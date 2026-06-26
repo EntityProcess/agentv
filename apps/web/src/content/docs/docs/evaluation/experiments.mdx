@@ -6,9 +6,8 @@ sidebar:
 ---
 
 AgentV eval files are the only runnable authoring artifact. Use top-level
-`experiment:` inside `eval.yaml` for runtime choices: targets, workers, setup,
-scripts, timeout, sandbox/workspace runtime knobs, budgets, thresholds, and
-repeat-run policy.
+`experiment:` inside `eval.yaml` for runtime choices: targets, workers,
+timeout, sandbox/runtime knobs, budgets, thresholds, and repeat-run policy.
 
 ```yaml
 name: support-regression
@@ -21,10 +20,11 @@ experiment:
     count: 4
     strategy: pass_at_k
     cost_limit_usd: 2.00
-  setup:
-    - script: bun install
-  scripts:
-    - build
+
+workspace:
+  hooks:
+    before_all:
+      command: ["bash", "-lc", "bun install && bun run build"]
 
 tests:
   - id: refund-eligibility
@@ -142,8 +142,41 @@ tests:
 ```
 
 Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and
-`budget_usd`. Candidate-changing fields such as `target`, `targets`, setup
-scripts, and workspace mutation stay parent-level under `experiment:` for now.
+`budget_usd`. Candidate-changing fields such as `target` and `targets` stay
+parent-level under `experiment:`. Workspace mutation belongs in
+`workspace.hooks`, and runner-specific setup belongs in `targets[].hooks`.
+
+## Lifecycle Ownership
+
+`experiment:` configures evaluation policy. It does not own commands that
+prepare files, dependencies, repos, or target-specific runner state.
+
+| Need | Put it in |
+| --- | --- |
+| Install dependencies, build the repo, seed files | `workspace.hooks.before_all` |
+| Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
+| Configure an agent runner or provider variant | `targets[].hooks` |
+| Choose targets, repeats, pass policy, budget, threshold | `experiment` |
+
+```yaml
+workspace:
+  hooks:
+    before_all:
+      command: ["bash", "-lc", "bun install && bun run build"]
+
+targets:
+  - name: agent-with-skills
+    provider: codex
+    hooks:
+      before_each:
+        command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
+
+experiment:
+  target: agent-with-skills
+  repeat:
+    count: 3
+    strategy: pass_at_k
+```
 
 ## Repeat Runs
 
@@ -166,7 +199,8 @@ Supported strategies:
 | `mean` | Aggregates repeated attempt scores by mean |
 | `confidence_interval` | Uses the lower bound of a 95% confidence interval as the conservative score |
 
-AgentV also accepts Vercel-style `runs` and `early_exit` under `experiment:`:
+AgentV also accepts `runs` and `early_exit` under `experiment:` as shorthand for
+repeat-run policy:
 
 ```yaml
 experiment:

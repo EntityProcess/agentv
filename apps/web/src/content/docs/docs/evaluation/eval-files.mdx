@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, and inline runtime block for an evaluation run. Runtime choices such as target matrices, setup, scripts, and repeat runs belong under top-level [`experiment:`](/docs/evaluation/experiments/). AgentV supports two eval formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and inline runtime block for an evaluation run. Runtime choices such as target matrices, thresholds, budgets, and repeat runs belong under top-level [`experiment:`](/docs/evaluation/experiments/). Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 
@@ -40,7 +40,7 @@ tests:
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
-| `experiment` | Runtime config (`target`, `targets`, `workers`, `repeat`, `setup`, `scripts`, `threshold`, etc.) |
+| `experiment` | Runtime policy (`target`, `targets`, `workers`, `repeat`, `threshold`, `timeout_seconds`, `budget_usd`, etc.) |
 | `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `tests` | Array of individual tests, include entries, or a string path to an external file or directory. Tests and include entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
@@ -196,8 +196,8 @@ Per-test `input_files` overrides the suite-level value (it does not merge). To o
 
 ### PROMPT.md Fallback
 
-For Vercel-style eval directories, a test may omit `input` and keep the task
-prompt in Markdown instead. AgentV resolves the prompt in this order:
+For directory-style evals, a test may omit `input` and keep the task prompt in
+Markdown instead. AgentV resolves the prompt in this order:
 
 1. If the effective `input_files` contains a file named exactly `PROMPT.md`, that file becomes the test prompt.
 2. Otherwise, if a `PROMPT.md` exists beside the `EVAL.yaml`, that file becomes the test prompt.
