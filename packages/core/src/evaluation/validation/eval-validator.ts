@@ -459,17 +459,17 @@ async function validateCompositionDiagnostics(
   }
 
   const parentHasRuntime = parsed.experiment !== undefined || parsed.execution !== undefined;
-  const onlySuiteImports =
-    tests.length > 0 &&
-    tests.every((entry) => isObject(entry) && isIncludeEntry(entry) && entry.type === 'suite');
+  const hasSuiteImport = tests.some(
+    (entry) => isObject(entry) && isIncludeEntry(entry) && entry.type === 'suite',
+  );
 
-  if (parsed.workspace !== undefined && onlySuiteImports) {
+  if (parsed.workspace !== undefined && hasSuiteImport) {
     errors.push({
-      severity: 'warning',
+      severity: 'error',
       filePath,
       location: 'workspace',
       message:
-        'Parent workspace is not applied to type: suite imports. type: suite preserves each child workspace and test semantics; this wrapper has no parent-owned raw cases for the parent workspace to run. Move workspace into child suites, add parent-owned cases, or use type: tests when you intentionally want parent suite context.',
+        'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns runtime policy, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
     });
   }
 

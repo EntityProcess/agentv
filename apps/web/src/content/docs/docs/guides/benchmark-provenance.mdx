@@ -207,9 +207,10 @@ When one eval references another eval, preserve the task/runtime split:
 - The parent runnable eval owns runtime `experiment:` for the run.
 - Child `experiment:` blocks are ignored by `type: suite` composition. There is
   no fallback to the child `experiment:` when the parent has no `experiment:`.
-- Child `workspace` setup is preserved for `type: suite` imports. Parent
-  workspace applies to raw cases owned by the parent file, not to imported suite
-  tests.
+- Child `workspace` setup is preserved for `type: suite` imports. A parent eval
+  that imports any `type: suite` entry must not define top-level `workspace`.
+  Parent workspace context is for parent-owned raw cases, including raw cases
+  imported with `type: tests`.
 - A tests-only import can drop child workspace context only when the import mode
   says so explicitly.
 - Workspace path collisions or incompatible isolation settings should fail

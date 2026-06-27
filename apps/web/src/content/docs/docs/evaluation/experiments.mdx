@@ -103,13 +103,15 @@ tests:
 
 `type: suite` preserves the imported suite's task contract: metadata,
 `workspace`, shared `input`, shared `assertions`, and tests. The parent eval
-still owns the single run bundle. Runtime defaults from an imported suite apply
-only where they can be scoped to that suite's tests: `threshold`, `repeat` or
-`runs`, `timeout_seconds`, and `budget_usd`. If the parent eval supplies one of
-those defaults, the parent value wins for imported tests. Fields that cannot be
-scoped inside one parent run, such as `target`, `targets`, `workers`,
-`workspace`, `agent`, `model`, `agent_options`, and `sandbox`, must be supplied
-by the parent experiment when importing the suite.
+still owns the single run bundle and runtime policy. Child suite
+`experiment:` blocks are ignored when imported; use parent `experiment:` for
+run policy and `tests[].run` for scoped threshold, repeat, timeout, or budget
+overrides.
+
+A parent eval that imports any `type: suite` entry must not define top-level
+`workspace`. Imported suites own task environment. If the parent should provide
+workspace context, import raw cases with `type: tests` or shorthand paths
+instead of importing an eval suite.
 
 `type: tests` imports only raw test entries. It intentionally drops shared
 context from an imported eval suite, so parent suite fields apply to those raw
@@ -143,7 +145,7 @@ Use scoped `run:` blocks for result interpretation and scheduling policies that
 vary by include group or test case. Precedence is:
 
 ```text
-test.run > tests[].run > parent experiment > imported suite experiment defaults
+test.run > tests[].run > parent experiment
 ```
 
 ```yaml

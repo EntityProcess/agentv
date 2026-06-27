@@ -496,6 +496,7 @@ async function loadTestsFromParsedYamlValue(
       evalFileDir,
       repoRoot,
       suiteMetadataPayload,
+      parentHasWorkspace: suite.workspace !== undefined,
       options,
     });
     expandedTestCases = expanded.rawCases;
@@ -1154,6 +1155,7 @@ async function expandInlineTestEntries(params: {
   readonly evalFileDir: string;
   readonly repoRoot: URL | string;
   readonly suiteMetadataPayload?: Record<string, unknown>;
+  readonly parentHasWorkspace?: boolean;
   readonly options?: LoadOptions;
 }): Promise<ExpandedInlineTestEntries> {
   const withFileReferences = await expandFileReferences(params.entries, params.evalFileDir);
@@ -1179,6 +1181,11 @@ async function expandInlineTestEntries(params: {
 
     for (const resolvedPath of resolvedPaths) {
       if (mode === 'suite') {
+        if (params.parentHasWorkspace) {
+          throw new Error(
+            `Parent workspace is not allowed when importing eval suites with type: suite: ${includePath}. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.`,
+          );
+        }
         const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
           ...params.options,
           filter: select?.testIds,

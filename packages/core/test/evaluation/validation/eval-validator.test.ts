@@ -84,7 +84,7 @@ tests:
     expect(result.errors.some((error) => error.message.includes("Missing 'type'"))).toBe(true);
   });
 
-  it('warns when a parent workspace wraps only suite imports', async () => {
+  it('rejects parent workspace when importing suites', async () => {
     const childPath = path.join(tempDir, 'composition-child-workspace.eval.yaml');
     await writeFile(
       childPath,
@@ -109,13 +109,14 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
     expect(
       result.errors.some(
         (error) =>
-          error.severity === 'warning' &&
+          error.severity === 'error' &&
           error.location === 'workspace' &&
-          error.message.includes('type: suite preserves each child workspace'),
+          error.message.includes('Parent workspace is not allowed') &&
+          error.message.includes('type: suite'),
       ),
     ).toBe(true);
   });
@@ -174,7 +175,9 @@ tests:
     const filePath = path.join(tempDir, 'composition-parent-tests-import.eval.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `workspace:
+  path: ./parent-workspace
+tests:
   - include: composition-child-tests-import.eval.yaml
     type: tests
 `,

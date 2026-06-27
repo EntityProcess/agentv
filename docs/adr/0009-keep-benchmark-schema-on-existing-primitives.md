@@ -69,9 +69,11 @@ references child eval files with `type: suite`, the current loader ignores the
 child `experiment:` block and uses the parent `experiment:` when one exists; it
 does not fall back to the child `experiment:`. Workspace follows task ownership,
 not runtime fallback: imported child tests keep the child suite workspace that
-was already expanded into those tests, while the parent workspace applies to
-raw cases owned by the parent file. A "tests only" import mode may drop child
-workspace context, but that must be opt-in.
+was already expanded into those tests. Therefore a parent eval that imports any
+child eval with `type: suite` must not define top-level `workspace`. Parent
+workspace context is valid for parent-owned raw cases only, including raw cases
+imported with `type: tests` or shorthand paths. A "tests only" import mode may
+drop child workspace context, but that must be opt-in.
 
 ADR 0006 defines the contract-layer model behind this rule: task data, task
 prompt, task environment, and scoring come from the imported child suite; run
@@ -86,14 +88,17 @@ imported cases' validity.
 This decision creates follow-up behavior and docs beads:
 
 - `av-pkp` adds authoring diagnostics for misleading wrapper composition,
-  including parent workspace with only suite imports and ignored child
-  experiments.
-- `av-ha5` guards incompatible imported-suite shared workspace compositions so
-  one wrapper run cannot silently use the wrong shared workspace.
+  including forbidden parent workspace on suite-import wrappers and ignored
+  child experiments.
+- `av-ha5` rejects parent workspace on suite-import wrappers and guards
+  incompatible imported-suite shared workspace compositions so one wrapper run
+  cannot silently use the wrong shared workspace.
 - `av-82t` improves Dashboard/report display of the existing experiment
   namespace and derived runtime source without adding new authored primitives.
 - `av-58q` teaches the optional `evals/suites/` and `experiments/`
   wrapper-eval folder convention without making the path schema-significant.
+- `av-dxp` adds a regression eval for this architecture decision so future
+  agents do not recommend parent workspace on suite-import wrappers.
 
 ## Consequences
 
@@ -116,8 +121,9 @@ Negative:
 
 - AgentV still needs strong docs examples so authors do not invent competing
   provenance keys.
-- Import/composition behavior needs a focused follow-up if parent evals include
-  child evals with conflicting workspaces.
+- Import/composition behavior needs focused diagnostics because parent
+  `workspace` is invalid on suite-import wrappers and child suite workspaces
+  remain task-owned.
 - Some imported benchmark vocabulary such as SWE-bench `base_commit` must be
   translated at the adapter boundary.
 - Diagnostics are needed because the one-primitive model puts task suites and
@@ -136,6 +142,10 @@ Negative:
   checkout and works for branches, tags, SHAs, and non-SWE benchmarks.
 - **Drop child workspaces when importing child evals.** Rejected as a default.
   That turns valid imported cases into tests detached from their setup.
+- **Allow parent workspace on suite-import wrappers.** Rejected. It creates a
+  misleading merge/override question inside a one-primitive authoring model.
+  Parent evals that need workspace context should import raw cases with
+  `type: tests`; wrapper evals that import suites own runtime policy only.
 - **Copy benchmark-specific fields into AgentV.** Rejected. SWE-bench patches,
   Harbor task TOML, Margin suite config, promptfoo provider matrices, and
   Braintrust hosted experiment fields stay in adapters, fixtures, metadata, or

@@ -382,7 +382,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(identitySuite.tests[0]?.metadata?.tags).toEqual(['suite-identity']);
   });
 
-  it('type: suite preserves child suite context and lets parent experiment override child defaults', async () => {
+  it('type: suite preserves child suite context while parent experiment owns runtime', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -422,8 +422,6 @@ describe('eval.yaml inline experiment and tests imports', () => {
         '    strategy: pass_at_k',
         '  timeout_seconds: 30',
         '  budget_usd: 1.5',
-        'workspace:',
-        '  path: ./parent-workspace',
         'input: parent shared input',
         'assertions:',
         '  - type: contains',
@@ -450,6 +448,39 @@ describe('eval.yaml inline experiment and tests imports', () => {
     ]);
     expect(test.assertions?.[0]?.type).toBe('contains');
     expect(test.assertions?.[0]).toMatchObject({ value: 'child' });
+  });
+
+  it('rejects parent workspace when importing eval suites with type: suite', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'workspace:',
+        '  path: ./child-workspace',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'workspace:',
+        '  path: ./parent-workspace',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed/,
+    );
   });
 
   it('ignores imported child experiment defaults when parent has no experiment', async () => {
@@ -658,6 +689,8 @@ describe('eval.yaml inline experiment and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
+        'workspace:',
+        '  path: ./parent-workspace',
         'input: parent shared input',
         'assertions:',
         '  - type: contains',
@@ -677,6 +710,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       'parent shared input',
       'raw case input',
     ]);
+    expect(test.workspace?.path).toBe('./parent-workspace');
     expect(test.assertions?.[0]).toMatchObject({ type: 'contains', value: 'parent' });
   });
 });
