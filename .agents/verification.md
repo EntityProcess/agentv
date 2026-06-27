@@ -49,6 +49,13 @@ agentv-private:evidence/<bead-or-feature-slug>
 ```
 
 - Use the existing `agentv-private` checkout or remote when available; do not commit screenshot evidence to the public repo.
+- Evidence branches in `agentv-private` must be orphan/root-commit branches, not branches from `main`:
+
+```bash
+git switch --orphan evidence/<bead-or-feature-slug>
+git rm -rf . 2>/dev/null || true
+```
+
 - Include a short README or manifest on the evidence branch with the public PR link, source branch, capture date, and what each artifact shows.
 - Include the private evidence branch, commit, or PR link in the public PR description and tracker handoff.
 
@@ -126,12 +133,13 @@ Use live dogfood before marking PRs ready when they affect eval execution, exper
 
 - Live means both sides are real: a live agent/provider target and a live grader target. Do not count `mock`, `--dry-run`, or deterministic-only assertions as dogfood for these changes.
 - Prefer the smallest realistic eval: one or two cases, bounded timeouts, and `workers: 1` for heavyweight agent providers.
+- For artifact/result contract changes, prefer letting AgentV choose the canonical run directory and capture the printed `Artifact workspace written to:` and `Results written to:` paths for evidence. Do not precompute `--output` unless the test specifically needs a fixed path.
 - For native experiment changes, run through `agentv eval run ... --experiment <experiment.yaml|ts>` so resolution, setup, scripts, target selection, run knobs, and artifact metadata are exercised together.
 - For repeat-run changes, use an experiment-level repeat config with `count >= 2`, `early_exit: false` when validating all attempts are persisted. Inspect root `index.jsonl`, root `benchmark.json`, and the repeated case folder. The repeated case folder should carry aggregate `summary.json` with flattened snake_case timing fields plus AgentV aggregate `grading.json`; attempt-specific outputs, transcripts, and metrics live under `run-N/`. Each `run-N/` folder should contain `result.json`, `grading.json`, `metrics.json`, `transcript.jsonl`, `transcript-raw.jsonl`, and `outputs/answer.md` when answer output is available. `result.json` should point at `./grading.json`, `./metrics.json`, `./transcript.jsonl`, and `./transcript-raw.jsonl` through the corresponding path fields.
 - For local OpenAI-compatible grading through the OAuth proxy, use `endpoint: http://127.0.0.1:10531/v1`, but still route `api_key` and `model` through environment references such as `${{ LOCAL_OPENAI_PROXY_API_KEY }}` and `${{ LOCAL_OPENAI_PROXY_MODEL }}`. Literal secrets and literal model values are intentionally rejected by target validation unless a resolver explicitly allows them.
 - For `codex`/Codex SDK live dogfood through the same local proxy, configure the agent target with `provider: codex`, `base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}`, `api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}`, `model: ${{ LOCAL_OPENAI_PROXY_MODEL }}`, `api_format: responses`, `grader_target: <local-openai-grader>`, `workers: 1`, and a bounded `timeout_seconds`. Configure the grader target as `provider: openai`, `api_format: chat`, and the same local proxy env references. A minimal run should use `bun apps/cli/src/cli.ts eval run <eval.yaml> --targets <targets.yaml> --target <codex-target> --workers 1`.
 - If the local proxy returns `401 token_expired`, the blocker is stale Codex OAuth, not AgentV target configuration. Refresh from a trusted local terminal with `codex logout`, `codex login --device-auth`, then restart `openai-oauth` and rerun the same eval command.
-- Preserve review evidence in `agentv-private` on an `evidence/<bead-or-feature-slug>` branch. Include the run bundle, source eval/experiment/targets files, a short README, an artifact tree, and screenshots when folder structure or UI behavior is under review.
+- Preserve review evidence in `agentv-private` on an orphan `evidence/<bead-or-feature-slug>` branch. Include the run bundle, source eval/experiment/targets files, a short README, an artifact tree, contract checks, and screenshots when folder structure or UI behavior is under review.
 - If comparing against an external convention such as Vercel `agent-eval`, verify both semantic provenance and the physical `run-N` artifact layout for repeat runs.
 - For transcript/result artifact contract changes, try the same provider spread before merging: `pi-cli`, `codex-sdk`, and `copilot-sdk` through the local OpenAI-compatible endpoint when available. If a provider cannot run live, record the exact blocker, the run bundle or command output, and whether coverage moved to fixture/regression tests.
 - If dogfood or review changes the durable verification playbook, update this file or `AGENTS.md` in the same PR. Use `docs/solutions/` for longer reusable lessons rather than relying on PR comments or private evidence as the only source.
