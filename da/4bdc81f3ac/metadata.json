@@ -3,42 +3,21 @@
   "checkpoint_id": "da4bdc81f3ac",
   "strategy": "manual-commit",
   "branch": "fix/agentv-bench-cli-default",
-  "checkpoints_count": 44,
-  "files_touched": [
-    "skills-data/agentv-bench/SKILL.md",
-    "skills-data/agentv-bench/references/subagent-pipeline.md"
-  ],
+  "checkpoints_count": 42,
+  "files_touched": null,
   "sessions": [
     {
       "metadata": "/da/4bdc81f3ac/0/metadata.json",
       "transcript": "/da/4bdc81f3ac/0/full.jsonl",
       "content_hash": "/da/4bdc81f3ac/0/content_hash.txt",
       "prompt": "/da/4bdc81f3ac/0/prompt.txt"
-    },
-    {
-      "metadata": "/da/4bdc81f3ac/1/metadata.json",
-      "transcript": "/da/4bdc81f3ac/1/full.jsonl",
-      "content_hash": "/da/4bdc81f3ac/1/content_hash.txt",
-      "prompt": "/da/4bdc81f3ac/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5634453,
+    "input_tokens": 5138081,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 138152960,
-    "output_tokens": 353298,
-    "api_call_count": 1090
-  },
-  "combined_attribution": {
-    "calculated_at": "2026-06-27T03:32:53.085935526Z",
-    "agent_lines": 14,
-    "agent_removed": 13,
-    "human_added": 0,
-    "human_modified": 0,
-    "human_removed": 0,
-    "total_committed": 14,
-    "total_lines_changed": 27,
-    "agent_percentage": 100,
-    "metric_version": 2
+    "cache_read_tokens": 127772288,
+    "output_tokens": 328916,
+    "api_call_count": 1021
   }
 }
