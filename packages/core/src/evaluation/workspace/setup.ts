@@ -176,6 +176,99 @@ export function hooksEnabled(
   return workspace?.hooks?.enabled !== false;
 }
 
+function workspaceNeedsSharedSetup(
+  workspace: WorkspaceConfig | undefined,
+): workspace is WorkspaceConfig {
+  if (!workspace || workspace.isolation === 'per_test') {
+    return false;
+  }
+  return !!(
+    workspace.path ||
+    workspace.mode === 'static' ||
+    workspace.template ||
+    workspace.hooks ||
+    workspace.repos?.length
+  );
+}
+
+function stableWorkspaceValue(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
+  }
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableWorkspaceValue).join(',')}]`;
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entryValue]) => entryValue !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right));
+  return `{${entries
+    .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableWorkspaceValue(entryValue)}`)
+    .join(',')}}`;
+}
+
+function describeWorkspaceOwner(evalCase: EvalTest): string {
+  const source = evalCase.source;
+  if (source?.importedSuiteName) {
+    return `imported suite "${source.importedSuiteName}" (${source.evalFileAbsolutePath})`;
+  }
+  if (source?.evalFileAbsolutePath) {
+    return `parent-owned cases (${source.evalFileAbsolutePath})`;
+  }
+  return 'programmatic cases';
+}
+
+function sharedWorkspaceOwnerKey(evalCase: EvalTest): string {
+  const source = evalCase.source;
+  const sourceKey = source?.importedSuiteName
+    ? `imported:${source.evalFileAbsolutePath}:${source.importedSuiteName}`
+    : source?.evalFileAbsolutePath
+      ? `parent:${source.evalFileAbsolutePath}`
+      : 'programmatic';
+  return `${sourceKey}:${stableWorkspaceValue(evalCase.workspace)}`;
+}
+
+function selectSuiteWorkspace(evalCases: readonly EvalTest[]): WorkspaceConfig | undefined {
+  const candidates = new Map<
+    string,
+    { readonly workspace: WorkspaceConfig; readonly owner: string; readonly testIds: string[] }
+  >();
+
+  for (const evalCase of evalCases) {
+    if (!workspaceNeedsSharedSetup(evalCase.workspace)) {
+      continue;
+    }
+    const key = sharedWorkspaceOwnerKey(evalCase);
+    const existing = candidates.get(key);
+    if (existing) {
+      existing.testIds.push(evalCase.id);
+      continue;
+    }
+    candidates.set(key, {
+      workspace: evalCase.workspace,
+      owner: describeWorkspaceOwner(evalCase),
+      testIds: [evalCase.id],
+    });
+  }
+
+  if (candidates.size <= 1) {
+    return [...candidates.values()][0]?.workspace;
+  }
+
+  const owners = [...candidates.values()]
+    .map((candidate) => `${candidate.owner} for tests ${candidate.testIds.join(', ')}`)
+    .join('; ');
+  throw new WorkspaceSetupError(
+    `Wrapper eval contains multiple shared workspace owners: ${owners}. AgentV does not merge parent and child workspaces or run separate imported-suite shared workspaces in one wrapper execution. Use isolation: per_test for imported suites, split them into separate runs, or keep only one shared workspace owner.`,
+    {
+      failureStage: 'setup',
+      failureReasonCode: 'ambiguous_shared_workspace',
+    },
+  );
+}
+
 function workspaceGitEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
@@ -279,7 +372,7 @@ export async function prepareSharedWorkspaceSetup(
     workspaceMode,
     workspaceClean,
   } = options;
-  const suiteWorkspace = evalCases[0]?.workspace;
+  const suiteWorkspace = selectSuiteWorkspace(evalCases);
   const rawTemplate = suiteWorkspace?.template;
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
@@ -812,10 +905,13 @@ export async function prepareEvalCaseWorkspace(
     setupDebug,
   } = options;
 
-  let workspacePath: string | undefined = sharedWorkspacePath;
+  let workspacePath: string | undefined =
+    evalCase.workspace?.isolation === 'per_test' ? undefined : sharedWorkspacePath;
+  const inheritedSuiteWorkspaceFile =
+    evalCase.workspace?.isolation === 'per_test' ? undefined : suiteWorkspaceFile;
   let beforeAllOutput: string | undefined;
   let beforeEachOutput: string | undefined;
-  const isSharedWorkspace = !!sharedWorkspacePath;
+  const isSharedWorkspace = !!workspacePath;
   let caseWorkspaceFile: string | undefined;
   const caseHooksEnabled = hooksEnabled(evalCase.workspace);
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
@@ -1119,7 +1215,7 @@ export async function prepareEvalCaseWorkspace(
 
   return {
     ...(workspacePath !== undefined && { workspacePath }),
-    caseWorkspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+    caseWorkspaceFile: caseWorkspaceFile ?? inheritedSuiteWorkspaceFile,
     ...(beforeAllOutput !== undefined && { beforeAllOutput }),
     ...(beforeEachOutput !== undefined && { beforeEachOutput }),
     ...(baselineCommit !== undefined && { baselineCommit }),

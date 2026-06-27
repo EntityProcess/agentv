@@ -1180,12 +1180,19 @@ export async function runEvaluation(
         });
       }
 
-      // Multi-slot pool: each test grabs its own pool slot
-      const testPoolSlot = availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
-      const testWorkspacePath = testPoolSlot?.path ?? sharedWorkspacePath;
-      const testBaselineCommit = testPoolSlot
-        ? poolSlotBaselines.get(testPoolSlot.path)
-        : sharedBaselineCommit;
+      // Multi-slot pool: each shared-workspace test grabs its own pool slot.
+      // Per-test isolated cases prepare their own workspace in prepareEvalCaseWorkspace().
+      const usesSharedWorkspace = evalCase.workspace?.isolation !== 'per_test';
+      const testPoolSlot =
+        usesSharedWorkspace && availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
+      const testWorkspacePath = usesSharedWorkspace
+        ? (testPoolSlot?.path ?? sharedWorkspacePath)
+        : undefined;
+      const testBaselineCommit = usesSharedWorkspace
+        ? testPoolSlot
+          ? poolSlotBaselines.get(testPoolSlot.path)
+          : sharedBaselineCommit
+        : undefined;
 
       try {
         const graderProvider = await resolveGraderProvider(target);

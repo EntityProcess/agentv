@@ -38,6 +38,40 @@ function createTestRepo(dir: string, files: Record<string, string>): string {
   return execSync('git rev-parse HEAD', { cwd: dir, env: cleanGitEnv() }).toString().trim();
 }
 
+function testCase(
+  id: string,
+  workspace: EvalTest['workspace'],
+  source?: {
+    readonly evalFileAbsolutePath: string;
+    readonly importedSuiteName?: string;
+  },
+): EvalTest {
+  return {
+    id,
+    question: 'test',
+    criteria: 'ok',
+    input: [{ role: 'user', content: 'test' }],
+    expected_output: [],
+    file_paths: [],
+    workspace,
+    ...(source
+      ? {
+          source: {
+            evalFilePath: source.evalFileAbsolutePath,
+            evalFileAbsolutePath: source.evalFileAbsolutePath,
+            testId: id,
+            testSnapshotYaml: `id: ${id}`,
+            graderDefinitions: [],
+            references: [],
+            ...(source.importedSuiteName !== undefined && {
+              importedSuiteName: source.importedSuiteName,
+            }),
+          },
+        }
+      : {}),
+  };
+}
+
 describe('prepareSharedWorkspaceSetup', () => {
   let tmpDir: string;
   let savedAgentvHome: string | undefined;
@@ -148,5 +182,134 @@ describe('prepareSharedWorkspaceSetup', () => {
       'already prepared\n',
     );
     expect(existsSync(path.join(existingWorkspace, 'repo-a'))).toBe(false);
+  });
+
+  it('rejects multiple imported suites with shared workspaces before setup', async () => {
+    const evalCases = [
+      testCase(
+        'a',
+        { template: path.join(tmpDir, 'missing-a') },
+        {
+          evalFileAbsolutePath: path.join(tmpDir, 'child-a.eval.yaml'),
+          importedSuiteName: 'child-a',
+        },
+      ),
+      testCase(
+        'b',
+        { template: path.join(tmpDir, 'missing-b') },
+        {
+          evalFileAbsolutePath: path.join(tmpDir, 'child-b.eval.yaml'),
+          importedSuiteName: 'child-b',
+        },
+      ),
+    ];
+
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-multiple-imported-suite-shared-workspaces',
+        evalCases,
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(/multiple shared workspace owners/);
+  });
+
+  it('allows per-test isolated imported suites without shared setup', async () => {
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-per-test-imported-suites',
+      evalCases: [
+        testCase(
+          'a',
+          { isolation: 'per_test', template: path.join(tmpDir, 'missing-a') },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'child-a.eval.yaml'),
+            importedSuiteName: 'child-a',
+          },
+        ),
+        testCase(
+          'b',
+          { isolation: 'per_test', template: path.join(tmpDir, 'missing-b') },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'child-b.eval.yaml'),
+            importedSuiteName: 'child-b',
+          },
+        ),
+      ],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBeUndefined();
+    expect(setup.suiteWorkspace).toBeUndefined();
+  });
+
+  it('rejects mixed imported-suite and parent-owned shared workspaces', async () => {
+    const parentTemplate = path.join(tmpDir, 'parent-template');
+    const childTemplate = path.join(tmpDir, 'child-template');
+    mkdirSync(parentTemplate, { recursive: true });
+    mkdirSync(childTemplate, { recursive: true });
+
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-parent-and-imported-shared-workspaces',
+        evalCases: [
+          testCase(
+            'child-case',
+            { template: childTemplate },
+            {
+              evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
+              importedSuiteName: 'child',
+            },
+          ),
+          testCase(
+            'parent-case',
+            { template: parentTemplate },
+            {
+              evalFileAbsolutePath: path.join(tmpDir, 'parent.eval.yaml'),
+            },
+          ),
+        ],
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(/does not merge parent and child workspaces/);
+  });
+
+  it('keeps imported per-test workspaces allowed beside parent-owned raw cases', async () => {
+    const parentTemplate = path.join(tmpDir, 'parent-template');
+    mkdirSync(parentTemplate, { recursive: true });
+    writeFileSync(path.join(parentTemplate, 'parent-marker.txt'), 'parent\n', 'utf8');
+
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-parent-shared-imported-per-test',
+      evalCases: [
+        testCase(
+          'child-case',
+          { isolation: 'per_test', template: path.join(tmpDir, 'child-template') },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
+            importedSuiteName: 'child',
+          },
+        ),
+        testCase(
+          'parent-case',
+          { template: parentTemplate },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'parent.eval.yaml'),
+          },
+        ),
+      ],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBeDefined();
+    expect(setup.suiteWorkspace?.template).toBe(parentTemplate);
+    if (!setup.sharedWorkspacePath) {
+      throw new Error('Expected parent-owned shared workspace');
+    }
+    expect(readFileSync(path.join(setup.sharedWorkspacePath, 'parent-marker.txt'), 'utf8')).toBe(
+      'parent\n',
+    );
   });
 });

@@ -437,6 +437,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   }
 
   await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+  await validateCompositionDiagnostics(absolutePath, parsed, errors);
   await validateSuiteImportCycles(absolutePath, parsed, errors);
 
   return {
@@ -445,6 +446,94 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     fileType: 'eval',
     errors,
   };
+}
+
+async function validateCompositionDiagnostics(
+  filePath: string,
+  parsed: JsonObject,
+  errors: ValidationError[],
+): Promise<void> {
+  const tests = parsed.tests;
+  if (!Array.isArray(tests)) {
+    return;
+  }
+
+  const parentHasRuntime = parsed.experiment !== undefined || parsed.execution !== undefined;
+  const onlySuiteImports =
+    tests.length > 0 &&
+    tests.every((entry) => isObject(entry) && isIncludeEntry(entry) && entry.type === 'suite');
+
+  if (parsed.workspace !== undefined && onlySuiteImports) {
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: 'workspace',
+      message:
+        'Parent workspace is not applied to type: suite imports. type: suite preserves each child workspace and test semantics; this wrapper has no parent-owned raw cases for the parent workspace to run. Move workspace into child suites, add parent-owned cases, or use type: tests when you intentionally want parent suite context.',
+    });
+  }
+
+  for (let i = 0; i < tests.length; i++) {
+    const entry = tests[i];
+    if (!isObject(entry) || !isIncludeEntry(entry)) {
+      continue;
+    }
+
+    const includePath = entry.include.trim();
+    const location = `tests[${i}].include`;
+    const resolvedSuites = await resolveSuiteIncludePaths(includePath, path.dirname(filePath));
+
+    if (entry.type === 'suite') {
+      for (const resolvedSuite of resolvedSuites) {
+        const childParsed = await readImportedSuite(resolvedSuite.filePath);
+        if (!childParsed) {
+          continue;
+        }
+        const runtimeField =
+          childParsed.experiment !== undefined
+            ? 'experiment'
+            : childParsed.execution !== undefined
+              ? 'legacy execution'
+              : undefined;
+        if (!runtimeField) {
+          continue;
+        }
+
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location,
+          message: parentHasRuntime
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for type: suite imports. The parent experiment owns wrapper runtime; move runtime settings to the parent experiment or use tests[].run for per-case thresholds, repeats, timeouts, and budgets.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for type: suite imports. The parent experiment owns wrapper runtime, and this parent has no experiment, so no child runtime settings are applied. Add a parent experiment or use tests[].run for per-case thresholds, repeats, timeouts, and budgets.`,
+        });
+      }
+      continue;
+    }
+
+    if (entry.type === 'tests') {
+      for (const resolvedSuite of resolvedSuites) {
+        if (!/\.eval\.ya?ml$/i.test(resolvedSuite.filePath)) {
+          continue;
+        }
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location,
+          message: `type: tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, and experiment. Parent suite context applies. Use type: suite to preserve child test and workspace semantics.`,
+        });
+      }
+    }
+  }
+}
+
+async function readImportedSuite(filePath: string): Promise<JsonObject | undefined> {
+  try {
+    const parsed = interpolateEnv(parseYamlValue(await readFile(filePath, 'utf8')), process.env);
+    return isObject(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function validateIncludeEntry(
