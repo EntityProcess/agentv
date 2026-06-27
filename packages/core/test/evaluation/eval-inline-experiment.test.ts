@@ -382,13 +382,19 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(identitySuite.tests[0]?.metadata?.tags).toEqual(['suite-identity']);
   });
 
-  it('type: suite preserves child suite context and ignores child runtime config', async () => {
+  it('type: suite preserves child suite context and lets parent experiment override child defaults', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
         'experiment:',
         '  target: child-target',
+        '  workers: 1',
+        '  threshold: 0.2',
+        '  repeat:',
+        '    count: 5',
+        '  timeout_seconds: 10',
+        '  budget_usd: 0.5',
         'workspace:',
         '  path: ./child-workspace',
         'input: child shared input',
@@ -409,6 +415,13 @@ describe('eval.yaml inline experiment and tests imports', () => {
         'name: parent-suite',
         'experiment:',
         '  target: parent-target',
+        '  workers: 2',
+        '  threshold: 0.8',
+        '  repeat:',
+        '    count: 3',
+        '    strategy: pass_at_k',
+        '  timeout_seconds: 30',
+        '  budget_usd: 1.5',
         'workspace:',
         '  path: ./parent-workspace',
         'input: parent shared input',
@@ -426,6 +439,9 @@ describe('eval.yaml inline experiment and tests imports', () => {
     const test = suite.tests[0];
 
     expect(suite.experimentConfig?.target).toBe('parent-target');
+    expect(suite.experimentConfig?.threshold).toBe(0.8);
+    expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_at_k' });
+    expect(test.run).toBeUndefined();
     expect(test.suite).toBe('child-suite');
     expect(test.workspace?.path).toBe('./child-workspace');
     expect(test.input.map((message) => message.content)).toEqual([
@@ -436,7 +452,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(test.assertions?.[0]).toMatchObject({ value: 'child' });
   });
 
-  it('applies scoped run overrides with test.run taking precedence over tests[].run', async () => {
+  it('applies imported child experiment defaults when parent has no experiment', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -445,6 +461,91 @@ describe('eval.yaml inline experiment and tests imports', () => {
         '  threshold: 0.2',
         '  repeat:',
         '    count: 5',
+        '    strategy: mean',
+        '  timeout_seconds: 10',
+        '  budget_usd: 0.5',
+        'tests:',
+        '  - id: child-default',
+        '    input: default',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      ['name: parent-suite', 'tests:', '  - include: child.eval.yaml', '    type: suite', ''].join(
+        '\n',
+      ),
+    );
+
+    const suite = await loadTestSuite(parentPath, tempDir);
+
+    expect(suite.experimentConfig).toBeUndefined();
+    expect(suite.tests[0]?.run).toMatchObject({
+      threshold: 0.2,
+      repeat: { count: 5, strategy: 'mean' },
+      timeoutSeconds: 10,
+      budgetUsd: 0.5,
+    });
+  });
+
+  it('applies include-level run overrides over imported child experiment defaults', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'experiment:',
+        '  threshold: 0.2',
+        '  repeat:',
+        '    count: 5',
+        '    strategy: mean',
+        '  timeout_seconds: 10',
+        '  budget_usd: 0.5',
+        'tests:',
+        '  - id: child-default',
+        '    input: default',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '    run:',
+        '      threshold: 0.9',
+        '      timeout_seconds: 30',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(parentPath, tempDir);
+
+    expect(suite.tests[0]?.run).toMatchObject({
+      threshold: 0.9,
+      repeat: { count: 5, strategy: 'mean' },
+      timeoutSeconds: 30,
+      budgetUsd: 0.5,
+    });
+  });
+
+  it('applies test.run over include-level and imported child experiment defaults', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'experiment:',
+        '  threshold: 0.2',
+        '  repeat:',
+        '    count: 5',
+        '    strategy: mean',
+        '  timeout_seconds: 10',
+        '  budget_usd: 0.5',
         'tests:',
         '  - id: child-default',
         '    input: default',
@@ -464,11 +565,6 @@ describe('eval.yaml inline experiment and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'experiment:',
-        '  threshold: 0.8',
-        '  repeat:',
-        '    count: 3',
-        '    strategy: pass_at_k',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: suite',
@@ -486,8 +582,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     const suite = await loadTestSuite(parentPath, tempDir);
     const byId = new Map(suite.tests.map((test) => [test.id, test]));
 
-    expect(suite.experimentConfig?.threshold).toBe(0.8);
-    expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_at_k' });
+    expect(suite.experimentConfig).toBeUndefined();
     expect(byId.get('child-default')?.run).toMatchObject({
       threshold: 0.9,
       repeat: { count: 2, strategy: 'pass_all' },
@@ -501,6 +596,50 @@ describe('eval.yaml inline experiment and tests imports', () => {
       budgetUsd: 1.25,
     });
     expect(byId.get('child-critical')?.threshold).toBe(1.0);
+  });
+
+  it('rejects imported child experiment fields that cannot be scoped without a parent override', async () => {
+    await writeFile(
+      path.join(tempDir, 'child-a.eval.yaml'),
+      [
+        'name: child-a',
+        'experiment:',
+        '  workers: 2',
+        'tests:',
+        '  - id: a',
+        '    input: a',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(
+      path.join(tempDir, 'child-b.eval.yaml'),
+      [
+        'name: child-b',
+        'experiment:',
+        '  workers: 4',
+        'tests:',
+        '  - id: b',
+        '    input: b',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'tests:',
+        '  - include: child-*.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /experiment\.workers.*cannot be scoped per imported suite/,
+    );
   });
 
   it('type: tests imports only raw cases and applies parent suite context', async () => {

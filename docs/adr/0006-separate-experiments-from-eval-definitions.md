@@ -187,9 +187,14 @@ Imported tests run in deterministic order: resolved path first, then the test
 order inside each resolved source.
 
 `type: suite` preserves the imported suite task contract. That includes suite
-metadata, `workspace`, shared `input`, shared `assertions`, and tests. The child
-suite's `experiment:` block, or legacy `execution:` block, is ignored and
-replaced by the parent eval's `experiment:` block.
+metadata, `workspace`, shared `input`, shared `assertions`, and tests. The
+parent eval still owns one run bundle. Child suite `experiment:` defaults apply
+to imported tests only when the field can be scoped per test:
+`threshold`, `repeat` or `runs`, `timeout_seconds`, and `budget_usd`.
+Where the parent eval supplies one of those defaults, the parent value wins.
+Fields that cannot vary per imported suite inside one parent run, such as
+`target`, `targets`, `workers`, `workspace`, `agent`, `model`, `agent_options`,
+and `sandbox`, must be supplied by the parent experiment for imported suites.
 
 `type: tests` imports only raw test entries. It intentionally drops shared
 suite context such as workspace, shared input, and shared assertions. Use this
@@ -234,7 +239,7 @@ policy without creating separate experiment files.
 Runtime override precedence is:
 
 ```text
-test.run > tests[].run > experiment
+test.run > tests[].run > parent experiment > imported suite experiment defaults
 ```
 
 Group-level overrides live beside `include`, `type`, and `select`:
@@ -299,14 +304,16 @@ When a wrapper eval imports it with `type: suite`, AgentV must preserve its
 shared `workspace`, `input`, and `assertions` because those fields are part of
 the task contract. Its `execution` block is the legacy spelling for child
 runtime configuration. Under this decision, the child runtime block is treated
-as child `experiment`/legacy `execution` and ignored in favor of the parent
-wrapper eval's `experiment:`.
+as child `experiment`/legacy `execution`: scoped defaults such as threshold,
+repeat policy, timeout, and budget can follow the imported tests, while
+candidate-changing fields must be supplied by the parent wrapper eval's
+`experiment:`.
 
 This is the motivating distinction:
 
 - task context from imported suites is preserved;
-- child runtime policy from imported suites is replaced by the parent runtime
-  policy;
+- child runtime policy from imported suites contributes scoped defaults only
+  where a parent runtime policy does not override them;
 - raw-case imports do not inherit suite context.
 
 ## Result Layout

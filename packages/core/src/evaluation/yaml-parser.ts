@@ -104,6 +104,8 @@ type LoadOptions = {
   readonly category?: string;
   /** Internal DFS stack for detecting circular `type: suite` imports. */
   readonly suiteImportStack?: readonly SuiteImportStackEntry[];
+  /** Internal runtime defaults supplied by an eval that imports this suite. */
+  readonly importParentExperimentConfig?: ExperimentConfig;
 };
 
 type SuiteImportStackEntry = {
@@ -469,6 +471,11 @@ async function loadTestsFromParsedYamlValue(
     suiteNameFromFile && suiteNameFromFile.length > 0 ? suiteNameFromFile : fallbackSuiteName;
 
   const rawTestCases = resolveTests(suite);
+  const suiteExperimentConfig = normalizeSuiteExperimentConfig(suite);
+  const importContextExperimentConfig = mergeExperimentParentDefaults(
+    options?.importParentExperimentConfig,
+    suiteExperimentConfig,
+  );
   // Top-level `metadata:` is inherited by cases. Suite identity tags are parsed
   // separately by parseMetadata() and are not case tags.
   const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
@@ -495,6 +502,7 @@ async function loadTestsFromParsedYamlValue(
       evalFileDir,
       repoRoot,
       suiteMetadataPayload,
+      parentExperimentConfig: importContextExperimentConfig,
       options,
     });
     expandedTestCases = expanded.rawCases;
@@ -891,8 +899,12 @@ function mergeRunOverrides(
   };
 }
 
-function applyRunOverrideToTest(test: EvalTest, includeRun: EvalRunOverride | undefined): EvalTest {
-  const run = mergeRunOverrides(includeRun, test.run);
+function applyRunDefaultsToImportedTest(
+  test: EvalTest,
+  childExperimentRun: EvalRunOverride | undefined,
+  includeRun: EvalRunOverride | undefined,
+): EvalTest {
+  const run = mergeRunOverrides(mergeRunOverrides(childExperimentRun, includeRun), test.run);
   if (!run) {
     return test;
   }
@@ -900,6 +912,157 @@ function applyRunOverrideToTest(test: EvalTest, includeRun: EvalRunOverride | un
     ...test,
     run,
   };
+}
+
+function experimentProvidesTarget(config: ExperimentConfig | undefined): boolean {
+  return config?.target !== undefined || config?.targets !== undefined;
+}
+
+function experimentProvidesRepeat(config: ExperimentConfig | undefined): boolean {
+  return config?.repeat !== undefined || config?.runs !== undefined;
+}
+
+function mergeExperimentParentDefaults(
+  parent: ExperimentConfig | undefined,
+  child: ExperimentConfig | undefined,
+): ExperimentConfig | undefined {
+  if (!parent) {
+    return child;
+  }
+  if (!child) {
+    return parent;
+  }
+  return {
+    ...child,
+    ...parent,
+    ...(experimentProvidesRepeat(parent)
+      ? {
+          ...(parent.repeat !== undefined && { repeat: parent.repeat }),
+          ...(parent.runs !== undefined && { runs: parent.runs }),
+        }
+      : {
+          ...(child.repeat !== undefined && { repeat: child.repeat }),
+          ...(child.runs !== undefined && { runs: child.runs }),
+        }),
+  };
+}
+
+function buildExperimentRunDefaults(
+  config: ExperimentConfig | undefined,
+): EvalRunOverride | undefined {
+  if (!config) {
+    return undefined;
+  }
+  const repeat = config.repeat
+    ? {
+        count: config.repeat.count,
+        strategy: config.repeat.strategy,
+        ...(config.repeat.costLimitUsd !== undefined && {
+          costLimitUsd: config.repeat.costLimitUsd,
+        }),
+        ...(config.earlyExit !== undefined && { earlyExit: config.earlyExit }),
+      }
+    : config.runs !== undefined
+      ? {
+          count: config.runs,
+          strategy: 'pass_at_k' as const,
+          ...(config.earlyExit !== undefined && { earlyExit: config.earlyExit }),
+        }
+      : undefined;
+  const run = {
+    ...(config.threshold !== undefined && { threshold: config.threshold }),
+    ...(repeat !== undefined && { repeat }),
+    ...(config.timeoutSeconds !== undefined && { timeoutSeconds: config.timeoutSeconds }),
+    ...(config.budgetUsd !== undefined && { budgetUsd: config.budgetUsd }),
+  } satisfies EvalRunOverride;
+  return Object.keys(run).length > 0 ? run : undefined;
+}
+
+function buildImportedExperimentRunDefaults(
+  child: ExperimentConfig | undefined,
+  parent: ExperimentConfig | undefined,
+): EvalRunOverride | undefined {
+  const childRun = buildExperimentRunDefaults(child);
+  if (!childRun) {
+    return undefined;
+  }
+  const run = {
+    ...(parent?.threshold === undefined &&
+      childRun.threshold !== undefined && { threshold: childRun.threshold }),
+    ...(!experimentProvidesRepeat(parent) && childRun.repeat !== undefined
+      ? { repeat: childRun.repeat }
+      : {}),
+    ...(parent?.timeoutSeconds === undefined &&
+      childRun.timeoutSeconds !== undefined && { timeoutSeconds: childRun.timeoutSeconds }),
+    ...(parent?.budgetUsd === undefined &&
+      childRun.budgetUsd !== undefined && { budgetUsd: childRun.budgetUsd }),
+  } satisfies EvalRunOverride;
+  return Object.keys(run).length > 0 ? run : undefined;
+}
+
+type ImportedExperimentFieldRule = {
+  readonly field: string;
+  readonly childHasField: (config: ExperimentConfig) => boolean;
+  readonly parentHasOverride: (config: ExperimentConfig | undefined) => boolean;
+};
+
+const UNSCOPED_IMPORTED_EXPERIMENT_FIELDS: readonly ImportedExperimentFieldRule[] = [
+  {
+    field: 'target',
+    childHasField: (config) => experimentProvidesTarget(config),
+    parentHasOverride: experimentProvidesTarget,
+  },
+  {
+    field: 'agent',
+    childHasField: (config) => config.agent !== undefined,
+    parentHasOverride: (config) => config?.agent !== undefined,
+  },
+  {
+    field: 'model',
+    childHasField: (config) => config.model !== undefined,
+    parentHasOverride: (config) => config?.model !== undefined,
+  },
+  {
+    field: 'agent_options',
+    childHasField: (config) => config.agentOptions !== undefined,
+    parentHasOverride: (config) => config?.agentOptions !== undefined,
+  },
+  {
+    field: 'workers',
+    childHasField: (config) => config.workers !== undefined,
+    parentHasOverride: (config) => config?.workers !== undefined,
+  },
+  {
+    field: 'sandbox',
+    childHasField: (config) => config.sandbox !== undefined,
+    parentHasOverride: (config) => config?.sandbox !== undefined,
+  },
+  {
+    field: 'workspace',
+    childHasField: (config) => config.workspace !== undefined,
+    parentHasOverride: (config) => config?.workspace !== undefined,
+  },
+];
+
+function assertImportedExperimentCanCompose(
+  child: ExperimentConfig | undefined,
+  parent: ExperimentConfig | undefined,
+  importPath: string,
+): void {
+  if (!child) {
+    return;
+  }
+  const unsupported = UNSCOPED_IMPORTED_EXPERIMENT_FIELDS.filter(
+    (rule) => rule.childHasField(child) && !rule.parentHasOverride(parent),
+  ).map((rule) => `experiment.${rule.field}`);
+  if (unsupported.length === 0) {
+    return;
+  }
+  throw new Error(
+    `Imported eval suite '${displayEvalImportPath(importPath)}' defines ${unsupported.join(
+      ', ',
+    )}, which cannot be scoped per imported suite. Set these fields in the parent experiment when importing this suite.`,
+  );
 }
 
 function markSuiteImportedTest(test: EvalTest): EvalTest {
@@ -1150,6 +1313,7 @@ async function expandInlineTestEntries(params: {
   readonly evalFileDir: string;
   readonly repoRoot: URL | string;
   readonly suiteMetadataPayload?: Record<string, unknown>;
+  readonly parentExperimentConfig?: ExperimentConfig;
   readonly options?: LoadOptions;
 }): Promise<ExpandedInlineTestEntries> {
   const withFileReferences = await expandFileReferences(params.entries, params.evalFileDir);
@@ -1178,7 +1342,17 @@ async function expandInlineTestEntries(params: {
         const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
           ...params.options,
           filter: select?.testIds,
+          importParentExperimentConfig: params.parentExperimentConfig,
         });
+        assertImportedExperimentCanCompose(
+          suite.experimentConfig,
+          params.parentExperimentConfig,
+          resolvedPath,
+        );
+        const childExperimentRun = buildImportedExperimentRunDefaults(
+          suite.experimentConfig,
+          params.parentExperimentConfig,
+        );
         const selectedTests = params.options?.filter
           ? suite.tests.filter((test) => matchesFilter(test.id, params.options?.filter ?? ''))
           : suite.tests;
@@ -1186,7 +1360,7 @@ async function expandInlineTestEntries(params: {
           ...selectedTests
             .filter((test) => evalTestMatchesSelect(test, select))
             .map(markSuiteImportedTest)
-            .map((test) => applyRunOverrideToTest(test, includeRun)),
+            .map((test) => applyRunDefaultsToImportedTest(test, childExperimentRun, includeRun)),
         );
       } else {
         const importedCases = await loadRawCasesForInclude(resolvedPath);
