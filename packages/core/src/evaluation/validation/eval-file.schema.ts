@@ -407,7 +407,7 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   timeout_seconds: z.number().gt(0).optional(),
   budget_usd: z.number().gt(0).optional(),
   sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
-  workspace: JsonObjectSchema.optional(),
+  workspace: WorkspaceSchema.optional(),
   setup: z.never().optional(),
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
   message: 'Use repeat or runs, not both.',

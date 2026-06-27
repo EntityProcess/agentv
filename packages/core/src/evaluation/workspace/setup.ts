@@ -105,6 +105,8 @@ export interface SharedWorkspaceSetupOptions {
 
 export interface SharedWorkspaceSetup {
   readonly suiteWorkspace?: WorkspaceConfig;
+  readonly sharedWorkspaceOwnerKey?: string;
+  readonly sharedWorkspaceAppliesToAllCases: boolean;
   readonly sharedWorkspacePath?: string;
   readonly sharedBaselineCommit?: string;
   readonly suiteWorkspaceFile?: string;
@@ -182,6 +184,23 @@ export function isPerCaseIsolation(
   return workspace?.isolation === 'per_case';
 }
 
+export function caseUsesSharedWorkspaceSetup(
+  evalCase: EvalTest,
+  setup: Pick<SharedWorkspaceSetup, 'sharedWorkspaceAppliesToAllCases' | 'sharedWorkspaceOwnerKey'>,
+): boolean {
+  if (isPerCaseIsolation(evalCase.workspace)) {
+    return false;
+  }
+  if (setup.sharedWorkspaceAppliesToAllCases) {
+    return true;
+  }
+  return (
+    setup.sharedWorkspaceOwnerKey !== undefined &&
+    workspaceNeedsSharedSetup(evalCase.workspace) &&
+    sharedWorkspaceOwnerKey(evalCase) === setup.sharedWorkspaceOwnerKey
+  );
+}
+
 function workspaceNeedsSharedSetup(
   workspace: WorkspaceConfig | undefined,
 ): workspace is WorkspaceConfig {
@@ -236,7 +255,12 @@ function sharedWorkspaceOwnerKey(evalCase: EvalTest): string {
   return `${sourceKey}:${stableWorkspaceValue(evalCase.workspace)}`;
 }
 
-function selectSuiteWorkspace(evalCases: readonly EvalTest[]): WorkspaceConfig | undefined {
+interface SelectedSharedWorkspace {
+  readonly key: string;
+  readonly workspace: WorkspaceConfig;
+}
+
+function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWorkspace | undefined {
   const candidates = new Map<
     string,
     { readonly workspace: WorkspaceConfig; readonly owner: string; readonly testIds: string[] }
@@ -260,7 +284,8 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): WorkspaceConfig |
   }
 
   if (candidates.size <= 1) {
-    return [...candidates.values()][0]?.workspace;
+    const [key, candidate] = [...candidates.entries()][0] ?? [];
+    return key && candidate ? { key, workspace: candidate.workspace } : undefined;
   }
 
   const owners = [...candidates.values()]
@@ -378,7 +403,8 @@ export async function prepareSharedWorkspaceSetup(
     workspaceMode,
     workspaceClean,
   } = options;
-  const suiteWorkspace = selectSuiteWorkspace(evalCases);
+  const selectedSuiteWorkspace = selectSuiteWorkspace(evalCases);
+  const suiteWorkspace = selectedSuiteWorkspace?.workspace;
   const rawTemplate = suiteWorkspace?.template;
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
@@ -392,6 +418,7 @@ export async function prepareSharedWorkspaceSetup(
   const isPerCaseWorkspace = isPerCaseIsolation(suiteWorkspace);
 
   const cliWorkspacePath = workspacePath ?? legacyWorkspacePath;
+  const sharedWorkspaceAppliesToAllCases = !!cliWorkspacePath;
   const yamlWorkspacePath = suiteWorkspace?.path;
   if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode static when both are provided');
@@ -875,6 +902,10 @@ export async function prepareSharedWorkspaceSetup(
 
     return {
       ...(suiteWorkspace !== undefined && { suiteWorkspace }),
+      ...(selectedSuiteWorkspace?.key !== undefined && {
+        sharedWorkspaceOwnerKey: selectedSuiteWorkspace.key,
+      }),
+      sharedWorkspaceAppliesToAllCases,
       ...(sharedWorkspacePath !== undefined && { sharedWorkspacePath }),
       ...(sharedBaselineCommit !== undefined && { sharedBaselineCommit }),
       ...(suiteWorkspaceFile !== undefined && { suiteWorkspaceFile }),

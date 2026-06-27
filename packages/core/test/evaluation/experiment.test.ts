@@ -92,6 +92,9 @@ describe('inline experiment config', () => {
     expect(() => normalizeExperimentConfig({ scripts: ['bun test'] })).toThrow(
       /scripts are not supported/,
     );
+    expect(() => normalizeExperimentConfig({ workspace: { isolation: 'per_test' } })).toThrow(
+      /workspace\.isolation/,
+    );
   });
 
   it('builds safe snake_case artifact metadata without agent options', () => {

@@ -87,9 +87,9 @@ import {
   type EvalCaseWorkspaceSetup,
   WorkspaceSetupError,
   captureWorkspaceFileChanges,
+  caseUsesSharedWorkspaceSetup,
   hasHookCommand,
   hooksEnabled,
-  isPerCaseIsolation,
   prepareEvalCaseWorkspace,
   prepareSharedWorkspaceSetup,
   releaseSharedWorkspaceSetup,
@@ -1182,8 +1182,9 @@ export async function runEvaluation(
       }
 
       // Multi-slot pool: each shared-workspace test grabs its own pool slot.
-      // Per-case isolated cases prepare their own workspace in prepareEvalCaseWorkspace().
-      const usesSharedWorkspace = !isPerCaseIsolation(evalCase.workspace);
+      // Per-case isolated cases and raw/no-workspace cases outside the selected
+      // shared owner prepare without inheriting a child suite's workspace.
+      const usesSharedWorkspace = caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
       const testPoolSlot =
         usesSharedWorkspace && availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
       const testWorkspacePath = usesSharedWorkspace

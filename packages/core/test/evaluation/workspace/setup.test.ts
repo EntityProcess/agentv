@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EvalTest } from '../../../src/evaluation/types.js';
 import {
   type SharedWorkspaceSetup,
+  caseUsesSharedWorkspaceSetup,
   prepareSharedWorkspaceSetup,
   releaseSharedWorkspaceSetup,
 } from '../../../src/evaluation/workspace/setup.js';
@@ -311,5 +312,34 @@ describe('prepareSharedWorkspaceSetup', () => {
     expect(readFileSync(path.join(setup.sharedWorkspacePath, 'parent-marker.txt'), 'utf8')).toBe(
       'parent\n',
     );
+  });
+
+  it('does not apply a child suite shared workspace to raw cases with no workspace', async () => {
+    const childTemplate = path.join(tmpDir, 'child-template');
+    mkdirSync(childTemplate, { recursive: true });
+    writeFileSync(path.join(childTemplate, 'child-marker.txt'), 'child\n', 'utf8');
+
+    const childCase = testCase(
+      'child-case',
+      { template: childTemplate },
+      {
+        evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
+        importedSuiteName: 'child',
+      },
+    );
+    const rawCase = testCase('raw-case', undefined, {
+      evalFileAbsolutePath: path.join(tmpDir, 'parent.eval.yaml'),
+    });
+
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-child-shared-raw-no-workspace',
+      evalCases: [childCase, rawCase],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBeDefined();
+    expect(caseUsesSharedWorkspaceSetup(childCase, setup)).toBe(true);
+    expect(caseUsesSharedWorkspaceSetup(rawCase, setup)).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { EvalRunOverride, TrialStrategy } from './types.js';
+import type { EvalRunOverride, TrialStrategy, WorkspaceConfig } from './types.js';
 
 export type ExperimentSandbox = 'auto' | 'docker' | 'vercel';
 
@@ -48,7 +48,7 @@ export type ExperimentConfigWire = {
   readonly threshold?: number;
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: Record<string, unknown>;
+  readonly workspace?: WorkspaceConfig;
 };
 
 export type ExperimentConfig = {
@@ -66,7 +66,7 @@ export type ExperimentConfig = {
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: Record<string, unknown>;
+  readonly workspace?: WorkspaceConfig;
   readonly fingerprint?: string;
 };
 
@@ -137,7 +137,7 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     'budget_usd',
   );
   const sandbox = readOptionalSandbox(rawConfig.sandbox);
-  const workspace = readOptionalRecord(rawConfig.workspace);
+  const workspace = readOptionalWorkspace(rawConfig.workspace);
 
   const configWithoutFingerprint: Omit<ExperimentConfig, 'fingerprint'> = {
     ...(name !== undefined && { name }),
@@ -389,6 +389,18 @@ function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {
     throw new Error('Experiment object field must be an object.');
   }
   return raw;
+}
+
+function readOptionalWorkspace(raw: unknown): WorkspaceConfig | undefined {
+  const workspace = readOptionalRecord(raw);
+  if (workspace === undefined) {
+    return undefined;
+  }
+  const isolation = workspace.isolation;
+  if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
+    throw new Error("Experiment workspace.isolation must be 'shared' or 'per_case'.");
+  }
+  return workspace as WorkspaceConfig;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

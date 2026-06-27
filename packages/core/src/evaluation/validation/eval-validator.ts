@@ -437,6 +437,22 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   }
 
   await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+  if (isObject(parsed.experiment)) {
+    await validateWorkspaceConfig(
+      parsed.experiment.workspace,
+      absolutePath,
+      errors,
+      'experiment.workspace',
+    );
+  }
+  if (isObject(parsed.execution)) {
+    await validateWorkspaceConfig(
+      parsed.execution.workspace,
+      absolutePath,
+      errors,
+      'execution.workspace',
+    );
+  }
   await validateCompositionDiagnostics(absolutePath, parsed, errors);
   await validateSuiteImportCycles(absolutePath, parsed, errors);
 
@@ -795,7 +811,7 @@ async function validateWorkspaceConfig(
   }
 
   if (isObject(workspace)) {
-    validateWorkspaceRepoConfig(workspace, evalFilePath, errors);
+    validateWorkspaceRepoConfig(workspace, evalFilePath, errors, location);
     return;
   }
 
@@ -818,7 +834,7 @@ async function validateWorkspaceConfig(
       return;
     }
 
-    validateWorkspaceRepoConfig(parsedWorkspace, workspacePath, errors);
+    validateWorkspaceRepoConfig(parsedWorkspace, workspacePath, errors, location);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     errors.push({
@@ -834,6 +850,7 @@ function validateWorkspaceRepoConfig(
   workspace: JsonObject,
   filePath: string,
   errors: ValidationError[],
+  location: string,
 ): void {
   const repos = workspace.repos;
   const hooks = workspace.hooks;
@@ -846,7 +863,7 @@ function validateWorkspaceRepoConfig(
     errors.push({
       severity: 'error',
       filePath,
-      location: 'workspace.isolation',
+      location: `${location}.isolation`,
       message: "workspace.isolation must be 'shared' or 'per_case'.",
     });
   }
@@ -859,7 +876,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'workspace.repos[].source has been removed. Use workspace.repos[].repo.',
         });
       }
@@ -868,7 +885,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message:
             'workspace.repos[].checkout has been removed. Use top-level commit, base_commit, and ancestor.',
         });
@@ -878,7 +895,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'workspace.repos[].clone has been removed. Use top-level sparse if needed.',
         });
       }
@@ -887,7 +904,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message:
             'repos[].repo is required for non-Docker workspaces. ' +
             'Repo-less entries are only valid when workspace.docker is configured.',
@@ -902,7 +919,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'repos[].commit and repos[].base_commit must match when both are set.',
         });
       }
@@ -914,7 +931,7 @@ function validateWorkspaceRepoConfig(
     errors.push({
       severity: 'warning',
       filePath,
-      location: 'workspace.hooks.after_each',
+      location: `${location}.hooks.after_each`,
       message:
         'hooks.after_each.reset is redundant with isolation: per_case (each test gets a fresh workspace).',
     });

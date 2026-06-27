@@ -191,6 +191,33 @@ tests:
     ).toBe(true);
   });
 
+  it('rejects removed isolation values in experiment workspace', async () => {
+    const filePath = path.join(tempDir, 'experiment-workspace-legacy-isolation.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    isolation: per_test
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace.isolation' &&
+          error.message.includes("must be 'shared' or 'per_case'"),
+      ),
+    ).toBe(true);
+  });
+
   it('warns that imported child experiments are ignored by wrapper composition', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment.eval.yaml'),
