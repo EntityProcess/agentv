@@ -57,12 +57,18 @@ primitives:
   boundaries.
 
 For eval composition, the parent runnable eval owns runtime policy. If a parent
-references child eval files, the parent should ignore or override child
-`experiment:` by default. It should not silently discard child `workspace`
-requirements. Child workspace setup is part of the imported cases' validity and
-must be retained, merged with explicit collision rules, or explicitly remapped
-by the parent. A "tests only" import mode may drop child workspace context, but
-that must be opt-in.
+references child eval files with `type: suite`, the current loader ignores the
+child `experiment:` block and uses the parent `experiment:` when one exists; it
+does not fall back to the child `experiment:`. Workspace follows task ownership,
+not runtime fallback: imported child tests keep the child suite workspace that
+was already expanded into those tests, while the parent workspace applies to
+raw cases owned by the parent file. A "tests only" import mode may drop child
+workspace context, but that must be opt-in.
+
+If a future composition feature allows parent workspace override or remapping
+for imported suites, it should be explicit and logged. The default should not
+silently replace child workspace setup, because that setup is part of the
+imported cases' validity.
 
 ## Consequences
 

@@ -205,14 +205,15 @@ adapter-owned instead of making it the AgentV workspace model.
 When one eval references another eval, preserve the task/runtime split:
 
 - The parent runnable eval owns runtime `experiment:` for the run.
-- Child `experiment:` blocks should be ignored or explicitly overridden by the
-  parent composition.
-- Child `workspace` setup should not be silently discarded. Imported cases often
-  depend on pinned repos, templates, hooks, or case-local fixtures.
+- Child `experiment:` blocks are ignored by `type: suite` composition. There is
+  no fallback to the child `experiment:` when the parent has no `experiment:`.
+- Child `workspace` setup is preserved for `type: suite` imports. Parent
+  workspace applies to raw cases owned by the parent file, not to imported suite
+  tests.
 - A tests-only import can drop child workspace context only when the import mode
   says so explicitly.
 - Workspace path collisions or incompatible isolation settings should fail
-  loudly unless the parent provides an explicit remap.
+  loudly if a future explicit remap mode is added.
 
 That rule keeps imported benchmark cases attached to their setup while still
 letting a parent eval compare targets, repeat policy, and gates consistently.
