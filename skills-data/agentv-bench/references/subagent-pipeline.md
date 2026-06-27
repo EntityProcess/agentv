@@ -1,8 +1,9 @@
 # Subagent Pipeline — Running eval.yaml without CLI
 
-This reference documents the detailed procedure for running evaluations in subagent mode
-(`AGENT_EVAL_MODE=subagent`, the default). The orchestrating skill dispatches `executor`
-subagents to perform test cases and `grader` subagents to evaluate outputs.
+This reference documents the detailed procedure for running evaluations in subagent mode.
+Subagent mode is an explicit opt-in fallback; the main `agentv-bench` flow defaults to
+AgentV CLI mode. The orchestrating skill dispatches `executor` subagents to perform test
+cases and `grader` subagents to evaluate outputs.
 
 Read this reference when executing Step 3 (Run and Grade) in subagent mode.
 

@@ -129,24 +129,24 @@ Each run produces a new `.agentv/results/default/<timestamp>/` directory automat
 
 **User instruction takes priority.** If the user says "run in subagent mode", "use subagent mode", or "use CLI mode", use that mode directly.
 
-If the user has not specified a mode, default to `subagent`.
+If the user has not specified a mode, default to AgentV CLI mode.
 
-| `AGENT_EVAL_MODE` | Mode | How |
-|----------------------|------|-----|
-| `subagent` (default) | **Subagent mode** | Subagent-driven eval — parses eval.yaml, spawns executor + grader subagents. Zero CLI dependency. |
-| `cli` | **AgentV CLI** | `agentv eval <path>` — end-to-end, multi-provider |
+| Mode | When to use | How |
+|------|-------------|-----|
+| **AgentV CLI** (default) | Normal eval runs, multi-provider benchmarking, CI, artifact generation, and Dashboard-compatible results. | `agentv eval <path>` |
+| **Subagent mode** | Explicit user request, no usable CLI/runtime, or rare provider/request-cost constraints. | Read `references/subagent-pipeline.md` first. |
 
-Set `AGENT_EVAL_MODE` in `.env` at the project root as the default when no mode is specified. If absent, default to `subagent`. **User instruction always overrides this.**
+Do not read `AGENT_EVAL_MODE` or another environment variable to decide the default mode. **User instruction always overrides the default.**
 
-**`subagent`** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate all assertion types natively. No CLI or external API calls required. Read `references/subagent-pipeline.md` for the detailed procedure.
+**Subagent mode** — Parses eval.yaml directly, spawns executor subagents to run each test case in the current workspace, then spawns grader subagents to evaluate assertion types natively. This is an opt-in fallback. Read `references/subagent-pipeline.md` for the detailed procedure before using it.
 
-**`cli`** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use when you need multi-provider benchmarking or CLI-specific features.
+**AgentV CLI mode** — AgentV CLI handles execution, grading, and artifact generation end-to-end. Works with all providers. Use this unless the user explicitly asks for subagent mode or the CLI path is unavailable.
 
 ### Running evaluations
 
-**AgentV CLI mode** (end-to-end, EVAL.yaml):
+**AgentV CLI mode** (default, end-to-end, EVAL.yaml):
 ```bash
-agentv eval <eval-path> --output .agentv/artifacts/
+agentv eval <eval-path>
 ```
 
 **Subagent mode** — read `references/subagent-pipeline.md` for the detailed procedure. In brief: use `pipeline input` to extract inputs, dispatch one `executor` subagent per test case (all in parallel), then proceed to grading below.
