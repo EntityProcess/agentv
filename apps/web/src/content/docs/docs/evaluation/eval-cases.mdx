@@ -12,11 +12,11 @@ Tests are individual test entries within an evaluation file. Each test defines i
 ```yaml
 tests:
   - id: addition
-    criteria: Correctly calculates 15 + 27 = 42
-
     input: What is 15 + 27?
 
     expected_output: "42"
+    assertions:
+      - The answer is exactly 42
 ```
 
 ## Fields
@@ -24,7 +24,7 @@ tests:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier for the test |
-| `criteria` | Yes | Description of what a correct response should contain |
+| `criteria` | Conditional | Description of what a correct response should contain. Required only when the case has no `expected_output` or `assertions` |
 | `input` | Yes | Input sent to the target (string, object, or message array) |
 | `expected_output` | No | Expected response for comparison (string, object, or message array) |
 | `execution` | No | Per-case execution overrides (for example `target`, `skip_defaults`) |
@@ -67,11 +67,13 @@ When suite-level `input` is defined in the eval file, those messages are prepend
 
 ## Expected Output
 
-Optional reference response for comparison by graders. `expected_output` is passive reference
-data: it is stored on the case and passed to graders, but it does not choose a grader by
-itself when `assertions` is present. Add an explicit `llm-grader`, `code-grader`,
-`field-accuracy`, or another reference-aware grader when you want the reference answer
-evaluated.
+Optional reference response for comparison by graders. Write `expected_output` as
+a golden answer or reference response the target could have produced, not as a
+rubric or "the agent should..." criteria list. `expected_output` is passive
+reference data: it is stored on the case and passed to graders, but it does not
+choose a grader by itself when `assertions` is present. Add explicit assertion
+strings, `llm-grader`, `code-grader`, `field-accuracy`, or another
+reference-aware grader when you want the reference answer evaluated.
 
 A string expands to a single assistant message:
 
@@ -164,7 +166,6 @@ Pass arbitrary key-value pairs to lifecycle commands via the `metadata` field. T
 ```yaml
 tests:
   - id: sympy-20590
-    criteria: Bug should be fixed
     input: Fix the diophantine equation bug in repo/.
     metadata:
       source_repo: sympy/sympy
@@ -182,6 +183,17 @@ tests:
 
 The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
 Operational checkout state belongs under `workspace.repos[].base_commit`; matching metadata fields such as `source_commit` are informational only.
+For historical repo-state evals, pin the checkout under `workspace.repos[]`
+instead of only mentioning the SHA in prompt prose:
+
+```yaml
+workspace:
+  repos:
+    - path: ./agentv
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+```
+
 For benchmark task packs with source pins, patches, generated rows, and
 supporting files, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 
@@ -197,7 +209,6 @@ AgentV groups the strings into a rubric grader automatically:
 ```yaml
 tests:
   - id: bug-fix-review
-    criteria: Finds and fixes the bug
     input: Review this failing parser implementation.
     assertions:
       - Identifies the root cause of the parser failure
@@ -206,7 +217,10 @@ tests:
 ```
 
 Use this shape for qualitative requirements. It is less brittle than checking
-for exact substrings in an agent response.
+for exact substrings in an agent response. When these strings fully define the
+grading contract, do not add a `criteria` field that repeats the same rubric.
+Declare `type: llm-grader` explicitly only when you need a custom prompt, custom
+grader target, or a deliberately separate grader panel.
 
 ### Deterministic Assertions
 
@@ -232,7 +246,6 @@ Underscore variants (`contains_all`, `is_json`, etc.) are also accepted.
 ```yaml
 tests:
   - id: json-api
-    criteria: Returns valid JSON with status field
     input: Return the system status as JSON
     assertions:
       - type: is-json
@@ -247,14 +260,12 @@ Use `contains-all` or `contains-any` to check multiple values in a single assert
 ```yaml
 tests:
   - id: required-fields
-    criteria: Response mentions all required fields
     input: "Confirm details: name is Alice, email is alice@example.com"
     assertions:
       - type: contains-all
         value: ["Alice", "alice@example.com"]
 
   - id: greeting-variant
-    criteria: Response includes some form of greeting
     input: "Greet the user warmly."
     assertions:
       - type: contains-any
@@ -409,6 +420,23 @@ tests:
     assertions:
       - type: contains          # only this grader runs
         value: "4"
+```
+
+For contract-style evals where assertion strings express every semantic check,
+omit `criteria`:
+
+```yaml
+tests:
+  - id: verification-learning-capture
+    input: |
+      Decide what durable repo change should be made after a PR closeout
+      revealed reusable verification workflow lessons.
+    expected_output: |
+      The durable repo change is to update .agents/verification.md with the
+      reusable verification workflow lessons.
+    assertions:
+      - The answer recommends updating .agents/verification.md rather than leaving the learning only in PR comments or private evidence.
+      - The answer avoids preserving one-off observations as durable guidance.
 ```
 
 If `assertions` contains only deterministic graders (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:

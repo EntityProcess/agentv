@@ -10,7 +10,7 @@ The grader agent uses this to evaluate assertions without the CLI.
 - `name` (string, optional) — eval name
 - `description` (string, optional) — description
 - `execution` (object, optional) — `target`, `model`, etc.
-- `workspace` (object, optional) — workspace config (template, hooks)
+- `workspace` (object, optional) — workspace config (template, repos, hooks)
 - `input` (string | object | Message | Message[], optional) — suite-level input prepended to each test. String/block shorthand expands to a user message.
 - `tests` (array, required) — test cases
 
@@ -24,6 +24,18 @@ The grader agent uses this to evaluate assertions without the CLI.
 - `conversation_id` (string, optional) — groups related tests
 - `execution` (object, optional) — per-test execution override
 
+If `assertions` already state the grading contract, omit `criteria` instead of
+duplicating the same rubric. Prefer plain assertion strings for semantic checks
+when the default LLM rubric grader can judge them; use multiple named
+`type: llm-grader` blocks only for custom prompts, custom grader targets, or
+intentional grader panels. Write `expected_output` as a golden/reference answer,
+not as criteria or scoring instructions.
+
+For historical or repo-state evals, materialize the repository under
+`workspace.repos[]` and pin `commit` or `base_commit` to the commit under test.
+A SHA in prompt prose or metadata is context only; it does not give the agent an
+actual checkout.
+
 ## 2. Assertion Types and Grading Recipes
 
 ### Default grader contract
@@ -35,6 +47,8 @@ When `assertions` is present, the list is explicit: run only the declared
 assertions/graders. `expected_output` remains reference data for graders that consume it,
 such as `llm-grader`, `code-grader`, or `field-accuracy`; it does not trigger an additional
 default `llm-grader`.
+When the declared assertion strings fully express the semantic contract, do not
+also add a duplicate `criteria` block.
 
 For each assertion type: YAML config fields, grading recipe (exact pseudocode for deterministic types), and PASS/FAIL conditions.
 

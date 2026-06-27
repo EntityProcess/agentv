@@ -150,3 +150,29 @@ When you don't want to maintain actual diffs, describe the changes inline:
 ```
 
 This avoids workspace state issues entirely — the agent evaluates the diff as presented without checking `git diff`.
+
+## Historical Repo State: Pin the Checkout
+
+If a test asks the agent to inspect how a repository looked at a past commit,
+declare that checkout in `workspace.repos[]`. Do not rely on prompt prose that
+mentions a SHA without materializing the repo.
+
+```yaml
+workspace:
+  repos:
+    - path: ./agentv
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+
+tests:
+  - id: verification-learning-capture
+    input: |
+      The eval harness has prepared ./agentv at the historical commit.
+      Use that checkout to decide which durable guidance should change.
+    expected_output: |
+      The durable repo change is to update .agents/verification.md with the
+      reusable verification workflow lessons.
+    assertions:
+      - The answer uses the pinned ./agentv checkout to verify the existing guidance.
+      - The answer preserves the historical commit SHA as context.
+```
