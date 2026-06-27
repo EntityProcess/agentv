@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "da4bdc81f3ac",
+  "strategy": "manual-commit",
+  "branch": "fix/agentv-bench-cli-default",
+  "checkpoints_count": 42,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/da/4bdc81f3ac/0/metadata.json",
+      "transcript": "/da/4bdc81f3ac/0/full.jsonl",
+      "content_hash": "/da/4bdc81f3ac/0/content_hash.txt",
+      "prompt": "/da/4bdc81f3ac/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5138081,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 127772288,
+    "output_tokens": 328916,
+    "api_call_count": 1021
+  }
+}
