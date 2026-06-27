@@ -1203,6 +1203,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
     return {
       ...result,
       ...(record.aggregation && { aggregation: record.aggregation }),
+      ...(record.eval_path && { eval_path: record.eval_path }),
       ...(record.result_dir && { result_dir: record.result_dir }),
       ...(record.summary_path && { summary_path: record.summary_path }),
       ...(record.grading_path && { grading_path: record.grading_path }),

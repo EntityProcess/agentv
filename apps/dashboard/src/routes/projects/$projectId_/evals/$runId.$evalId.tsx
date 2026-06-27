@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { isPassing, useProjectRunDetail, useStudioConfig } from '~/lib/api';
+import { matchesEvalResultIdentity } from '~/lib/navigation';
 
 export const Route = createFileRoute('/projects/$projectId_/evals/$runId/$evalId')({
   component: ProjectEvalDetailPage,
@@ -19,6 +20,10 @@ function ProjectEvalDetailPage() {
     typeof window === 'undefined'
       ? undefined
       : (new URLSearchParams(window.location.search).get('result_dir') ?? undefined);
+  const evalPath =
+    typeof window === 'undefined'
+      ? undefined
+      : (new URLSearchParams(window.location.search).get('eval_path') ?? undefined);
   const { data, isLoading, error } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig(projectId);
   const [showRunEval, setShowRunEval] = useState(false);
@@ -41,8 +46,8 @@ function ProjectEvalDetailPage() {
     );
   }
 
-  const result = data?.results.find(
-    (r) => r.testId === evalId && (!resultDir || r.result_dir === resultDir),
+  const result = data?.results.find((r) =>
+    matchesEvalResultIdentity(r, evalId, { resultDir, evalPath }),
   );
 
   if (!result) {
@@ -67,7 +72,7 @@ function ProjectEvalDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-400">
-            Run: {runId} / Eval: {evalId}
+            Run: {runId} / Eval: {result.eval_path ?? evalId}
           </p>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
             <span

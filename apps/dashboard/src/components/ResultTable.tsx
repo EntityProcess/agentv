@@ -10,6 +10,7 @@ import type React from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import { useFeedback } from '~/lib/api';
+import { evalResultPath } from '~/lib/navigation';
 import {
   RESULT_TABLE_VIEW_PRESETS,
   type RepeatRunGroup,
@@ -651,8 +652,8 @@ function TrialResultCell({
       return <TargetCell target={row.targetLabel} tone="text-gray-500" />;
     case 'score':
       return <PassRatePill rate={trial.score ?? 0} />;
-    case 'suite':
-      return <TruncatedMuted value={row.suiteLabel} tone="text-gray-500" />;
+    case 'eval':
+      return <TruncatedMuted value={row.evalLabel} tone="text-gray-500" />;
     case 'category':
       return <TruncatedMuted value={row.categoryLabel} tone="text-gray-500" />;
     case 'duration':
@@ -833,8 +834,8 @@ function ResultCell({
       ) : (
         <PassRatePill rate={row.result.score} />
       );
-    case 'suite':
-      return <TruncatedMuted value={row.suiteLabel} />;
+    case 'eval':
+      return <TruncatedMuted value={row.evalLabel} />;
     case 'category':
       return <TruncatedMuted value={row.categoryLabel} />;
     case 'duration':
@@ -910,11 +911,10 @@ function ResultDetailPanel({
   onOpenTrialDetail: (trial: EvalCaseTrial, initialTab?: DetailTab) => void;
   onClose: () => void;
 }) {
-  const evalDetailHref = buildEvalDetailHref({
+  const evalDetailHref = evalResultPath(runId, row.testId, {
     projectId,
-    runId,
-    evalId: row.testId,
     resultDir: row.result.result_dir,
+    evalPath: row.result.eval_path,
   });
   const title = selectedTrialPath ? `${row.testId} · ${selectedTrialPath}` : row.testId;
   const showAggregateRepeatDetail = repeatGroup && !selectedTrial;
@@ -934,7 +934,7 @@ function ResultDetailPanel({
           </h4>
           <p className="mt-1 truncate text-xs text-gray-500" title={row.targetLabel}>
             {row.targetLabel}
-            {row.suiteLabel ? ` · ${row.suiteLabel}` : ''}
+            {row.evalLabel ? ` · ${row.evalLabel}` : ''}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1001,19 +1001,6 @@ function ExpanderCell({
       {repeatCollapsed ? '+' : '-'}
     </button>
   );
-}
-
-function buildEvalDetailHref(options: {
-  projectId?: string;
-  runId: string;
-  evalId: string;
-  resultDir?: string;
-}): string {
-  const base = options.projectId
-    ? `/projects/${encodeURIComponent(options.projectId)}/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`
-    : `/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`;
-  if (!options.resultDir) return base;
-  return `${base}?result_dir=${encodeURIComponent(options.resultDir)}`;
 }
 
 function scrollPanelIntoView(panel: HTMLElement | null) {

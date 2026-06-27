@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { EvalDetail } from '~/components/EvalDetail';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { isPassing, useRunDetail, useStudioConfig } from '~/lib/api';
+import { matchesEvalResultIdentity } from '~/lib/navigation';
 
 export const Route = createFileRoute('/evals/$runId/$evalId')({
   component: EvalDetailPage,
@@ -23,6 +24,10 @@ function EvalDetailPage() {
     typeof window === 'undefined'
       ? undefined
       : (new URLSearchParams(window.location.search).get('result_dir') ?? undefined);
+  const evalPath =
+    typeof window === 'undefined'
+      ? undefined
+      : (new URLSearchParams(window.location.search).get('eval_path') ?? undefined);
   const { data, isLoading, error } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
@@ -45,8 +50,8 @@ function EvalDetailPage() {
     );
   }
 
-  const result = data?.results.find(
-    (r) => r.testId === evalId && (!resultDir || r.result_dir === resultDir),
+  const result = data?.results.find((r) =>
+    matchesEvalResultIdentity(r, evalId, { resultDir, evalPath }),
   );
 
   if (!result) {
@@ -71,7 +76,7 @@ function EvalDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-400">
-            Run: {runId} / Eval: {evalId}
+            Run: {runId} / Eval: {result.eval_path ?? evalId}
           </p>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
             <span

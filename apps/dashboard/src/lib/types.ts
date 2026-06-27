@@ -226,6 +226,7 @@ export type TraceSessionResponse = CoreTraceSessionResponse;
 export interface EvalResult {
   testId: string;
   timestamp?: string;
+  eval_path?: string;
   suite?: string;
   category?: string;
   target?: string;

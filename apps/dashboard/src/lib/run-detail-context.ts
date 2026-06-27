@@ -6,9 +6,9 @@
  * presentation logic here so route components stay thin and tests can pin
  * the remote-context contract without rendering React.
  *
- * Suite labels are displayed only when a run mixes suites or has partial suite
- * metadata. Keep the table/sidebar dense by suppressing repeated labels for
- * single-suite runs.
+ * Eval source labels are displayed only when a run mixes eval files or has
+ * partial legacy suite metadata. Keep the table/sidebar dense by suppressing
+ * repeated labels for single-eval runs.
  */
 
 import type { EvalResult, RunDetailResponse } from './types';
@@ -17,6 +17,7 @@ type RunSource = RunDetailResponse['source'];
 
 type HeaderResult = Pick<EvalResult, 'experiment' | 'target' | 'timestamp'>;
 type SuiteLabelResult = Pick<EvalResult, 'suite'>;
+type EvalSourceLabelResult = Pick<EvalResult, 'eval_path' | 'suite'>;
 
 export interface RunDetailHeaderInput {
   runId: string;
@@ -162,9 +163,26 @@ export function formatSuiteDisplay(suite: string | undefined): SuiteDisplay | un
   };
 }
 
+export function evalSourceValue(result: EvalSourceLabelResult): string | undefined {
+  return cleanOptional(result.eval_path) ?? cleanOptional(result.suite);
+}
+
+export function formatEvalSourceDisplay(result: EvalSourceLabelResult): SuiteDisplay | undefined {
+  return formatSuiteDisplay(evalSourceValue(result));
+}
+
 export function shouldShowSuiteLabels(results: readonly SuiteLabelResult[]): boolean {
   const normalizedSuites = results.map((result) => cleanOptional(result.suite) ?? '');
   const meaningfulSuites = normalizedSuites.filter((suite) => suite && suite !== 'Uncategorized');
 
   return meaningfulSuites.length > 0 && new Set(normalizedSuites).size > 1;
+}
+
+export function shouldShowEvalSourceLabels(results: readonly EvalSourceLabelResult[]): boolean {
+  const normalizedSources = results.map((result) => evalSourceValue(result) ?? '');
+  const meaningfulSources = normalizedSources.filter(
+    (source) => source && source !== 'Uncategorized',
+  );
+
+  return meaningfulSources.length > 0 && new Set(normalizedSources).size > 1;
 }

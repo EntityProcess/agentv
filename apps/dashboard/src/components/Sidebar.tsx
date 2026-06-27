@@ -33,13 +33,18 @@ import {
   useRunList,
   useStudioConfig,
 } from '~/lib/api';
-import { shouldShowSuiteLabels } from '~/lib/run-detail-context';
+import {
+  evalResultIdentityKey,
+  evalResultSearchParams,
+  matchesEvalResultIdentity,
+} from '~/lib/navigation';
+import { shouldShowEvalSourceLabels } from '~/lib/run-detail-context';
 import { formatRunDisplay } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
 import type { EvalResult } from '~/lib/types';
 
 import { BrandName } from './BrandName';
-import { EvalSuiteLabel } from './EvalSuiteLabel';
+import { EvalSourceLabel } from './EvalSourceLabel';
 
 /** Responsive <aside> wrapper. Handles mobile overlay and desktop static placement. */
 function SidebarShell({ children }: { children: ReactNode }) {
@@ -104,11 +109,11 @@ function SidebarRunText({ display }: { display: ReturnType<typeof formatRunDispl
 function EvalSidebarItemContent({
   result,
   passThreshold,
-  showSuiteLabel,
+  showEvalSourceLabel,
 }: {
   result: EvalResult;
   passThreshold: number;
-  showSuiteLabel: boolean;
+  showEvalSourceLabel: boolean;
 }) {
   const passed = isPassing(result.score, passThreshold);
 
@@ -119,12 +124,21 @@ function EvalSidebarItemContent({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate">{result.testId}</span>
-        {showSuiteLabel ? (
-          <EvalSuiteLabel suite={result.suite} className="mt-1 max-w-full text-[11px] leading-4" />
+        {showEvalSourceLabel ? (
+          <EvalSourceLabel result={result} className="mt-1 max-w-full text-[11px] leading-4" />
         ) : null}
       </span>
     </>
   );
+}
+
+function useCurrentEvalIdentitySearch() {
+  const location = useLocation();
+  const search = location.search as Record<string, string | undefined>;
+  return {
+    resultDir: search.result_dir,
+    evalPath: search.eval_path,
+  };
 }
 
 type ProjectTabId = 'runs' | 'experiments' | 'analytics' | 'targets';
@@ -409,8 +423,9 @@ function RunDetailSidebar({ currentRunId }: { currentRunId: string }) {
 function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: string }) {
   const { data } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
+  const currentIdentity = useCurrentEvalIdentitySearch();
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
-  const showSuiteLabels = shouldShowSuiteLabels(data?.results ?? []);
+  const showEvalSourceLabels = shouldShowEvalSourceLabels(data?.results ?? []);
 
   return (
     <SidebarShell>
@@ -434,13 +449,18 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
         </div>
 
         {data?.results.map((result) => {
-          const isActive = result.testId === currentEvalId;
+          const search = evalResultSearchParams({
+            resultDir: result.result_dir,
+            evalPath: result.eval_path,
+          });
+          const isActive = matchesEvalResultIdentity(result, currentEvalId, currentIdentity);
 
           return (
             <Link
-              key={result.testId}
+              key={evalResultIdentityKey(result)}
               to="/evals/$runId/$evalId"
               params={{ runId, evalId: result.testId }}
+              search={search}
               className={`mb-0.5 flex items-start gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
@@ -450,7 +470,7 @@ function EvalSidebar({ runId, currentEvalId }: { runId: string; currentEvalId: s
               <EvalSidebarItemContent
                 result={result}
                 passThreshold={passThreshold}
-                showSuiteLabel={showSuiteLabels}
+                showEvalSourceLabel={showEvalSourceLabels}
               />
             </Link>
           );
@@ -490,12 +510,17 @@ function SuiteSidebar({ runId, suite }: { runId: string; suite: string }) {
 
         {suiteResults.map((result) => {
           const passed = isPassing(result.score, passThreshold);
+          const search = evalResultSearchParams({
+            resultDir: result.result_dir,
+            evalPath: result.eval_path,
+          });
 
           return (
             <Link
-              key={result.testId}
+              key={evalResultIdentityKey(result)}
               to="/evals/$runId/$evalId"
               params={{ runId, evalId: result.testId }}
+              search={search}
               className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
             >
               <span className={`text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -609,8 +634,9 @@ function ProjectEvalSidebar({
 }) {
   const { data } = useProjectRunDetail(projectId, runId);
   const { data: config } = useStudioConfig(projectId);
+  const currentIdentity = useCurrentEvalIdentitySearch();
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
-  const showSuiteLabels = shouldShowSuiteLabels(data?.results ?? []);
+  const showEvalSourceLabels = shouldShowEvalSourceLabels(data?.results ?? []);
 
   return (
     <SidebarShell>
@@ -632,12 +658,17 @@ function ProjectEvalSidebar({
           Evaluations
         </div>
         {data?.results.map((result) => {
-          const isActive = result.testId === currentEvalId;
+          const search = evalResultSearchParams({
+            resultDir: result.result_dir,
+            evalPath: result.eval_path,
+          });
+          const isActive = matchesEvalResultIdentity(result, currentEvalId, currentIdentity);
           return (
             <Link
-              key={result.testId}
+              key={evalResultIdentityKey(result)}
               to="/projects/$projectId/evals/$runId/$evalId"
               params={{ projectId, runId, evalId: result.testId }}
+              search={search}
               className={`mb-0.5 flex items-start gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
@@ -647,7 +678,7 @@ function ProjectEvalSidebar({
               <EvalSidebarItemContent
                 result={result}
                 passThreshold={passThreshold}
-                showSuiteLabel={showSuiteLabels}
+                showEvalSourceLabel={showEvalSourceLabels}
               />
             </Link>
           );
@@ -693,11 +724,16 @@ function ProjectSuiteSidebar({
         </div>
         {suiteResults.map((result) => {
           const passed = isPassing(result.score, passThreshold);
+          const search = evalResultSearchParams({
+            resultDir: result.result_dir,
+            evalPath: result.eval_path,
+          });
           return (
             <Link
-              key={result.testId}
+              key={evalResultIdentityKey(result)}
               to="/projects/$projectId/evals/$runId/$evalId"
               params={{ projectId, runId, evalId: result.testId }}
+              search={search}
               className="mb-0.5 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800/50 hover:text-gray-200"
             >
               <span className={`text-xs ${passed ? 'text-emerald-400' : 'text-red-400'}`}>

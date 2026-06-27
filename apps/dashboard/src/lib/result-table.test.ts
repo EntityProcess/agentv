@@ -90,7 +90,7 @@ describe('result-table model', () => {
       results: [
         result({
           testId: 'metric-case',
-          suite: 'dataset.eval.yaml',
+          eval_path: 'evals/dataset.eval.yaml',
           category: 'smoke',
           target: 'azure',
           durationMs: 1234,
@@ -105,7 +105,7 @@ describe('result-table model', () => {
       'status',
       'test',
       'target',
-      'suite',
+      'eval',
       'score',
       'category',
       'duration',
@@ -114,15 +114,17 @@ describe('result-table model', () => {
       'grader:correctness',
     ]);
     expect(model.visibleColumns.map((column) => column.id)).toContain('grader:correctness');
+    expect(model.columns.find((column) => column.id === 'eval')?.label).toBe('Eval');
+    expect(model.rows[0].evalLabel).toBe('evals/dataset.eval.yaml');
   });
 
-  it('orders repeat-run columns with target before suite before score', () => {
+  it('orders repeat-run columns with target before eval before score', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,
       results: [
         result({
           testId: 'repeat-case',
-          suite: 'strict-layout',
+          eval_path: 'evals/strict-layout.eval.yaml',
           target: 'openai',
           trials: [
             { attempt: 0, run_path: 'run-1', score: 1, verdict: 'pass' },
@@ -137,7 +139,7 @@ describe('result-table model', () => {
       'expander',
       'test',
       'target',
-      'suite',
+      'eval',
       'score',
     ]);
     expect(model.repeatGroups).toHaveLength(1);
@@ -167,5 +169,45 @@ describe('result-table model', () => {
     expect(model.state.view).toBe('grader_errors');
     expect(model.state.grader).toBe('rubric');
     expect(model.visibleColumns.map((column) => column.id)).toEqual(['grader:rubric']);
+  });
+
+  it('uses eval_path and result_dir to distinguish duplicate test IDs', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [
+        result({
+          testId: 'shared-case',
+          eval_path: 'evals/auth/login.eval.yaml',
+          result_dir: 'auth-login/shared-case',
+          target: 'codex',
+        }),
+        result({
+          testId: 'shared-case',
+          eval_path: 'evals/billing/login.eval.yaml',
+          result_dir: 'billing-login/shared-case',
+          target: 'codex',
+        }),
+      ],
+    });
+
+    expect(model.rows.map((row) => row.evalLabel)).toEqual([
+      'evals/auth/login.eval.yaml',
+      'evals/billing/login.eval.yaml',
+    ]);
+    expect(model.rows.map((row) => row.key)).toEqual([
+      'result_dir:auth-login/shared-case',
+      'result_dir:billing-login/shared-case',
+    ]);
+    expect(new Set(model.rows.map((row) => row.key)).size).toBe(2);
+  });
+
+  it('falls back to legacy suite labels for old runs without eval_path', () => {
+    const model = buildResultTableModel({
+      passThreshold: 0.8,
+      results: [result({ testId: 'legacy-case', suite: 'legacy-suite' })],
+    });
+
+    expect(model.columns.find((column) => column.id === 'eval')?.label).toBe('Eval');
+    expect(model.rows[0].evalLabel).toBe('legacy-suite');
   });
 });

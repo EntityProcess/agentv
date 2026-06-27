@@ -68,7 +68,7 @@ export interface ResultTableRow {
   readonly reviewed: boolean;
   readonly targetLabel: string;
   readonly modelLabel?: string;
-  readonly suiteLabel?: string;
+  readonly evalLabel?: string;
   readonly categoryLabel?: string;
   readonly tokenTotal?: number;
   readonly graderNames: readonly string[];
@@ -235,6 +235,25 @@ function targetLabel(result: EvalResult): string {
   return targetUsed && targetUsed !== target ? `${target} -> ${targetUsed}` : target;
 }
 
+function evalLabel(result: EvalResult): string | undefined {
+  return cleanString(result.eval_path) ?? cleanString(result.suite);
+}
+
+function rowKey(result: EvalResult, index: number): string {
+  const resultDir = cleanString(result.result_dir);
+  if (resultDir) return `result_dir:${resultDir}`;
+
+  return [
+    'result',
+    cleanString(result.eval_path) ?? cleanString(result.suite) ?? '',
+    result.testId,
+    cleanString(result.target) ?? '',
+    cleanString(result.targetUsed) ?? '',
+    cleanString(result.timestamp) ?? '',
+    String(index),
+  ].join(':');
+}
+
 function buildRow(
   result: EvalResult,
   index: number,
@@ -250,6 +269,7 @@ function buildRow(
     result.scores?.some((score) => scoreHasFailure(score, passThreshold)) ?? false;
   const model = modelLabel(result);
   const target = targetLabel(result);
+  const evalSource = evalLabel(result);
   const suite = cleanString(result.suite);
   const category = cleanString(result.category);
   const tokenTotal = totalTokens(result);
@@ -257,6 +277,7 @@ function buildRow(
     result.testId,
     target,
     model ?? '',
+    evalSource ?? '',
     suite ?? '',
     category ?? '',
     result.executionStatus ?? '',
@@ -266,7 +287,7 @@ function buildRow(
   ];
 
   return {
-    key: `${result.testId}:${result.target ?? ''}:${result.timestamp ?? ''}:${index}`,
+    key: rowKey(result, index),
     result,
     index,
     testId: result.testId,
@@ -278,7 +299,7 @@ function buildRow(
     reviewed: reviewedTestIds.has(result.testId),
     targetLabel: target,
     ...(model && { modelLabel: model }),
-    ...(suite && { suiteLabel: suite }),
+    ...(evalSource && { evalLabel: evalSource }),
     ...(category && { categoryLabel: category }),
     ...(tokenTotal !== undefined && { tokenTotal }),
     graderNames,
@@ -329,7 +350,7 @@ function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRun
 
 function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly string[]) {
   const hasRepeatRows = rows.some((row) => caseTrials(row.result).length > 1);
-  const hasSuite = rows.some((row) => row.suiteLabel);
+  const hasEval = rows.some((row) => row.evalLabel);
   const hasCategory = rows.some((row) => row.categoryLabel);
   const hasDuration = rows.some(
     (row) =>
@@ -354,8 +375,8 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
       : []),
     { id: 'test', label: 'Test ID', kind: 'base', defaultVisible: true },
     { id: 'target', label: 'Target', kind: 'base', defaultVisible: true },
-    ...(hasSuite
-      ? [{ id: 'suite', label: 'Suite', kind: 'base' as const, defaultVisible: true }]
+    ...(hasEval
+      ? [{ id: 'eval', label: 'Eval', kind: 'base' as const, defaultVisible: true }]
       : []),
     { id: 'score', label: 'Score', kind: 'base', defaultVisible: true },
     ...(hasCategory
