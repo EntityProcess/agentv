@@ -1853,6 +1853,7 @@ function mergeWorkspaceConfigs(
     mode: caseLevel.mode ?? suiteLevel.mode,
     path: caseLevel.path ?? suiteLevel.path,
     docker: caseLevel.docker ?? suiteLevel.docker,
+    env: caseLevel.env ?? suiteLevel.env,
     workspaceFileDir: caseLevel.workspaceFileDir ?? suiteLevel.workspaceFileDir,
   };
 }

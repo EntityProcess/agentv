@@ -50,6 +50,20 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts workspace env preflight requirements', () => {
+    const result = EvalFileSchema.safeParse({
+      workspace: {
+        env: {
+          required_commands: ['git'],
+          required_python_modules: ['json'],
+        },
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('accepts inline experiment runtime and include selection entries', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',

@@ -351,6 +351,38 @@ describe('prepareSharedWorkspaceSetup', () => {
     ).rejects.toThrow(/Docker workspace configured|docker pull failed|invalid reference/);
   });
 
+  it('runs per-case setup for env-only workspace configs', async () => {
+    const missingCommand = `agentv-missing-command-${Date.now()}`;
+
+    await expect(
+      prepareEvalCaseWorkspace({
+        evalRunId: 'test-per-case-env-only-preflight',
+        evalCase: testCase('per-case-env-only-case', {
+          isolation: 'per_case',
+          env: {
+            required_commands: [missingCommand],
+          },
+        }),
+        evalDir: tmpDir,
+      }),
+    ).rejects.toThrow(`command: ${missingCommand}`);
+  });
+
+  it('runs per-case setup for docker-only workspace configs', async () => {
+    await expect(
+      prepareEvalCaseWorkspace({
+        evalRunId: 'test-per-case-docker-only-preflight',
+        evalCase: testCase('per-case-docker-only-case', {
+          isolation: 'per_case',
+          docker: {
+            image: 'invalid image with spaces',
+          },
+        }),
+        evalDir: tmpDir,
+      }),
+    ).rejects.toThrow(/Docker workspace configured|docker pull failed|invalid reference/);
+  });
+
   it('does not apply a child suite shared workspace to raw cases with no workspace', async () => {
     const childTemplate = path.join(tmpDir, 'child-template');
     mkdirSync(childTemplate, { recursive: true });

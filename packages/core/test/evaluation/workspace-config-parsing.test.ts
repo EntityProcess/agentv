@@ -146,6 +146,38 @@ tests:
     });
   });
 
+  it('should preserve workspace env when merging case-level workspace with suite defaults', async () => {
+    const evalFile = path.join(testDir, 'workspace-env-merge.yaml');
+    await writeFile(
+      evalFile,
+      `
+workspace:
+  hooks:
+    before_all:
+      command: ["bun", "run", "default-setup.ts"]
+
+tests:
+  - id: case-env
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      env:
+        required_commands: ["git"]
+        required_python_modules: ["json"]
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.hooks?.before_all).toEqual({
+      command: ['bun', 'run', 'default-setup.ts'],
+    });
+    expect(cases[0].workspace?.env).toEqual({
+      required_commands: ['git'],
+      required_python_modules: ['json'],
+    });
+  });
+
   it('should resolve before_all cwd relative to eval file directory', async () => {
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(

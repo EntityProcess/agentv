@@ -312,6 +312,13 @@ const DockerWorkspaceSchema = z.object({
   cpus: z.number().min(0.1).optional(),
 });
 
+const WorkspaceEnvSchema = z
+  .object({
+    required_commands: z.array(z.string().min(1)).optional(),
+    required_python_modules: z.array(z.string().min(1)).optional(),
+  })
+  .strict();
+
 const WorkspaceSchema = z
   .object({
     template: z.string().optional(),
@@ -321,6 +328,7 @@ const WorkspaceSchema = z
     mode: z.enum(['pooled', 'temp', 'static']).optional(),
     path: z.string().optional(),
     docker: DockerWorkspaceSchema.optional(),
+    env: WorkspaceEnvSchema.optional(),
   })
   .strict();
 

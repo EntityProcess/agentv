@@ -632,16 +632,7 @@ export async function prepareSharedWorkspaceSetup(
 
     const suiteDockerConfig = suiteWorkspace?.docker;
     if (suiteDockerConfig) {
-      setupLog(`pulling Docker image: ${suiteDockerConfig.image}`);
-      const { DockerWorkspaceProvider } = await import('./docker-workspace.js');
-      const dockerSetup = new DockerWorkspaceProvider(suiteDockerConfig);
-      if (!(await dockerSetup.isDockerAvailable())) {
-        throw new Error(
-          'Docker workspace configured but Docker CLI is not available. Install Docker and ensure it is running.',
-        );
-      }
-      await dockerSetup.pullImage();
-      setupLog('Docker image pull complete');
+      await prepareDockerWorkspace(suiteDockerConfig, setupLog);
     }
 
     if (suiteWorkspace?.env) {
@@ -1042,6 +1033,50 @@ export async function prepareEvalCaseWorkspace(
       }
     }
 
+    const caseDockerConfig = evalCase.workspace?.docker;
+    if (caseDockerConfig) {
+      try {
+        await prepareDockerWorkspace(caseDockerConfig, (message) => {
+          if (setupDebug) {
+            console.log(`[setup] test=${evalCase.id} ${message}`);
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (forceCleanup && workspacePath) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
+        throw new WorkspaceSetupError(message, {
+          failureStage: 'setup',
+          failureReasonCode: 'docker_setup_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
+
+    const caseEnvConfig = evalCase.workspace?.env;
+    if (caseEnvConfig) {
+      try {
+        await runPreflightChecks(caseEnvConfig, workspacePath ?? evalDir, (message) => {
+          if (setupDebug) {
+            console.log(`[setup] test=${evalCase.id} ${message}`);
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (forceCleanup && workspacePath) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
+        throw new WorkspaceSetupError(message, {
+          failureStage: 'setup',
+          failureReasonCode: 'preflight_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
+
     const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all;
     if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeAllHook)) {
       const beforeAllHook = caseBeforeAllHook;
@@ -1301,6 +1336,25 @@ async function runPreflightChecks(
       `Preflight checks failed — missing dependencies:\n${missing.map((m) => `  • ${m}`).join('\n')}\n\nInstall the missing dependencies before running this eval.`,
     );
   }
+}
+
+async function prepareDockerWorkspace(
+  dockerConfig: WorkspaceConfig['docker'],
+  log: (msg: string) => void,
+): Promise<void> {
+  if (!dockerConfig) {
+    return;
+  }
+  log(`pulling Docker image: ${dockerConfig.image}`);
+  const { DockerWorkspaceProvider } = await import('./docker-workspace.js');
+  const dockerSetup = new DockerWorkspaceProvider(dockerConfig);
+  if (!(await dockerSetup.isDockerAvailable())) {
+    throw new Error(
+      'Docker workspace configured but Docker CLI is not available. Install Docker and ensure it is running.',
+    );
+  }
+  await dockerSetup.pullImage();
+  log('Docker image pull complete');
 }
 
 export { captureWorkspaceFileChanges };

@@ -5486,6 +5486,26 @@
                             },
                             "required": ["image"],
                             "additionalProperties": false
+                          },
+                          "env": {
+                            "type": "object",
+                            "properties": {
+                              "required_commands": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required_python_modules": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              }
+                            },
+                            "additionalProperties": false
                           }
                         },
                         "additionalProperties": false
@@ -12272,6 +12292,26 @@
                               }
                             },
                             "required": ["image"],
+                            "additionalProperties": false
+                          },
+                          "env": {
+                            "type": "object",
+                            "properties": {
+                              "required_commands": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required_python_modules": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              }
+                            },
                             "additionalProperties": false
                           }
                         },
@@ -20043,6 +20083,26 @@
                     }
                   },
                   "required": ["image"],
+                  "additionalProperties": false
+                },
+                "env": {
+                  "type": "object",
+                  "properties": {
+                    "required_commands": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required_python_modules": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
                   "additionalProperties": false
                 }
               },
