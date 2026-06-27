@@ -56,6 +56,14 @@ primitives:
 - External benchmark runners such as Harbor stay behind runner/import
   boundaries.
 
+The same minimal-primitives rule applies to experiment display and repo layout.
+AgentV should not add an authored `run_group` field or revive separate
+`experiment.yaml` files. The existing `experiment` namespace remains the
+artifact and Dashboard grouping primitive. Projects may use an `experiments/`
+directory for wrapper eval YAML files, but that directory is only a
+documentation and repo-organization convention. AgentV must not infer behavior
+from the folder name.
+
 For eval composition, the parent runnable eval owns runtime policy. If a parent
 references child eval files with `type: suite`, the current loader ignores the
 child `experiment:` block and uses the parent `experiment:` when one exists; it
@@ -69,6 +77,18 @@ If a future composition feature allows parent workspace override or remapping
 for imported suites, it should be explicit and logged. The default should not
 silently replace child workspace setup, because that setup is part of the
 imported cases' validity.
+
+This decision creates follow-up behavior and docs beads:
+
+- `av-pkp` adds authoring diagnostics for misleading wrapper composition,
+  including parent workspace with only suite imports and ignored child
+  experiments.
+- `av-ha5` guards incompatible imported-suite shared workspace compositions so
+  one wrapper run cannot silently use the wrong shared workspace.
+- `av-82t` improves Dashboard/report display of the existing experiment
+  namespace and derived runtime source without adding new authored primitives.
+- `av-58q` teaches the optional `evals/suites/` and `experiments/`
+  wrapper-eval folder convention without making the path schema-significant.
 
 ## Consequences
 
@@ -84,6 +104,8 @@ Positive:
   for runtime, tests for cases, metadata for source row details, run bundles for
   audit.
 - The `commit` field stays self-evident inside `workspace.repos[]`.
+- Dashboard and reports can become clearer by explaining runtime source over
+  existing artifacts instead of adding configuration surface.
 
 Negative:
 
@@ -93,6 +115,8 @@ Negative:
   child evals with conflicting workspaces.
 - Some imported benchmark vocabulary such as SWE-bench `base_commit` must be
   translated at the adapter boundary.
+- Diagnostics are needed because the one-primitive model puts task suites and
+  wrapper experiments in the same file format.
 
 ## Alternatives Considered
 
@@ -111,11 +135,27 @@ Negative:
   Harbor task TOML, Margin suite config, promptfoo provider matrices, and
   Braintrust hosted experiment fields stay in adapters, fixtures, metadata, or
   source-owned files.
+- **Add authored `run_group`.** Rejected. The existing `experiment` namespace is
+  enough for artifact grouping. Runtime source should be derived for display,
+  not configured as another primitive.
+- **Revive separate experiment artifacts.** Rejected. Wrapper experiments are
+  ordinary eval YAML files with inline `experiment:` blocks.
+- **Make `experiments/` schema-significant.** Rejected. The folder may be a
+  user-owned repo layout convention, but AgentV should not infer semantics from
+  it.
+- **Implicitly merge parent and child workspaces.** Rejected for now. Hook
+  order, repo path conflicts, isolation mode conflicts, and reset policies make
+  implicit merge too surprising. A future merge/override mode must be explicit
+  if real usage justifies it.
 
 ## Non-Goals
 
 - Implementing schema changes in this ADR.
 - Defining a benchmark catalog.
+- Adding authored `run_group` or separate `experiment.yaml` primitives.
+- Making `experiments/` schema-significant rather than a plain repo layout
+  convention for wrapper eval YAML.
+- Implicitly merging parent and imported child workspaces.
 - Rebuilding hosted experiment stores such as Braintrust or LangSmith.
 - Making Harbor task packaging, verifier images, or Compose adapters
   AgentV-native schema.

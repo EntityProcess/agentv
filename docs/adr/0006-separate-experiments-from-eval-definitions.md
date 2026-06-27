@@ -28,6 +28,9 @@ The final design keeps the product boundary smaller:
 - `experiment:` is an inline run-time block inside `eval.yaml`.
 - `tests:` is the composition, import, and selection surface.
 - result bundles are written under `.agentv/results/<eval-name>/<timestamp>/`.
+- A directory named `experiments/` may be used as a user-owned repo convention
+  for wrapper eval YAML files, but it does not create a separate experiment
+  artifact type or schema-significant path.
 
 This keeps AgentV repo-native and zero-infra by default, avoids a new public
 artifact type, and still lets wrapper evals run multiple imported suites with a
@@ -45,7 +48,10 @@ Do not introduce or document:
 - committed experiment files as the canonical authoring path
 
 The only runnable authoring artifact is `eval.yaml` or another `*.eval.yaml`
-file. Runtime controls live in an inline `experiment:` block:
+file. A project may place wrapper eval files under an `experiments/` directory
+when their main job is to bind runtime policy over reusable suites, but those
+files are still ordinary eval YAML files. AgentV must not infer behavior from
+that directory name. Runtime controls live in an inline `experiment:` block:
 
 ```yaml
 name: cargowise-sql-migration-codex
@@ -219,6 +225,25 @@ fields. Explicit override syntax can be considered later if a concrete use case
 needs it, but the default composition model must not merge task contracts in a
 surprising way.
 
+If a parent eval defines `workspace` and imports child eval suites with
+`type: suite`, the parent workspace applies only to raw cases owned by the
+parent file. Imported suite tests keep their child suite workspace. This is a
+valid mixed-case pattern when the parent owns raw cases, but it is usually a
+DX smell when every test is a `type: suite` import. AgentV should warn or lint
+that shape rather than silently implying a parent workspace override.
+
+If a parent eval has no `experiment:` and imports child suites that do have
+`experiment:` blocks, child runtime still does not fall back into the parent
+run. AgentV should warn because authors often expect the child runtime to be
+used. The correct choices are to run the child suite directly, add a parent
+`experiment:` block, or pass CLI runtime flags.
+
+Wrapper evals that import multiple suites with distinct shared workspace
+contracts should fail fast or require per-test isolation, separate runs, or an
+explicit future composition mode. Shared workspace setup is safe when one suite
+owns the task contract; it is not a place for implicit parent-child or
+child-child workspace merging.
+
 ## Runtime Overrides
 
 The parent `experiment:` block is the default runtime policy for the whole eval.
@@ -330,6 +355,13 @@ remain inspectable without reading every manifest row. Test artifacts from tests
 owned directly by the wrapper eval can still live directly under `<test-id>`.
 All cases should also retain source suite metadata in manifests and index rows.
 
+The result namespace remains `experiment` in artifacts and Dashboard. AgentV
+should not introduce a separate authored `run_group` field. For better DX,
+Dashboard and reports may derive display-only runtime source labels such as
+`inline experiment`, `CLI`, `defaults`, or `mixed`, and may show the top-level
+eval file plus imported suites. Those labels are explanations over existing
+primitives, not new configuration surface.
+
 ## Consequences
 
 Positive:
@@ -350,14 +382,22 @@ Negative:
   evals.
 - Explicit task-context override syntax is deferred, so authors who need
   overrides must create a new suite or wait for a focused override design.
+- Wrapper evals need diagnostics so authors understand that parent workspace
+  does not override imported suite workspaces and child experiment blocks are
+  ignored.
 
 ## Non-Goals
 
-- Do not add separate `experiment.yaml` files or an `experiments/` convention.
+- Do not add separate `experiment.yaml` files.
+- Do not make `experiments/` a schema-significant directory or separate
+  artifact type; it may only be a repo layout convention for ordinary wrapper
+  eval YAML files.
 - Do not add config pointers to external experiment files.
-- Do not present committed experiment files as canonical docs examples.
+- Do not present committed non-eval experiment files as canonical docs examples.
 - Do not make child suite runtime blocks participate in parent wrapper runtime
   selection.
+- Do not add an authored `run_group` field.
+- Do not implicitly merge parent and child workspaces for `type: suite` imports.
 - Do not silently override imported suite task fields from parent suite fields.
 - Do not encode source suite membership by adding redundant default result path
   segments.
