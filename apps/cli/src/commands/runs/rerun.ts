@@ -32,7 +32,7 @@ interface SelectedTaskBundle {
   readonly record: ResultManifestRecord;
   readonly testId: string;
   readonly sourceTarget: string;
-  readonly artifactDir: string;
+  readonly resultDir: string;
   readonly taskDir: string;
   readonly evalPath: string;
   readonly targetsPath: string;
@@ -254,10 +254,7 @@ function forbiddenOutputRoots(
 ): readonly string[] {
   return [
     path.resolve(sourceRunDir),
-    ...selected.flatMap((bundle) => [
-      path.resolve(bundle.artifactDir),
-      path.resolve(bundle.taskDir),
-    ]),
+    ...selected.flatMap((bundle) => [path.resolve(bundle.resultDir), path.resolve(bundle.taskDir)]),
   ];
 }
 
@@ -340,11 +337,11 @@ async function loadSelectedTaskBundles(options: {
     const taskDir =
       resolveRelativeRunPath(options.sourceRunDir, record.task_dir) ??
       (evalPath ? path.dirname(evalPath) : undefined);
-    const artifactDir =
-      resolveRelativeRunPath(options.sourceRunDir, record.artifact_dir) ??
+    const resultDir =
+      resolveRelativeRunPath(options.sourceRunDir, record.result_dir) ??
       (taskDir ? path.dirname(taskDir) : undefined);
 
-    if (!evalPath || !targetsPath || !taskDir || !artifactDir) {
+    if (!evalPath || !targetsPath || !taskDir || !resultDir) {
       throw new Error(
         `Selected result ${recordLabel} is missing task bundle paths. Re-run requires task/EVAL.yaml and task/targets.yaml.`,
       );
@@ -357,7 +354,7 @@ async function loadSelectedTaskBundles(options: {
       record,
       testId,
       sourceTarget,
-      artifactDir,
+      resultDir,
       taskDir,
       evalPath,
       targetsPath,
@@ -386,7 +383,7 @@ function buildSourceMetadataByEvalFile(
           mode: 'rerun',
           sourceRunDir: path.resolve(sourceRunDir),
           sourceIndexPath: path.resolve(indexPath),
-          sourceArtifactDir: path.resolve(bundle.artifactDir),
+          sourceResultDir: path.resolve(bundle.resultDir),
           sourceTaskDir: path.resolve(bundle.taskDir),
           sourceTestId: bundle.testId,
           sourceTarget: bundle.sourceTarget,

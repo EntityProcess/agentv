@@ -991,7 +991,7 @@ describe('writeArtifactsFromResults', () => {
       ci95_upper: 1,
       stddev: 0.53,
     });
-    expect(indexEntry?.artifact_dir).toBe('repeat-case');
+    expect(indexEntry?.result_dir).toBe('repeat-case');
     expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
     expect(indexEntry?.task_dir).toBeUndefined();
     expect(indexEntry?.input_path).toBeUndefined();
@@ -1808,7 +1808,7 @@ describe('writeArtifactsFromResults', () => {
       .trim()
       .split('\n')
       .map(JSON.parse);
-    expect(indexLine.artifact_dir).toBe('imported-suite/shared-id');
+    expect(indexLine.result_dir).toBe('imported-suite/shared-id');
     expect(indexLine.grading_path).toBe('imported-suite/shared-id/run-1/grading.json');
   });
 
@@ -1937,7 +1937,7 @@ describe('writeArtifactsFromResults', () => {
     const indexLine = JSON.parse((await readFile(paths.indexPath, 'utf8')).trim());
 
     expect(indexLine).toMatchObject({
-      artifact_dir: 'trace-case',
+      result_dir: 'trace-case',
       task_dir: 'trace-case/task',
       eval_path: 'trace-case/task/EVAL.yaml',
       targets_path: 'trace-case/task/targets.yaml',

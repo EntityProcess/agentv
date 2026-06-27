@@ -129,7 +129,7 @@ my-results/
 ```
 
 The `index.jsonl` row links to these generated paths with snake_case fields such
-as `artifact_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
+as `result_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
 `graders_path`. Treat those paths as relative to the run directory. When you need
 a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
 share the generated run directory and its `index.jsonl` manifest. Source-side
@@ -443,7 +443,7 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 ## Transcript And Result Artifacts
 
-Each result row's `artifact_dir` is a case-local folder under the timestamped
+Each result row's `result_dir` is a case-local folder under the timestamped
 run bundle. It can include `transcript.jsonl`, `transcript-raw.jsonl`,
 `grading.json`, `timing.json`, `metrics.json`, and generated outputs under
 `outputs/`. The run root does not contain a mixed transcript artifact; use each

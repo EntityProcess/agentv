@@ -68,7 +68,7 @@ tests:
     test_id: options.testId,
     target: 'captured',
     score: 0.1,
-    artifact_dir: options.testId,
+    result_dir: options.testId,
     grading_path: `${options.testId}/grading.json`,
     timing_path: `${options.testId}/timing.json`,
     output_path: `${options.testId}/outputs/answer.md`,

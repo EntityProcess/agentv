@@ -399,7 +399,7 @@ For trend and compare views, repeat aggregates should be the default unit. Attem
   "target": "codex",
   "score": 0.83,
   "execution_status": "quality_failure",
-  "artifact_dir": "case-1",
+  "result_dir": "case-1",
   "summary_path": "case-1/summary.json",
   "planned_attempts": 3,
   "total_attempts": 3,

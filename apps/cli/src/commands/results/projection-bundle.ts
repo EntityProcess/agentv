@@ -85,7 +85,7 @@ export interface ProjectionBundleEntry {
 export type ProjectionBundleArtifactRefs = Partial<
   Pick<
     IndexArtifactEntry,
-    | 'artifact_dir'
+    | 'result_dir'
     | 'summary_path'
     | 'grading_path'
     | 'timing_path'
@@ -164,7 +164,7 @@ function artifactRefs(
 
   return dropUndefined({
     ...metadataRefs,
-    artifact_dir: indexEntry.artifact_dir,
+    result_dir: indexEntry.result_dir,
     summary_path: indexEntry.summary_path,
     grading_path: indexEntry.grading_path,
     input_path: indexEntry.input_path,

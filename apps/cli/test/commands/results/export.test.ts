@@ -353,7 +353,7 @@ describe('results export', () => {
     });
     expect(bundle.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      artifact_dir: 'privacy/test-private',
+      result_dir: 'privacy/test-private',
       summary_path: 'privacy/test-private/summary.json',
       grading_path: 'privacy/test-private/run-1/grading.json',
       timing_path: 'privacy/test-private/run-1/timing.json',
@@ -424,7 +424,7 @@ describe('results export', () => {
       test_id: 'test-greeting',
       target: 'gpt-4o',
       execution_status: 'ok',
-      artifact_dir: 'demo/test-greeting',
+      result_dir: 'demo/test-greeting',
       summary_path: 'demo/test-greeting/summary.json',
       grading_path: 'demo/test-greeting/run-1/grading.json',
       timing_path: 'demo/test-greeting/run-1/timing.json',

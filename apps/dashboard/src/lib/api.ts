@@ -104,9 +104,9 @@ function withQueryParams(base: string, params: URLSearchParams): string {
   return query ? `${base}?${query}` : base;
 }
 
-function evalArtifactParams(artifactDir?: string): URLSearchParams {
+function evalArtifactParams(resultDir?: string): URLSearchParams {
   const params = new URLSearchParams();
-  if (artifactDir) params.set('artifact_dir', artifactDir);
+  if (resultDir) params.set('result_dir', resultDir);
   return params;
 }
 
@@ -115,14 +115,14 @@ export function artifactFileContentUrl(options: {
   evalId: string;
   filePath: string;
   projectId?: string;
-  artifactDir?: string;
+  resultDir?: string;
   raw?: boolean;
   download?: boolean;
 }): string {
   const base = options.projectId
     ? `${projectApiBase(options.projectId)}/runs/${encodeURIComponent(options.runId)}/evals/${encodeURIComponent(options.evalId)}/files/${encodeArtifactPath(options.filePath)}`
     : `/api/runs/${encodeURIComponent(options.runId)}/evals/${encodeURIComponent(options.evalId)}/files/${encodeArtifactPath(options.filePath)}`;
-  const params = evalArtifactParams(options.artifactDir);
+  const params = evalArtifactParams(options.resultDir);
   if (options.raw) params.set('raw', '1');
   if (options.download) params.set('download', '1');
   return withQueryParams(base, params);
@@ -175,12 +175,12 @@ export function runSuitesOptions(runId: string) {
   });
 }
 
-export function evalDetailOptions(runId: string, evalId: string, artifactDir?: string) {
+export function evalDetailOptions(runId: string, evalId: string, resultDir?: string) {
   const base = `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`;
   return queryOptions({
-    queryKey: ['runs', runId, 'evals', evalId, artifactDir ?? ''],
+    queryKey: ['runs', runId, 'evals', evalId, resultDir ?? ''],
     queryFn: () =>
-      fetchJson<EvalDetailResponse>(withQueryParams(base, evalArtifactParams(artifactDir))),
+      fetchJson<EvalDetailResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!runId && !!evalId,
   });
 }
@@ -222,12 +222,12 @@ export const targetsOptions = queryOptions({
   queryFn: () => fetchJson<TargetsResponse>('/api/targets'),
 });
 
-export function evalFilesOptions(runId: string, evalId: string, artifactDir?: string) {
+export function evalFilesOptions(runId: string, evalId: string, resultDir?: string) {
   const base = `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`;
   return queryOptions({
-    queryKey: ['runs', runId, 'evals', evalId, artifactDir ?? '', 'files'],
+    queryKey: ['runs', runId, 'evals', evalId, resultDir ?? '', 'files'],
     queryFn: () =>
-      fetchJson<FileTreeResponse>(withQueryParams(base, evalArtifactParams(artifactDir))),
+      fetchJson<FileTreeResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!runId && !!evalId,
   });
 }
@@ -236,24 +236,24 @@ export function evalFileContentOptions(
   runId: string,
   evalId: string,
   filePath: string,
-  artifactDir?: string,
+  resultDir?: string,
 ) {
   return queryOptions({
-    queryKey: ['runs', runId, 'evals', evalId, artifactDir ?? '', 'files', filePath],
+    queryKey: ['runs', runId, 'evals', evalId, resultDir ?? '', 'files', filePath],
     queryFn: () =>
       fetchJson<FileContentResponse>(
-        artifactFileContentUrl({ runId, evalId, filePath, artifactDir }),
+        artifactFileContentUrl({ runId, evalId, filePath, resultDir }),
       ),
     enabled: !!runId && !!evalId && !!filePath,
   });
 }
 
-export function evalTranscriptOptions(runId: string, evalId: string, artifactDir?: string) {
+export function evalTranscriptOptions(runId: string, evalId: string, resultDir?: string) {
   const base = `/api/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/transcript`;
   return queryOptions({
-    queryKey: ['runs', runId, 'evals', evalId, artifactDir ?? '', 'transcript'],
+    queryKey: ['runs', runId, 'evals', evalId, resultDir ?? '', 'transcript'],
     queryFn: () =>
-      fetchJson<TranscriptArtifactResponse>(withQueryParams(base, evalArtifactParams(artifactDir))),
+      fetchJson<TranscriptArtifactResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!runId && !!evalId,
   });
 }
@@ -316,8 +316,8 @@ export function useRunSuites(runId: string) {
   return useQuery(runSuitesOptions(runId));
 }
 
-export function useEvalDetail(runId: string, evalId: string, artifactDir?: string) {
-  return useQuery(evalDetailOptions(runId, evalId, artifactDir));
+export function useEvalDetail(runId: string, evalId: string, resultDir?: string) {
+  return useQuery(evalDetailOptions(runId, evalId, resultDir));
 }
 
 export function useIndex() {
@@ -340,21 +340,21 @@ export function useTargets() {
   return useQuery(targetsOptions);
 }
 
-export function useEvalFiles(runId: string, evalId: string, artifactDir?: string) {
-  return useQuery(evalFilesOptions(runId, evalId, artifactDir));
+export function useEvalFiles(runId: string, evalId: string, resultDir?: string) {
+  return useQuery(evalFilesOptions(runId, evalId, resultDir));
 }
 
 export function useEvalFileContent(
   runId: string,
   evalId: string,
   filePath: string,
-  artifactDir?: string,
+  resultDir?: string,
 ) {
-  return useQuery(evalFileContentOptions(runId, evalId, filePath, artifactDir));
+  return useQuery(evalFileContentOptions(runId, evalId, filePath, resultDir));
 }
 
-export function useEvalTranscript(runId: string, evalId: string, artifactDir?: string) {
-  return useQuery(evalTranscriptOptions(runId, evalId, artifactDir));
+export function useEvalTranscript(runId: string, evalId: string, resultDir?: string) {
+  return useQuery(evalTranscriptOptions(runId, evalId, resultDir));
 }
 
 export function useRunCategories(runId: string) {
@@ -555,13 +555,13 @@ export function projectEvalDetailOptions(
   projectId: string,
   runId: string,
   evalId: string,
-  artifactDir?: string,
+  resultDir?: string,
 ) {
   const base = `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}`;
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, artifactDir ?? ''],
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, resultDir ?? ''],
     queryFn: () =>
-      fetchJson<EvalDetailResponse>(withQueryParams(base, evalArtifactParams(artifactDir))),
+      fetchJson<EvalDetailResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!projectId && !!runId && !!evalId,
   });
 }
@@ -570,13 +570,13 @@ export function projectEvalFilesOptions(
   projectId: string,
   runId: string,
   evalId: string,
-  artifactDir?: string,
+  resultDir?: string,
 ) {
   const base = `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/files`;
   return queryOptions({
-    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, artifactDir ?? '', 'files'],
+    queryKey: ['projects', projectId, 'runs', runId, 'evals', evalId, resultDir ?? '', 'files'],
     queryFn: () =>
-      fetchJson<FileTreeResponse>(withQueryParams(base, evalArtifactParams(artifactDir))),
+      fetchJson<FileTreeResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!projectId && !!runId && !!evalId,
   });
 }
@@ -586,7 +586,7 @@ export function projectEvalFileContentOptions(
   runId: string,
   evalId: string,
   filePath: string,
-  artifactDir?: string,
+  resultDir?: string,
 ) {
   return queryOptions({
     queryKey: [
@@ -596,13 +596,13 @@ export function projectEvalFileContentOptions(
       runId,
       'evals',
       evalId,
-      artifactDir ?? '',
+      resultDir ?? '',
       'files',
       filePath,
     ],
     queryFn: () =>
       fetchJson<FileContentResponse>(
-        artifactFileContentUrl({ projectId, runId, evalId, filePath, artifactDir }),
+        artifactFileContentUrl({ projectId, runId, evalId, filePath, resultDir }),
       ),
     enabled: !!projectId && !!runId && !!evalId && !!filePath,
   });
@@ -612,7 +612,7 @@ export function projectEvalTranscriptOptions(
   projectId: string,
   runId: string,
   evalId: string,
-  artifactDir?: string,
+  resultDir?: string,
 ) {
   const base = `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/evals/${encodeURIComponent(evalId)}/transcript`;
   return queryOptions({
@@ -623,11 +623,11 @@ export function projectEvalTranscriptOptions(
       runId,
       'evals',
       evalId,
-      artifactDir ?? '',
+      resultDir ?? '',
       'transcript',
     ],
     queryFn: () =>
-      fetchJson<TranscriptArtifactResponse>(withQueryParams(base, evalArtifactParams(artifactDir))),
+      fetchJson<TranscriptArtifactResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!projectId && !!runId && !!evalId,
   });
 }

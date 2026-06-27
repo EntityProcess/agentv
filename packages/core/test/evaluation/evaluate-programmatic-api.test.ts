@@ -140,7 +140,7 @@ describe('evaluate() — programmatic API extensions', () => {
         const [indexRow] = indexContent
           .trim()
           .split('\n')
-          .map((line) => JSON.parse(line) as { artifact_dir?: string });
+          .map((line) => JSON.parse(line) as { result_dir?: string });
 
         const summaryArtifact = JSON.parse(
           await readFile(path.join(outputDir, 'summary.json'), 'utf8'),
@@ -153,7 +153,7 @@ describe('evaluate() — programmatic API extensions', () => {
         expect(summaryArtifact.metadata.eval_file).toBe('');
         expect(summaryArtifact.timing.duration_ms).toBeGreaterThanOrEqual(0);
 
-        expect(indexRow?.artifact_dir).toBe('__programmatic__.yaml/programmatic-artifacts');
+        expect(indexRow?.result_dir).toBe('__programmatic__.yaml/programmatic-artifacts');
         expect(
           existsSync(
             path.join(

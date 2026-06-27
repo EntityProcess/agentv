@@ -16,7 +16,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Experiment** — A committed run variant that selects how evals are executed: target or target matrix, setup, scripts, eval filters, repeat counts, timeouts, workers, budgets, and related run knobs. Experiments make A/B setup differences explicit while pointing at stable eval tasks.
 
-**Run manifest** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `artifact_dir`, `task_dir`, `summary_path`, and `grading_path`.
+**Run manifest** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `task_dir`, `summary_path`, and `grading_path`.
 
 **Artifact sidecar** — A file beside or below a test-case artifact directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
 

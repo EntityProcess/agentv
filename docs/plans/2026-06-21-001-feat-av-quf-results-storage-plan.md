@@ -405,7 +405,7 @@ after logical deletion.
 **Transcript migration:**
 
 - Existing runs may have `transcript_path` pointing at
-  `<artifact_dir>/outputs/transcript.jsonl`.
+  `<result_dir>/outputs/transcript.jsonl`.
 - Migration copies transcript bytes to
   `agentv/artifacts/v1:transcripts/<experiment>/<timestamp>/<test-key>/transcript.jsonl`
   or the matching object-store key.
