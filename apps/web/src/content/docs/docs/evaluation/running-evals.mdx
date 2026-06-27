@@ -11,7 +11,13 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`. When no experiment is defined, AgentV uses `.agentv/results/default/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts. Use this generated run folder as the portable audit surface: copy or sync the run directory, not a hand-authored parallel bundle.
+Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`.
+AgentV picks the experiment bucket from `--experiment`, then
+`eval.yaml` `experiment.name`, then `default`. Each CLI invocation writes one
+timestamped run bundle. Each line is a JSON object with one result per test
+case, and the run workspace also stores the manifest and related artifacts. Use
+this generated run folder as the portable audit surface: copy or sync the run
+directory, not a hand-authored parallel bundle.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -49,14 +55,18 @@ agentv eval --target my-target evals/**/*.yaml
 
 ### Experiment Label
 
-Tag a pipeline run with an experiment name to track different conditions (e.g. with vs without skills):
+Tag a run with an experiment name to track different conditions (e.g. with vs without skills):
 
 ```bash
-agentv pipeline run evals/my-eval.yaml --experiment with_skills
-agentv pipeline run evals/my-eval.yaml --experiment without_skills
+agentv eval evals/my-eval.yaml --experiment with_skills
+agentv eval evals/my-eval.yaml --experiment without_skills
 ```
 
-The experiment label is written to `manifest.json` and propagated to each entry in `index.jsonl` by `pipeline bench`. The eval file stays the same across experiments — what changes is the environment. Dashboards can filter and compare results by experiment.
+The experiment label chooses the result bucket and is propagated to each entry
+in `index.jsonl`. CLI `--experiment` wins over `experiment.name` in the eval
+file. If neither is set, AgentV writes to the `default` bucket. The eval file
+stays the same across experiments; what changes is the runtime condition.
+Dashboards can filter and compare results by experiment.
 
 ### Run Specific Test
 
@@ -100,7 +110,7 @@ cat ./my-results/index.jsonl
 
 ### Generated Task Bundles
 
-Each result can also include a generated task bundle inside its per-test artifact
+Each result can also include a generated task bundle inside its per-test result
 directory. The bundle captures the eval slice and target settings that produced
 that row, so reviewers and rerun tooling can inspect the exact run-local source
 instead of relying on a mutable checkout.
@@ -136,6 +146,10 @@ share the generated run directory and its `index.jsonl` manifest. Source-side
 case directories are still useful for organizing bulky prompts, fixtures, or
 tests while authoring an eval, but they are optional input organization rather
 than a separate artifact schema.
+
+Use repo-relative `eval_path`, `test_id`, and `target` as the source identity
+for a result row. `suite` and `name` are display metadata only; do not use them
+to infer storage paths or pick a Dashboard detail row.
 
 If the source eval uses the `PROMPT.md` fallback instead of inline `input`,
 AgentV records the generated task bundle metadata when source artifacts are
@@ -346,7 +360,7 @@ agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp
 
 After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
 
-The interactive wizard (`agentv eval` with no arguments) remembers the last run's artifact directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
+The interactive wizard (`agentv eval` with no arguments) remembers the last run directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
 
 ### Execution Error Tolerance
 
