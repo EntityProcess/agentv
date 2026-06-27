@@ -640,6 +640,16 @@ describe('agentv eval CLI', () => {
       expect(
         (benchmark.metadata?.experiment_config as Record<string, unknown>).fingerprint,
       ).toMatch(/^[a-f0-9]{64}$/);
+      expect(benchmark.metadata?.runtime_source).toMatchObject({
+        schema_version: 'agentv.runtime_source.v1',
+        kind: 'wrapper_eval',
+        config_source: 'inline_experiment',
+        experiment_namespace: 'native-exp',
+        experiment_namespace_source: 'eval_metadata',
+        eval_files: ['native-exp.eval.yaml'],
+        wrapper_eval_file: 'native-exp.eval.yaml',
+        source_eval_files: ['sample.test.yaml'],
+      });
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -709,6 +719,46 @@ describe('agentv eval CLI', () => {
         budgetUsd: 0.22,
         runBudgetCapUsd: 0.22,
         evalCaseIds: ['second-case'],
+      });
+
+      const benchmark = JSON.parse(
+        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
+      ) as { metadata?: Record<string, unknown> };
+      expect(benchmark.metadata?.runtime_source).toMatchObject({
+        schema_version: 'agentv.runtime_source.v1',
+        kind: 'multi_eval',
+        config_source: 'mixed',
+        experiment_namespace: 'multi-eval',
+        experiment_namespace_source: 'multi_eval',
+        eval_files: ['first.eval.yaml', 'second.eval.yaml'],
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('records CLI-named experiment namespace separately from default runtime config', async () => {
+    const fixture = await createFixture();
+    try {
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--experiment',
+        'cli-smoke',
+      ]);
+
+      expect(exitCode).toBe(0);
+      const outputPath = extractOutputPath(stdout);
+      const benchmark = JSON.parse(
+        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
+      ) as { metadata?: Record<string, unknown> };
+      expect(benchmark.metadata?.runtime_source).toMatchObject({
+        schema_version: 'agentv.runtime_source.v1',
+        kind: 'direct_suite',
+        config_source: 'defaults',
+        experiment_namespace: 'cli-smoke',
+        experiment_namespace_source: 'cli',
+        eval_files: ['sample.test.yaml'],
       });
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });

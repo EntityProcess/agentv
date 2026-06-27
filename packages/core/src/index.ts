@@ -81,6 +81,10 @@ export {
   type GradingArtifact,
   type IndexArtifactEntry,
   type ResultIndexArtifact,
+  type ExperimentNamespaceSource,
+  type RunRuntimeConfigSource,
+  type RunRuntimeSourceKind,
+  type RunRuntimeSourceMetadata,
   type RunSummaryArtifact,
   type TimingArtifact,
 } from './evaluation/run-artifacts.js';

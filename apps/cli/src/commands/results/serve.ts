@@ -56,6 +56,7 @@ import {
   type EvaluationResult,
   type ExternalTraceMetadata,
   type ExternalTraceMetadataWire,
+  type RunRuntimeSourceMetadata,
   type TraceSessionResponse,
   addProject,
   externalTraceMetadataFromRecord,
@@ -1559,6 +1560,8 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
     metas.map(async (m) => {
       let target: string | undefined;
       let experiment = inferExperimentFromRunId(m.raw_filename);
+      const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
+      let runtimeSource: RunRuntimeSourceMetadata | undefined = summaryMetadata.runtimeSource;
       let timestamp = m.timestamp;
       let testCount = m.testCount;
       let passRate = m.passRate;
@@ -1578,10 +1581,20 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
           passRate = qualitySummary.passRate;
           avgScore = qualitySummary.avgScore;
           executionErrorCount = qualitySummary.executionErrorCount;
+          runtimeSource = deriveDashboardRuntimeSource({
+            summaryMetadata,
+            records,
+            inferredExperiment: experiment,
+          });
         } else {
           // Run is in-progress with 0 results written yet — fall back to the
           // in-memory target stored when the Dashboard launched this run.
           target = getActiveRunTarget(m.path);
+          runtimeSource = deriveDashboardRuntimeSource({
+            summaryMetadata,
+            records: [],
+            inferredExperiment: experiment,
+          });
         }
       } catch {
         // ignore enrichment errors
@@ -1605,6 +1618,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         on_remote: m.on_remote,
         ...(target && { target }),
         ...(experiment && { experiment }),
+        ...(runtimeSource && { runtime_source: runtimeSource }),
         ...tagFields,
         ...(liveStatus && { status: liveStatus }),
       };
@@ -1644,10 +1658,17 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const records = await parseManifestForMeta(searchDir, meta, projectId);
+    const summaryMetadata = readRunSummaryMetadataForDashboard(meta.path);
+    const runtimeSource = deriveDashboardRuntimeSource({
+      summaryMetadata,
+      records,
+      inferredExperiment: records[0]?.experiment,
+    });
     // Surface run_dir + suite_filter for local runs so the UI can launch a
     // Dashboard-side resume against this exact run. Remote runs live in the
     // results-repo cache and cannot be resumed in place, so omit both fields.
-    const resumeMeta = meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path) : {};
+    const resumeMeta =
+      meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path, summaryMetadata) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
     const tagFields = await readRunTagFields(searchDir, meta, projectId);
     const baseDir = path.dirname(meta.path);
@@ -1658,6 +1679,7 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
       ),
       source: meta.source,
       source_label: meta.displayName,
+      ...(runtimeSource && { runtime_source: runtimeSource }),
       ...tagFields,
       ...(liveStatus && { status: liveStatus }),
       ...resumeMeta,
@@ -1707,9 +1729,99 @@ function attachExternalTraceFields<T extends Record<string, unknown>>(
  * Returns whatever fields could be resolved — both are best-effort and only
  * needed by the Dashboard "Resume run" / "Rerun failed" actions.
  */
+interface RunSummaryMetadataForDashboard {
+  readonly evalFile?: string;
+  readonly experiment?: string;
+  readonly plannedTestCount?: number;
+  readonly runtimeSource?: RunRuntimeSourceMetadata;
+}
+
+function readRunSummaryMetadataForDashboard(manifestPath: string): RunSummaryMetadataForDashboard {
+  try {
+    const summaryPath = path.join(path.dirname(manifestPath), 'summary.json');
+    if (!existsSync(summaryPath)) {
+      return {};
+    }
+    const parsed = JSON.parse(readFileSync(summaryPath, 'utf8')) as {
+      metadata?: {
+        eval_file?: string;
+        experiment?: string;
+        planned_test_count?: number;
+        runtime_source?: RunRuntimeSourceMetadata;
+      };
+    };
+    const planned = parsed.metadata?.planned_test_count;
+    return {
+      ...(typeof parsed.metadata?.eval_file === 'string' &&
+        parsed.metadata.eval_file.trim() && { evalFile: parsed.metadata.eval_file.trim() }),
+      ...(typeof parsed.metadata?.experiment === 'string' &&
+        parsed.metadata.experiment.trim() && { experiment: parsed.metadata.experiment.trim() }),
+      ...(typeof planned === 'number' &&
+        Number.isFinite(planned) &&
+        planned > 0 && { plannedTestCount: planned }),
+      ...(parsed.metadata?.runtime_source && { runtimeSource: parsed.metadata.runtime_source }),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function uniqueRuntimeSourceValues(values: Iterable<string | undefined>): readonly string[] {
+  return [...new Set([...values].filter((value): value is string => Boolean(value?.trim())))]
+    .map((value) => value.trim())
+    .sort();
+}
+
+function deriveDashboardRuntimeSource(params: {
+  readonly summaryMetadata: RunSummaryMetadataForDashboard;
+  readonly records: readonly {
+    evalPath?: string;
+    eval_path?: string;
+    suite?: string;
+    experiment?: string;
+    runtimeSource?: RunRuntimeSourceMetadata;
+    runtime_source?: RunRuntimeSourceMetadata;
+  }[];
+  readonly inferredExperiment?: string;
+}): RunRuntimeSourceMetadata | undefined {
+  const recordWithRuntimeSource = params.records.find(
+    (record) => record.runtimeSource ?? record.runtime_source,
+  );
+  const explicit =
+    params.summaryMetadata.runtimeSource ??
+    recordWithRuntimeSource?.runtimeSource ??
+    recordWithRuntimeSource?.runtime_source;
+  if (explicit) {
+    return explicit;
+  }
+
+  const experimentNamespace =
+    params.summaryMetadata.experiment ??
+    params.inferredExperiment ??
+    params.records.find((record) => record.experiment)?.experiment ??
+    'default';
+  const evalFiles = uniqueRuntimeSourceValues([
+    params.summaryMetadata.evalFile,
+    ...params.records.map((record) => record.evalPath ?? record.eval_path),
+  ]);
+  if (evalFiles.length === 0 && !experimentNamespace) {
+    return undefined;
+  }
+
+  return {
+    schema_version: 'agentv.runtime_source.v1',
+    kind: evalFiles.length > 1 ? 'multi_eval' : 'direct_suite',
+    config_source: 'defaults',
+    experiment_namespace: experimentNamespace,
+    experiment_namespace_source: 'unknown',
+    eval_files: evalFiles,
+  };
+}
+
 function deriveResumeMeta(
   cwd: string,
   manifestPath: string,
+  summaryMetadata = readRunSummaryMetadataForDashboard(manifestPath),
 ): { run_dir?: string; suite_filter?: string; planned_test_count?: number } {
   const out: { run_dir?: string; suite_filter?: string; planned_test_count?: number } = {};
   const runDir = path.dirname(manifestPath);
@@ -1718,23 +1830,11 @@ function deriveResumeMeta(
   // those absolute so the CLI doesn't get confused. An empty string ('' = same
   // dir as cwd) is unusual but valid — fall through to absolute in that case.
   out.run_dir = relative !== '' && !relative.startsWith('..') ? relative : runDir;
-  try {
-    const summaryPath = path.join(runDir, 'summary.json');
-    if (existsSync(summaryPath)) {
-      const parsed = JSON.parse(readFileSync(summaryPath, 'utf8')) as {
-        metadata?: { eval_file?: string; planned_test_count?: number };
-      };
-      const evalFile = parsed.metadata?.eval_file;
-      if (typeof evalFile === 'string' && evalFile.trim()) {
-        out.suite_filter = evalFile.trim();
-      }
-      const planned = parsed.metadata?.planned_test_count;
-      if (typeof planned === 'number' && Number.isFinite(planned) && planned > 0) {
-        out.planned_test_count = planned;
-      }
-    }
-  } catch {
-    // summary.json missing / unreadable / malformed — leave fields unset.
+  if (summaryMetadata.evalFile) {
+    out.suite_filter = summaryMetadata.evalFile;
+  }
+  if (summaryMetadata.plannedTestCount !== undefined) {
+    out.planned_test_count = summaryMetadata.plannedTestCount;
   }
   return out;
 }
@@ -3135,6 +3235,7 @@ export function createApp(
       size_bytes: number;
       target?: string;
       experiment?: string;
+      runtime_source?: RunRuntimeSourceMetadata;
       tags?: string[];
       remote_tags?: string[];
       pending_tags?: string[];
@@ -3152,6 +3253,8 @@ export function createApp(
         for (const m of metas) {
           let target: string | undefined;
           let experiment = inferExperimentFromRunId(m.raw_filename);
+          const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
+          let runtimeSource: RunRuntimeSourceMetadata | undefined = summaryMetadata.runtimeSource;
           let passRate = m.passRate;
           let avgScore = m.avgScore;
           let executionErrorCount = 0;
@@ -3167,6 +3270,11 @@ export function createApp(
               passRate = qualitySummary.passRate;
               avgScore = qualitySummary.avgScore;
               executionErrorCount = qualitySummary.executionErrorCount;
+              runtimeSource = deriveDashboardRuntimeSource({
+                summaryMetadata,
+                records,
+                inferredExperiment: experiment,
+              });
             }
           } catch {
             // ignore enrichment errors
@@ -3185,6 +3293,7 @@ export function createApp(
             source: m.source,
             ...(target && { target }),
             ...(experiment && { experiment }),
+            ...(runtimeSource && { runtime_source: runtimeSource }),
             ...tagFields,
             project_id: p.id,
             project_name: p.name,

@@ -12,6 +12,7 @@ import {
   RESULT_INDEX_FILENAME,
   RUN_SUMMARY_FILENAME,
   type ResultIndexArtifact,
+  type RunRuntimeSourceMetadata,
   type RunSummaryArtifact,
   type TimingArtifact,
   aggregateRunDir,
@@ -215,6 +216,7 @@ export async function writePerTestArtifacts(
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
     taskBundleTargets?: readonly TaskBundleTargetSelection[];
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<void> {
   await writeCorePerTestArtifacts(results, outputDir, {
@@ -224,6 +226,7 @@ export async function writePerTestArtifacts(
     duplicatePolicy: options?.duplicatePolicy,
     sourceTests: options?.sourceTests,
     additionalArtifacts: createTaskBundleArtifactsWriter(options),
+    runtimeSource: options?.runtimeSource,
   });
 }
 
@@ -242,6 +245,7 @@ export async function writeArtifactsFromResults(
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
     taskBundleTargets?: readonly TaskBundleTargetSelection[];
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<{
   testArtifactDir: string;
@@ -258,5 +262,6 @@ export async function writeArtifactsFromResults(
     resultGroup: options?.resultGroup,
     sourceTests: options?.sourceTests,
     additionalArtifacts: createTaskBundleArtifactsWriter(options),
+    runtimeSource: options?.runtimeSource,
   });
 }

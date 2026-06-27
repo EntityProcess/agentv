@@ -11,9 +11,11 @@
  * repeated labels for single-eval runs.
  */
 
+import { experimentNamespaceLabel, runtimeSourceSummary } from './runtime-source';
 import type { EvalResult, RunDetailResponse } from './types';
 
 type RunSource = RunDetailResponse['source'];
+type RunRuntimeSource = RunDetailResponse['runtime_source'];
 
 type HeaderResult = Pick<EvalResult, 'experiment' | 'target' | 'timestamp'>;
 type SuiteLabelResult = Pick<EvalResult, 'suite'>;
@@ -24,6 +26,7 @@ export interface RunDetailHeaderInput {
   results: readonly HeaderResult[];
   source?: RunSource;
   sourceLabel?: string;
+  runtimeSource?: RunRuntimeSource;
   remoteRepo?: string;
   formatTimestamp?: (timestamp: string) => string;
 }
@@ -86,6 +89,19 @@ export function buildRunDetailHeader(input: RunDetailHeaderInput): RunDetailHead
 
   const remoteRepo = cleanOptional(input.remoteRepo);
   const sourceContext: RunDetailHeaderContextItem[] = [];
+  sourceContext.push({
+    label: 'Experiment namespace',
+    value: experimentNamespaceLabel({
+      experiment: firstResult?.experiment,
+      runtime_source: input.runtimeSource,
+    }),
+  });
+  if (input.runtimeSource) {
+    sourceContext.push({
+      label: 'Runtime source',
+      value: runtimeSourceSummary(input.runtimeSource),
+    });
+  }
   if (isRemote) {
     if (sourceLabel && sourceLabel !== heading) {
       sourceContext.push({ label: 'Source', value: sourceLabel });

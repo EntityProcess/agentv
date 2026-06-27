@@ -58,6 +58,7 @@ function RunDetailPage() {
     results: data?.results ?? [],
     source: data?.source,
     sourceLabel: data?.source_label,
+    runtimeSource: data?.runtime_source,
     remoteRepo: data?.source === 'remote' ? remoteStatus?.repo : undefined,
     formatTimestamp: (value) => new Date(value).toLocaleString(),
   });

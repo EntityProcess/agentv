@@ -1075,6 +1075,62 @@ describe('serve app', () => {
       expect(data.runs[0].tag_revision).toStartWith('sha256:');
     });
 
+    it('exposes experiment namespace and runtime source metadata for run list cards', async () => {
+      const experiment = 'named-wrapper';
+      const filename = '2026-03-25T10-05-00-000Z';
+      const runDir = localRunDir(tempDir, experiment, filename);
+      const runtimeSource = {
+        schema_version: 'agentv.runtime_source.v1' as const,
+        kind: 'wrapper_eval' as const,
+        config_source: 'inline_experiment' as const,
+        experiment_namespace: experiment,
+        experiment_namespace_source: 'eval_metadata' as const,
+        eval_files: ['evals/wrapper.eval.yaml'],
+        wrapper_eval_file: 'evals/wrapper.eval.yaml',
+        source_eval_files: ['evals/source.test.yaml'],
+      };
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment,
+          eval_path: 'evals/wrapper.eval.yaml',
+          runtime_source: runtimeSource,
+        }),
+      );
+      writeFileSync(
+        path.join(runDir, 'summary.json'),
+        JSON.stringify(
+          {
+            metadata: {
+              timestamp: '2026-03-25T10:05:00.000Z',
+              experiment,
+              eval_file: 'evals/wrapper.eval.yaml',
+              runtime_source: runtimeSource,
+            },
+            run_summary: {},
+          },
+          null,
+          2,
+        ),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/runs');
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        runs: Array<{
+          experiment?: string;
+          runtime_source?: typeof runtimeSource;
+        }>;
+      };
+      expect(data.runs).toHaveLength(1);
+      expect(data.runs[0].experiment).toBe(experiment);
+      expect(data.runs[0].runtime_source).toEqual(runtimeSource);
+    });
+
     it('exposes sanitized Phoenix external_trace metadata through run detail only', async () => {
       const filename = '2026-03-25T10-15-00-000Z';
       createLocalRun(
@@ -4465,6 +4521,54 @@ describe('serve app', () => {
       expect(data.source).toBe('local');
       expect(data.run_dir).toBe(path.join('.agentv', 'results', 'default', filename));
       expect(data.suite_filter).toBe('examples/demo.eval.yaml');
+    });
+
+    it('includes runtime source metadata for local run details', async () => {
+      const runsDir = localResultsExperimentDir(tempDir, 'cli-smoke');
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-05-06T00-00-02-000Z';
+      const runDir = path.join(runsDir, filename);
+      const runtimeSource = {
+        schema_version: 'agentv.runtime_source.v1' as const,
+        kind: 'direct_suite' as const,
+        config_source: 'defaults' as const,
+        experiment_namespace: 'cli-smoke',
+        experiment_namespace_source: 'cli' as const,
+        eval_files: ['examples/demo.eval.yaml'],
+      };
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'cli-smoke',
+          eval_path: 'examples/demo.eval.yaml',
+        }),
+      );
+      writeFileSync(
+        path.join(runDir, 'summary.json'),
+        JSON.stringify(
+          {
+            metadata: {
+              eval_file: 'examples/demo.eval.yaml',
+              experiment: 'cli-smoke',
+              runtime_source: runtimeSource,
+            },
+            run_summary: {},
+          },
+          null,
+          2,
+        ),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(`cli-smoke::${filename}`)}`);
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        runtime_source?: typeof runtimeSource;
+      };
+      expect(data.runtime_source).toEqual(runtimeSource);
     });
 
     it('omits suite_filter when summary.json is missing', async () => {
