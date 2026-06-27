@@ -70,7 +70,8 @@ child `experiment:` block and uses the parent `experiment:` when one exists; it
 does not fall back to the child `experiment:`. Workspace follows task ownership,
 not runtime fallback: imported child tests keep the child suite workspace that
 was already expanded into those tests. Therefore a parent eval that imports any
-child eval with `type: suite` must not define top-level `workspace`. Parent
+child eval with `type: suite` must not define parent workspace fields such as
+`workspace`, `experiment.workspace`, or legacy `execution.workspace`. Parent
 workspace context is valid for parent-owned raw cases only, including raw cases
 imported with `type: tests` or shorthand paths. A "tests only" import mode may
 drop child workspace context, but that must be opt-in.

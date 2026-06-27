@@ -496,7 +496,7 @@ async function loadTestsFromParsedYamlValue(
       evalFileDir,
       repoRoot,
       suiteMetadataPayload,
-      parentHasWorkspace: suite.workspace !== undefined,
+      parentWorkspaceLocation: parentWorkspaceLocation(suite),
       options,
     });
     expandedTestCases = expanded.rawCases;
@@ -1155,7 +1155,7 @@ async function expandInlineTestEntries(params: {
   readonly evalFileDir: string;
   readonly repoRoot: URL | string;
   readonly suiteMetadataPayload?: Record<string, unknown>;
-  readonly parentHasWorkspace?: boolean;
+  readonly parentWorkspaceLocation?: string;
   readonly options?: LoadOptions;
 }): Promise<ExpandedInlineTestEntries> {
   const withFileReferences = await expandFileReferences(params.entries, params.evalFileDir);
@@ -1181,9 +1181,9 @@ async function expandInlineTestEntries(params: {
 
     for (const resolvedPath of resolvedPaths) {
       if (mode === 'suite') {
-        if (params.parentHasWorkspace) {
+        if (params.parentWorkspaceLocation) {
           throw new Error(
-            `Parent workspace is not allowed when importing eval suites with type: suite: ${includePath}. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.`,
+            `Parent workspace is not allowed when importing eval suites with type: suite (${params.parentWorkspaceLocation}): ${includePath}. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.`,
           );
         }
         const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
@@ -1214,6 +1214,19 @@ async function expandInlineTestEntries(params: {
   }
 
   return { rawCases, importedSuiteTests };
+}
+
+function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
+  if (suite.workspace !== undefined) {
+    return 'workspace';
+  }
+
+  const runtime = suite.experiment ?? suite.execution;
+  if (isJsonObject(runtime) && runtime.workspace !== undefined) {
+    return suite.experiment !== undefined ? 'experiment.workspace' : 'execution.workspace';
+  }
+
+  return undefined;
 }
 
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {

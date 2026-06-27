@@ -121,6 +121,76 @@ tests:
     ).toBe(true);
   });
 
+  it('rejects parent experiment workspace when importing suites', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-experiment-workspace.eval.yaml'),
+      `tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-experiment-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    path: ./parent-workspace
+tests:
+  - include: composition-child-experiment-workspace.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace' &&
+          error.message.includes('Parent workspace is not allowed') &&
+          error.message.includes('type: suite'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects legacy execution workspace when importing suites', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-execution-workspace.eval.yaml'),
+      `tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-execution-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `execution:
+  workspace:
+    path: ./parent-workspace
+tests:
+  - include: composition-child-execution-workspace.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'execution.workspace' &&
+          error.message.includes('Parent workspace is not allowed') &&
+          error.message.includes('type: suite'),
+      ),
+    ).toBe(true);
+  });
+
   it('warns that imported child experiments are ignored by wrapper composition', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment.eval.yaml'),

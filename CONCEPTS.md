@@ -18,7 +18,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Raw case file** — YAML, JSONL, or directory case data imported with `tests: ./cases.yaml`, string shorthand, or `type: tests`. Raw cases are reusable data inputs; they do not carry imported suite context such as shared `workspace`, shared `input`, or shared `assertions`.
 
-**Wrapper eval** — Eval YAML whose main job is to import task suites and bind runtime policy with an inline `experiment:` block. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define top-level `workspace`; imported suites own task environment.
+**Wrapper eval** — Eval YAML whose main job is to import task suites and bind runtime policy with an inline `experiment:` block. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define parent workspace fields such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`; imported suites own task environment.
 
 **Experiment** — The run-policy namespace for how evals are executed: target or target matrix, eval filters, repeat counts, timeouts, workers, budgets, thresholds, and related run knobs. In authored files it lives as inline `experiment:` inside eval YAML; CLI `--experiment` and `experiment.name` choose the result bucket. Lifecycle setup belongs in `workspace.hooks` or `targets[].hooks`, not in a separate experiment artifact.
 

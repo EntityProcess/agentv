@@ -222,7 +222,8 @@ fall back into the parent run. Scoped runtime overrides that the parent wants
 to apply to imported tests live in `tests[].run`.
 
 A parent eval that imports any child eval suite with `type: suite` must not
-define top-level `workspace`. The wrapper owns runtime policy, not task
+define parent workspace fields, including `workspace`, `experiment.workspace`,
+or legacy `execution.workspace`. The wrapper owns runtime policy, not task
 environment. Imported child suites keep their own `workspace`, including
 `workspace.repos[]`, templates, hooks, and isolation. If the parent should own
 workspace context, import raw cases with `type: tests` or shorthand paths
@@ -354,17 +355,18 @@ suite-level `execution`, `workspace`, `input`, and `assertions`.
 When a wrapper eval imports it with `type: suite`, AgentV must preserve its
 shared `workspace`, `input`, and `assertions` because those fields are part of
 the task contract. Its `execution` block is the legacy spelling for child
-runtime configuration. Under this decision, the child runtime block is treated
-as child `experiment`/legacy `execution`: scoped defaults such as threshold,
-repeat policy, timeout, and budget can follow the imported tests, while
+runtime configuration. Under this decision, child `experiment`/legacy
+`execution` blocks are ignored in wrapper composition; scoped threshold,
+repeat, timeout, and budget overrides must be authored on the parent
+`tests[].run` include entry or on child tests themselves, while
 candidate-changing fields must be supplied by the parent wrapper eval's
 `experiment:`.
 
 This is the motivating distinction:
 
 - task context from imported suites is preserved;
-- child runtime policy from imported suites contributes scoped defaults only
-  where a parent runtime policy does not override them;
+- child runtime policy from imported suites is ignored in wrapper composition;
+  scoped runtime overrides are explicit `tests[].run` data;
 - raw-case imports do not inherit suite context.
 
 ## Result Layout

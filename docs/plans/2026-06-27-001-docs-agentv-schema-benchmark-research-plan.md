@@ -66,8 +66,10 @@ with a special name.
   with `type: suite`, the parent owns runtime `experiment:` and does not fall
   back to the child `experiment:`. Child workspace remains task-owned: imported
   suite tests keep their expanded child workspace. Parent evals that import
-  suites must not define top-level `workspace`; parent workspace applies only
-  to parent-owned raw cases, including cases imported with `type: tests`.
+  suites must not define parent workspace fields such as `workspace`,
+  `experiment.workspace`, or legacy `execution.workspace`; parent workspace
+  applies only to parent-owned raw cases, including cases imported with
+  `type: tests`.
 
 ### Evidence Summary
 
@@ -146,7 +148,8 @@ Research ambiguity:
   child-experiment fallback.
 - R13. Child `workspace` setup should remain task-owned. In the current loader,
   imported suite tests keep their child workspace. A parent eval that imports
-  any suite with `type: suite` must not define top-level `workspace`.
+  any suite with `type: suite` must not define parent workspace fields such as
+  `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
 - R14. Parent workspace applies to parent-owned raw cases only, including raw
   cases imported with `type: tests`. Any future parent workspace
   override/remap for imported suites should require explicit syntax.
@@ -178,8 +181,8 @@ Research ambiguity:
    SWE-bench `base_commit` at adapter boundaries when needed.
 4. **Document composition semantics before implementing new imports.** Parent
    evals own runtime `experiment:` without child fallback. Child workspaces are
-   preserved for `type: suite`; parent top-level `workspace` is forbidden when
-   importing suites and applies only to parent-owned raw cases. Any future
+   preserved for `type: suite`; parent workspace fields are forbidden when
+   importing suites and apply only to parent-owned raw cases. Any future
    override/remap needs explicit syntax.
 5. **Canonicalize docs toward `experiment:`.** Existing examples that still
    teach `execution:` should be audited in a follow-up docs bead if that surface

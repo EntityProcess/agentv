@@ -463,14 +463,16 @@ async function validateCompositionDiagnostics(
     (entry) => isObject(entry) && isIncludeEntry(entry) && entry.type === 'suite',
   );
 
-  if (parsed.workspace !== undefined && hasSuiteImport) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: 'workspace',
-      message:
-        'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns runtime policy, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
-    });
+  if (hasSuiteImport) {
+    for (const location of parentWorkspaceLocations(parsed)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message:
+          'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns runtime policy, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
+      });
+    }
   }
 
   for (let i = 0; i < tests.length; i++) {
@@ -525,6 +527,20 @@ async function validateCompositionDiagnostics(
       }
     }
   }
+}
+
+function parentWorkspaceLocations(parsed: JsonObject): readonly string[] {
+  const locations: string[] = [];
+  if (parsed.workspace !== undefined) {
+    locations.push('workspace');
+  }
+  if (isObject(parsed.experiment) && parsed.experiment.workspace !== undefined) {
+    locations.push('experiment.workspace');
+  }
+  if (isObject(parsed.execution) && parsed.execution.workspace !== undefined) {
+    locations.push('execution.workspace');
+  }
+  return locations;
 }
 
 async function readImportedSuite(filePath: string): Promise<JsonObject | undefined> {

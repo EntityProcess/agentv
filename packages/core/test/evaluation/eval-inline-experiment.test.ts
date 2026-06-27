@@ -483,6 +483,70 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
   });
 
+  it('rejects parent experiment workspace when importing eval suites with type: suite', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'experiment:',
+        '  workspace:',
+        '    path: ./parent-workspace',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed.*experiment\.workspace/,
+    );
+  });
+
+  it('rejects legacy execution workspace when importing eval suites with type: suite', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'execution:',
+        '  workspace:',
+        '    path: ./parent-workspace',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed.*execution\.workspace/,
+    );
+  });
+
   it('ignores imported child experiment defaults when parent has no experiment', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),

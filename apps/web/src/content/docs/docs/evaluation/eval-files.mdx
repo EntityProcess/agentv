@@ -25,8 +25,9 @@ experiment format.
 - A **wrapper eval** is eval YAML that imports one or more suites with
   `type: suite` and binds runtime policy in its inline `experiment:` block.
   Wrapper evals can live anywhere in the repo. A wrapper that imports suites
-  with `type: suite` must not define top-level `workspace`; imported suites own
-  task environment.
+  with `type: suite` must not define parent workspace fields such as
+  `workspace`, `experiment.workspace`, or legacy `execution.workspace`;
+  imported suites own task environment.
 
 For example, a reusable task suite can keep the task contract in one file:
 
@@ -76,8 +77,9 @@ tests:
 The `experiments/` directory in that example is optional and user-owned. AgentV
 does not infer behavior from the path; the wrapper runs because it is eval YAML
 with an inline `experiment:` block. The wrapper owns runtime policy only. Put
-workspace setup in imported child suites, or import raw cases with `type: tests`
-when the parent should provide workspace context.
+workspace setup in imported child suites. Parent workspace fields, including
+`workspace`, `experiment.workspace`, and legacy `execution.workspace`, are for
+parent-owned raw cases, including cases imported with `type: tests`.
 
 ## YAML Format
 
