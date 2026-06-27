@@ -109,6 +109,28 @@ The old experiment runtime fields are ported into the parent eval file:
 Suite or case workspace fields remain task-owned when they define what is being
 evaluated.
 
+## Contract Layers
+
+Parent-versus-child is not the main composition rule. Contract ownership is:
+
+| Layer | AgentV fields | Owner in `type: suite` composition |
+| --- | --- | --- |
+| Task data | `tests`, case `metadata`, `expected_output` | Imported child suite |
+| Task prompt | `input`, `input_files`, shared prompt defaults | Imported child suite |
+| Task environment | `workspace`, `workspace.repos[]`, templates, workspace hooks | Imported child suite |
+| Scoring | `assertions`, graders, expected references | Imported child suite |
+| Run policy | `experiment`, CLI target flags, workers, repeat, gates, budget | Parent wrapper eval or CLI |
+| Target runtime | selected target config and `targets[].hooks` | Selected target |
+
+`workspace` can influence what an agent perceives through tools, but it is not
+prompt input. `input` is what the agent is told; `workspace` is what the agent
+can act on; `assertions` are how AgentV judges the result; `experiment` is how
+the run is bound, repeated, compared, and gated.
+
+This framing removes the apparent "child wins except experiment" exception.
+Child suites own task contracts. Parent wrapper evals and CLI flags own run
+contracts.
+
 ## Lifecycle Ownership
 
 `experiment:` owns evaluation policy, not lifecycle mutation. Commands that

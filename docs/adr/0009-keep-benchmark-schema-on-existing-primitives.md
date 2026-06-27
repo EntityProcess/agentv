@@ -73,6 +73,11 @@ was already expanded into those tests, while the parent workspace applies to
 raw cases owned by the parent file. A "tests only" import mode may drop child
 workspace context, but that must be opt-in.
 
+ADR 0006 defines the contract-layer model behind this rule: task data, task
+prompt, task environment, and scoring come from the imported child suite; run
+policy comes from the parent wrapper eval or CLI. `workspace` is task
+environment, not prompt input, even though agents may inspect it through tools.
+
 If a future composition feature allows parent workspace override or remapping
 for imported suites, it should be explicit and logged. The default should not
 silently replace child workspace setup, because that setup is part of the
