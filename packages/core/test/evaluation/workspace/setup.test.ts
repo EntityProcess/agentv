@@ -1,9 +1,9 @@
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { EvalTest } from '../../../src/evaluation/types.js';
 import {
@@ -313,6 +313,42 @@ describe('prepareSharedWorkspaceSetup', () => {
     expect(readFileSync(path.join(setup.sharedWorkspacePath, 'parent-marker.txt'), 'utf8')).toBe(
       'parent\n',
     );
+  });
+
+  it('runs shared setup for env-only workspace configs', async () => {
+    const missingCommand = `agentv-missing-command-${Date.now()}`;
+
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-env-only-preflight',
+        evalCases: [
+          testCase('env-only-case', {
+            env: {
+              required_commands: [missingCommand],
+            },
+          }),
+        ],
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(`command: ${missingCommand}`);
+  });
+
+  it('runs shared setup for docker-only workspace configs', async () => {
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-docker-only-preflight',
+        evalCases: [
+          testCase('docker-only-case', {
+            docker: {
+              image: 'invalid image with spaces',
+            },
+          }),
+        ],
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(/Docker workspace configured|docker pull failed|invalid reference/);
   });
 
   it('does not apply a child suite shared workspace to raw cases with no workspace', async () => {

@@ -212,7 +212,9 @@ function workspaceNeedsSharedSetup(
     workspace.mode === 'static' ||
     workspace.template ||
     workspace.hooks ||
-    workspace.repos?.length
+    workspace.repos?.length ||
+    workspace.docker ||
+    workspace.env
   );
 }
 
