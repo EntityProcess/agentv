@@ -11,8 +11,9 @@ Proposed
 AgentV now has native workspace repository acquisition for custom evals, CI
 gates, target comparisons, pooled workspaces, hooks, and Docker workspace cases.
 That should remain generic infrastructure: `workspace.repos[].commit` is the
-canonical checkout pin, and `workspace.repos[].base_commit` is only a
-SWE-Bench-friendly alias for the same value.
+canonical checkout pin. SWE-Bench `base_commit` is upstream/import vocabulary
+that adapters may translate into `commit`; it should not become the canonical
+AgentV workspace field.
 
 Harbor owns benchmark-grade execution for standard suites such as SWE-Bench
 Verified, Multi-SWE-Bench, Terminal-Bench, and suites with Harbor-specific
@@ -39,101 +40,79 @@ Harbor should own:
 - Harbor `task.toml` files and Harbor YAML config;
 - Opik trace upload through Harbor when enabled.
 
-## Alignment with experiment separation
+## Alignment with inline experiment runtime
 
-The 2026-06-23 experiment/eval separation decision makes runtime binding an
-experiment concern. Harbor execution should follow the same split:
+The 2026-06-26 inline experiment decision keeps runtime binding inside the
+single runnable `eval.yaml` artifact. Harbor execution should follow the same
+split:
 
 - AgentV eval YAML remains the authoring or selection surface for what benchmark
   suite is being evaluated.
-- AgentV experiment YAML selects or pins the Harbor runner, candidate
+- The inline `experiment:` block selects or pins the Harbor runner, candidate
   agent/model, run policy, and other runtime binding.
 - Harbor-authored YAML remains Harbor's own config surface when the standard
   suite needs Harbor-specific task packaging or verifier settings.
 
 This means the examples below show the desired logical fields, but new
-runtime fields should be placed on an experiment unless they are genuinely part
-of the benchmark suite identity. Do not put candidate agent/model binding in the
-eval file for new AgentV-native examples.
+runtime fields should be placed under `experiment:` unless they are genuinely
+part of the benchmark suite identity. Do not put candidate agent/model binding
+under `source` for new AgentV-native examples.
 
 ## Minimal future config surface
 
-An AgentV eval suite can select the benchmark source without copying Harbor's
-task schema or claiming to be the runtime runner:
+An AgentV eval suite should not gain a generic top-level `source` field just to
+select Harbor. ADR 0009 keeps benchmark-shaped evals on existing primitives:
+workspace setup belongs in `workspace`, runtime binding belongs in
+`experiment`, and imported benchmark provenance belongs in metadata, sidecars,
+or adapter manifests.
 
-```yaml
-name: swebench-verified
-
-source:
-  type: harbor
-  dataset: swebench-verified
-```
-
-The corresponding experiment selects how that suite runs:
+If a future Harbor adapter needs first-class selection in AgentV YAML, it should
+be designed as a narrow runner/import selector after real usage, not as a broad
+benchmark source schema. The corresponding inline experiment block still selects
+how that suite runs:
 
 ```yaml
 name: swebench-verified-codex
-target: codex-gpt5-mini
-evals: evals/swebench-verified.eval.yaml
-runner:
-  type: harbor
-  options:
-    opik:
-      enabled: true
+
+experiment:
+  target: codex
+  model: openai/gpt-5-mini
+  runner:
+    type: harbor
+    options:
+      opik:
+        enabled: true
 ```
 
-For a Harbor-authored YAML file, use `config` instead of `dataset`:
-
-```yaml
-source:
-  type: harbor
-  config: ./harbor/swebench-verified.yaml
-```
-
-The first implementation should accept exactly one Harbor source selector:
-`dataset` for a known Harbor dataset id, or `config` for an existing Harbor YAML
-file. There should be no precedence rule between them. If both are set, fail
-validation and ask the user to choose one.
-
-Do not combine Harbor suite selection with candidate binding in the eval file:
+Do not combine Harbor suite selection with candidate binding in an invented
+source block:
 
 ```yaml
 # Avoid in eval.yaml
-execution:
-  runner: harbor
-  harbor:
-    dataset: swebench-verified
-    agent: codex
-    model: openai/gpt-5-mini
-```
-
-Split that shape across the suite and experiment instead:
-
-```yaml
-# evals/swebench-verified.eval.yaml
-name: swebench-verified
 source:
-  type: harbor
+  runner: harbor
   dataset: swebench-verified
+  agent: codex
+  model: openai/gpt-5-mini
 ```
+
+Keep runtime binding in `experiment:` instead:
 
 ```yaml
-# experiments/swebench-verified-codex.yaml
-name: swebench-verified-codex
-target: codex
-model: openai/gpt-5-mini
-evals: evals/swebench-verified.eval.yaml
-runner:
-  type: harbor
+name: swebench-verified
+
+experiment:
+  target: codex
+  model: openai/gpt-5-mini
+  runner:
+    type: harbor
 ```
 
-Keep Harbor suite source selection under `source` in the eval suite. Keep
-experiment-side runner selection under `runner.type`, with runner knobs under
-`runner.options`. The eval suite answers "where do these cases come from?"; the
-experiment answers "how is this run executed?" Do not use `execution.runner` in
-new eval-suite examples because that name collides with the experiment runner.
-Do not repeat the runner discriminator as `runner.harbor.options`; `type:
-harbor` already provides that namespace.
+Keep runtime runner selection under `experiment.runner.type`, with runner knobs
+under `experiment.runner.options`. Do not use `execution.runner` in new
+eval-suite examples because top-level `execution:` is only a legacy alias for
+old eval files. Do not repeat the runner discriminator as
+`runner.harbor.options`; `type: harbor` already provides that namespace.
 
 Do not add top-level AgentV fields for Harbor task packaging, verifier images,
 task patches, or Docker/Compose adapter settings. If a Harbor option becomes too
@@ -153,8 +132,9 @@ agentv eval evals/native.eval.yaml --target codex
 ```
 
 Harbor-backed evals should use the same top-level entrypoint. If no explicit
-experiment runner is configured, AgentV may infer Harbor execution from
-`source.type: harbor`:
+experiment runner is configured, a future adapter may infer Harbor execution
+from an adapter-owned manifest or CLI flag, but this ADR does not add that
+schema:
 
 ```bash
 agentv eval evals/swebench-harbor.eval.yaml
@@ -176,9 +156,9 @@ agentv results import harbor --job <harbor-job-id>
 ```
 
 Do not overload native `--target` semantics in the first Harbor runner slice.
-Harbor `agent`, `model`, and matrix behavior should come from the experiment or
-the referenced Harbor YAML until repeated usage proves a shared AgentV flag is
-needed.
+Harbor `agent`, `model`, and matrix behavior should come from inline
+`experiment:` runtime fields or the referenced Harbor YAML until repeated usage
+proves a shared AgentV flag is needed.
 
 ## Unsupported fields and non-goals
 
@@ -191,6 +171,8 @@ The Harbor runner mode should not add or interpret:
   `base_commit` as Harbor runner inputs;
 - generic `extra_args` or arbitrary pass-through maps in the initial AgentV
   surface.
+- generic top-level `source` as a replacement for AgentV `workspace` or
+  metadata conventions.
 
 These fields remain valid in native AgentV evals when authors compose their own
 workspace, hooks, and graders. They are non-goals only for the Harbor-backed
@@ -199,9 +181,9 @@ standard-suite path.
 ## Implementation sequencing
 
 1. Document the native-vs-Harbor boundary and commit alias rules.
-2. Add schema validation for eval-suite `source.type: harbor` and exactly one of
-   `source.dataset` or `source.config`, plus experiment `runner.type` and
-   `runner.options`, with no changes to native workspace acquisition.
+2. Add a narrow Harbor runner/import selector only after repeated usage proves
+   it is needed; keep inline `experiment.runner.type` and
+   `experiment.runner.options`, with no changes to native workspace acquisition.
 3. Add a Harbor launch adapter that records job identity and status.
 4. Add a Harbor result importer that maps rewards, exceptions, timings,
    artifacts, and Opik trace URLs into AgentV run bundles.

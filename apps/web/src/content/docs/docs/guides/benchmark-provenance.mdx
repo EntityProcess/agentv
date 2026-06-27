@@ -9,7 +9,7 @@ Benchmark suites usually need more than a prompt and a score. They carry source
 pins, task patches, generated dataset rows, oracle data, setup scripts, and
 verification commands. AgentV represents that with existing primitives:
 
-- Put runtime behavior in `workspace`, `execution`, `input`, `expected_output`,
+- Put runtime behavior in `workspace`, `experiment`, `input`, `expected_output`,
   and `assertions`.
 - Put provenance and classification in per-case `metadata`.
 - Put bulky per-case authoring inputs in optional case directories and supporting files.
@@ -29,7 +29,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
 | `workspace.hooks` | Yes | Runs lifecycle commands with workspace and case context on stdin. |
 | `workspace.isolation`, `workspace.mode`, `workspace.path` | Yes | Controls workspace reuse and materialization. |
-| `execution` | Yes | Selects targets, thresholds, dependencies, and default grader behavior. |
+| `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, workers, and default grader behavior. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
 | `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
@@ -162,7 +162,7 @@ workspace:
     before_each:
       command: ["python", "./scripts/apply-case-fixtures.py"]
 
-execution:
+experiment:
   targets: [codex, claude]
 
 assertions:
@@ -182,20 +182,41 @@ the imported results, and link Opik traces when Harbor uploads them.
 # Proposed runner boundary, not a current AgentV task schema.
 name: swebench-verified-codex
 
-execution:
-  runner: harbor
-  harbor:
-    dataset: swebench-verified
-    agent: codex
-    model: openai/gpt-5-mini
-    opik:
-      enabled: true
+experiment:
+  target: codex
+  model: openai/gpt-5-mini
+  runner:
+    type: harbor
+    options:
+      opik:
+        enabled: true
 ```
 
 Do not translate Harbor `task.toml`, verifier packaging, or suite-specific
 Docker/Compose adapter fields into AgentV core eval schema. If the benchmark's
 runtime contract is already owned by Harbor, keep those details in Harbor and
 let AgentV consume the job metadata, rewards, artifacts, and trace links.
+Do not add a generic top-level `source` field just to identify Harbor. If a
+future Harbor adapter needs suite selection, keep that selector narrow and
+adapter-owned instead of making it the AgentV workspace model.
+
+## Eval Composition
+
+When one eval references another eval, preserve the task/runtime split:
+
+- The parent runnable eval owns runtime `experiment:` for the run.
+- Child `experiment:` blocks are ignored by `type: suite` composition. There is
+  no fallback to the child `experiment:` when the parent has no `experiment:`.
+- Child `workspace` setup is preserved for `type: suite` imports. Parent
+  workspace applies to raw cases owned by the parent file, not to imported suite
+  tests.
+- A tests-only import can drop child workspace context only when the import mode
+  says so explicitly.
+- Workspace path collisions or incompatible isolation settings should fail
+  loudly if a future explicit remap mode is added.
+
+That rule keeps imported benchmark cases attached to their setup while still
+letting a parent eval compare targets, repeat policy, and gates consistently.
 
 ## Finance-Style Generated Dataset
 
