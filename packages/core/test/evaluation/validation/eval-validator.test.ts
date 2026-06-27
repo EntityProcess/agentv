@@ -84,6 +84,116 @@ tests:
     expect(result.errors.some((error) => error.message.includes("Missing 'type'"))).toBe(true);
   });
 
+  it('warns when a parent workspace wraps only suite imports', async () => {
+    const childPath = path.join(tempDir, 'composition-child-workspace.eval.yaml');
+    await writeFile(
+      childPath,
+      `workspace:
+  path: ./child-workspace
+tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `workspace:
+  path: ./parent-workspace
+tests:
+  - include: composition-child-workspace.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.location === 'workspace' &&
+          error.message.includes('type: suite preserves each child workspace'),
+      ),
+    ).toBe(true);
+  });
+
+  it('warns that imported child experiments are ignored by wrapper composition', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-experiment.eval.yaml'),
+      `experiment:
+  target: child-target
+  workers: 2
+  threshold: 0.9
+tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-no-experiment.eval.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - include: composition-child-experiment.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.location === 'tests[0].include' &&
+          error.message.includes('child experiment blocks are ignored') &&
+          error.message.includes('parent has no experiment'),
+      ),
+    ).toBe(true);
+  });
+
+  it('warns when type: tests imports an eval suite and drops suite context', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-tests-import.eval.yaml'),
+      `workspace:
+  path: ./child-workspace
+input: child suite input
+assertions:
+  - type: contains
+    value: child
+tests:
+  - id: raw-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-tests-import.eval.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - include: composition-child-tests-import.eval.yaml
+    type: tests
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.location === 'tests[0].include' &&
+          error.message.includes('type: tests imports raw cases') &&
+          error.message.includes('drops suite context'),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects eval files with both experiment and legacy execution', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(
