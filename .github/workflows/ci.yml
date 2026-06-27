@@ -32,6 +32,92 @@ jobs:
       - name: Build packages
         run: bun run build
 
+      - name: Stage build artifact
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          RUNNER_ARCH_NAME: ${{ runner.arch }}
+          RUNNER_OS_NAME: ${{ runner.os }}
+        run: |
+          set -euo pipefail
+
+          artifact_dir="${RUNNER_TEMP}/agentv-build-artifact"
+          rm -rf "$artifact_dir"
+          mkdir -p "$artifact_dir"
+
+          included_paths=(
+            "packages/core/dist"
+            "packages/sdk/dist"
+            "apps/cli/dist"
+            "apps/dashboard/dist"
+          )
+
+          for path in "${included_paths[@]}"; do
+            if [ ! -d "$path" ]; then
+              echo "::error::Expected build output missing: $path"
+              exit 1
+            fi
+
+            mkdir -p "$artifact_dir/$(dirname "$path")"
+            cp -R "$path" "$artifact_dir/$path"
+          done
+
+          forbidden_path=$(find "$artifact_dir" \
+            \( -path "*/node_modules/*" \
+            -o -path "*/.bun/*" \
+            -o -path "*/.turbo/*" \
+            -o -path "*/.cache/*" \
+            -o -name "*.tsbuildinfo" \) \
+            -print -quit)
+
+          if [ -n "$forbidden_path" ]; then
+            echo "::error::Build artifact contains a dependency, cache, or tsbuildinfo path: $forbidden_path"
+            exit 1
+          fi
+
+          MANIFEST_PATH="$artifact_dir/manifest.json" \
+          COMMIT_SHA="$COMMIT_SHA" \
+          RUNNER_ARCH_NAME="$RUNNER_ARCH_NAME" \
+          RUNNER_OS_NAME="$RUNNER_OS_NAME" \
+            bun -e '
+              import { createHash } from "node:crypto";
+              import { Buffer } from "node:buffer";
+
+              const lockfile = await Bun.file("bun.lock").arrayBuffer();
+              const rootPackageJson = await Bun.file("package.json").json();
+              const includedPaths = [
+                "packages/core/dist/**",
+                "packages/sdk/dist/**",
+                "apps/cli/dist/**",
+                "apps/dashboard/dist/**",
+              ];
+              const manifest = {
+                commit_sha: process.env.COMMIT_SHA,
+                bun_lock_sha256: createHash("sha256")
+                  .update(Buffer.from(lockfile))
+                  .digest("hex"),
+                runner_os: process.env.RUNNER_OS_NAME,
+                runner_arch: process.env.RUNNER_ARCH_NAME,
+                bun_version_source: "package.json#packageManager",
+                bun_version_spec: rootPackageJson.packageManager ?? null,
+                bun_version: Bun.version,
+                built_at: new Date().toISOString(),
+                included_paths: includedPaths,
+              };
+
+              await Bun.write(
+                process.env.MANIFEST_PATH,
+                `${JSON.stringify(manifest, null, 2)}\n`,
+              );
+            '
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentv-build-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/agentv-build-artifact/
+          if-no-files-found: error
+          retention-days: 10
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest

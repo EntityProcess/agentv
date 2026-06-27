@@ -45,6 +45,14 @@ bd where
 - If you discover you are on a stale base or have uncoordinated dirty files, stop and fix that before changing code.
 - Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` or `bun.lock`, run `bun install` before building or testing.
 
+## Research, Build, and Artifact Reuse
+
+- Research-only workers should inspect files and repository history without running `bun install`, `bun run build`, tests, or evals unless the assigned research explicitly depends on that command. Record the justification when a research worker does run one of those commands.
+- Do not copy mutable build outputs from `main` or another worktree as the default way to avoid local builds. Prefer the commit-addressed CI build artifact when one is available for the exact source state.
+- A prebuilt CI artifact may be reused only when its manifest matches the consumer's commit SHA, `bun.lock` SHA-256, runner OS/architecture, expected Bun version source/value, and required output paths.
+- Implementation workers must rebuild locally for every package whose source they changed. A prebuilt artifact is only a reuse input for untouched packages at the same commit, never a substitute for rebuilding touched source.
+- CI build artifacts must contain only the compiled AgentV outputs and manifest. Do not include `node_modules`, Bun cache directories, `.turbo`, `.cache`, `.tsbuildinfo`, local evidence, tracker state, or generated runtime artifacts.
+
 ## Planning and Execution
 
 - Use plan mode or an explicit task list for non-trivial work, roughly five or more steps or anything with architectural decisions.
