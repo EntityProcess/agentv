@@ -9,6 +9,10 @@ Accepted
 Supersedes: the 2026-06-23 proposal in this file to separate experiment files
 from eval definitions.
 
+Partially superseded by
+[ADR 0009](0009-eval-path-result-identity-and-default-experiment.md) for result
+experiment bucket precedence, result row identity, and run bundle path naming.
+
 ## Context
 
 AgentV needs a stable authoring contract for repo-native evals, run-time knobs,
