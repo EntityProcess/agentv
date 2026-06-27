@@ -1273,6 +1273,10 @@ function safeTestId(testId: string | undefined): string {
   return safeArtifactPathSegment(testId, 'unknown');
 }
 
+function safeTarget(target: string | undefined): string {
+  return safeArtifactPathSegment(target, 'unknown');
+}
+
 function getSuite(result: EvaluationResult): string | undefined {
   return result.suite;
 }
@@ -1281,6 +1285,7 @@ function buildArtifactSubdir(
   result: EvaluationResult,
   resultGroup?: string,
   sourceTest?: EvalTest,
+  targetSegment?: string,
 ): string {
   const segments = [];
   const evalSet = getSuite(result);
@@ -1291,7 +1296,45 @@ function buildArtifactSubdir(
     segments.push(safeArtifactPathSegment(evalSet, 'default'));
   }
   segments.push(safeTestId(result.testId));
+  if (targetSegment !== undefined) {
+    segments.push(safeTarget(targetSegment));
+  }
   return path.posix.join(...segments);
+}
+
+interface ArtifactWritePlan {
+  readonly result: EvaluationResult;
+  readonly artifactSubdir: string;
+}
+
+function buildArtifactWritePlans(
+  results: readonly EvaluationResult[],
+  resultGroup: string | undefined,
+  testByTestId: ReadonlyMap<string, EvalTest>,
+): readonly ArtifactWritePlan[] {
+  const basePlans = results.map((result) => {
+    const sourceTest = findResultSourceTest(result, testByTestId);
+    return {
+      result,
+      sourceTest,
+      baseSubdir: buildArtifactSubdir(result, resultGroup, sourceTest),
+      targetSegment: safeTarget(result.target),
+    };
+  });
+  const targetsByBaseSubdir = new Map<string, Set<string>>();
+  for (const plan of basePlans) {
+    const targets = targetsByBaseSubdir.get(plan.baseSubdir) ?? new Set<string>();
+    targets.add(plan.targetSegment);
+    targetsByBaseSubdir.set(plan.baseSubdir, targets);
+  }
+
+  return basePlans.map((plan) => ({
+    result: plan.result,
+    artifactSubdir:
+      (targetsByBaseSubdir.get(plan.baseSubdir)?.size ?? 0) > 1
+        ? buildArtifactSubdir(plan.result, resultGroup, plan.sourceTest, plan.result.target)
+        : plan.baseSubdir,
+  }));
 }
 
 function toRelativeArtifactPath(outputDir: string, filePath: string): string {
@@ -1932,10 +1975,10 @@ export async function writePerTestArtifacts(
   const duplicatePolicy = options?.duplicatePolicy ?? 'update';
   const testByTestId = buildSourceTestLookup(options?.sourceTests);
   const indexRecords: ResultIndexArtifact[] = [];
+  const artifactPlans = buildArtifactWritePlans(results, options?.resultGroup, testByTestId);
 
-  for (const result of results) {
-    const sourceTest = findResultSourceTest(result, testByTestId);
-    const artifactSubdir = buildArtifactSubdir(result, options?.resultGroup, sourceTest);
+  for (const artifactPlan of artifactPlans) {
+    const { result, artifactSubdir } = artifactPlan;
     const testDir = path.join(outputDir, artifactSubdir);
     await mkdir(testDir, { recursive: true });
     const envelope = buildTraceEnvelopeSidecar({
@@ -2049,10 +2092,9 @@ export async function writeArtifactsFromResults(
   const indexRecords: unknown[] = [];
   const testByTestId = buildSourceTestLookup(options?.sourceTests);
   const emittedIdentityIds = new Set<string>();
+  const artifactPlans = buildArtifactWritePlans(results, options?.resultGroup, testByTestId);
 
-  const plans = results.map((result) => {
-    const sourceTest = findResultSourceTest(result, testByTestId);
-    const artifactSubdir = buildArtifactSubdir(result, options?.resultGroup, sourceTest);
+  const plans = artifactPlans.map(({ result, artifactSubdir }) => {
     const testDir = path.join(outputDir, artifactSubdir);
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const envelope = buildTraceEnvelopeSidecar({

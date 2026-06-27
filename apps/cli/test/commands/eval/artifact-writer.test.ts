@@ -1738,6 +1738,52 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
   });
 
+  it('allocates distinct artifact directories for multiple targets with the same suite and test id', async () => {
+    const paths = await writeArtifactsFromResults(
+      [
+        makeResult({
+          suite: 'suite-a',
+          testId: 'shared-id',
+          target: 'baseline',
+          output: 'baseline output',
+        }),
+        makeResult({
+          suite: 'suite-a',
+          testId: 'shared-id',
+          target: 'candidate',
+          output: 'candidate output',
+        }),
+      ],
+      testDir,
+    );
+
+    const indexLines = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+
+    expect(indexLines.map((line) => line.artifact_dir)).toEqual([
+      'suite-a/shared-id/baseline',
+      'suite-a/shared-id/candidate',
+    ]);
+    expect(indexLines.map((line) => line.grading_path)).toEqual([
+      'suite-a/shared-id/baseline/run-1/grading.json',
+      'suite-a/shared-id/candidate/run-1/grading.json',
+    ]);
+    await expect(
+      readFile(
+        path.join(testDir, 'suite-a', 'shared-id', 'baseline', 'run-1', 'outputs', 'answer.md'),
+        'utf8',
+      ),
+    ).resolves.toBe('baseline output');
+    await expect(
+      readFile(
+        path.join(testDir, 'suite-a', 'shared-id', 'candidate', 'run-1', 'outputs', 'answer.md'),
+        'utf8',
+      ),
+    ).resolves.toBe('candidate output');
+  });
+
   it('does not prefix artifact paths with suite when it matches the result group', async () => {
     const paths = await writeArtifactsFromResults(
       [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
