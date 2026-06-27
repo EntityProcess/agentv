@@ -335,8 +335,9 @@ function SourceTab({ result }: { result: EvalResult }) {
         <h4 className="mb-3 text-sm font-medium text-gray-300">Traceability</h4>
         <dl className="grid gap-3 md:grid-cols-2">
           <SourceMetaRow label="Eval file" value={traceability.eval_file?.display_path} />
+          <SourceMetaRow label="Eval" value={result.eval_path} />
           <SourceMetaRow label="Test ID" value={traceability.test_id ?? result.testId} />
-          <SourceMetaRow label="Suite" value={result.suite} />
+          <SourceMetaRow label="Legacy suite" value={result.suite} />
           <SourceMetaRow label="Category" value={result.category} />
           <SourceMetaRow label="Target" value={result.target} />
         </dl>

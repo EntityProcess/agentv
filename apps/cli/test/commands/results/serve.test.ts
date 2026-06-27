@@ -2581,18 +2581,30 @@ describe('serve app', () => {
       const filename = '2026-03-25T10-00-00-000Z';
       const runDir = path.join(runsDir, filename);
       mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A, RESULT_B));
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl(
+          {
+            ...RESULT_A,
+            eval_path: 'evals/demo.eval.yaml',
+            result_dir: 'demo/test-greeting',
+          },
+          RESULT_B,
+        ),
+      );
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request(`/api/runs/${filename}`);
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
-        results: { testId: string }[];
+        results: { testId: string; eval_path?: string; result_dir?: string }[];
         source: 'local' | 'remote';
         source_label: string;
       };
       expect(data.results).toHaveLength(2);
       expect(data.results[0].testId).toBe('test-greeting');
+      expect(data.results[0].eval_path).toBe('evals/demo.eval.yaml');
+      expect(data.results[0].result_dir).toBe('demo/test-greeting');
       expect(data.source).toBe('local');
       expect(data.source_label).toBe(filename);
     });

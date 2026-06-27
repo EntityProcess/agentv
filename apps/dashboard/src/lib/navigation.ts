@@ -33,6 +33,58 @@ export function evalPath(runId: string, evalId: string, projectId?: string): str
     : `/evals/${encodeURIComponent(runId)}/${encodeURIComponent(evalId)}`;
 }
 
+export interface EvalResultPathOptions {
+  projectId?: string;
+  resultDir?: string;
+  evalPath?: string;
+}
+
+export interface EvalResultIdentity {
+  testId: string;
+  target?: string;
+  result_dir?: string;
+  eval_path?: string;
+  suite?: string;
+}
+
+export function evalResultSearchParams(options: EvalResultPathOptions): Record<string, string> {
+  if (options.resultDir) {
+    return { result_dir: options.resultDir };
+  }
+  if (options.evalPath) {
+    return { eval_path: options.evalPath };
+  }
+  return {};
+}
+
+export function evalResultPath(
+  runId: string,
+  evalId: string,
+  options: EvalResultPathOptions = {},
+): string {
+  const base = evalPath(runId, evalId, options.projectId);
+  const params = new URLSearchParams(evalResultSearchParams(options));
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+}
+
+export function evalResultIdentityKey(result: EvalResultIdentity): string {
+  if (result.result_dir) return result.result_dir;
+  return [result.eval_path ?? result.suite ?? '', result.testId, result.target ?? ''].join(':');
+}
+
+export function matchesEvalResultIdentity(
+  result: Pick<EvalResultIdentity, 'testId' | 'result_dir' | 'eval_path'>,
+  evalId: string,
+  options: Pick<EvalResultPathOptions, 'resultDir' | 'evalPath'> = {},
+): boolean {
+  return (
+    result.testId === evalId &&
+    (!options.resultDir || result.result_dir === options.resultDir) &&
+    (!options.evalPath || result.eval_path === options.evalPath)
+  );
+}
+
 export function experimentPath(experimentName: string, projectId?: string): string {
   return projectId
     ? `/projects/${encodeURIComponent(projectId)}/experiments/${encodeURIComponent(experimentName)}`

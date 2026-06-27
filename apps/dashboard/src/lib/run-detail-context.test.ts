@@ -4,8 +4,11 @@ import type { EvalResult } from './types';
 
 import {
   buildRunDetailHeader,
+  evalSourceValue,
   formatCategoryDisplay,
+  formatEvalSourceDisplay,
   formatSuiteDisplay,
+  shouldShowEvalSourceLabels,
   shouldShowSuiteLabels,
 } from './run-detail-context';
 
@@ -97,6 +100,28 @@ describe('formatSuiteDisplay', () => {
   });
 });
 
+describe('eval source labels', () => {
+  it('prefers eval_path over legacy suite metadata', () => {
+    const result = {
+      eval_path: 'evals/auth/login.eval.yaml',
+      suite: 'legacy-suite',
+    };
+
+    expect(evalSourceValue(result)).toBe('evals/auth/login.eval.yaml');
+    expect(formatEvalSourceDisplay(result)).toEqual({
+      label: 'login',
+      title: 'evals/auth/login.eval.yaml',
+    });
+  });
+
+  it('falls back to suite for old result rows', () => {
+    expect(formatEvalSourceDisplay({ suite: 'legacy-suite' })).toEqual({
+      label: 'legacy-suite',
+      title: 'legacy-suite',
+    });
+  });
+});
+
 describe('shouldShowSuiteLabels', () => {
   it('shows labels for mixed-suite runs', () => {
     expect(
@@ -107,6 +132,26 @@ describe('shouldShowSuiteLabels', () => {
   it('suppresses repeated labels for single-suite runs', () => {
     expect(
       shouldShowSuiteLabels([{ suite: 'evals/a.eval.yaml' }, { suite: 'evals/a.eval.yaml' }]),
+    ).toBe(false);
+  });
+});
+
+describe('shouldShowEvalSourceLabels', () => {
+  it('shows labels for mixed eval paths even when test IDs overlap', () => {
+    expect(
+      shouldShowEvalSourceLabels([
+        { eval_path: 'evals/a.eval.yaml', suite: 'legacy' },
+        { eval_path: 'evals/b.eval.yaml', suite: 'legacy' },
+      ]),
+    ).toBe(true);
+  });
+
+  it('suppresses repeated labels for a single eval path', () => {
+    expect(
+      shouldShowEvalSourceLabels([
+        { eval_path: 'evals/a.eval.yaml' },
+        { eval_path: 'evals/a.eval.yaml' },
+      ]),
     ).toBe(false);
   });
 });
