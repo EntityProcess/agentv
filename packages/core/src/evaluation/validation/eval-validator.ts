@@ -270,11 +270,12 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate suite-level input (optional: string/object shorthand or message array)
   validateInputField(parsed.input, 'input', absolutePath, errors);
 
+  await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
+
   const cases: JsonValue | undefined = parsed.tests;
 
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
-    await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
     await validateRawCaseImportPath(cases, absolutePath, 'tests', errors);
 
     return {
@@ -436,23 +437,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     );
   }
 
-  await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
-  if (isObject(parsed.experiment)) {
-    await validateWorkspaceConfig(
-      parsed.experiment.workspace,
-      absolutePath,
-      errors,
-      'experiment.workspace',
-    );
-  }
-  if (isObject(parsed.execution)) {
-    await validateWorkspaceConfig(
-      parsed.execution.workspace,
-      absolutePath,
-      errors,
-      'execution.workspace',
-    );
-  }
   await validateCompositionDiagnostics(absolutePath, parsed, errors);
   await validateSuiteImportCycles(absolutePath, parsed, errors);
 
@@ -462,6 +446,86 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     fileType: 'eval',
     errors,
   };
+}
+
+async function validateSuiteWorkspaceConfigs(
+  parsed: JsonObject,
+  absolutePath: string,
+  errors: ValidationError[],
+): Promise<void> {
+  await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+  if (isObject(parsed.experiment)) {
+    validateExperimentWorkspaceConfig(
+      parsed.experiment.workspace,
+      absolutePath,
+      errors,
+      'experiment.workspace',
+    );
+  }
+  if (isObject(parsed.execution)) {
+    validateExperimentWorkspaceConfig(
+      parsed.execution.workspace,
+      absolutePath,
+      errors,
+      'execution.workspace',
+    );
+  }
+}
+
+function validateExperimentWorkspaceConfig(
+  workspace: JsonValue | undefined,
+  filePath: string,
+  errors: ValidationError[],
+  location: string,
+): void {
+  if (workspace === undefined) {
+    return;
+  }
+
+  if (!isObject(workspace)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `${location} must be an object with mode and/or path.`,
+    });
+    return;
+  }
+
+  for (const key of Object.keys(workspace)) {
+    if (key === 'mode' || key === 'path') {
+      continue;
+    }
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.${key}`,
+      message: `${location} supports only mode and path. Put task workspace setup in top-level workspace.`,
+    });
+  }
+
+  const mode = workspace.mode;
+  if (mode !== undefined && mode !== 'pooled' && mode !== 'temp' && mode !== 'static') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.mode`,
+      message: `${location}.mode must be 'pooled', 'temp', or 'static'.`,
+    });
+  }
+
+  const workspacePath = workspace.path;
+  if (
+    workspacePath !== undefined &&
+    (typeof workspacePath !== 'string' || workspacePath.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.path`,
+      message: `${location}.path must be a non-empty string.`,
+    });
+  }
 }
 
 async function validateCompositionDiagnostics(

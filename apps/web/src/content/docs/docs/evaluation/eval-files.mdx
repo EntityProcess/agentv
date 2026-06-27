@@ -77,9 +77,12 @@ tests:
 The `experiments/` directory in that example is optional and user-owned. AgentV
 does not infer behavior from the path; the wrapper runs because it is eval YAML
 with an inline `experiment:` block. The wrapper owns runtime policy only. Put
-workspace setup in imported child suites. Parent workspace fields, including
-`workspace`, `experiment.workspace`, and legacy `execution.workspace`, are for
-parent-owned raw cases, including cases imported with `type: tests`.
+workspace setup in imported child suites. Parent workspace-affecting fields,
+including `workspace`, `experiment.workspace`, and legacy
+`execution.workspace`, are for parent-owned raw cases, including cases imported
+with `type: tests`. `experiment.workspace` is only a runtime `mode`/`path`
+override; repos, hooks, templates, Docker config, and isolation belong in
+top-level or case-level `workspace`.
 
 ## YAML Format
 

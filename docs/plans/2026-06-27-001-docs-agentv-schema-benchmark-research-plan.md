@@ -66,10 +66,11 @@ with a special name.
   with `type: suite`, the parent owns runtime `experiment:` and does not fall
   back to the child `experiment:`. Child workspace remains task-owned: imported
   suite tests keep their expanded child workspace. Parent evals that import
-  suites must not define parent workspace fields such as `workspace`,
+  suites must not define parent workspace-affecting fields such as `workspace`,
   `experiment.workspace`, or legacy `execution.workspace`; parent workspace
   applies only to parent-owned raw cases, including cases imported with
-  `type: tests`.
+  `type: tests`. `experiment.workspace` is only a runtime `mode`/`path`
+  override, not a task workspace definition.
 
 ### Evidence Summary
 
@@ -148,8 +149,10 @@ Research ambiguity:
   child-experiment fallback.
 - R13. Child `workspace` setup should remain task-owned. In the current loader,
   imported suite tests keep their child workspace. A parent eval that imports
-  any suite with `type: suite` must not define parent workspace fields such as
-  `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
+  any suite with `type: suite` must not define parent workspace-affecting fields
+  such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
+  `experiment.workspace` is limited to runtime `mode` and `path`; task
+  workspace setup stays in `workspace`.
 - R14. Parent workspace applies to parent-owned raw cases only, including raw
   cases imported with `type: tests`. Any future parent workspace
   override/remap for imported suites should require explicit syntax.

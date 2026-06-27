@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { EvalRunOverride, TrialStrategy, WorkspaceConfig } from './types.js';
+import type { EvalRunOverride, TrialStrategy } from './types.js';
 
 export type ExperimentSandbox = 'auto' | 'docker' | 'vercel';
 
@@ -33,6 +33,11 @@ export type ExperimentRepeat = {
   readonly costLimitUsd?: number;
 };
 
+export type ExperimentWorkspaceConfig = {
+  readonly mode?: 'pooled' | 'temp' | 'static';
+  readonly path?: string;
+};
+
 export type ExperimentConfigWire = {
   readonly name?: string;
   readonly agent?: string;
@@ -48,7 +53,7 @@ export type ExperimentConfigWire = {
   readonly threshold?: number;
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: WorkspaceConfig;
+  readonly workspace?: ExperimentWorkspaceConfig;
 };
 
 export type ExperimentConfig = {
@@ -66,7 +71,7 @@ export type ExperimentConfig = {
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: WorkspaceConfig;
+  readonly workspace?: ExperimentWorkspaceConfig;
   readonly fingerprint?: string;
 };
 
@@ -391,16 +396,34 @@ function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {
   return raw;
 }
 
-function readOptionalWorkspace(raw: unknown): WorkspaceConfig | undefined {
+function readOptionalWorkspace(raw: unknown): ExperimentWorkspaceConfig | undefined {
   const workspace = readOptionalRecord(raw);
   if (workspace === undefined) {
     return undefined;
   }
-  const isolation = workspace.isolation;
-  if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
-    throw new Error("Experiment workspace.isolation must be 'shared' or 'per_case'.");
+
+  for (const key of Object.keys(workspace)) {
+    if (key !== 'mode' && key !== 'path') {
+      throw new Error(
+        `Experiment workspace.${key} is not supported. Experiment workspace supports only mode and path; put task setup in top-level workspace.`,
+      );
+    }
   }
-  return workspace as WorkspaceConfig;
+
+  const mode = workspace.mode;
+  if (mode !== undefined && mode !== 'pooled' && mode !== 'temp' && mode !== 'static') {
+    throw new Error("Experiment workspace.mode must be 'pooled', 'temp', or 'static'.");
+  }
+
+  const path = workspace.path;
+  if (path !== undefined && (typeof path !== 'string' || path.trim().length === 0)) {
+    throw new Error('Experiment workspace.path must be a non-empty string.');
+  }
+
+  return {
+    ...(mode !== undefined && { mode }),
+    ...(path !== undefined && { path: path.trim() }),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -201,6 +201,7 @@ prepare files, dependencies, repos, or target-specific runner state.
 | Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
 | Configure an agent runner or provider variant | `targets[].hooks` |
 | Choose targets, repeats, pass policy, budget, threshold | `experiment` |
+| Override run workspace mode/path without changing task setup | `experiment.workspace.mode` / `experiment.workspace.path` |
 
 ```yaml
 workspace:
@@ -221,6 +222,12 @@ experiment:
     count: 3
     strategy: pass_at_k
 ```
+
+`experiment.workspace` is intentionally limited to `mode` and `path`, matching
+the `--workspace-mode` and `--workspace-path` CLI flags. Put repos, templates,
+hooks, Docker config, and isolation under top-level or case-level `workspace`.
+Wrapper evals that import child evals with `type: suite` must not define
+`experiment.workspace`; imported suites own the task workspace.
 
 ## Repeat Runs
 

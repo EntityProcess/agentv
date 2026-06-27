@@ -384,6 +384,13 @@ const RunOverrideSchema = z
   })
   .strict();
 
+const ExperimentWorkspaceSchema = z
+  .object({
+    mode: z.enum(['pooled', 'temp', 'static']).optional(),
+    path: z.string().min(1).optional(),
+  })
+  .strict();
+
 const ExperimentTargetRefSchema = z.union([
   z.string().min(1),
   z
@@ -407,7 +414,7 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   timeout_seconds: z.number().gt(0).optional(),
   budget_usd: z.number().gt(0).optional(),
   sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
-  workspace: WorkspaceSchema.optional(),
+  workspace: ExperimentWorkspaceSchema.optional(),
   setup: z.never().optional(),
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
   message: 'Use repeat or runs, not both.',

@@ -213,9 +213,58 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment.workspace.isolation' &&
-          error.message.includes("must be 'shared' or 'per_case'"),
+          error.message.includes('supports only mode and path'),
       ),
     ).toBe(true);
+  });
+
+  it('rejects task workspace fields in experiment workspace', async () => {
+    const filePath = path.join(tempDir, 'experiment-workspace-repos.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    repos:
+      - repo: acme/support-app
+        path: support-app
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace.repos' &&
+          error.message.includes('supports only mode and path'),
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts runtime workspace overrides in experiment workspace', async () => {
+    const filePath = path.join(tempDir, 'experiment-workspace-runtime.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    mode: static
+    path: ./prepared-workspace
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
   });
 
   it('warns that imported child experiments are ignored by wrapper composition', async () => {
@@ -1093,6 +1142,38 @@ tests:
         (e) => e.severity === 'warning' && e.message.includes('extension'),
       );
       expect(extWarnings).toHaveLength(0);
+    });
+
+    it('validates experiment workspace with tests string shorthand', async () => {
+      await writeFile(
+        path.join(tempDir, 'cases-shorthand-workspace.yaml'),
+        `- id: test-1
+  criteria: Goal
+  input: "Query"
+`,
+      );
+
+      const filePath = path.join(tempDir, 'tests-yaml-ext-experiment-workspace.yaml');
+      await writeFile(
+        filePath,
+        `experiment:
+  workspace:
+    isolation: per_test
+tests: "./cases-shorthand-workspace.yaml"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (error) =>
+            error.severity === 'error' &&
+            error.location === 'experiment.workspace.isolation' &&
+            error.message.includes('supports only mode and path'),
+        ),
+      ).toBe(true);
     });
 
     it('passes valid tests string path with .yml extension', async () => {

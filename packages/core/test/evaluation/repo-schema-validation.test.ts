@@ -189,6 +189,30 @@ describe('repo lifecycle schema validation', () => {
       experiment: {
         workspace: {
           isolation: 'per_test',
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts experiment workspace runtime override fields', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      experiment: {
+        workspace: {
+          mode: 'static',
+          path: '/tmp/my-workspace',
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects task workspace fields in experiment workspace', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      experiment: {
+        workspace: {
           repos: [
             {
               path: './repo-a',
