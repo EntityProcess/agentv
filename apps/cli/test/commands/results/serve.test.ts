@@ -3497,12 +3497,20 @@ describe('serve app', () => {
         autoPush: false,
       });
 
+      git(`git -C "${cloneDir}" fetch --quiet origin ${resultsBranch}`, tempDir);
+      const metadataRemoteRef = `refs/remotes/origin/${resultsBranch}`;
       const artifactRemoteRef = `refs/remotes/origin/${AGENTV_RESULTS_ARTIFACTS_REF}`;
+      const metadataRefLookup = () =>
+        git(
+          `git -C "${cloneDir}" show-ref --verify --quiet ${metadataRemoteRef} && echo present || true`,
+          tempDir,
+        );
       const artifactRefLookup = () =>
         git(
           `git -C "${cloneDir}" show-ref --verify --quiet ${artifactRemoteRef} && echo present || true`,
           tempDir,
         );
+      expect(metadataRefLookup()).toBe('present');
       expect(artifactRefLookup()).toBe('');
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });

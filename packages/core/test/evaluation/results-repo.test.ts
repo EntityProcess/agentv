@@ -1001,6 +1001,38 @@ describe('results repo write path', () => {
     expect(remoteFiles).not.toContain('README.md');
   }, 20000);
 
+  it('does not fetch a repo_path storage branch during status inspection', async () => {
+    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
+    const projectDir = path.join(rootDir, 'source-project-status-readonly');
+    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
+    const originalOrigin = git('git remote get-url origin', projectDir);
+    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
+    const remoteRef = `refs/remotes/origin/${storageBranch}`;
+
+    expect(
+      git(`git show-ref --verify --quiet "${remoteRef}" && echo present || true`, projectDir),
+    ).toBe('');
+
+    const status = await getResultsRepoSyncStatus({
+      repo_path: projectDir,
+      branch: storageBranch,
+      remote: 'origin',
+      sync: { auto_push: false },
+    });
+
+    expect(status).toMatchObject({
+      configured: true,
+      available: true,
+      repo: projectDir,
+      repo_path: projectDir,
+      branch: storageBranch,
+    });
+    expect(git('git remote get-url origin', projectDir)).toBe(originalOrigin);
+    expect(
+      git(`git show-ref --verify --quiet "${remoteRef}" && echo present || true`, projectDir),
+    ).toBe('');
+  }, 20000);
+
   it('commits repo_path metadata overlays to the configured storage branch during sync', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);

@@ -2095,9 +2095,7 @@ export async function getResultsRepoSyncStatus(config?: ResultsConfig): Promise<
 
   try {
     if (usesStorageBranchWorktree(normalized)) {
-      await fetchResultsRepo(normalized.path, normalized.remote, normalized.branch).catch(
-        () => undefined,
-      );
+      // Dashboard status is read-only; explicit sync paths do the fetch.
       return withGitInspection(
         baseStatus,
         await inspectResultsStorageBranchGit(normalized.path, normalized),
