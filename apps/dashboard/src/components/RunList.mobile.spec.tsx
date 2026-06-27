@@ -63,4 +63,25 @@ describe('buildRunListItemView', () => {
     expect(view.display.secondary).toBe('remote-target');
     expect(view.label).toBe('27/03 05:00 · remote-target');
   });
+
+  it('builds explicit experiment namespace and runtime source labels', () => {
+    const view = buildRunListItemView(
+      runMeta({
+        experiment: 'smoke-suite',
+        runtime_source: {
+          schema_version: 'agentv.runtime_source.v1',
+          kind: 'multi_eval',
+          config_source: 'mixed',
+          experiment_namespace: 'smoke-suite',
+          experiment_namespace_source: 'cli',
+          eval_files: ['evals/a.eval.yaml', 'evals/b.eval.yaml'],
+        },
+      }),
+      0.8,
+    );
+
+    expect(view.experimentNamespace).toBe('smoke-suite');
+    expect(view.runtimeSourceLabel).toBe('Multi-eval · CLI namespace · Mixed runtime config');
+    expect(view.runtimeSourceTitle).toContain('evals/a.eval.yaml');
+  });
 });

@@ -19,6 +19,7 @@ import {
   type ResolvedTarget,
   ResponseCache,
   RunBudgetTracker,
+  type RunRuntimeSourceMetadata,
   type TrialsConfig,
   buildExperimentArtifactMetadata,
   buildTraceFromMessages,
@@ -587,6 +588,163 @@ function deriveEvalResultGroupName(evalFilePath: string | undefined): string {
       .replace(/\.ya?ml$/i, '')
       .replace(/[^A-Za-z0-9._-]/g, '-') || 'eval'
   );
+}
+
+const CLI_RUNTIME_SOURCE_OPTION_KEYS = [
+  'target',
+  'targets',
+  'filter',
+  'tag',
+  'excludeTag',
+  'workers',
+  'dryRun',
+  'dryRunDelay',
+  'dryRunDelayMin',
+  'dryRunDelayMax',
+  'agentTimeout',
+  'maxRetries',
+  'cache',
+  'cachePath',
+  'noCache',
+  'graderTarget',
+  'model',
+  'threshold',
+  'budgetUsd',
+  'transcript',
+  'recordReplay',
+  'recordReplayVariant',
+  'workspacePath',
+  'workspaceMode',
+] as const;
+
+function hasCliRuntimeSource(rawOptions: Record<string, unknown>): boolean {
+  return CLI_RUNTIME_SOURCE_OPTION_KEYS.some((key) => {
+    const value = rawOptions[key];
+    if (Array.isArray(value)) {
+      return value.some((entry) => typeof entry === 'string' && entry.trim().length > 0);
+    }
+    if (typeof value === 'string') {
+      return value.trim().length > 0 && value.trim() !== 'default';
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) && value !== 0;
+    }
+    return value === true;
+  });
+}
+
+function toRuntimeSourcePath(cwd: string, filePath: string | undefined): string | undefined {
+  const trimmed = filePath?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const resolved = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
+  const relative = path.relative(cwd, resolved);
+  const displayPath =
+    relative && !relative.startsWith('..') && !path.isAbsolute(relative) ? relative : trimmed;
+  return displayPath.split(path.sep).join('/');
+}
+
+function uniqueRuntimeSourcePaths(values: Iterable<string | undefined>): readonly string[] {
+  return [...new Set([...values].filter((value): value is string => Boolean(value)))].sort();
+}
+
+function testSourceEvalPath(cwd: string, test: EvalTest): string | undefined {
+  return (
+    toRuntimeSourcePath(cwd, test.source?.evalFileRepoPath) ??
+    toRuntimeSourcePath(cwd, test.source?.evalFileAbsolutePath) ??
+    toRuntimeSourcePath(cwd, test.source?.evalFilePath)
+  );
+}
+
+function testSourceEvalPathForComparison(test: EvalTest): string | undefined {
+  const sourcePath = test.source?.evalFileAbsolutePath ?? test.source?.evalFilePath;
+  return sourcePath ? path.resolve(sourcePath) : undefined;
+}
+
+function buildRuntimeConfigSource(params: {
+  readonly activeTestFiles: readonly string[];
+  readonly fileMetadata: ReadonlyMap<string, { readonly options: NormalizedOptions }>;
+  readonly hasCliRuntimeConfig: boolean;
+}): RunRuntimeSourceMetadata['config_source'] {
+  const inlineFingerprints = new Set<string>();
+  let hasInlineExperiment = false;
+  let hasDefaultRuntime = false;
+
+  for (const activeTestFile of params.activeTestFiles) {
+    const experimentMetadata = params.fileMetadata.get(activeTestFile)?.options.experimentMetadata;
+    if (experimentMetadata) {
+      hasInlineExperiment = true;
+      inlineFingerprints.add(experimentMetadata.fingerprint ?? activeTestFile);
+    } else {
+      hasDefaultRuntime = true;
+    }
+  }
+
+  if (
+    (hasInlineExperiment && params.hasCliRuntimeConfig) ||
+    (hasInlineExperiment && hasDefaultRuntime) ||
+    inlineFingerprints.size > 1
+  ) {
+    return 'mixed';
+  }
+  if (params.hasCliRuntimeConfig) {
+    return 'cli_flags';
+  }
+  if (hasInlineExperiment) {
+    return 'inline_experiment';
+  }
+  return 'defaults';
+}
+
+function buildRuntimeSourceMetadata(params: {
+  readonly cwd: string;
+  readonly activeTestFiles: readonly string[];
+  readonly sourceTests: readonly EvalTest[];
+  readonly fileMetadata: ReadonlyMap<string, { readonly options: NormalizedOptions }>;
+  readonly experimentNamespace: string;
+  readonly experimentNamespaceSource: RunRuntimeSourceMetadata['experiment_namespace_source'];
+  readonly hasCliRuntimeConfig: boolean;
+}): RunRuntimeSourceMetadata {
+  const evalFiles = uniqueRuntimeSourcePaths(
+    params.activeTestFiles.map((filePath) => toRuntimeSourcePath(params.cwd, filePath)),
+  );
+  const activeResolvedFiles = new Set(
+    params.activeTestFiles.map((filePath) => path.resolve(filePath)),
+  );
+  const sourceEvalFiles = uniqueRuntimeSourcePaths(
+    params.sourceTests.map((test) => testSourceEvalPath(params.cwd, test)),
+  );
+  const hasImportedSuite = params.sourceTests.some((test) => test.source?.importedSuiteName);
+  const hasNonActiveSourceFile = params.sourceTests.some((test) => {
+    const sourceFile = testSourceEvalPathForComparison(test);
+    return sourceFile ? !activeResolvedFiles.has(sourceFile) : false;
+  });
+  const kind =
+    params.activeTestFiles.length > 1
+      ? 'multi_eval'
+      : hasImportedSuite || hasNonActiveSourceFile
+        ? 'wrapper_eval'
+        : 'direct_suite';
+  const wrapperEvalFile =
+    kind === 'wrapper_eval'
+      ? toRuntimeSourcePath(params.cwd, params.activeTestFiles[0])
+      : undefined;
+
+  return {
+    schema_version: 'agentv.runtime_source.v1',
+    kind,
+    config_source: buildRuntimeConfigSource({
+      activeTestFiles: params.activeTestFiles,
+      fileMetadata: params.fileMetadata,
+      hasCliRuntimeConfig: params.hasCliRuntimeConfig,
+    }),
+    experiment_namespace: params.experimentNamespace,
+    experiment_namespace_source: params.experimentNamespaceSource,
+    eval_files: evalFiles,
+    ...(wrapperEvalFile && { wrapper_eval_file: wrapperEvalFile }),
+    ...(sourceEvalFiles.length > 0 && { source_eval_files: sourceEvalFiles }),
+  };
 }
 
 type ResolvedExperimentForRun = {
@@ -1453,10 +1611,19 @@ export async function runEvalCommand(
     resolvedTestFiles.length === 1
       ? (primarySuite?.metadata?.name ?? fallbackResultGroupName)
       : fallbackResultGroupName;
+  const experimentNamespaceSource: RunRuntimeSourceMetadata['experiment_namespace_source'] =
+    resolvedExperiment.name
+      ? 'cli'
+      : resolvedTestFiles.length > 1
+        ? 'multi_eval'
+        : primarySuite?.metadata?.name
+          ? 'eval_metadata'
+          : 'eval_filename';
   options = {
     ...options,
     experiment: resolvedExperiment.name ?? resultGroupName,
   };
+  const hasCliRuntimeConfig = hasCliRuntimeSource(input.rawOptions);
 
   if (!process.env.AGENTV_EXPERIMENT) {
     process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
@@ -1885,9 +2052,21 @@ export async function runEvalCommand(
 
   // Use only files that survived tag filtering.
   const activeTestFiles = resolvedTestFiles.filter((f) => fileMetadata.has(f));
+  const activeSourceTests = activeTestFiles.flatMap(
+    (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
+  );
   const singleActiveFileMetadata =
     activeTestFiles.length === 1 ? fileMetadata.get(activeTestFiles[0]) : undefined;
   const runExperimentMetadata = singleActiveFileMetadata?.options.experimentMetadata;
+  const runtimeSourceMetadata = buildRuntimeSourceMetadata({
+    cwd,
+    activeTestFiles,
+    sourceTests: activeSourceTests,
+    fileMetadata,
+    experimentNamespace: normalizeExperimentName(options.experiment),
+    experimentNamespaceSource,
+    hasCliRuntimeConfig,
+  });
   const hasPerFileRuntimeThresholds =
     options.cliThreshold === undefined &&
     activeTestFiles.some(
@@ -1932,6 +2111,7 @@ export async function runEvalCommand(
       plannedTestCount: totalEvalCount,
       experiment: normalizeExperimentName(options.experiment),
       experimentMetadata: runExperimentMetadata,
+      runtimeSource: runtimeSourceMetadata,
     });
   }
 
@@ -2194,9 +2374,7 @@ export async function runEvalCommand(
     // Write artifacts to the run directory (always, not conditional on flags)
     if (allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-      const sourceTests = activeTestFiles.flatMap(
-        (activeTestFile) => fileMetadata.get(activeTestFile)?.testCases ?? [],
-      );
+      const sourceTests = activeSourceTests;
       const taskBundleTargets = buildTaskBundleTargetSelections(activeTestFiles, fileMetadata);
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then aggregate
@@ -2209,11 +2387,13 @@ export async function runEvalCommand(
           repoRoot,
           sourceTests,
           taskBundleTargets,
+          runtimeSource: runtimeSourceMetadata,
         });
         const { summaryPath } = await aggregateRunDir(runDir, {
           evalFile,
           experiment: normalizeExperimentName(options.experiment),
           experimentMetadata: runExperimentMetadata,
+          runtimeSource: runtimeSourceMetadata,
         });
         const indexPath = path.join(runDir, 'index.jsonl');
         console.log(`Artifact workspace updated: ${runDir}`);
@@ -2233,6 +2413,7 @@ export async function runEvalCommand(
             repoRoot,
             sourceTests,
             taskBundleTargets,
+            runtimeSource: runtimeSourceMetadata,
           },
         );
         console.log(`Artifact workspace written to: ${runDir}`);

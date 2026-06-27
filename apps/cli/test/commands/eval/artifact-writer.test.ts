@@ -921,6 +921,31 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines[0]?.metrics_path).toBe('alpha/run-1/metrics.json');
   });
 
+  it('writes optional runtime source metadata to summary and index rows', async () => {
+    const runtimeSource = {
+      schema_version: 'agentv.runtime_source.v1' as const,
+      kind: 'direct_suite' as const,
+      config_source: 'cli_flags' as const,
+      experiment_namespace: 'cli-smoke',
+      experiment_namespace_source: 'cli' as const,
+      eval_files: ['evals/smoke.eval.yaml'],
+    };
+    const paths = await writeArtifactsFromResults([makeResult({ testId: 'alpha' })], testDir, {
+      evalFile: 'evals/smoke.eval.yaml',
+      experiment: 'cli-smoke',
+      runtimeSource,
+    });
+
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(JSON.parse);
+
+    expect(summary.metadata.runtime_source).toEqual(runtimeSource);
+    expect(indexLine.runtime_source).toEqual(runtimeSource);
+  });
+
   it('writes repeat runs in Vercel-compatible case and run folders', async () => {
     const results = [
       makeResult({

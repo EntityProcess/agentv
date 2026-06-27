@@ -150,6 +150,32 @@ describe('results report', () => {
     expect(html).not.toContain('Grader Results');
   });
 
+  it('labels experiment namespace and runtime source in the report header', async () => {
+    const runDir = path.join(tempDir, 'run');
+    await writeArtifactsFromResults([makeResult()], runDir, {
+      evalFile: 'evals/wrapper.eval.yaml',
+      experiment: 'named-smoke',
+      runtimeSource: {
+        schema_version: 'agentv.runtime_source.v1',
+        kind: 'wrapper_eval',
+        config_source: 'inline_experiment',
+        experiment_namespace: 'named-smoke',
+        experiment_namespace_source: 'eval_metadata',
+        eval_files: ['evals/wrapper.eval.yaml'],
+        wrapper_eval_file: 'evals/wrapper.eval.yaml',
+        source_eval_files: ['evals/child.eval.yaml'],
+      },
+    });
+
+    const { outputPath } = await writeResultsReport(runDir, undefined, tempDir);
+    const html = readFileSync(outputPath, 'utf8');
+
+    expect(html).toContain('Experiment namespace: named-smoke');
+    expect(html).toContain(
+      'Runtime source: Wrapper eval · Eval metadata namespace · Inline experiment config',
+    );
+  });
+
   it('embeds result text containing replacement tokens without corrupting the inline script', async () => {
     const runDir = path.join(tempDir, 'run');
     await writeArtifactsFromResults(
