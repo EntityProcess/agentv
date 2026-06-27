@@ -1740,8 +1740,11 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
+  if (obj.isolation !== undefined && obj.isolation !== 'shared' && obj.isolation !== 'per_case') {
+    throw new Error("workspace.isolation must be 'shared' or 'per_case'.");
+  }
   const isolation =
-    obj.isolation === 'shared' || obj.isolation === 'per_test' ? obj.isolation : undefined;
+    obj.isolation === 'shared' || obj.isolation === 'per_case' ? obj.isolation : undefined;
 
   const repos = Array.isArray(obj.repos)
     ? ((obj.repos as Record<string, unknown>[])

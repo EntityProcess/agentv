@@ -275,7 +275,7 @@ used. The correct choices are to run the child suite directly, add a parent
 `experiment:` block, or pass CLI runtime flags.
 
 Wrapper evals that import multiple suites with distinct shared workspace
-contracts should fail fast or require per-test isolation, separate runs, or an
+contracts should fail fast or require per-case isolation, separate runs, or an
 explicit future composition mode. Shared workspace setup is safe when one suite
 owns the task contract; it is not a place for implicit parent-child or
 child-child workspace merging.

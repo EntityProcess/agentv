@@ -1206,7 +1206,7 @@ tests:
       ).toBe(true);
     });
 
-    it('errors when legacy checkout is set in a per-test workspace', async () => {
+    it('errors when legacy checkout is set in a per-case workspace', async () => {
       const filePath = path.join(tempDir, 'workspace-legacy-checkout-error.yaml');
       await writeFile(
         filePath,

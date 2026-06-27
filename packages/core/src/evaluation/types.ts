@@ -350,8 +350,8 @@ export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
   readonly template?: string;
-  /** Isolation strategy for workspace: shared (default) or per_test */
-  readonly isolation?: 'shared' | 'per_test';
+  /** Isolation strategy for workspace: shared (default) or per_case. */
+  readonly isolation?: 'shared' | 'per_case';
   /** Repository definitions to clone/checkout into workspace */
   readonly repos?: readonly RepoConfig[];
   /** Workspace lifecycle hooks */

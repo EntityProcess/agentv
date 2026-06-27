@@ -315,7 +315,7 @@ const DockerWorkspaceSchema = z.object({
 const WorkspaceSchema = z
   .object({
     template: z.string().optional(),
-    isolation: z.enum(['shared', 'per_test']).optional(),
+    isolation: z.enum(['shared', 'per_case']).optional(),
     repos: z.array(RepoSchema).optional(),
     hooks: WorkspaceHooksSchema.optional(),
     mode: z.enum(['pooled', 'temp', 'static']).optional(),

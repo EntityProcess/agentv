@@ -176,10 +176,16 @@ export function hooksEnabled(
   return workspace?.hooks?.enabled !== false;
 }
 
+export function isPerCaseIsolation(
+  workspace: { readonly isolation?: WorkspaceConfig['isolation'] } | undefined,
+): boolean {
+  return workspace?.isolation === 'per_case';
+}
+
 function workspaceNeedsSharedSetup(
   workspace: WorkspaceConfig | undefined,
 ): workspace is WorkspaceConfig {
-  if (!workspace || workspace.isolation === 'per_test') {
+  if (!workspace || isPerCaseIsolation(workspace)) {
     return false;
   }
   return !!(
@@ -261,7 +267,7 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): WorkspaceConfig |
     .map((candidate) => `${candidate.owner} for tests ${candidate.testIds.join(', ')}`)
     .join('; ');
   throw new WorkspaceSetupError(
-    `Wrapper eval contains multiple shared workspace owners: ${owners}. AgentV does not merge parent and child workspaces or run separate imported-suite shared workspaces in one wrapper execution. Use isolation: per_test for imported suites, split them into separate runs, or keep only one shared workspace owner.`,
+    `Wrapper eval contains multiple shared workspace owners: ${owners}. AgentV does not merge parent and child workspaces or run separate imported-suite shared workspaces in one wrapper execution. Use isolation: per_case for imported suites, split them into separate runs, or keep only one shared workspace owner.`,
     {
       failureStage: 'setup',
       failureReasonCode: 'ambiguous_shared_workspace',
@@ -383,7 +389,7 @@ export async function prepareSharedWorkspaceSetup(
     }
   };
 
-  const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
+  const isPerCaseWorkspace = isPerCaseIsolation(suiteWorkspace);
 
   const cliWorkspacePath = workspacePath ?? legacyWorkspacePath;
   const yamlWorkspacePath = suiteWorkspace?.path;
@@ -406,9 +412,9 @@ export async function prepareSharedWorkspaceSetup(
 
   const useStaticWorkspace = configuredMode === 'static';
 
-  if (useStaticWorkspace && isPerTestIsolation) {
+  if (useStaticWorkspace && evalCases.some((evalCase) => isPerCaseIsolation(evalCase.workspace))) {
     throw new Error(
-      'static workspace mode is incompatible with isolation: per_test. Use isolation: shared (default).',
+      'static workspace mode is incompatible with isolation: per_case. Use isolation: shared (default).',
     );
   }
   if (configuredMode !== 'static' && configuredStaticPath) {
@@ -417,7 +423,7 @@ export async function prepareSharedWorkspaceSetup(
 
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
-    (!isPerTestIsolation &&
+    (!isPerCaseWorkspace &&
       (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length))
   );
 
@@ -425,11 +431,11 @@ export async function prepareSharedWorkspaceSetup(
   const usePool =
     poolEnabled !== false &&
     !!suiteWorkspace?.repos?.length &&
-    !isPerTestIsolation &&
+    !isPerCaseWorkspace &&
     !useStaticWorkspace;
 
   setupLog(
-    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} workers=${workers}`,
+    `sharedWorkspace=${hasSharedWorkspace} perCaseIsolation=${isPerCaseWorkspace} usePool=${usePool} workers=${workers}`,
   );
   if (hasSharedWorkspace && !usePool && workers > 1 && evalCases.length > 1) {
     console.warn(
@@ -484,7 +490,7 @@ export async function prepareSharedWorkspaceSetup(
         setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
       }
       sharedWorkspacePath = configuredStaticPath;
-    } else if (!isPerTestIsolation && usePool && suiteWorkspace?.repos) {
+    } else if (!isPerCaseWorkspace && usePool && suiteWorkspace?.repos) {
       const slotsNeeded = workers;
       setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
       poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
@@ -514,7 +520,7 @@ export async function prepareSharedWorkspaceSetup(
       } else {
         availablePoolSlots.push(...poolSlots);
       }
-    } else if (!isPerTestIsolation && workspaceTemplate) {
+    } else if (!isPerCaseWorkspace && workspaceTemplate) {
       setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
       try {
         sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
@@ -528,7 +534,7 @@ export async function prepareSharedWorkspaceSetup(
           cause: error,
         });
       }
-    } else if (!isPerTestIsolation && (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) {
+    } else if (!isPerCaseWorkspace && (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) {
       sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
       await mkdir(sharedWorkspacePath, { recursive: true });
       setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
@@ -545,7 +551,7 @@ export async function prepareSharedWorkspaceSetup(
     }
 
     const hasReposToMaterialize =
-      !!suiteWorkspace?.repos?.length && !usePool && !isPerTestIsolation;
+      !!suiteWorkspace?.repos?.length && !usePool && !isPerCaseWorkspace;
     const needsRepoMaterialisation =
       hasReposToMaterialize && (!useStaticWorkspace || staticMaterialised);
     const needsPerRepoCheck =
@@ -905,10 +911,12 @@ export async function prepareEvalCaseWorkspace(
     setupDebug,
   } = options;
 
-  let workspacePath: string | undefined =
-    evalCase.workspace?.isolation === 'per_test' ? undefined : sharedWorkspacePath;
-  const inheritedSuiteWorkspaceFile =
-    evalCase.workspace?.isolation === 'per_test' ? undefined : suiteWorkspaceFile;
+  let workspacePath: string | undefined = isPerCaseIsolation(evalCase.workspace)
+    ? undefined
+    : sharedWorkspacePath;
+  const inheritedSuiteWorkspaceFile = isPerCaseIsolation(evalCase.workspace)
+    ? undefined
+    : suiteWorkspaceFile;
   let beforeAllOutput: string | undefined;
   let beforeEachOutput: string | undefined;
   const isSharedWorkspace = !!workspacePath;
@@ -959,12 +967,12 @@ export async function prepareEvalCaseWorkspace(
       try {
         if (setupDebug) {
           console.log(
-            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} per-test repo(s) into ${workspacePath}`,
+            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} per-case repo(s) into ${workspacePath}`,
           );
         }
         await perCaseRepoManager.materializeAll(evalCase.workspace.repos, workspacePath);
         if (setupDebug) {
-          console.log(`[setup] test=${evalCase.id} per-test repo materialization complete`);
+          console.log(`[setup] test=${evalCase.id} per-case repo materialization complete`);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

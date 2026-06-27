@@ -98,7 +98,7 @@ name: swe-style-regression
 description: Regression tasks against pinned source commits.
 
 workspace:
-  isolation: per_test
+  isolation: per_case
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git
@@ -153,7 +153,7 @@ primitives.
 name: repo-regressions
 
 workspace:
-  isolation: per_test
+  isolation: per_case
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git

@@ -5234,7 +5234,7 @@
                           },
                           "isolation": {
                             "type": "string",
-                            "enum": ["shared", "per_test"]
+                            "enum": ["shared", "per_case"]
                           },
                           "repos": {
                             "type": "array",
@@ -12021,7 +12021,7 @@
                           },
                           "isolation": {
                             "type": "string",
-                            "enum": ["shared", "per_test"]
+                            "enum": ["shared", "per_case"]
                           },
                           "repos": {
                             "type": "array",
@@ -19774,7 +19774,7 @@
                 },
                 "isolation": {
                   "type": "string",
-                  "enum": ["shared", "per_test"]
+                  "enum": ["shared", "per_case"]
                 },
                 "repos": {
                   "type": "array",

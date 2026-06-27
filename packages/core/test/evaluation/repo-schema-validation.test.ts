@@ -155,7 +155,7 @@ describe('repo lifecycle schema validation', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
-        isolation: 'per_test',
+        isolation: 'per_case',
         repos: [
           {
             path: './repo-a',
@@ -165,6 +165,22 @@ describe('repo lifecycle schema validation', () => {
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects removed workspace isolation per_test value', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        isolation: 'per_test',
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
   });
 
   it('accepts workspace.mode=temp', () => {

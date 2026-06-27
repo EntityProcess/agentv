@@ -3157,7 +3157,7 @@ describe('--workspace flag', () => {
     expect(results[0].error).toBeUndefined();
   });
 
-  it('errors when workspace is combined with per_test isolation', async () => {
+  it('errors when workspace is combined with per_case isolation', async () => {
     const { mkdtemp } = await import('node:fs/promises');
     testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
 
@@ -3168,7 +3168,7 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        isolation: 'per_test',
+        isolation: 'per_case',
       },
     };
 
@@ -3182,7 +3182,7 @@ describe('--workspace flag', () => {
         evalCases: [evalCase],
         workspace: testDir,
       }),
-    ).rejects.toThrow('static workspace mode is incompatible with isolation: per_test');
+    ).rejects.toThrow('static workspace mode is incompatible with isolation: per_case');
   });
 
   it('never deletes user-provided workspace after run', async () => {
@@ -3281,9 +3281,9 @@ describe('--workspace flag', () => {
     expect(results[0].beforeEachOutput).toBeDefined();
   });
 
-  it('creates per-test workspaces for hook-only suites when isolation is per_test', async () => {
+  it('creates per-case workspaces for hook-only suites when isolation is per_case', async () => {
     const { mkdtemp, mkdir, writeFile, access: fsAccess } = await import('node:fs/promises');
-    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-per-test-hooks-'));
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-per-case-hooks-'));
 
     const beforeAllScript = path.join(testDir, 'before-all.js');
     writeFileSync(
@@ -3300,7 +3300,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     const workspacesSeen: string[] = [];
 
     const provider: Provider = {
-      id: 'mock:per-test-hooks',
+      id: 'mock:per-case-hooks',
       kind: 'mock',
       targetName: 'mock',
       async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -3316,7 +3316,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     };
 
     const workspaceConfig = {
-      isolation: 'per_test' as const,
+      isolation: 'per_case' as const,
       hooks: {
         before_all: {
           command: [process.execPath, beforeAllScript],

@@ -842,6 +842,15 @@ function validateWorkspaceRepoConfig(
 
   const docker = workspace.docker;
 
+  if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'workspace.isolation',
+      message: "workspace.isolation must be 'shared' or 'per_case'.",
+    });
+  }
+
   if (Array.isArray(repos)) {
     for (const repo of repos) {
       if (!isObject(repo)) continue;
@@ -900,14 +909,14 @@ function validateWorkspaceRepoConfig(
     }
   }
 
-  // after_each reset with per_test isolation warning
-  if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_test') {
+  // after_each reset with per-case isolation warning
+  if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_case') {
     errors.push({
       severity: 'warning',
       filePath,
       location: 'workspace.hooks.after_each',
       message:
-        'hooks.after_each.reset is redundant with isolation: per_test (each test gets a fresh workspace).',
+        'hooks.after_each.reset is redundant with isolation: per_case (each test gets a fresh workspace).',
     });
   }
 }

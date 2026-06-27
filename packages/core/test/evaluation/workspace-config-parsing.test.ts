@@ -323,7 +323,7 @@ tests:
       `
 description: test
 workspace:
-  isolation: per_test
+  isolation: per_case
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
@@ -335,7 +335,27 @@ tests:
     );
 
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.isolation).toBe('per_test');
+    expect(cases[0].workspace?.isolation).toBe('per_case');
+  });
+
+  it('rejects removed workspace isolation per_test value', async () => {
+    const evalFile = path.join(testDir, 'workspace-isolation-legacy.yaml');
+    await writeFile(
+      evalFile,
+      `
+description: test
+workspace:
+  isolation: per_test
+tests:
+  - id: test-1
+    input: "hello"
+    criteria: "world"
+`,
+    );
+
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      "workspace.isolation must be 'shared' or 'per_case'.",
+    );
   });
 
   it('infers workspace.mode=static when workspace.path is provided without mode', async () => {

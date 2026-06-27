@@ -89,6 +89,7 @@ import {
   captureWorkspaceFileChanges,
   hasHookCommand,
   hooksEnabled,
+  isPerCaseIsolation,
   prepareEvalCaseWorkspace,
   prepareSharedWorkspaceSetup,
   releaseSharedWorkspaceSetup,
@@ -1181,8 +1182,8 @@ export async function runEvaluation(
       }
 
       // Multi-slot pool: each shared-workspace test grabs its own pool slot.
-      // Per-test isolated cases prepare their own workspace in prepareEvalCaseWorkspace().
-      const usesSharedWorkspace = evalCase.workspace?.isolation !== 'per_test';
+      // Per-case isolated cases prepare their own workspace in prepareEvalCaseWorkspace().
+      const usesSharedWorkspace = !isPerCaseIsolation(evalCase.workspace);
       const testPoolSlot =
         usesSharedWorkspace && availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
       const testWorkspacePath = usesSharedWorkspace

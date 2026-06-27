@@ -214,13 +214,13 @@ describe('prepareSharedWorkspaceSetup', () => {
     ).rejects.toThrow(/multiple shared workspace owners/);
   });
 
-  it('allows per-test isolated imported suites without shared setup', async () => {
+  it('allows per-case isolated imported suites without shared setup', async () => {
     setup = await prepareSharedWorkspaceSetup({
-      evalRunId: 'test-per-test-imported-suites',
+      evalRunId: 'test-per-case-imported-suites',
       evalCases: [
         testCase(
           'a',
-          { isolation: 'per_test', template: path.join(tmpDir, 'missing-a') },
+          { isolation: 'per_case', template: path.join(tmpDir, 'missing-a') },
           {
             evalFileAbsolutePath: path.join(tmpDir, 'child-a.eval.yaml'),
             importedSuiteName: 'child-a',
@@ -228,7 +228,7 @@ describe('prepareSharedWorkspaceSetup', () => {
         ),
         testCase(
           'b',
-          { isolation: 'per_test', template: path.join(tmpDir, 'missing-b') },
+          { isolation: 'per_case', template: path.join(tmpDir, 'missing-b') },
           {
             evalFileAbsolutePath: path.join(tmpDir, 'child-b.eval.yaml'),
             importedSuiteName: 'child-b',
@@ -275,17 +275,17 @@ describe('prepareSharedWorkspaceSetup', () => {
     ).rejects.toThrow(/does not merge parent and child workspaces/);
   });
 
-  it('keeps imported per-test workspaces allowed beside parent-owned raw cases', async () => {
+  it('keeps imported per-case workspaces allowed beside parent-owned raw cases', async () => {
     const parentTemplate = path.join(tmpDir, 'parent-template');
     mkdirSync(parentTemplate, { recursive: true });
     writeFileSync(path.join(parentTemplate, 'parent-marker.txt'), 'parent\n', 'utf8');
 
     setup = await prepareSharedWorkspaceSetup({
-      evalRunId: 'test-parent-shared-imported-per-test',
+      evalRunId: 'test-parent-shared-imported-per-case',
       evalCases: [
         testCase(
           'child-case',
-          { isolation: 'per_test', template: path.join(tmpDir, 'child-template') },
+          { isolation: 'per_case', template: path.join(tmpDir, 'child-template') },
           {
             evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
             importedSuiteName: 'child',
