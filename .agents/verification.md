@@ -6,6 +6,8 @@ This file expands [AGENTS.md](../AGENTS.md) for testing, manual UAT, CLI and bro
 
 - GitHub Actions is the authoritative merge gate.
 - The `CI` workflow runs build, typecheck, lint, tests, marketplace checks, docs link checks, and eval schema validation on pushes to `main`, pull requests to `main`, and manual dispatches.
+- The CI build job publishes a short-lived, commit-addressed build artifact after `bun run build`. It is a reuse aid for workers and workflows only when the manifest's commit SHA, `bun.lock` hash, runner OS/architecture, Bun version source/value, and included output paths match the consuming checkout.
+- The build artifact is intentionally limited to compiled outputs such as `packages/core/dist/**`, `packages/sdk/dist/**`, `apps/cli/dist/**`, `apps/dashboard/dist/**`, plus its manifest. It must not contain `node_modules`, Bun caches, `.turbo`, `.cache`, `.tsbuildinfo`, tracker state, evidence, or generated runtime artifacts.
 - Run the same core checks locally when you need fast feedback:
 
 ```bash
