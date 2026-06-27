@@ -854,14 +854,34 @@ export async function runEvaluation(
     target.providerBatching === true &&
     primaryProvider.supportsBatch === true &&
     typeof primaryProvider.invokeBatch === 'function';
+  let batchingDisabledByRuntimePolicy = false;
 
   // Disable batch mode when trials > 1 (batch processes all cases at once, incompatible with per-case retries)
   if (trials && trials.count > 1 && providerSupportsBatch) {
     console.warn('Warning: Batch mode is disabled when trials.count > 1. Using per-case dispatch.');
     providerSupportsBatch = false;
+    batchingDisabledByRuntimePolicy = true;
   }
 
-  if (target.providerBatching && !providerSupportsBatch && verbose) {
+  const requiresWorkspaceDispatch =
+    workspacePath !== undefined ||
+    legacyWorkspacePath !== undefined ||
+    workspaceMode !== undefined ||
+    filteredEvalCases.some((evalCase) => evalCase.workspace !== undefined);
+  if (providerSupportsBatch && requiresWorkspaceDispatch) {
+    if (verbose) {
+      console.warn('Warning: Batch mode is disabled for workspace-enabled evals.');
+    }
+    providerSupportsBatch = false;
+    batchingDisabledByRuntimePolicy = true;
+  }
+
+  if (
+    target.providerBatching &&
+    !providerSupportsBatch &&
+    verbose &&
+    !batchingDisabledByRuntimePolicy
+  ) {
     console.warn(
       `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
     );
@@ -1850,7 +1870,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       nowFn,
       signal,
       workspacePath,
-      caseWorkspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+      caseWorkspaceFile,
       agentTimeoutMs,
       streamCallbacks: options.streamCallbacks,
       verbose,
@@ -1893,7 +1913,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         agentTimeoutMs,
         signal,
         cwd: workspacePath,
-        workspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+        workspaceFile: caseWorkspaceFile,
         captureFileChanges: !!baselineCommit,
         streamCallbacks: options.streamCallbacks,
       });
@@ -1926,7 +1946,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           agentTimeoutMs,
           signal,
           cwd: workspacePath,
-          workspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+          workspaceFile: caseWorkspaceFile,
           captureFileChanges: !!baselineCommit,
           streamCallbacks: options.streamCallbacks,
         });

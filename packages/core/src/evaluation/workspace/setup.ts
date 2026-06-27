@@ -945,9 +945,7 @@ export async function prepareEvalCaseWorkspace(
   let workspacePath: string | undefined = isPerCaseIsolation(evalCase.workspace)
     ? undefined
     : sharedWorkspacePath;
-  const inheritedSuiteWorkspaceFile = isPerCaseIsolation(evalCase.workspace)
-    ? undefined
-    : suiteWorkspaceFile;
+  const inheritedSuiteWorkspaceFile = workspacePath ? suiteWorkspaceFile : undefined;
   let beforeAllOutput: string | undefined;
   let beforeEachOutput: string | undefined;
   const isSharedWorkspace = !!workspacePath;

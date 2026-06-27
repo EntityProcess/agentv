@@ -834,6 +834,63 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(case2?.error).toBe("Batch output missing id 'case-2'");
   });
 
+  it('disables provider batching when cases require workspace setup', async () => {
+    class BatchCapableProvider implements Provider {
+      readonly id = 'batch:workspace';
+      readonly kind = 'mock' as const;
+      readonly targetName = 'workspace';
+      readonly supportsBatch = true;
+      batchCalls = 0;
+      invokeRequests: ProviderRequest[] = [];
+
+      async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+        this.invokeRequests.push(request);
+        return {
+          output: [{ role: 'assistant', content: 'OK' }],
+        };
+      }
+
+      async invokeBatch(): Promise<readonly ProviderResponse[]> {
+        this.batchCalls += 1;
+        throw new Error('batch should not be used for workspace cases');
+      }
+    }
+
+    const templateDir = mkdtempSync(path.join(tmpdir(), 'agentv-batch-workspace-'));
+    writeFileSync(path.join(templateDir, 'README.md'), 'workspace\n', 'utf8');
+    const provider = new BatchCapableProvider();
+
+    try {
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: {
+          ...baseTarget,
+          providerBatching: true,
+          workers: 1,
+        },
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [
+          {
+            ...baseTestCase,
+            workspace: {
+              template: templateDir,
+            },
+          },
+        ],
+      });
+
+      expect(results).toHaveLength(1);
+      expect(provider.batchCalls).toBe(0);
+      expect(provider.invokeRequests).toHaveLength(1);
+      expect(provider.invokeRequests[0]?.cwd).toBeDefined();
+    } finally {
+      const { rm } = await import('node:fs/promises');
+      await rm(templateDir, { recursive: true, force: true });
+    }
+  });
+
   it('uses a custom evaluator prompt when provided', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'agentv-custom-grader-'));
     const promptPath = path.join(directory, 'grader-prompt.md');
@@ -2837,6 +2894,33 @@ describe('workspace.template .code-workspace resolution', () => {
         await rm(capturedCwd, { recursive: true, force: true }).catch(() => {});
       }
     }
+  });
+
+  it('does not pass suite workspaceFile to a case without the shared workspace', async () => {
+    const { mkdtemp, writeFile, mkdir } = await import('node:fs/promises');
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-orch-ws-resolve-'));
+
+    const sharedDir = path.join(testDir, 'shared');
+    await mkdir(sharedDir, { recursive: true });
+    const suiteWorkspaceFile = path.join(sharedDir, 'child.code-workspace');
+    await writeFile(suiteWorkspaceFile, JSON.stringify({ folders: [{ path: '.' }] }));
+
+    const provider = new CapturingProvider('mock', {
+      output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }],
+    });
+
+    const result = await runEvalCase({
+      evalCase: baseTestCase,
+      provider,
+      target: baseTarget,
+      evaluators: evaluatorRegistry,
+      suiteWorkspaceFile,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(provider.lastRequest).toBeDefined();
+    expect(provider.lastRequest?.cwd).toBeUndefined();
+    expect(provider.lastRequest?.workspaceFile).toBeUndefined();
   });
 });
 

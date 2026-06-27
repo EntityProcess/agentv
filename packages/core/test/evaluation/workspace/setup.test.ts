@@ -9,6 +9,7 @@ import type { EvalTest } from '../../../src/evaluation/types.js';
 import {
   type SharedWorkspaceSetup,
   caseUsesSharedWorkspaceSetup,
+  prepareEvalCaseWorkspace,
   prepareSharedWorkspaceSetup,
   releaseSharedWorkspaceSetup,
 } from '../../../src/evaluation/workspace/setup.js';
@@ -318,6 +319,11 @@ describe('prepareSharedWorkspaceSetup', () => {
     const childTemplate = path.join(tmpDir, 'child-template');
     mkdirSync(childTemplate, { recursive: true });
     writeFileSync(path.join(childTemplate, 'child-marker.txt'), 'child\n', 'utf8');
+    writeFileSync(
+      path.join(childTemplate, 'child.code-workspace'),
+      JSON.stringify({ folders: [{ path: '.' }] }),
+      'utf8',
+    );
 
     const childCase = testCase(
       'child-case',
@@ -339,7 +345,19 @@ describe('prepareSharedWorkspaceSetup', () => {
     });
 
     expect(setup.sharedWorkspacePath).toBeDefined();
+    expect(setup.suiteWorkspaceFile).toBeDefined();
     expect(caseUsesSharedWorkspaceSetup(childCase, setup)).toBe(true);
     expect(caseUsesSharedWorkspaceSetup(rawCase, setup)).toBe(false);
+
+    const rawWorkspaceSetup = await prepareEvalCaseWorkspace({
+      evalCase: rawCase,
+      evalRunId: 'test-child-shared-raw-no-workspace-case',
+      sharedWorkspacePath: undefined,
+      suiteWorkspaceFile: setup.suiteWorkspaceFile,
+      evalDir: tmpDir,
+    });
+
+    expect(rawWorkspaceSetup.workspacePath).toBeUndefined();
+    expect(rawWorkspaceSetup.caseWorkspaceFile).toBeUndefined();
   });
 });
