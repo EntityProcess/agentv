@@ -914,7 +914,7 @@ function ResultDetailPanel({
     projectId,
     runId,
     evalId: row.testId,
-    artifactDir: row.result.artifact_dir,
+    resultDir: row.result.result_dir,
   });
   const title = selectedTrialPath ? `${row.testId} · ${selectedTrialPath}` : row.testId;
   const showAggregateRepeatDetail = repeatGroup && !selectedTrial;
@@ -1007,13 +1007,13 @@ function buildEvalDetailHref(options: {
   projectId?: string;
   runId: string;
   evalId: string;
-  artifactDir?: string;
+  resultDir?: string;
 }): string {
   const base = options.projectId
     ? `/projects/${encodeURIComponent(options.projectId)}/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`
     : `/evals/${encodeURIComponent(options.runId)}/${encodeURIComponent(options.evalId)}`;
-  if (!options.artifactDir) return base;
-  return `${base}?artifact_dir=${encodeURIComponent(options.artifactDir)}`;
+  if (!options.resultDir) return base;
+  return `${base}?result_dir=${encodeURIComponent(options.resultDir)}`;
 }
 
 function scrollPanelIntoView(panel: HTMLElement | null) {

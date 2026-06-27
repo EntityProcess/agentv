@@ -709,12 +709,12 @@ function TrialChecksTab({
   onOpenFile: (path: string) => void;
 }) {
   const gradingPath = trial.grading_path;
-  const artifactDir = result.artifact_dir;
+  const resultDir = result.result_dir;
   const evalId = result.testId;
   const { data: gradingContent, isLoading } =
     projectId && gradingPath
-      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, gradingPath, artifactDir))
-      : useEvalFileContent(runId, evalId, gradingPath ?? '', artifactDir);
+      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, gradingPath, resultDir))
+      : useEvalFileContent(runId, evalId, gradingPath ?? '', resultDir);
   const parsed = parseGradingArtifact(gradingContent?.content);
 
   if (!gradingPath) {
@@ -814,7 +814,7 @@ function RepeatAggregateTranscriptTab({
               runId,
               evalId: result.testId,
               filePath: transcriptPath,
-              artifactDir: result.artifact_dir,
+              resultDir: result.result_dir,
               raw: true,
             })
           : undefined;
@@ -870,19 +870,17 @@ function TrialTranscriptTab({
   onOpenFile: (path: string) => void;
 }) {
   const evalId = result.testId;
-  const artifactDir = result.artifact_dir;
+  const resultDir = result.result_dir;
   const transcriptPath = trial.transcript_path;
   const answerPath = trial.answer_path;
   const { data: transcriptContent, isLoading: isLoadingTranscript } =
     projectId && transcriptPath
-      ? useQuery(
-          projectEvalFileContentOptions(projectId, runId, evalId, transcriptPath, artifactDir),
-        )
-      : useEvalFileContent(runId, evalId, transcriptPath ?? '', artifactDir);
+      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, transcriptPath, resultDir))
+      : useEvalFileContent(runId, evalId, transcriptPath ?? '', resultDir);
   const { data: answerContent } =
     projectId && answerPath
-      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, answerPath, artifactDir))
-      : useEvalFileContent(runId, evalId, answerPath ?? '', artifactDir);
+      ? useQuery(projectEvalFileContentOptions(projectId, runId, evalId, answerPath, resultDir))
+      : useEvalFileContent(runId, evalId, answerPath ?? '', resultDir);
 
   const transcriptValue = transcriptContent?.content ?? '';
   const parsedTranscript = useMemo(() => parseTranscriptJsonl(transcriptValue), [transcriptValue]);
@@ -939,7 +937,7 @@ function TrialTranscriptTab({
         runId,
         evalId,
         filePath: answerPath,
-        artifactDir,
+        resultDir,
         raw: true,
       })
     : undefined;
@@ -948,7 +946,7 @@ function TrialTranscriptTab({
     runId,
     evalId,
     filePath: transcriptPath,
-    artifactDir,
+    resultDir,
     raw: true,
   });
   const transcriptDownloadHref = artifactFileContentUrl({
@@ -956,7 +954,7 @@ function TrialTranscriptTab({
     runId,
     evalId,
     filePath: transcriptPath,
-    artifactDir,
+    resultDir,
     download: true,
   });
 
@@ -986,14 +984,14 @@ function TranscriptTab({
   onOpenFile: (path: string) => void;
 }) {
   const evalId = result.testId;
-  const artifactDir = result.artifact_dir;
+  const resultDir = result.result_dir;
   const {
     data: transcriptData,
     isLoading: isLoadingTranscript,
     error: transcriptError,
   } = projectId
-    ? useQuery(projectEvalTranscriptOptions(projectId, runId, evalId, artifactDir))
-    : useEvalTranscript(runId, evalId, artifactDir);
+    ? useQuery(projectEvalTranscriptOptions(projectId, runId, evalId, resultDir))
+    : useEvalTranscript(runId, evalId, resultDir);
   const transcriptPath = transcriptData?.transcript_path;
   const answerPath = transcriptData?.answer_path;
   const transcriptContent = transcriptData?.status === 'ok' ? (transcriptData.content ?? '') : '';
@@ -1074,7 +1072,7 @@ function TranscriptTab({
                   runId,
                   evalId,
                   filePath: transcriptPath,
-                  artifactDir,
+                  resultDir,
                   raw: true,
                 })}
                 target="_blank"
@@ -1107,7 +1105,7 @@ function TranscriptTab({
         runId,
         evalId,
         filePath: answerPath,
-        artifactDir,
+        resultDir,
         raw: true,
       })
     : undefined;
@@ -1117,7 +1115,7 @@ function TranscriptTab({
         runId,
         evalId,
         filePath: transcriptPath,
-        artifactDir,
+        resultDir,
         raw: true,
       })
     : undefined;
@@ -1127,7 +1125,7 @@ function TranscriptTab({
         runId,
         evalId,
         filePath: transcriptPath,
-        artifactDir,
+        resultDir,
         download: true,
       })
     : undefined;
@@ -1160,12 +1158,12 @@ function FilesTab({
   onSelectedPathChange: (path: string) => void;
 }) {
   const evalId = result.testId;
-  const artifactDir = result.artifact_dir;
+  const resultDir = result.result_dir;
 
   // Use project-scoped API hooks when projectId is present
   const { data: filesData } = projectId
-    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId, artifactDir))
-    : useEvalFiles(runId, evalId, artifactDir);
+    ? useQuery(projectEvalFilesOptions(projectId, runId, evalId, resultDir))
+    : useEvalFiles(runId, evalId, resultDir);
   const files = filesData?.files ?? [];
 
   const [localSelectedPath, setLocalSelectedPath] = useState<string | null>(null);
@@ -1180,9 +1178,9 @@ function FilesTab({
 
   const { data: fileContentData, isLoading: isLoadingContent } = projectId
     ? useQuery(
-        projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? '', artifactDir),
+        projectEvalFileContentOptions(projectId, runId, evalId, effectivePath ?? '', resultDir),
       )
-    : useEvalFileContent(runId, evalId, effectivePath ?? '', artifactDir);
+    : useEvalFileContent(runId, evalId, effectivePath ?? '', resultDir);
 
   if (files.length === 0) {
     return <p className="text-sm text-gray-500">No artifact files available.</p>;

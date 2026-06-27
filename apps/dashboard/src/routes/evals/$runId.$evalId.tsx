@@ -19,10 +19,10 @@ export const Route = createFileRoute('/evals/$runId/$evalId')({
 
 function EvalDetailPage() {
   const { runId, evalId } = Route.useParams();
-  const artifactDir =
+  const resultDir =
     typeof window === 'undefined'
       ? undefined
-      : (new URLSearchParams(window.location.search).get('artifact_dir') ?? undefined);
+      : (new URLSearchParams(window.location.search).get('result_dir') ?? undefined);
   const { data, isLoading, error } = useRunDetail(runId);
   const { data: config } = useStudioConfig();
   const [showRunEval, setShowRunEval] = useState(false);
@@ -46,7 +46,7 @@ function EvalDetailPage() {
   }
 
   const result = data?.results.find(
-    (r) => r.testId === evalId && (!artifactDir || r.artifact_dir === artifactDir),
+    (r) => r.testId === evalId && (!resultDir || r.result_dir === resultDir),
   );
 
   if (!result) {

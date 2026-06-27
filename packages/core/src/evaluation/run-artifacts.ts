@@ -292,7 +292,7 @@ export interface IndexArtifactEntry {
   readonly failure_stage?: string;
   readonly failure_reason_code?: string;
   readonly workspace_path?: string;
-  readonly artifact_dir?: string;
+  readonly result_dir?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
   readonly summary_path?: string;
@@ -600,7 +600,7 @@ function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined
     mode: value.mode,
     source_run_dir: value.sourceRunDir,
     source_index_path: value.sourceIndexPath,
-    source_artifact_dir: value.sourceArtifactDir,
+    source_result_dir: value.sourceResultDir,
     source_task_dir: value.sourceTaskDir,
     source_test_id: value.sourceTestId,
     source_target: value.sourceTarget,
@@ -1382,7 +1382,7 @@ export function buildIndexArtifactEntry(
   result: EvaluationResult,
   options: {
     outputDir: string;
-    artifactDir?: string;
+    resultDir?: string;
     gradingPath?: string;
     timingPath?: string;
     summaryPath?: string;
@@ -1419,8 +1419,8 @@ export function buildIndexArtifactEntry(
     failure_stage: result.failureStage,
     failure_reason_code: result.failureReasonCode,
     workspace_path: result.workspacePath,
-    artifact_dir: options.artifactDir
-      ? toRelativeArtifactPath(options.outputDir, options.artifactDir)
+    result_dir: options.resultDir
+      ? toRelativeArtifactPath(options.outputDir, options.resultDir)
       : undefined,
     grading_path: options.gradingPath
       ? toRelativeArtifactPath(options.outputDir, options.gradingPath)
@@ -1496,7 +1496,7 @@ export function buildResultIndexArtifact(
     failure_stage: result.failureStage,
     failure_reason_code: result.failureReasonCode,
     workspace_path: result.workspacePath,
-    artifact_dir: artifactSubdir,
+    result_dir: artifactSubdir,
     summary_path: path.posix.join(artifactSubdir, RUN_SUMMARY_FILENAME),
     grading_path: isSingleRun ? path.posix.join(singleRunDir, 'grading.json') : undefined,
     timing_path: isSingleRun ? path.posix.join(singleRunDir, 'timing.json') : undefined,
@@ -2000,7 +2000,7 @@ export async function writePerTestArtifacts(
     indexRecords.push({
       ...buildIndexArtifactEntry(result, {
         outputDir,
-        artifactDir: testDir,
+        resultDir: testDir,
         summaryPath: caseSummaryPath,
         gradingPath: singleGradingPath,
         timingPath: singleTimingPath,
@@ -2165,7 +2165,7 @@ export async function writeArtifactsFromResults(
     const nextRecord = {
       ...buildIndexArtifactEntry(result, {
         outputDir,
-        artifactDir: plan.testDir,
+        resultDir: plan.testDir,
         summaryPath: plan.caseSummaryPath,
         gradingPath: plan.singleGradingPath,
         timingPath: plan.singleTimingPath,

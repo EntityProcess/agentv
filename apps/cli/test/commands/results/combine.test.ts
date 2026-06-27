@@ -187,7 +187,7 @@ describe('results combine', () => {
   it('copies and rewrites artifact pointers when combining runs', () => {
     const first = seedRun('run-a', [
       result({
-        artifact_dir: 'demo/test-a',
+        result_dir: 'demo/test-a',
         trace_path: 'demo/test-a/trace.json',
         transcript_path: 'demo/test-a/transcript.jsonl',
         metrics_path: 'demo/test-a/metrics.json',
@@ -251,7 +251,7 @@ describe('results combine', () => {
     });
 
     const [record] = readIndex(combined.manifestPath);
-    expect(record.artifact_dir).toBe('sources/source-1/demo/test-a');
+    expect(record.result_dir).toBe('sources/source-1/demo/test-a');
     expect(record).not.toHaveProperty('trace_path');
     expect(record.transcript_path).toBe('sources/source-1/demo/test-a/transcript.jsonl');
     expect(record.metrics_path).toBe('sources/source-1/demo/test-a/metrics.json');

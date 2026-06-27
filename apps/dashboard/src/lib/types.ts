@@ -250,7 +250,7 @@ export interface EvalResult {
   source_traceability?: SourceTraceability;
   trials?: EvalCaseTrial[];
   aggregation?: EvalTrialAggregation;
-  artifact_dir?: string;
+  result_dir?: string;
   summary_path?: string;
   grading_path?: string;
   timing_path?: string;

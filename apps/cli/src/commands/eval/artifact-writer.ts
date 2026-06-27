@@ -91,7 +91,7 @@ export function buildIndexArtifactEntry(
   result: EvaluationResult,
   options: {
     outputDir: string;
-    artifactDir?: string;
+    resultDir?: string;
     gradingPath?: string;
     timingPath?: string;
     summaryPath?: string;
@@ -115,7 +115,7 @@ export function buildResultIndexArtifact(
   result: EvaluationResult,
   taskBundle?: MaterializedTaskBundlePaths,
 ): ResultIndexArtifact {
-  const artifactSubdir = (buildCoreResultIndexArtifact(result).artifact_dir ?? '').trim();
+  const artifactSubdir = (buildCoreResultIndexArtifact(result).result_dir ?? '').trim();
   const extraIndexFields = taskBundle
     ? {
         task_dir: path.posix.join(artifactSubdir, 'task'),
