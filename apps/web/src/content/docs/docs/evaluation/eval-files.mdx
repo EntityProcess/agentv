@@ -23,13 +23,11 @@ experiment:
   target: default
 
 assertions:
-  - name: correctness
-    type: llm-grader
-    prompt: ./graders/correctness.md
+  - Correctly calculates the answer
+  - Explains the calculation briefly
 
 tests:
   - id: addition
-    criteria: Correctly calculates 15 + 27 = 42
     input: What is 15 + 27?
     expected_output: "42"
 ```
@@ -45,6 +43,11 @@ tests:
 | `tests` | Array of individual tests, include entries, or a string path to an external file or directory. Tests and include entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
+
+For historical or repo-state evals, put the checkout under
+`workspace.repos[].commit` or `workspace.repos[].base_commit`. A commit SHA in
+the prompt or metadata is useful context, but it does not materialize a repo for
+the agent to inspect.
 
 ### Metadata Fields
 
@@ -82,6 +85,10 @@ The `assertions` field is the canonical way to define suite-level graders. Suite
 For semantic or agent-behavior checks, prefer plain assertion strings first;
 AgentV treats them as rubric criteria. Use deterministic assertions or code
 graders when the expected output is exact or requires programmatic inspection.
+If the assertion strings already state the grading contract, omit a duplicate
+`criteria` field on each test. Use explicit `type: llm-grader` entries only
+when you need a custom prompt, a custom grader target, or a deliberately
+separate grader panel.
 
 ```yaml
 description: API response validation
@@ -95,7 +102,6 @@ assertions:
 
 tests:
   - id: health-check
-    criteria: Returns health status
     input: Check API health
 ```
 

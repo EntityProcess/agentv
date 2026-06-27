@@ -30,6 +30,13 @@ mutation under the parent `experiment:`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
+## Authoring Checklist
+
+- If `assertions` already state the grading contract, omit `criteria` instead of duplicating the same rubric twice.
+- Prefer plain assertion strings for semantic checks when the default LLM rubric grader can judge them. Use multiple named `type: llm-grader` blocks only for custom prompts, custom grader targets, or intentionally separate grader panels.
+- Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
+- For historical or repo-state evals, materialize the repo under `workspace.repos[]` pinned to the commit under test. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
+
 ## Evaluation Types
 
 AgentV evaluations measure **execution quality** — whether your agent or skill produces correct output when invoked.
@@ -82,7 +89,6 @@ JSON messages:
 ```yaml
 tests:
   - id: multi-turn-context
-    criteria: "Agent remembers prior context"
     input:
       - role: user
         content: "My name is Alice"
@@ -106,7 +112,6 @@ experiment:
 
 tests:
   - id: greeting
-    criteria: Friendly greeting
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
     assertions:
@@ -124,7 +129,7 @@ tests:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
-| `criteria` | yes | What the response should accomplish |
+| `criteria` | conditional | What the response should accomplish; required only when no `expected_output` or `assertions` are present |
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
@@ -212,7 +217,6 @@ assertions:
 
 tests:
   - id: test-1
-    criteria: Returns a useful status payload
     input: Get status
     assertions:
       - type: equals
@@ -224,6 +228,35 @@ Plain strings in `assertions` are rubric criteria and are the preferred shape fo
 qualitative agent behavior. Use deterministic assertions (`contains`, `regex`,
 `is-json`, `equals`) only for exact machine-verifiable outputs, and code graders
 when the check must inspect files, run commands, or validate structured state.
+Do not add a separate `criteria` field that just repeats these assertion strings.
+
+For repo-state evals, combine a pinned checkout, a golden answer, and assertion
+shorthand:
+
+```yaml
+workspace:
+  repos:
+    - path: ./agentv
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: 5e3c8f46d80fe66b1a75659e4fd94e38a7e09215
+
+tests:
+  - id: verification-learning-capture
+    input: |
+      The eval harness has prepared ./agentv at the commit before the
+      verification guidance was added.
+
+      Decide what durable repo change should be made and explain why.
+    expected_output: |
+      The durable repo change is to update .agents/verification.md with the
+      reusable verification workflow lessons. AGENTS.md already routes this
+      class of work to .agents/verification.md, so no extra AGENTS.md edit is
+      needed unless that routing is missing.
+    assertions:
+      - The answer recommends updating .agents/verification.md rather than leaving the learning only in PR comments or private evidence.
+      - The answer uses the pinned ./agentv checkout to verify the AGENTS.md routing.
+      - The answer preserves the historical commit SHA as context.
+```
 
 ## How `criteria` and `assertions` Interact
 
@@ -256,7 +289,6 @@ target, declare `llm-grader` explicitly:
 ```yaml
 tests:
   - id: mixed-eval
-    criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
       - Explains why the bug happens
@@ -276,6 +308,10 @@ tests:
         value: "4"
     # Warning: criteria is defined but no grader in assertions will evaluate it.
 ```
+
+If plain assertion strings fully express the semantic contract, leave `criteria`
+out. Keep `criteria` for the implicit-grader path or for non-duplicative context
+that a declared grader actually needs.
 
 ## Required Gates
 
@@ -319,7 +355,6 @@ workspace:
 tests:
   - id: case-1
     input: Fix the bug
-    criteria: Bug is fixed
     metadata:
       source_repo: sympy/sympy
       source_commit: "abc123"
@@ -330,6 +365,9 @@ tests:
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
 For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].base_commit`; treat `metadata.source_commit` as informational only.
+For historical repo-state evals, pin `workspace.repos[].commit` or
+`workspace.repos[].base_commit` to the commit under test. A SHA in the prompt or
+metadata without a matching workspace repo pin is not an operational checkout.
 
 ### Repository Lifecycle
 
