@@ -4124,7 +4124,19 @@ export async function deleteWipBranch(params: {
 }): Promise<void> {
   const normalized = normalizeResultsConfig(params.config);
   const cloneDir = await ensureResultsRepoClone(normalized);
-  await runGit(['push', normalized.remote, '--delete', params.wipBranch], { cwd: cloneDir });
+  const result = await runGit(['push', normalized.remote, '--delete', params.wipBranch], {
+    cwd: cloneDir,
+    check: false,
+  });
+  if (result.exitCode === 0 || isMissingRemoteRefDelete(result)) {
+    return;
+  }
+  throw new Error(result.stderr.trim() || result.stdout.trim() || 'Failed to delete WIP branch');
+}
+
+function isMissingRemoteRefDelete(result: { stdout: string; stderr: string }): boolean {
+  const text = `${result.stderr}\n${result.stdout}`.toLowerCase();
+  return text.includes('remote ref does not exist') || text.includes('unable to delete');
 }
 
 // git exits non-zero with one of these messages when the requested ref/object

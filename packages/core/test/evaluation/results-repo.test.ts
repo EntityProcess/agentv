@@ -2808,4 +2808,10 @@ describe('WIP branch helpers', () => {
     const branchesAfter = git('git branch -r', cloneDir);
     expect(branchesAfter).not.toContain(`origin/${wipBranch}`);
   }, 30000);
+
+  it('deleteWipBranch ignores a missing remote WIP branch', async () => {
+    await expect(
+      deleteWipBranch({ config, wipBranch: 'agentv/wip/test-host/missing-run' }),
+    ).resolves.toBeUndefined();
+  }, 30000);
 });
