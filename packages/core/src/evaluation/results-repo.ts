@@ -5,11 +5,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { cp, lstat, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { cp, lstat, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -37,6 +38,8 @@ const RESULTS_REPO_METADATA_DIR = 'metadata';
 // Top-level directories AgentV owns on the results branch. The auto-sync
 // dirty-commit path stages only these so it never touches unrelated repo files.
 const RESULTS_REPO_TRACKED_DIRS = [RESULTS_REPO_RUNS_DIR, RESULTS_REPO_METADATA_DIR] as const;
+const GIT_RESULTS_INDEX_CACHE_SCHEMA_VERSION = 'agentv.git_results_index_cache.v1';
+const GIT_RESULTS_INDEX_LAYOUT_VERSION = 'agentv.results_repo_runs.v1';
 const FALLBACK_RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
 const FALLBACK_RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
 const GIT_COMMIT_IDENTITY_ENV_KEYS = [
@@ -3786,8 +3789,20 @@ export interface GitListedRun {
   summary_path?: string;
   display_name: string;
   test_count: number;
+  execution_error_count?: number;
   avg_score: number;
   size_bytes: number;
+}
+
+interface GitResultsIndexCacheFile {
+  readonly schema_version: typeof GIT_RESULTS_INDEX_CACHE_SCHEMA_VERSION;
+  readonly result_layout_version: typeof GIT_RESULTS_INDEX_LAYOUT_VERSION;
+  readonly repo_key: string;
+  readonly repo_dir: string;
+  readonly ref: string;
+  readonly commit_sha: string;
+  readonly generated_at: string;
+  readonly runs: readonly GitListedRun[];
 }
 
 type GitBatchBlob = {
@@ -4129,8 +4144,167 @@ function isMissingGitRefError(error: unknown): boolean {
     haystack.includes('not a valid object name') ||
     haystack.includes('unknown revision or path') ||
     haystack.includes('bad revision') ||
-    haystack.includes('does not exist')
+    haystack.includes('does not exist') ||
+    haystack.includes('needed a single revision')
   );
+}
+
+function gitResultsIndexHash(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function resolveGitResultsIndexRepoDir(repoDir: string): string {
+  const resolved = path.resolve(repoDir);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+function gitResultsIndexRepoKey(repoDir: string): string {
+  return `sha256-${gitResultsIndexHash(resolveGitResultsIndexRepoDir(repoDir)).slice(0, 32)}`;
+}
+
+function gitResultsIndexRefKey(ref: string): string {
+  const slug = sanitizeRepoSlug(ref).slice(0, 80) || 'default';
+  return `${slug}-${gitResultsIndexHash(ref).slice(0, 16)}`;
+}
+
+export function resolveGitResultsIndexCacheFile(params: {
+  readonly repoDir: string;
+  readonly ref?: string;
+  readonly commitSha: string;
+}): string {
+  const ref = params.ref ?? 'origin/main';
+  return path.join(
+    getAgentvDataDir(),
+    'cache',
+    'results-index',
+    gitResultsIndexRepoKey(params.repoDir),
+    gitResultsIndexRefKey(ref),
+    `${params.commitSha}.json`,
+  );
+}
+
+function isGitListedRun(value: unknown): value is GitListedRun {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.run_id === 'string' &&
+    typeof record.experiment === 'string' &&
+    typeof record.timestamp === 'string' &&
+    typeof record.manifest_path === 'string' &&
+    typeof record.display_name === 'string' &&
+    typeof record.test_count === 'number' &&
+    typeof record.avg_score === 'number' &&
+    typeof record.size_bytes === 'number' &&
+    (record.execution_error_count === undefined ||
+      typeof record.execution_error_count === 'number') &&
+    (record.pass_rate === undefined || typeof record.pass_rate === 'number') &&
+    (record.target === undefined || typeof record.target === 'string') &&
+    (record.summary_path === undefined || typeof record.summary_path === 'string')
+  );
+}
+
+function validateGitResultsIndexCacheFile(
+  value: unknown,
+  params: { repoDir: string; ref: string; commitSha: string },
+): GitResultsIndexCacheFile | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const record = value as Record<string, unknown>;
+  const repoDir = resolveGitResultsIndexRepoDir(params.repoDir);
+  const repoKey = gitResultsIndexRepoKey(params.repoDir);
+  if (
+    record.schema_version !== GIT_RESULTS_INDEX_CACHE_SCHEMA_VERSION ||
+    record.result_layout_version !== GIT_RESULTS_INDEX_LAYOUT_VERSION ||
+    record.repo_key !== repoKey ||
+    record.repo_dir !== repoDir ||
+    record.ref !== params.ref ||
+    record.commit_sha !== params.commitSha ||
+    !Array.isArray(record.runs) ||
+    !record.runs.every(isGitListedRun)
+  ) {
+    return undefined;
+  }
+  return value as GitResultsIndexCacheFile;
+}
+
+async function readGitResultsIndexCache(params: {
+  readonly repoDir: string;
+  readonly ref: string;
+  readonly commitSha: string;
+}): Promise<readonly GitListedRun[] | undefined> {
+  const cacheFile = resolveGitResultsIndexCacheFile(params);
+  try {
+    const parsed = JSON.parse(await readFile(cacheFile, 'utf8')) as unknown;
+    return validateGitResultsIndexCacheFile(parsed, params)?.runs;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writeGitResultsIndexCache(params: {
+  readonly repoDir: string;
+  readonly ref: string;
+  readonly commitSha: string;
+  readonly runs: readonly GitListedRun[];
+}): Promise<void> {
+  const cacheFile = resolveGitResultsIndexCacheFile(params);
+  const envelope: GitResultsIndexCacheFile = {
+    schema_version: GIT_RESULTS_INDEX_CACHE_SCHEMA_VERSION,
+    result_layout_version: GIT_RESULTS_INDEX_LAYOUT_VERSION,
+    repo_key: gitResultsIndexRepoKey(params.repoDir),
+    repo_dir: resolveGitResultsIndexRepoDir(params.repoDir),
+    ref: params.ref,
+    commit_sha: params.commitSha,
+    generated_at: new Date().toISOString(),
+    runs: params.runs,
+  };
+  try {
+    mkdirSync(path.dirname(cacheFile), { recursive: true });
+    const tempFile = `${cacheFile}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tempFile, `${JSON.stringify(envelope, null, 2)}\n`, 'utf8');
+    renameSync(tempFile, cacheFile);
+  } catch {
+    // Cache writes are best-effort; git-native listing remains the source of truth.
+  }
+}
+
+export async function resolveGitRunsRefCommit(
+  repoDir: string,
+  ref = 'origin/main',
+): Promise<string | undefined> {
+  try {
+    const { stdout } = await runGit(['rev-parse', '--verify', `${ref}^{commit}`], {
+      cwd: repoDir,
+    });
+    return stdout.trim() || undefined;
+  } catch (error) {
+    if (isMissingGitRefError(error)) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+export async function listGitRunsCached(
+  repoDir: string,
+  ref = 'origin/main',
+): Promise<GitListedRun[]> {
+  const commitSha = await resolveGitRunsRefCommit(repoDir, ref);
+  if (!commitSha) {
+    return [];
+  }
+
+  const cached = await readGitResultsIndexCache({ repoDir, ref, commitSha });
+  if (cached) {
+    return [...cached];
+  }
+
+  const runs = await listGitRuns(repoDir, ref);
+  await writeGitResultsIndexCache({ repoDir, ref, commitSha, runs });
+  return runs;
 }
 
 export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise<GitListedRun[]> {
@@ -4196,7 +4370,15 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
       .map((line) => line.trim())
       .filter(Boolean)
       .flatMap(
-        (line): { timestamp?: string; target?: string; test_id?: string; score?: number }[] => {
+        (
+          line,
+        ): {
+          timestamp?: string;
+          target?: string;
+          test_id?: string;
+          score?: number;
+          execution_status?: string;
+        }[] => {
           try {
             return [
               JSON.parse(line) as {
@@ -4204,6 +4386,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
                 target?: string;
                 test_id?: string;
                 score?: number;
+                execution_status?: string;
               },
             ];
           } catch {
@@ -4229,6 +4412,9 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
     const displayName = summary?.metadata?.display_name?.trim() || path.posix.basename(runDir);
     const targets = summary?.metadata?.targets ?? rowTargets;
     const passRate = computeAveragePassRate(summary?.run_summary) ?? avgScore;
+    const executionErrorCount = rows.filter(
+      (row) => row.execution_status === 'execution_error',
+    ).length;
 
     return [
       {
@@ -4241,6 +4427,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
         ...(summaryByPath.has(summaryPath) && { summary_path: summaryPath }),
         display_name: displayName,
         test_count: summary?.metadata?.tests_run?.length ?? rowTestIds.length,
+        ...(executionErrorCount > 0 && { execution_error_count: executionErrorCount }),
         avg_score: avgScore,
         size_bytes: blob.size,
       },
