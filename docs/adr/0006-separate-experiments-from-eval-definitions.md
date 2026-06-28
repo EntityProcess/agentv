@@ -371,28 +371,31 @@ This is the motivating distinction:
 
 ## Result Layout
 
-The canonical writer path is:
+ADR 0009 is the source of truth for result experiment bucket precedence, row
+identity, and sidecar path allocation. The canonical run bundle root is:
 
 ```text
-.agentv/results/<eval-name>/<timestamp>/...
+.agentv/results/<experiment>/<timestamp>/...
 ```
 
 There is no `.agentv/results/runs` segment in canonical writer output. There is
-also no default nested suite segment when the result group is already the same
-eval suite being run directly.
+also no schema-significant suite or imported-suite directory segment.
 
-If a wrapper eval imports another suite with `type: suite`, test artifacts from
-that imported suite are nested under the imported suite identity:
+Within the timestamp, `index.jsonl` is authoritative for row identity and all
+run-relative sidecar paths. New writers should allocate deterministic row
+directories directly under the timestamp:
 
 ```text
-.agentv/results/<wrapper-eval-name>/<timestamp>/<imported-suite-name>/<test-id>/...
+.agentv/results/<experiment>/<timestamp>/<row_id>/run-1/...
 ```
 
-The suite segment is required for imported suites because wrapper evals can
-compose many suites with overlapping test IDs, and the directory tree should
-remain inspectable without reading every manifest row. Test artifacts from tests
-owned directly by the wrapper eval can still live directly under `<test-id>`.
-All cases should also retain source suite metadata in manifests and index rows.
+`row_id` is a stable, filesystem-safe allocation such as
+`<safe_test_id>--<short_hash>`. The hash input includes the source eval identity
+or `eval_path`, suite label, `test_id`, target, and variant. This keeps
+same-`test_id` rows from different suites, duplicate suite labels, targets, and
+variants from overwriting each other without making path hierarchy a semantic
+contract. There is no required `rows/` parent directory. Source suite metadata
+still belongs in manifests and index rows.
 
 The result namespace remains `experiment` in artifacts and Dashboard. AgentV
 should not introduce a separate authored `run_group` field. For better DX,
