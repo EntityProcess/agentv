@@ -90,6 +90,28 @@ describe('eval.yaml inline experiment and tests imports', () => {
     await expect(loadTestSuite(conflictPath, tempDir)).rejects.toThrow(/experiment.*execution/);
   });
 
+  it('rejects per-test execution workspace blocks', async () => {
+    const evalPath = path.join(tempDir, 'test-execution-workspace.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '    execution:',
+        '      workspace:',
+        '        mode: static',
+        '        path: /tmp/ws',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
+      /execution\.workspace has been removed from eval YAML/,
+    );
+  });
+
   it('globs raw case files through tests[].include with deterministic ordering and select filters', async () => {
     const casesDir = path.join(tempDir, 'cases');
     await mkdir(casesDir, { recursive: true });
@@ -396,7 +418,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
         '  timeout_seconds: 10',
         '  budget_usd: 0.5',
         'workspace:',
-        '  path: ./child-workspace',
+        '  template: ./child-workspace',
         'input: child shared input',
         'assertions:',
         '  - type: contains',
@@ -441,7 +463,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_at_k' });
     expect(test.run).toBeUndefined();
     expect(test.suite).toBe('child-suite');
-    expect(test.workspace?.path).toBe('./child-workspace');
+    expect(test.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));
     expect(test.input.map((message) => message.content)).toEqual([
       'child shared input',
       'child case input',
@@ -470,7 +492,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       [
         'name: parent-suite',
         'workspace:',
-        '  path: ./parent-workspace',
+        '  template: ./parent-workspace',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: suite',
@@ -511,7 +533,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Parent workspace is not allowed.*experiment\.workspace/,
+      /Experiment workspace has been removed from eval YAML/,
     );
   });
 
@@ -543,7 +565,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Parent workspace is not allowed.*execution\.workspace/,
+      /Experiment workspace has been removed from eval YAML/,
     );
   });
 
@@ -754,7 +776,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       [
         'name: parent-suite',
         'workspace:',
-        '  path: ./parent-workspace',
+        '  template: ./parent-workspace',
         'input: parent shared input',
         'assertions:',
         '  - type: contains',
@@ -774,7 +796,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       'parent shared input',
       'raw case input',
     ]);
-    expect(test.workspace?.path).toBe('./parent-workspace');
+    expect(test.workspace?.template).toBe(path.join(tempDir, 'parent-workspace'));
     expect(test.assertions?.[0]).toMatchObject({ type: 'contains', value: 'parent' });
   });
 });

@@ -28,7 +28,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.repos[]` | Yes | Declares repo identity and checkout refs; AgentV resolves acquisition and materializes the checkout. |
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
 | `workspace.hooks` | Yes | Runs lifecycle commands with workspace and case context on stdin. |
-| `workspace.isolation`, `workspace.mode`, `workspace.path` | Yes | Controls workspace reuse and materialization. |
+| `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, workers, and default grader behavior. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
 | `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
@@ -208,8 +208,7 @@ When one eval references another eval, preserve the task/runtime split:
 - Child `experiment:` blocks are ignored by `type: suite` composition. There is
   no fallback to the child `experiment:` when the parent has no `experiment:`.
 - Child `workspace` setup is preserved for `type: suite` imports. A parent eval
-  that imports any `type: suite` entry must not define parent workspace fields
-  such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
+  that imports any `type: suite` entry must not define parent `workspace`.
   Parent workspace context is for parent-owned raw cases, including raw cases
   imported with `type: tests`.
 - A tests-only import can drop child workspace context only when the import mode

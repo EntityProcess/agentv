@@ -222,14 +222,12 @@ fall back into the parent run. Scoped runtime overrides that the parent wants
 to apply to imported tests live in `tests[].run`.
 
 A parent eval that imports any child eval suite with `type: suite` must not
-define parent workspace-affecting fields, including `workspace`,
-`experiment.workspace`, or legacy `execution.workspace`. The wrapper owns
-runtime policy, not task environment. Imported child suites keep their own
-`workspace`, including `workspace.repos[]`, templates, hooks, and isolation.
-`experiment.workspace` remains a narrow runtime override for `mode` and `path`
-only; it is not a place for repos, hooks, templates, Docker config, or
-isolation. If the parent should own workspace context, import raw cases with
-`type: tests` or shorthand paths instead of importing an eval suite.
+define parent `workspace`. The wrapper owns runtime policy, not task
+environment. Imported child suites keep their own `workspace`, including
+`workspace.repos[]`, templates, hooks, and isolation. Existing local workspace
+paths are machine-local bindings supplied through CLI flags or
+`config.local.yaml`. If the parent should own workspace context, import raw cases
+with `type: tests` or shorthand paths instead of importing an eval suite.
 
 `type: tests` imports only raw test entries. It intentionally drops shared
 suite context such as workspace, shared input, and shared assertions. Use this

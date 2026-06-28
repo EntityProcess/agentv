@@ -5178,6 +5178,9 @@
                             "type": "number",
                             "minimum": 0,
                             "maximum": 1
+                          },
+                          "workspace": {
+                            "not": {}
                           }
                         },
                         "additionalProperties": false
@@ -5458,13 +5461,6 @@
                               }
                             },
                             "additionalProperties": false
-                          },
-                          "mode": {
-                            "type": "string",
-                            "enum": ["pooled", "temp", "static"]
-                          },
-                          "path": {
-                            "type": "string"
                           },
                           "docker": {
                             "type": "object",
@@ -11985,6 +11981,9 @@
                             "type": "number",
                             "minimum": 0,
                             "maximum": 1
+                          },
+                          "workspace": {
+                            "not": {}
                           }
                         },
                         "additionalProperties": false
@@ -12265,13 +12264,6 @@
                               }
                             },
                             "additionalProperties": false
-                          },
-                          "mode": {
-                            "type": "string",
-                            "enum": ["pooled", "temp", "static"]
-                          },
-                          "path": {
-                            "type": "string"
                           },
                           "docker": {
                             "type": "object",
@@ -16132,6 +16124,9 @@
               "minimum": 0,
               "maximum": 1
             },
+            "workspace": {
+              "not": {}
+            },
             "agent": {
               "type": "string",
               "minLength": 1
@@ -16186,20 +16181,6 @@
             "sandbox": {
               "type": "string",
               "enum": ["auto", "docker", "vercel"]
-            },
-            "workspace": {
-              "type": "object",
-              "properties": {
-                "mode": {
-                  "type": "string",
-                  "enum": ["pooled", "temp", "static"]
-                },
-                "path": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "additionalProperties": false
             },
             "setup": {
               "not": {}
@@ -18573,6 +18554,9 @@
               "minimum": 0,
               "maximum": 1
             },
+            "workspace": {
+              "not": {}
+            },
             "agent": {
               "type": "string",
               "minLength": 1
@@ -18627,20 +18611,6 @@
             "sandbox": {
               "type": "string",
               "enum": ["auto", "docker", "vercel"]
-            },
-            "workspace": {
-              "type": "object",
-              "properties": {
-                "mode": {
-                  "type": "string",
-                  "enum": ["pooled", "temp", "static"]
-                },
-                "path": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "additionalProperties": false
             },
             "setup": {
               "not": {}
@@ -20056,13 +20026,6 @@
                     }
                   },
                   "additionalProperties": false
-                },
-                "mode": {
-                  "type": "string",
-                  "enum": ["pooled", "temp", "static"]
-                },
-                "path": {
-                  "type": "string"
                 },
                 "docker": {
                   "type": "object",

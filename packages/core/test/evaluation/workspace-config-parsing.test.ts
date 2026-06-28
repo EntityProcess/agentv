@@ -390,8 +390,8 @@ tests:
     );
   });
 
-  it('infers workspace.mode=static when workspace.path is provided without mode', async () => {
-    const evalFile = path.join(testDir, 'workspace-path-implies-static.yaml');
+  it('rejects removed workspace.path', async () => {
+    const evalFile = path.join(testDir, 'workspace-path-removed.yaml');
     await writeFile(
       evalFile,
       `
@@ -405,10 +405,25 @@ tests:
 `,
     );
 
-    const cases = await loadTests(evalFile, testDir);
-    expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.mode).toBe('static');
-    expect(cases[0].workspace?.path).toBe('/tmp/shared-workspace');
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(/workspace\.path has been removed/i);
+  });
+
+  it('rejects removed workspace.mode', async () => {
+    const evalFile = path.join(testDir, 'workspace-mode-removed.yaml');
+    await writeFile(
+      evalFile,
+      `
+workspace:
+  mode: temp
+
+tests:
+  - id: case-1
+    input: "Hello"
+    criteria: "Should parse"
+`,
+    );
+
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(/workspace\.mode has been removed/i);
   });
 
   it('rejects removed workspace.static_path field', async () => {

@@ -3,7 +3,6 @@ description: >-
   enabled by default for shared workspaces with repos.
 
 workspace:
-  mode: pooled
   repos:
     - path: ./repo
       repo: https://github.com/EntityProcess/agentv.git

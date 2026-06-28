@@ -3481,7 +3481,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     expect(results[0].error).toBeUndefined();
   });
 
-  it('materializes only missing repos in YAML-configured static workspace', async () => {
+  it('uses runtime workspacePath as an existing workspace without materializing repos', async () => {
     const {
       mkdtemp,
       mkdir: fsMkdir,
@@ -3501,15 +3501,11 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
 
     const missingRepoBSource = path.join(testDir, 'missing-repo-b-source');
 
-    // Use YAML workspace.path (not CLI --workspace) with mixed repo states.
-    // repo-a exists → should be reused. repo-b points to a missing file:// repo and fails
-    // during materialization. This proves the per-repo existence check skips repo-a without
-    // depending on network timeouts from cloning fake remotes.
+    // Runtime workspacePath points at an existing machine-local workspace. It is used
+    // as-is and does not materialize workspace.repos from the portable eval contract.
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        mode: 'static',
-        path: testDir,
         repos: [
           {
             path: 'repo-a',
@@ -3524,79 +3520,30 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
       },
     };
 
-    // repo-b materialization fails, which proves repo-a was skipped and only repo-b was attempted.
     const savedAgentvHome = process.env.AGENTV_HOME;
     const savedAgentvDataDir = process.env.AGENTV_DATA_DIR;
     process.env.AGENTV_HOME = path.join(testDir, 'agentv-home');
     process.env.AGENTV_DATA_DIR = path.join(testDir, 'agentv-data');
     try {
-      await expect(
-        runEvaluation({
-          testFilePath: 'in-memory.yaml',
-          repoRoot: 'in-memory',
-          target: baseTarget,
-          providerFactory: () => provider,
-          evaluators: evaluatorRegistry,
-          evalCases: [evalCase],
-          keepWorkspaces: true,
-        }),
-      ).rejects.toThrow('Failed to materialize repos');
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [evalCase],
+        workspacePath: testDir,
+        keepWorkspaces: true,
+      });
+      expect(results).toHaveLength(1);
+      expect(results[0].error).toBeUndefined();
     } finally {
       process.env.AGENTV_HOME = savedAgentvHome;
       process.env.AGENTV_DATA_DIR = savedAgentvDataDir;
     }
 
-    // repo-a marker should still exist (not deleted by static workspace cleanup)
     await fsAccess(path.join(repoADir, 'marker.txt'));
-  });
-
-  it('skips all repos when all exist in YAML-configured static workspace', async () => {
-    const { mkdtemp, mkdir: fsMkdir, writeFile } = await import('node:fs/promises');
-    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-static-'));
-
-    // Pre-create both repos
-    await fsMkdir(path.join(testDir, 'repo-a'), { recursive: true });
-    await writeFile(path.join(testDir, 'repo-a', 'file.txt'), 'a');
-    await fsMkdir(path.join(testDir, 'repo-b'), { recursive: true });
-    await writeFile(path.join(testDir, 'repo-b', 'file.txt'), 'b');
-
-    const provider = new SequenceProvider('mock', {
-      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
-    });
-
-    // Both repos exist → no clone attempts → should succeed without network
-    const evalCase: EvalTest = {
-      ...baseTestCase,
-      workspace: {
-        mode: 'static',
-        path: testDir,
-        repos: [
-          {
-            path: 'repo-a',
-            repo: 'https://github.com/example/repo-a.git',
-            commit: 'main',
-          },
-          {
-            path: 'repo-b',
-            repo: 'https://github.com/example/repo-b.git',
-            commit: 'main',
-          },
-        ],
-      },
-    };
-
-    const results = await runEvaluation({
-      testFilePath: 'in-memory.yaml',
-      repoRoot: 'in-memory',
-      target: baseTarget,
-      providerFactory: () => provider,
-      evaluators: evaluatorRegistry,
-      evalCases: [evalCase],
-      keepWorkspaces: true,
-    });
-
-    expect(results).toHaveLength(1);
-    expect(results[0].error).toBeUndefined();
+    await expect(fsAccess(path.join(testDir, 'repo-b'))).rejects.toThrow();
   });
 
   it('falls back to temp mode when workspaceMode is static with no path and no repos', async () => {
@@ -3640,7 +3587,9 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
         evalCases: [evalCase],
         workspaceMode: 'static',
       }),
-    ).rejects.toThrow('workspace.mode=static requires workspace.path or --workspace-path');
+    ).rejects.toThrow(
+      'runtime workspaceMode=static requires --workspace-path or execution.workspace_path in config.local.yaml',
+    );
   });
 
   it('errors when workspace path is combined with non-static workspaceMode', async () => {

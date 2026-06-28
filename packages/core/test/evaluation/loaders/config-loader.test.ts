@@ -122,6 +122,7 @@ describe('loadConfig', () => {
           '  - "**/*.local.eval.yaml"',
           'execution:',
           '  keep_workspaces: true',
+          '  workspace_path: /tmp/agentv-local-workspace',
           'results:',
           '  repo:',
           '    branch: local-results',
@@ -135,6 +136,7 @@ describe('loadConfig', () => {
       expect(config?.execution).toEqual({
         verbose: true,
         keep_workspaces: true,
+        workspace_path: '/tmp/agentv-local-workspace',
         pool_slots: 2,
       });
       expect(config?.results).toEqual({
@@ -143,6 +145,44 @@ describe('loadConfig', () => {
         branch: 'local-results',
       });
     } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores workspace runtime bindings in committed config.yaml before applying local overlays', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-only-workspace-'));
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        [
+          'execution:',
+          '  keep_workspaces: true',
+          '  workspace_mode: static',
+          '  workspace_path: /tmp/committed-workspace',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(localConfigDir, 'config.local.yaml'),
+        ['execution:', '  verbose: true', ''].join('\n'),
+      );
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.execution).toEqual({
+        keep_workspaces: true,
+        verbose: true,
+      });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workspace_mode'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workspace_path'));
+    } finally {
+      warnSpy.mockRestore();
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -934,6 +974,37 @@ describe('parseExecutionDefaults', () => {
     expect(result?.keep_workspaces).toBe(true);
   });
 
+  it('parses workspace runtime bindings', () => {
+    const result = parseExecutionDefaults(
+      {
+        workspace_mode: 'static',
+        workspace_path: '  /tmp/agentv-workspace  ',
+      },
+      '/test/config.local.yaml',
+    );
+    expect(result?.workspace_mode).toBe('static');
+    expect(result?.workspace_path).toBe('/tmp/agentv-workspace');
+  });
+
+  it('ignores workspace runtime bindings outside local config', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = parseExecutionDefaults(
+        {
+          verbose: true,
+          workspace_mode: 'static',
+          workspace_path: '/tmp/agentv-workspace',
+        },
+        '/test/config.yaml',
+      );
+      expect(result).toEqual({ verbose: true });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workspace_mode'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workspace_path'));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it('parses otel_file string', () => {
     const result = parseExecutionDefaults(
       { otel_file: '.agentv/results/otel.json' },
@@ -947,13 +1018,15 @@ describe('parseExecutionDefaults', () => {
       {
         verbose: true,
         keep_workspaces: false,
+        workspace_mode: 'temp',
         otel_file: 'otel.json',
       },
-      '/test/config.yaml',
+      '/test/config.local.yaml',
     );
     expect(result).toEqual({
       verbose: true,
       keep_workspaces: false,
+      workspace_mode: 'temp',
       otel_file: 'otel.json',
     });
   });

@@ -183,7 +183,7 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects removed experiment workspace isolation per_test value', () => {
+  it('rejects experiment workspace blocks', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       experiment: {
@@ -195,7 +195,7 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts experiment workspace runtime override fields', () => {
+  it('rejects experiment workspace runtime override fields', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       experiment: {
@@ -205,7 +205,25 @@ describe('repo lifecycle schema validation', () => {
         },
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects test execution workspace blocks', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      tests: [
+        {
+          ...baseEval.tests[0],
+          execution: {
+            workspace: {
+              mode: 'static',
+              path: '/tmp/my-workspace',
+            },
+          },
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
   });
 
   it('rejects task workspace fields in experiment workspace', () => {
@@ -225,25 +243,24 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts workspace.mode=temp', () => {
+  it('rejects removed workspace.mode', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
         mode: 'temp',
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
-  it('accepts workspace.path for static mode', () => {
+  it('rejects removed workspace.path', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
-        mode: 'static',
         path: '/tmp/my-workspace',
       },
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it('rejects removed workspace.static_path field', () => {

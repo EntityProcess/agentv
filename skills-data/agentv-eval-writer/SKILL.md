@@ -384,7 +384,6 @@ workspace:
     after_each:
       reset: fast          # none | fast | strict
   isolation: shared        # shared | per_case
-  mode: pooled             # pooled | temp | static
 ```
 
 - `repo`: full clone URL or GitHub `org/name` shorthand
@@ -393,8 +392,9 @@ workspace:
 - `ancestor`: walk N commits back from the checked-out ref
 - `sparse`: sparse checkout paths array
 - Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
-- `mode`: `pooled` (default for shared repos), `temp`, or `static`
-- `path`: workspace path used when `mode: static`; when empty/missing the workspace is auto-materialised (template copied + repos cloned); populated dirs are reused as-is
+- Do not author `workspace.mode`, `workspace.path`, `experiment.workspace`, or `execution.workspace` in eval YAML
+- Shared repo workspaces are pooled by default; use `--workspace-mode temp` or `.agentv/config.local.yaml` with `execution.workspace_mode: temp` for a local fresh-clone run
+- Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
 - Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)
 - Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`

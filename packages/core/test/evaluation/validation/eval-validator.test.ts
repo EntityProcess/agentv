@@ -191,7 +191,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects removed isolation values in experiment workspace', async () => {
+  it('rejects experiment workspace blocks', async () => {
     const filePath = path.join(tempDir, 'experiment-workspace-legacy-isolation.eval.yaml');
     await writeFile(
       filePath,
@@ -212,8 +212,8 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'experiment.workspace.isolation' &&
-          error.message.includes('supports only mode and path'),
+          error.location === 'experiment.workspace' &&
+          error.message.includes('has been removed from eval YAML'),
       ),
     ).toBe(true);
   });
@@ -241,13 +241,13 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'experiment.workspace.repos' &&
-          error.message.includes('supports only mode and path'),
+          error.location === 'experiment.workspace' &&
+          error.message.includes('has been removed from eval YAML'),
       ),
     ).toBe(true);
   });
 
-  it('accepts runtime workspace overrides in experiment workspace', async () => {
+  it('rejects runtime workspace overrides in experiment workspace', async () => {
     const filePath = path.join(tempDir, 'experiment-workspace-runtime.eval.yaml');
     await writeFile(
       filePath,
@@ -264,7 +264,43 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace' &&
+          error.message.includes('has been removed from eval YAML'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects test execution workspace blocks', async () => {
+    const filePath = path.join(tempDir, 'test-execution-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+    execution:
+      workspace:
+        mode: static
+        path: /tmp/my-workspace
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'tests[0].execution.workspace' &&
+          error.message.includes('has been removed from eval YAML'),
+      ),
+    ).toBe(true);
   });
 
   it('warns that imported child experiments are ignored by wrapper composition', async () => {
@@ -307,7 +343,7 @@ tests:
     await writeFile(
       path.join(tempDir, 'composition-child-tests-import.eval.yaml'),
       `workspace:
-  path: ./child-workspace
+  template: ./child-workspace
 input: child suite input
 assertions:
   - type: contains
@@ -322,7 +358,7 @@ tests:
     await writeFile(
       filePath,
       `workspace:
-  path: ./parent-workspace
+  template: ./parent-workspace
 tests:
   - include: composition-child-tests-import.eval.yaml
     type: tests
@@ -1170,8 +1206,8 @@ tests: "./cases-shorthand-workspace.yaml"
         result.errors.some(
           (error) =>
             error.severity === 'error' &&
-            error.location === 'experiment.workspace.isolation' &&
-            error.message.includes('supports only mode and path'),
+            error.location === 'experiment.workspace' &&
+            error.message.includes('has been removed from eval YAML'),
         ),
       ).toBe(true);
     });

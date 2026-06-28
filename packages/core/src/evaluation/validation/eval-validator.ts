@@ -372,6 +372,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     // input field (string/object shorthand or message array). When omitted,
     // AgentV accepts Vercel-style PROMPT.md fallback beside EVAL.yaml or in input_files.
     const caseExecution = isObject(evalCase.execution) ? evalCase.execution : undefined;
+    if (caseExecution) {
+      rejectRuntimeWorkspaceConfig(
+        caseExecution.workspace,
+        absolutePath,
+        errors,
+        `${location}.execution.workspace`,
+      );
+    }
     const skipDefaults = caseExecution?.skip_defaults === true;
     const hasPromptMdFallback =
       evalCase.input === undefined
@@ -455,7 +463,7 @@ async function validateSuiteWorkspaceConfigs(
 ): Promise<void> {
   await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
   if (isObject(parsed.experiment)) {
-    validateExperimentWorkspaceConfig(
+    rejectRuntimeWorkspaceConfig(
       parsed.experiment.workspace,
       absolutePath,
       errors,
@@ -463,7 +471,7 @@ async function validateSuiteWorkspaceConfigs(
     );
   }
   if (isObject(parsed.execution)) {
-    validateExperimentWorkspaceConfig(
+    rejectRuntimeWorkspaceConfig(
       parsed.execution.workspace,
       absolutePath,
       errors,
@@ -472,7 +480,7 @@ async function validateSuiteWorkspaceConfigs(
   }
 }
 
-function validateExperimentWorkspaceConfig(
+function rejectRuntimeWorkspaceConfig(
   workspace: JsonValue | undefined,
   filePath: string,
   errors: ValidationError[],
@@ -482,50 +490,12 @@ function validateExperimentWorkspaceConfig(
     return;
   }
 
-  if (!isObject(workspace)) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location,
-      message: `${location} must be an object with mode and/or path.`,
-    });
-    return;
-  }
-
-  for (const key of Object.keys(workspace)) {
-    if (key === 'mode' || key === 'path') {
-      continue;
-    }
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.${key}`,
-      message: `${location} supports only mode and path. Put task workspace setup in top-level workspace.`,
-    });
-  }
-
-  const mode = workspace.mode;
-  if (mode !== undefined && mode !== 'pooled' && mode !== 'temp' && mode !== 'static') {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.mode`,
-      message: `${location}.mode must be 'pooled', 'temp', or 'static'.`,
-    });
-  }
-
-  const workspacePath = workspace.path;
-  if (
-    workspacePath !== undefined &&
-    (typeof workspacePath !== 'string' || workspacePath.trim().length === 0)
-  ) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location: `${location}.path`,
-      message: `${location}.path must be a non-empty string.`,
-    });
-  }
+  errors.push({
+    severity: 'error',
+    filePath,
+    location,
+    message: `${location} has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in top-level workspace.`,
+  });
 }
 
 async function validateCompositionDiagnostics(
@@ -922,6 +892,26 @@ function validateWorkspaceRepoConfig(
   const isolation = workspace.isolation;
 
   const docker = workspace.docker;
+
+  if ('mode' in workspace) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.mode`,
+      message:
+        'workspace.mode has been removed from eval YAML. Use workspace.isolation: shared|per_case for folder isolation; use --workspace-mode or config.local.yaml execution.workspace_mode only for machine-local runtime overrides.',
+    });
+  }
+
+  if ('path' in workspace) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.path`,
+      message:
+        'workspace.path has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+    });
+  }
 
   if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
     errors.push({
