@@ -57,7 +57,7 @@ tests:
 
   # ==========================================
   # Example 2: Advanced features - conversation_id, multiple graders
-  # Demonstrates: conversation threading, execution config, target override, graders
+  # Demonstrates: conversation threading and per-test graders
   # Note: Optimization (ACE, etc.) is configured separately in opts/*.yaml files
   # ==========================================
   - id: code-gen-python-comprehensive
@@ -68,9 +68,6 @@ tests:
     conversation_id: python-code-generation
     
     criteria: AI generates correct Python function with proper error handling, type hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
-
-    execution:
-      target: llm
 
     # Multiple graders - supports both code-based and LLM graders
     assertions:

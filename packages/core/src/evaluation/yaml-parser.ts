@@ -24,7 +24,6 @@ import {
   extractTargetFromSuite,
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
-  extractTargetsFromTestCase,
   extractThreshold,
   extractWorkersFromSuite,
   loadConfig,
@@ -83,7 +82,6 @@ export {
   extractTargetFromSuite,
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
-  extractTargetsFromTestCase,
   extractThreshold,
   extractWorkersFromSuite,
   loadConfig,
@@ -110,6 +108,21 @@ type SuiteImportStackEntry = {
   readonly identity: string;
   readonly displayPath: string;
 };
+
+const KNOWN_TEST_EXECUTION_FIELDS = new Set([
+  'workers',
+  'assertions',
+  'evaluators',
+  'skip_defaults',
+  'cache',
+  'trials',
+  'budget_usd',
+  'budgetUsd',
+  'fail_on_error',
+  'failOnError',
+  'threshold',
+  'workspace',
+]);
 
 function matchesFilter(id: string, filter: string | readonly string[]): boolean {
   return typeof filter === 'string'
@@ -551,6 +564,7 @@ async function loadTestsFromParsedYamlValue(
 
     // Extract per-case execution config early (reused below for skip_defaults)
     const caseExecution = isJsonObject(renderedCase.execution) ? renderedCase.execution : undefined;
+    rejectUnsupportedTestExecutionFields(caseExecution, id);
     if (caseExecution?.workspace !== undefined) {
       throw new Error(
         `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
@@ -740,8 +754,6 @@ async function loadTestsFromParsedYamlValue(
       ? (renderedCase.metadata as Record<string, unknown>)
       : undefined;
     const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suiteMetadataPayload);
-    // Extract per-test targets override (matrix evaluation)
-    const caseTargets = extractTargetsFromTestCase(renderedCase as JsonObject);
 
     // Extract dependency fields
     const dependsOn = Array.isArray(renderedCase.depends_on)
@@ -793,7 +805,6 @@ async function loadTestsFromParsedYamlValue(
       ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
       workspace: mergedWorkspace,
       metadata,
-      targets: caseTargets,
       ...(caseRun?.threshold !== undefined ? { threshold: caseRun.threshold } : {}),
       ...(caseRun !== undefined ? { run: caseRun } : {}),
       ...(mode ? { mode } : {}),
@@ -857,6 +868,18 @@ type IncludeSelect = {
   readonly tags?: string | readonly string[];
   readonly metadata?: Record<string, unknown>;
 };
+
+function rejectUnsupportedTestExecutionFields(
+  caseExecution: JsonObject | undefined,
+  testId: string | undefined,
+): void {
+  if (!caseExecution) return;
+  for (const key of Object.keys(caseExecution)) {
+    if (!KNOWN_TEST_EXECUTION_FIELDS.has(key)) {
+      throw new Error(`test '${testId ?? 'unknown'}'.execution.${key} is not supported.`);
+    }
+  }
+}
 
 function normalizeRunOverride(value: unknown, label: string): EvalRunOverride | undefined {
   if (value === undefined) {

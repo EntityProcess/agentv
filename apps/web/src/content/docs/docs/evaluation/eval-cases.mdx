@@ -27,7 +27,7 @@ tests:
 | `criteria` | Conditional | Description of what a correct response should contain. Required only when the case has no `expected_output` or `assertions` |
 | `input` | Yes | Input sent to the target (string, object, or message array) |
 | `expected_output` | No | Expected response for comparison (string, object, or message array) |
-| `execution` | No | Per-case execution overrides (for example `target`, `skip_defaults`) |
+| `execution` | No | Per-case execution overrides such as `skip_defaults` or `threshold`; target selection belongs in `experiment.target(s)` or CLI `--target` |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
 | `rubrics` | No | Structured evaluation criteria |
@@ -91,7 +91,9 @@ expected_output:
 
 ## Per-Case Execution Overrides
 
-Override the default target or graders for specific tests:
+Override graders or local scoring settings for specific tests. Do not put
+target selection in cases; use `experiment.target(s)`, CLI `--target`, separate
+eval suites, or tags/filters for target-specific cases.
 
 ```yaml
 tests:
@@ -99,8 +101,6 @@ tests:
     criteria: Provides detailed explanation
     input: Explain quicksort algorithm
 
-    execution:
-      target: gpt4_target
     assertions:
       - name: depth_check
         type: llm-grader

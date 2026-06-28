@@ -434,6 +434,8 @@ const ConversationTurnSchema = z.object({
 // Test case
 // ---------------------------------------------------------------------------
 
+const TestExecutionSchema = ExecutionSchema.omit({ target: true, targets: true }).strict();
+
 const EvalTestSchema = z.object({
   id: z.string().min(1),
   vars: JsonObjectSchema.optional(),
@@ -443,7 +445,7 @@ const EvalTestSchema = z.object({
   expected_output: ExpectedOutputSchema.optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
-  execution: ExecutionSchema.optional(),
+  execution: TestExecutionSchema.optional(),
   run: RunOverrideSchema.optional(),
   workspace: WorkspaceSchema.optional(),
   metadata: z.record(z.unknown()).optional(),

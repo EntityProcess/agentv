@@ -1904,19 +1904,14 @@ export async function runEvalCommand(
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
 
-  // In matrix mode, total eval count is tests × targets (accounting for per-test target overrides)
+  // In matrix mode, total eval count is tests × selected targets.
   // When resuming, subtract tests that will be skipped
   let totalEvalCount = 0;
   let resumeSkippedCount = 0;
   for (const meta of fileMetadata.values()) {
     const suiteTargetNames = meta.selections.map((s) => s.selection.targetName);
     for (const test of meta.testCases) {
-      // Per-test targets override suite-level targets.
-      const testTargetNames =
-        test.targets && test.targets.length > 0
-          ? test.targets.filter((t) => suiteTargetNames.includes(t))
-          : suiteTargetNames;
-      const effectiveTargets = testTargetNames.length > 0 ? testTargetNames : ['unknown'];
+      const effectiveTargets = suiteTargetNames.length > 0 ? suiteTargetNames : ['unknown'];
       for (const tn of effectiveTargets) {
         const key = `${test.id}::${tn}`;
         if (resumeSkipKeys?.has(key)) {
@@ -2140,17 +2135,10 @@ export async function runEvalCommand(
       // Run all targets concurrently (each target has its own worker limit)
       const targetResults = await Promise.all(
         targetPrep.selections.map(async ({ selection, inlineTargetLabel }) => {
-          // Filter test cases to those applicable to this target.
+          // Target selection is suite/experiment/CLI runtime policy; every selected
+          // target runs every filtered test case for this eval file.
           const targetName = selection.targetName;
-          const applicableTestCases =
-            targetPrep.selections.length > 1
-              ? targetPrep.testCases.filter((test) => {
-                  if (test.targets && test.targets.length > 0) {
-                    return test.targets.includes(targetName);
-                  }
-                  return true;
-                })
-              : targetPrep.testCases;
+          const applicableTestCases = targetPrep.testCases;
 
           // --resume / --rerun-failed: skip tests that are already completed
           const filteredTestCases = resumeSkipKeys
