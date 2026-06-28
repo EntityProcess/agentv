@@ -63,11 +63,14 @@ with a special name.
   LangSmith, promptfoo, OpenAI Evals, Inspect, Hugging Face Datasets, and
   OpenInference inform adapters and docs, not AgentV-native object models.
 - **Make composition explicit.** When a parent eval references child eval files
-  with `type: suite`, the current loader uses the parent `experiment:` and does
-  not fall back to the child `experiment:`. Child workspace remains task-owned:
-  imported suite tests keep their expanded child workspace, while parent
-  workspace applies to raw cases owned by the parent file. Any future parent
-  workspace override/remap should be explicit and logged.
+  with `type: suite`, the parent owns runtime `experiment:` and does not fall
+  back to the child `experiment:`. Child workspace remains task-owned: imported
+  suite tests keep their expanded child workspace. Parent evals that import
+  suites must not define parent workspace-affecting fields such as `workspace`,
+  `experiment.workspace`, or legacy `execution.workspace`; parent workspace
+  applies only to parent-owned raw cases, including cases imported with
+  `type: tests`. `experiment.workspace` is only a runtime `mode`/`path`
+  override, not a task workspace definition.
 
 ### Evidence Summary
 
@@ -145,11 +148,14 @@ Research ambiguity:
   composition, even when the parent has no `experiment:`; there is currently no
   child-experiment fallback.
 - R13. Child `workspace` setup should remain task-owned. In the current loader,
-  imported suite tests keep their child workspace, and parent workspace applies
-  only to parent raw cases.
-- R14. Parent workspace override/remap for imported suites should require an
-  explicit future syntax and should emit an info log explaining which workspace
-  is being used.
+  imported suite tests keep their child workspace. A parent eval that imports
+  any suite with `type: suite` must not define parent workspace-affecting fields
+  such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
+  `experiment.workspace` is limited to runtime `mode` and `path`; task
+  workspace setup stays in `workspace`.
+- R14. Parent workspace applies to parent-owned raw cases only, including raw
+  cases imported with `type: tests`. Any future parent workspace
+  override/remap for imported suites should require explicit syntax.
 - R15. A tests-only import mode may drop child workspace context, but it must be
   explicit because it changes case validity.
 - R16. Workspace merge conflicts, path collisions, and incompatible isolation
@@ -178,8 +184,9 @@ Research ambiguity:
    SWE-bench `base_commit` at adapter boundaries when needed.
 4. **Document composition semantics before implementing new imports.** Parent
    evals own runtime `experiment:` without child fallback. Child workspaces are
-   preserved for `type: suite`; parent workspace applies to parent-owned raw
-   cases. Any future override/remap needs explicit syntax and an info log.
+   preserved for `type: suite`; parent workspace fields are forbidden when
+   importing suites and apply only to parent-owned raw cases. Any future
+   override/remap needs explicit syntax.
 5. **Canonicalize docs toward `experiment:`.** Existing examples that still
    teach `execution:` should be audited in a follow-up docs bead if that surface
    is still transitional.
@@ -212,8 +219,9 @@ Research ambiguity:
 - `repeat` and `runs` both appear in some external or local vocabulary. AgentV
   should keep `repeat` canonical unless a compatibility story requires aliases.
 - Silently replacing child workspaces during eval composition can create false
-  failures or false passes. Composition needs explicit modes, info logs when an
-  override/remap is requested, and loud collision handling.
+  failures or false passes. Composition needs the hard parent-workspace rule,
+  explicit future override/remap modes if ever needed, and loud collision
+  handling.
 - Translating imported `base_commit` into `workspace.repos[].commit` may surprise
   SWE-bench users unless docs show the mapping directly.
 - Provenance in free-form metadata can drift across adapters. Docs should
@@ -225,9 +233,8 @@ Research ambiguity:
   `experiment:` before the next tag?
 - OQ2. Should AgentV eventually support a formal suite-level `metadata` field,
   and if so, should it be general-purpose rather than benchmark-specific?
-- OQ3. Should AgentV add an info log for current `type: suite` imports when a
-  parent workspace exists, explaining that imported child tests keep child
-  workspace while parent workspace applies only to parent raw cases?
+- OQ3. Which examples should be added to make the hard parent-workspace rule
+  obvious before authors hit validation?
 - OQ4. What exact composition syntax should distinguish full-suite include from
   tests-only import and any future explicit workspace override/remap?
 - OQ5. When multiple child evals provide `workspace.repos[]`, should path
@@ -242,10 +249,13 @@ Research ambiguity:
 - `docs(schema): canonicalize eval runtime docs and examples` - Audit
   `execution:` versus `experiment:`, `runs` versus `repeat`, and AI-facing
   eval-builder references.
+- `av-dxp` - Add a regression eval for the wrapper-workspace architecture
+  decision so future agents recommend forbidding parent workspace on
+  suite-import wrappers rather than hand-waving toward warnings or implicit
+  merge.
 - `design(schema): eval composition semantics` - Define full-suite include,
-  tests-only import, current parent/child workspace ownership, optional info
-  logs, future workspace merge/remap, collision errors, and parent `experiment:`
-  override behavior.
+  tests-only import, current parent/child workspace ownership, future workspace
+  merge/remap, collision errors, and parent `experiment:` override behavior.
 - `docs(evals): benchmark authoring recipes` - Add human and AI docs for
   SWE-bench-style, Harbor-backed, Margin-style, promptfoo-style, and
   Braintrust/LangSmith-style mappings using existing AgentV primitives.

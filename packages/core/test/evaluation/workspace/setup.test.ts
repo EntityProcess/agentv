@@ -1,13 +1,15 @@
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { EvalTest } from '../../../src/evaluation/types.js';
 import {
   type SharedWorkspaceSetup,
+  caseUsesSharedWorkspaceSetup,
+  prepareEvalCaseWorkspace,
   prepareSharedWorkspaceSetup,
   releaseSharedWorkspaceSetup,
 } from '../../../src/evaluation/workspace/setup.js';
@@ -36,6 +38,40 @@ function createTestRepo(dir: string, files: Record<string, string>): string {
   }
   execSync('git add -A && git commit -m "initial"', { cwd: dir, ...EXEC_OPTS });
   return execSync('git rev-parse HEAD', { cwd: dir, env: cleanGitEnv() }).toString().trim();
+}
+
+function testCase(
+  id: string,
+  workspace: EvalTest['workspace'],
+  source?: {
+    readonly evalFileAbsolutePath: string;
+    readonly importedSuiteName?: string;
+  },
+): EvalTest {
+  return {
+    id,
+    question: 'test',
+    criteria: 'ok',
+    input: [{ role: 'user', content: 'test' }],
+    expected_output: [],
+    file_paths: [],
+    workspace,
+    ...(source
+      ? {
+          source: {
+            evalFilePath: source.evalFileAbsolutePath,
+            evalFileAbsolutePath: source.evalFileAbsolutePath,
+            testId: id,
+            testSnapshotYaml: `id: ${id}`,
+            graderDefinitions: [],
+            references: [],
+            ...(source.importedSuiteName !== undefined && {
+              importedSuiteName: source.importedSuiteName,
+            }),
+          },
+        }
+      : {}),
+  };
 }
 
 describe('prepareSharedWorkspaceSetup', () => {
@@ -148,5 +184,248 @@ describe('prepareSharedWorkspaceSetup', () => {
       'already prepared\n',
     );
     expect(existsSync(path.join(existingWorkspace, 'repo-a'))).toBe(false);
+  });
+
+  it('rejects multiple imported suites with shared workspaces before setup', async () => {
+    const evalCases = [
+      testCase(
+        'a',
+        { template: path.join(tmpDir, 'missing-a') },
+        {
+          evalFileAbsolutePath: path.join(tmpDir, 'child-a.eval.yaml'),
+          importedSuiteName: 'child-a',
+        },
+      ),
+      testCase(
+        'b',
+        { template: path.join(tmpDir, 'missing-b') },
+        {
+          evalFileAbsolutePath: path.join(tmpDir, 'child-b.eval.yaml'),
+          importedSuiteName: 'child-b',
+        },
+      ),
+    ];
+
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-multiple-imported-suite-shared-workspaces',
+        evalCases,
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(/multiple shared workspace owners/);
+  });
+
+  it('allows per-case isolated imported suites without shared setup', async () => {
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-per-case-imported-suites',
+      evalCases: [
+        testCase(
+          'a',
+          { isolation: 'per_case', template: path.join(tmpDir, 'missing-a') },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'child-a.eval.yaml'),
+            importedSuiteName: 'child-a',
+          },
+        ),
+        testCase(
+          'b',
+          { isolation: 'per_case', template: path.join(tmpDir, 'missing-b') },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'child-b.eval.yaml'),
+            importedSuiteName: 'child-b',
+          },
+        ),
+      ],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBeUndefined();
+    expect(setup.suiteWorkspace).toBeUndefined();
+  });
+
+  it('rejects mixed imported-suite and parent-owned shared workspaces', async () => {
+    const parentTemplate = path.join(tmpDir, 'parent-template');
+    const childTemplate = path.join(tmpDir, 'child-template');
+    mkdirSync(parentTemplate, { recursive: true });
+    mkdirSync(childTemplate, { recursive: true });
+
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-parent-and-imported-shared-workspaces',
+        evalCases: [
+          testCase(
+            'child-case',
+            { template: childTemplate },
+            {
+              evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
+              importedSuiteName: 'child',
+            },
+          ),
+          testCase(
+            'parent-case',
+            { template: parentTemplate },
+            {
+              evalFileAbsolutePath: path.join(tmpDir, 'parent.eval.yaml'),
+            },
+          ),
+        ],
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(/does not merge parent and child workspaces/);
+  });
+
+  it('keeps imported per-case workspaces allowed beside parent-owned raw cases', async () => {
+    const parentTemplate = path.join(tmpDir, 'parent-template');
+    mkdirSync(parentTemplate, { recursive: true });
+    writeFileSync(path.join(parentTemplate, 'parent-marker.txt'), 'parent\n', 'utf8');
+
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-parent-shared-imported-per-case',
+      evalCases: [
+        testCase(
+          'child-case',
+          { isolation: 'per_case', template: path.join(tmpDir, 'child-template') },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
+            importedSuiteName: 'child',
+          },
+        ),
+        testCase(
+          'parent-case',
+          { template: parentTemplate },
+          {
+            evalFileAbsolutePath: path.join(tmpDir, 'parent.eval.yaml'),
+          },
+        ),
+      ],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBeDefined();
+    expect(setup.suiteWorkspace?.template).toBe(parentTemplate);
+    if (!setup.sharedWorkspacePath) {
+      throw new Error('Expected parent-owned shared workspace');
+    }
+    expect(readFileSync(path.join(setup.sharedWorkspacePath, 'parent-marker.txt'), 'utf8')).toBe(
+      'parent\n',
+    );
+  });
+
+  it('runs shared setup for env-only workspace configs', async () => {
+    const missingCommand = `agentv-missing-command-${Date.now()}`;
+
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-env-only-preflight',
+        evalCases: [
+          testCase('env-only-case', {
+            env: {
+              required_commands: [missingCommand],
+            },
+          }),
+        ],
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(`command: ${missingCommand}`);
+  });
+
+  it('runs shared setup for docker-only workspace configs', async () => {
+    await expect(
+      prepareSharedWorkspaceSetup({
+        evalRunId: 'test-docker-only-preflight',
+        evalCases: [
+          testCase('docker-only-case', {
+            docker: {
+              image: 'invalid image with spaces',
+            },
+          }),
+        ],
+        evalDir: tmpDir,
+        workers: 1,
+      }),
+    ).rejects.toThrow(/Docker workspace configured|docker pull failed|invalid reference/);
+  });
+
+  it('runs per-case setup for env-only workspace configs', async () => {
+    const missingCommand = `agentv-missing-command-${Date.now()}`;
+
+    await expect(
+      prepareEvalCaseWorkspace({
+        evalRunId: 'test-per-case-env-only-preflight',
+        evalCase: testCase('per-case-env-only-case', {
+          isolation: 'per_case',
+          env: {
+            required_commands: [missingCommand],
+          },
+        }),
+        evalDir: tmpDir,
+      }),
+    ).rejects.toThrow(`command: ${missingCommand}`);
+  });
+
+  it('runs per-case setup for docker-only workspace configs', async () => {
+    await expect(
+      prepareEvalCaseWorkspace({
+        evalRunId: 'test-per-case-docker-only-preflight',
+        evalCase: testCase('per-case-docker-only-case', {
+          isolation: 'per_case',
+          docker: {
+            image: 'invalid image with spaces',
+          },
+        }),
+        evalDir: tmpDir,
+      }),
+    ).rejects.toThrow(/Docker workspace configured|docker pull failed|invalid reference/);
+  });
+
+  it('does not apply a child suite shared workspace to raw cases with no workspace', async () => {
+    const childTemplate = path.join(tmpDir, 'child-template');
+    mkdirSync(childTemplate, { recursive: true });
+    writeFileSync(path.join(childTemplate, 'child-marker.txt'), 'child\n', 'utf8');
+    writeFileSync(
+      path.join(childTemplate, 'child.code-workspace'),
+      JSON.stringify({ folders: [{ path: '.' }] }),
+      'utf8',
+    );
+
+    const childCase = testCase(
+      'child-case',
+      { template: childTemplate },
+      {
+        evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
+        importedSuiteName: 'child',
+      },
+    );
+    const rawCase = testCase('raw-case', undefined, {
+      evalFileAbsolutePath: path.join(tmpDir, 'parent.eval.yaml'),
+    });
+
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-child-shared-raw-no-workspace',
+      evalCases: [childCase, rawCase],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.sharedWorkspacePath).toBeDefined();
+    expect(setup.suiteWorkspaceFile).toBeDefined();
+    expect(caseUsesSharedWorkspaceSetup(childCase, setup)).toBe(true);
+    expect(caseUsesSharedWorkspaceSetup(rawCase, setup)).toBe(false);
+
+    const rawWorkspaceSetup = await prepareEvalCaseWorkspace({
+      evalCase: rawCase,
+      evalRunId: 'test-child-shared-raw-no-workspace-case',
+      sharedWorkspacePath: undefined,
+      suiteWorkspaceFile: setup.suiteWorkspaceFile,
+      evalDir: tmpDir,
+    });
+
+    expect(rawWorkspaceSetup.workspacePath).toBeUndefined();
+    expect(rawWorkspaceSetup.caseWorkspaceFile).toBeUndefined();
   });
 });

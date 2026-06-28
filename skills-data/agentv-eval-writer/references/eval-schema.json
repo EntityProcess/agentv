@@ -5234,7 +5234,7 @@
                           },
                           "isolation": {
                             "type": "string",
-                            "enum": ["shared", "per_test"]
+                            "enum": ["shared", "per_case"]
                           },
                           "repos": {
                             "type": "array",
@@ -5485,6 +5485,26 @@
                               }
                             },
                             "required": ["image"],
+                            "additionalProperties": false
+                          },
+                          "env": {
+                            "type": "object",
+                            "properties": {
+                              "required_commands": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required_python_modules": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              }
+                            },
                             "additionalProperties": false
                           }
                         },
@@ -12021,7 +12041,7 @@
                           },
                           "isolation": {
                             "type": "string",
-                            "enum": ["shared", "per_test"]
+                            "enum": ["shared", "per_case"]
                           },
                           "repos": {
                             "type": "array",
@@ -12272,6 +12292,26 @@
                               }
                             },
                             "required": ["image"],
+                            "additionalProperties": false
+                          },
+                          "env": {
+                            "type": "object",
+                            "properties": {
+                              "required_commands": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required_python_modules": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              }
+                            },
                             "additionalProperties": false
                           }
                         },
@@ -16149,8 +16189,17 @@
             },
             "workspace": {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["pooled", "temp", "static"]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
             },
             "setup": {
               "not": {}
@@ -18581,8 +18630,17 @@
             },
             "workspace": {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["pooled", "temp", "static"]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
             },
             "setup": {
               "not": {}
@@ -19774,7 +19832,7 @@
                 },
                 "isolation": {
                   "type": "string",
-                  "enum": ["shared", "per_test"]
+                  "enum": ["shared", "per_case"]
                 },
                 "repos": {
                   "type": "array",
@@ -20025,6 +20083,26 @@
                     }
                   },
                   "required": ["image"],
+                  "additionalProperties": false
+                },
+                "env": {
+                  "type": "object",
+                  "properties": {
+                    "required_commands": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required_python_modules": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
                   "additionalProperties": false
                 }
               },

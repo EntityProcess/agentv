@@ -155,7 +155,7 @@ describe('repo lifecycle schema validation', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
-        isolation: 'per_test',
+        isolation: 'per_case',
         repos: [
           {
             path: './repo-a',
@@ -165,6 +165,64 @@ describe('repo lifecycle schema validation', () => {
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects removed workspace isolation per_test value', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        isolation: 'per_test',
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects removed experiment workspace isolation per_test value', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      experiment: {
+        workspace: {
+          isolation: 'per_test',
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts experiment workspace runtime override fields', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      experiment: {
+        workspace: {
+          mode: 'static',
+          path: '/tmp/my-workspace',
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects task workspace fields in experiment workspace', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      experiment: {
+        workspace: {
+          repos: [
+            {
+              path: './repo-a',
+              repo: 'https://github.com/org/repo.git',
+            },
+          ],
+        },
+      },
+    });
+    expect(result.success).toBe(false);
   });
 
   it('accepts workspace.mode=temp', () => {

@@ -12,9 +12,17 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Evaluation Model
 
-**Eval** — The frozen task and grading definition: prompts, datasets, input files, fixtures, assertions, and judge criteria. An eval defines what is being tested, not which agent, model, setup variant, or run policy executes it.
+**Eval / Eval YAML** — The only composable and runnable AgentV authoring primitive. An eval YAML file can be a reusable task suite that owns task context, a wrapper eval that imports suites and carries an inline `experiment:` block, or a sidecar around raw JSONL cases. AgentV does not have a separate runnable `experiment.yaml` artifact.
 
-**Experiment** — A committed run variant that selects how evals are executed: target or target matrix, setup, scripts, eval filters, repeat counts, timeouts, workers, budgets, and related run knobs. Experiments make A/B setup differences explicit while pointing at stable eval tasks.
+**Task suite** — Eval YAML that owns what is being tested: prompts, datasets, input files, fixtures, `workspace`, assertions, expected references, and judge criteria. It can run directly or be imported by another eval with `tests[].include` and `type: suite`.
+
+**Raw case file** — YAML, JSONL, or directory case data imported with `tests: ./cases.yaml`, string shorthand, or `type: tests`. Raw cases are reusable data inputs; they do not carry imported suite context such as shared `workspace`, shared `input`, or shared `assertions`.
+
+**Wrapper eval** — Eval YAML whose main job is to import task suites and bind runtime policy with an inline `experiment:` block. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define parent workspace fields such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`; imported suites own task environment.
+
+**Experiment** — The run-policy namespace for how evals are executed: target or target matrix, eval filters, repeat counts, timeouts, workers, budgets, thresholds, and related run knobs. In authored files it lives as inline `experiment:` inside eval YAML; CLI `--experiment` and `experiment.name` choose the result bucket. Lifecycle setup belongs in `workspace.hooks` or `targets[].hooks`, not in a separate experiment artifact.
+
+**Workspace** — The task environment an eval prepares for the agent: repositories, templates, fixture files, and lifecycle hooks. It is not prompt input; use `input` for instructions and `workspace.repos[]` for multi-repo workspaces the agent can inspect or modify through tools.
 
 **Run manifest** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `task_dir`, `summary_path`, and `grading_path`.
 

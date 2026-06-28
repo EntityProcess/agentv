@@ -51,6 +51,7 @@ describe('buildRunDetailHeader', () => {
     expect(header.sourceBadge).toBe('Remote');
     expect(header.sourceLabel).toBe('smoke-wtg-2026-06-04T02-19-00Z');
     expect(header.sourceContext).toEqual([
+      { label: 'Experiment namespace', value: 'smoke' },
       { label: 'Repo', value: 'WiseTechGlobal/WTG.AI.Prompts.EvalResults' },
     ]);
     expect(header.meta).toBe('codex · smoke · 2026-06-04T02:19:00.000Z');
@@ -67,7 +68,35 @@ describe('buildRunDetailHeader', () => {
     expect(header.heading).toBe('azure');
     expect(header.meta).toBe('azure · 2026-06-04T02:19:00.000Z · local');
     expect(header.sourceBadge).toBeUndefined();
-    expect(header.sourceContext).toEqual([]);
+    expect(header.sourceContext).toEqual([{ label: 'Experiment namespace', value: 'default' }]);
+  });
+
+  it('surfaces derived runtime source metadata when present', () => {
+    const header = buildRunDetailHeader({
+      runId: 'native-exp::2026-06-04T02-19-00Z',
+      source: 'local',
+      results: localRunResults,
+      runtimeSource: {
+        schema_version: 'agentv.runtime_source.v1',
+        kind: 'wrapper_eval',
+        config_source: 'inline_experiment',
+        experiment_namespace: 'native-exp',
+        experiment_namespace_source: 'eval_metadata',
+        eval_files: ['evals/native-exp.eval.yaml'],
+        wrapper_eval_file: 'evals/native-exp.eval.yaml',
+        source_eval_files: ['evals/sample.eval.yaml'],
+      },
+      formatTimestamp: (timestamp) => timestamp,
+    });
+
+    expect(header.sourceContext).toContainEqual({
+      label: 'Experiment namespace',
+      value: 'native-exp',
+    });
+    expect(header.sourceContext).toContainEqual({
+      label: 'Runtime source',
+      value: 'Wrapper eval · Eval metadata namespace · Inline experiment config',
+    });
   });
 });
 

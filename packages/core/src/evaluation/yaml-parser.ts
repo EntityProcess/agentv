@@ -104,8 +104,6 @@ type LoadOptions = {
   readonly category?: string;
   /** Internal DFS stack for detecting circular `type: suite` imports. */
   readonly suiteImportStack?: readonly SuiteImportStackEntry[];
-  /** Internal runtime defaults supplied by an eval that imports this suite. */
-  readonly importParentExperimentConfig?: ExperimentConfig;
 };
 
 type SuiteImportStackEntry = {
@@ -472,10 +470,6 @@ async function loadTestsFromParsedYamlValue(
 
   const rawTestCases = resolveTests(suite);
   const suiteExperimentConfig = normalizeSuiteExperimentConfig(suite);
-  const importContextExperimentConfig = mergeExperimentParentDefaults(
-    options?.importParentExperimentConfig,
-    suiteExperimentConfig,
-  );
   // Top-level `metadata:` is inherited by cases. Suite identity tags are parsed
   // separately by parseMetadata() and are not case tags.
   const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
@@ -502,7 +496,7 @@ async function loadTestsFromParsedYamlValue(
       evalFileDir,
       repoRoot,
       suiteMetadataPayload,
-      parentExperimentConfig: importContextExperimentConfig,
+      parentWorkspaceLocation: parentWorkspaceLocation(suite),
       options,
     });
     expandedTestCases = expanded.rawCases;
@@ -899,12 +893,11 @@ function mergeRunOverrides(
   };
 }
 
-function applyRunDefaultsToImportedTest(
+function applyRunOverrideToImportedTest(
   test: EvalTest,
-  childExperimentRun: EvalRunOverride | undefined,
   includeRun: EvalRunOverride | undefined,
 ): EvalTest {
-  const run = mergeRunOverrides(mergeRunOverrides(childExperimentRun, includeRun), test.run);
+  const run = mergeRunOverrides(includeRun, test.run);
   if (!run) {
     return test;
   }
@@ -912,157 +905,6 @@ function applyRunDefaultsToImportedTest(
     ...test,
     run,
   };
-}
-
-function experimentProvidesTarget(config: ExperimentConfig | undefined): boolean {
-  return config?.target !== undefined || config?.targets !== undefined;
-}
-
-function experimentProvidesRepeat(config: ExperimentConfig | undefined): boolean {
-  return config?.repeat !== undefined || config?.runs !== undefined;
-}
-
-function mergeExperimentParentDefaults(
-  parent: ExperimentConfig | undefined,
-  child: ExperimentConfig | undefined,
-): ExperimentConfig | undefined {
-  if (!parent) {
-    return child;
-  }
-  if (!child) {
-    return parent;
-  }
-  return {
-    ...child,
-    ...parent,
-    ...(experimentProvidesRepeat(parent)
-      ? {
-          ...(parent.repeat !== undefined && { repeat: parent.repeat }),
-          ...(parent.runs !== undefined && { runs: parent.runs }),
-        }
-      : {
-          ...(child.repeat !== undefined && { repeat: child.repeat }),
-          ...(child.runs !== undefined && { runs: child.runs }),
-        }),
-  };
-}
-
-function buildExperimentRunDefaults(
-  config: ExperimentConfig | undefined,
-): EvalRunOverride | undefined {
-  if (!config) {
-    return undefined;
-  }
-  const repeat = config.repeat
-    ? {
-        count: config.repeat.count,
-        strategy: config.repeat.strategy,
-        ...(config.repeat.costLimitUsd !== undefined && {
-          costLimitUsd: config.repeat.costLimitUsd,
-        }),
-        ...(config.earlyExit !== undefined && { earlyExit: config.earlyExit }),
-      }
-    : config.runs !== undefined
-      ? {
-          count: config.runs,
-          strategy: 'pass_at_k' as const,
-          ...(config.earlyExit !== undefined && { earlyExit: config.earlyExit }),
-        }
-      : undefined;
-  const run = {
-    ...(config.threshold !== undefined && { threshold: config.threshold }),
-    ...(repeat !== undefined && { repeat }),
-    ...(config.timeoutSeconds !== undefined && { timeoutSeconds: config.timeoutSeconds }),
-    ...(config.budgetUsd !== undefined && { budgetUsd: config.budgetUsd }),
-  } satisfies EvalRunOverride;
-  return Object.keys(run).length > 0 ? run : undefined;
-}
-
-function buildImportedExperimentRunDefaults(
-  child: ExperimentConfig | undefined,
-  parent: ExperimentConfig | undefined,
-): EvalRunOverride | undefined {
-  const childRun = buildExperimentRunDefaults(child);
-  if (!childRun) {
-    return undefined;
-  }
-  const run = {
-    ...(parent?.threshold === undefined &&
-      childRun.threshold !== undefined && { threshold: childRun.threshold }),
-    ...(!experimentProvidesRepeat(parent) && childRun.repeat !== undefined
-      ? { repeat: childRun.repeat }
-      : {}),
-    ...(parent?.timeoutSeconds === undefined &&
-      childRun.timeoutSeconds !== undefined && { timeoutSeconds: childRun.timeoutSeconds }),
-    ...(parent?.budgetUsd === undefined &&
-      childRun.budgetUsd !== undefined && { budgetUsd: childRun.budgetUsd }),
-  } satisfies EvalRunOverride;
-  return Object.keys(run).length > 0 ? run : undefined;
-}
-
-type ImportedExperimentFieldRule = {
-  readonly field: string;
-  readonly childHasField: (config: ExperimentConfig) => boolean;
-  readonly parentHasOverride: (config: ExperimentConfig | undefined) => boolean;
-};
-
-const UNSCOPED_IMPORTED_EXPERIMENT_FIELDS: readonly ImportedExperimentFieldRule[] = [
-  {
-    field: 'target',
-    childHasField: (config) => experimentProvidesTarget(config),
-    parentHasOverride: experimentProvidesTarget,
-  },
-  {
-    field: 'agent',
-    childHasField: (config) => config.agent !== undefined,
-    parentHasOverride: (config) => config?.agent !== undefined,
-  },
-  {
-    field: 'model',
-    childHasField: (config) => config.model !== undefined,
-    parentHasOverride: (config) => config?.model !== undefined,
-  },
-  {
-    field: 'agent_options',
-    childHasField: (config) => config.agentOptions !== undefined,
-    parentHasOverride: (config) => config?.agentOptions !== undefined,
-  },
-  {
-    field: 'workers',
-    childHasField: (config) => config.workers !== undefined,
-    parentHasOverride: (config) => config?.workers !== undefined,
-  },
-  {
-    field: 'sandbox',
-    childHasField: (config) => config.sandbox !== undefined,
-    parentHasOverride: (config) => config?.sandbox !== undefined,
-  },
-  {
-    field: 'workspace',
-    childHasField: (config) => config.workspace !== undefined,
-    parentHasOverride: (config) => config?.workspace !== undefined,
-  },
-];
-
-function assertImportedExperimentCanCompose(
-  child: ExperimentConfig | undefined,
-  parent: ExperimentConfig | undefined,
-  importPath: string,
-): void {
-  if (!child) {
-    return;
-  }
-  const unsupported = UNSCOPED_IMPORTED_EXPERIMENT_FIELDS.filter(
-    (rule) => rule.childHasField(child) && !rule.parentHasOverride(parent),
-  ).map((rule) => `experiment.${rule.field}`);
-  if (unsupported.length === 0) {
-    return;
-  }
-  throw new Error(
-    `Imported eval suite '${displayEvalImportPath(importPath)}' defines ${unsupported.join(
-      ', ',
-    )}, which cannot be scoped per imported suite. Set these fields in the parent experiment when importing this suite.`,
-  );
 }
 
 function markSuiteImportedTest(test: EvalTest): EvalTest {
@@ -1313,7 +1155,7 @@ async function expandInlineTestEntries(params: {
   readonly evalFileDir: string;
   readonly repoRoot: URL | string;
   readonly suiteMetadataPayload?: Record<string, unknown>;
-  readonly parentExperimentConfig?: ExperimentConfig;
+  readonly parentWorkspaceLocation?: string;
   readonly options?: LoadOptions;
 }): Promise<ExpandedInlineTestEntries> {
   const withFileReferences = await expandFileReferences(params.entries, params.evalFileDir);
@@ -1339,20 +1181,15 @@ async function expandInlineTestEntries(params: {
 
     for (const resolvedPath of resolvedPaths) {
       if (mode === 'suite') {
+        if (params.parentWorkspaceLocation) {
+          throw new Error(
+            `Parent workspace is not allowed when importing eval suites with type: suite (${params.parentWorkspaceLocation}): ${includePath}. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.`,
+          );
+        }
         const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
           ...params.options,
           filter: select?.testIds,
-          importParentExperimentConfig: params.parentExperimentConfig,
         });
-        assertImportedExperimentCanCompose(
-          suite.experimentConfig,
-          params.parentExperimentConfig,
-          resolvedPath,
-        );
-        const childExperimentRun = buildImportedExperimentRunDefaults(
-          suite.experimentConfig,
-          params.parentExperimentConfig,
-        );
         const selectedTests = params.options?.filter
           ? suite.tests.filter((test) => matchesFilter(test.id, params.options?.filter ?? ''))
           : suite.tests;
@@ -1360,7 +1197,7 @@ async function expandInlineTestEntries(params: {
           ...selectedTests
             .filter((test) => evalTestMatchesSelect(test, select))
             .map(markSuiteImportedTest)
-            .map((test) => applyRunDefaultsToImportedTest(test, childExperimentRun, includeRun)),
+            .map((test) => applyRunOverrideToImportedTest(test, includeRun)),
         );
       } else {
         const importedCases = await loadRawCasesForInclude(resolvedPath);
@@ -1377,6 +1214,19 @@ async function expandInlineTestEntries(params: {
   }
 
   return { rawCases, importedSuiteTests };
+}
+
+function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
+  if (suite.workspace !== undefined) {
+    return 'workspace';
+  }
+
+  const runtime = suite.experiment ?? suite.execution;
+  if (isJsonObject(runtime) && runtime.workspace !== undefined) {
+    return suite.experiment !== undefined ? 'experiment.workspace' : 'execution.workspace';
+  }
+
+  return undefined;
 }
 
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
@@ -1890,8 +1740,11 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
+  if (obj.isolation !== undefined && obj.isolation !== 'shared' && obj.isolation !== 'per_case') {
+    throw new Error("workspace.isolation must be 'shared' or 'per_case'.");
+  }
   const isolation =
-    obj.isolation === 'shared' || obj.isolation === 'per_test' ? obj.isolation : undefined;
+    obj.isolation === 'shared' || obj.isolation === 'per_case' ? obj.isolation : undefined;
 
   const repos = Array.isArray(obj.repos)
     ? ((obj.repos as Record<string, unknown>[])
@@ -2000,6 +1853,7 @@ function mergeWorkspaceConfigs(
     mode: caseLevel.mode ?? suiteLevel.mode,
     path: caseLevel.path ?? suiteLevel.path,
     docker: caseLevel.docker ?? suiteLevel.docker,
+    env: caseLevel.env ?? suiteLevel.env,
     workspaceFileDir: caseLevel.workspaceFileDir ?? suiteLevel.workspaceFileDir,
   };
 }

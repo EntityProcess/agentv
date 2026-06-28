@@ -146,6 +146,38 @@ tests:
     });
   });
 
+  it('should preserve workspace env when merging case-level workspace with suite defaults', async () => {
+    const evalFile = path.join(testDir, 'workspace-env-merge.yaml');
+    await writeFile(
+      evalFile,
+      `
+workspace:
+  hooks:
+    before_all:
+      command: ["bun", "run", "default-setup.ts"]
+
+tests:
+  - id: case-env
+    input: "Do something"
+    criteria: "Should work"
+    workspace:
+      env:
+        required_commands: ["git"]
+        required_python_modules: ["json"]
+`,
+    );
+
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases).toHaveLength(1);
+    expect(cases[0].workspace?.hooks?.before_all).toEqual({
+      command: ['bun', 'run', 'default-setup.ts'],
+    });
+    expect(cases[0].workspace?.env).toEqual({
+      required_commands: ['git'],
+      required_python_modules: ['json'],
+    });
+  });
+
   it('should resolve before_all cwd relative to eval file directory', async () => {
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(
@@ -323,7 +355,7 @@ tests:
       `
 description: test
 workspace:
-  isolation: per_test
+  isolation: per_case
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
@@ -335,7 +367,27 @@ tests:
     );
 
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.isolation).toBe('per_test');
+    expect(cases[0].workspace?.isolation).toBe('per_case');
+  });
+
+  it('rejects removed workspace isolation per_test value', async () => {
+    const evalFile = path.join(testDir, 'workspace-isolation-legacy.yaml');
+    await writeFile(
+      evalFile,
+      `
+description: test
+workspace:
+  isolation: per_test
+tests:
+  - id: test-1
+    input: "hello"
+    criteria: "world"
+`,
+    );
+
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      "workspace.isolation must be 'shared' or 'per_case'.",
+    );
   });
 
   it('infers workspace.mode=static when workspace.path is provided without mode', async () => {

@@ -66,6 +66,28 @@ const TIMING_SOURCE_VALUES = [
 
 type TimingSource = (typeof TIMING_SOURCE_VALUES)[number];
 
+export type RunRuntimeSourceKind = 'direct_suite' | 'wrapper_eval' | 'multi_eval';
+
+export type RunRuntimeConfigSource = 'defaults' | 'inline_experiment' | 'cli_flags' | 'mixed';
+
+export type ExperimentNamespaceSource =
+  | 'cli'
+  | 'eval_metadata'
+  | 'eval_filename'
+  | 'multi_eval'
+  | 'unknown';
+
+export interface RunRuntimeSourceMetadata {
+  readonly schema_version: 'agentv.runtime_source.v1';
+  readonly kind: RunRuntimeSourceKind;
+  readonly config_source: RunRuntimeConfigSource;
+  readonly experiment_namespace: string;
+  readonly experiment_namespace_source: ExperimentNamespaceSource;
+  readonly eval_files: readonly string[];
+  readonly wrapper_eval_file?: string;
+  readonly source_eval_files?: readonly string[];
+}
+
 export function buildTestTargetKey(testId?: string, target?: string): string {
   return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
 }
@@ -94,6 +116,7 @@ export async function aggregateRunDir(
     experiment?: string;
     plannedTestCount?: number;
     experimentMetadata?: ExperimentArtifactMetadata;
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<{ summaryPath: string; testCount: number; targetCount: number }> {
   const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
@@ -101,9 +124,9 @@ export async function aggregateRunDir(
   const allResults = parseJsonlResults(content);
   const results = deduplicateByTestIdTarget(allResults);
 
-  const plannedTestCount =
-    options?.plannedTestCount ??
-    (await readPlannedTestCount(path.join(runDir, RUN_SUMMARY_FILENAME)));
+  const previousMetadata = await readRunSummaryMetadata(path.join(runDir, RUN_SUMMARY_FILENAME));
+  const plannedTestCount = options?.plannedTestCount ?? previousMetadata.plannedTestCount;
+  const runtimeSource = options?.runtimeSource ?? previousMetadata.runtimeSource;
 
   const summary = buildRunSummaryArtifact(
     results,
@@ -111,6 +134,7 @@ export async function aggregateRunDir(
     options?.experiment,
     plannedTestCount,
     options?.experimentMetadata,
+    runtimeSource,
   );
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
@@ -119,15 +143,56 @@ export async function aggregateRunDir(
   return { summaryPath, testCount: results.length, targetCount: targetSet.size };
 }
 
-async function readPlannedTestCount(summaryPath: string): Promise<number | undefined> {
+async function readRunSummaryMetadata(summaryPath: string): Promise<{
+  plannedTestCount?: number;
+  runtimeSource?: RunRuntimeSourceMetadata;
+}> {
   try {
     const raw = await readFile(summaryPath, 'utf8');
-    const parsed = JSON.parse(raw) as { metadata?: { planned_test_count?: number } };
+    const parsed = JSON.parse(raw) as {
+      metadata?: {
+        planned_test_count?: number;
+        runtime_source?: RunRuntimeSourceMetadata;
+      };
+    };
     const value = parsed.metadata?.planned_test_count;
-    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+    const plannedTestCount =
+      typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+    const runtimeSource = isRunRuntimeSourceMetadata(parsed.metadata?.runtime_source)
+      ? parsed.metadata.runtime_source
+      : undefined;
+    return {
+      ...(plannedTestCount !== undefined && { plannedTestCount }),
+      ...(runtimeSource !== undefined && { runtimeSource }),
+    };
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+function isRunRuntimeSourceMetadata(value: unknown): value is RunRuntimeSourceMetadata {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const candidate = value as Partial<RunRuntimeSourceMetadata>;
+  return (
+    candidate.schema_version === 'agentv.runtime_source.v1' &&
+    (candidate.kind === 'direct_suite' ||
+      candidate.kind === 'wrapper_eval' ||
+      candidate.kind === 'multi_eval') &&
+    (candidate.config_source === 'defaults' ||
+      candidate.config_source === 'inline_experiment' ||
+      candidate.config_source === 'cli_flags' ||
+      candidate.config_source === 'mixed') &&
+    typeof candidate.experiment_namespace === 'string' &&
+    (candidate.experiment_namespace_source === 'cli' ||
+      candidate.experiment_namespace_source === 'eval_metadata' ||
+      candidate.experiment_namespace_source === 'eval_filename' ||
+      candidate.experiment_namespace_source === 'multi_eval' ||
+      candidate.experiment_namespace_source === 'unknown') &&
+    Array.isArray(candidate.eval_files) &&
+    candidate.eval_files.every((entry) => typeof entry === 'string')
+  );
 }
 
 export interface GradingArtifact {
@@ -238,6 +303,7 @@ export interface RunSummaryArtifact {
     readonly tests_run: readonly string[];
     readonly experiment?: string;
     readonly experiment_config?: ExperimentArtifactMetadata;
+    readonly runtime_source?: RunRuntimeSourceMetadata;
     readonly planned_test_count?: number;
   };
   readonly run_summary: Record<
@@ -302,6 +368,7 @@ export interface IndexArtifactEntry {
   readonly transcript_raw_path?: string;
   readonly metrics_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
+  readonly runtime_source?: RunRuntimeSourceMetadata;
   readonly raw_provider_log_path?: string;
   readonly input_path?: string;
   readonly task_dir?: string;
@@ -1108,6 +1175,7 @@ export function buildRunSummaryArtifact(
   experiment?: string,
   plannedTestCount?: number,
   experimentMetadata?: ExperimentArtifactMetadata,
+  runtimeSource?: RunRuntimeSourceMetadata,
 ): RunSummaryArtifact {
   const targetSet = new Set<string>();
   const testIdSet = new Set<string>();
@@ -1199,6 +1267,7 @@ export function buildRunSummaryArtifact(
       tests_run: testIds,
       experiment,
       experiment_config: experimentMetadata,
+      runtime_source: runtimeSource,
       planned_test_count: plannedTestCount,
     },
     run_summary: runSummary,
@@ -1215,6 +1284,7 @@ export async function writeInitialRunSummaryArtifact(
     plannedTestCount: number;
     experiment?: string;
     experimentMetadata?: ExperimentArtifactMetadata;
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<void> {
   await mkdir(runDir, { recursive: true });
@@ -1224,6 +1294,7 @@ export async function writeInitialRunSummaryArtifact(
     options.experiment,
     options.plannedTestCount,
     options.experimentMetadata,
+    options.runtimeSource,
   );
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
   await writeFile(summaryPath, `${JSON.stringify(stub, null, 2)}\n`, 'utf8');
@@ -1394,6 +1465,7 @@ export function buildIndexArtifactEntry(
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
+    runtimeSource?: RunRuntimeSourceMetadata;
     projectionIdentity?: ProjectionIdentity;
     duplicatePolicy?: ExportDuplicatePolicy;
   },
@@ -1450,6 +1522,7 @@ export function buildIndexArtifactEntry(
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
       : undefined,
     artifact_pointers: options.artifactPointers,
+    runtime_source: options.runtimeSource,
     ...options.extraIndexFields,
     external_trace: toIndexExternalTrace(result, options.projectionIdentity?.dimensions.runId),
     projection_identity: options.projectionIdentity
@@ -1467,6 +1540,7 @@ export function buildResultIndexArtifact(
     projectionIdentity?: ProjectionIdentity;
     duplicatePolicy?: ExportDuplicatePolicy;
     artifactPointers?: ResultArtifactPointersWire;
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): ResultIndexArtifact {
   const artifactSubdir = buildArtifactSubdir(result);
@@ -1516,6 +1590,7 @@ export function buildResultIndexArtifact(
         ? path.posix.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined,
     artifact_pointers: options?.artifactPointers,
+    runtime_source: options?.runtimeSource,
     ...extraIndexFields,
     external_trace: toIndexExternalTrace(result, options?.projectionIdentity?.dimensions.runId),
     projection_identity: options?.projectionIdentity
@@ -1926,6 +2001,7 @@ export async function writePerTestArtifacts(
     resultGroup?: string;
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
@@ -2010,6 +2086,7 @@ export async function writePerTestArtifacts(
         transcriptPath: singleTranscriptPath,
         transcriptRawPath: singleTranscriptRawPath,
         extraIndexFields,
+        runtimeSource: options?.runtimeSource,
         projectionIdentity,
         duplicatePolicy,
       }),
@@ -2033,6 +2110,7 @@ export async function writeArtifactsFromResults(
     resultGroup?: string;
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
+    runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<{
   testArtifactDir: string;
@@ -2175,6 +2253,7 @@ export async function writeArtifactsFromResults(
         transcriptPath: plan.singleTranscriptPath,
         transcriptRawPath: plan.singleTranscriptRawPath,
         extraIndexFields,
+        runtimeSource: options?.runtimeSource,
         projectionIdentity: plan.projectionIdentity,
         duplicatePolicy,
       }),
@@ -2193,13 +2272,16 @@ export async function writeArtifactsFromResults(
     emittedIdentityIds.add(identityId);
   }
 
-  const plannedTestCount = options?.plannedTestCount ?? (await readPlannedTestCount(summaryPath));
+  const previousMetadata = await readRunSummaryMetadata(summaryPath);
+  const plannedTestCount = options?.plannedTestCount ?? previousMetadata.plannedTestCount;
+  const runtimeSource = options?.runtimeSource ?? previousMetadata.runtimeSource;
   const summary = buildRunSummaryArtifact(
     results,
     options?.evalFile,
     options?.experiment,
     plannedTestCount,
     options?.experimentMetadata,
+    runtimeSource,
   );
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 

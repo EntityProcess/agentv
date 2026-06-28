@@ -211,4 +211,4 @@ CLI flags `--retain-on-success` / `--retain-on-failure` control temporary eval-r
 - You need guaranteed clean-slate isolation between runs
 - You're debugging workspace setup issues and want fresh clones each time
 - You use `mode: static` with a pre-existing or auto-materialised directory (pooling is automatically skipped)
-- You need `isolation: per_test` (each test gets its own workspace copy; pooling is automatically skipped)
+- You need `isolation: per_case` (each test gets its own workspace copy; pooling is automatically skipped)

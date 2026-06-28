@@ -382,7 +382,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(identitySuite.tests[0]?.metadata?.tags).toEqual(['suite-identity']);
   });
 
-  it('type: suite preserves child suite context and lets parent experiment override child defaults', async () => {
+  it('type: suite preserves child suite context while parent experiment owns runtime', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -422,8 +422,6 @@ describe('eval.yaml inline experiment and tests imports', () => {
         '    strategy: pass_at_k',
         '  timeout_seconds: 30',
         '  budget_usd: 1.5',
-        'workspace:',
-        '  path: ./parent-workspace',
         'input: parent shared input',
         'assertions:',
         '  - type: contains',
@@ -452,7 +450,104 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(test.assertions?.[0]).toMatchObject({ value: 'child' });
   });
 
-  it('applies imported child experiment defaults when parent has no experiment', async () => {
+  it('rejects parent workspace when importing eval suites with type: suite', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'workspace:',
+        '  path: ./child-workspace',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'workspace:',
+        '  path: ./parent-workspace',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed/,
+    );
+  });
+
+  it('rejects parent experiment workspace when importing eval suites with type: suite', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'experiment:',
+        '  workspace:',
+        '    path: ./parent-workspace',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed.*experiment\.workspace/,
+    );
+  });
+
+  it('rejects legacy execution workspace when importing eval suites with type: suite', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'execution:',
+        '  workspace:',
+        '    path: ./parent-workspace',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed.*execution\.workspace/,
+    );
+  });
+
+  it('ignores imported child experiment defaults when parent has no experiment', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -482,15 +577,10 @@ describe('eval.yaml inline experiment and tests imports', () => {
     const suite = await loadTestSuite(parentPath, tempDir);
 
     expect(suite.experimentConfig).toBeUndefined();
-    expect(suite.tests[0]?.run).toMatchObject({
-      threshold: 0.2,
-      repeat: { count: 5, strategy: 'mean' },
-      timeoutSeconds: 10,
-      budgetUsd: 0.5,
-    });
+    expect(suite.tests[0]?.run).toBeUndefined();
   });
 
-  it('applies include-level run overrides over imported child experiment defaults', async () => {
+  it('applies include-level run overrides without importing child experiment defaults', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -526,15 +616,13 @@ describe('eval.yaml inline experiment and tests imports', () => {
 
     const suite = await loadTestSuite(parentPath, tempDir);
 
-    expect(suite.tests[0]?.run).toMatchObject({
+    expect(suite.tests[0]?.run).toEqual({
       threshold: 0.9,
-      repeat: { count: 5, strategy: 'mean' },
       timeoutSeconds: 30,
-      budgetUsd: 0.5,
     });
   });
 
-  it('applies test.run over include-level and imported child experiment defaults', async () => {
+  it('applies test.run over include-level run overrides without child experiment defaults', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -598,7 +686,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(byId.get('child-critical')?.threshold).toBe(1.0);
   });
 
-  it('rejects imported child experiment fields that cannot be scoped without a parent override', async () => {
+  it('ignores imported child experiment fields that cannot be scoped in a wrapper', async () => {
     await writeFile(
       path.join(tempDir, 'child-a.eval.yaml'),
       [
@@ -637,9 +725,11 @@ describe('eval.yaml inline experiment and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /experiment\.workers.*cannot be scoped per imported suite/,
-    );
+    const suite = await loadTestSuite(parentPath, tempDir);
+
+    expect(suite.experimentConfig).toBeUndefined();
+    expect(suite.tests.map((test) => test.id)).toEqual(['a', 'b']);
+    expect(suite.tests.every((test) => test.run === undefined)).toBe(true);
   });
 
   it('type: tests imports only raw cases and applies parent suite context', async () => {
@@ -663,6 +753,8 @@ describe('eval.yaml inline experiment and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
+        'workspace:',
+        '  path: ./parent-workspace',
         'input: parent shared input',
         'assertions:',
         '  - type: contains',
@@ -682,6 +774,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       'parent shared input',
       'raw case input',
     ]);
+    expect(test.workspace?.path).toBe('./parent-workspace');
     expect(test.assertions?.[0]).toMatchObject({ type: 'contains', value: 'parent' });
   });
 });

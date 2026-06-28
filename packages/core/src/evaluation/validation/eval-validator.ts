@@ -270,11 +270,12 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate suite-level input (optional: string/object shorthand or message array)
   validateInputField(parsed.input, 'input', absolutePath, errors);
 
+  await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
+
   const cases: JsonValue | undefined = parsed.tests;
 
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
-    await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
     await validateRawCaseImportPath(cases, absolutePath, 'tests', errors);
 
     return {
@@ -436,7 +437,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     );
   }
 
-  await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+  await validateCompositionDiagnostics(absolutePath, parsed, errors);
   await validateSuiteImportCycles(absolutePath, parsed, errors);
 
   return {
@@ -445,6 +446,190 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     fileType: 'eval',
     errors,
   };
+}
+
+async function validateSuiteWorkspaceConfigs(
+  parsed: JsonObject,
+  absolutePath: string,
+  errors: ValidationError[],
+): Promise<void> {
+  await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
+  if (isObject(parsed.experiment)) {
+    validateExperimentWorkspaceConfig(
+      parsed.experiment.workspace,
+      absolutePath,
+      errors,
+      'experiment.workspace',
+    );
+  }
+  if (isObject(parsed.execution)) {
+    validateExperimentWorkspaceConfig(
+      parsed.execution.workspace,
+      absolutePath,
+      errors,
+      'execution.workspace',
+    );
+  }
+}
+
+function validateExperimentWorkspaceConfig(
+  workspace: JsonValue | undefined,
+  filePath: string,
+  errors: ValidationError[],
+  location: string,
+): void {
+  if (workspace === undefined) {
+    return;
+  }
+
+  if (!isObject(workspace)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `${location} must be an object with mode and/or path.`,
+    });
+    return;
+  }
+
+  for (const key of Object.keys(workspace)) {
+    if (key === 'mode' || key === 'path') {
+      continue;
+    }
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.${key}`,
+      message: `${location} supports only mode and path. Put task workspace setup in top-level workspace.`,
+    });
+  }
+
+  const mode = workspace.mode;
+  if (mode !== undefined && mode !== 'pooled' && mode !== 'temp' && mode !== 'static') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.mode`,
+      message: `${location}.mode must be 'pooled', 'temp', or 'static'.`,
+    });
+  }
+
+  const workspacePath = workspace.path;
+  if (
+    workspacePath !== undefined &&
+    (typeof workspacePath !== 'string' || workspacePath.trim().length === 0)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.path`,
+      message: `${location}.path must be a non-empty string.`,
+    });
+  }
+}
+
+async function validateCompositionDiagnostics(
+  filePath: string,
+  parsed: JsonObject,
+  errors: ValidationError[],
+): Promise<void> {
+  const tests = parsed.tests;
+  if (!Array.isArray(tests)) {
+    return;
+  }
+
+  const parentHasRuntime = parsed.experiment !== undefined || parsed.execution !== undefined;
+  const hasSuiteImport = tests.some(
+    (entry) => isObject(entry) && isIncludeEntry(entry) && entry.type === 'suite',
+  );
+
+  if (hasSuiteImport) {
+    for (const location of parentWorkspaceLocations(parsed)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message:
+          'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns runtime policy, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
+      });
+    }
+  }
+
+  for (let i = 0; i < tests.length; i++) {
+    const entry = tests[i];
+    if (!isObject(entry) || !isIncludeEntry(entry)) {
+      continue;
+    }
+
+    const includePath = entry.include.trim();
+    const location = `tests[${i}].include`;
+    const resolvedSuites = await resolveSuiteIncludePaths(includePath, path.dirname(filePath));
+
+    if (entry.type === 'suite') {
+      for (const resolvedSuite of resolvedSuites) {
+        const childParsed = await readImportedSuite(resolvedSuite.filePath);
+        if (!childParsed) {
+          continue;
+        }
+        const runtimeField =
+          childParsed.experiment !== undefined
+            ? 'experiment'
+            : childParsed.execution !== undefined
+              ? 'legacy execution'
+              : undefined;
+        if (!runtimeField) {
+          continue;
+        }
+
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location,
+          message: parentHasRuntime
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for type: suite imports. The parent experiment owns wrapper runtime; move runtime settings to the parent experiment or use tests[].run for per-case thresholds, repeats, timeouts, and budgets.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for type: suite imports. The parent experiment owns wrapper runtime, and this parent has no experiment, so no child runtime settings are applied. Add a parent experiment or use tests[].run for per-case thresholds, repeats, timeouts, and budgets.`,
+        });
+      }
+      continue;
+    }
+
+    if (entry.type === 'tests') {
+      for (const resolvedSuite of resolvedSuites) {
+        if (!/\.eval\.ya?ml$/i.test(resolvedSuite.filePath)) {
+          continue;
+        }
+        errors.push({
+          severity: 'warning',
+          filePath,
+          location,
+          message: `type: tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, and experiment. Parent suite context applies. Use type: suite to preserve child test and workspace semantics.`,
+        });
+      }
+    }
+  }
+}
+
+function parentWorkspaceLocations(parsed: JsonObject): readonly string[] {
+  const locations: string[] = [];
+  if (parsed.workspace !== undefined) {
+    locations.push('workspace');
+  }
+  if (isObject(parsed.experiment) && parsed.experiment.workspace !== undefined) {
+    locations.push('experiment.workspace');
+  }
+  if (isObject(parsed.execution) && parsed.execution.workspace !== undefined) {
+    locations.push('execution.workspace');
+  }
+  return locations;
+}
+
+async function readImportedSuite(filePath: string): Promise<JsonObject | undefined> {
+  try {
+    const parsed = interpolateEnv(parseYamlValue(await readFile(filePath, 'utf8')), process.env);
+    return isObject(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function validateIncludeEntry(
@@ -690,7 +875,7 @@ async function validateWorkspaceConfig(
   }
 
   if (isObject(workspace)) {
-    validateWorkspaceRepoConfig(workspace, evalFilePath, errors);
+    validateWorkspaceRepoConfig(workspace, evalFilePath, errors, location);
     return;
   }
 
@@ -713,7 +898,7 @@ async function validateWorkspaceConfig(
       return;
     }
 
-    validateWorkspaceRepoConfig(parsedWorkspace, workspacePath, errors);
+    validateWorkspaceRepoConfig(parsedWorkspace, workspacePath, errors, location);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     errors.push({
@@ -729,6 +914,7 @@ function validateWorkspaceRepoConfig(
   workspace: JsonObject,
   filePath: string,
   errors: ValidationError[],
+  location: string,
 ): void {
   const repos = workspace.repos;
   const hooks = workspace.hooks;
@@ -736,6 +922,15 @@ function validateWorkspaceRepoConfig(
   const isolation = workspace.isolation;
 
   const docker = workspace.docker;
+
+  if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.isolation`,
+      message: "workspace.isolation must be 'shared' or 'per_case'.",
+    });
+  }
 
   if (Array.isArray(repos)) {
     for (const repo of repos) {
@@ -745,7 +940,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'workspace.repos[].source has been removed. Use workspace.repos[].repo.',
         });
       }
@@ -754,7 +949,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message:
             'workspace.repos[].checkout has been removed. Use top-level commit, base_commit, and ancestor.',
         });
@@ -764,7 +959,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'workspace.repos[].clone has been removed. Use top-level sparse if needed.',
         });
       }
@@ -773,7 +968,7 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message:
             'repos[].repo is required for non-Docker workspaces. ' +
             'Repo-less entries are only valid when workspace.docker is configured.',
@@ -788,21 +983,21 @@ function validateWorkspaceRepoConfig(
         errors.push({
           severity: 'error',
           filePath,
-          location: `workspace.repos[path=${repo.path ?? '(none)'}]`,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'repos[].commit and repos[].base_commit must match when both are set.',
         });
       }
     }
   }
 
-  // after_each reset with per_test isolation warning
-  if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_test') {
+  // after_each reset with per-case isolation warning
+  if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_case') {
     errors.push({
       severity: 'warning',
       filePath,
-      location: 'workspace.hooks.after_each',
+      location: `${location}.hooks.after_each`,
       message:
-        'hooks.after_each.reset is redundant with isolation: per_test (each test gets a fresh workspace).',
+        'hooks.after_each.reset is redundant with isolation: per_case (each test gets a fresh workspace).',
     });
   }
 }

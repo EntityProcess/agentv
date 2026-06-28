@@ -105,6 +105,8 @@ export interface SharedWorkspaceSetupOptions {
 
 export interface SharedWorkspaceSetup {
   readonly suiteWorkspace?: WorkspaceConfig;
+  readonly sharedWorkspaceOwnerKey?: string;
+  readonly sharedWorkspaceAppliesToAllCases: boolean;
   readonly sharedWorkspacePath?: string;
   readonly sharedBaselineCommit?: string;
   readonly suiteWorkspaceFile?: string;
@@ -174,6 +176,130 @@ export function hooksEnabled(
   workspace: { readonly hooks?: { readonly enabled?: boolean } } | undefined,
 ): boolean {
   return workspace?.hooks?.enabled !== false;
+}
+
+export function isPerCaseIsolation(
+  workspace: { readonly isolation?: WorkspaceConfig['isolation'] } | undefined,
+): boolean {
+  return workspace?.isolation === 'per_case';
+}
+
+export function caseUsesSharedWorkspaceSetup(
+  evalCase: EvalTest,
+  setup: Pick<SharedWorkspaceSetup, 'sharedWorkspaceAppliesToAllCases' | 'sharedWorkspaceOwnerKey'>,
+): boolean {
+  if (isPerCaseIsolation(evalCase.workspace)) {
+    return false;
+  }
+  if (setup.sharedWorkspaceAppliesToAllCases) {
+    return true;
+  }
+  return (
+    setup.sharedWorkspaceOwnerKey !== undefined &&
+    workspaceNeedsSharedSetup(evalCase.workspace) &&
+    sharedWorkspaceOwnerKey(evalCase) === setup.sharedWorkspaceOwnerKey
+  );
+}
+
+function workspaceNeedsSharedSetup(
+  workspace: WorkspaceConfig | undefined,
+): workspace is WorkspaceConfig {
+  if (!workspace || isPerCaseIsolation(workspace)) {
+    return false;
+  }
+  return !!(
+    workspace.path ||
+    workspace.mode === 'static' ||
+    workspace.template ||
+    workspace.hooks ||
+    workspace.repos?.length ||
+    workspace.docker ||
+    workspace.env
+  );
+}
+
+function stableWorkspaceValue(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
+  }
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableWorkspaceValue).join(',')}]`;
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entryValue]) => entryValue !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right));
+  return `{${entries
+    .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableWorkspaceValue(entryValue)}`)
+    .join(',')}}`;
+}
+
+function describeWorkspaceOwner(evalCase: EvalTest): string {
+  const source = evalCase.source;
+  if (source?.importedSuiteName) {
+    return `imported suite "${source.importedSuiteName}" (${source.evalFileAbsolutePath})`;
+  }
+  if (source?.evalFileAbsolutePath) {
+    return `parent-owned cases (${source.evalFileAbsolutePath})`;
+  }
+  return 'programmatic cases';
+}
+
+function sharedWorkspaceOwnerKey(evalCase: EvalTest): string {
+  const source = evalCase.source;
+  const sourceKey = source?.importedSuiteName
+    ? `imported:${source.evalFileAbsolutePath}:${source.importedSuiteName}`
+    : source?.evalFileAbsolutePath
+      ? `parent:${source.evalFileAbsolutePath}`
+      : 'programmatic';
+  return `${sourceKey}:${stableWorkspaceValue(evalCase.workspace)}`;
+}
+
+interface SelectedSharedWorkspace {
+  readonly key: string;
+  readonly workspace: WorkspaceConfig;
+}
+
+function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWorkspace | undefined {
+  const candidates = new Map<
+    string,
+    { readonly workspace: WorkspaceConfig; readonly owner: string; readonly testIds: string[] }
+  >();
+
+  for (const evalCase of evalCases) {
+    if (!workspaceNeedsSharedSetup(evalCase.workspace)) {
+      continue;
+    }
+    const key = sharedWorkspaceOwnerKey(evalCase);
+    const existing = candidates.get(key);
+    if (existing) {
+      existing.testIds.push(evalCase.id);
+      continue;
+    }
+    candidates.set(key, {
+      workspace: evalCase.workspace,
+      owner: describeWorkspaceOwner(evalCase),
+      testIds: [evalCase.id],
+    });
+  }
+
+  if (candidates.size <= 1) {
+    const [key, candidate] = [...candidates.entries()][0] ?? [];
+    return key && candidate ? { key, workspace: candidate.workspace } : undefined;
+  }
+
+  const owners = [...candidates.values()]
+    .map((candidate) => `${candidate.owner} for tests ${candidate.testIds.join(', ')}`)
+    .join('; ');
+  throw new WorkspaceSetupError(
+    `Wrapper eval contains multiple shared workspace owners: ${owners}. AgentV does not merge parent and child workspaces or run separate imported-suite shared workspaces in one wrapper execution. Use isolation: per_case for imported suites, split them into separate runs, or keep only one shared workspace owner.`,
+    {
+      failureStage: 'setup',
+      failureReasonCode: 'ambiguous_shared_workspace',
+    },
+  );
 }
 
 function workspaceGitEnv(): Record<string, string | undefined> {
@@ -279,7 +405,8 @@ export async function prepareSharedWorkspaceSetup(
     workspaceMode,
     workspaceClean,
   } = options;
-  const suiteWorkspace = evalCases[0]?.workspace;
+  const selectedSuiteWorkspace = selectSuiteWorkspace(evalCases);
+  const suiteWorkspace = selectedSuiteWorkspace?.workspace;
   const rawTemplate = suiteWorkspace?.template;
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
@@ -290,9 +417,10 @@ export async function prepareSharedWorkspaceSetup(
     }
   };
 
-  const isPerTestIsolation = suiteWorkspace?.isolation === 'per_test';
+  const isPerCaseWorkspace = isPerCaseIsolation(suiteWorkspace);
 
   const cliWorkspacePath = workspacePath ?? legacyWorkspacePath;
+  const sharedWorkspaceAppliesToAllCases = !!cliWorkspacePath;
   const yamlWorkspacePath = suiteWorkspace?.path;
   if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode static when both are provided');
@@ -313,9 +441,9 @@ export async function prepareSharedWorkspaceSetup(
 
   const useStaticWorkspace = configuredMode === 'static';
 
-  if (useStaticWorkspace && isPerTestIsolation) {
+  if (useStaticWorkspace && evalCases.some((evalCase) => isPerCaseIsolation(evalCase.workspace))) {
     throw new Error(
-      'static workspace mode is incompatible with isolation: per_test. Use isolation: shared (default).',
+      'static workspace mode is incompatible with isolation: per_case. Use isolation: shared (default).',
     );
   }
   if (configuredMode !== 'static' && configuredStaticPath) {
@@ -324,7 +452,7 @@ export async function prepareSharedWorkspaceSetup(
 
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
-    (!isPerTestIsolation &&
+    (!isPerCaseWorkspace &&
       (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length))
   );
 
@@ -332,11 +460,11 @@ export async function prepareSharedWorkspaceSetup(
   const usePool =
     poolEnabled !== false &&
     !!suiteWorkspace?.repos?.length &&
-    !isPerTestIsolation &&
+    !isPerCaseWorkspace &&
     !useStaticWorkspace;
 
   setupLog(
-    `sharedWorkspace=${hasSharedWorkspace} perTestIsolation=${isPerTestIsolation} usePool=${usePool} workers=${workers}`,
+    `sharedWorkspace=${hasSharedWorkspace} perCaseIsolation=${isPerCaseWorkspace} usePool=${usePool} workers=${workers}`,
   );
   if (hasSharedWorkspace && !usePool && workers > 1 && evalCases.length > 1) {
     console.warn(
@@ -391,7 +519,7 @@ export async function prepareSharedWorkspaceSetup(
         setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
       }
       sharedWorkspacePath = configuredStaticPath;
-    } else if (!isPerTestIsolation && usePool && suiteWorkspace?.repos) {
+    } else if (!isPerCaseWorkspace && usePool && suiteWorkspace?.repos) {
       const slotsNeeded = workers;
       setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
       poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
@@ -421,7 +549,7 @@ export async function prepareSharedWorkspaceSetup(
       } else {
         availablePoolSlots.push(...poolSlots);
       }
-    } else if (!isPerTestIsolation && workspaceTemplate) {
+    } else if (!isPerCaseWorkspace && workspaceTemplate) {
       setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
       try {
         sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
@@ -435,7 +563,7 @@ export async function prepareSharedWorkspaceSetup(
           cause: error,
         });
       }
-    } else if (!isPerTestIsolation && (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) {
+    } else if (!isPerCaseWorkspace && (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) {
       sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
       await mkdir(sharedWorkspacePath, { recursive: true });
       setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
@@ -452,7 +580,7 @@ export async function prepareSharedWorkspaceSetup(
     }
 
     const hasReposToMaterialize =
-      !!suiteWorkspace?.repos?.length && !usePool && !isPerTestIsolation;
+      !!suiteWorkspace?.repos?.length && !usePool && !isPerCaseWorkspace;
     const needsRepoMaterialisation =
       hasReposToMaterialize && (!useStaticWorkspace || staticMaterialised);
     const needsPerRepoCheck =
@@ -504,16 +632,7 @@ export async function prepareSharedWorkspaceSetup(
 
     const suiteDockerConfig = suiteWorkspace?.docker;
     if (suiteDockerConfig) {
-      setupLog(`pulling Docker image: ${suiteDockerConfig.image}`);
-      const { DockerWorkspaceProvider } = await import('./docker-workspace.js');
-      const dockerSetup = new DockerWorkspaceProvider(suiteDockerConfig);
-      if (!(await dockerSetup.isDockerAvailable())) {
-        throw new Error(
-          'Docker workspace configured but Docker CLI is not available. Install Docker and ensure it is running.',
-        );
-      }
-      await dockerSetup.pullImage();
-      setupLog('Docker image pull complete');
+      await prepareDockerWorkspace(suiteDockerConfig, setupLog);
     }
 
     if (suiteWorkspace?.env) {
@@ -776,6 +895,10 @@ export async function prepareSharedWorkspaceSetup(
 
     return {
       ...(suiteWorkspace !== undefined && { suiteWorkspace }),
+      ...(selectedSuiteWorkspace?.key !== undefined && {
+        sharedWorkspaceOwnerKey: selectedSuiteWorkspace.key,
+      }),
+      sharedWorkspaceAppliesToAllCases,
       ...(sharedWorkspacePath !== undefined && { sharedWorkspacePath }),
       ...(sharedBaselineCommit !== undefined && { sharedBaselineCommit }),
       ...(suiteWorkspaceFile !== undefined && { suiteWorkspaceFile }),
@@ -812,10 +935,13 @@ export async function prepareEvalCaseWorkspace(
     setupDebug,
   } = options;
 
-  let workspacePath: string | undefined = sharedWorkspacePath;
+  let workspacePath: string | undefined = isPerCaseIsolation(evalCase.workspace)
+    ? undefined
+    : sharedWorkspacePath;
+  const inheritedSuiteWorkspaceFile = workspacePath ? suiteWorkspaceFile : undefined;
   let beforeAllOutput: string | undefined;
   let beforeEachOutput: string | undefined;
-  const isSharedWorkspace = !!sharedWorkspacePath;
+  const isSharedWorkspace = !!workspacePath;
   let caseWorkspaceFile: string | undefined;
   const caseHooksEnabled = hooksEnabled(evalCase.workspace);
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
@@ -863,12 +989,12 @@ export async function prepareEvalCaseWorkspace(
       try {
         if (setupDebug) {
           console.log(
-            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} per-test repo(s) into ${workspacePath}`,
+            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} per-case repo(s) into ${workspacePath}`,
           );
         }
         await perCaseRepoManager.materializeAll(evalCase.workspace.repos, workspacePath);
         if (setupDebug) {
-          console.log(`[setup] test=${evalCase.id} per-test repo materialization complete`);
+          console.log(`[setup] test=${evalCase.id} per-case repo materialization complete`);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -904,6 +1030,50 @@ export async function prepareEvalCaseWorkspace(
             );
           }
         }
+      }
+    }
+
+    const caseDockerConfig = evalCase.workspace?.docker;
+    if (caseDockerConfig) {
+      try {
+        await prepareDockerWorkspace(caseDockerConfig, (message) => {
+          if (setupDebug) {
+            console.log(`[setup] test=${evalCase.id} ${message}`);
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (forceCleanup && workspacePath) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
+        throw new WorkspaceSetupError(message, {
+          failureStage: 'setup',
+          failureReasonCode: 'docker_setup_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
+
+    const caseEnvConfig = evalCase.workspace?.env;
+    if (caseEnvConfig) {
+      try {
+        await runPreflightChecks(caseEnvConfig, workspacePath ?? evalDir, (message) => {
+          if (setupDebug) {
+            console.log(`[setup] test=${evalCase.id} ${message}`);
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (forceCleanup && workspacePath) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
+        throw new WorkspaceSetupError(message, {
+          failureStage: 'setup',
+          failureReasonCode: 'preflight_error',
+          hookExecutions,
+          cause: error,
+        });
       }
     }
 
@@ -1119,7 +1289,7 @@ export async function prepareEvalCaseWorkspace(
 
   return {
     ...(workspacePath !== undefined && { workspacePath }),
-    caseWorkspaceFile: caseWorkspaceFile ?? suiteWorkspaceFile,
+    caseWorkspaceFile: caseWorkspaceFile ?? inheritedSuiteWorkspaceFile,
     ...(beforeAllOutput !== undefined && { beforeAllOutput }),
     ...(beforeEachOutput !== undefined && { beforeEachOutput }),
     ...(baselineCommit !== undefined && { baselineCommit }),
@@ -1166,6 +1336,25 @@ async function runPreflightChecks(
       `Preflight checks failed — missing dependencies:\n${missing.map((m) => `  • ${m}`).join('\n')}\n\nInstall the missing dependencies before running this eval.`,
     );
   }
+}
+
+async function prepareDockerWorkspace(
+  dockerConfig: WorkspaceConfig['docker'],
+  log: (msg: string) => void,
+): Promise<void> {
+  if (!dockerConfig) {
+    return;
+  }
+  log(`pulling Docker image: ${dockerConfig.image}`);
+  const { DockerWorkspaceProvider } = await import('./docker-workspace.js');
+  const dockerSetup = new DockerWorkspaceProvider(dockerConfig);
+  if (!(await dockerSetup.isDockerAvailable())) {
+    throw new Error(
+      'Docker workspace configured but Docker CLI is not available. Install Docker and ensure it is running.',
+    );
+  }
+  await dockerSetup.pullImage();
+  log('Docker image pull complete');
 }
 
 export { captureWorkspaceFileChanges };

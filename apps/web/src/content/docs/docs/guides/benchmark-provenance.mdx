@@ -98,7 +98,7 @@ name: swe-style-regression
 description: Regression tasks against pinned source commits.
 
 workspace:
-  isolation: per_test
+  isolation: per_case
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git
@@ -153,7 +153,7 @@ primitives.
 name: repo-regressions
 
 workspace:
-  isolation: per_test
+  isolation: per_case
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git
@@ -207,9 +207,11 @@ When one eval references another eval, preserve the task/runtime split:
 - The parent runnable eval owns runtime `experiment:` for the run.
 - Child `experiment:` blocks are ignored by `type: suite` composition. There is
   no fallback to the child `experiment:` when the parent has no `experiment:`.
-- Child `workspace` setup is preserved for `type: suite` imports. Parent
-  workspace applies to raw cases owned by the parent file, not to imported suite
-  tests.
+- Child `workspace` setup is preserved for `type: suite` imports. A parent eval
+  that imports any `type: suite` entry must not define parent workspace fields
+  such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
+  Parent workspace context is for parent-owned raw cases, including raw cases
+  imported with `type: tests`.
 - A tests-only import can drop child workspace context only when the import mode
   says so explicitly.
 - Workspace path collisions or incompatible isolation settings should fail

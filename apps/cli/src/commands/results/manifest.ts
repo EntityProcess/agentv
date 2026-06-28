@@ -5,6 +5,7 @@ import {
   type EvaluationResult,
   type ExternalTraceMetadataWire,
   type ResultArtifactPointersWire,
+  type RunRuntimeSourceMetadata,
   type TraceSummary,
   buildTraceFromMessages,
   fromTraceEnvelopeWire,
@@ -60,6 +61,7 @@ export interface ResultManifestRecord {
   readonly metrics_path?: string;
   readonly raw_provider_log_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
+  readonly runtime_source?: RunRuntimeSourceMetadata;
   readonly external_trace?: ExternalTraceMetadataWire;
   readonly response_path?: string;
   readonly result_dir?: string;
@@ -304,6 +306,7 @@ export function loadManifestResults(
 
 export interface LightweightResultRecord {
   readonly testId: string;
+  readonly evalPath?: string;
   readonly suite?: string;
   readonly category?: string;
   readonly target?: string;
@@ -314,6 +317,7 @@ export interface LightweightResultRecord {
   readonly error?: string;
   readonly costUsd?: number;
   readonly timestamp?: string;
+  readonly runtimeSource?: RunRuntimeSourceMetadata;
 }
 
 export function loadLightweightResults(sourceFile: string): LightweightResultRecord[] {
@@ -321,6 +325,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
   const content = readFileSync(resolvedSourceFile, 'utf8');
   return parseResultManifest(content).map((record) => ({
     testId: record.test_id ?? 'unknown',
+    evalPath: record.eval_path,
     suite: record.suite,
     category: record.category,
     target: record.target,
@@ -331,5 +336,6 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
     error: record.error,
     costUsd: record.cost_usd,
     timestamp: record.timestamp,
+    runtimeSource: record.runtime_source,
   }));
 }

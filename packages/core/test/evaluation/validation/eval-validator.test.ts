@@ -84,6 +84,265 @@ tests:
     expect(result.errors.some((error) => error.message.includes("Missing 'type'"))).toBe(true);
   });
 
+  it('rejects parent workspace when importing suites', async () => {
+    const childPath = path.join(tempDir, 'composition-child-workspace.eval.yaml');
+    await writeFile(
+      childPath,
+      `workspace:
+  path: ./child-workspace
+tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `workspace:
+  path: ./parent-workspace
+tests:
+  - include: composition-child-workspace.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'workspace' &&
+          error.message.includes('Parent workspace is not allowed') &&
+          error.message.includes('type: suite'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects parent experiment workspace when importing suites', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-experiment-workspace.eval.yaml'),
+      `tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-experiment-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    path: ./parent-workspace
+tests:
+  - include: composition-child-experiment-workspace.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace' &&
+          error.message.includes('Parent workspace is not allowed') &&
+          error.message.includes('type: suite'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects legacy execution workspace when importing suites', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-execution-workspace.eval.yaml'),
+      `tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-execution-workspace.eval.yaml');
+    await writeFile(
+      filePath,
+      `execution:
+  workspace:
+    path: ./parent-workspace
+tests:
+  - include: composition-child-execution-workspace.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'execution.workspace' &&
+          error.message.includes('Parent workspace is not allowed') &&
+          error.message.includes('type: suite'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects removed isolation values in experiment workspace', async () => {
+    const filePath = path.join(tempDir, 'experiment-workspace-legacy-isolation.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    isolation: per_test
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace.isolation' &&
+          error.message.includes('supports only mode and path'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects task workspace fields in experiment workspace', async () => {
+    const filePath = path.join(tempDir, 'experiment-workspace-repos.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    repos:
+      - repo: acme/support-app
+        path: support-app
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'experiment.workspace.repos' &&
+          error.message.includes('supports only mode and path'),
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts runtime workspace overrides in experiment workspace', async () => {
+    const filePath = path.join(tempDir, 'experiment-workspace-runtime.eval.yaml');
+    await writeFile(
+      filePath,
+      `experiment:
+  workspace:
+    mode: static
+    path: ./prepared-workspace
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('warns that imported child experiments are ignored by wrapper composition', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-experiment.eval.yaml'),
+      `experiment:
+  target: child-target
+  workers: 2
+  threshold: 0.9
+tests:
+  - id: child-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-no-experiment.eval.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - include: composition-child-experiment.eval.yaml
+    type: suite
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.location === 'tests[0].include' &&
+          error.message.includes('child experiment blocks are ignored') &&
+          error.message.includes('parent has no experiment'),
+      ),
+    ).toBe(true);
+  });
+
+  it('warns when type: tests imports an eval suite and drops suite context', async () => {
+    await writeFile(
+      path.join(tempDir, 'composition-child-tests-import.eval.yaml'),
+      `workspace:
+  path: ./child-workspace
+input: child suite input
+assertions:
+  - type: contains
+    value: child
+tests:
+  - id: raw-case
+    criteria: Goal
+    input: Query
+`,
+    );
+    const filePath = path.join(tempDir, 'composition-parent-tests-import.eval.yaml');
+    await writeFile(
+      filePath,
+      `workspace:
+  path: ./parent-workspace
+tests:
+  - include: composition-child-tests-import.eval.yaml
+    type: tests
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.location === 'tests[0].include' &&
+          error.message.includes('type: tests imports raw cases') &&
+          error.message.includes('drops suite context'),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects eval files with both experiment and legacy execution', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(
@@ -885,6 +1144,38 @@ tests:
       expect(extWarnings).toHaveLength(0);
     });
 
+    it('validates experiment workspace with tests string shorthand', async () => {
+      await writeFile(
+        path.join(tempDir, 'cases-shorthand-workspace.yaml'),
+        `- id: test-1
+  criteria: Goal
+  input: "Query"
+`,
+      );
+
+      const filePath = path.join(tempDir, 'tests-yaml-ext-experiment-workspace.yaml');
+      await writeFile(
+        filePath,
+        `experiment:
+  workspace:
+    isolation: per_test
+tests: "./cases-shorthand-workspace.yaml"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (error) =>
+            error.severity === 'error' &&
+            error.location === 'experiment.workspace.isolation' &&
+            error.message.includes('supports only mode and path'),
+        ),
+      ).toBe(true);
+    });
+
     it('passes valid tests string path with .yml extension', async () => {
       await writeFile(
         path.join(tempDir, 'cases.yml'),
@@ -1023,7 +1314,7 @@ tests:
       ).toBe(true);
     });
 
-    it('errors when legacy checkout is set in a per-test workspace', async () => {
+    it('errors when legacy checkout is set in a per-case workspace', async () => {
       const filePath = path.join(tempDir, 'workspace-legacy-checkout-error.yaml');
       await writeFile(
         filePath,

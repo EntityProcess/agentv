@@ -8,6 +8,8 @@ sidebar:
 AgentV eval files are the only runnable authoring artifact. Use top-level
 `experiment:` inside `eval.yaml` for runtime choices: targets, workers,
 timeout, sandbox/runtime knobs, budgets, thresholds, and repeat-run policy.
+AgentV does not have a separate `experiment.yaml` file, top-level `run_group`,
+or schema-significant `experiments/` directory.
 
 ```yaml
 name: support-regression
@@ -34,6 +36,43 @@ tests:
 
 `execution:` is accepted only as a legacy top-level alias for existing eval
 files. Do not use both `experiment:` and `execution:` in the same eval.
+
+## Layout Conventions
+
+Use directories for human organization, not schema behavior. A common layout is:
+
+```text
+evals/
+  suites/
+    refunds.eval.yaml
+  cases/
+    refund-smoke.cases.yaml
+experiments/
+  refunds-codex.eval.yaml
+```
+
+In that layout, `evals/suites/refunds.eval.yaml` is a reusable task suite,
+`evals/cases/refund-smoke.cases.yaml` is raw case data, and
+`experiments/refunds-codex.eval.yaml` is a wrapper eval. The wrapper still runs
+only because it is eval YAML:
+
+```yaml
+# experiments/refunds-codex.eval.yaml
+experiment:
+  name: refunds-codex
+  target: codex-gpt5
+  workers: 2
+
+tests:
+  - include: ../evals/suites/refunds.eval.yaml
+    type: suite
+  - include: ../evals/cases/refund-smoke.cases.yaml
+    type: tests
+```
+
+The `experiments/` folder is optional and user-owned. AgentV does not scan it
+for special files or infer runtime behavior from the path; the same wrapper eval
+could live under `evals/wrappers/`, `benchmarks/`, or beside the suite it runs.
 
 ## Tests Imports
 
@@ -64,13 +103,15 @@ tests:
 
 `type: suite` preserves the imported suite's task contract: metadata,
 `workspace`, shared `input`, shared `assertions`, and tests. The parent eval
-still owns the single run bundle. Runtime defaults from an imported suite apply
-only where they can be scoped to that suite's tests: `threshold`, `repeat` or
-`runs`, `timeout_seconds`, and `budget_usd`. If the parent eval supplies one of
-those defaults, the parent value wins for imported tests. Fields that cannot be
-scoped inside one parent run, such as `target`, `targets`, `workers`,
-`workspace`, `agent`, `model`, `agent_options`, and `sandbox`, must be supplied
-by the parent experiment when importing the suite.
+still owns the single run bundle and runtime policy. Child suite
+`experiment:` blocks are ignored when imported; use parent `experiment:` for
+run policy and `tests[].run` for scoped threshold, repeat, timeout, or budget
+overrides.
+
+A parent eval that imports any `type: suite` entry must not define top-level
+`workspace`. Imported suites own task environment. If the parent should provide
+workspace context, import raw cases with `type: tests` or shorthand paths
+instead of importing an eval suite.
 
 `type: tests` imports only raw test entries. It intentionally drops shared
 context from an imported eval suite, so parent suite fields apply to those raw
@@ -104,7 +145,7 @@ Use scoped `run:` blocks for result interpretation and scheduling policies that
 vary by include group or test case. Precedence is:
 
 ```text
-test.run > tests[].run > parent experiment > imported suite experiment defaults
+test.run > tests[].run > parent experiment
 ```
 
 ```yaml
@@ -160,6 +201,7 @@ prepare files, dependencies, repos, or target-specific runner state.
 | Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
 | Configure an agent runner or provider variant | `targets[].hooks` |
 | Choose targets, repeats, pass policy, budget, threshold | `experiment` |
+| Override run workspace mode/path without changing task setup | `experiment.workspace.mode` / `experiment.workspace.path` |
 
 ```yaml
 workspace:
@@ -180,6 +222,12 @@ experiment:
     count: 3
     strategy: pass_at_k
 ```
+
+`experiment.workspace` is intentionally limited to `mode` and `path`, matching
+the `--workspace-mode` and `--workspace-path` CLI flags. Put repos, templates,
+hooks, Docker config, and isolation under top-level or case-level `workspace`.
+Wrapper evals that import child evals with `type: suite` must not define
+`experiment.workspace`; imported suites own the task workspace.
 
 ## Repeat Runs
 
@@ -215,12 +263,19 @@ Do not set both `repeat` and `runs` in the same runtime block.
 
 ## Result Layout
 
-Default eval runs write to:
+Eval runs write to the selected result group:
 
 ```text
-.agentv/results/<eval-name>/<timestamp>/
+.agentv/results/<result-group>/<timestamp>/
 ```
 
+CLI `--experiment` sets the result group explicitly. Without that flag, AgentV
+derives the group from the eval input: a single eval uses the eval metadata
+`name` when present or the eval filename otherwise, and multiple eval files use
+`multi-eval`. Inline `experiment.name` does not currently select the result
+group.
+
 Imported source suite metadata appears in `index.jsonl` rows and manifests.
-AgentV does not add a redundant suite directory when the result group is already
-the eval name.
+Use `index.jsonl` fields such as `eval_path`, `test_id`, `target`, and
+`result_dir` for identity and artifact discovery instead of reconstructing paths
+from suite names or wrapper layout.

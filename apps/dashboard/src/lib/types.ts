@@ -32,6 +32,7 @@ export interface RunMeta {
   size_bytes: number;
   target?: string;
   experiment?: string;
+  runtime_source?: RunRuntimeSource;
   source: 'local' | 'remote';
   /**
    * True when this run is present on the configured remote results branch.
@@ -266,6 +267,7 @@ export interface RunDetailResponse {
   results: EvalResult[];
   source: 'local' | 'remote';
   source_label?: string;
+  runtime_source?: RunRuntimeSource;
   final_state?: RunFinalState;
   tag_revision?: string;
   /** Live execution status when this run is still tracked in-memory by Dashboard. */
@@ -276,6 +278,23 @@ export interface RunDetailResponse {
   suite_filter?: string;
   /** Total (test_id, target) executions originally planned for this run. Used to detect incomplete partial runs as resumable. Local runs only, populated when the run was launched after the planned-count metadata feature shipped. */
   planned_test_count?: number;
+}
+
+export interface RunRuntimeSource {
+  schema_version?: 'agentv.runtime_source.v1';
+  kind?: 'direct_suite' | 'wrapper_eval' | 'multi_eval' | string;
+  config_source?: 'defaults' | 'inline_experiment' | 'cli_flags' | 'mixed' | string;
+  experiment_namespace?: string;
+  experiment_namespace_source?:
+    | 'cli'
+    | 'eval_metadata'
+    | 'eval_filename'
+    | 'multi_eval'
+    | 'unknown'
+    | string;
+  eval_files?: string[];
+  wrapper_eval_file?: string;
+  source_eval_files?: string[];
 }
 
 export interface SuiteSummary {

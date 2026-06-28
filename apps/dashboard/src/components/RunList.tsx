@@ -38,6 +38,11 @@ import {
   formatSelectedRunCount,
   runSelectionDisabledReason,
 } from '~/lib/run-list-actions';
+import {
+  experimentNamespaceLabel,
+  runtimeSourceSummary,
+  runtimeSourceTitle,
+} from '~/lib/runtime-source';
 import type { CombineRunsResponse, RunMeta } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -73,6 +78,9 @@ interface RunListItemView {
   passedCount: number;
   failedCount: number;
   metadataDirty: boolean;
+  experimentNamespace: string;
+  runtimeSourceLabel?: string;
+  runtimeSourceTitle?: string;
 }
 
 function formatDate(ts: string | undefined | null): { date: string; full: string } {
@@ -106,6 +114,13 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
   const passedCount = Math.round(run.pass_rate * qualityCount);
   const failedCount = qualityCount - passedCount;
   const metadataDirty = run.metadata_dirty === true;
+  const experimentNamespace = experimentNamespaceLabel(run);
+  const runtimeSourceLabel = run.runtime_source
+    ? runtimeSourceSummary(run.runtime_source)
+    : undefined;
+  const runtimeSourceTooltip = run.runtime_source
+    ? runtimeSourceTitle(run.runtime_source)
+    : undefined;
 
   return {
     run,
@@ -119,6 +134,9 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
     passedCount,
     failedCount,
     metadataDirty,
+    experimentNamespace,
+    runtimeSourceLabel,
+    runtimeSourceTitle: runtimeSourceTooltip,
   };
 }
 
@@ -420,6 +438,9 @@ export function RunList({
             passedCount,
             failedCount,
             metadataDirty,
+            experimentNamespace,
+            runtimeSourceLabel,
+            runtimeSourceTitle,
           } = view;
           const selectionDisabledReason = runSelectionDisabledReason(run);
           const selectable = !selectionDisabledReason && selectableRunIds.includes(run.filename);
@@ -459,6 +480,11 @@ export function RunList({
                       {display.secondary}
                     </p>
                   ) : null}
+                  <RunSourceBadges
+                    experimentNamespace={experimentNamespace}
+                    runtimeSourceLabel={runtimeSourceLabel}
+                    runtimeSourceTitle={runtimeSourceTitle}
+                  />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <RemoteIndicator onRemote={run.on_remote === true} branch={remoteBranch} />
                     {metadataDirty ? <PendingSyncBadge /> : null}
@@ -530,6 +556,9 @@ export function RunList({
                 passedCount,
                 failedCount,
                 metadataDirty,
+                experimentNamespace,
+                runtimeSourceLabel,
+                runtimeSourceTitle,
               } = view;
               const selectionDisabledReason = runSelectionDisabledReason(run);
               const selectable =
@@ -579,6 +608,11 @@ export function RunList({
                           {display.secondary}
                         </div>
                       ) : null}
+                      <RunSourceBadges
+                        experimentNamespace={experimentNamespace}
+                        runtimeSourceLabel={runtimeSourceLabel}
+                        runtimeSourceTitle={runtimeSourceTitle}
+                      />
                     </div>
                   </td>
 
@@ -736,6 +770,35 @@ function PendingSyncBadge() {
     >
       Pending sync
     </span>
+  );
+}
+
+function RunSourceBadges({
+  experimentNamespace,
+  runtimeSourceLabel,
+  runtimeSourceTitle,
+}: {
+  experimentNamespace: string;
+  runtimeSourceLabel?: string;
+  runtimeSourceTitle?: string;
+}) {
+  return (
+    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px]">
+      <span
+        className="max-w-full truncate rounded-md border border-gray-800 bg-gray-950/50 px-1.5 py-0.5 text-gray-400"
+        title={`Experiment namespace: ${experimentNamespace}`}
+      >
+        Experiment: {experimentNamespace}
+      </span>
+      {runtimeSourceLabel ? (
+        <span
+          className="max-w-full truncate rounded-md border border-cyan-900/50 bg-cyan-950/20 px-1.5 py-0.5 text-cyan-300"
+          title={runtimeSourceTitle ?? runtimeSourceLabel}
+        >
+          Runtime: {runtimeSourceLabel}
+        </span>
+      ) : null}
+    </div>
   );
 }
 

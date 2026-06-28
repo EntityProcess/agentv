@@ -216,13 +216,20 @@ order inside each resolved source.
 
 `type: suite` preserves the imported suite task contract. That includes suite
 metadata, `workspace`, shared `input`, shared `assertions`, and tests. The
-parent eval still owns one run bundle. Child suite `experiment:` defaults apply
-to imported tests only when the field can be scoped per test:
-`threshold`, `repeat` or `runs`, `timeout_seconds`, and `budget_usd`.
-Where the parent eval supplies one of those defaults, the parent value wins.
-Fields that cannot vary per imported suite inside one parent run, such as
-`target`, `targets`, `workers`, `workspace`, `agent`, `model`, `agent_options`,
-and `sandbox`, must be supplied by the parent experiment for imported suites.
+parent eval still owns one run bundle and one runtime policy. Child suite
+`experiment:` blocks are ignored when imported with `type: suite`; they do not
+fall back into the parent run. Scoped runtime overrides that the parent wants
+to apply to imported tests live in `tests[].run`.
+
+A parent eval that imports any child eval suite with `type: suite` must not
+define parent workspace-affecting fields, including `workspace`,
+`experiment.workspace`, or legacy `execution.workspace`. The wrapper owns
+runtime policy, not task environment. Imported child suites keep their own
+`workspace`, including `workspace.repos[]`, templates, hooks, and isolation.
+`experiment.workspace` remains a narrow runtime override for `mode` and `path`
+only; it is not a place for repos, hooks, templates, Docker config, or
+isolation. If the parent should own workspace context, import raw cases with
+`type: tests` or shorthand paths instead of importing an eval suite.
 
 `type: tests` imports only raw test entries. It intentionally drops shared
 suite context such as workspace, shared input, and shared assertions. Use this
@@ -257,11 +264,11 @@ needs it, but the default composition model must not merge task contracts in a
 surprising way.
 
 If a parent eval defines `workspace` and imports child eval suites with
-`type: suite`, the parent workspace applies only to raw cases owned by the
-parent file. Imported suite tests keep their child suite workspace. This is a
-valid mixed-case pattern when the parent owns raw cases, but it is usually a
-DX smell when every test is a `type: suite` import. AgentV should warn or lint
-that shape rather than silently implying a parent workspace override.
+`type: suite`, AgentV should reject the file during validation and loading.
+That removes the ambiguous parent-child workspace merge question from the
+authoring model. A parent eval may still define `workspace` when it imports raw
+cases with `type: tests`, because those raw cases intentionally use parent
+suite context.
 
 If a parent eval has no `experiment:` and imports child suites that do have
 `experiment:` blocks, child runtime still does not fall back into the parent
@@ -270,7 +277,7 @@ used. The correct choices are to run the child suite directly, add a parent
 `experiment:` block, or pass CLI runtime flags.
 
 Wrapper evals that import multiple suites with distinct shared workspace
-contracts should fail fast or require per-test isolation, separate runs, or an
+contracts should fail fast or require per-case isolation, separate runs, or an
 explicit future composition mode. Shared workspace setup is safe when one suite
 owns the task contract; it is not a place for implicit parent-child or
 child-child workspace merging.
@@ -286,7 +293,7 @@ policy without creating separate experiment files.
 Runtime override precedence is:
 
 ```text
-test.run > tests[].run > parent experiment > imported suite experiment defaults
+test.run > tests[].run > parent experiment
 ```
 
 Group-level overrides live beside `include`, `type`, and `select`:
@@ -350,17 +357,18 @@ suite-level `execution`, `workspace`, `input`, and `assertions`.
 When a wrapper eval imports it with `type: suite`, AgentV must preserve its
 shared `workspace`, `input`, and `assertions` because those fields are part of
 the task contract. Its `execution` block is the legacy spelling for child
-runtime configuration. Under this decision, the child runtime block is treated
-as child `experiment`/legacy `execution`: scoped defaults such as threshold,
-repeat policy, timeout, and budget can follow the imported tests, while
+runtime configuration. Under this decision, child `experiment`/legacy
+`execution` blocks are ignored in wrapper composition; scoped threshold,
+repeat, timeout, and budget overrides must be authored on the parent
+`tests[].run` include entry or on child tests themselves, while
 candidate-changing fields must be supplied by the parent wrapper eval's
 `experiment:`.
 
 This is the motivating distinction:
 
 - task context from imported suites is preserved;
-- child runtime policy from imported suites contributes scoped defaults only
-  where a parent runtime policy does not override them;
+- child runtime policy from imported suites is ignored in wrapper composition;
+  scoped runtime overrides are explicit `tests[].run` data;
 - raw-case imports do not inherit suite context.
 
 ## Result Layout
@@ -415,9 +423,8 @@ Negative:
   evals.
 - Explicit task-context override syntax is deferred, so authors who need
   overrides must create a new suite or wait for a focused override design.
-- Wrapper evals need diagnostics so authors understand that parent workspace
-  does not override imported suite workspaces and child experiment blocks are
-  ignored.
+- Wrapper evals need diagnostics so authors understand that parent workspace is
+  invalid with `type: suite` imports and child experiment blocks are ignored.
 
 ## Non-Goals
 

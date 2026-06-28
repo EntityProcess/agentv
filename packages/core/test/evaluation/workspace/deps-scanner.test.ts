@@ -52,7 +52,7 @@ tests:
     expect(result.repos[0].usedBy).toEqual([file]);
   });
 
-  it('extracts repos from per-test workspace', async () => {
+  it('extracts repos from per-case workspace', async () => {
     const file = await writeYaml(
       'per-test.eval.yaml',
       `

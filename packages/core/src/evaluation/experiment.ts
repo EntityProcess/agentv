@@ -33,6 +33,11 @@ export type ExperimentRepeat = {
   readonly costLimitUsd?: number;
 };
 
+export type ExperimentWorkspaceConfig = {
+  readonly mode?: 'pooled' | 'temp' | 'static';
+  readonly path?: string;
+};
+
 export type ExperimentConfigWire = {
   readonly name?: string;
   readonly agent?: string;
@@ -48,7 +53,7 @@ export type ExperimentConfigWire = {
   readonly threshold?: number;
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: Record<string, unknown>;
+  readonly workspace?: ExperimentWorkspaceConfig;
 };
 
 export type ExperimentConfig = {
@@ -66,7 +71,7 @@ export type ExperimentConfig = {
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: Record<string, unknown>;
+  readonly workspace?: ExperimentWorkspaceConfig;
   readonly fingerprint?: string;
 };
 
@@ -137,7 +142,7 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     'budget_usd',
   );
   const sandbox = readOptionalSandbox(rawConfig.sandbox);
-  const workspace = readOptionalRecord(rawConfig.workspace);
+  const workspace = readOptionalWorkspace(rawConfig.workspace);
 
   const configWithoutFingerprint: Omit<ExperimentConfig, 'fingerprint'> = {
     ...(name !== undefined && { name }),
@@ -389,6 +394,36 @@ function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {
     throw new Error('Experiment object field must be an object.');
   }
   return raw;
+}
+
+function readOptionalWorkspace(raw: unknown): ExperimentWorkspaceConfig | undefined {
+  const workspace = readOptionalRecord(raw);
+  if (workspace === undefined) {
+    return undefined;
+  }
+
+  for (const key of Object.keys(workspace)) {
+    if (key !== 'mode' && key !== 'path') {
+      throw new Error(
+        `Experiment workspace.${key} is not supported. Experiment workspace supports only mode and path; put task setup in top-level workspace.`,
+      );
+    }
+  }
+
+  const mode = workspace.mode;
+  if (mode !== undefined && mode !== 'pooled' && mode !== 'temp' && mode !== 'static') {
+    throw new Error("Experiment workspace.mode must be 'pooled', 'temp', or 'static'.");
+  }
+
+  const path = workspace.path;
+  if (path !== undefined && (typeof path !== 'string' || path.trim().length === 0)) {
+    throw new Error('Experiment workspace.path must be a non-empty string.');
+  }
+
+  return {
+    ...(mode !== undefined && { mode }),
+    ...(path !== undefined && { path: path.trim() }),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

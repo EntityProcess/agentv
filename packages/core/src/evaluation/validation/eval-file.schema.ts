@@ -312,15 +312,23 @@ const DockerWorkspaceSchema = z.object({
   cpus: z.number().min(0.1).optional(),
 });
 
+const WorkspaceEnvSchema = z
+  .object({
+    required_commands: z.array(z.string().min(1)).optional(),
+    required_python_modules: z.array(z.string().min(1)).optional(),
+  })
+  .strict();
+
 const WorkspaceSchema = z
   .object({
     template: z.string().optional(),
-    isolation: z.enum(['shared', 'per_test']).optional(),
+    isolation: z.enum(['shared', 'per_case']).optional(),
     repos: z.array(RepoSchema).optional(),
     hooks: WorkspaceHooksSchema.optional(),
     mode: z.enum(['pooled', 'temp', 'static']).optional(),
     path: z.string().optional(),
     docker: DockerWorkspaceSchema.optional(),
+    env: WorkspaceEnvSchema.optional(),
   })
   .strict();
 
@@ -384,6 +392,13 @@ const RunOverrideSchema = z
   })
   .strict();
 
+const ExperimentWorkspaceSchema = z
+  .object({
+    mode: z.enum(['pooled', 'temp', 'static']).optional(),
+    path: z.string().min(1).optional(),
+  })
+  .strict();
+
 const ExperimentTargetRefSchema = z.union([
   z.string().min(1),
   z
@@ -407,7 +422,7 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   timeout_seconds: z.number().gt(0).optional(),
   budget_usd: z.number().gt(0).optional(),
   sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
-  workspace: JsonObjectSchema.optional(),
+  workspace: ExperimentWorkspaceSchema.optional(),
   setup: z.never().optional(),
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
   message: 'Use repeat or runs, not both.',

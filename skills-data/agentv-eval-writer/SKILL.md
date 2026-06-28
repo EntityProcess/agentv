@@ -383,7 +383,7 @@ workspace:
   hooks:
     after_each:
       reset: fast          # none | fast | strict
-  isolation: shared        # shared | per_test
+  isolation: shared        # shared | per_case
   mode: pooled             # pooled | temp | static
 ```
 
