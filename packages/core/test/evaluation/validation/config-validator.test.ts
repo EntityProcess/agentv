@@ -155,7 +155,6 @@ describe('validateConfigFile', () => {
         branch: agentv/results/v1
       sync:
         auto_push: false
-        require_push: true
 `,
     );
 
@@ -163,6 +162,32 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('errors on removed require_push persistent results sync config', async () => {
+    const filePath = path.join(tempDir, 'removed-require-push.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  repo:
+    path: .
+  sync:
+    require_push: true
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'error',
+          location: 'results.sync.require_push',
+          message: expect.stringContaining('--results-require-push'),
+        }),
+      ]),
+    );
   });
 
   it('keeps flat project repo fields compatible with migration warnings', async () => {

@@ -63,7 +63,6 @@ export type ResultsConfig = {
   readonly auto_push?: boolean;
   readonly sync?: {
     readonly auto_push?: boolean;
-    readonly require_push?: boolean;
     readonly push_conflict_policy?: ResultPushConflictPolicy;
   };
   readonly branch_prefix?: string;
@@ -857,8 +856,10 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
       logWarning(`Invalid results.sync.auto_push in ${configPath}, expected boolean`);
       return undefined;
     }
-    if (syncObj.require_push !== undefined && typeof syncObj.require_push !== 'boolean') {
-      logWarning(`Invalid results.sync.require_push in ${configPath}, expected boolean`);
+    if (syncObj.require_push !== undefined) {
+      logWarning(
+        `results.sync.require_push in ${configPath} is no longer supported in persistent config. Use the per-run --results-require-push CLI flag instead.`,
+      );
       return undefined;
     }
     if (syncObj.push_conflict_policy === 'backup_and_force_push') {
@@ -873,7 +874,6 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     }
     sync = {
       ...(typeof syncObj.auto_push === 'boolean' && { auto_push: syncObj.auto_push }),
-      ...(typeof syncObj.require_push === 'boolean' && { require_push: syncObj.require_push }),
       ...(syncObj.push_conflict_policy === 'block' && {
         push_conflict_policy: syncObj.push_conflict_policy,
       }),

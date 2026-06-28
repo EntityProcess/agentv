@@ -236,7 +236,6 @@ describe('projects registry', () => {
         branch: agentv/results/v1
       sync:
         auto_push: false
-        require_push: true
         push_conflict_policy: block
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
@@ -249,7 +248,7 @@ describe('projects registry', () => {
       repoUrl: 'git@github.com:example/source.git',
       path: '.',
       branch: 'agentv/results/v1',
-      sync: { autoPush: false, requirePush: true, pushConflictPolicy: 'block' },
+      sync: { autoPush: false, pushConflictPolicy: 'block' },
     });
 
     saveProjectRegistry(registry);
@@ -259,11 +258,10 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('path: .');
     expect(yamlOnDisk).toContain('branch: agentv/results/v1');
     expect(yamlOnDisk).toContain('auto_push: false');
-    expect(yamlOnDisk).toContain('require_push: true');
     expect(yamlOnDisk).toContain('push_conflict_policy: block');
     expect(yamlOnDisk).not.toContain('repo_path:');
     expect(yamlOnDisk).not.toContain('repoPath:');
-    expect(yamlOnDisk).not.toContain('requirePush:');
+    expect(yamlOnDisk).not.toContain('require_push:');
   });
 
   it('preserves legacy flat results remote aliases through YAML', () => {
@@ -323,10 +321,11 @@ dashboard:
     expect(yamlOnDisk).toContain('projects:');
   });
 
-  it('loads project registry entries from AGENTV_HOME config.local.yaml', () => {
+  it('warns and ignores require_push in project registry entries', () => {
     const registryPath = getProjectsRegistryPath();
     const localRegistryPath = path.join(path.dirname(registryPath), 'config.local.yaml');
     mkdirSync(path.dirname(registryPath), { recursive: true });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
     writeFileSync(
       localRegistryPath,
       `projects:
@@ -346,18 +345,23 @@ dashboard:
       'utf-8',
     );
 
-    const registry = loadProjectRegistry();
+    try {
+      const registry = loadProjectRegistry();
 
-    expect(registry.projects).toHaveLength(1);
-    expect(registry.projects[0]).toMatchObject({
-      id: 'local-results',
-      path: '/srv/agentv/source',
-      results: {
-        repoPath: '/srv/agentv/results/local-results',
-        branch: 'agentv/results/v1',
-        sync: { requirePush: true },
-      },
-    });
+      expect(registry.projects).toHaveLength(1);
+      expect(registry.projects[0]).toMatchObject({
+        id: 'local-results',
+        path: '/srv/agentv/source',
+        results: {
+          repoPath: '/srv/agentv/results/local-results',
+          branch: 'agentv/results/v1',
+        },
+      });
+      expect(registry.projects[0].results?.sync).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('results.sync.require_push'));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('keeps registry mutations in config.local.yaml when the overlay owns projects', () => {

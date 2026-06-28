@@ -145,6 +145,7 @@ describe('maybeAutoExportRunArtifacts', () => {
   let cloneDir: string;
   let previousHome: string | undefined;
   let previousXdgConfigHome: string | undefined;
+  let previousAgentvHome: string | undefined;
 
   beforeEach(() => {
     rootDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-remote-export-test-'));
@@ -157,10 +158,13 @@ describe('maybeAutoExportRunArtifacts', () => {
     // identity setup rather than the developer machine's ~/.gitconfig.
     previousHome = process.env.HOME;
     previousXdgConfigHome = process.env.XDG_CONFIG_HOME;
+    previousAgentvHome = process.env.AGENTV_HOME;
     process.env.HOME = path.join(rootDir, 'empty-home');
     process.env.XDG_CONFIG_HOME = path.join(rootDir, 'empty-xdg-config');
+    process.env.AGENTV_HOME = path.join(rootDir, 'agentv-home');
     mkdirSync(process.env.HOME, { recursive: true });
     mkdirSync(process.env.XDG_CONFIG_HOME, { recursive: true });
+    mkdirSync(process.env.AGENTV_HOME, { recursive: true });
   });
 
   afterEach(() => {
@@ -173,6 +177,11 @@ describe('maybeAutoExportRunArtifacts', () => {
       process.env.XDG_CONFIG_HOME = undefined;
     } else {
       process.env.XDG_CONFIG_HOME = previousXdgConfigHome;
+    }
+    if (previousAgentvHome === undefined) {
+      process.env.AGENTV_HOME = undefined;
+    } else {
+      process.env.AGENTV_HOME = previousAgentvHome;
     }
     rmSync(rootDir, { recursive: true, force: true });
   });
@@ -267,6 +276,27 @@ describe('maybeAutoExportRunArtifacts', () => {
       const status = await maybeAutoExportRunArtifacts(payload(projectDir, runDir));
 
       expect(status).toBe('failed');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  }, 20_000);
+
+  it('throws when a CLI-only require-push override cannot push results', async () => {
+    const runDir = writeRunArtifacts(projectDir);
+    writeProjectConfig(projectDir, {
+      repo: `file://${path.join(rootDir, 'missing-remote.git')}`,
+      path: cloneDir,
+      autoPush: false,
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      await expect(
+        maybeAutoExportRunArtifacts({
+          ...payload(projectDir, runDir),
+          results_overrides: { require_push: true },
+        }),
+      ).rejects.toThrow();
     } finally {
       warnSpy.mockRestore();
     }

@@ -292,6 +292,13 @@ export interface NormalizedResultsConfig {
   readonly storageBranchWorktree: boolean;
 }
 
+export type RuntimeResultsConfig = Omit<ResultsConfig, 'sync'> & {
+  readonly sync?: ResultsConfig['sync'] & {
+    /** Runtime-only override, set by --results-require-push. Not YAML config. */
+    readonly require_push?: boolean;
+  };
+};
+
 type StorageBranchResultsConfig = NormalizedResultsConfig & { readonly branch: string };
 
 export interface DirectPushResultsResult {
@@ -371,10 +378,19 @@ function resolveLocalPath(p: string, baseDir: string): string {
   return path.isAbsolute(expanded) ? expanded : path.resolve(baseDir, expanded);
 }
 
+function isNormalizedResultsConfig(
+  config: RuntimeResultsConfig | NormalizedResultsConfig,
+): config is NormalizedResultsConfig {
+  return typeof (config as NormalizedResultsConfig).storageBranchWorktree === 'boolean';
+}
+
 export function normalizeResultsConfig(
-  config: ResultsConfig,
+  config: RuntimeResultsConfig | NormalizedResultsConfig,
   options?: { baseDir?: string },
 ): NormalizedResultsConfig {
+  if (isNormalizedResultsConfig(config)) {
+    return config;
+  }
   const baseDir = options?.baseDir ?? process.cwd();
   const repoUrl = (config.repo_url ?? config.repo)?.trim();
   const repoPath = config.repo_path?.trim();
