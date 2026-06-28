@@ -1,0 +1,6 @@
+# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
+# Append-only run index: union concurrent appends (lines are orthogonal).
+index.jsonl merge=union
+# Editable run overlay (tags/feedback): 3-way JSON set/field union via the
+# agentv-json driver; a genuine scalar conflict falls through to a human merge.
+metadata/runs/**/*.json merge=agentv-json

@@ -1,0 +1,36 @@
+{
+  "assertions": [
+    {
+      "text": "Output is not valid JSON",
+      "passed": false,
+      "evidence": "Failed to parse response as JSON"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1,
+    "pass_rate": 0
+  },
+  "graders": [
+    {
+      "name": "risk_assessment_quality",
+      "type": "code-grader",
+      "score": 0,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "fail",
+      "assertions": [
+        {
+          "text": "Output is not valid JSON",
+          "passed": false,
+          "evidence": "Failed to parse response as JSON"
+        }
+      ]
+    }
+  ],
+  "conversation": {
+    "turns": 1,
+    "conversation_id": "export-screening"
+  }
+}
