@@ -90,6 +90,7 @@ export interface SourcedResultFileMeta extends ResultFileMeta {
   readonly experiment?: string;
   readonly target?: string;
   readonly summaryPath?: string;
+  readonly executionErrorCount?: number;
   /**
    * True when this run is present on the configured remote results branch.
    * A run synced to the remote keeps `source: 'local'` (the local copy is
@@ -490,6 +491,9 @@ export async function listMergedResultFiles(
         displayName: r.display_name,
         timestamp: r.timestamp,
         testCount: r.test_count,
+        ...(r.execution_error_count !== undefined && {
+          executionErrorCount: r.execution_error_count,
+        }),
         passRate: r.pass_rate || 0,
         avgScore: r.avg_score || 0,
         sizeBytes: r.size_bytes || 0,

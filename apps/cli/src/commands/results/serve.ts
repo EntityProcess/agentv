@@ -1570,7 +1570,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       let testCount = m.testCount;
       let passRate = m.passRate;
       let avgScore = m.avgScore;
-      let executionErrorCount = 0;
+      let executionErrorCount = m.executionErrorCount ?? 0;
       try {
         const records = shouldHydrateRunRecordsForList(m)
           ? await loadLightweightResultsForMeta(searchDir, m, projectId)
@@ -3148,6 +3148,7 @@ export function createApp(
         // Fall back to metadata below when materialized rows are unavailable.
       }
       passRateSum += meta.passRate;
+      executionErrorCount += meta.executionErrorCount ?? 0;
     }
 
     return {
@@ -3265,7 +3266,7 @@ export function createApp(
           let runtimeSource: RunRuntimeSourceMetadata | undefined = summaryMetadata.runtimeSource;
           let passRate = m.passRate;
           let avgScore = m.avgScore;
-          let executionErrorCount = 0;
+          let executionErrorCount = m.executionErrorCount ?? 0;
           try {
             const records = shouldHydrateRunRecordsForList(m)
               ? await loadLightweightResultsForMeta(p.path, m, p.id)
@@ -3412,7 +3413,7 @@ export function createApp(
         let passRate = m.passRate;
         let avgScore = m.avgScore;
         let testCount = m.testCount;
-        let executionErrorCount = 0;
+        let executionErrorCount = m.executionErrorCount ?? 0;
         try {
           const records = shouldHydrateRunRecordsForList(m)
             ? await loadLightweightResultsForMeta(searchDir, m, defaultCtx.projectId)

@@ -3789,6 +3789,7 @@ export interface GitListedRun {
   summary_path?: string;
   display_name: string;
   test_count: number;
+  execution_error_count?: number;
   avg_score: number;
   size_bytes: number;
 }
@@ -4198,6 +4199,8 @@ function isGitListedRun(value: unknown): value is GitListedRun {
     typeof record.test_count === 'number' &&
     typeof record.avg_score === 'number' &&
     typeof record.size_bytes === 'number' &&
+    (record.execution_error_count === undefined ||
+      typeof record.execution_error_count === 'number') &&
     (record.pass_rate === undefined || typeof record.pass_rate === 'number') &&
     (record.target === undefined || typeof record.target === 'string') &&
     (record.summary_path === undefined || typeof record.summary_path === 'string')
@@ -4367,7 +4370,15 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
       .map((line) => line.trim())
       .filter(Boolean)
       .flatMap(
-        (line): { timestamp?: string; target?: string; test_id?: string; score?: number }[] => {
+        (
+          line,
+        ): {
+          timestamp?: string;
+          target?: string;
+          test_id?: string;
+          score?: number;
+          execution_status?: string;
+        }[] => {
           try {
             return [
               JSON.parse(line) as {
@@ -4375,6 +4386,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
                 target?: string;
                 test_id?: string;
                 score?: number;
+                execution_status?: string;
               },
             ];
           } catch {
@@ -4400,6 +4412,9 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
     const displayName = summary?.metadata?.display_name?.trim() || path.posix.basename(runDir);
     const targets = summary?.metadata?.targets ?? rowTargets;
     const passRate = computeAveragePassRate(summary?.run_summary) ?? avgScore;
+    const executionErrorCount = rows.filter(
+      (row) => row.execution_status === 'execution_error',
+    ).length;
 
     return [
       {
@@ -4412,6 +4427,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
         ...(summaryByPath.has(summaryPath) && { summary_path: summaryPath }),
         display_name: displayName,
         test_count: summary?.metadata?.tests_run?.length ?? rowTestIds.length,
+        ...(executionErrorCount > 0 && { execution_error_count: executionErrorCount }),
         avg_score: avgScore,
         size_bytes: blob.size,
       },

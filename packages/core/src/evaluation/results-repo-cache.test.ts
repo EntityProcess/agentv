@@ -27,7 +27,13 @@ function git(repoDir: string, args: readonly string[]): string {
   }).trim();
 }
 
-function writeRun(repoDir: string, experiment: string, timestamp: string, score: number): void {
+function writeRun(
+  repoDir: string,
+  experiment: string,
+  timestamp: string,
+  score: number,
+  executionStatus = 'ok',
+): void {
   const runDir = path.join(repoDir, 'runs', experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(
@@ -37,6 +43,7 @@ function writeRun(repoDir: string, experiment: string, timestamp: string, score:
       test_id: `${experiment}-case`,
       target: 'codex',
       score,
+      execution_status: executionStatus,
     })}\n`,
     'utf8',
   );
@@ -198,6 +205,19 @@ describe('git results filesystem index cache', () => {
     expect(runs[0]?.run_id).toBe('2026-06-28T00-00-00-000Z');
     const rebuilt = JSON.parse(readFileSync(cacheFile, 'utf8')) as { runs?: unknown[] };
     expect(rebuilt.runs).toHaveLength(1);
+  });
+
+  it('preserves execution error counts for remote-only list metadata', async () => {
+    const repoDir = createResultsRepo(tempRoot);
+    writeRun(repoDir, 'error-experiment', '2026-06-28T03-00-00-000Z', 0, 'execution_error');
+    git(repoDir, ['add', 'runs']);
+    git(repoDir, ['commit', '-m', 'add execution error run']);
+
+    const runs = await listGitRunsCached(repoDir, RESULTS_REF);
+    const errorRun = runs.find(
+      (run) => run.run_id === 'error-experiment::2026-06-28T03-00-00-000Z',
+    );
+    expect(errorRun?.execution_error_count).toBe(1);
   });
 
   it('treats a missing results branch as an empty list', async () => {
