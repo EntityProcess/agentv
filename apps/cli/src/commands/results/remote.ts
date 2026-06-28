@@ -14,7 +14,7 @@ import {
   getProject,
   getProjectForPath,
   getResultsRepoSyncStatus,
-  listGitRuns,
+  listGitRunsCached,
   loadConfig,
   materializeGitRun,
   normalizeResultsConfig,
@@ -60,7 +60,7 @@ function cachedListGitRuns(repoDir: string, ref?: string) {
   if (cached && cached.expiresAt > now) {
     return cached.data;
   }
-  const promise = ref ? listGitRuns(repoDir, ref) : listGitRuns(repoDir);
+  const promise = ref ? listGitRunsCached(repoDir, ref) : listGitRunsCached(repoDir);
   gitRunsCache.set(cacheKey, { data: promise, expiresAt: now + GIT_RUNS_CACHE_TTL_MS });
   // Evict stale entry once the promise settles so a fresh fetch replaces it
   promise
@@ -87,6 +87,9 @@ export type RunSource = 'local' | 'remote';
 export interface SourcedResultFileMeta extends ResultFileMeta {
   readonly source: RunSource;
   readonly raw_filename: string;
+  readonly experiment?: string;
+  readonly target?: string;
+  readonly summaryPath?: string;
   /**
    * True when this run is present on the configured remote results branch.
    * A run synced to the remote keeps `source: 'local'` (the local copy is
@@ -481,6 +484,9 @@ export async function listMergedResultFiles(
         source: 'remote' as const,
         on_remote: true,
         path: path.join(config.path, r.manifest_path),
+        ...(r.summary_path && { summaryPath: path.join(config.path, r.summary_path) }),
+        experiment: r.experiment,
+        ...(r.target && { target: r.target }),
         displayName: r.display_name,
         timestamp: r.timestamp,
         testCount: r.test_count,

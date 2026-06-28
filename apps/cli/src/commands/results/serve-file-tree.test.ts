@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'bun:test';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { type ArtifactCatalogEntry, type FileNode, overlayCatalogFileNodes } from './serve.js';
+import {
+  type ArtifactCatalogEntry,
+  type FileNode,
+  overlayCatalogFileNodes,
+  shouldHydrateRunRecordsForList,
+} from './serve.js';
 
 /**
  * Reproduces the bug where git-stored `agentv/artifacts/v1` files were rendered
@@ -88,5 +96,39 @@ describe('overlayCatalogFileNodes', () => {
     expect(findByName(outputs?.children ?? [], 'transcript.jsonl')?.path).toBe(
       'outputs/transcript.jsonl',
     );
+  });
+});
+
+describe('shouldHydrateRunRecordsForList', () => {
+  it('skips remote-only runs so list pages do not materialize details', () => {
+    expect(
+      shouldHydrateRunRecordsForList({
+        source: 'remote',
+        path: path.join(os.tmpdir(), 'agentv-missing-remote-run', 'index.jsonl'),
+      } as Parameters<typeof shouldHydrateRunRecordsForList>[0]),
+    ).toBe(false);
+  });
+
+  it('hydrates local and already-materialized remote runs', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-run-list-hydrate-'));
+    const manifestPath = path.join(tempDir, 'index.jsonl');
+    writeFileSync(manifestPath, '', 'utf8');
+    try {
+      expect(existsSync(manifestPath)).toBe(true);
+      expect(
+        shouldHydrateRunRecordsForList({
+          source: 'remote',
+          path: manifestPath,
+        } as Parameters<typeof shouldHydrateRunRecordsForList>[0]),
+      ).toBe(true);
+      expect(
+        shouldHydrateRunRecordsForList({
+          source: 'local',
+          path: path.join(tempDir, 'missing-local-index.jsonl'),
+        } as Parameters<typeof shouldHydrateRunRecordsForList>[0]),
+      ).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

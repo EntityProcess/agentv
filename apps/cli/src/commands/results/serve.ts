@@ -1460,6 +1460,10 @@ function compareRunsByTimestampDesc<T extends { timestamp: string; filename: str
   return b.filename.localeCompare(a.filename);
 }
 
+export function shouldHydrateRunRecordsForList(meta: SourcedResultFileMeta): boolean {
+  return meta.source !== 'remote' || existsSync(meta.path);
+}
+
 interface QualitySummaryInput {
   readonly score: number;
   readonly executionStatus?: string;
@@ -1558,8 +1562,8 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
   const limit = parsedLimit ?? (cursor ? DEFAULT_RUN_PAGE_LIMIT : undefined);
   const runs = await Promise.all(
     metas.map(async (m) => {
-      let target: string | undefined;
-      let experiment = inferExperimentFromRunId(m.raw_filename);
+      let target = m.target;
+      let experiment = m.experiment ?? inferExperimentFromRunId(m.raw_filename);
       const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
       let runtimeSource: RunRuntimeSourceMetadata | undefined = summaryMetadata.runtimeSource;
       let timestamp = m.timestamp;
@@ -1568,7 +1572,9 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       let avgScore = m.avgScore;
       let executionErrorCount = 0;
       try {
-        const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
+        const records = shouldHydrateRunRecordsForList(m)
+          ? await loadLightweightResultsForMeta(searchDir, m, projectId)
+          : [];
         if (records.length > 0) {
           const qualitySummary = summarizeQualityResults(records, passThreshold);
           target = records[0].target;
@@ -1589,7 +1595,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         } else {
           // Run is in-progress with 0 results written yet — fall back to the
           // in-memory target stored when the Dashboard launched this run.
-          target = getActiveRunTarget(m.path);
+          target = target ?? getActiveRunTarget(m.path);
           runtimeSource = deriveDashboardRuntimeSource({
             summaryMetadata,
             records: [],
@@ -3129,7 +3135,9 @@ export function createApp(
 
     for (const meta of metas) {
       try {
-        const records = await loadLightweightResultsForMeta(project.path, meta, project.id);
+        const records = shouldHydrateRunRecordsForList(meta)
+          ? await loadLightweightResultsForMeta(project.path, meta, project.id)
+          : [];
         if (records.length > 0) {
           const qualitySummary = summarizeQualityResults(records, threshold);
           passRateSum += qualitySummary.passRate;
@@ -3251,15 +3259,17 @@ export function createApp(
       try {
         const { runs: metas } = await listMergedResultFiles(p.path, undefined, p.id);
         for (const m of metas) {
-          let target: string | undefined;
-          let experiment = inferExperimentFromRunId(m.raw_filename);
+          let target = m.target;
+          let experiment = m.experiment ?? inferExperimentFromRunId(m.raw_filename);
           const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
           let runtimeSource: RunRuntimeSourceMetadata | undefined = summaryMetadata.runtimeSource;
           let passRate = m.passRate;
           let avgScore = m.avgScore;
           let executionErrorCount = 0;
           try {
-            const records = await loadLightweightResultsForMeta(p.path, m, p.id);
+            const records = shouldHydrateRunRecordsForList(m)
+              ? await loadLightweightResultsForMeta(p.path, m, p.id)
+              : [];
             if (records.length > 0) {
               const qualitySummary = summarizeQualityResults(
                 records,
@@ -3404,7 +3414,9 @@ export function createApp(
         let testCount = m.testCount;
         let executionErrorCount = 0;
         try {
-          const records = await loadLightweightResultsForMeta(searchDir, m, defaultCtx.projectId);
+          const records = shouldHydrateRunRecordsForList(m)
+            ? await loadLightweightResultsForMeta(searchDir, m, defaultCtx.projectId)
+            : [];
           totalCostUsd = records.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
           if (records.length > 0) {
             const qualitySummary = summarizeQualityResults(
