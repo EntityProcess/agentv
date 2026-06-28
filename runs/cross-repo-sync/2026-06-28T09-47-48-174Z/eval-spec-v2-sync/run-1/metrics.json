@@ -1,0 +1,68 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-640b49730bacd883a8de",
+  "generated_at": "2026-06-28T09:47:51.601Z",
+  "test_id": "eval-spec-v2-sync",
+  "target": "mock_agent",
+  "suite": "cross-repo-sync",
+  "category": "examples/showcase/cross-repo-sync",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-640b49730bacd883a8de",
+    "trace_id": "e9a85452689fa4dd43eec258862e58e3",
+    "root_span_id": "8c39e43e3ebec596"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.jsonl",
+    "grading_path": "grading.json",
+    "timing_path": "timing.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [
+      {
+        "path": "agentevals/docs/src/content/docs/specification/eval-format.mdx",
+        "operation": "workspace_diff",
+        "source": "file_changes"
+      },
+      {
+        "path": "agentevals/docs/src/content/docs/specification/evaluators.mdx",
+        "operation": "workspace_diff",
+        "source": "file_changes"
+      }
+    ],
+    "files_created": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 84,
+    "transcript_chars": 1125,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 61,
+    "total_duration_seconds": 0.061,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 0,
+      "output": 0,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "unavailable",
+      "total_tokens": "unavailable",
+      "duration": "provider_reported",
+      "cost": "unavailable"
+    }
+  }
+}
