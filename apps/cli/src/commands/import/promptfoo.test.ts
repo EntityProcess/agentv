@@ -101,6 +101,36 @@ tests: file://./tests.jsonl
     expect(yaml).toContain('type: equals');
   });
 
+  it('rejects promptfoo test provider filters instead of emitting per-case targets', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-promptfoo-'));
+    tempDirs.push(dir);
+
+    const configPath = path.join(dir, 'promptfooconfig.yaml');
+    await writeFile(
+      configPath,
+      `
+prompts:
+  - "Answer {{question}}"
+providers:
+  - openai:gpt-5-mini
+  - anthropic:claude-sonnet
+tests:
+  - id: codex-only
+    provider: openai:gpt-5-mini
+    vars:
+      question: What is 2+2?
+    assert:
+      - type: equals
+        value: "4"
+`,
+      'utf8',
+    );
+
+    await expect(convertPromptfooToAgentvSuite({ inputPath: configPath })).rejects.toThrow(
+      'unsupported per-case target selection',
+    );
+  });
+
   it('imports promptfoo CSV datasets with __expected columns', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'agentv-promptfoo-'));
     tempDirs.push(dir);

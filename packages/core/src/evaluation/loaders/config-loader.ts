@@ -427,24 +427,6 @@ export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
 }
 
 /**
- * Extract per-test targets array from a raw test case object.
- */
-export function extractTargetsFromTestCase(testCase: JsonObject): readonly string[] | undefined {
-  const execution = testCase.execution;
-  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) {
-    return undefined;
-  }
-
-  const targets = (execution as Record<string, unknown>).targets;
-  if (Array.isArray(targets)) {
-    const valid = targets.filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
-    return valid.length > 0 ? valid.map((t) => t.trim()) : undefined;
-  }
-
-  return undefined;
-}
-
-/**
  * Cache configuration parsed from execution block.
  */
 export interface CacheConfig {

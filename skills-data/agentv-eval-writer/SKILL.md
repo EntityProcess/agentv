@@ -133,7 +133,7 @@ tests:
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
-| `execution` | no | Per-case execution overrides |
+| `execution` | no | Per-case non-target execution overrides such as `skip_defaults` or `threshold`; target selection belongs in `experiment.target(s)` or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |

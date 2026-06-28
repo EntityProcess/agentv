@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'bun:test';
+import type { ZodIssue } from 'zod';
 
 import { EvalFileSchema } from '../../../src/evaluation/validation/eval-file.schema.js';
+
+function collectIssueMessages(issues: readonly ZodIssue[]): string[] {
+  const messages: string[] = [];
+  for (const issue of issues) {
+    messages.push(issue.message);
+    if (issue.code === 'invalid_union') {
+      for (const unionError of issue.unionErrors) {
+        messages.push(...collectIssueMessages(unionError.issues));
+      }
+    }
+  }
+  return messages;
+}
 
 describe('EvalFileSchema input shorthand', () => {
   const baseTest = {
@@ -140,5 +154,43 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('does not accept test-level execution.targets', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          execution: {
+            targets: ['codex'],
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected test-level execution.targets to be rejected');
+    expect(collectIssueMessages(result.error.issues)).toContain(
+      "Unrecognized key(s) in object: 'targets'",
+    );
+  });
+
+  it('does not accept test-level execution.target', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          execution: {
+            target: 'codex',
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected test-level execution.target to be rejected');
+    expect(collectIssueMessages(result.error.issues)).toContain(
+      "Unrecognized key(s) in object: 'target'",
+    );
   });
 });

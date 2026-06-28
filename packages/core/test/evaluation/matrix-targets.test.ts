@@ -43,7 +43,7 @@ tests:
     expect(suite.targets).toBeUndefined();
   });
 
-  it('populates per-test targets from test-level execution.targets', async () => {
+  it('rejects unsupported test-level execution.targets', async () => {
     const { filePath, dir } = createTempYaml(`
 execution:
   targets:
@@ -61,14 +61,8 @@ tests:
         - copilot
 `);
 
-    const suite = await loadTestSuite(filePath, dir);
-    expect(suite.targets).toEqual(['copilot', 'claude']);
-    expect(suite.tests.length).toBe(2);
-
-    const generalTest = suite.tests.find((t) => t.id === 'general-test');
-    expect(generalTest?.targets).toBeUndefined();
-
-    const copilotOnly = suite.tests.find((t) => t.id === 'copilot-only');
-    expect(copilotOnly?.targets).toEqual(['copilot']);
+    await expect(loadTestSuite(filePath, dir)).rejects.toThrow(
+      "test 'copilot-only'.execution.targets is not supported.",
+    );
   });
 });

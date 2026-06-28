@@ -116,17 +116,20 @@ export async function convertPromptfooToAgentvSuite(
     readAssertionList(defaultTest.assert),
     absoluteInputPath,
   );
+  const suiteTargetNames =
+    filterProviders(providers, defaultTest.providers ?? defaultTest.provider) ??
+    providers.map((provider) => provider.targetName);
   const convertedTests = await buildAgentvTests({
     inputPath: absoluteInputPath,
     prompts,
-    providers,
     defaultTest,
     rawTests: testCases,
+    suiteTargetNames,
   });
 
   const execution: Record<string, unknown> = {};
-  if (providers.length > 0) {
-    execution.targets = providers.map((provider) => provider.targetName);
+  if (suiteTargetNames.length > 0) {
+    execution.targets = suiteTargetNames;
   }
 
   const suite: AgentvSuite = {
@@ -778,11 +781,11 @@ function parseCsvScalarValue(value: string): JsonValue {
 async function buildAgentvTests(options: {
   readonly inputPath: string;
   readonly prompts: readonly PromptfooPrompt[];
-  readonly providers: readonly PromptfooProvider[];
   readonly defaultTest: PromptfooTestCase;
   readonly rawTests: readonly PromptfooTestCase[];
+  readonly suiteTargetNames: readonly string[];
 }) {
-  const { inputPath, prompts, providers, defaultTest, rawTests } = options;
+  const { inputPath, prompts, defaultTest, rawTests, suiteTargetNames } = options;
   const tests: AgentvTest[] = [];
 
   for (let index = 0; index < rawTests.length; index++) {
@@ -801,12 +804,11 @@ async function buildAgentvTests(options: {
       throw new Error(`Test '${baseId}' matches no prompts after prompt filters`);
     }
 
-    const defaultTargets = filterProviders(
-      providers,
-      defaultTest.providers ?? defaultTest.provider,
-    );
-    const caseTargets = filterProviders(providers, rawTest.providers ?? rawTest.provider);
-    const effectiveTargets = caseTargets ?? defaultTargets;
+    if (rawTest.providers !== undefined || rawTest.provider !== undefined) {
+      throw new Error(
+        `Promptfoo test '${baseId}' uses provider filters, which require unsupported per-case target selection. Split provider-specific cases before importing or use defaultTest provider filters for suite-level target selection.`,
+      );
+    }
     const convertedCaseAssertions = await convertPromptfooAssertions(
       readAssertionList(rawTest.assert),
       inputPath,
@@ -830,11 +832,10 @@ async function buildAgentvTests(options: {
       const templatedInput = buildPromptTemplate(prompt, testOptions);
       const promptSuffix =
         promptSelection.length > 1 ? `--${sanitizeName(prompt.key || prompt.label)}` : '';
-      const metadata = buildPromptfooMetadata(rawTest, effectiveVars, prompt, effectiveTargets);
+      const metadata = buildPromptfooMetadata(rawTest, effectiveVars, prompt);
       const execution = buildCaseExecution({
         defaultAssertionsEnabled: !testOptions.disableDefaultAsserts,
         threshold: asNumber(rawTest.threshold),
-        effectiveTargets,
       });
 
       const test: AgentvTest = {
@@ -1003,14 +1004,12 @@ function buildPromptfooMetadata(
   rawTest: PromptfooTestCase,
   vars: Record<string, JsonValue>,
   prompt: PromptfooPrompt,
-  effectiveTargets: readonly string[] | undefined,
 ) {
   const rawMetadata = isJsonObject(rawTest.metadata) ? rawTest.metadata : undefined;
   const promptfooMetadata: Record<string, unknown> = {
     vars,
     prompt_label: prompt.label,
     prompt_source: prompt.source,
-    ...(effectiveTargets && effectiveTargets.length > 0 ? { targets: [...effectiveTargets] } : {}),
     ...(typeof rawTest.description === 'string' ? { description: rawTest.description } : {}),
   };
 
@@ -1023,7 +1022,6 @@ function buildPromptfooMetadata(
 function buildCaseExecution(options: {
   readonly defaultAssertionsEnabled: boolean;
   readonly threshold?: number;
-  readonly effectiveTargets?: readonly string[];
 }) {
   const execution: Record<string, unknown> = {};
   if (!options.defaultAssertionsEnabled) {
@@ -1031,9 +1029,6 @@ function buildCaseExecution(options: {
   }
   if (options.threshold !== undefined) {
     execution.threshold = options.threshold;
-  }
-  if (options.effectiveTargets && options.effectiveTargets.length > 0) {
-    execution.targets = [...options.effectiveTargets];
   }
   return Object.keys(execution).length > 0 ? execution : undefined;
 }

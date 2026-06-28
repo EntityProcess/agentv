@@ -68,6 +68,20 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
 const KNOWN_INCLUDE_FIELDS = new Set(['include', 'type', 'select', 'run']);
 const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
 const KNOWN_REPEAT_STRATEGIES = new Set(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']);
+const KNOWN_TEST_EXECUTION_FIELDS = new Set([
+  'workers',
+  'assertions',
+  'evaluators',
+  'skip_defaults',
+  'cache',
+  'trials',
+  'budget_usd',
+  'budgetUsd',
+  'fail_on_error',
+  'failOnError',
+  'threshold',
+  'workspace',
+]);
 
 /**
  * Deprecated top-level fields with migration hints.
@@ -373,6 +387,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     // AgentV accepts Vercel-style PROMPT.md fallback beside EVAL.yaml or in input_files.
     const caseExecution = isObject(evalCase.execution) ? evalCase.execution : undefined;
     if (caseExecution) {
+      validateTestExecutionFields(caseExecution, absolutePath, errors, location);
       rejectRuntimeWorkspaceConfig(
         caseExecution.workspace,
         absolutePath,
@@ -477,6 +492,24 @@ async function validateSuiteWorkspaceConfigs(
       errors,
       'execution.workspace',
     );
+  }
+}
+
+function validateTestExecutionFields(
+  caseExecution: JsonObject,
+  filePath: string,
+  errors: ValidationError[],
+  location: string,
+): void {
+  for (const key of Object.keys(caseExecution)) {
+    if (!KNOWN_TEST_EXECUTION_FIELDS.has(key)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.execution.${key}`,
+        message: `Unsupported test execution field '${key}'.`,
+      });
+    }
   }
 }
 

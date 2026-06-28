@@ -735,10 +735,6 @@ function buildPortableEvalCase(
   if (test.conversation_id) {
     testCase.conversation_id = test.conversation_id;
   }
-  if (test.targets && test.targets.length > 0) {
-    const existingExecution = isRecord(testCase.execution) ? testCase.execution : {};
-    testCase.execution = { ...existingExecution, targets: test.targets };
-  }
   if (test.threshold !== undefined) {
     const existingExecution = isRecord(testCase.execution) ? testCase.execution : {};
     testCase.execution = { ...existingExecution, threshold: test.threshold };

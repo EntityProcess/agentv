@@ -9,7 +9,6 @@ import {
   extractTargetFromSuite,
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
-  extractTargetsFromTestCase,
   extractThreshold,
   loadConfig,
   parseExecutionDefaults,
@@ -799,29 +798,6 @@ describe('extractTargetRefsFromSuite', () => {
       },
     };
     expect(extractTargetsFromSuite(suite)).toEqual(['baseline', 'with-hooks']);
-  });
-});
-
-describe('extractTargetsFromTestCase', () => {
-  it('returns undefined when no execution block', () => {
-    const testCase: JsonObject = { id: 'test-1' };
-    expect(extractTargetsFromTestCase(testCase)).toBeUndefined();
-  });
-
-  it('extracts targets from test case execution.targets', () => {
-    const testCase: JsonObject = {
-      id: 'test-1',
-      execution: { targets: ['copilot'] },
-    };
-    expect(extractTargetsFromTestCase(testCase)).toEqual(['copilot']);
-  });
-
-  it('returns undefined when targets is empty', () => {
-    const testCase: JsonObject = {
-      id: 'test-1',
-      execution: { targets: [] },
-    };
-    expect(extractTargetsFromTestCase(testCase)).toBeUndefined();
   });
 });
 

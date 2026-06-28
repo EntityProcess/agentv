@@ -112,6 +112,26 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
   });
 
+  it('rejects unsupported per-test execution target blocks', async () => {
+    const evalPath = path.join(tempDir, 'test-execution-target.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '    execution:',
+        '      target: codex',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
+      "test 'one'.execution.target is not supported.",
+    );
+  });
+
   it('globs raw case files through tests[].include with deterministic ordering and select filters', async () => {
     const casesDir = path.join(tempDir, 'cases');
     await mkdir(casesDir, { recursive: true });

@@ -69,6 +69,58 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('rejects unsupported test-level execution.targets', async () => {
+    const filePath = path.join(tempDir, 'test-level-targets.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: target-specific
+    input: "Hello"
+    criteria: "Greet"
+    execution:
+      targets: [codex]
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'tests[0].execution.targets' &&
+          error.message === "Unsupported test execution field 'targets'.",
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects unsupported test-level execution.target', async () => {
+    const filePath = path.join(tempDir, 'test-level-target.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: target-specific
+    input: "Hello"
+    criteria: "Greet"
+    execution:
+      target: codex
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'tests[0].execution.target' &&
+          error.message === "Unsupported test execution field 'target'.",
+      ),
+    ).toBe(true);
+  });
+
   it('rejects include entries without type', async () => {
     const filePath = path.join(tempDir, 'include-missing-type.yaml');
     await writeFile(

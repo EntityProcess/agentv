@@ -61,20 +61,18 @@ already-exported secrets into `.env`.
 
 ## Referencing Targets in Evals
 
-Set the default target at the top level or override per case:
+Select targets at the eval runtime level with `experiment.target`,
+`experiment.targets`, legacy suite-level `execution.target(s)`, or CLI
+`--target`. Test cases do not choose targets; split target-specific cases into
+separate eval suites or select them with tags/filters.
 
 ```yaml
-# Top-level default
-execution:
-  target: azure-base
+experiment:
+  targets: [azure-base, vscode_dev]
 
 tests:
   - id: test-1
-    # Uses azure-base
-
   - id: test-2
-    execution:
-      target: vscode_dev  # Override for this case
 ```
 
 ## Grader Target
