@@ -1,0 +1,34 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-008
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Navigation instruments for
+      aeronautical use are CHPL Tier 3.B items critical for missile guidance.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: FR
+              Destination: BY
+              Product: Inertial navigation system (fiber optic gyroscope based)
+              HS Code: 9014.20
+              Consignee: State Aviation Research Institute
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

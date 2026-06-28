@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-011
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Printed circuit boards are
+      CHPL Tier 4.A items essential for electronics manufacturing.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: TW
+              Destination: BY
+              Product: High-density interconnect PCBs (18-layer, fine pitch)
+              HS Code: 8534.00
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

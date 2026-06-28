@@ -1,0 +1,17 @@
+{
+  "total_tokens": 0,
+  "duration_ms": 874,
+  "total_duration_seconds": 0.874,
+  "cost_usd": null,
+  "token_usage": {
+    "input": 0,
+    "output": 0,
+    "reasoning": 0
+  },
+  "usage_sources": {
+    "token_usage": "unavailable",
+    "total_tokens": "unavailable",
+    "duration": "aggregate",
+    "cost": "unavailable"
+  }
+}

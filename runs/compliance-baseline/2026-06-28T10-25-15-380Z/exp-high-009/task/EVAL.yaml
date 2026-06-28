@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-009
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Semiconductor manufacturing
+      equipment is CHPL Tier 4.A - critical for chip production capability.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: NL
+              Destination: CN
+              Product: DUV lithography system for semiconductor wafer processing
+              HS Code: 8486.20
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

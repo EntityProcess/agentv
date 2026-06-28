@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-low-005
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'Low' risk. Household appliances have
+      no dual-use concerns. Standard consumer goods trade.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: Low
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: CN
+              Destination: GB
+              Product: Robotic vacuum cleaner (consumer model)
+              HS Code: 8508.11
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

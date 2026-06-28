@@ -1,0 +1,86 @@
+Artifact directory: /home/entity/projects/EntityProcess/agentv/.agentv/results/compliance-baseline/2026-06-28T10-25-15-380Z
+OTLP JSON file: /home/entity/projects/EntityProcess/agentv/.agentv/results/otel-2026-06-28T10-25-17-791Z.json
+Using target: default
+0/22   🔄 exp-high-001 | default
+0/22   🔄 exp-high-002 | default
+0/22   🔄 exp-high-003 | default
+1/22   ✅ exp-high-002 | default | 100% PASS | 822ms
+1/22   🔄 exp-high-004 | default
+2/22   ✅ exp-high-003 | default | 100% PASS | 949ms
+2/22   🔄 exp-high-005 | default
+3/22   ✅ exp-high-001 | default | 100% PASS | 995ms
+3/22   🔄 exp-high-006 | default
+4/22   ✅ exp-high-004 | default | 100% PASS | 761ms
+4/22   🔄 exp-high-007 | default
+5/22   ✅ exp-high-005 | default | 100% PASS | 675ms
+5/22   🔄 exp-high-008 | default
+6/22   ✅ exp-high-006 | default | 100% PASS | 667ms
+6/22   🔄 exp-high-009 | default
+7/22   ✅ exp-high-007 | default | 100% PASS | 706ms
+7/22   🔄 exp-high-010 | default
+8/22   ✅ exp-high-008 | default | 100% PASS | 742ms
+8/22   🔄 exp-high-011 | default
+9/22   ✅ exp-high-009 | default | 100% PASS | 742ms
+9/22   🔄 exp-high-012 | default
+10/22   ✅ exp-high-010 | default | 100% PASS | 816ms
+10/22   🔄 exp-med-001 | default
+11/22   ✅ exp-high-011 | default | 100% PASS | 874ms
+11/22   🔄 exp-med-002 | default
+12/22   ✅ exp-high-012 | default | 100% PASS | 939ms
+12/22   🔄 exp-med-003 | default
+13/22   ⚠️ exp-med-001 | default | 0% FAIL | 690ms
+13/22   🔄 exp-med-004 | default
+14/22   ⚠️ exp-med-002 | default | 0% FAIL | 668ms
+14/22   🔄 exp-low-001 | default
+15/22   ⚠️ exp-med-003 | default | 0% FAIL | 999ms
+15/22   🔄 exp-low-002 | default
+16/22   ⚠️ exp-low-001 | default | 0% FAIL | 1289ms
+16/22   🔄 exp-low-003 | default
+17/22   ⚠️ exp-med-004 | default | 0% FAIL | 1416ms
+17/22   🔄 exp-low-004 | default
+18/22   ⚠️ exp-low-002 | default | 0% FAIL | 1314ms
+18/22   🔄 exp-low-005 | default
+19/22   ⚠️ exp-low-003 | default | 0% FAIL | 861ms
+19/22   🔄 exp-low-006 | default
+20/22   ⚠️ exp-low-004 | default | 0% FAIL | 868ms
+21/22   ⚠️ exp-low-005 | default | 0% FAIL | 763ms
+22/22   ⚠️ exp-low-006 | default | 0% FAIL | 663ms
+
+
+==================================================
+RESULT: FAIL  (12/22 scored >= 75%, mean: 55%)
+==================================================
+
+EVALUATION SUMMARY
+==================================================
+Total tests: 22
+Passed: 12
+Quality failures: 10
+Mean score: 55%
+Median score: 100%
+Min score: 0%
+Max score: 100%
+Std deviation: 51%
+
+Score distribution:
+  0%-20%: 10
+  20%-40%: 0
+  40%-60%: 0
+  60%-80%: 0
+  80%-100%: 12
+
+Top performing tests:
+  1. exp-high-001: 100%
+  2. exp-high-002: 100%
+  3. exp-high-003: 100%
+
+Lowest performing tests:
+  1. exp-low-004: 0%
+  2. exp-low-005: 0%
+  3. exp-low-006: 0%
+Artifact workspace written to: /home/entity/projects/EntityProcess/agentv/.agentv/results/compliance-baseline/2026-06-28T10-25-15-380Z
+  Index: /home/entity/projects/EntityProcess/agentv/.agentv/results/compliance-baseline/2026-06-28T10-25-15-380Z/index.jsonl
+  Per-test artifacts: /home/entity/projects/EntityProcess/agentv/.agentv/results/compliance-baseline/2026-06-28T10-25-15-380Z (22 test directories)
+  Summary: /home/entity/projects/EntityProcess/agentv/.agentv/results/compliance-baseline/2026-06-28T10-25-15-380Z/summary.json
+
+Results written to: /home/entity/projects/EntityProcess/agentv/.agentv/results/compliance-baseline/2026-06-28T10-25-15-380Z/index.jsonl

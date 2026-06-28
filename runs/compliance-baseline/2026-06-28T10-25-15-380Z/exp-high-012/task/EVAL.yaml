@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-012
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. CNC machining centers are
+      CHPL Tier 4.B items used for precision weapons manufacturing.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: JP
+              Destination: RU
+              Product: 5-axis CNC machining center (positioning accuracy 2 microns)
+              HS Code: 8457.10
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

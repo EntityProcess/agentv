@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-005
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Precision ball bearings are
+      CHPL Tier 3.B items critical for missile guidance and UAV systems.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: JP
+              Destination: RU
+              Product: Precision angular contact ball bearings (ceramic hybrid)
+              HS Code: 8482.10
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

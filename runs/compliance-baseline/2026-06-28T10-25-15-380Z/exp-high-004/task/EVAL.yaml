@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-004
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Static converters are CHPL
+      Tier 3.A items used in power systems for military equipment.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: DE
+              Destination: IR
+              Product: High-frequency power inverter modules (50kW)
+              HS Code: 8504.40
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

@@ -1,0 +1,53 @@
+{
+  "assertions": [
+    {
+      "text": "Valid JSON with required keys",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "riskLevel=High",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "Correct: AI=High, Expected=High",
+      "passed": true,
+      "evidence": ""
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "risk_assessment_quality",
+      "type": "code-grader",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertions": [
+        {
+          "text": "Valid JSON with required keys",
+          "passed": true
+        },
+        {
+          "text": "riskLevel=High",
+          "passed": true
+        },
+        {
+          "text": "Correct: AI=High, Expected=High",
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "conversation": {
+    "turns": 1,
+    "conversation_id": "export-screening"
+  }
+}

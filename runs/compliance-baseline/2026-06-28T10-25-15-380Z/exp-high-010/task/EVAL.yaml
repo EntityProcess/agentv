@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-010
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Oscilloscopes and test equipment
+      are CHPL Tier 4.A items used for weapons development and testing.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: RU
+              Product: Digital storage oscilloscope (8GHz bandwidth, 40GSa/s)
+              HS Code: 9030.20
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

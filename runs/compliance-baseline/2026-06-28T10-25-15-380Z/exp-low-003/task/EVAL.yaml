@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-low-003
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'Low' risk. Agricultural spraying equipment
+      has no dual-use applications. Trade to allied nation.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: Low
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: CA
+              Product: Tractor-mounted pesticide sprayer
+              HS Code: 8424.82
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

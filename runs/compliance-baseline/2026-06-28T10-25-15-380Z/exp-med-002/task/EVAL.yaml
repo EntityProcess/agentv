@@ -1,0 +1,35 @@
+execution:
+  target: default
+tests:
+  - id: exp-med-002
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'Medium' risk. Tantalum capacitors are
+      CHPL Tier 2 items but in small quantities for commercial repair.
+      Low-risk destination but controlled item requires verification.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: Medium
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: DE
+              Product: Tantalum capacitors (assorted values, 500 units)
+              HS Code: 8532.21
+              Consignee: Electronics Repair GmbH
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

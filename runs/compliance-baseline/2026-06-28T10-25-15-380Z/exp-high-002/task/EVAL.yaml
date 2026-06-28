@@ -1,0 +1,33 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-002
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Memory integrated circuits
+      are Tier 1 CHPL items critical for military systems.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: KR
+              Destination: BY
+              Product: DRAM memory chips (DDR5, 16GB modules)
+              HS Code: 8542.32
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

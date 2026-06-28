@@ -1,0 +1,4 @@
+targets:
+  - name: default
+    provider: mock
+    response: '{"riskLevel": "High", "reasoning": "Mock response for testing"}'

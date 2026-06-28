@@ -1,0 +1,35 @@
+execution:
+  target: default
+tests:
+  - id: exp-med-004
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'Medium' risk. Radio navigation equipment
+      is CHPL Tier 2 (8526.91) but for commercial aviation use in
+      low-risk destination.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: Medium
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: US
+              Destination: BR
+              Product: GPS receiver module for commercial drone
+              HS Code: 8526.91
+              Consignee: AgriTech Drones Ltda
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined

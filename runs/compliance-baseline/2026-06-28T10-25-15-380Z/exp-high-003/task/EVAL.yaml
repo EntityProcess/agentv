@@ -1,0 +1,34 @@
+execution:
+  target: default
+tests:
+  - id: exp-high-003
+    conversation_id: export-screening
+    criteria: |
+      AI correctly classifies as 'High' risk. Photosensitive semiconductor
+      devices (excluding photovoltaic) are CHPL Tier 3.A items used in
+      targeting and guidance systems.
+    expected_output:
+      - role: assistant
+        content:
+          risk_level: High
+    input:
+      - role: user
+        content:
+          - type: file
+            value: files/examples/showcase/export-screening/skills/export-risk-assessment.md
+          - type: text
+            value: |
+              Assess export risk for this shipment:
+
+              Origin: FR
+              Destination: CN
+              Product: Infrared photodiode array (InGaAs, 640x512 elements)
+              HS Code: 8541.49
+    assertions:
+      - name: risk_assessment_quality
+        type: code-grader
+        command:
+          - bun
+          - run
+          - validate_risk_output.ts
+        cwd: undefined
