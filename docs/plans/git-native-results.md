@@ -52,7 +52,7 @@ Every completed `agentv eval` publish is one atomic operation:
 1. Write artifacts into the normal local run workspace at `.agentv/results/runs/<experiment>/<timestamp>/`.
 2. Resolve the results store: either the `repo_path` checkout or the managed clone for `repo_url`.
 3. Build a commit for `runs/**` (and `metadata/**`) on the storage branch using git plumbing and a temporary index, so `repo_path: .` never has to check out `agentv/results/v1`.
-4. If `sync.auto_push` or `sync.require_push` is enabled, push the storage branch. Non-fast-forward conflicts fetch the remote branch, rebuild the single run commit on the remote base when safe, and retry.
+4. If `sync.auto_push` is enabled or the run was invoked with `--results-require-push`, push the storage branch. Non-fast-forward conflicts fetch the remote branch, rebuild the single run commit on the remote base when safe, and retry.
 
 Each run is one commit. Files are unique to that run, so rebases never content-conflict.
 
@@ -89,7 +89,7 @@ Each run is one commit. Files are unique to that run, so rebases never content-c
 ## Implementation notes
 
 - `normalizeResultsConfig()` accepts `repo_url`/legacy `repo` or `repo_path`, but prerelease docs and config examples use `repo_url` or `repo_path`.
-- `directPushResults()` resolves the results store, builds one storage-branch commit for the completed run, and pushes when `sync.auto_push` or `sync.require_push` is enabled.
+- `directPushResults()` resolves the results store, builds one storage-branch commit for the completed run, and pushes when `sync.auto_push` or the runtime `--results-require-push` override is enabled.
 - `commitResultsRunWithTemporaryIndex()` writes blobs into the repo object database and updates the storage branch via a temporary index. This is the normal `repo_path: .` path and avoids copying files into a checked-out results branch.
 - `listGitRuns()` uses `git ls-tree` plus `git cat-file --batch` against `runs/**/summary.json`. A not-yet-created storage branch (ref does not exist) returns `[]` rather than throwing, so the Dashboard's remote-results poll stays quiet before the first push.
 - `setupWipWorktree()` and `pushWipCheckpoint()` maintain recoverable in-progress branches under `agentv/wip/...`.
@@ -99,7 +99,7 @@ Each run is one commit. Files are unique to that run, so rebases never content-c
 | Change | Impact |
 |--------|--------|
 | `results.repo` is legacy | Use `results.repo_url` for a remote clone or `results.repo_path` for an existing local checkout |
-| `results.auto_push` moved | Use `results.sync.auto_push`; `results.sync.require_push` is the CI fail-on-push-failure knob |
+| `results.auto_push` moved | Use `results.sync.auto_push`; use `agentv eval run --results-require-push` as the per-run CI fail-on-push-failure knob |
 | `repo_path` configs default to `agentv/results/v1` | Same-repo storage no longer needs an explicit branch in the common case |
 | WIP branch namespace is `agentv/wip/...` | Interrupted runs are recoverable, but successful runs delete their WIP branch after final publish |
 
@@ -122,7 +122,7 @@ Breaking changes accepted because no production users yet. Document in release n
 ## Current answers
 
 1. **Branch model**: completed runs use the configured storage branch, defaulting to `agentv/results/v1` for `repo_path`; WIP checkpoints use `agentv/wip/<hostname>/<run-dir-basename>`.
-2. **What to do on `git fetch` failures during `agentv eval`**: warn unless `sync.require_push` is true; local eval artifacts are still written first.
+2. **What to do on `git fetch` failures during `agentv eval`**: warn unless `--results-require-push` was passed; local eval artifacts are still written first.
 3. **`gh` CLI dependency**: the git-native flow uses raw `git`; GitHub-specific tooling stays outside result publishing.
 
 ## What this PR does NOT do

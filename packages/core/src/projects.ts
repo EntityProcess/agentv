@@ -28,7 +28,6 @@
  *           branch: agentv/results/v1
  *         sync:
  *           auto_push: true
- *           require_push: false
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *
@@ -70,7 +69,6 @@ import { getAgentvConfigDir } from './paths.js';
 
 export interface ProjectResultsSyncConfig {
   autoPush?: boolean;
-  requirePush?: boolean;
   pushConflictPolicy?: 'block';
 }
 
@@ -112,7 +110,6 @@ export function getProjectsRegistryPath(): string {
 
 interface ProjectResultsSyncYaml {
   auto_push?: boolean;
-  require_push?: boolean;
   push_conflict_policy?: 'block' | string;
 }
 
@@ -159,6 +156,7 @@ function readTrimmedString(value: unknown): string | undefined {
 }
 
 let warnedRemovedBackupAndForcePushPolicy = false;
+let warnedRemovedRequirePushConfig = false;
 
 function warnRemovedBackupAndForcePushPolicy(): void {
   if (warnedRemovedBackupAndForcePushPolicy) {
@@ -167,6 +165,16 @@ function warnRemovedBackupAndForcePushPolicy(): void {
   warnedRemovedBackupAndForcePushPolicy = true;
   console.warn(
     "[agentv] projects[].results.sync.push_conflict_policy: 'backup_and_force_push' is no longer supported and was ignored while loading the project registry. Remove the field or set it to 'block'; AgentV never force-pushes result branches.",
+  );
+}
+
+function warnRemovedRequirePushConfig(): void {
+  if (warnedRemovedRequirePushConfig) {
+    return;
+  }
+  warnedRemovedRequirePushConfig = true;
+  console.warn(
+    '[agentv] projects[].results.sync.require_push is no longer supported in persistent config and was ignored while loading the project registry. Use the per-run --results-require-push CLI flag instead.',
   );
 }
 
@@ -219,15 +227,11 @@ function fromYaml(raw: unknown): ProjectEntry | null {
         ...(clonePath ? { path: clonePath } : {}),
         ...(sync &&
         (typeof sync.auto_push === 'boolean' ||
-          typeof sync.require_push === 'boolean' ||
           sync.push_conflict_policy === 'block' ||
           sync.push_conflict_policy === 'backup_and_force_push')
           ? {
               sync: {
                 ...(typeof sync.auto_push === 'boolean' ? { autoPush: sync.auto_push } : {}),
-                ...(typeof sync.require_push === 'boolean'
-                  ? { requirePush: sync.require_push }
-                  : {}),
                 ...(sync.push_conflict_policy === 'block'
                   ? { pushConflictPolicy: sync.push_conflict_policy }
                   : {}),
@@ -238,6 +242,9 @@ function fromYaml(raw: unknown): ProjectEntry | null {
           ? { branchPrefix: r.branch_prefix.trim() }
           : {}),
       };
+      if (sync && 'require_push' in sync) {
+        warnRemovedRequirePushConfig();
+      }
       if (sync?.push_conflict_policy === 'backup_and_force_push') {
         warnRemovedBackupAndForcePushPolicy();
       }
@@ -261,15 +268,11 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   if (entry.results) {
     const resultsSync =
       entry.results.sync?.autoPush !== undefined ||
-      entry.results.sync?.requirePush !== undefined ||
       entry.results.sync?.pushConflictPolicy !== undefined
         ? {
             sync: {
               ...(entry.results.sync?.autoPush !== undefined && {
                 auto_push: entry.results.sync.autoPush,
-              }),
-              ...(entry.results.sync?.requirePush !== undefined && {
-                require_push: entry.results.sync.requirePush,
               }),
               ...(entry.results.sync?.pushConflictPolicy !== undefined && {
                 push_conflict_policy: entry.results.sync.pushConflictPolicy,

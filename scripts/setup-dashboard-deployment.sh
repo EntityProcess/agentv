@@ -135,7 +135,6 @@ results:
     path: /data/results/agentv-evalresults
   sync:
     auto_push: false
-    require_push: false
 
 dashboard:
   project_dashboard: true
@@ -174,7 +173,6 @@ const nextEntry = {
     },
     sync: {
       auto_push: false,
-      require_push: false,
     },
   },
   added_at:

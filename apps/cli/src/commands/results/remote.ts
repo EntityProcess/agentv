@@ -159,6 +159,12 @@ export interface ResultsPublishOverrides {
   readonly push_conflict_policy?: 'block';
 }
 
+type RuntimeResultsConfig = Omit<ResultsConfig, 'sync'> & {
+  readonly sync?: ResultsConfig['sync'] & {
+    readonly require_push?: boolean;
+  };
+};
+
 const REMOTE_RUN_PREFIX = 'remote::';
 const SIZE_WARNING_BYTES = 10 * 1024 * 1024;
 
@@ -226,14 +232,10 @@ export async function loadNormalizedResultsConfig(
         ...(project.results.remote !== undefined && { remote: project.results.remote }),
         ...(project.results.path !== undefined && { path: project.results.path }),
         ...((project.results.sync?.autoPush !== undefined ||
-          project.results.sync?.requirePush !== undefined ||
           project.results.sync?.pushConflictPolicy !== undefined) && {
           sync: {
             ...(project.results.sync?.autoPush !== undefined && {
               auto_push: project.results.sync.autoPush,
-            }),
-            ...(project.results.sync?.requirePush !== undefined && {
-              require_push: project.results.sync.requirePush,
             }),
             ...(project.results.sync?.pushConflictPolicy !== undefined && {
               push_conflict_policy: project.results.sync.pushConflictPolicy,
@@ -260,7 +262,7 @@ export async function loadNormalizedResultsConfig(
     return baseConfig;
   }
 
-  const merged: ResultsConfig = {
+  const merged: RuntimeResultsConfig = {
     mode: 'github',
     ...(overrides.repo !== undefined
       ? { repo: overrides.repo }

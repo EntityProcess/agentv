@@ -384,7 +384,6 @@ describe('parseResultsConfig', () => {
         remote: 'upstream',
         sync: {
           auto_push: false,
-          require_push: true,
           push_conflict_policy: 'block',
         },
       },
@@ -398,10 +397,30 @@ describe('parseResultsConfig', () => {
       remote: 'upstream',
       sync: {
         auto_push: false,
-        require_push: true,
         push_conflict_policy: 'block',
       },
     });
+  });
+
+  it('rejects require_push in persistent results sync config', () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const result = parseResultsConfig(
+        {
+          repo_path: '.',
+          sync: {
+            require_push: true,
+          },
+        },
+        '/tmp/.agentv/config.yaml',
+      );
+
+      expect(result).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('results.sync.require_push'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('--results-require-push'));
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('rejects removed backup_and_force_push sync policy with migration guidance', () => {
@@ -488,7 +507,7 @@ describe('parseResultsConfig', () => {
           branch: 'agentv/results/v1',
         },
         sync: {
-          require_push: true,
+          auto_push: true,
         },
       },
       '/tmp/.agentv/config.yaml',
@@ -499,7 +518,7 @@ describe('parseResultsConfig', () => {
       repo_path: '.',
       branch: 'agentv/results/v1',
       sync: {
-        require_push: true,
+        auto_push: true,
       },
     });
   });

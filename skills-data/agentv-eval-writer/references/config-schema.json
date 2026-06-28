@@ -155,10 +155,6 @@
             "auto_push": {
               "type": "boolean",
               "description": "Push result commits best-effort after each completed run."
-            },
-            "require_push": {
-              "type": "boolean",
-              "description": "Fail the command if a configured push fails after writing local artifacts."
             }
           },
           "additionalProperties": false

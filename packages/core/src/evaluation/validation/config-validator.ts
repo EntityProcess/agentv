@@ -443,12 +443,12 @@ function validateResultsSyncAndBranchPrefix(
           `Field '${location}.sync.auto_push' must be a boolean`,
         );
       }
-      if (syncRecord.require_push !== undefined && typeof syncRecord.require_push !== 'boolean') {
+      if (syncRecord.require_push !== undefined) {
         addError(
           errors,
           filePath,
           `${location}.sync.require_push`,
-          `Field '${location}.sync.require_push' must be a boolean`,
+          `Field '${location}.sync.require_push' was removed from persistent config. Use the per-run --results-require-push CLI flag instead.`,
         );
       }
       if (syncRecord.push_conflict_policy === 'backup_and_force_push') {
