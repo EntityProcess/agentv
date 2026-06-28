@@ -14,8 +14,8 @@ Demonstrates composite grader patterns for combining multiple evaluation criteri
 ```bash
 # From repository root
 bun agentv eval run examples/features/composite/evals/dataset.eval.yaml
-# Run only the strict-or script path example in dry-run (no live LLM targets required)
-bun agentv eval run examples/features/composite/evals/dataset.eval.yaml --test-id strict-or-local --dry-run
+# Validate the eval file without executing targets
+bun agentv validate examples/features/composite/evals/dataset.eval.yaml
 ```
 
 ## Key Files

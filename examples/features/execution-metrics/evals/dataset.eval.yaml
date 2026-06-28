@@ -12,8 +12,8 @@
 # Only specified thresholds are checked; omitted ones are ignored.
 # Score is proportional: hits / (hits + misses)
 #
-# Run with:
-#   bun agentv eval examples/features/execution-metrics/evals/dataset.eval.yaml --dry-run
+# Run with the included mock metrics target:
+#   bun agentv eval examples/features/execution-metrics/evals/dataset.eval.yaml --target mock_metrics_agent
 
 name: execution-metrics
 description: Demonstrates the built-in execution_metrics grader

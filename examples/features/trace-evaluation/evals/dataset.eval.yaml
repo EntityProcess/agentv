@@ -3,8 +3,8 @@
 # Demonstrates how to evaluate agent internals (LLM calls, tool executions,
 # errors, and durations) using code graders that inspect trace.
 #
-# Run with:
-#   bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry-run
+# Validate with:
+#   bun agentv validate examples/features/trace-evaluation/evals/dataset.eval.yaml
 
 description: Trace-based evaluation of agent internals using code graders
 

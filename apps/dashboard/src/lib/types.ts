@@ -653,7 +653,6 @@ export interface RunEvalRequest {
   tags?: string[];
   threshold?: number;
   workers?: number;
-  dry_run?: boolean;
   /** Resume an interrupted run: skip already-completed tests and append to `output`. */
   resume?: boolean;
   /** Re-run failed/errored tests while keeping passing results. */

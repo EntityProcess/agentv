@@ -137,10 +137,6 @@ export const evalRunCommand = command({
         cwd: evalDir,
         cliTargetName: target,
         explicitTargetsPath: targets,
-        dryRun: false,
-        dryRunDelay: 0,
-        dryRunDelayMin: 0,
-        dryRunDelayMax: 0,
         env: process.env,
       });
       targetName = selection.targetName;

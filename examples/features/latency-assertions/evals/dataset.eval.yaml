@@ -28,8 +28,8 @@
 #     }]
 #   }
 #
-# Note: Run with --dry-run to test parsing. For real latency testing,
-# use a provider that returns duration_ms in tool calls.
+# Note: use `agentv validate` to test parsing. For real latency testing,
+# use the included mock latency target or a provider that returns duration_ms in tool calls.
 
 name: latency-assertions
 description: Latency assertions for per-step performance validation

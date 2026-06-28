@@ -10,7 +10,6 @@ interface BuildRunEvalRequestOptions {
   thresholdInput: string;
   studioThreshold?: number;
   workers: string;
-  dryRun: boolean;
 }
 
 export function getThresholdFieldValue(
@@ -45,7 +44,6 @@ export function buildRunEvalRequest({
   thresholdInput,
   studioThreshold,
   workers,
-  dryRun,
 }: BuildRunEvalRequestOptions): RunEvalRequest {
   const req: RunEvalRequest = {};
 
@@ -59,7 +57,6 @@ export function buildRunEvalRequest({
   if (resolvedThreshold) req.threshold = Number.parseFloat(resolvedThreshold);
 
   if (workers) req.workers = Number.parseInt(workers, 10);
-  if (dryRun) req.dry_run = true;
 
   return req;
 }

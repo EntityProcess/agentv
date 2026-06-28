@@ -114,10 +114,6 @@ interface NormalizedOptions {
   readonly outputDir?: string;
   /** Removed: use --output for run directories */
   readonly removedOut?: string;
-  readonly dryRun: boolean;
-  readonly dryRunDelay: number;
-  readonly dryRunDelayMin: number;
-  readonly dryRunDelayMax: number;
   readonly agentTimeoutSeconds?: number;
   readonly cliAgentTimeoutSeconds?: number;
   readonly maxRetries: number;
@@ -202,19 +198,6 @@ export function resolveTimestampPlaceholder(value: string): string {
   }
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   return value.replaceAll('{timestamp}', timestamp);
-}
-
-function normalizeNumber(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isNaN(parsed)) {
-      return parsed;
-    }
-  }
-  return fallback;
 }
 
 function normalizeOptionalNumber(value: unknown): number | undefined {
@@ -473,10 +456,6 @@ function normalizeOptions(
     workers: workers > 0 ? workers : undefined,
     outputDir: cliOutputDir ?? configOutputDir,
     removedOut: cliOut,
-    dryRun: normalizeBoolean(rawOptions.dryRun),
-    dryRunDelay: normalizeNumber(rawOptions.dryRunDelay, 0),
-    dryRunDelayMin: normalizeNumber(rawOptions.dryRunDelayMin, 0),
-    dryRunDelayMax: normalizeNumber(rawOptions.dryRunDelayMax, 0),
     agentTimeoutSeconds: cliAgentTimeout ?? configAgentTimeoutSeconds,
     cliAgentTimeoutSeconds: cliAgentTimeout,
     maxRetries: cliMaxRetries ?? configMaxRetries ?? 2,
@@ -983,23 +962,9 @@ async function prepareFileMetadata(params: {
     ];
   } else if (suite.inlineTarget && effectiveOptions.cliTargets.length === 0) {
     const targetDefinition = suite.inlineTarget;
-    const resolvedTarget = options.dryRun
-      ? ({
-          kind: 'mock',
-          name: `${targetDefinition.name}-dry-run`,
-          graderTarget: undefined,
-          config: {
-            // Schema-valid grader response so --dry-run works end-to-end with LLM graders.
-            // Satisfies freeform (score), rubric (checks, overall_reasoning), and score-range (checks) without real LLM calls.
-            response: '{"score":1,"assertions":[],"checks":[],"overall_reasoning":"dry-run mock"}',
-            delayMs: options.dryRunDelay,
-            delayMinMs: options.dryRunDelayMin,
-            delayMaxMs: options.dryRunDelayMax,
-          },
-        } satisfies ResolvedTarget)
-      : resolveTargetDefinition(targetDefinition, process.env, testFilePath, {
-          emitDeprecationWarnings: false,
-        });
+    const resolvedTarget = resolveTargetDefinition(targetDefinition, process.env, testFilePath, {
+      emitDeprecationWarnings: false,
+    });
     selections = [
       {
         selection: {
@@ -1059,10 +1024,6 @@ async function prepareFileMetadata(params: {
         repoRoot,
         cwd,
         explicitTargetsPath: effectiveOptions.targetsPath,
-        dryRun: effectiveOptions.dryRun,
-        dryRunDelay: effectiveOptions.dryRunDelay,
-        dryRunDelayMin: effectiveOptions.dryRunDelayMin,
-        dryRunDelayMax: effectiveOptions.dryRunDelayMax,
         env: process.env,
         targetNames,
         targetRefs,
@@ -1080,10 +1041,6 @@ async function prepareFileMetadata(params: {
         cwd,
         explicitTargetsPath: effectiveOptions.targetsPath,
         cliTargetName: targetNames.length === 1 ? targetNames[0] : effectiveOptions.target,
-        dryRun: effectiveOptions.dryRun,
-        dryRunDelay: effectiveOptions.dryRunDelay,
-        dryRunDelayMin: effectiveOptions.dryRunDelayMin,
-        dryRunDelayMax: effectiveOptions.dryRunDelayMax,
         env: process.env,
       });
 
@@ -1211,9 +1168,7 @@ async function runSingleEvalFile(params: {
 
   // CLI provider verbose logging should only be enabled when --verbose flag is passed
   const resolvedTargetSelection = applyVerboseOverride(selection, options.verbose);
-  const providerLabel = options.dryRun
-    ? `${resolvedTargetSelection.resolvedTarget.kind} (dry-run)`
-    : resolvedTargetSelection.resolvedTarget.kind;
+  const providerLabel = resolvedTargetSelection.resolvedTarget.kind;
   const targetMessage = options.verbose
     ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
     : `Using target: ${inlineTargetLabel}`;
@@ -1223,7 +1178,7 @@ async function runSingleEvalFile(params: {
 
   // Hint about pipeline for CLI agent targets
   const targetKind = resolvedTargetSelection.resolvedTarget.kind;
-  if ((targetKind === 'claude-cli' || targetKind === 'copilot-cli') && !options.dryRun) {
+  if (targetKind === 'claude-cli' || targetKind === 'copilot-cli') {
     console.log('');
     console.log('  TIP: For subagent-mode evals, use `agentv pipeline` instead of `eval run`.');
     console.log('  The agent orchestrates executor + grader subagents directly.');
@@ -1257,7 +1212,7 @@ async function runSingleEvalFile(params: {
   }
 
   // Auto-provision subagents for VSCode targets
-  if (isVSCodeProvider && !options.dryRun) {
+  if (isVSCodeProvider) {
     const vsConfig = resolvedTargetSelection.resolvedTarget.config as { executable?: string };
     await ensureVSCodeSubagents({
       kind: resolvedTargetSelection.resolvedTarget.kind as 'vscode' | 'vscode-insiders',

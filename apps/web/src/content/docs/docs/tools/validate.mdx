@@ -32,3 +32,9 @@ agentv validate evals/**/*.yaml
 - Before running evaluations to catch config errors early
 - In CI/CD pipelines as a pre-check
 - After editing eval files to verify correctness
+
+`agentv validate` replaces the old eval mock dry-run use case for schema and
+configuration checks. It does not execute targets and does not produce quality
+scores. When you need no-live-LLM quality validation, run against an
+oracle/reference target or use frozen transcript/replay fixtures so graders see
+real candidate output.

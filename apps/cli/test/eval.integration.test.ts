@@ -883,6 +883,39 @@ describe('agentv eval CLI', () => {
     expect(helpText).toContain('summary.json');
   }, 30_000);
 
+  it('omits removed eval dry-run flags from help', async () => {
+    const result = await execa('bun', ['--no-env-file', CLI_ENTRY, 'eval', 'run', '--help'], {
+      cwd: projectRoot,
+      env: { ...process.env, CI: 'true' },
+      reject: false,
+    });
+    const helpText = `${result.stdout}\n${result.stderr}`;
+    expect(helpText).not.toContain('--dry-run');
+    expect(helpText).not.toContain('--dry-run-delay');
+    expect(helpText).not.toContain('--dry-run-delay-min');
+    expect(helpText).not.toContain('--dry-run-delay-max');
+    expect(helpText).toContain('--transcript');
+    expect(helpText).toContain('--record-replay');
+  }, 30_000);
+
+  it('keeps non-eval dry-run flags available', async () => {
+    const commands = [
+      ['results', 'export', '--help'],
+      ['import', 'promptfoo', '--help'],
+      ['runs', 'rerun', '--help'],
+    ] as const;
+
+    for (const args of commands) {
+      const result = await execa('bun', ['--no-env-file', CLI_ENTRY, ...args], {
+        cwd: projectRoot,
+        env: { ...process.env, CI: 'true' },
+        reject: false,
+      });
+      const helpText = `${result.stdout}\n${result.stderr}`;
+      expect(helpText).toContain('--dry-run');
+    }
+  }, 30_000);
+
   it('rejects the removed benchmark JSON export flag as an unknown argument', async () => {
     const fixture = await createFixture();
     try {
@@ -899,6 +932,28 @@ describe('agentv eval CLI', () => {
       expect(output).toContain('--benchmark-json');
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('rejects removed eval dry-run flags as unknown arguments', async () => {
+    const cases = [
+      ['--dry-run'],
+      ['--dry-run-delay', '10'],
+      ['--dry-run-delay-min', '5'],
+      ['--dry-run-delay-max', '20'],
+    ] as const;
+
+    for (const args of cases) {
+      const fixture = await createFixture();
+      try {
+        const result = await runCli(fixture, ['eval', fixture.testFilePath, ...args]);
+        expect(result.exitCode).not.toBe(0);
+        const output = `${result.stdout}\n${result.stderr}`;
+        expect(output).toContain('Unknown arguments');
+        expect(output).toContain(args[0]);
+      } finally {
+        await rm(fixture.baseDir, { recursive: true, force: true });
+      }
     }
   }, 30_000);
 });

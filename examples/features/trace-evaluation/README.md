@@ -32,8 +32,8 @@ interface TraceSummary {
 ## Running
 
 ```bash
-# From the repository root (dry-run mode for testing without a live agent)
-bun agentv eval examples/features/trace-evaluation/evals/dataset.eval.yaml --dry-run
+# From the repository root
+bun agentv validate examples/features/trace-evaluation/evals/dataset.eval.yaml
 ```
 
 ## Patterns
