@@ -1,0 +1,57 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-7a9d6c497f4e11f53433",
+  "generated_at": "2026-06-28T09:39:40.037Z",
+  "test_id": "hello-from-repeat-three",
+  "target": "mock-sdk",
+  "suite": "repeat-three-display",
+  "category": "../../../../../tmp",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-7a9d6c497f4e11f53433",
+    "trace_id": "c7be0c3b8d1b563e9a909afa8abd5ea5",
+    "root_span_id": "e670d6714d4f3bd2"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.jsonl",
+    "grading_path": "grading.json",
+    "timing_path": "timing.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 26,
+    "transcript_chars": 616,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 0,
+    "total_duration_seconds": 0,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 0,
+      "output": 0,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "unavailable",
+      "total_tokens": "unavailable",
+      "duration": "aggregate",
+      "cost": "unavailable"
+    }
+  }
+}

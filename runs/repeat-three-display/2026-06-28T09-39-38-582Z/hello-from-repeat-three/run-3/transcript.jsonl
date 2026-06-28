@@ -1,0 +1,2 @@
+{"v":1,"agent":"mock","type":"user","content":[{"type":"text","text":"Say hello from a repeat run."}]}
+{"v":1,"agent":"mock","type":"assistant","content":[{"type":"text","text":"Hello from the mock target"}]}

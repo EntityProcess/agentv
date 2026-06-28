@@ -1,0 +1,14 @@
+execution:
+  target: mock-sdk
+tests:
+  - id: hello-from-repeat-three
+    input: Say hello from a repeat run.
+    expected_output: Hello from the mock target
+    assertions:
+      - name: mentions-hello
+        type: contains
+        value: Hello
+      - name: mentions-mock-target
+        type: regex
+        value: mock target
+        flags: i

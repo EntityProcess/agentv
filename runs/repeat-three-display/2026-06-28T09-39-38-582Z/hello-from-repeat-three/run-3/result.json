@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "duration_ms": 1,
+  "duration_seconds": 0.001,
+  "model": "mock-sdk",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.jsonl",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "o11y": {
+    "total_turns": 1,
+    "tool_calls": {},
+    "total_tool_calls": 0,
+    "web_fetches": [],
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "output_paths": {
+    "answer": "./outputs/answer.md"
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 1,
+    "total_duration_seconds": 0.001,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 0,
+      "output": 0,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "unavailable",
+      "total_tokens": "unavailable",
+      "duration": "aggregate",
+      "cost": "unavailable"
+    }
+  }
+}

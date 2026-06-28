@@ -1,0 +1,50 @@
+{
+  "assertions": [
+    {
+      "text": "Output contains \"Hello\"",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "Output matches pattern /mock target/i (flags: i)",
+      "passed": true,
+      "evidence": ""
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "total": 2,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "mentions-hello",
+      "type": "contains",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertions": [
+        {
+          "text": "Output contains \"Hello\"",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "mentions-mock-target",
+      "type": "regex",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertions": [
+        {
+          "text": "Output matches pattern /mock target/i (flags: i)",
+          "passed": true
+        }
+      ]
+    }
+  ]
+}
