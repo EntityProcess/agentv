@@ -976,7 +976,6 @@ describe('agentv eval CLI', () => {
   it('keeps non-eval dry-run flags available', async () => {
     const commands = [
       ['results', 'export', '--help'],
-      ['import', 'promptfoo', '--help'],
       ['runs', 'rerun', '--help'],
     ] as const;
 
@@ -989,6 +988,28 @@ describe('agentv eval CLI', () => {
       const helpText = `${result.stdout}\n${result.stderr}`;
       expect(helpText).toContain('--dry-run');
     }
+  }, 30_000);
+
+  it('omits removed promptfoo import command from help', async () => {
+    const helpResult = await execa('bun', ['--no-env-file', CLI_ENTRY, 'import', '--help'], {
+      cwd: projectRoot,
+      env: { ...process.env, CI: 'true' },
+      reject: false,
+    });
+    const helpText = `${helpResult.stdout}\n${helpResult.stderr}`.toLowerCase();
+    expect(helpText).not.toContain('promptfoo');
+    expect(helpText).toContain('claude');
+    expect(helpText).toContain('codex');
+    expect(helpText).toContain('copilot');
+    expect(helpText).toContain('huggingface');
+
+    const removedResult = await execa('bun', ['--no-env-file', CLI_ENTRY, 'import', 'promptfoo'], {
+      cwd: projectRoot,
+      env: { ...process.env, CI: 'true' },
+      reject: false,
+    });
+    expect(removedResult.exitCode).not.toBe(0);
+    expect(`${removedResult.stdout}\n${removedResult.stderr}`.toLowerCase()).toContain('promptfoo');
   }, 30_000);
 
   it('rejects the removed benchmark JSON export flag as an unknown argument', async () => {
