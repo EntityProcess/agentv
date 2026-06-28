@@ -1,0 +1,103 @@
+{
+  "assertions": [
+    {
+      "text": "file modified: agentevals/docs/src/content/docs/specification/evaluators.mdx",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "file modified: agentevals/docs/src/content/docs/specification/eval-format.mdx",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "keyword found: contains",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "keyword found: regex",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "keyword found: is_json",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "keyword found: equals",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "keyword found: required",
+      "passed": true,
+      "evidence": ""
+    },
+    {
+      "text": "keyword found: assert",
+      "passed": true,
+      "evidence": ""
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "total": 8,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "sync-check",
+      "type": "code-grader",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertions": [
+        {
+          "text": "file modified: agentevals/docs/src/content/docs/specification/evaluators.mdx",
+          "passed": true
+        },
+        {
+          "text": "file modified: agentevals/docs/src/content/docs/specification/eval-format.mdx",
+          "passed": true
+        },
+        {
+          "text": "keyword found: contains",
+          "passed": true
+        },
+        {
+          "text": "keyword found: regex",
+          "passed": true
+        },
+        {
+          "text": "keyword found: is_json",
+          "passed": true
+        },
+        {
+          "text": "keyword found: equals",
+          "passed": true
+        },
+        {
+          "text": "keyword found: required",
+          "passed": true
+        },
+        {
+          "text": "keyword found: assert",
+          "passed": true
+        }
+      ],
+      "details": {
+        "files_checked": 2,
+        "keywords_checked": 6
+      }
+    }
+  ],
+  "workspace_changes": {
+    "files_modified": 2,
+    "files_created": 0,
+    "diff_summary": "Submodule agentevals contains modified content\ndiff --git a/agentevals/docs/src/content/docs/specification/eval-format.mdx b/agentevals/docs/src/content/docs/specification/eval-format.mdx\nindex 9aef9a0..f1db261 100644\n--- a/agentevals/docs/src/content/docs/specification/eval-format.mdx\n+++ b/agentevals/docs/src/content/docs/specification/eval-format.mdx\n@@ -266,3 +266,7 @@ npx ajv validate -s eval.schema.json -d EVAL.yaml\n - [Test Schema](/specification/evalcase-schema/) - Individual test structure\n - [Evaluators](/specification/evaluators/) - Evaluator configuration\n - [Organization](/specification/organization/) - File organization patterns\n+\n+### Required Gates\n+\n+Use `required: true` when an assertion must pass for the overall test to pass.\ndiff --git a/agentevals/docs/src/content/docs/specification/evaluators.mdx b/agentevals/docs/src/content/docs/specification/evaluators.mdx\nindex e1a4bc4..9b04d78 100644\n--- a/agentevals/docs/src/content/docs/specification/evaluators.mdx\n+++ b/agentevals/docs/src/content/docs/specification/evaluators.mdx\n@@ -187,3 +187,10 @@ rubrics:\n - [Code Judge](/evaluators/code-judge/) - Custom script evaluation\n - [LLM Judge](/evaluators/llm-judge/) - Semantic evaluation\n... (8 more lines)"
+  }
+}

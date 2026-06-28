@@ -1,0 +1,4 @@
+targets:
+  - name: mock_agent
+    provider: cli
+    command: bash mock-agent.sh {PROMPT} {OUTPUT_FILE}

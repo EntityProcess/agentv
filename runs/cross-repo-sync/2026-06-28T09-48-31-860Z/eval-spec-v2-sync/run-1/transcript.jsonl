@@ -1,0 +1,2 @@
+{"v":1,"agent":"cli","type":"user","content":[{"type":"text","text":"agentv just merged eval spec v2 (PR #262). Update the agentevals\nspec docs to reflect: 4 new deterministic assert types, required\ngates, assert field at test/suite level, tests-as-string-path."}]}
+{"v":1,"agent":"cli","type":"assistant","content":[{"type":"text","text":"Updated evaluators and eval-format for eval spec v2 assert types and required gates\n"}]}
