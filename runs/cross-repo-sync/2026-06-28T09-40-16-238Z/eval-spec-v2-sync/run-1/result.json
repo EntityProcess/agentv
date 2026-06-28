@@ -1,0 +1,49 @@
+{
+  "status": "error",
+  "duration_seconds": 0,
+  "model": "mock_agent",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.jsonl",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "o11y": {
+    "total_turns": 1,
+    "tool_calls": {},
+    "total_tool_calls": 0,
+    "web_fetches": [],
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "errors": [
+      {
+        "message": "before_each script failed: Script failed: node:internal/modules/package_json_reader:314\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'tsx' imported from /home/entity/projects/EntityProcess/agentv/examples/showcase/cross-repo-sync/evals/\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:855:18)\n    at defaultResolve (node:internal/modules/esm/resolve:985:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)\n    at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)\n    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)\n    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:680:36)\n    at TracingChannel.tracePromise (node:diagnostics_channel:350:14)\n    at ModuleLoader.import (node:internal/modules/esm/loader:679:21) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.22.3",
+        "stage": "setup"
+      },
+      {
+        "message": "before_each script failed: Script failed: node:internal/modules/package_json_reader:314\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'tsx' imported from /home/entity/projects/EntityProcess/agentv/examples/showcase/cross-repo-sync/evals/\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:855:18)\n    at defaultResolve (node:internal/modules/esm/resolve:985:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)\n    at ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)\n    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)\n    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:680:36)\n    at TracingChannel.tracePromise (node:diagnostics_channel:350:14)\n    at ModuleLoader.import (node:internal/modules/esm/loader:679:21) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v22.22.3",
+        "event_id": "error"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "output_paths": {
+    "answer": "./outputs/answer.md"
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 0,
+    "total_duration_seconds": 0,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 0,
+      "output": 0,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "unavailable",
+      "total_tokens": "unavailable",
+      "duration": "unavailable",
+      "cost": "unavailable"
+    }
+  }
+}
