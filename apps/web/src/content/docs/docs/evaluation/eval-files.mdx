@@ -25,9 +25,9 @@ experiment format.
 - A **wrapper eval** is eval YAML that imports one or more suites with
   `type: suite` and binds runtime policy in its inline `experiment:` block.
   Wrapper evals can live anywhere in the repo. A wrapper that imports suites
-  with `type: suite` must not define parent workspace fields such as
-  `workspace`, `experiment.workspace`, or legacy `execution.workspace`;
-  imported suites own task environment.
+  with `type: suite` must not define parent `workspace`; imported suites own
+  task environment. Machine-local existing workspace paths belong in CLI flags
+  or `config.local.yaml`, not eval YAML.
 
 For example, a reusable task suite can keep the task contract in one file:
 
@@ -78,11 +78,11 @@ The `experiments/` directory in that example is optional and user-owned. AgentV
 does not infer behavior from the path; the wrapper runs because it is eval YAML
 with an inline `experiment:` block. The wrapper owns runtime policy only. Put
 workspace setup in imported child suites. Parent workspace-affecting fields,
-including `workspace`, `experiment.workspace`, and legacy
-`execution.workspace`, are for parent-owned raw cases, including cases imported
-with `type: tests`. `experiment.workspace` is only a runtime `mode`/`path`
-override; repos, hooks, templates, Docker config, and isolation belong in
-top-level or case-level `workspace`.
+including top-level `workspace`, are for parent-owned raw cases, including
+cases imported with `type: tests`. Runtime workspace path overrides belong in
+CLI flags or `.agentv/config.local.yaml`; repos, hooks, templates, Docker
+config, env checks, and isolation belong in top-level or case-level
+`workspace`.
 
 ## YAML Format
 

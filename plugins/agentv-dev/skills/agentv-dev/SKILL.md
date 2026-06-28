@@ -22,6 +22,7 @@ agentv skills get <skill-name>
 |-------|---------|----------|
 | agentv-bench | `agentv skills get agentv-bench` | Run evals, benchmark agents, optimize against evals, compare targets, autoresearch |
 | agentv-eval-writer | `agentv skills get agentv-eval-writer` | Write, edit, or validate eval YAML files |
+| agentv-eval-migrations | `agentv skills get agentv-eval-migrations` | Migrate eval YAML across breaking schema changes |
 | agentv-eval-review | `agentv skills get agentv-eval-review` | Review, lint, or check eval quality before committing |
 | agentv-governance | `agentv skills get agentv-governance` | Author or lint governance blocks (OWASP, MITRE, EU AI Act, ISO 42001) |
 | agentv-trace-analyst | `agentv skills get agentv-trace-analyst` | Analyze eval traces, find regressions, inspect tool trajectories |

@@ -69,8 +69,9 @@ with a special name.
   suites must not define parent workspace-affecting fields such as `workspace`,
   `experiment.workspace`, or legacy `execution.workspace`; parent workspace
   applies only to parent-owned raw cases, including cases imported with
-  `type: tests`. `experiment.workspace` is only a runtime `mode`/`path`
-  override, not a task workspace definition.
+  `type: tests`. Existing local workspace paths are machine-local bindings
+  supplied through CLI flags or `config.local.yaml`, not eval YAML task
+  workspace definitions.
 
 ### Evidence Summary
 
@@ -151,8 +152,8 @@ Research ambiguity:
   imported suite tests keep their child workspace. A parent eval that imports
   any suite with `type: suite` must not define parent workspace-affecting fields
   such as `workspace`, `experiment.workspace`, or legacy `execution.workspace`.
-  `experiment.workspace` is limited to runtime `mode` and `path`; task
-  workspace setup stays in `workspace`.
+  Existing local workspace paths are machine-local bindings supplied through
+  CLI flags or `config.local.yaml`; task workspace setup stays in `workspace`.
 - R14. Parent workspace applies to parent-owned raw cases only, including raw
   cases imported with `type: tests`. Any future parent workspace
   override/remap for imported suites should require explicit syntax.

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AgentV Config Schema",
-  "description": "Schema for .agentv/config.yaml configuration files",
+  "description": "Schema for .agentv/config.yaml and .agentv/config.local.yaml configuration files",
   "type": "object",
   "properties": {
     "$schema": {
@@ -36,6 +36,16 @@
           "type": "boolean",
           "description": "Always keep temp workspaces after eval (equivalent to --keep-workspaces)",
           "default": false
+        },
+        "workspace_path": {
+          "type": "string",
+          "description": "Machine-local existing workspace directory for eval runs (equivalent to --workspace-path). Only honored in .agentv/config.local.yaml; do not commit local paths.",
+          "examples": ["/home/user/workspaces/my-eval"]
+        },
+        "workspace_mode": {
+          "type": "string",
+          "description": "Machine-local workspace preparation override (equivalent to --workspace-mode). Only honored in .agentv/config.local.yaml. Use static with workspace_path, temp for fresh materialization, or pooled for default shared repo pooling.",
+          "enum": ["pooled", "temp", "static"]
         },
         "otel_file": {
           "type": "string",

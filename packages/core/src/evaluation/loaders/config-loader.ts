@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import {
   AGENTV_CONFIG_FILE_NAME,
+  AGENTV_LOCAL_CONFIG_FILE_NAME,
+  AGENTV_LOCAL_CONFIG_YML_FILE_NAME,
   getLocalConfigPath,
   isPlainConfigObject,
   mergeConfigObjects,
@@ -32,6 +34,8 @@ export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
 export type ExecutionDefaults = {
   readonly verbose?: boolean;
   readonly keep_workspaces?: boolean;
+  readonly workspace_mode?: 'pooled' | 'temp' | 'static';
+  readonly workspace_path?: string;
   readonly otel_file?: string;
   readonly export_otel?: boolean;
   readonly otel_backend?: string;
@@ -139,13 +143,17 @@ async function readConfigObjectFile(
 }
 
 async function readConfigFilePair(configPath: string): Promise<AgentVConfig | null> {
-  const base = await readConfigObjectFile(configPath);
-  const local = await readConfigObjectFile(getLocalConfigPath(configPath));
+  const localConfigPath = getLocalConfigPath(configPath);
+  const base = stripLocalOnlyExecutionDefaults(await readConfigObjectFile(configPath), configPath);
+  const local = stripLocalOnlyExecutionDefaults(
+    await readConfigObjectFile(localConfigPath),
+    localConfigPath,
+  );
   const rawMerged = base && local ? mergeConfigObjects(base, local) : (local ?? base);
   if (!rawMerged) {
     return null;
   }
-  return parseConfigObject(rawMerged, local ? getLocalConfigPath(configPath) : configPath);
+  return parseConfigObject(rawMerged, local ? localConfigPath : configPath);
 }
 
 function parseConfigObject(
@@ -207,6 +215,57 @@ function parseConfigObject(
     logWarning(`Could not parse AgentV config at ${configPath}: ${(error as Error).message}`);
     return null;
   }
+}
+
+function isLocalConfigPath(configPath: string): boolean {
+  const basename = path.basename(configPath);
+  return (
+    basename === AGENTV_LOCAL_CONFIG_FILE_NAME || basename === AGENTV_LOCAL_CONFIG_YML_FILE_NAME
+  );
+}
+
+function stripLocalOnlyExecutionDefaults(
+  rawConfig: Record<string, unknown> | undefined,
+  configPath: string,
+): Record<string, unknown> | undefined {
+  if (!rawConfig || isLocalConfigPath(configPath)) {
+    return rawConfig;
+  }
+
+  const execution = rawConfig.execution;
+  if (!isPlainConfigObject(execution)) {
+    return rawConfig;
+  }
+
+  let stripped = false;
+  if ('workspace_path' in execution) {
+    stripped = true;
+    logWarning(
+      `execution.workspace_path in ${configPath} is machine-local and only supported in config.local.yaml; ignoring.`,
+    );
+  }
+  if ('workspace_mode' in execution) {
+    stripped = true;
+    logWarning(
+      `execution.workspace_mode in ${configPath} is machine-local and only supported in config.local.yaml; ignoring.`,
+    );
+  }
+
+  if (!stripped) {
+    return rawConfig;
+  }
+
+  const nextConfig = { ...rawConfig };
+  const nextExecution = Object.fromEntries(
+    Object.entries(execution).filter(
+      ([key]) => key !== 'workspace_path' && key !== 'workspace_mode',
+    ),
+  );
+  if (Object.keys(nextExecution).length === 0) {
+    return Object.fromEntries(Object.entries(nextConfig).filter(([key]) => key !== 'execution'));
+  }
+  nextConfig.execution = nextExecution;
+  return nextConfig;
 }
 
 function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | undefined {
@@ -527,6 +586,34 @@ export function parseExecutionDefaults(
     result.keep_workspaces = obj.keep_workspaces;
   } else if (obj.keep_workspaces !== undefined) {
     logWarning(`Invalid execution.keep_workspaces in ${configPath}, expected boolean`);
+  }
+
+  const workspaceMode = obj.workspace_mode;
+  if (workspaceMode === 'pooled' || workspaceMode === 'temp' || workspaceMode === 'static') {
+    if (isLocalConfigPath(configPath)) {
+      result.workspace_mode = workspaceMode;
+    } else {
+      logWarning(
+        `execution.workspace_mode in ${configPath} is machine-local and only supported in config.local.yaml; ignoring.`,
+      );
+    }
+  } else if (workspaceMode !== undefined) {
+    logWarning(
+      `Invalid execution.workspace_mode in ${configPath}, expected 'pooled', 'temp', or 'static'`,
+    );
+  }
+
+  const workspacePath = obj.workspace_path;
+  if (typeof workspacePath === 'string' && workspacePath.trim().length > 0) {
+    if (isLocalConfigPath(configPath)) {
+      result.workspace_path = workspacePath.trim();
+    } else {
+      logWarning(
+        `execution.workspace_path in ${configPath} is machine-local and only supported in config.local.yaml; ignoring.`,
+      );
+    }
+  } else if (workspacePath !== undefined) {
+    logWarning(`Invalid execution.workspace_path in ${configPath}, expected non-empty string`);
   }
 
   const otelFile = obj.otel_file;

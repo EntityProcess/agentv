@@ -366,7 +366,7 @@ Use `expected_output` for reference answers and `output` for the actual final an
 
 ## Workspace Access
 
-When `workspace` is configured in the eval YAML (via `workspace.template`, `workspace.path`, or `workspace.repos`), code graders receive the workspace path in two ways:
+When `workspace` is configured in the eval YAML (via `workspace.template`, `workspace.repos`, or lifecycle hooks), code graders receive the prepared workspace path in two ways:
 
 1. **JSON payload**: `workspace_path` field in the stdin input
 2. **Environment variable**: `AGENTV_WORKSPACE_PATH`

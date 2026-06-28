@@ -356,10 +356,6 @@ export type WorkspaceConfig = {
   readonly repos?: readonly RepoConfig[];
   /** Workspace lifecycle hooks */
   readonly hooks?: WorkspaceHooksConfig;
-  /** Workspace materialization mode */
-  readonly mode?: 'pooled' | 'temp' | 'static';
-  /** Required when mode=static: use this existing directory directly */
-  readonly path?: string;
   /** Docker-based workspace: run grader commands inside a container */
   readonly docker?: DockerWorkspaceConfig;
   /** Directory containing the workspace file when workspace is a file reference.

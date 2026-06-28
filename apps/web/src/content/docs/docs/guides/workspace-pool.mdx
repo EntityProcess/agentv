@@ -43,18 +43,15 @@ Pooling is on by default. To disable it:
 agentv eval evals/my-eval.yaml --workspace-mode temp
 ```
 
-### YAML workspace mode
+### Local config
 
 ```yaml
-workspace:
-  mode: temp
-  repos:
-    - path: ./my-repo
-      repo: https://github.com/org/my-repo.git
-      commit: main
+# .agentv/config.local.yaml
+execution:
+  workspace_mode: temp
 ```
 
-`workspace.mode` controls materialization behavior directly (`pooled`, `temp`, or `static`).
+`workspace_mode` is a machine-local runtime override. Do not commit it in eval YAML.
 
 ## Pool reset mode
 
@@ -173,21 +170,25 @@ The path is resolved relative to the eval file's directory. Relative paths **ins
 
 This pattern is especially valuable with pooling: a single `workspace.yaml` guarantees all eval files that reference it produce the same fingerprint and share the same pool.
 
-## Static workspaces (`mode: static`)
+## Existing Local Workspaces
 
-For workspaces you manage outside AgentV, use static mode:
+For workspaces you manage outside AgentV, bind the existing directory at runtime:
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/my-workspace
+agentv eval evals/my-eval.yaml --workspace-path /path/to/my-workspace
 ```
 
-**Auto-materialisation:** When `workspace.path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, AgentV checks each repo individually — existing repos are reused as-is, and only missing repos are cloned. This makes static mode convenient for both first-run bootstrap and incremental setup.
+Or persist the machine-local binding outside committed eval YAML:
 
-AgentV never deletes a user-provided workspace. Lifecycle hooks still execute (unless `hooks.enabled: false`). This is useful for local development where you already have repos checked out.
+```yaml
+# .agentv/config.local.yaml
+execution:
+  workspace_path: /path/to/my-workspace
+```
 
-**Note:** When using `--workspace-path` (CLI flag) instead of `workspace.path` (YAML), the directory is always used as-is with no auto-materialisation or repo cloning.
+AgentV uses a runtime workspace path as-is. It does not auto-materialize repos into that directory; keep repo materialization intent in `workspace.repos[]` for portable runs, and use `workspace_path` only when the local directory already exists.
 
-**Precedence:** `workspace.mode` / `--workspace-mode` first, then default pooled behavior for shared repo workspaces.
+**Precedence:** CLI flags override project-local `.agentv/config.local.yaml`, which overrides committed `.agentv/config.yaml`.
 
 ## Interaction with keep/cleanup flags
 
@@ -195,20 +196,20 @@ CLI flags `--retain-on-success` / `--retain-on-failure` control temporary eval-r
 
 - In pooled mode, pool slots are retained for reuse regardless of retention settings.
 - Retention settings do not remove pool entries; use `agentv workspace clean` for pool cleanup.
-- With `mode: static`, AgentV never deletes the user-provided directory.
+- With `--workspace-path` or `execution.workspace_path`, AgentV never deletes the user-provided directory.
 
 ## Comparison of workspace modes
 
 | Mode | Setup cost | Persistent | Build artifacts preserved | Concurrent workers |
 |------|-----------|-----------|--------------------------|-------------------|
 | **Pooled** (default) | First run only; reset on reuse | Yes | Yes (`.gitignore`d files) | Yes (slot per worker) |
-| **Temp** (`mode: temp`) | Full clone + checkout every run | No | No | Sequential only |
-| **Static** (`mode: static`) | Per-repo: clones only missing repos; auto-materialises if empty | Yes | User-managed | Sequential only |
+| **Temp** (`--workspace-mode temp`) | Full clone + checkout every run | No | No | Sequential only |
+| **Existing path** (`--workspace-path` / `execution.workspace_path`) | Uses the supplied directory as-is | Yes | User-managed | Sequential only |
 
 ## When to disable pooling
 
 **Pooling is typically the right default.** Consider disabling it when:
 - You need guaranteed clean-slate isolation between runs
 - You're debugging workspace setup issues and want fresh clones each time
-- You use `mode: static` with a pre-existing or auto-materialised directory (pooling is automatically skipped)
+- You use `--workspace-path` with a pre-existing local directory (pooling is automatically skipped)
 - You need `isolation: per_case` (each test gets its own workspace copy; pooling is automatically skipped)

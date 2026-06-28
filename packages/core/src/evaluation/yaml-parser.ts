@@ -332,8 +332,6 @@ export type EvalSuiteResult = {
   readonly threshold?: number;
   /** Top-level runtime block from `experiment:` or legacy `execution:`. */
   readonly experimentConfig?: ExperimentConfig;
-  /** Resolved workspace.path from the eval YAML (after env-var expansion), if set */
-  readonly workspacePath?: string;
   /** Inline target definition from a TS eval config. */
   readonly inlineTarget?: import('./providers/types.js').TargetDefinition;
   /** Custom provider factory from a TS eval config task(). */
@@ -360,12 +358,8 @@ export async function loadTestSuite(
     const { loadTsEvalSuite } = await import('./loaders/ts-eval-loader.js');
     return loadTsEvalSuite(evalFilePath, resolveToAbsolutePath(repoRoot), options);
   }
-  const { tests, parsed, suiteWorkspacePath } = await loadTestsFromYaml(
-    evalFilePath,
-    repoRoot,
-    options,
-  );
-  return buildEvalSuiteResult(parsed, tests, suiteWorkspacePath);
+  const { tests, parsed } = await loadTestsFromYaml(evalFilePath, repoRoot, options);
+  return buildEvalSuiteResult(parsed, tests);
 }
 
 /** @deprecated Use `loadTestSuite` instead */
@@ -377,14 +371,14 @@ export async function loadTestSuiteFromYamlObject(
   repoRoot: URL | string,
   options?: LoadOptions,
 ): Promise<EvalSuiteResult> {
-  const { tests, parsed, suiteWorkspacePath } = await loadTestsFromParsedYamlValue(
+  const { tests, parsed } = await loadTestsFromParsedYamlValue(
     suiteObject,
     evalFilePath,
     repoRoot,
     options,
   );
 
-  return buildEvalSuiteResult(parsed, tests, suiteWorkspacePath);
+  return buildEvalSuiteResult(parsed, tests);
 }
 
 export async function loadTests(
@@ -416,7 +410,7 @@ async function loadTestsFromYaml(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject; suiteWorkspacePath?: string }> {
+): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject }> {
   const absoluteTestPath = path.resolve(evalFilePath);
   const currentImport: SuiteImportStackEntry = {
     identity: await canonicalEvalFileIdentity(absoluteTestPath),
@@ -441,7 +435,7 @@ async function loadTestsFromParsedYamlValue(
   evalFilePath: string,
   repoRoot: URL | string,
   options?: LoadOptions,
-): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject; suiteWorkspacePath?: string }> {
+): Promise<{ tests: readonly EvalTest[]; parsed: JsonObject }> {
   const verbose = options?.verbose ?? false;
   const filterPattern = options?.filter;
   const absoluteTestPath = path.resolve(evalFilePath);
@@ -557,6 +551,11 @@ async function loadTestsFromParsedYamlValue(
 
     // Extract per-case execution config early (reused below for skip_defaults)
     const caseExecution = isJsonObject(renderedCase.execution) ? renderedCase.execution : undefined;
+    if (caseExecution?.workspace !== undefined) {
+      throw new Error(
+        `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
+      );
+    }
     const skipDefaults = caseExecution?.skip_defaults === true;
     const caseThreshold =
       typeof caseExecution?.threshold === 'number' &&
@@ -823,15 +822,10 @@ async function loadTestsFromParsedYamlValue(
   return {
     tests: [...importedSuiteTests, ...results],
     parsed: suite,
-    suiteWorkspacePath: suiteWorkspace?.path,
   };
 }
 
-function buildEvalSuiteResult(
-  parsed: JsonObject,
-  tests: readonly EvalTest[],
-  suiteWorkspacePath?: string,
-): EvalSuiteResult {
+function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): EvalSuiteResult {
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
@@ -848,7 +842,6 @@ function buildEvalSuiteResult(
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
     ...(experimentConfig !== undefined && { experimentConfig }),
-    ...(suiteWorkspacePath !== undefined && { workspacePath: suiteWorkspacePath }),
   };
 }
 
@@ -1725,14 +1718,28 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const obj = raw as Record<string, unknown>;
   if ('static_path' in obj) {
     throw new Error(
-      'workspace.static_path has been removed. Use workspace.path with workspace.mode=static.',
+      'workspace.static_path has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
     );
   }
   if ('pool' in obj) {
-    throw new Error("workspace.pool has been removed. Use workspace.mode='pooled' or 'temp'.");
+    throw new Error(
+      'workspace.pool has been removed from eval YAML. Shared repo workspaces are pooled by default; use --workspace-mode or config.local.yaml execution.workspace_mode for machine-local runtime overrides.',
+    );
   }
   if ('static' in obj) {
-    throw new Error("workspace.static has been removed. Use workspace.mode='static'.");
+    throw new Error(
+      'workspace.static has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+    );
+  }
+  if ('mode' in obj) {
+    throw new Error(
+      'workspace.mode has been removed from eval YAML. Use workspace.isolation: shared|per_case for folder isolation; use --workspace-mode or config.local.yaml execution.workspace_mode only for machine-local runtime overrides.',
+    );
+  }
+  if ('path' in obj) {
+    throw new Error(
+      'workspace.path has been removed from eval YAML. Put existing workspace paths in .agentv/config.local.yaml execution.workspace_path or pass --workspace-path.',
+    );
   }
 
   let template = typeof obj.template === 'string' ? obj.template : undefined;
@@ -1753,24 +1760,17 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     : undefined;
 
   const hooks = parseWorkspaceHooksConfig(obj.hooks, evalFileDir);
-  const explicitMode =
-    obj.mode === 'pooled' || obj.mode === 'temp' || obj.mode === 'static' ? obj.mode : undefined;
-  const workspacePath = typeof obj.path === 'string' ? obj.path : undefined;
-  const mode = explicitMode ?? (workspacePath ? 'static' : undefined);
 
   const docker = parseDockerWorkspaceConfig(obj.docker);
   const env = parseWorkspaceEnvConfig(obj.env);
 
-  if (!template && !isolation && !repos && !hooks && !mode && !workspacePath && !docker && !env)
-    return undefined;
+  if (!template && !isolation && !repos && !hooks && !docker && !env) return undefined;
 
   return {
     ...(template !== undefined && { template }),
     ...(isolation !== undefined && { isolation }),
     ...(repos !== undefined && { repos }),
     ...(hooks !== undefined && { hooks }),
-    ...(mode !== undefined && { mode }),
-    ...(workspacePath !== undefined && { path: workspacePath }),
     ...(docker !== undefined && { docker }),
     ...(env !== undefined && { env }),
   };
@@ -1850,8 +1850,6 @@ function mergeWorkspaceConfigs(
     isolation: caseLevel.isolation ?? suiteLevel.isolation,
     repos: caseLevel.repos ?? suiteLevel.repos,
     ...(hasHooks && { hooks: mergedHooks as WorkspaceHooksConfig }),
-    mode: caseLevel.mode ?? suiteLevel.mode,
-    path: caseLevel.path ?? suiteLevel.path,
     docker: caseLevel.docker ?? suiteLevel.docker,
     env: caseLevel.env ?? suiteLevel.env,
     workspaceFileDir: caseLevel.workspaceFileDir ?? suiteLevel.workspaceFileDir,

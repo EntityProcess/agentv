@@ -33,11 +33,6 @@ export type ExperimentRepeat = {
   readonly costLimitUsd?: number;
 };
 
-export type ExperimentWorkspaceConfig = {
-  readonly mode?: 'pooled' | 'temp' | 'static';
-  readonly path?: string;
-};
-
 export type ExperimentConfigWire = {
   readonly name?: string;
   readonly agent?: string;
@@ -53,7 +48,7 @@ export type ExperimentConfigWire = {
   readonly threshold?: number;
   readonly budget_usd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: ExperimentWorkspaceConfig;
+  readonly workspace?: never;
 };
 
 export type ExperimentConfig = {
@@ -71,7 +66,6 @@ export type ExperimentConfig = {
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly sandbox?: ExperimentSandbox;
-  readonly workspace?: ExperimentWorkspaceConfig;
   readonly fingerprint?: string;
 };
 
@@ -142,7 +136,7 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     'budget_usd',
   );
   const sandbox = readOptionalSandbox(rawConfig.sandbox);
-  const workspace = readOptionalWorkspace(rawConfig.workspace);
+  rejectExperimentWorkspace(rawConfig.workspace);
 
   const configWithoutFingerprint: Omit<ExperimentConfig, 'fingerprint'> = {
     ...(name !== undefined && { name }),
@@ -159,7 +153,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     ...(threshold !== undefined && { threshold }),
     ...(budgetUsd !== undefined && { budgetUsd }),
     ...(sandbox !== undefined && { sandbox }),
-    ...(workspace !== undefined && { workspace }),
   };
 
   return {
@@ -396,34 +389,13 @@ function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {
   return raw;
 }
 
-function readOptionalWorkspace(raw: unknown): ExperimentWorkspaceConfig | undefined {
-  const workspace = readOptionalRecord(raw);
-  if (workspace === undefined) {
-    return undefined;
+function rejectExperimentWorkspace(raw: unknown): void {
+  if (raw === undefined) {
+    return;
   }
-
-  for (const key of Object.keys(workspace)) {
-    if (key !== 'mode' && key !== 'path') {
-      throw new Error(
-        `Experiment workspace.${key} is not supported. Experiment workspace supports only mode and path; put task setup in top-level workspace.`,
-      );
-    }
-  }
-
-  const mode = workspace.mode;
-  if (mode !== undefined && mode !== 'pooled' && mode !== 'temp' && mode !== 'static') {
-    throw new Error("Experiment workspace.mode must be 'pooled', 'temp', or 'static'.");
-  }
-
-  const path = workspace.path;
-  if (path !== undefined && (typeof path !== 'string' || path.trim().length === 0)) {
-    throw new Error('Experiment workspace.path must be a non-empty string.');
-  }
-
-  return {
-    ...(mode !== undefined && { mode }),
-    ...(path !== undefined && { path: path.trim() }),
-  };
+  throw new Error(
+    'Experiment workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in top-level workspace.',
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -292,8 +292,7 @@ async function prepareAttempt(options: {
     evalCases: suite.tests,
     testId: options.testId,
     verbose: false,
-    ...(test.workspace?.path === undefined &&
-      test.workspace?.mode !== 'static' && { workspaceMode: 'temp' }),
+    workspaceMode: 'temp',
     retainOnSuccess: 'keep',
     retainOnFailure: 'keep',
   });

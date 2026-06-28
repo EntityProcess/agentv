@@ -13,7 +13,7 @@
 
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -208,8 +208,6 @@ function workspaceNeedsSharedSetup(
     return false;
   }
   return !!(
-    workspace.path ||
-    workspace.mode === 'static' ||
     workspace.template ||
     workspace.hooks ||
     workspace.repos?.length ||
@@ -421,21 +419,24 @@ export async function prepareSharedWorkspaceSetup(
 
   const cliWorkspacePath = workspacePath ?? legacyWorkspacePath;
   const sharedWorkspaceAppliesToAllCases = !!cliWorkspacePath;
-  const yamlWorkspacePath = suiteWorkspace?.path;
   if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode static when both are provided');
   }
   let configuredMode: WorkspaceSetupMode = cliWorkspacePath
     ? 'static'
-    : (workspaceMode ?? suiteWorkspace?.mode ?? (yamlWorkspacePath ? 'static' : 'pooled'));
-  const configuredStaticPath = cliWorkspacePath ?? yamlWorkspacePath;
+    : (workspaceMode ?? 'pooled');
+  const configuredStaticPath = cliWorkspacePath;
 
   if (configuredMode === 'static' && !configuredStaticPath) {
     if (!suiteWorkspace?.repos?.length) {
-      setupLog('workspace.mode=static with no path and no repos — falling back to temp mode');
+      setupLog(
+        'runtime workspaceMode=static with no path and no repos — falling back to temp mode',
+      );
       configuredMode = 'temp';
     } else {
-      throw new Error('workspace.mode=static requires workspace.path or --workspace-path');
+      throw new Error(
+        'runtime workspaceMode=static requires --workspace-path or execution.workspace_path in config.local.yaml',
+      );
     }
   }
 
@@ -446,10 +447,6 @@ export async function prepareSharedWorkspaceSetup(
       'static workspace mode is incompatible with isolation: per_case. Use isolation: shared (default).',
     );
   }
-  if (configuredMode !== 'static' && configuredStaticPath) {
-    throw new Error('workspace.path requires workspace.mode=static');
-  }
-
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
     (!isPerCaseWorkspace &&
@@ -493,31 +490,11 @@ export async function prepareSharedWorkspaceSetup(
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
 
   const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
-  let staticMaterialised = false;
-  const isYamlConfiguredPath = !cliWorkspacePath && !!yamlWorkspacePath;
   let repoManager: RepoManager | undefined;
 
   try {
     if (useStaticWorkspace && configuredStaticPath) {
-      const dirExists = await stat(configuredStaticPath).then(
-        (s) => s.isDirectory(),
-        () => false,
-      );
-      const isEmpty = dirExists ? (await readdir(configuredStaticPath)).length === 0 : false;
-
-      if (isYamlConfiguredPath && (!dirExists || isEmpty)) {
-        if (!dirExists) {
-          await mkdir(configuredStaticPath, { recursive: true });
-        }
-        if (workspaceTemplate) {
-          await copyDirectoryRecursive(workspaceTemplate, configuredStaticPath);
-          setupLog(`copied template into static workspace: ${configuredStaticPath}`);
-        }
-        staticMaterialised = true;
-        setupLog(`materialised static workspace at: ${configuredStaticPath}`);
-      } else {
-        setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
-      }
+      setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
       sharedWorkspacePath = configuredStaticPath;
     } else if (!isPerCaseWorkspace && usePool && suiteWorkspace?.repos) {
       const slotsNeeded = workers;
@@ -581,40 +558,19 @@ export async function prepareSharedWorkspaceSetup(
 
     const hasReposToMaterialize =
       !!suiteWorkspace?.repos?.length && !usePool && !isPerCaseWorkspace;
-    const needsRepoMaterialisation =
-      hasReposToMaterialize && (!useStaticWorkspace || staticMaterialised);
-    const needsPerRepoCheck =
-      hasReposToMaterialize && useStaticWorkspace && !staticMaterialised && isYamlConfiguredPath;
+    const needsRepoMaterialisation = hasReposToMaterialize && !useStaticWorkspace;
     repoManager =
       repoManager ??
-      (needsRepoMaterialisation || needsPerRepoCheck
+      (needsRepoMaterialisation
         ? new RepoManager(verbose, { projectConfigDir: evalDir })
         : undefined);
 
-    if (
-      (needsRepoMaterialisation || needsPerRepoCheck) &&
-      repoManager &&
-      sharedWorkspacePath &&
-      suiteWorkspace?.repos
-    ) {
+    if (needsRepoMaterialisation && repoManager && sharedWorkspacePath && suiteWorkspace?.repos) {
       try {
-        if (needsPerRepoCheck) {
-          for (const repo of suiteWorkspace.repos) {
-            if (!repo.path || !repo.repo) continue;
-            const targetDir = path.join(sharedWorkspacePath, repo.path);
-            if (existsSync(targetDir)) {
-              setupLog(`reusing existing repo at: ${targetDir}`);
-              continue;
-            }
-            setupLog(`materializing missing repo: ${repo.path}`);
-            await repoManager.materialize(repo, sharedWorkspacePath);
-          }
-        } else {
-          setupLog(
-            `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
-          );
-          await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
-        }
+        setupLog(
+          `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
+        );
+        await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
         setupLog('shared repo materialization complete');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

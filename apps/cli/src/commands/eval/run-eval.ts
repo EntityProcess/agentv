@@ -439,17 +439,22 @@ function normalizeOptions(
   const cliOut = normalizeString(rawOptions.out);
   const configOutputDir = normalizeString(config?.output?.dir);
   const cliWorkspacePath = normalizeString(rawOptions.workspacePath);
+  const configWorkspacePath = normalizeString(yamlExecution?.workspace_path);
   const cliWorkspaceModeRaw = normalizeString(rawOptions.workspaceMode);
   const cliWorkspaceMode = normalizeWorkspaceMode(rawOptions.workspaceMode);
   if (cliWorkspacePath && cliWorkspaceModeRaw && cliWorkspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode=static (or omit --workspace-mode)');
   }
-
-  const yamlExecutionRecord = yamlExecution as Record<string, unknown> | undefined;
-  const yamlWorkspaceMode = normalizeWorkspaceMode(yamlExecutionRecord?.workspace_mode);
-  const yamlWorkspacePath = normalizeString(yamlExecutionRecord?.workspace_path);
-  const workspacePath = cliWorkspacePath ?? yamlWorkspacePath;
-  const workspaceMode = cliWorkspacePath ? 'static' : (cliWorkspaceMode ?? yamlWorkspaceMode);
+  const configWorkspaceMode = normalizeWorkspaceMode(yamlExecution?.workspace_mode);
+  if (configWorkspacePath && configWorkspaceMode && configWorkspaceMode !== 'static') {
+    throw new Error(
+      'execution.workspace_path requires execution.workspace_mode: static when both are provided',
+    );
+  }
+  const useConfigWorkspacePath = cliWorkspaceMode === undefined || cliWorkspaceMode === 'static';
+  const workspacePath =
+    cliWorkspacePath ?? (useConfigWorkspacePath ? configWorkspacePath : undefined);
+  const workspaceMode = workspacePath ? 'static' : (cliWorkspaceMode ?? configWorkspaceMode);
   const resultsRepo = normalizeString(rawOptions.resultsRepo);
   const resultsPush = normalizeBoolean(rawOptions.resultsPush);
   const resultsNoPush = normalizeBoolean(rawOptions.noResultsPush);
@@ -776,17 +781,14 @@ function applyExperimentOptions(
           ? [experimentTarget]
           : options.cliTargets;
 
-  const workspaceMode =
-    options.workspaceMode ?? readExperimentWorkspaceMode(experiment.workspace?.mode);
-  const workspacePath = options.workspacePath ?? readExperimentWorkspacePath(experiment.workspace);
   return {
     ...options,
     target: options.target ?? (nextCliTargets.length === 1 ? nextCliTargets[0] : undefined),
     cliTargets: nextCliTargets,
     agentTimeoutSeconds: options.agentTimeoutSeconds ?? experiment.timeoutSeconds,
     workers: options.workers ?? experiment.workers,
-    workspaceMode: workspacePath ? 'static' : workspaceMode,
-    workspacePath,
+    workspaceMode: options.workspaceMode,
+    workspacePath: options.workspacePath,
     budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
     threshold: options.threshold ?? experiment.threshold,
     experimentConfig: experiment,
@@ -921,17 +923,6 @@ function groupTestsByRunPolicy(params: {
     }
   }
   return [...groups.values()];
-}
-
-function readExperimentWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
-  return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
-}
-
-function readExperimentWorkspacePath(
-  workspace: Record<string, unknown> | undefined,
-): string | undefined {
-  const value = workspace?.path;
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function matchesTestFilter(id: string, filter: string | readonly string[]): boolean {

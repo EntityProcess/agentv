@@ -703,15 +703,8 @@ function serializeWorkspace(
   workspace: WorkspaceConfig,
   rewrites: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
-  const {
-    workspaceFileDir: _workspaceFileDir,
-    path: _path,
-    mode,
-    ...portableWorkspace
-  } = workspace;
-  const withoutStaticMode =
-    mode === 'static' ? portableWorkspace : { ...portableWorkspace, ...(mode ? { mode } : {}) };
-  return rewritePathsDeep(withoutStaticMode, rewrites) as Record<string, unknown>;
+  const { workspaceFileDir: _workspaceFileDir, ...portableWorkspace } = workspace;
+  return rewritePathsDeep(portableWorkspace, rewrites) as Record<string, unknown>;
 }
 
 function buildPortableEvalCase(
@@ -825,12 +818,6 @@ async function collectWorkspaceReferences(
     const workspace = test.workspace;
     if (!workspace) {
       continue;
-    }
-
-    if (workspace.path || workspace.mode === 'static') {
-      errors.push(
-        `workspace.path for test "${test.id}" cannot be bundled because it points at an existing static workspace. Use workspace.template, workspace.repos, or workspace.hooks for portable bundles.`,
-      );
     }
 
     if (workspace.template) {

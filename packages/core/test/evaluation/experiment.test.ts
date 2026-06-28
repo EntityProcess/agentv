@@ -21,7 +21,6 @@ describe('inline experiment config', () => {
       threshold: 0.8,
       budget_usd: 1.25,
       sandbox: 'auto',
-      workspace: { mode: 'static', path: './workspace' },
     });
 
     expect(config).toMatchObject({
@@ -37,7 +36,6 @@ describe('inline experiment config', () => {
       workers: 4,
       budgetUsd: 1.25,
       sandbox: 'auto',
-      workspace: { mode: 'static', path: './workspace' },
     });
     expect(config.fingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -93,11 +91,11 @@ describe('inline experiment config', () => {
       /scripts are not supported/,
     );
     expect(() => normalizeExperimentConfig({ workspace: { isolation: 'per_test' } })).toThrow(
-      /supports only mode and path/,
+      /Experiment workspace has been removed from eval YAML/,
     );
     expect(() =>
       normalizeExperimentConfig({ workspace: { repos: [{ repo: 'acme/support-app' }] } }),
-    ).toThrow(/supports only mode and path/);
+    ).toThrow(/Experiment workspace has been removed from eval YAML/);
   });
 
   it('builds safe snake_case artifact metadata without agent options', () => {

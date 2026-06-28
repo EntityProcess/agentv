@@ -1,5 +1,4 @@
 template: ./workspace-template
-mode: pooled
 hooks:
   after_each:
     reset: fast

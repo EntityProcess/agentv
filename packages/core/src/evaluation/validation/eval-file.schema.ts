@@ -325,8 +325,6 @@ const WorkspaceSchema = z
     isolation: z.enum(['shared', 'per_case']).optional(),
     repos: z.array(RepoSchema).optional(),
     hooks: WorkspaceHooksSchema.optional(),
-    mode: z.enum(['pooled', 'temp', 'static']).optional(),
-    path: z.string().optional(),
     docker: DockerWorkspaceSchema.optional(),
     env: WorkspaceEnvSchema.optional(),
   })
@@ -372,6 +370,7 @@ const ExecutionSchema = z.object({
   fail_on_error: FailOnErrorSchema.optional(),
   failOnError: FailOnErrorSchema.optional(),
   threshold: z.number().min(0).max(1).optional(),
+  workspace: z.never().optional(),
 });
 
 const ExperimentRepeatSchema = z
@@ -389,13 +388,6 @@ const RunOverrideSchema = z
     repeat: ExperimentRepeatSchema.optional(),
     timeout_seconds: z.number().gt(0).optional(),
     budget_usd: z.number().gt(0).optional(),
-  })
-  .strict();
-
-const ExperimentWorkspaceSchema = z
-  .object({
-    mode: z.enum(['pooled', 'temp', 'static']).optional(),
-    path: z.string().min(1).optional(),
   })
   .strict();
 
@@ -422,7 +414,7 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   timeout_seconds: z.number().gt(0).optional(),
   budget_usd: z.number().gt(0).optional(),
   sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
-  workspace: ExperimentWorkspaceSchema.optional(),
+  workspace: z.never().optional(),
   setup: z.never().optional(),
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
   message: 'Use repeat or runs, not both.',
