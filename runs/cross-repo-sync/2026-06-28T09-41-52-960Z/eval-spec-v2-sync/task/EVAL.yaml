@@ -1,0 +1,33 @@
+execution:
+  target: mock_agent
+tests:
+  - id: eval-spec-v2-sync
+    metadata:
+      agentevals_before: 9f8aa3a
+      ground_truth: ../evals/ground-truth/eval-spec-v2.diff
+    criteria: "Update agentevals spec to reflect eval spec v2: add contains/regex/is_json/equals assert types, required gates for all graders, tests-as-string-path."
+    input:
+      - role: user
+        content: |
+          agentv just merged eval spec v2 (PR #262). Update the agentevals
+          spec docs to reflect: 4 new deterministic assert types, required
+          gates, assert field at test/suite level, tests-as-string-path.
+    assertions:
+      - name: sync-check
+        type: code-grader
+        command:
+          - bash
+          - ../scripts/run-ts.sh
+          - ../scripts/validate-sync.ts
+        cwd: undefined
+        config:
+          expected_files_modified:
+            - agentevals/docs/src/content/docs/specification/graders.mdx
+            - agentevals/docs/src/content/docs/specification/eval-format.mdx
+          expected_keywords:
+            - contains
+            - regex
+            - is_json
+            - equals
+            - required
+            - assert
