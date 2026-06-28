@@ -1,8 +1,8 @@
 # Grader Conformance Demo
 # Demonstrates using the keyword-grader grader in a standard AgentV eval.
 #
-# Run: cd examples/showcase/grader-conformance
-#      npx agentv eval EVAL.yaml --dry-run
+# Validate: cd examples/showcase/grader-conformance
+#           npx agentv validate EVAL.yaml
 #
 # The conformance harness validates this grader separately:
 #      bun run conformance-check.ts

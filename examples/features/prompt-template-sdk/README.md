@@ -48,7 +48,7 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 ## Running
 
 ```bash
-bun agentv eval examples/features/prompt-template-sdk/evals/dataset.eval.yaml --dry-run
+bun agentv validate examples/features/prompt-template-sdk/evals/dataset.eval.yaml
 ```
 
 ## File Structure

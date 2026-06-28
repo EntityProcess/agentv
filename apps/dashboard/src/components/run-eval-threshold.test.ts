@@ -32,7 +32,6 @@ describe('buildRunEvalRequest', () => {
         thresholdInput: '',
         studioThreshold: 0.75,
         workers: '',
-        dryRun: false,
       }),
     ).toEqual({
       suite_filter: 'evals/**/*.eval.yaml',
@@ -51,7 +50,6 @@ describe('buildRunEvalRequest', () => {
         thresholdInput: '0.9',
         studioThreshold: 0.75,
         workers: '',
-        dryRun: false,
       }),
     ).toEqual({
       suite_filter: 'evals/**/*.eval.yaml',
@@ -70,7 +68,6 @@ describe('buildRunEvalRequest', () => {
         thresholdInput: '',
         studioThreshold: 0.75,
         workers: '',
-        dryRun: false,
       }),
     ).toEqual({
       suite_filter: 'evals/**/*.eval.yaml',

@@ -11,7 +11,6 @@ export interface LastConfig {
   readonly evalPaths: readonly string[];
   readonly target: string;
   readonly workers: number;
-  readonly dryRun: boolean;
   readonly cache: boolean;
   /**
    * Resolved artifact directory of the last completed wizard run. Used to

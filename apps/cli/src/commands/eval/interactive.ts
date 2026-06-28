@@ -24,7 +24,6 @@ export interface InteractiveConfig {
   readonly evalPaths: readonly string[];
   readonly target: string;
   readonly workers: number;
-  readonly dryRun: boolean;
   readonly cache: boolean;
 }
 
@@ -51,7 +50,6 @@ export async function launchInteractiveWizard(): Promise<void> {
         evalPaths: lastConfig.evalPaths,
         target: lastConfig.target,
         workers: lastConfig.workers,
-        dryRun: lastConfig.dryRun,
         cache: lastConfig.cache,
       },
       { resumeOutputDir: lastConfig.outputDir },
@@ -65,7 +63,6 @@ export async function launchInteractiveWizard(): Promise<void> {
       evalPaths: lastConfig.evalPaths,
       target: lastConfig.target,
       workers: lastConfig.workers,
-      dryRun: lastConfig.dryRun,
       cache: lastConfig.cache,
     });
     return;
@@ -278,7 +275,6 @@ async function findTargetsFile(
 
 async function promptAdvancedOptions(): Promise<{
   workers: number;
-  dryRun: boolean;
   cache: boolean;
 }> {
   const customize = await confirm({
@@ -287,7 +283,7 @@ async function promptAdvancedOptions(): Promise<{
   });
 
   if (!customize) {
-    return { workers: 3, dryRun: false, cache: false };
+    return { workers: 3, cache: false };
   }
 
   const workers =
@@ -298,17 +294,12 @@ async function promptAdvancedOptions(): Promise<{
       max: 50,
     })) ?? 3;
 
-  const dryRun = await confirm({
-    message: 'Enable dry-run mode (mock responses)?',
-    default: false,
-  });
-
   const cache = await confirm({
     message: 'Enable response cache?',
     default: false,
   });
 
-  return { workers, dryRun, cache };
+  return { workers, cache };
 }
 
 async function promptReviewAndConfirm(config: InteractiveConfig, cwd: string): Promise<boolean> {
@@ -324,7 +315,6 @@ async function promptReviewAndConfirm(config: InteractiveConfig, cwd: string): P
   console.log(`${ANSI_GREEN}Eval files:${ANSI_RESET}\n${evalDisplay}`);
   console.log(`${ANSI_GREEN}Target:${ANSI_RESET}    ${config.target}`);
   console.log(`${ANSI_GREEN}Workers:${ANSI_RESET}   ${config.workers}`);
-  console.log(`${ANSI_GREEN}Dry run:${ANSI_RESET}   ${config.dryRun ? 'yes' : 'no'}`);
   console.log(`${ANSI_GREEN}Cache:${ANSI_RESET}     ${config.cache ? 'yes' : 'no'}`);
   console.log(`${ANSI_DIM}${'─'.repeat(40)}${ANSI_RESET}`);
 
@@ -342,12 +332,8 @@ async function executeConfig(
   const rawOptions: Record<string, unknown> = {
     target: config.target,
     workers: config.workers,
-    dryRun: config.dryRun,
     cache: config.cache,
     ...(opts?.resumeOutputDir ? { output: opts.resumeOutputDir, resume: true } : {}),
-    dryRunDelay: 0,
-    dryRunDelayMin: 0,
-    dryRunDelayMax: 0,
     agentTimeout: 120,
     maxRetries: 2,
     verbose: false,
@@ -371,7 +357,6 @@ async function executeConfig(
       evalPaths: config.evalPaths,
       target: config.target,
       workers: config.workers,
-      dryRun: config.dryRun,
       cache: config.cache,
       outputDir: path.dirname(result.outputPath),
     });
@@ -398,13 +383,9 @@ async function promptRetryErrors(config: InteractiveConfig, outputPath: string):
   const rawOptions: Record<string, unknown> = {
     target: config.target,
     workers: config.workers,
-    dryRun: config.dryRun,
     cache: config.cache,
     retryErrors: outputPath,
     out: outputPath,
-    dryRunDelay: 0,
-    dryRunDelayMin: 0,
-    dryRunDelayMax: 0,
     agentTimeout: 120,
     maxRetries: 2,
     verbose: false,

@@ -592,7 +592,7 @@ The threshold also controls JUnit XML pass/fail: tests with scores below the thr
 
 ```bash
 # Run evaluation (requires API keys)
-agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--dry-run] [--threshold <0-1>]
+agentv eval <file.yaml> [--test-id <id>] [--target <name>] [--threshold <0-1>]
 
 # Run with OTLP JSON file (importable by OTel backends)
 agentv eval <file.yaml> --otel-file traces/eval.otlp.json

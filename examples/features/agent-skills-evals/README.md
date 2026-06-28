@@ -11,7 +11,7 @@ agent-skills-evals/
 ├── csv-analyzer.EVAL.yaml           # Universal EVAL.yaml format
 ├── csv-analyzer.evals.json          # Transpiled output from EVAL.yaml
 ├── .agentv/
-│   └── targets.yaml                 # Echo provider for dry-run testing
+│   └── targets.yaml                 # Echo provider for no-live-provider testing
 └── evals/
     └── files/
         └── sales.csv                # Test fixture

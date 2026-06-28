@@ -2,8 +2,8 @@
 # Measures how consistent an agent's outputs are across repeated trials
 # using pairwise cosine similarity (embedding-based or token-overlap fallback).
 #
-# Run:
-#   bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --dry-run
+# Validate:
+#   bun agentv validate examples/features/trial-output-consistency/evals/dataset.eval.yaml
 
 description: Trial output consistency via embedding similarity
 

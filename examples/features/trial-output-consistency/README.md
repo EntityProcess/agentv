@@ -61,11 +61,11 @@ assertions:
 ### Running
 
 ```bash
-# Run all tests (uses token-overlap fallback for demo)
-bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --dry-run
+# Validate the eval file
+bun agentv validate examples/features/trial-output-consistency/evals/dataset.eval.yaml
 
-# Run a specific test
-bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --test-id high-consistency --dry-run
+# Run a specific test with a configured target
+bun agentv eval examples/features/trial-output-consistency/evals/dataset.eval.yaml --test-id high-consistency --target <your-target>
 ```
 
 ## Extending

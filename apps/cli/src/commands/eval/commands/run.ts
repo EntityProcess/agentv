@@ -92,29 +92,6 @@ export const evalRunCommand = command({
       long: 'results-require-push',
       description: 'Fail the eval command if the completed results branch cannot be pushed',
     }),
-    dryRun: flag({
-      long: 'dry-run',
-      description: 'Use mock provider responses instead of real LLM calls',
-    }),
-    dryRunDelay: option({
-      type: number,
-      long: 'dry-run-delay',
-      description:
-        'Fixed delay in milliseconds for dry-run mode (overridden by delay range if specified)',
-      defaultValue: () => 0,
-    }),
-    dryRunDelayMin: option({
-      type: number,
-      long: 'dry-run-delay-min',
-      description: 'Minimum delay in milliseconds for dry-run mode (requires --dry-run-delay-max)',
-      defaultValue: () => 0,
-    }),
-    dryRunDelayMax: option({
-      type: number,
-      long: 'dry-run-delay-max',
-      description: 'Maximum delay in milliseconds for dry-run mode (requires --dry-run-delay-min)',
-      defaultValue: () => 0,
-    }),
     agentTimeout: option({
       type: optional(number),
       long: 'agent-timeout',
@@ -286,10 +263,6 @@ export const evalRunCommand = command({
       resultsPush: args.resultsPush,
       noResultsPush: args.noResultsPush,
       resultsRequirePush: args.resultsRequirePush,
-      dryRun: args.dryRun,
-      dryRunDelay: args.dryRunDelay,
-      dryRunDelayMin: args.dryRunDelayMin,
-      dryRunDelayMax: args.dryRunDelayMax,
       agentTimeout: args.agentTimeout,
       maxRetries: args.maxRetries,
       cache: args.cache,

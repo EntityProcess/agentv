@@ -50,11 +50,11 @@ For latency assertions to work, providers must include `duration_ms` in tool cal
 ## Running the Example
 
 ```bash
-# Dry-run to validate YAML parsing
-npx agentv eval examples/features/latency-assertions/evals/dataset.eval.yaml --dry-run
+# Validate YAML parsing
+npx agentv validate examples/features/latency-assertions/evals/dataset.eval.yaml
 
-# With a real provider that returns duration_ms in tool calls
-npx agentv eval examples/features/latency-assertions/evals/dataset.eval.yaml --target <your-target>
+# With the included mock provider or a real provider that returns duration_ms in tool calls
+npx agentv eval examples/features/latency-assertions/evals/dataset.eval.yaml --target mock_latency_agent
 ```
 
 ## Best Practices

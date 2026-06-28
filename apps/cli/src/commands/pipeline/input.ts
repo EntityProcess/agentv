@@ -106,10 +106,6 @@ export const evalInputCommand = command({
         cwd: evalDir,
         cliTargetName: target,
         explicitTargetsPath: targets,
-        dryRun: false,
-        dryRunDelay: 0,
-        dryRunDelayMin: 0,
-        dryRunDelayMax: 0,
         env: process.env,
       });
 

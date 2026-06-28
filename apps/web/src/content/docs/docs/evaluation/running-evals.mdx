@@ -76,16 +76,23 @@ Run a single test by ID:
 agentv eval --test-id case-123 evals/my-eval.yaml
 ```
 
-### Dry Run
+### Validate Without Running
 
-Test the harness flow with mock responses (does not call real providers):
+Use `agentv validate` when you want a cheap schema and config check without
+executing targets or graders:
 
 ```bash
-agentv eval --dry-run evals/my-eval.yaml
+agentv validate evals/my-eval.yaml
 ```
 
 :::note
-Dry-run returns mock responses that don't match grader output schemas. Use it only for testing harness flow, not grader logic.
+Eval execution no longer has a `--dry-run` mock-target mode. That mode produced
+normal quality failures against fake candidate answers, which made cheap
+validation look like a grader or agent result. For no-live-LLM quality
+validation, run the eval against an oracle/reference target or a replayed/frozen
+transcript so graders see real candidate output. Dry-run preview flags on other
+commands, such as `agentv results export --dry-run` and import preview flows,
+are unchanged.
 :::
 
 ### Custom Output Directory
@@ -413,6 +420,11 @@ Check eval files for schema errors without executing:
 ```bash
 agentv validate evals/my-eval.yaml
 ```
+
+Validation catches schema, target-reference, and grader configuration problems.
+It does not produce quality scores. To validate grader quality behavior without
+calling a live agent, use a reference target, imported transcript, or replay
+fixture so AgentV still runs graders against real or frozen candidate output.
 
 ## Run a Single Assertion
 

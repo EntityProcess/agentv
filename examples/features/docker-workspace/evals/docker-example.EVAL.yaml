@@ -19,7 +19,7 @@ workspace:
     cpus: 1
 
 execution:
-  target: dry-run
+  target: mock_agent
   workers: 1
 
 tests:

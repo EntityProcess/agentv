@@ -135,6 +135,11 @@ A few practical notes:
 
 The pattern needs no special config field, no directory convention, and no flag — it's just a second target that happens to know the answer.
 
+Use this pattern instead of eval mock dry-run for grader validation. Mock
+execution was removed because fake candidate answers produced misleading
+quality failures; a reference target gives deterministic output while exercising
+the real grader path.
+
 ## Debugging
 
 When a `cli` target misbehaves:

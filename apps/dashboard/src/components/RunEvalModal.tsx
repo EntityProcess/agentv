@@ -68,7 +68,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   const [threshold, setThreshold] = useState('');
   const [thresholdEdited, setThresholdEdited] = useState(false);
   const [workers, setWorkers] = useState('');
-  const [dryRun, setDryRun] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Run state
@@ -114,7 +113,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
       setThreshold('');
       setThresholdEdited(false);
       setWorkers('');
-      setDryRun(false);
       setShowAdvanced(false);
       setActiveRunId(null);
       setError(null);
@@ -143,10 +141,8 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
       thresholdInput: threshold,
       studioThreshold: studioConfig?.threshold,
       workers,
-      dryRun,
     });
   }, [
-    dryRun,
     experiment,
     studioConfig?.threshold,
     suiteFilter,
@@ -465,17 +461,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
                   placeholder="3"
                   className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
                 />
-              </div>
-              <div className="col-span-2">
-                <label className="flex items-center gap-2 text-sm text-gray-400">
-                  <input
-                    type="checkbox"
-                    checked={dryRun}
-                    onChange={(e) => setDryRun(e.target.checked)}
-                    className="rounded border-gray-600 bg-gray-800"
-                  />
-                  Dry run (mock provider responses)
-                </label>
               </div>
             </div>
           )}

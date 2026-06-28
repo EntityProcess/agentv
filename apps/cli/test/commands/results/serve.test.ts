@@ -4453,6 +4453,21 @@ describe('serve app', () => {
       expect(data.command).toContain('--experiment smoke');
     });
 
+    it('does not emit removed eval dry-run flags from legacy dry_run payloads', async () => {
+      const app = createApp([], tempDir, undefined, undefined, { studioDir });
+      const res = await app.request('/api/eval/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suite_filter: 'examples/demo.eval.yaml',
+          dry_run: true,
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { command: string };
+      expect(data.command).not.toContain('--dry-run');
+    });
+
     it('rejects invalid experiment and tag values', async () => {
       const app = createApp([], tempDir, undefined, undefined, { studioDir });
       const badExperiment = await app.request('/api/eval/preview', {

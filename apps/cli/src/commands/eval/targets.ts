@@ -13,17 +13,6 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RED = '\u001b[31m';
 const ANSI_RESET = '\u001b[0m';
 
-/**
- * Dry-run mock response: satisfies all LLM grader schemas (freeform, rubric, score-range)
- * so that --dry-run works end-to-end including graders without real LLM calls.
- *
- * - freeformEvaluationSchema:    "score" (required), "assertions" (optional)
- * - rubricEvaluationSchema:      "checks" (required), "overall_reasoning" (required)
- * - scoreRangeEvaluationSchema:  "checks" (required), "overall_reasoning" (optional)
- */
-const DRY_RUN_MOCK_RESPONSE =
-  '{"score":1,"assertions":[],"checks":[],"overall_reasoning":"dry-run mock"}';
-
 function isTTY(): boolean {
   return process.stdout.isTTY ?? false;
 }
@@ -108,10 +97,6 @@ export interface TargetSelectionOptions {
   readonly explicitTargetsPath?: string;
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
-  readonly dryRun: boolean;
-  readonly dryRunDelay: number;
-  readonly dryRunDelayMin: number;
-  readonly dryRunDelayMax: number;
   readonly env: NodeJS.ProcessEnv;
 }
 
@@ -133,18 +118,7 @@ function pickTargetName(options: {
 }
 
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
-  const {
-    testFilePath,
-    repoRoot,
-    cwd,
-    explicitTargetsPath,
-    cliTargetName,
-    dryRun,
-    dryRunDelay,
-    dryRunDelayMin,
-    dryRunDelayMax,
-    env,
-  } = options;
+  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, env } = options;
 
   const targetsFilePath = await discoverTargetsFile({
     explicitPath: explicitTargetsPath,
@@ -188,28 +162,6 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
 
   const targetDefinition = resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath);
 
-  if (dryRun) {
-    const mockTarget: ResolvedTarget = {
-      kind: 'mock',
-      name: `${targetDefinition.name}-dry-run`,
-      graderTarget: undefined,
-      config: {
-        response: DRY_RUN_MOCK_RESPONSE,
-        delayMs: dryRunDelay,
-        delayMinMs: dryRunDelayMin,
-        delayMaxMs: dryRunDelayMax,
-      },
-    };
-
-    return {
-      definitions,
-      resolvedTarget: mockTarget,
-      targetName: targetChoice.name,
-      targetSource: targetChoice.source,
-      targetsFilePath,
-    };
-  }
-
   try {
     const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
       emitDeprecationWarnings: false,
@@ -237,19 +189,8 @@ export async function selectMultipleTargets(
     readonly targetRefs?: readonly import('@agentv/core').EvalTargetRef[];
   },
 ): Promise<readonly TargetSelection[]> {
-  const {
-    testFilePath,
-    repoRoot,
-    cwd,
-    explicitTargetsPath,
-    dryRun,
-    dryRunDelay,
-    dryRunDelayMin,
-    dryRunDelayMax,
-    env,
-    targetNames,
-    targetRefs,
-  } = options;
+  const { testFilePath, repoRoot, cwd, explicitTargetsPath, env, targetNames, targetRefs } =
+    options;
 
   // Build a lookup for target hooks from eval target refs
   const hooksMap = new Map<string, import('@agentv/core').TargetHooksConfig>();
@@ -312,43 +253,21 @@ export async function selectMultipleTargets(
     const targetDefinition = resolveUseTarget(name, definitions, env, targetsFilePath);
     const hooks = hooksMap.get(name);
 
-    if (dryRun) {
-      const mockTarget: ResolvedTarget = {
-        kind: 'mock',
-        name: `${targetDefinition.name}-dry-run`,
-        graderTarget: undefined,
-        config: {
-          response: DRY_RUN_MOCK_RESPONSE,
-          delayMs: dryRunDelay,
-          delayMinMs: dryRunDelayMin,
-          delayMaxMs: dryRunDelayMax,
-        },
-      };
+    try {
+      const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
+        emitDeprecationWarnings: false,
+      });
       results.push({
         definitions,
-        resolvedTarget: mockTarget,
+        resolvedTarget,
         targetName: name,
         targetSource: 'cli',
         targetsFilePath,
         ...(hooks && { targetHooks: hooks }),
       });
-    } else {
-      try {
-        const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
-          emitDeprecationWarnings: false,
-        });
-        results.push({
-          definitions,
-          resolvedTarget,
-          targetName: name,
-          targetSource: 'cli',
-          targetsFilePath,
-          ...(hooks && { targetHooks: hooks }),
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to resolve target '${name}': ${message}`);
-      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to resolve target '${name}': ${message}`);
     }
   }
 
