@@ -97,8 +97,9 @@ They should also display `test_id`, `target`, and `variant` when present so
 users can distinguish rows with overlapping test IDs.
 
 `suite` and `name` are display metadata. They may help humans group or label
-results, but they must not drive storage, routing, Dashboard detail selection,
-rerun lookup, import identity, or artifact discovery.
+results, and `suite` may participate in opaque row-id collision avoidance, but
+they must not drive visible storage hierarchy, semantic routing, Dashboard
+detail selection, rerun lookup, import identity, or artifact discovery.
 
 `index.jsonl` is authoritative for all bundle-relative artifact paths. Per-row
 directories are exposed with `result_dir`. Sidecar paths such as `task_dir`,
