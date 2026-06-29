@@ -63,6 +63,7 @@ import {
   getProject,
   loadConfig,
   loadProjectRegistry,
+  normalizeCategoryPath,
   normalizeTraceArtifactToTraceSessionResponse,
   omitExternalTraceMetadataKeys,
   readGitResultArtifact,
@@ -1883,30 +1884,7 @@ async function handleRunCategories(c: C, { searchDir, agentvDir, projectId }: Da
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
-    const categoryMap = new Map<string, { results: EvaluationResult[]; suites: Set<string> }>();
-    for (const r of loaded) {
-      const cat = r.category ?? DEFAULT_CATEGORY;
-      const entry = categoryMap.get(cat) ?? {
-        results: [],
-        suites: new Set<string>(),
-      };
-      entry.results.push(r);
-      entry.suites.add(r.suite ?? r.target ?? 'default');
-      categoryMap.set(cat, entry);
-    }
-    const categories = [...categoryMap.entries()].map(([name, entry]) => {
-      const qualitySummary = summarizeQualityResults(entry.results, pass_threshold);
-      return {
-        name,
-        total: qualitySummary.totalCount,
-        passed: qualitySummary.passedCount,
-        failed: qualitySummary.qualityFailureCount,
-        avg_score: qualitySummary.avgScore,
-        execution_error_count: qualitySummary.executionErrorCount,
-        suite_count: entry.suites.size,
-      };
-    });
-    return c.json({ categories });
+    return c.json(buildCategoryRollups(loaded, pass_threshold));
   } catch {
     return c.json({ error: 'Failed to load categories' }, 500);
   }
@@ -1920,7 +1898,10 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir, projectId }: D
   try {
     const loaded = await loadManifestResultsForMeta(searchDir, meta, projectId);
     const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
-    const filtered = loaded.filter((r) => (r.category ?? DEFAULT_CATEGORY) === category);
+    const selectedCategory = normalizeCategoryPath(category);
+    const filtered = loaded.filter((r) =>
+      isCategoryDescendant(categoryPathFromResult(r), selectedCategory),
+    );
     const suiteMap = new Map<string, EvaluationResult[]>();
     for (const r of filtered) {
       const ds = r.suite ?? r.target ?? 'default';
@@ -1943,6 +1924,120 @@ async function handleCategorySuites(c: C, { searchDir, agentvDir, projectId }: D
   } catch {
     return c.json({ error: 'Failed to load suites' }, 500);
   }
+}
+
+interface CategoryRollupBucket {
+  readonly results: EvaluationResult[];
+  readonly suites: Set<string>;
+  readonly children: Set<string>;
+}
+
+interface CategoryRollupSummary {
+  readonly name: string;
+  readonly label: string;
+  readonly parent?: string;
+  readonly depth: number;
+  readonly total: number;
+  readonly passed: number;
+  readonly failed: number;
+  readonly avg_score: number;
+  readonly execution_error_count: number;
+  readonly suite_count: number;
+  readonly child_count: number;
+  readonly children?: CategoryRollupSummary[];
+}
+
+function categoryPathFromResult(result: EvaluationResult): string {
+  return normalizeCategoryPath(result.category ?? DEFAULT_CATEGORY);
+}
+
+function categoryPrefixes(category: string): string[] {
+  const parts = category.split('/').filter((part) => part.length > 0);
+  if (parts.length === 0) return [DEFAULT_CATEGORY];
+  return parts.map((_, index) => parts.slice(0, index + 1).join('/'));
+}
+
+function categoryParent(category: string): string | undefined {
+  const parts = category.split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : undefined;
+}
+
+function categoryLabel(category: string): string {
+  return category.split('/').at(-1) ?? category;
+}
+
+function isCategoryDescendant(category: string, selectedCategory: string): boolean {
+  return category === selectedCategory || category.startsWith(`${selectedCategory}/`);
+}
+
+function summarizeCategoryBucket(
+  name: string,
+  entry: CategoryRollupBucket,
+  passThreshold: number,
+): CategoryRollupSummary {
+  const qualitySummary = summarizeQualityResults(entry.results, passThreshold);
+  const parent = categoryParent(name);
+  return {
+    name,
+    label: categoryLabel(name),
+    ...(parent && { parent }),
+    depth: name.split('/').filter(Boolean).length - 1,
+    total: qualitySummary.totalCount,
+    passed: qualitySummary.passedCount,
+    failed: qualitySummary.qualityFailureCount,
+    avg_score: qualitySummary.avgScore,
+    execution_error_count: qualitySummary.executionErrorCount,
+    suite_count: entry.suites.size,
+    child_count: entry.children.size,
+  };
+}
+
+function buildCategoryRollups(
+  results: readonly EvaluationResult[],
+  passThreshold: number,
+): { categories: CategoryRollupSummary[]; category_tree: CategoryRollupSummary[] } {
+  const categoryMap = new Map<string, CategoryRollupBucket>();
+  const ensureEntry = (name: string): CategoryRollupBucket => {
+    const existing = categoryMap.get(name);
+    if (existing) return existing;
+    const created = { results: [], suites: new Set<string>(), children: new Set<string>() };
+    categoryMap.set(name, created);
+    return created;
+  };
+
+  for (const result of results) {
+    const category = categoryPathFromResult(result);
+    const suite = result.suite ?? result.target ?? 'default';
+    const prefixes = categoryPrefixes(category);
+    for (const prefix of prefixes) {
+      const entry = ensureEntry(prefix);
+      entry.results.push(result);
+      entry.suites.add(suite);
+    }
+    for (let index = 1; index < prefixes.length; index++) {
+      ensureEntry(prefixes[index - 1]).children.add(prefixes[index]);
+    }
+  }
+
+  const categories = [...categoryMap.entries()]
+    .map(([name, entry]) => summarizeCategoryBucket(name, entry, passThreshold))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const summariesByName = new Map(categories.map((summary) => [summary.name, summary]));
+  const buildTreeNode = (summary: CategoryRollupSummary): CategoryRollupSummary => {
+    const children = [...(categoryMap.get(summary.name)?.children ?? [])]
+      .map((childName) => summariesByName.get(childName))
+      .filter((child): child is CategoryRollupSummary => Boolean(child))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(buildTreeNode);
+    return children.length > 0 ? { ...summary, children } : summary;
+  };
+  const categoryTree = categories
+    .filter((summary) => !summary.parent)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(buildTreeNode);
+
+  return { categories, category_tree: categoryTree };
 }
 
 async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
@@ -2449,7 +2544,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         }
         entry.tests.push({
           test_id: r.testId,
-          ...(r.category && { category: r.category }),
+          ...(r.category && { category: normalizeCategoryPath(r.category) }),
           score: r.score,
           passed,
           execution_status: r.executionStatus,
@@ -2459,7 +2554,7 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         // Per-run accumulation. Dedupe tests within the run by last-wins.
         runTestMap.set(r.testId, {
           test_id: r.testId,
-          ...(r.category && { category: r.category }),
+          ...(r.category && { category: normalizeCategoryPath(r.category) }),
           score: r.score,
           passed,
           execution_status: r.executionStatus,

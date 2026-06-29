@@ -8,6 +8,7 @@
  * metadata field is needed, then filter samples in `buildScoreDistributionModel`.
  */
 
+import { normalizeCategoryPath } from './category-tree';
 import type { CompareResponse, CompareRunEntry, CompareTestResult } from './types';
 
 export const ALL_DISTRIBUTION_FILTER_VALUE = '';
@@ -68,7 +69,9 @@ export function buildScoreDistributionModel(
 ): ScoreDistributionModel {
   const samples = collectScoreSamples(data);
   const experimentOptions = buildExperimentOptions(data, samples);
-  const categoryOptions = buildOptions(samples.flatMap((sample) => sample.category ?? []));
+  const categoryOptions = buildOptions(
+    samples.flatMap((sample) => (sample.category ? categoryPrefixes(sample.category) : [])),
+  );
   const categoryAvailable = categoryOptions.length > 0;
   const hasTimestampedScores = samples.some((sample) => sample.startedAtMs !== undefined);
   const activePeriod =
@@ -79,7 +82,7 @@ export function buildScoreDistributionModel(
 
   const filtered = samples.filter((sample) => {
     if (filters.experiment && sample.experiment !== filters.experiment) return false;
-    if (filters.category && sample.category !== filters.category) return false;
+    if (filters.category && !isCategoryDescendant(sample.category, filters.category)) return false;
     if (windowStartMs !== undefined) {
       return sample.startedAtMs !== undefined && sample.startedAtMs >= windowStartMs;
     }
@@ -174,7 +177,19 @@ function buildBuckets(scores: number[]): ScoreDistributionBucket[] {
 
 function normalizeCategory(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed ? normalizeCategoryPath(trimmed) : undefined;
+}
+
+function categoryPrefixes(category: string): string[] {
+  const parts = category.split('/').filter((part) => part.length > 0);
+  return parts.map((_, index) => parts.slice(0, index + 1).join('/'));
+}
+
+function isCategoryDescendant(category: string | undefined, selectedCategory: string): boolean {
+  return (
+    category !== undefined &&
+    (category === selectedCategory || category.startsWith(`${selectedCategory}/`))
+  );
 }
 
 function parseTimestamp(value: string): number | undefined {

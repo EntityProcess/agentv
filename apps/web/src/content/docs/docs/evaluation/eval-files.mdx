@@ -109,6 +109,7 @@ tests:
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
+| `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `experiment` | Runtime policy (`target`, `targets`, `workers`, `repeat`, `threshold`, `timeout_seconds`, `budget_usd`, etc.) |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `tests` | Array of individual tests, include entries, or a string path to an external file or directory. Tests and include entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
@@ -153,6 +154,13 @@ tests:
     criteria: Identifies denied parties correctly
     input: Screen "Acme Corp" against denied parties list
 ```
+
+When `category` is omitted, AgentV derives it from the eval file path. Generic
+filenames do not add a leaf: `security/eval.yaml` becomes `security`, and
+`security/network/dataset.eval.yaml` becomes `security/network`. A meaningful
+named eval file contributes a leaf, so `security/network.eval.yaml` becomes
+`security/network`. Existing flat category strings remain valid one-node
+category paths.
 
 ### Suite-level Assertions
 

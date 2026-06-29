@@ -22,9 +22,9 @@ import { Link } from '@tanstack/react-router';
 import type { EvalResult } from '~/lib/types';
 
 import { useRunLog, useStudioConfig } from '~/lib/api';
+import { type CategoryTreeNode, buildCategoryTree } from '~/lib/category-tree';
 import { findPhoenixExternalTraceUrl } from '~/lib/external-trace-link';
 import { summarizeQuality } from '~/lib/result-summary';
-import { formatCategoryDisplay } from '~/lib/run-detail-context';
 
 import { PassRatePill } from './PassRatePill';
 import { ResultTable } from './ResultTable';
@@ -36,91 +36,21 @@ interface RunDetailProps {
   projectId?: string;
 }
 
-interface SuiteStats {
-  name: string;
-  passed: number;
-  failed: number;
-  executionErrors: number;
-  total: number;
-  avgScore: number;
-}
-
-interface CategoryGroup {
-  name: string;
-  displayName: string;
-  mutedDisplayName?: string;
-  suites: SuiteStats[];
-  total: number;
-  passed: number;
-  failed: number;
-  executionErrors: number;
-  avgScore: number;
-}
-
-function buildCategoryGroups(results: EvalResult[], passThreshold: number): CategoryGroup[] {
-  const categoryMap = new Map<string, Map<string, EvalResult[]>>();
-
-  for (const r of results) {
-    const cat = r.category ?? 'Uncategorized';
-    const ds = r.suite ?? 'Uncategorized';
-    if (!categoryMap.has(cat)) categoryMap.set(cat, new Map());
-    // biome-ignore lint/style/noNonNullAssertion: map entry guaranteed by line above
-    const dsMap = categoryMap.get(cat)!;
-    const entry = dsMap.get(ds) ?? [];
-    entry.push(r);
-    dsMap.set(ds, entry);
-  }
-
-  return Array.from(categoryMap.entries())
-    .map(([catName, dsMap]) => {
-      const suites = Array.from(dsMap.entries())
-        .map(([dsName, suiteResults]) => {
-          const stats = summarizeQuality(suiteResults, passThreshold);
-          return {
-            name: dsName,
-            passed: stats.passed,
-            failed: stats.failed,
-            executionErrors: stats.executionErrors,
-            total: stats.total,
-            avgScore: stats.avgScore,
-          };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      const total = suites.reduce((s, d) => s + d.total, 0);
-      const passed = suites.reduce((s, d) => s + d.passed, 0);
-      const failed = suites.reduce((s, d) => s + d.failed, 0);
-      const executionErrors = suites.reduce((s, d) => s + d.executionErrors, 0);
-      const qualityTotal = total - executionErrors;
-      const scoreSum = suites.reduce((s, d) => s + d.avgScore * (d.total - d.executionErrors), 0);
-
-      const display = formatCategoryDisplay(catName);
-
-      return {
-        name: catName,
-        displayName: display.label,
-        mutedDisplayName: display.mutedLabel,
-        suites,
-        total,
-        passed,
-        failed,
-        executionErrors,
-        avgScore: qualityTotal > 0 ? scoreSum / qualityTotal : 0,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 export function RunDetail({ results, runId, projectId }: RunDetailProps) {
   const { data: config } = useStudioConfig(projectId);
   const passThreshold = config?.threshold ?? config?.pass_threshold ?? 0.8;
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const phoenixUrl = findPhoenixExternalTraceUrl(results);
 
   const total = results.length;
   const summary = summarizeQuality(results, passThreshold);
   const totalCost = results.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
-  const categories = buildCategoryGroups(results, passThreshold);
+  const categoryTree = buildCategoryTree(results, passThreshold);
+  const visibleCategories = visibleCategoryRows(categoryTree, expandedCategories);
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((current) => ({ ...current, [category]: !current[category] }));
+  };
 
   if (total === 0) {
     return (
@@ -166,43 +96,59 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
-              {categories.map((cat) => {
-                const label = (
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="truncate">{cat.displayName}</span>
-                    {cat.mutedDisplayName ? (
-                      <span
-                        className="truncate text-xs font-normal text-gray-500"
-                        title={cat.mutedDisplayName}
-                      >
-                        {cat.mutedDisplayName}
-                      </span>
-                    ) : null}
-                  </span>
-                );
-
+              {visibleCategories.map((cat) => {
+                const expanded = expandedCategories[cat.name] === true;
                 return (
                   <tr key={cat.name} className="transition-colors hover:bg-gray-900/30">
                     <td className="w-[18rem] max-w-[18rem] px-4 py-2.5 font-medium text-gray-200">
-                      {projectId ? (
-                        <Link
-                          to="/projects/$projectId/runs/$runId/category/$category"
-                          params={{ projectId, runId, category: cat.name }}
-                          className="flex min-w-0 text-cyan-400 hover:text-cyan-300 hover:underline"
-                          title={cat.mutedDisplayName ?? cat.displayName}
-                        >
-                          {label}
-                        </Link>
-                      ) : (
-                        <Link
-                          to="/runs/$runId/category/$category"
-                          params={{ runId, category: cat.name }}
-                          className="flex min-w-0 text-cyan-400 hover:text-cyan-300 hover:underline"
-                          title={cat.mutedDisplayName ?? cat.displayName}
-                        >
-                          {label}
-                        </Link>
-                      )}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="inline-block h-4 shrink-0"
+                          style={{ width: `${cat.depth * 16}px` }}
+                        />
+                        {cat.childCount > 0 ? (
+                          <button
+                            type="button"
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-700 text-xs text-gray-400 hover:border-gray-600 hover:text-gray-200"
+                            onClick={() => toggleCategory(cat.name)}
+                            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${cat.name}`}
+                            aria-expanded={expanded}
+                          >
+                            {expanded ? '-' : '+'}
+                          </button>
+                        ) : (
+                          <span className="h-5 w-5 shrink-0" />
+                        )}
+                        {projectId ? (
+                          <Link
+                            to="/projects/$projectId/runs/$runId/category/$category"
+                            params={{ projectId, runId, category: cat.name }}
+                            className="min-w-0 truncate text-cyan-400 hover:text-cyan-300 hover:underline"
+                            title={cat.name}
+                          >
+                            {cat.label}
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/runs/$runId/category/$category"
+                            params={{ runId, category: cat.name }}
+                            className="min-w-0 truncate text-cyan-400 hover:text-cyan-300 hover:underline"
+                            title={cat.name}
+                          >
+                            {cat.label}
+                          </Link>
+                        )}
+                        {cat.depth > 0 ? (
+                          <span className="truncate text-xs font-normal text-gray-500">
+                            {cat.name}
+                          </span>
+                        ) : null}
+                        {cat.childCount > 0 ? (
+                          <span className="shrink-0 text-xs font-normal text-gray-500">
+                            {cat.childCount}
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5">
                       <PassRatePill
@@ -248,6 +194,16 @@ export function RunDetail({ results, runId, projectId }: RunDetailProps) {
       <ConsoleLogSection runId={runId} projectId={projectId} />
     </div>
   );
+}
+
+function visibleCategoryRows(
+  nodes: readonly CategoryTreeNode[],
+  expanded: Record<string, boolean>,
+): CategoryTreeNode[] {
+  return nodes.flatMap((node) => [
+    node,
+    ...(expanded[node.name] ? visibleCategoryRows(node.children, expanded) : []),
+  ]);
 }
 
 function ExternalTraceLink({ href }: { href?: string }) {

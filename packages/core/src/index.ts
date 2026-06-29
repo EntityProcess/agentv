@@ -188,7 +188,7 @@ export {
 } from './projects.js';
 export { syncProject, syncProjects } from './project-sync.js';
 export { trimBaselineResult } from './evaluation/baseline.js';
-export { DEFAULT_CATEGORY, deriveCategory } from './evaluation/category.js';
+export { DEFAULT_CATEGORY, deriveCategory, normalizeCategoryPath } from './evaluation/category.js';
 export * from './observability/index.js';
 
 // Registry exports
