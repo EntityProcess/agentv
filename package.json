@@ -21,6 +21,7 @@
     "beads:check": "bun scripts/check-beads-context.ts",
     "debug:pi-sdk-tools": "bun scripts/debug-pi-sdk-tools.ts",
     "validate:examples": "EVAL_CRITERIA=placeholder CUSTOM_SYSTEM_PROMPT=placeholder bun scripts/validate-example-evals.ts",
+    "examples:oracle": "bun scripts/run-example-oracle-fixtures.ts",
     "eval:baseline-check": "bun scripts/check-eval-baselines.ts",
     "release": "bun scripts/release.ts",
     "release:next": "bun scripts/release.ts next",

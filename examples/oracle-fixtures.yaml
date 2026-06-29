@@ -1,0 +1,18 @@
+schema_version: agentv.example_oracle_manifest.v1
+description: >
+  Maintained inventory controls for the deterministic example oracle sweep.
+  The runner discovers example evals dynamically, generates replay target
+  fixtures from expected outputs or assertion-derived references, and skips
+  only the exclusions listed here.
+target_name: example_oracle
+source_target: example_oracle_source
+grader_target: example_oracle_grader
+exclusions:
+  - path: examples/features/docker-workspace/evals/docker-example.EVAL.yaml
+    reason: Requires Docker workspace runtime; replaying target output does not remove the Docker setup dependency.
+  - path: examples/features/copilot-log-eval/evals/skill-trigger.EVAL.yaml
+    reason: Requires local Copilot session/workspace artifacts and .github/skills/agentv-bench/SKILL.md during before_all setup.
+  - path: examples/features/prompt-template-sdk/evals/dataset.eval.yaml
+    reason: Loader currently resolves zero runnable tests because the eval references a missing ../prompts/custom-grader.ts command file.
+  - path: examples/showcase/bug-fix-benchmark/evals/bug-fixes.eval.yaml
+    reason: Eval metadata is invalid today; experiment targets[0].use_target is empty, so the suite cannot be loaded.

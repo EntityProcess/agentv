@@ -18,6 +18,22 @@ cd examples/features/execution-metrics
 bun install
 ```
 
+## Oracle Fixture Sweep
+
+Run the deterministic oracle sweep when you need to prove runnable example evals still parse, execute, write artifacts, and avoid live LLM calls:
+
+```bash
+bun run examples:oracle
+```
+
+The command discovers eval files under `examples/`, reads `examples/oracle-fixtures.yaml` for explicit exclusions, generates replay target fixtures under `.agentv/tmp/example-oracle-fixtures/`, and runs each included eval with an oracle replay target plus a deterministic CLI grader target. To inspect the inventory without running evals:
+
+```bash
+bun run examples:oracle -- --inventory
+```
+
+Use `--eval <path>` to run or inventory a single eval file.
+
 ## Directory Structure
 
 Examples are organized into two categories:
