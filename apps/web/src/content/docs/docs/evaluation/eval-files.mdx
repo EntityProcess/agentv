@@ -17,15 +17,15 @@ other suites. Raw case files are reusable data inputs, not a second runnable
 experiment format.
 
 - A **task suite** is eval YAML that owns task context: `workspace`, shared
-  `input`, shared `assertions`, and test cases. It can run directly or be
-  imported with `type: suite`.
+  `input`, shared `assertions`, fixtures, graders, and test cases. It can run
+  directly or be imported through `imports.suites`.
 - A **raw case file** is a YAML/JSONL array, directory, or glob of cases. Import
-  it with `tests: ./cases.yaml`, string shorthand, or `type: tests`; parent
+  it with `imports.tests`, `tests: ./cases.yaml`, or string shorthand; parent
   suite context applies because raw cases do not carry their own suite context.
 - A **wrapper eval** is eval YAML that imports one or more suites with
-  `type: suite` and binds runtime policy in its inline `experiment:` block.
+  `imports.suites` and binds runtime policy in its inline `experiment:` block.
   Wrapper evals can live anywhere in the repo. A wrapper that imports suites
-  with `type: suite` must not define parent `workspace`; imported suites own
+  with `imports.suites` must not define parent `workspace`; imported suites own
   task environment. Machine-local existing workspace paths belong in CLI flags
   or `config.local.yaml`, not eval YAML.
 
@@ -61,17 +61,21 @@ A wrapper eval stays ordinary eval YAML while choosing runtime policy:
 ```yaml
 # experiments/refunds-codex.eval.yaml
 experiment:
-  name: refunds-codex
   target: codex-gpt5
   repeat:
     count: 2
     strategy: pass_all
 
+imports:
+  suites:
+    - path: ../evals/suites/refunds.eval.yaml
+  tests:
+    - path: ../evals/cases/refund-smoke.cases.yaml
+
 tests:
-  - include: ../evals/suites/refunds.eval.yaml
-    type: suite
-  - include: ../evals/cases/refund-smoke.cases.yaml
-    type: tests
+  - id: local-edge-case
+    input: Can a final-sale item be refunded after damage in transit?
+    expected_output: Explain the final-sale exception for damaged transit.
 ```
 
 The `experiments/` directory in that example is optional and user-owned. AgentV
@@ -79,7 +83,7 @@ does not infer behavior from the path; the wrapper runs because it is eval YAML
 with an inline `experiment:` block. The wrapper owns runtime policy only. Put
 workspace setup in imported child suites. Parent workspace-affecting fields,
 including top-level `workspace`, are for parent-owned raw cases, including
-cases imported with `type: tests`. Runtime workspace path overrides belong in
+cases imported with `imports.tests`. Runtime workspace path overrides belong in
 CLI flags or `.agentv/config.local.yaml`; repos, hooks, templates, Docker
 config, env checks, and isolation belong in top-level or case-level
 `workspace`.
@@ -112,7 +116,8 @@ tests:
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `experiment` | Runtime policy (`target`, `targets`, `workers`, `repeat`, `threshold`, `timeout_seconds`, `budget_usd`, etc.) |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
-| `tests` | Array of individual tests, include entries, or a string path to an external file or directory. Tests and include entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
+| `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
+| `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
@@ -332,13 +337,26 @@ use direct paths, directories, or globs:
 ```yaml
 tests:
   - ./cases/*.cases.yaml
-  - include: ./suites/*.eval.yaml
-    type: suite
 ```
 
-String shorthand is raw-case-only. Import reusable task suites with object
-entries using `include:` and `type: suite`; use `type: tests` when you want to
-drop suite context and import only raw cases.
+String shorthand is raw-case-only. Import reusable task suites through
+`imports.suites`; use `imports.tests` when you want to drop suite context and
+import only raw cases into the parent context:
+
+```yaml
+imports:
+  suites:
+    - path: ./suites/*.eval.yaml
+  tests:
+    - path: ./cases/regression.jsonl
+
+tests:
+  - id: local-edge-case
+    input: ...
+```
+
+Legacy `tests[].include` entries still load with a migration warning for older
+eval files, but new evals should use `imports.suites` or `imports.tests`.
 
 ### Raw Cases as Directory Paths
 

@@ -484,6 +484,27 @@ const TestIncludeSchema = z
   })
   .strict();
 
+const ImportEntrySchema = z
+  .object({
+    path: z.string().min(1),
+    select: z.union([SelectPatternSchema, TestIncludeSelectSchema]).optional(),
+    run: RunOverrideSchema.optional(),
+  })
+  .strict();
+
+const ImportGroupSchema = z.union([
+  z.array(z.union([ImportEntrySchema, z.string().min(1)])),
+  z.string().min(1),
+  ImportEntrySchema,
+]);
+
+const ImportsSchema = z
+  .object({
+    suites: ImportGroupSchema.optional(),
+    tests: ImportGroupSchema.optional(),
+  })
+  .strict();
+
 const TestsSchema = z.union([
   z.array(z.union([EvalTestSchema, TestIncludeSchema, z.string().min(1)])),
   z.string().min(1),
@@ -512,8 +533,10 @@ export const EvalFileSchema = z
     input: InputSchema.optional(),
     // Suite-level input_files shorthand
     input_files: z.array(z.string()).optional(),
-    // Tests (array, include entries, or external file path)
-    tests: TestsSchema,
+    // Imports: suites preserve child context; tests import raw rows into parent context
+    imports: ImportsSchema.optional(),
+    // Tests (inline raw cases, legacy include entries, or external raw-case path)
+    tests: TestsSchema.optional(),
     // Deprecated aliases
     eval_cases: TestsSchema.optional(),
     // Target
@@ -530,4 +553,9 @@ export const EvalFileSchema = z
   })
   .refine((value) => value.experiment === undefined || value.execution === undefined, {
     message: "Use either top-level 'experiment' or legacy 'execution', not both.",
-  });
+  })
+  .refine(
+    (value) =>
+      value.tests !== undefined || value.eval_cases !== undefined || value.imports !== undefined,
+    { message: "Eval files must define 'tests' or 'imports'." },
+  );

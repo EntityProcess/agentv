@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { validateEvalFile } from '../../src/evaluation/validation/eval-validator.js';
 import { loadTestSuite } from '../../src/evaluation/yaml-parser.js';
 
 describe('eval.yaml inline experiment and tests imports', () => {
@@ -772,6 +773,263 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(suite.experimentConfig).toBeUndefined();
     expect(suite.tests.map((test) => test.id)).toEqual(['a', 'b']);
     expect(suite.tests.every((test) => test.run === undefined)).toBe(true);
+  });
+
+  it('imports suites through imports.suites while preserving child task context', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'workspace:',
+        '  template: ./child-workspace',
+        'input: child shared input',
+        'assertions:',
+        '  - type: contains',
+        '    value: child',
+        'experiment:',
+        '  threshold: 0.2',
+        'tests:',
+        '  - id: child-case',
+        '    input: child case input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'experiment:',
+        '  target: codex-gpt5',
+        '  threshold: 0.8',
+        'imports:',
+        '  suites:',
+        '    - path: child.eval.yaml',
+        '      run:',
+        '        timeout_seconds: 60',
+        'tests:',
+        '  - id: local-edge',
+        '    input: local input',
+        '    criteria: local ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(parentPath, tempDir);
+    const byId = new Map(suite.tests.map((test) => [test.id, test]));
+
+    expect(suite.experimentConfig).toMatchObject({ target: 'codex-gpt5', threshold: 0.8 });
+    expect(byId.get('child-case')?.suite).toBe('child-suite');
+    expect(byId.get('child-case')?.source?.importedSuiteName).toBe('child-suite');
+    expect(byId.get('child-case')?.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));
+    expect(byId.get('child-case')?.input.map((message) => message.content)).toEqual([
+      'child shared input',
+      'child case input',
+    ]);
+    expect(byId.get('child-case')?.assertions?.[0]).toMatchObject({
+      type: 'contains',
+      value: 'child',
+    });
+    expect(byId.get('child-case')?.run).toEqual({ timeoutSeconds: 60 });
+    expect(byId.get('local-edge')?.suite).toBe('parent-suite');
+  });
+
+  it('imports raw rows through imports.tests and evaluates them in parent context', async () => {
+    await writeFile(
+      path.join(tempDir, 'smoke.jsonl'),
+      '{"id":"jsonl-case","input":"jsonl input","criteria":"ok"}\n',
+    );
+    await writeFile(
+      path.join(tempDir, 'regressions.yaml'),
+      ['- id: yaml-case', '  input: yaml input', '  criteria: ok', ''].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'workspace:',
+        '  template: ./parent-workspace',
+        'input: parent shared input',
+        'assertions:',
+        '  - type: contains',
+        '    value: parent',
+        'imports:',
+        '  tests:',
+        '    - path: smoke.jsonl',
+        '    - path: regressions.yaml',
+        'tests:',
+        '  - id: inline-case',
+        '    input: inline input',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(parentPath, tempDir);
+    const byId = new Map(suite.tests.map((test) => [test.id, test]));
+
+    expect(suite.tests.map((test) => test.id)).toEqual(['jsonl-case', 'yaml-case', 'inline-case']);
+    for (const id of ['jsonl-case', 'yaml-case', 'inline-case']) {
+      expect(byId.get(id)?.suite).toBe('parent-suite');
+      expect(byId.get(id)?.workspace?.template).toBe(path.join(tempDir, 'parent-workspace'));
+      expect(byId.get(id)?.assertions?.[0]).toMatchObject({ type: 'contains', value: 'parent' });
+    }
+    expect(byId.get('jsonl-case')?.input.map((message) => message.content)).toEqual([
+      'parent shared input',
+      'jsonl input',
+    ]);
+  });
+
+  it('combines imports.tests with tests path shorthand in parent context', async () => {
+    await writeFile(
+      path.join(tempDir, 'imported.jsonl'),
+      '{"id":"imported-case","input":"imported input","criteria":"ok"}\n',
+    );
+    await writeFile(
+      path.join(tempDir, 'local.yaml'),
+      ['- id: local-case', '  input: local input', '  criteria: ok', ''].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'workspace:',
+        '  template: ./parent-workspace',
+        'imports:',
+        '  tests:',
+        '    - path: imported.jsonl',
+        'tests: local.yaml',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(parentPath, tempDir);
+    const byId = new Map(suite.tests.map((test) => [test.id, test]));
+
+    expect(suite.tests.map((test) => test.id)).toEqual(['imported-case', 'local-case']);
+    expect(byId.get('imported-case')?.suite).toBe('parent-suite');
+    expect(byId.get('local-case')?.suite).toBe('parent-suite');
+    expect(byId.get('imported-case')?.workspace?.template).toBe(
+      path.join(tempDir, 'parent-workspace'),
+    );
+  });
+
+  it('rejects parent workspace when imports.suites preserves child workspaces', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'tests:',
+        '  - id: child-case',
+        '    input: child',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'workspace:',
+        '  template: ./parent-workspace',
+        'imports:',
+        '  suites:',
+        '    - path: child.eval.yaml',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
+      /Parent workspace is not allowed/,
+    );
+  });
+
+  it('warns but supports legacy tests include entries during migration', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'tests:',
+        '  - id: child-case',
+        '    input: child',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      ['name: parent-suite', 'tests:', '  - include: child.eval.yaml', '    type: suite', ''].join(
+        '\n',
+      ),
+    );
+
+    const warn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (message?: unknown) => {
+      warnings.push(String(message));
+    };
+    try {
+      const suite = await loadTestSuite(parentPath, tempDir);
+      expect(suite.tests.map((test) => test.id)).toEqual(['child-case']);
+    } finally {
+      console.warn = warn;
+    }
+
+    expect(warnings.some((message) => message.includes('tests[].include is deprecated'))).toBe(
+      true,
+    );
+  });
+
+  it('validates imports.suites and warns for legacy/confusing imports', async () => {
+    await writeFile(
+      path.join(tempDir, 'child.eval.yaml'),
+      [
+        'name: child-suite',
+        'experiment:',
+        '  target: child-target',
+        'tests:',
+        '  - id: child-case',
+        '    input: child',
+        '',
+      ].join('\n'),
+    );
+    const parentPath = path.join(tempDir, 'parent.eval.yaml');
+    await writeFile(
+      parentPath,
+      [
+        'name: parent-suite',
+        'experiment:',
+        '  target: parent-target',
+        'imports:',
+        '  suites:',
+        '    - path: child.eval.yaml',
+        '  tests:',
+        '    - path: child.eval.yaml',
+        'tests:',
+        '  - include: child.eval.yaml',
+        '    type: suite',
+        '',
+      ].join('\n'),
+    );
+
+    const result = await validateEvalFile(parentPath);
+
+    expect(result.valid).toBe(true);
+    const warnings = result.errors.filter((error) => error.severity === 'warning');
+    expect(warnings.some((error) => error.message.includes('tests[].include is deprecated'))).toBe(
+      true,
+    );
+    expect(
+      warnings.some((error) => error.message.includes('child experiment blocks are ignored')),
+    ).toBe(true);
+    expect(
+      warnings.some((error) => error.message.includes('imports.tests imports raw cases')),
+    ).toBe(true);
   });
 
   it('type: tests imports only raw cases and applies parent suite context', async () => {

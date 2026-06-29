@@ -116,6 +116,47 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts flatter imports with optional inline tests', () => {
+    const result = EvalFileSchema.safeParse({
+      name: 'wrapper',
+      imports: {
+        suites: [
+          {
+            path: './evals/**/*.eval.yaml',
+            select: {
+              test_ids: ['pr50857-*'],
+              tags: ['sql-migration'],
+            },
+            run: {
+              threshold: 1,
+              repeat: { count: 2, strategy: 'pass_all' },
+              timeout_seconds: 120,
+              budget_usd: 2,
+            },
+          },
+        ],
+        tests: [{ path: './cases/**/*.cases.yaml' }, './cases/regressions.jsonl'],
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts import-only wrapper evals', () => {
+    const result = EvalFileSchema.safeParse({
+      name: 'wrapper',
+      experiment: {
+        target: 'codex',
+      },
+      imports: {
+        suites: [{ path: './evals/**/*.eval.yaml' }],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('rejects eval files that set both experiment and legacy execution', () => {
     const result = EvalFileSchema.safeParse({
       experiment: { target: 'codex' },

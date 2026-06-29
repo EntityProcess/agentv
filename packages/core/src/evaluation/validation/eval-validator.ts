@@ -18,6 +18,15 @@ type SuiteImportStackEntry = {
   readonly displayPath: string;
   readonly filePath: string;
 };
+type ImportEntryType = 'suite' | 'tests';
+type NormalizedImportEntry = {
+  readonly path: string;
+  readonly type: ImportEntryType;
+  readonly location: string;
+  readonly select?: JsonValue;
+  readonly run?: JsonValue;
+  readonly legacy?: boolean;
+};
 
 /** Assertion grader types that require a string `value` field. */
 const ASSERTION_TYPES_WITH_STRING_VALUE = new Set([
@@ -52,6 +61,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'requires',
   'input',
   'input_files',
+  'imports',
   'tests',
   'target',
   'experiment',
@@ -64,8 +74,9 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'governance',
 ]);
 
-/** Known fields on tests[] include entries. */
+/** Known fields on legacy tests[] include entries. */
 const KNOWN_INCLUDE_FIELDS = new Set(['include', 'type', 'select', 'run']);
+const KNOWN_IMPORT_FIELDS = new Set(['path', 'select', 'run']);
 const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
 const KNOWN_REPEAT_STRATEGIES = new Set(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
@@ -285,13 +296,28 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateInputField(parsed.input, 'input', absolutePath, errors);
 
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
+  await validateImportsField(parsed.imports, absolutePath, errors);
 
   const cases: JsonValue | undefined = parsed.tests;
+  const hasImports = collectImportEntries(parsed).length > 0;
 
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
     await validateRawCaseImportPath(cases, absolutePath, 'tests', errors);
+    await validateCompositionDiagnostics(absolutePath, parsed, errors);
+    await validateSuiteImportCycles(absolutePath, parsed, errors);
 
+    return {
+      valid: errors.filter((e) => e.severity === 'error').length === 0,
+      filePath: absolutePath,
+      fileType: 'eval',
+      errors,
+    };
+  }
+
+  if (cases === undefined && hasImports) {
+    await validateCompositionDiagnostics(absolutePath, parsed, errors);
+    await validateSuiteImportCycles(absolutePath, parsed, errors);
     return {
       valid: errors.filter((e) => e.severity === 'error').length === 0,
       filePath: absolutePath,
@@ -305,7 +331,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       severity: 'error',
       filePath: absolutePath,
       location: 'tests',
-      message: "Missing or invalid 'tests' field (must be an array or a file path string)",
+      message:
+        "Missing or invalid 'tests' field (must be an array or a file path string, unless imports are provided)",
     });
     return {
       valid: errors.length === 0,
@@ -531,20 +558,161 @@ function rejectRuntimeWorkspaceConfig(
   });
 }
 
+function importEntryPath(value: JsonValue): string | undefined {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+  if (!isObject(value)) {
+    return undefined;
+  }
+  return typeof value.path === 'string' && value.path.trim().length > 0
+    ? value.path.trim()
+    : undefined;
+}
+
+async function validateImportsField(
+  imports: JsonValue | undefined,
+  filePath: string,
+  errors: ValidationError[],
+): Promise<void> {
+  if (imports === undefined) {
+    return;
+  }
+  if (!isObject(imports)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'imports',
+      message: "Invalid 'imports' field. Use imports.suites and/or imports.tests.",
+    });
+    return;
+  }
+
+  for (const key of Object.keys(imports)) {
+    if (key !== 'suites' && key !== 'tests') {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `imports.${key}`,
+        message: `Unknown imports field '${key}'. Use imports.suites or imports.tests.`,
+      });
+    }
+  }
+
+  await validateImportGroup(imports.suites, 'suite', 'imports.suites', filePath, errors);
+  await validateImportGroup(imports.tests, 'tests', 'imports.tests', filePath, errors);
+}
+
+async function validateImportGroup(
+  group: JsonValue | undefined,
+  type: ImportEntryType,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): Promise<void> {
+  if (group === undefined) {
+    return;
+  }
+  const entries = Array.isArray(group) ? group : [group];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const entryLocation = `${location}[${i}]`;
+    const entryPath = importEntryPath(entry);
+    if (!entryPath) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: entryLocation,
+        message: "Invalid import entry. Use a path string or an object with a non-empty 'path'.",
+      });
+      continue;
+    }
+    if (type === 'tests' && !/\.eval\.ya?ml$/i.test(entryPath)) {
+      await validateRawCaseImportPath(entryPath, filePath, `${entryLocation}.path`, errors);
+    }
+    if (isObject(entry)) {
+      for (const key of Object.keys(entry)) {
+        if (!KNOWN_IMPORT_FIELDS.has(key)) {
+          errors.push({
+            severity: 'warning',
+            filePath,
+            location: `${entryLocation}.${key}`,
+            message: `Unknown field '${key}'. This field will be ignored.`,
+          });
+        }
+      }
+      validateIncludeSelect(entry.select, `${entryLocation}.select`, filePath, errors);
+      validateRunOverride(entry.run, `${entryLocation}.run`, filePath, errors);
+    }
+  }
+}
+
+function collectImportEntries(parsed: JsonObject): readonly NormalizedImportEntry[] {
+  const entries: NormalizedImportEntry[] = [];
+  if (isObject(parsed.imports)) {
+    entries.push(...collectImportGroup(parsed.imports.suites, 'suite', 'imports.suites'));
+    entries.push(...collectImportGroup(parsed.imports.tests, 'tests', 'imports.tests'));
+  }
+  const tests = parsed.tests;
+  if (Array.isArray(tests)) {
+    for (let i = 0; i < tests.length; i++) {
+      const entry = tests[i];
+      if (!isObject(entry) || !isIncludeEntry(entry)) {
+        continue;
+      }
+      if (entry.type !== 'suite' && entry.type !== 'tests') {
+        continue;
+      }
+      entries.push({
+        path: entry.include.trim(),
+        type: entry.type,
+        location: `tests[${i}].include`,
+        select: entry.select,
+        run: entry.run,
+        legacy: true,
+      });
+    }
+  }
+  return entries;
+}
+
+function collectImportGroup(
+  group: JsonValue | undefined,
+  type: ImportEntryType,
+  location: string,
+): readonly NormalizedImportEntry[] {
+  if (group === undefined) {
+    return [];
+  }
+  const entries = Array.isArray(group) ? group : [group];
+  return entries.flatMap((entry, index) => {
+    const pathValue = importEntryPath(entry);
+    return pathValue
+      ? [
+          {
+            path: pathValue,
+            type,
+            location: `${location}[${index}].path`,
+            ...(isObject(entry) && entry.select !== undefined ? { select: entry.select } : {}),
+            ...(isObject(entry) && entry.run !== undefined ? { run: entry.run } : {}),
+          },
+        ]
+      : [];
+  });
+}
+
 async function validateCompositionDiagnostics(
   filePath: string,
   parsed: JsonObject,
   errors: ValidationError[],
 ): Promise<void> {
-  const tests = parsed.tests;
-  if (!Array.isArray(tests)) {
+  const imports = collectImportEntries(parsed);
+  if (imports.length === 0) {
     return;
   }
 
   const parentHasRuntime = parsed.experiment !== undefined || parsed.execution !== undefined;
-  const hasSuiteImport = tests.some(
-    (entry) => isObject(entry) && isIncludeEntry(entry) && entry.type === 'suite',
-  );
+  const hasSuiteImport = imports.some((entry) => entry.type === 'suite');
 
   if (hasSuiteImport) {
     for (const location of parentWorkspaceLocations(parsed)) {
@@ -558,15 +726,8 @@ async function validateCompositionDiagnostics(
     }
   }
 
-  for (let i = 0; i < tests.length; i++) {
-    const entry = tests[i];
-    if (!isObject(entry) || !isIncludeEntry(entry)) {
-      continue;
-    }
-
-    const includePath = entry.include.trim();
-    const location = `tests[${i}].include`;
-    const resolvedSuites = await resolveSuiteIncludePaths(includePath, path.dirname(filePath));
+  for (const entry of imports) {
+    const resolvedSuites = await resolveSuiteIncludePaths(entry.path, path.dirname(filePath));
 
     if (entry.type === 'suite') {
       for (const resolvedSuite of resolvedSuites) {
@@ -587,10 +748,10 @@ async function validateCompositionDiagnostics(
         errors.push({
           severity: 'warning',
           filePath,
-          location,
+          location: entry.location,
           message: parentHasRuntime
-            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for type: suite imports. The parent experiment owns wrapper runtime; move runtime settings to the parent experiment or use tests[].run for per-case thresholds, repeats, timeouts, and budgets.`
-            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for type: suite imports. The parent experiment owns wrapper runtime, and this parent has no experiment, so no child runtime settings are applied. Add a parent experiment or use tests[].run for per-case thresholds, repeats, timeouts, and budgets.`,
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for imports.suites. The parent experiment owns wrapper runtime; move runtime settings to the parent experiment or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for imports.suites. The parent experiment owns wrapper runtime, and this parent has no experiment, so no child runtime settings are applied. Add a parent experiment or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`,
         });
       }
       continue;
@@ -604,8 +765,8 @@ async function validateCompositionDiagnostics(
         errors.push({
           severity: 'warning',
           filePath,
-          location,
-          message: `type: tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, and experiment. Parent suite context applies. Use type: suite to preserve child test and workspace semantics.`,
+          location: entry.location,
+          message: `imports.tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, and experiment. Parent suite context applies. Use imports.suites to preserve child test and workspace semantics.`,
         });
       }
     }
@@ -641,6 +802,16 @@ function validateIncludeEntry(
   filePath: string,
   errors: ValidationError[],
 ): void {
+  const mode = entry.type === 'suite' ? 'suites' : entry.type === 'tests' ? 'tests' : undefined;
+  errors.push({
+    severity: 'warning',
+    filePath,
+    location,
+    message: mode
+      ? `tests[].include is deprecated. Use imports.${mode} entries with path instead.`
+      : 'tests[].include is deprecated. Use imports.suites or imports.tests entries with path instead.',
+  });
+
   for (const key of Object.keys(entry)) {
     if (!KNOWN_INCLUDE_FIELDS.has(key)) {
       errors.push({
@@ -1319,24 +1490,18 @@ async function validateSuiteImportCyclesFromParsed(
   stack: readonly SuiteImportStackEntry[],
   errors: ValidationError[],
 ): Promise<void> {
-  const tests = parsed.tests;
-  if (!Array.isArray(tests)) {
+  const imports = collectImportEntries(parsed);
+  if (imports.length === 0) {
     return;
   }
 
-  for (let i = 0; i < tests.length; i++) {
-    const entry = tests[i];
-    if (!isObject(entry) || !isIncludeEntry(entry)) {
-      continue;
-    }
-    const includePath = entry.include.trim();
+  for (const entry of imports) {
     if (entry.type !== 'suite') {
       continue;
     }
 
-    const location = `tests[${i}].include`;
     const resolvedSuites = await resolveSuiteIncludePaths(
-      includePath,
+      entry.path,
       path.dirname(currentFilePath),
     );
     for (const resolvedSuite of resolvedSuites) {
@@ -1344,7 +1509,7 @@ async function validateSuiteImportCyclesFromParsed(
         errors.push({
           severity: 'error',
           filePath: currentFilePath,
-          location,
+          location: entry.location,
           message: `Circular eval suite import: ${formatCircularImportChain(stack, resolvedSuite)}`,
         });
         continue;

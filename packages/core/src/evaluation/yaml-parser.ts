@@ -169,6 +169,7 @@ function formatCircularImportChain(
 }
 
 type RawTestSuite = JsonObject & {
+  readonly imports?: JsonValue;
   readonly tests?: JsonValue;
   /** @deprecated Use `tests` instead */
   readonly eval_cases?: JsonValue;
@@ -490,25 +491,40 @@ async function loadTestsFromParsedYamlValue(
     absoluteTestPath,
   );
 
-  // Parse suite-level workspace config (default for all cases)
-  const evalFileDir = path.dirname(absoluteTestPath);
-
   const importedSuiteTests: EvalTest[] = [];
-  // Resolve tests: string path to external file/directory, inline array, include entries, or error
+  const evalFileDir = path.dirname(absoluteTestPath);
+  const parentWorkspace = parentWorkspaceLocation(suite);
+  const importEntries = readImports(suite.imports);
+  const expandedImports = await expandImportEntries({
+    entries: importEntries,
+    evalFileDir,
+    repoRoot,
+    suiteMetadataPayload,
+    parentWorkspaceLocation: parentWorkspace,
+    options,
+  });
+  importedSuiteTests.push(...expandedImports.importedSuiteTests);
+
+  // Resolve tests: string path to external file/directory, inline array, legacy include entries, or error.
   let expandedTestCases: readonly JsonValue[];
   if (typeof rawTestCases === 'string') {
-    expandedTestCases = await loadRawCasesFromShorthand(rawTestCases, evalFileDir);
+    expandedTestCases = [
+      ...expandedImports.rawCases,
+      ...(await loadRawCasesFromShorthand(rawTestCases, evalFileDir)),
+    ];
   } else if (Array.isArray(rawTestCases)) {
     const expanded = await expandInlineTestEntries({
       entries: rawTestCases,
       evalFileDir,
       repoRoot,
       suiteMetadataPayload,
-      parentWorkspaceLocation: parentWorkspaceLocation(suite),
+      parentWorkspaceLocation: parentWorkspace,
       options,
     });
-    expandedTestCases = expanded.rawCases;
+    expandedTestCases = [...expandedImports.rawCases, ...expanded.rawCases];
     importedSuiteTests.push(...expanded.importedSuiteTests);
+  } else if (rawTestCases === undefined && importEntries.length > 0) {
+    expandedTestCases = expandedImports.rawCases;
   } else {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
@@ -866,6 +882,15 @@ type ExpandedInlineTestEntries = {
   readonly importedSuiteTests: readonly EvalTest[];
 };
 
+type NormalizedImportEntry = {
+  readonly path: string;
+  readonly mode: IncludeEntryType;
+  readonly select?: IncludeSelect;
+  readonly run?: EvalRunOverride;
+  readonly location: string;
+  readonly legacy?: boolean;
+};
+
 type IncludeSelect = {
   readonly testIds?: string | readonly string[];
   readonly tags?: string | readonly string[];
@@ -962,6 +987,19 @@ function isIncludeEntry(value: JsonValue): value is JsonObject & { include: stri
   return (
     isJsonObject(value) && typeof value.include === 'string' && value.include.trim().length > 0
   );
+}
+
+function importEntryPath(value: JsonValue): string | undefined {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+  if (!isJsonObject(value)) {
+    return undefined;
+  }
+  const pathValue = value.path ?? value.include;
+  return typeof pathValue === 'string' && pathValue.trim().length > 0
+    ? pathValue.trim()
+    : undefined;
 }
 
 function hasGlobMagic(value: string): boolean {
@@ -1108,6 +1146,126 @@ function rawCaseMatchesSelect(
   );
 }
 
+function readImports(rawImports: JsonValue | undefined): readonly NormalizedImportEntry[] {
+  if (rawImports === undefined) {
+    return [];
+  }
+  if (!isJsonObject(rawImports)) {
+    throw new Error("Invalid 'imports' field. Use imports.suites and/or imports.tests.");
+  }
+  const entries: NormalizedImportEntry[] = [];
+  entries.push(...readImportGroup(rawImports.suites, 'suite', 'imports.suites'));
+  entries.push(...readImportGroup(rawImports.tests, 'tests', 'imports.tests'));
+  return entries;
+}
+
+function readImportGroup(
+  rawGroup: JsonValue | undefined,
+  mode: IncludeEntryType,
+  location: string,
+): readonly NormalizedImportEntry[] {
+  if (rawGroup === undefined) {
+    return [];
+  }
+  const values = Array.isArray(rawGroup) ? rawGroup : [rawGroup];
+  return values.map((entry, index) => normalizeImportEntry(entry, mode, `${location}[${index}]`));
+}
+
+function normalizeImportEntry(
+  entry: JsonValue,
+  mode: IncludeEntryType,
+  location: string,
+): NormalizedImportEntry {
+  const includePath = importEntryPath(entry);
+  if (!includePath) {
+    throw new Error(`Invalid ${location}. Use a path string or an object with a non-empty path.`);
+  }
+  const select = isJsonObject(entry)
+    ? readSelectPatterns(entry.select, `${location}.select for path '${includePath}'`)
+    : undefined;
+  const includeRun = isJsonObject(entry)
+    ? normalizeRunOverride(entry.run, `${location}.run for path '${includePath}'`)
+    : undefined;
+  return {
+    path: includePath,
+    mode,
+    ...(select !== undefined && { select }),
+    ...(includeRun !== undefined && { run: includeRun }),
+    location,
+  };
+}
+
+function normalizeLegacyIncludeEntry(
+  entry: JsonObject & { include: string },
+): NormalizedImportEntry {
+  const includePath = entry.include.trim();
+  const mode = normalizeIncludeEntryType(entry.type, includePath);
+  const select = readSelectPatterns(entry.select, `tests[].select for include '${includePath}'`);
+  const includeRun = normalizeRunOverride(entry.run, `tests[].run for include '${includePath}'`);
+  logWarning(
+    `tests[].include is deprecated. Use imports.${mode === 'suite' ? 'suites' : 'tests'} with path: ${includePath}`,
+  );
+  return {
+    path: includePath,
+    mode,
+    ...(select !== undefined && { select }),
+    ...(includeRun !== undefined && { run: includeRun }),
+    location: 'tests[].include',
+    legacy: true,
+  };
+}
+
+async function expandImportEntries(params: {
+  readonly entries: readonly NormalizedImportEntry[];
+  readonly evalFileDir: string;
+  readonly repoRoot: URL | string;
+  readonly suiteMetadataPayload?: Record<string, unknown>;
+  readonly parentWorkspaceLocation?: string;
+  readonly options?: LoadOptions;
+}): Promise<ExpandedInlineTestEntries> {
+  const rawCases: JsonValue[] = [];
+  const importedSuiteTests: EvalTest[] = [];
+
+  for (const entry of params.entries) {
+    const resolvedPaths = await resolveIncludePaths(entry.path, params.evalFileDir);
+
+    for (const resolvedPath of resolvedPaths) {
+      if (entry.mode === 'suite') {
+        if (params.parentWorkspaceLocation) {
+          throw new Error(
+            `Parent workspace is not allowed when importing eval suites (${params.parentWorkspaceLocation}): ${entry.path}. Move workspace into the child suite, or import raw cases with imports.tests when you intentionally want parent workspace context.`,
+          );
+        }
+        const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
+          ...params.options,
+          filter: entry.select?.testIds,
+        });
+        const selectedTests = params.options?.filter
+          ? suite.tests.filter((test) => matchesFilter(test.id, params.options?.filter ?? ''))
+          : suite.tests;
+        importedSuiteTests.push(
+          ...selectedTests
+            .filter((test) => evalTestMatchesSelect(test, entry.select))
+            .map(markSuiteImportedTest)
+            .map((test) => applyRunOverrideToImportedTest(test, entry.run)),
+        );
+      } else {
+        const importedCases = await loadRawCasesForInclude(resolvedPath);
+        const filteredCases = entry.select
+          ? importedCases.filter((testCase) =>
+              rawCaseMatchesSelect(testCase, entry.select, params.suiteMetadataPayload),
+            )
+          : importedCases;
+        rawCases.push(
+          ...filteredCases.map((testCase) => applyRunOverrideToRawCase(testCase, entry.run)),
+        );
+      }
+    }
+  }
+
+  return { rawCases, importedSuiteTests };
+}
+
 async function resolveIncludePaths(
   includePath: string,
   evalFileDir: string,
@@ -1192,44 +1350,16 @@ async function expandInlineTestEntries(params: {
       continue;
     }
 
-    const includePath = entry.include.trim();
-    const mode = normalizeIncludeEntryType(entry.type, includePath);
-    const select = readSelectPatterns(entry.select, `tests[].select for include '${includePath}'`);
-    const includeRun = normalizeRunOverride(entry.run, `tests[].run for include '${includePath}'`);
-    const resolvedPaths = await resolveIncludePaths(includePath, params.evalFileDir);
-
-    for (const resolvedPath of resolvedPaths) {
-      if (mode === 'suite') {
-        if (params.parentWorkspaceLocation) {
-          throw new Error(
-            `Parent workspace is not allowed when importing eval suites with type: suite (${params.parentWorkspaceLocation}): ${includePath}. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.`,
-          );
-        }
-        const suite = await loadTestSuite(resolvedPath, params.repoRoot, {
-          ...params.options,
-          filter: select?.testIds,
-        });
-        const selectedTests = params.options?.filter
-          ? suite.tests.filter((test) => matchesFilter(test.id, params.options?.filter ?? ''))
-          : suite.tests;
-        importedSuiteTests.push(
-          ...selectedTests
-            .filter((test) => evalTestMatchesSelect(test, select))
-            .map(markSuiteImportedTest)
-            .map((test) => applyRunOverrideToImportedTest(test, includeRun)),
-        );
-      } else {
-        const importedCases = await loadRawCasesForInclude(resolvedPath);
-        const filteredCases = select
-          ? importedCases.filter((testCase) =>
-              rawCaseMatchesSelect(testCase, select, params.suiteMetadataPayload),
-            )
-          : importedCases;
-        rawCases.push(
-          ...filteredCases.map((testCase) => applyRunOverrideToRawCase(testCase, includeRun)),
-        );
-      }
-    }
+    const expanded = await expandImportEntries({
+      entries: [normalizeLegacyIncludeEntry(entry)],
+      evalFileDir: params.evalFileDir,
+      repoRoot: params.repoRoot,
+      suiteMetadataPayload: params.suiteMetadataPayload,
+      parentWorkspaceLocation: params.parentWorkspaceLocation,
+      options: params.options,
+    });
+    rawCases.push(...expanded.rawCases);
+    importedSuiteTests.push(...expanded.importedSuiteTests);
   }
 
   return { rawCases, importedSuiteTests };
