@@ -4136,7 +4136,7 @@ export async function deleteWipBranch(params: {
 
 function isMissingRemoteRefDelete(result: { stdout: string; stderr: string }): boolean {
   const text = `${result.stderr}\n${result.stdout}`.toLowerCase();
-  return text.includes('remote ref does not exist') || text.includes('unable to delete');
+  return text.includes('remote ref does not exist');
 }
 
 // git exits non-zero with one of these messages when the requested ref/object
