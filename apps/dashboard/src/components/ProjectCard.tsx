@@ -111,7 +111,7 @@ export function ProjectCard({ project, canRemove = false, onRemove }: ProjectCar
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1 pr-10">
             <h3 className="truncate text-lg font-semibold text-white group-hover:text-cyan-400">
-              {project.name}
+              {project.id}
             </h3>
             <p className="mt-1 truncate text-xs text-gray-500">{project.path}</p>
           </div>
@@ -161,7 +161,7 @@ export function ProjectCard({ project, canRemove = false, onRemove }: ProjectCar
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-controls={menuOpen ? menuId : undefined}
-            aria-label={`Open ${project.name} project menu`}
+            aria-label={`Open ${project.id} project menu`}
             onClick={() => setMenuOpen((open) => !open)}
             className="flex h-8 w-8 items-center justify-center rounded-md text-lg leading-none text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
           >
@@ -172,7 +172,7 @@ export function ProjectCard({ project, canRemove = false, onRemove }: ProjectCar
               ref={menuRef}
               id={menuId}
               role="menu"
-              aria-label={`${project.name} actions`}
+              aria-label={`${project.id} actions`}
               className="absolute right-0 top-10 w-44 overflow-hidden rounded-md border border-gray-800 bg-gray-950 py-1 shadow-xl"
             >
               <button
@@ -211,7 +211,7 @@ export function ProjectCard({ project, canRemove = false, onRemove }: ProjectCar
             </div>
             <div className="space-y-3 p-4">
               <p className="text-sm text-gray-300">
-                Remove <span className="font-medium text-white">{project.name}</span> from this
+                Remove <span className="font-medium text-white">{project.id}</span> from this
                 Dashboard registry.
               </p>
               <p className="text-sm text-gray-500">

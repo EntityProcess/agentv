@@ -16,7 +16,6 @@
  * YAML format (all keys snake_case per AGENTS.md §"Wire Format Convention"):
  *   projects:
  *     - id: my-app
- *       name: My App
  *       repo: https://github.com/example/my-app.git
  *       path: /home/user/projects/my-app
  *       branch: main
@@ -73,7 +72,6 @@ export interface ProjectResultsConfig {
 
 export interface ProjectEntry {
   id: string;
-  name: string;
   repoUrl?: string;
   path: string;
   ref?: string;
@@ -106,7 +104,6 @@ interface ProjectResultsYaml {
 
 interface ProjectEntryYaml {
   id: string;
-  name: string;
   repo?: string;
   path?: string;
   branch?: string;
@@ -125,12 +122,11 @@ function fromYaml(raw: unknown): ProjectEntry | null {
   if (!raw || typeof raw !== 'object') return null;
   const e = raw as Partial<ProjectEntryYaml>;
   const sourcePath = readTrimmedString(e.path);
-  if (typeof e.id !== 'string' || typeof e.name !== 'string' || !sourcePath) {
+  if (typeof e.id !== 'string' || !sourcePath) {
     return null;
   }
   const entry: ProjectEntry = {
     id: e.id,
-    name: e.name,
     path: sourcePath,
     addedAt: typeof e.added_at === 'string' ? e.added_at : '',
     lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
@@ -163,7 +159,6 @@ function fromYaml(raw: unknown): ProjectEntry | null {
 function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   const yaml: ProjectEntryYaml = {
     id: entry.id,
-    name: entry.name,
     ...(entry.repoUrl !== undefined && { repo: entry.repoUrl }),
     path: entry.path,
     ...(entry.ref !== undefined && { branch: entry.ref }),
@@ -293,7 +288,6 @@ export function addProject(projectPath: string): ProjectEntry {
       absPath,
       registry.projects.map((p) => p.id),
     ),
-    name: path.basename(absPath),
     path: absPath,
     addedAt: now,
     lastOpenedAt: now,

@@ -85,7 +85,6 @@ describe('validateConfigFile', () => {
       filePath,
       `projects:
   - id: agentv
-    name: AgentV
     repo: https://github.com/EntityProcess/agentv.git
     path: /srv/agentv
     branch: main
@@ -112,7 +111,6 @@ describe('validateConfigFile', () => {
       filePath,
       `projects:
   - id: agentv
-    name: AgentV
     path: /srv/agentv
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
@@ -136,7 +134,6 @@ describe('validateConfigFile', () => {
       filePath,
       `projects:
   - id: agentv
-    name: AgentV
     repo: https://github.com/EntityProcess/agentv.git
     path: /srv/agentv
     results:
@@ -162,7 +159,6 @@ describe('validateConfigFile', () => {
       filePath,
       `projects:
   - id: agentv
-    name: AgentV
     path: /srv/agentv
 `,
     );
@@ -186,7 +182,6 @@ describe('validateConfigFile', () => {
       filePath,
       `projects:
   - id: misplaced
-    name: Misplaced
     path: /srv/misplaced
 `,
     );
@@ -208,7 +203,6 @@ describe('validateConfigFile', () => {
       filePath,
       `projects:
   - id: ""
-    name: 42
     repo: 99
     path: ""
     branch: ""
@@ -226,7 +220,6 @@ describe('validateConfigFile', () => {
     expect(result.errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ severity: 'error', location: 'projects[0].id' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].name' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].repo' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].branch' }),

@@ -45,7 +45,6 @@ describe('dashboard API boundary mapping', () => {
   it('maps add-project wire keys to camelCase UI data', async () => {
     const calls = stubJsonResponse({
       id: 'demo',
-      name: 'demo',
       path: '/tmp/demo',
       added_at: '2026-06-19T05:00:00.000Z',
       last_opened_at: '2026-06-19T05:00:00.000Z',
@@ -63,7 +62,6 @@ describe('dashboard API boundary mapping', () => {
     });
     expect(result).toEqual({
       id: 'demo',
-      name: 'demo',
       path: '/tmp/demo',
       addedAt: '2026-06-19T05:00:00.000Z',
       lastOpenedAt: '2026-06-19T05:00:00.000Z',

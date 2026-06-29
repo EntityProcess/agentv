@@ -145,7 +145,7 @@ function ProjectsDashboard() {
           }
         : current,
     );
-    setProjectMessage(`Project removed from Dashboard: ${project.name}. Files were left on disk.`);
+    setProjectMessage(`Project removed from Dashboard: ${project.id}. Files were left on disk.`);
     void queryClient.invalidateQueries({ queryKey: ['projects'] });
   }
 
@@ -210,7 +210,7 @@ function ProjectsDashboard() {
           open={showAddProject}
           onClose={() => setShowAddProject(false)}
           onAdded={(project) => {
-            setProjectMessage(`Project registered: ${project.name}`);
+            setProjectMessage(`Project registered: ${project.id}`);
             void queryClient.invalidateQueries({ queryKey: ['projects'] });
           }}
         />

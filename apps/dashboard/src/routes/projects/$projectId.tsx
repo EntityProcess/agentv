@@ -21,11 +21,9 @@ import {
   syncRemoteResultsApi,
   useEvalRuns,
   useInfiniteProjectRunList,
-  useProjectList,
   useRemoteStatus,
   useStudioConfig,
 } from '~/lib/api';
-import { resolveProjectDisplayName } from '~/lib/project-display-name';
 import {
   buildProjectSyncErrorFeedback,
   buildProjectSyncFeedback,
@@ -54,9 +52,8 @@ function ProjectHomePage() {
   const navigate = useNavigate();
   const [showRunEval, setShowRunEval] = useState(false);
   const { data: config } = useStudioConfig(projectId);
-  const { data: projectData } = useProjectList();
   const isReadOnly = config?.read_only === true;
-  const projectName = resolveProjectDisplayName(projectId, projectData?.projects);
+  const projectName = projectId;
 
   const activeTab: TabId = tabs.some((t) => t.id === tab) ? (tab as TabId) : 'runs';
   const activeTabTitle = tabs.find((t) => t.id === activeTab)?.title ?? 'Recent Runs';

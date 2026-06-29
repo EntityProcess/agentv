@@ -170,7 +170,6 @@ function validateProjects(errors: ValidationError[], filePath: string, projects:
 
     const projectRecord = project as Record<string, unknown>;
     validateRequiredString(errors, filePath, projectRecord.id, `${location}.id`);
-    validateRequiredString(errors, filePath, projectRecord.name, `${location}.name`);
     validateProjectRepoConfig(errors, filePath, projectRecord, location);
     validateProjectResultsConfig(errors, filePath, projectRecord.results, `${location}.results`);
   });

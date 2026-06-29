@@ -3213,14 +3213,12 @@ export function createApp(
   /** Convert a ProjectEntry to snake_case wire format. */
   function projectEntryToWire(entry: {
     id: string;
-    name: string;
     path: string;
     addedAt: string;
     lastOpenedAt: string;
   }) {
     return {
       id: entry.id,
-      name: entry.name,
       path: entry.path,
       added_at: entry.addedAt,
       last_opened_at: entry.lastOpenedAt,
@@ -3317,7 +3315,6 @@ export function createApp(
       const summary = await summarizeProjectRunMetas(project);
       return c.json({
         id: project.id,
-        name: project.name,
         path: project.path,
         run_count: summary.runCount,
         pass_rate: summary.passRate,
@@ -3353,7 +3350,6 @@ export function createApp(
       tag_revision: string;
       source: 'local' | 'remote';
       project_id: string;
-      project_name: string;
     }> = [];
 
     for (const p of registry.projects) {
@@ -3407,7 +3403,6 @@ export function createApp(
             ...(runtimeSource && { runtime_source: runtimeSource }),
             ...tagFields,
             project_id: p.id,
-            project_name: p.name,
           });
         }
       } catch {
@@ -3783,7 +3778,7 @@ export const resultsServeCommand = command({
     if (add) {
       try {
         const entry = addProject(add);
-        console.log(`Registered project: ${entry.name} (${entry.id}) at ${entry.path}`);
+        console.log(`Registered project: ${entry.id} at ${entry.path}`);
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);

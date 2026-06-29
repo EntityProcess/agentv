@@ -7,7 +7,6 @@
 
 import { Link, useMatches } from '@tanstack/react-router';
 
-import { useProjectList } from '~/lib/api';
 import {
   categoryPath,
   evalPath,
@@ -17,7 +16,6 @@ import {
   runPath,
   suitePath,
 } from '~/lib/navigation';
-import { type ProjectDisplayEntry, resolveProjectDisplayName } from '~/lib/project-display-name';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
 interface BreadcrumbSegment {
@@ -34,10 +32,7 @@ export function formatBreadcrumbRunLabel(runId: string | undefined): string {
   return timestamp?.[0] ?? candidate;
 }
 
-function deriveSegments(
-  matches: ReturnType<typeof useMatches>,
-  projects: readonly ProjectDisplayEntry[] = [],
-): BreadcrumbSegment[] {
+function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegment[] {
   const segments: BreadcrumbSegment[] = [];
 
   // Skip the root match (index 0)
@@ -49,7 +44,7 @@ function deriveSegments(
     if (routeId === '/' || routeId === '/_layout') continue;
 
     if (routeId.includes('/projects/$projectId') && params.projectId) {
-      const label = resolveProjectDisplayName(params.projectId, projects);
+      const label = params.projectId;
       const to = projectHomePath(params.projectId);
       if (!segments.some((s) => s.to === to)) {
         segments.push({
@@ -172,8 +167,7 @@ function deriveSegments(
 export function Breadcrumbs() {
   const matches = useMatches();
   const { toggle } = useSidebarContext();
-  const { data: projectData } = useProjectList();
-  const segments = deriveSegments(matches, projectData?.projects);
+  const segments = deriveSegments(matches);
   const hasTrail = segments.length > 0;
 
   return (
