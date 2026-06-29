@@ -19,7 +19,15 @@ describe('retry-errors', () => {
     }
   });
 
-  function createIndexFile(lines: object[]): string {
+  function createRunManifestFile(lines: object[]): string {
+    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
+    const filePath = path.join(tmpDir, 'run_manifest.jsonl');
+    mkdirSync(tmpDir, { recursive: true });
+    writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
+    return filePath;
+  }
+
+  function createLegacyIndexFile(lines: object[]): string {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
     const filePath = path.join(tmpDir, 'index.jsonl');
     mkdirSync(tmpDir, { recursive: true });
@@ -35,7 +43,7 @@ describe('retry-errors', () => {
   }
 
   it('loadErrorTestIds returns only execution_error test IDs', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0, error: 'timeout' },
       { test_id: 'case-3', execution_status: 'quality_failure', score: 0.3 },
@@ -52,7 +60,7 @@ describe('retry-errors', () => {
   });
 
   it('loadErrorTestIds deduplicates IDs', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
       { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
     ]);
@@ -62,7 +70,7 @@ describe('retry-errors', () => {
   });
 
   it('loadErrorTestIds returns empty array when no errors', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'quality_failure', score: 0.5 },
     ]);
@@ -72,7 +80,7 @@ describe('retry-errors', () => {
   });
 
   it('loadNonErrorResults returns only non-error results', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
       { test_id: 'case-3', execution_status: 'quality_failure', score: 0.5 },
@@ -84,8 +92,8 @@ describe('retry-errors', () => {
     expect(results[1].testId).toBe('case-3');
   });
 
-  it('supports index.jsonl manifests written by the CLI', async () => {
-    const filePath = createIndexFile([
+  it('supports run_manifest.jsonl manifests written by the CLI', async () => {
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
       { test_id: 'case-3', execution_status: 'quality_failure', score: 0.5 },
@@ -107,15 +115,15 @@ describe('retry-errors', () => {
     ]);
 
     await expect(loadErrorTestIds(filePath)).rejects.toThrow(
-      'Expected a run workspace directory or index.jsonl manifest',
+      'Expected a run workspace directory or run_manifest.jsonl manifest',
     );
     await expect(loadNonErrorResults(filePath)).rejects.toThrow(
-      'Expected a run workspace directory or index.jsonl manifest',
+      'Expected a run workspace directory or run_manifest.jsonl manifest',
     );
   });
 
-  it('supports index.jsonl manifests', async () => {
-    const filePath = createIndexFile([
+  it('supports legacy index.jsonl manifests', async () => {
+    const filePath = createLegacyIndexFile([
       {
         test_id: 'case-1',
         execution_status: 'ok',
@@ -137,7 +145,7 @@ describe('retry-errors', () => {
   });
 
   it('loadFullyCompletedTestIds returns only non-error test IDs', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0, error: 'timeout' },
       { test_id: 'case-3', execution_status: 'quality_failure', score: 0.3 },
@@ -154,7 +162,7 @@ describe('retry-errors', () => {
   });
 
   it('loadFullyCompletedTestIds returns empty array when all are errors', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'execution_error', score: 0 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
     ]);
@@ -164,7 +172,7 @@ describe('retry-errors', () => {
   });
 
   it('loadFullyCompletedTestIds excludes IDs that errored on any target (matrix safety)', async () => {
-    const filePath = createIndexFile([
+    const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9, target: 'gpt-4' },
       { test_id: 'case-1', execution_status: 'execution_error', score: 0, target: 'claude' },
       { test_id: 'case-2', execution_status: 'ok', score: 0.8, target: 'gpt-4' },
@@ -187,9 +195,9 @@ describe('retry-errors', () => {
     expect(buildExclusionFilter(['!negated'])).toBe('!\\!negated');
   });
 
-  it('throws on malformed index.jsonl lines', async () => {
+  it('throws on malformed run_manifest.jsonl lines', async () => {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
-    const filePath = path.join(tmpDir, 'index.jsonl');
+    const filePath = path.join(tmpDir, 'run_manifest.jsonl');
     writeFileSync(
       filePath,
       [

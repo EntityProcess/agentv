@@ -382,7 +382,7 @@ function writeWtgDogfoodNoncanonicalArtifact(baseDir: string): {
 } {
   const runDir = path.join(baseDir, 'wtg-dogfood-noncanonical-run');
   mkdirSync(runDir, { recursive: true });
-  const indexPath = path.join(runDir, 'index.jsonl');
+  const indexPath = path.join(runDir, 'run_manifest.jsonl');
   writeFileSync(indexPath, toJsonl({ ...RESULT_A, test_id: 'wtg-dogfood-noncanonical' }));
   return { runDir, indexPath };
 }
@@ -430,7 +430,7 @@ describe('resolveSourceFile', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('rejects direct WTG dogfood index.jsonl manifests with setup guidance', async () => {
+  it('rejects direct WTG dogfood run manifests with setup guidance', async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
     const { indexPath } = writeWtgDogfoodNoncanonicalArtifact(tempDir);
 
@@ -445,7 +445,7 @@ describe('resolveSourceFile', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
     const runDir = localRunDir(tempDir, 'default', '2026-06-17T00-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
-    const indexPath = path.join(runDir, 'index.jsonl');
+    const indexPath = path.join(runDir, 'run_manifest.jsonl');
     writeFileSync(indexPath, toJsonl(RESULT_A));
 
     await expect(resolveSourceFile(undefined, tempDir)).resolves.toBe(indexPath);
@@ -475,7 +475,7 @@ describe('dashboard CLI source contract', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('fails before serving a direct WTG dogfood index.jsonl manifest', () => {
+  it('fails before serving a direct WTG dogfood run manifest', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-dashboard-source-cli-'));
     const projectDir = path.join(tempDir, 'project');
     mkdirSync(projectDir, { recursive: true });
@@ -490,7 +490,7 @@ describe('dashboard CLI source contract', () => {
     expect(result.signal).toBeNull();
     expect(result.stdout).not.toContain('Serving 1 result(s)');
     expect(result.stderr).toContain('Unsupported Dashboard source');
-    expect(result.stderr).toContain('agentv results report <run-workspace-or-index.jsonl>');
+    expect(result.stderr).toContain('agentv results report <run-workspace-or-run_manifest.jsonl>');
 
     rmSync(tempDir, { recursive: true, force: true });
   });
@@ -2788,8 +2788,13 @@ describe('serve app', () => {
     ): { runId: string; runDir: string; manifestPath: string } {
       const runDir = localRunDir(opts?.baseDir ?? tempDir, opts?.experiment ?? 'default', name);
       mkdirSync(runDir, { recursive: true });
-      const manifestPath = path.join(runDir, 'index.jsonl');
-      writeFileSync(manifestPath, toJsonl(...records));
+      const manifestPath = path.join(runDir, 'run_manifest.jsonl');
+      writeFileSync(
+        manifestPath,
+        toJsonl(
+          ...records.map((record) => ({ ...record, experiment: opts?.experiment ?? 'default' })),
+        ),
+      );
       if (opts?.tags) {
         writeFileSync(
           path.join(runDir, 'tags.json'),
@@ -2892,7 +2897,7 @@ describe('serve app', () => {
       expect(detailRes.status).toBe(200);
       await detailRes.json();
       const records = readFileSync(
-        path.join(localRunDirFromRunId(tempDir, acceptedData.run_id), 'index.jsonl'),
+        path.join(localRunDirFromRunId(tempDir, acceptedData.run_id), 'run_manifest.jsonl'),
         'utf8',
       )
         .trim()
@@ -4399,12 +4404,14 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          retry_errors: '.agentv/results/default/r0/index.jsonl',
+          retry_errors: '.agentv/results/default/r0/run_manifest.jsonl',
         }),
       });
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
+      expect(data.command).toContain(
+        '--retry-errors .agentv/results/default/r0/run_manifest.jsonl',
+      );
     });
 
     it('rejects resume + rerun_failed combo with 400', async () => {
@@ -4433,7 +4440,7 @@ describe('serve app', () => {
           suite_filter: 'examples/demo.eval.yaml',
           output: '.agentv/results/default/r1',
           resume: true,
-          retry_errors: '.agentv/results/default/r0/index.jsonl',
+          retry_errors: '.agentv/results/default/r0/run_manifest.jsonl',
         }),
       });
       expect(res.status).toBe(400);
@@ -4581,12 +4588,14 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          retry_errors: '.agentv/results/default/r0/index.jsonl',
+          retry_errors: '.agentv/results/default/r0/run_manifest.jsonl',
         }),
       });
       expect(res.status).toBe(200);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
+      expect(data.command).toContain(
+        '--retry-errors .agentv/results/default/r0/run_manifest.jsonl',
+      );
     });
 
     it('emits --experiment for selected experiment requests', async () => {
