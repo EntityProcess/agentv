@@ -49,24 +49,14 @@ export type ResultPushConflictPolicy = 'block';
 
 export type ResultsConfig = {
   readonly mode?: 'github';
-  /** Legacy shorthand or Git remote URL for a managed results clone. */
+  /** Git remote slug/URL for a managed results clone, or omit to default to the source repo. */
   readonly repo?: string;
-  /** Git remote URL for a managed results clone. Preferred in YAML wire config. */
-  readonly repo_url?: string;
-  /** Local Git repository path. `.` means the current project/source repository. */
-  readonly repo_path?: string;
+  /** Local Git checkout path for results. */
+  readonly path?: string;
   /** Optional remote branch used as the canonical git-backed results store. */
   readonly branch?: string;
-  /** Runtime-only local Git remote-name override. Persistent config should not set this. */
-  readonly remote?: string;
-  /** Local filesystem path for the results clone. Optional; defaults to ~/.agentv/results/<slug>/. */
-  readonly path?: string;
+  /** Push committed results to the remote automatically. */
   readonly auto_push?: boolean;
-  readonly sync?: {
-    readonly auto_push?: boolean;
-    readonly push_conflict_policy?: ResultPushConflictPolicy;
-  };
-  readonly branch_prefix?: string;
 };
 
 export type HooksConfig = {
@@ -660,92 +650,6 @@ function warnRemovedExperimentPointer(raw: unknown, configPath: string, key: str
   );
 }
 
-function isFilesystemPath(p: string): boolean {
-  return (
-    p.startsWith('/') ||
-    p.startsWith('~/') ||
-    p.startsWith('~\\') ||
-    p === '~' ||
-    /^[A-Za-z]:[/\\]/.test(p)
-  );
-}
-
-function readTrimmedString(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function isGitRemoteUrl(value: string): boolean {
-  return /^(https?:\/\/|ssh:\/\/|git@|file:\/\/).+/.test(value);
-}
-
-type NestedResultsRepoConfig = {
-  readonly repo_url?: string;
-  readonly repo_path?: string;
-  readonly branch?: string;
-  readonly path?: string;
-};
-
-function parseNestedResultsRepoConfig(
-  raw: unknown,
-  configPath: string,
-): NestedResultsRepoConfig | undefined {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    logWarning(`Invalid results.repo in ${configPath}, expected object`);
-    return undefined;
-  }
-
-  const repo = raw as Record<string, unknown>;
-  const url = readTrimmedString(repo.url);
-  const repoPath = readTrimmedString(repo.path);
-  const branch = readTrimmedString(repo.branch);
-  const remote = readTrimmedString(repo.remote);
-  const remoteUrl = remote ?? url;
-
-  if (repo.url !== undefined && !url) {
-    logWarning(`Invalid results.repo.url in ${configPath}, expected non-empty string`);
-    return undefined;
-  }
-  if (url && !isGitRemoteUrl(url)) {
-    logWarning(`Invalid results.repo.url in ${configPath}, expected Git remote URL`);
-    return undefined;
-  }
-  if (repo.path !== undefined && !repoPath) {
-    logWarning(`Invalid results.repo.path in ${configPath}, expected non-empty string`);
-    return undefined;
-  }
-  if (repo.branch !== undefined && !branch) {
-    logWarning(`Invalid results.repo.branch in ${configPath}, expected non-empty string`);
-    return undefined;
-  }
-  if (repo.remote !== undefined && !remote) {
-    logWarning(`Invalid results.repo.remote in ${configPath}, expected non-empty string`);
-    return undefined;
-  }
-  if (remote && !isGitRemoteUrl(remote)) {
-    logWarning(`Invalid results.repo.remote in ${configPath}, expected Git remote URL`);
-    return undefined;
-  }
-  if (remote && url) {
-    logWarning(`Invalid results.repo in ${configPath}, set only one of remote or url`);
-    return undefined;
-  }
-  if (!remoteUrl && !repoPath) {
-    logWarning(`Invalid results.repo in ${configPath}, expected remote or path`);
-    return undefined;
-  }
-
-  return {
-    ...(remoteUrl && { repo_url: remoteUrl }),
-    ...(repoPath && !remoteUrl && { repo_path: repoPath }),
-    ...(remoteUrl && repoPath && { path: repoPath }),
-    ...(branch && { branch }),
-  };
-}
-
 export function parseResultsConfig(raw: unknown, configPath: string): ResultsConfig | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
@@ -762,48 +666,31 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     return undefined;
   }
 
-  const hasNestedRepo = obj.repo !== undefined && typeof obj.repo === 'object' && obj.repo !== null;
-  const nestedRepo = hasNestedRepo ? parseNestedResultsRepoConfig(obj.repo, configPath) : undefined;
-  if (hasNestedRepo && !nestedRepo) {
-    return undefined;
-  }
-  if (obj.repo !== undefined && !hasNestedRepo && typeof obj.repo !== 'string') {
-    logWarning(`Invalid results.repo in ${configPath}, expected string or object`);
-    return undefined;
-  }
-  if (
-    nestedRepo &&
-    ['repo_url', 'repo_path', 'branch', 'remote', 'path'].some((field) => obj[field] !== undefined)
-  ) {
-    logWarning(
-      `Invalid results in ${configPath}, do not mix nested results.repo with flat repo_url, repo_path, branch, remote, or path fields`,
-    );
-    return undefined;
+  let repo: string | undefined;
+  if (obj.repo !== undefined) {
+    if (typeof obj.repo !== 'string' || obj.repo.trim().length === 0) {
+      logWarning(`Invalid results.repo in ${configPath}, expected non-empty string`);
+      return undefined;
+    }
+    repo = obj.repo.trim();
   }
 
-  const legacyRepo = typeof obj.repo === 'string' ? obj.repo.trim() : '';
-  const repoUrl =
-    nestedRepo?.repo_url ?? (typeof obj.repo_url === 'string' ? obj.repo_url.trim() : '');
-  const repoPath =
-    nestedRepo?.repo_path ?? (typeof obj.repo_path === 'string' ? obj.repo_path.trim() : '');
-  const repo = legacyRepo || repoUrl;
-  if (!repo && !repoPath) {
-    logWarning(
-      `Invalid results in ${configPath}, expected nested repo.remote/repo.path or compatible repo_url/repo_path`,
-    );
-    return undefined;
+  let resultsPath: string | undefined;
+  if (obj.path !== undefined) {
+    if (typeof obj.path !== 'string' || obj.path.trim().length === 0) {
+      logWarning(`Invalid results.path in ${configPath}, expected non-empty string`);
+      return undefined;
+    }
+    resultsPath = obj.path.trim();
   }
-  if (repo && repoPath) {
-    logWarning(
-      `Invalid results in ${configPath}, set only one of nested repo.remote/repo.path or compatible repo_url/repo_path`,
-    );
+
+  if (!repo && !resultsPath) {
+    logWarning(`Invalid results in ${configPath}, expected repo or path`);
     return undefined;
   }
 
   let branch: string | undefined;
-  if (nestedRepo?.branch !== undefined) {
-    branch = nestedRepo.branch;
-  } else if (obj.branch !== undefined) {
+  if (obj.branch !== undefined) {
     if (typeof obj.branch !== 'string' || obj.branch.trim().length === 0) {
       logWarning(`Invalid results.branch in ${configPath}, expected non-empty string`);
       return undefined;
@@ -811,92 +698,17 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     branch = obj.branch.trim();
   }
 
-  if (obj.remote !== undefined) {
-    if (!hasNestedRepo) {
-      logWarning(
-        `results.remote in ${configPath} is no longer supported in persistent config. Use results.repo.remote for a portable Git endpoint URL, or omit it and let AgentV use the local checkout remote alias internally.`,
-      );
-      return undefined;
-    }
-  }
-
-  let resultsPath: string | undefined;
-  if (nestedRepo?.path !== undefined) {
-    resultsPath = nestedRepo.path;
-  } else if (obj.path !== undefined) {
-    if (typeof obj.path !== 'string' || obj.path.trim().length === 0) {
-      logWarning(`Invalid results.path in ${configPath}, expected non-empty string`);
-      return undefined;
-    }
-    const trimmedPath = obj.path.trim();
-    if (!isFilesystemPath(trimmedPath)) {
-      logWarning(
-        `Invalid results.path in ${configPath}: '${trimmedPath}' looks like a repo subdirectory. results.path now specifies the local filesystem directory for the clone (e.g., ~/data/agentv-results). Remove 'path' to use the default or set an absolute/home-relative path.`,
-      );
-      return undefined;
-    }
-    resultsPath = trimmedPath;
-  }
-
   if (obj.auto_push !== undefined && typeof obj.auto_push !== 'boolean') {
     logWarning(`Invalid results.auto_push in ${configPath}, expected boolean`);
     return undefined;
   }
 
-  let sync: ResultsConfig['sync'];
-  if (obj.sync !== undefined) {
-    if (typeof obj.sync !== 'object' || obj.sync === null || Array.isArray(obj.sync)) {
-      logWarning(`Invalid results.sync in ${configPath}, expected object`);
-      return undefined;
-    }
-    const syncObj = obj.sync as Record<string, unknown>;
-    if (syncObj.auto_push !== undefined && typeof syncObj.auto_push !== 'boolean') {
-      logWarning(`Invalid results.sync.auto_push in ${configPath}, expected boolean`);
-      return undefined;
-    }
-    if (syncObj.require_push !== undefined) {
-      logWarning(
-        `results.sync.require_push in ${configPath} is no longer supported in persistent config. Use the per-run --results-require-push CLI flag instead.`,
-      );
-      return undefined;
-    }
-    if (syncObj.push_conflict_policy === 'backup_and_force_push') {
-      logWarning(
-        `results.sync.push_conflict_policy: 'backup_and_force_push' in ${configPath} is no longer supported. Remove the field or set it to 'block'; AgentV never force-pushes result branches.`,
-      );
-      return undefined;
-    }
-    if (syncObj.push_conflict_policy !== undefined && syncObj.push_conflict_policy !== 'block') {
-      logWarning(`Invalid results.sync.push_conflict_policy in ${configPath}, expected 'block'`);
-      return undefined;
-    }
-    sync = {
-      ...(typeof syncObj.auto_push === 'boolean' && { auto_push: syncObj.auto_push }),
-      ...(syncObj.push_conflict_policy === 'block' && {
-        push_conflict_policy: syncObj.push_conflict_policy,
-      }),
-    };
-  }
-
-  let branchPrefix: string | undefined;
-  if (obj.branch_prefix !== undefined) {
-    if (typeof obj.branch_prefix !== 'string' || obj.branch_prefix.trim().length === 0) {
-      logWarning(`Invalid results.branch_prefix in ${configPath}, expected non-empty string`);
-      return undefined;
-    }
-    branchPrefix = obj.branch_prefix.trim();
-  }
-
   return {
     mode: 'github',
     ...(repo && { repo }),
-    ...(repoUrl && { repo_url: repoUrl }),
-    ...(repoPath && { repo_path: repoPath }),
-    ...(branch !== undefined && { branch }),
     ...(resultsPath !== undefined && { path: resultsPath }),
+    ...(branch !== undefined && { branch }),
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
-    ...(sync && { sync }),
-    ...(branchPrefix && { branch_prefix: branchPrefix }),
   };
 }
 

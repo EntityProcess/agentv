@@ -196,9 +196,8 @@ function writeResultsConfig(
   writeFileSync(
     path.join(projectDir, '.agentv', 'config.yaml'),
     `results:
-  repo:
-    remote: ${JSON.stringify(params.remote)}
-${params.branch ? `    branch: ${JSON.stringify(params.branch)}\n` : ''}${params.path ? `    path: ${JSON.stringify(params.path)}\n` : ''}${params.autoPush !== undefined ? `  sync:\n    auto_push: ${params.autoPush}\n` : ''}`,
+  repo: ${JSON.stringify(params.remote)}
+${params.branch ? `  branch: ${JSON.stringify(params.branch)}\n` : ''}${params.path ? `  path: ${JSON.stringify(params.path)}\n` : ''}${params.autoPush !== undefined ? `  auto_push: ${params.autoPush}\n` : ''}`,
   );
 }
 
@@ -2156,9 +2155,9 @@ describe('serve app', () => {
               name: 'Project No Publish',
               path: projectDir,
               results: {
-                repoUrl: `file://${remoteDir}`,
+                repo: `file://${remoteDir}`,
                 path: missingCloneDir,
-                sync: { autoPush: true },
+                autoPush: true,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
@@ -2280,9 +2279,9 @@ describe('serve app', () => {
               name: 'AgentV',
               path: projectDir,
               results: {
-                repoUrl: 'EntityProcess/agentv-examples-eval-results',
+                repo: 'EntityProcess/agentv-examples-eval-results',
                 path: '/home/entity/projects/EntityProcess/agentv-examples-eval-results',
-                sync: { autoPush: true },
+                autoPush: true,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
@@ -2332,9 +2331,9 @@ describe('serve app', () => {
               name: 'Project Sync Pull',
               path: projectDir,
               results: {
-                repoUrl: `file://${remoteDir}`,
+                repo: `file://${remoteDir}`,
                 path: cloneDir,
-                sync: { autoPush: false },
+                autoPush: false,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
@@ -2409,9 +2408,9 @@ describe('serve app', () => {
               name: 'Project Sync Push',
               path: projectDir,
               results: {
-                repoUrl: `file://${remoteDir}`,
+                repo: `file://${remoteDir}`,
                 path: cloneDir,
-                sync: { autoPush: true },
+                autoPush: true,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
@@ -2477,9 +2476,9 @@ describe('serve app', () => {
               name: 'Project Sync Offline',
               path: projectDir,
               results: {
-                repoUrl: missingRemoteUrl,
+                repo: missingRemoteUrl,
                 path: cloneDir,
-                sync: { autoPush: true },
+                autoPush: true,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
@@ -2535,9 +2534,9 @@ describe('serve app', () => {
               name: 'Project Sync Conflict',
               path: projectDir,
               results: {
-                repoUrl: `file://${remoteDir}`,
+                repo: `file://${remoteDir}`,
                 path: cloneDir,
-                sync: { autoPush: true },
+                autoPush: true,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',
@@ -2661,9 +2660,9 @@ describe('serve app', () => {
               name: 'Project Confirm Merge',
               path: projectDir,
               results: {
-                repoUrl: `file://${remoteDir}`,
+                repo: `file://${remoteDir}`,
                 path: cloneDir,
-                sync: { autoPush: false },
+                autoPush: false,
               },
               addedAt: '2026-01-01T00:00:00.000Z',
               lastOpenedAt: '2026-01-01T00:00:00.000Z',

@@ -108,9 +108,8 @@ describe('loadConfig', () => {
           '  verbose: true',
           '  pool_slots: 2',
           'results:',
-          '  repo:',
-          '    path: .',
-          '    branch: base-results',
+          '  path: .',
+          '  branch: base-results',
           '',
         ].join('\n'),
       );
@@ -123,8 +122,7 @@ describe('loadConfig', () => {
           '  keep_workspaces: true',
           '  workspace_path: /tmp/agentv-local-workspace',
           'results:',
-          '  repo:',
-          '    branch: local-results',
+          '  branch: local-results',
           '',
         ].join('\n'),
       );
@@ -140,7 +138,7 @@ describe('loadConfig', () => {
       });
       expect(config?.results).toEqual({
         mode: 'github',
-        repo_path: '.',
+        path: '.',
         branch: 'local-results',
       });
     } finally {
@@ -324,15 +322,14 @@ describe('loadConfig', () => {
 });
 
 describe('parseResultsConfig', () => {
-  it('parses valid results config with explicit path', () => {
+  it('parses valid flat results config', () => {
     const result = parseResultsConfig(
       {
         mode: 'github',
         repo: 'EntityProcess/agentv-evals',
-        branch: 'agentv-results',
         path: '~/data/agentv-results',
+        branch: 'agentv-results',
         auto_push: true,
-        branch_prefix: 'eval-results',
       },
       '/tmp/.agentv/config.yaml',
     );
@@ -340,10 +337,9 @@ describe('parseResultsConfig', () => {
     expect(result).toEqual({
       mode: 'github',
       repo: 'EntityProcess/agentv-evals',
-      branch: 'agentv-results',
       path: '~/data/agentv-results',
+      branch: 'agentv-results',
       auto_push: true,
-      branch_prefix: 'eval-results',
     });
   });
 
@@ -376,104 +372,31 @@ describe('parseResultsConfig', () => {
     });
   });
 
-  it('parses repo_path and nested sync config', () => {
+  it('parses a path-only existing local results checkout', () => {
     const result = parseResultsConfig(
       {
-        repo_path: '.',
+        path: '~/data/agentv-results',
         branch: 'agentv/results/v1',
-        sync: {
-          auto_push: false,
-          push_conflict_policy: 'block',
-        },
+        auto_push: false,
       },
       '/tmp/.agentv/config.yaml',
     );
 
     expect(result).toEqual({
       mode: 'github',
-      repo_path: '.',
+      path: '~/data/agentv-results',
       branch: 'agentv/results/v1',
-      sync: {
-        auto_push: false,
-        push_conflict_policy: 'block',
-      },
+      auto_push: false,
     });
   });
 
-  it('rejects flat results.remote in persistent config', () => {
-    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
-    try {
-      const result = parseResultsConfig(
-        {
-          repo_path: '.',
-          branch: 'agentv/results/v1',
-          remote: 'origin',
-        },
-        '/tmp/.agentv/config.yaml',
-      );
-
-      expect(result).toBeUndefined();
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('results.remote'));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('results.repo.remote'));
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
-  it('rejects require_push in persistent results sync config', () => {
-    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
-    try {
-      const result = parseResultsConfig(
-        {
-          repo_path: '.',
-          sync: {
-            require_push: true,
-          },
-        },
-        '/tmp/.agentv/config.yaml',
-      );
-
-      expect(result).toBeUndefined();
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('results.sync.require_push'));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('--results-require-push'));
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
-  it('rejects removed backup_and_force_push sync policy with migration guidance', () => {
-    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
-    try {
-      const result = parseResultsConfig(
-        {
-          repo_path: '.',
-          sync: {
-            auto_push: true,
-            push_conflict_policy: 'backup_and_force_push',
-          },
-        },
-        '/tmp/.agentv/config.yaml',
-      );
-
-      expect(result).toBeUndefined();
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('is no longer supported'));
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining("set it to 'block'"));
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
-  it('parses nested repo config for a managed results clone', () => {
+  it('parses repo and path together (existing checkout pushing to repo remote)', () => {
     const result = parseResultsConfig(
       {
-        repo: {
-          remote: 'https://github.com/example/results.git',
-          branch: 'agentv/results/v1',
-          path: '~/data/agentv-results',
-        },
-        sync: {
-          auto_push: true,
-        },
+        repo: 'https://github.com/example/results.git',
+        path: '~/data/agentv-results',
+        branch: 'agentv/results/v1',
+        auto_push: true,
       },
       '/tmp/.agentv/config.yaml',
     );
@@ -481,78 +404,10 @@ describe('parseResultsConfig', () => {
     expect(result).toEqual({
       mode: 'github',
       repo: 'https://github.com/example/results.git',
-      repo_url: 'https://github.com/example/results.git',
-      branch: 'agentv/results/v1',
       path: '~/data/agentv-results',
-      sync: {
-        auto_push: true,
-      },
-    });
-  });
-
-  it('parses nested repo config for a URL-backed source storage branch', () => {
-    const result = parseResultsConfig(
-      {
-        repo: {
-          remote: 'https://github.com/example/source.git',
-          path: '.',
-          branch: 'agentv/results/v1',
-        },
-        sync: {
-          auto_push: true,
-        },
-      },
-      '/tmp/.agentv/config.yaml',
-    );
-
-    expect(result).toEqual({
-      mode: 'github',
-      repo: 'https://github.com/example/source.git',
-      repo_url: 'https://github.com/example/source.git',
-      path: '.',
       branch: 'agentv/results/v1',
-      sync: {
-        auto_push: true,
-      },
+      auto_push: true,
     });
-  });
-
-  it('parses nested repo config for an existing local results checkout', () => {
-    const result = parseResultsConfig(
-      {
-        repo: {
-          path: '.',
-          branch: 'agentv/results/v1',
-        },
-        sync: {
-          auto_push: true,
-        },
-      },
-      '/tmp/.agentv/config.yaml',
-    );
-
-    expect(result).toEqual({
-      mode: 'github',
-      repo_path: '.',
-      branch: 'agentv/results/v1',
-      sync: {
-        auto_push: true,
-      },
-    });
-  });
-
-  it('returns undefined when nested repo config is mixed with flat repo fields', () => {
-    const result = parseResultsConfig(
-      {
-        repo: {
-          url: 'https://github.com/example/results.git',
-        },
-        branch: 'agentv/results/v1',
-      },
-      '/tmp/.agentv/config.yaml',
-    );
-
-    expect(result).toBeUndefined();
   });
 
   it('returns undefined when mode is not github', () => {
@@ -567,12 +422,11 @@ describe('parseResultsConfig', () => {
     expect(result).toBeUndefined();
   });
 
-  it('returns undefined when path looks like a repo subdirectory', () => {
+  it('returns undefined when neither repo nor path is set', () => {
     const result = parseResultsConfig(
       {
         mode: 'github',
-        repo: 'EntityProcess/agentv-evals',
-        path: 'autopilot-dev/runs',
+        branch: 'agentv/results/v1',
       },
       '/tmp/.agentv/config.yaml',
     );
@@ -605,18 +459,6 @@ describe('parseResultsConfig', () => {
     expect(result).toBeUndefined();
   });
 
-  it('returns undefined when repo_url and repo_path are both set', () => {
-    const result = parseResultsConfig(
-      {
-        repo_url: 'https://github.com/example/results.git',
-        repo_path: '.',
-      },
-      '/tmp/.agentv/config.yaml',
-    );
-
-    expect(result).toBeUndefined();
-  });
-
   it('returns undefined when repo is not a string', () => {
     const result = parseResultsConfig(
       {
@@ -635,6 +477,19 @@ describe('parseResultsConfig', () => {
         mode: 'github',
         repo: 'EntityProcess/agentv-evals',
         branch: '',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when auto_push is not a boolean', () => {
+    const result = parseResultsConfig(
+      {
+        mode: 'github',
+        repo: 'EntityProcess/agentv-evals',
+        auto_push: 'yes',
       },
       '/tmp/.agentv/config.yaml',
     );

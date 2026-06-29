@@ -129,7 +129,7 @@ async function createStaleResultBranchPushFixture(params: {
     repo: `file://${params.remoteDir}`,
     path: params.cloneDir,
     branch: params.storageBranch,
-    sync: { auto_push: false },
+    auto_push: false,
   };
   const firstSourceDir = path.join(params.rootDir, `${path.basename(params.cloneDir)}-local-1`);
   writeRunArtifacts(firstSourceDir, 'local-stale', '2026-06-23T09:00:00.000Z');
@@ -755,7 +755,7 @@ describe('results repo write path', () => {
     const normalized = normalizeResultsConfig(
       {
         repo_path: '.',
-        sync: { auto_push: false },
+        auto_push: false,
       },
       { baseDir: '/tmp/source-project' },
     );
@@ -780,7 +780,7 @@ describe('results repo write path', () => {
         repo_url: 'https://github.com/example/source.git',
         path: '.',
         branch: DEFAULT_RESULTS_BRANCH,
-        sync: { auto_push: true },
+        auto_push: true,
       },
       { baseDir: '/tmp/source-project' },
     );
@@ -813,7 +813,7 @@ describe('results repo write path', () => {
       repo_url: `file://${configuredResultsRemoteDir}`,
       path: projectDir,
       branch: DEFAULT_RESULTS_BRANCH,
-      sync: { auto_push: true },
+      auto_push: true,
     });
 
     expect(git('git remote get-url origin', projectDir)).toBe(originalOrigin);
@@ -845,7 +845,7 @@ describe('results repo write path', () => {
       config: {
         repo_path: projectDir,
         branch: DEFAULT_RESULTS_BRANCH,
-        sync: { auto_push: false },
+        auto_push: false,
       },
       sourceDir: runDir,
       destinationPath: path.join('current-repo', runTimestamp),
@@ -885,7 +885,7 @@ describe('results repo write path', () => {
       config: {
         repo_path: projectDir,
         branch: DEFAULT_RESULTS_BRANCH,
-        sync: { auto_push: false },
+        auto_push: false,
       },
       sourceDir: runDir,
       destinationPath: path.join('human-author', runTimestamp),
@@ -938,7 +938,7 @@ describe('results repo write path', () => {
             config: {
               repo_path: projectDir,
               branch: DEFAULT_RESULTS_BRANCH,
-              sync: { auto_push: false },
+              auto_push: false,
             },
             sourceDir: runDir,
             destinationPath: path.join('env-author', runTimestamp),
@@ -994,7 +994,7 @@ describe('results repo write path', () => {
             config: {
               repo_path: projectDir,
               branch: DEFAULT_RESULTS_BRANCH,
-              sync: { auto_push: false },
+              auto_push: false,
             },
             sourceDir: runDir,
             destinationPath: path.join('fallback-author', runTimestamp),
@@ -1040,7 +1040,7 @@ describe('results repo write path', () => {
         repo_url: `file://${remoteDir}`,
         path: projectDir,
         branch: DEFAULT_RESULTS_BRANCH,
-        sync: { auto_push: true },
+        auto_push: true,
       },
       sourceDir: runDir,
       destinationPath: path.join('url-backed-source', runTimestamp),
@@ -1075,7 +1075,7 @@ describe('results repo write path', () => {
       repo_path: projectDir,
       branch: storageBranch,
       remote: 'origin',
-      sync: { auto_push: false },
+      auto_push: false,
     });
 
     expect(status).toMatchObject({
@@ -1118,7 +1118,7 @@ describe('results repo write path', () => {
       repo_path: projectDir,
       branch: storageBranch,
       remote: 'origin',
-      sync: { auto_push: true },
+      auto_push: true,
     };
 
     await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
@@ -1174,7 +1174,7 @@ describe('results repo write path', () => {
       repo_path: projectDir,
       branch: storageBranch,
       remote: 'origin',
-      sync: { auto_push: false },
+      auto_push: false,
     };
 
     const status = await syncResultsRepoForProject(config);
@@ -1235,7 +1235,7 @@ describe('results repo write path', () => {
       repo_path: projectDir,
       branch: storageBranch,
       remote: 'origin',
-      sync: { auto_push: true },
+      auto_push: true,
     };
 
     const status = await syncResultsRepoForProject(config);
@@ -1286,7 +1286,7 @@ describe('results repo write path', () => {
       repo_path: projectDir,
       branch: storageBranch,
       remote: 'origin',
-      sync: { auto_push: true },
+      auto_push: true,
     });
 
     expect(status).toMatchObject({
@@ -1339,7 +1339,7 @@ describe('results repo write path', () => {
       repo_path: projectDir,
       branch: storageBranch,
       remote: 'origin',
-      sync: { auto_push: true },
+      auto_push: true,
     });
 
     expect(status).toMatchObject({
@@ -1380,7 +1380,7 @@ describe('results repo write path', () => {
       config: {
         repo_path: resultsRepoDir,
         branch: DEFAULT_RESULTS_BRANCH,
-        sync: { auto_push: false },
+        auto_push: false,
       },
       sourceDir: runDir,
       destinationPath: path.join('external', runTimestamp),
@@ -1457,7 +1457,7 @@ describe('results repo write path', () => {
     });
 
     const result = await directPushResultsWithDetails({
-      config: { ...fixture.config, sync: { auto_push: true } },
+      config: { ...fixture.config, auto_push: true },
       sourceDir: fixture.localSourceDir,
       destinationPath: fixture.localDestinationPath,
       commitMessage: 'feat(results): auto-merge push conflict',
@@ -1497,27 +1497,6 @@ describe('results repo write path', () => {
     ).toBe('');
   }, 30000);
 
-  it('rejects removed backup_and_force_push policy before syncing', async () => {
-    const sourceDir = path.join(rootDir, 'removed-policy-source');
-    writeRunArtifacts(sourceDir, 'removed-policy', '2026-06-23T10:30:00.000Z');
-
-    await expect(
-      directPushResultsWithDetails({
-        config: {
-          repo_path: rootDir,
-          branch: DEFAULT_RESULTS_BRANCH,
-          sync: {
-            auto_push: true,
-            push_conflict_policy: 'backup_and_force_push',
-          },
-        } as unknown as ResultsConfig,
-        sourceDir,
-        destinationPath: path.join('removed-policy', '2026-06-23T10-30-00-000Z'),
-        commitMessage: 'feat(results): removed policy',
-      }),
-    ).rejects.toThrow(/backup_and_force_push.*no longer supported/);
-  });
-
   it('retries a benign push race without force', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
@@ -1526,7 +1505,7 @@ describe('results repo write path', () => {
       repo: `file://${remoteDir}`,
       path: cloneDir,
       branch: storageBranch,
-      sync: { auto_push: true },
+      auto_push: true,
     };
     const baseTip = git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir);
 
@@ -2564,7 +2543,7 @@ describe('results branch stable genesis', () => {
       config: {
         repo_path: cloneDir,
         branch: DEFAULT_RESULTS_BRANCH,
-        sync: { auto_push: true },
+        auto_push: true,
       },
       sourceDir,
       destinationPath: path.join(params.experiment, fsTimestamp),
@@ -2619,7 +2598,7 @@ describe('results branch stable genesis', () => {
       const sourceDir = path.join(rootDir, `${label}-run`);
       writeRunArtifacts(sourceDir, label, runTimestamp);
       await directPushResults({
-        config: { repo_path: repoDir, branch: DEFAULT_RESULTS_BRANCH, sync: { auto_push: false } },
+        config: { repo_path: repoDir, branch: DEFAULT_RESULTS_BRANCH, auto_push: false },
         sourceDir,
         destinationPath: path.join(label, fsTimestamp),
         commitMessage: `feat(results): ${label}`,
@@ -2683,7 +2662,7 @@ describe('results branch stable genesis', () => {
 
     // Client A publishes first and wins the race to create the remote branch.
     await directPushResults({
-      config: { repo_path: cloneA, branch: DEFAULT_RESULTS_BRANCH, sync: { auto_push: true } },
+      config: { repo_path: cloneA, branch: DEFAULT_RESULTS_BRANCH, auto_push: true },
       sourceDir: runA,
       destinationPath: path.join('expA', '2026-06-19T10-00-00-000Z'),
       commitMessage: 'feat(results): expA',
@@ -2693,7 +2672,7 @@ describe('results branch stable genesis', () => {
     // non-fast-forward, but because both share the deterministic genesis it
     // reconciles by re-basing onto the remote tip instead of diverging.
     await directPushResults({
-      config: { repo_path: cloneB, branch: DEFAULT_RESULTS_BRANCH, sync: { auto_push: true } },
+      config: { repo_path: cloneB, branch: DEFAULT_RESULTS_BRANCH, auto_push: true },
       sourceDir: runB,
       destinationPath: path.join('expB', '2026-06-19T11-00-00-000Z'),
       commitMessage: 'feat(results): expB',

@@ -704,12 +704,10 @@ For local workspaces, put portable registry defaults in `$AGENTV_HOME/config.yam
 projects:
   - id: agentv
     name: AgentV
-    repo:
-      path: /home/user/projects/agentv
+    path: /home/user/projects/agentv
     results:
-      repo:
-        path: /home/user/agentv-results
-        branch: agentv/results/v1
+      path: /home/user/agentv-results
+      branch: agentv/results/v1
 ```
 
 When running AgentV from a worktree that needs environment from a primary checkout, load the primary `.env` through the runtime instead of shell-sourcing it:

@@ -17,17 +17,14 @@
  *   projects:
  *     - id: my-app
  *       name: My App
- *       repo:
- *         url: https://github.com/example/my-app.git
- *         branch: main
- *         path: /home/user/projects/my-app
+ *       repo: https://github.com/example/my-app.git
+ *       path: /home/user/projects/my-app
+ *       branch: main
  *       results:
- *         repo:
- *           remote: https://github.com/example/my-app.git
- *           path: .
- *           branch: agentv/results/v1
- *         sync:
- *           auto_push: true
+ *         repo: https://github.com/example/my-app.git
+ *         path: ~/results/my-app
+ *         branch: agentv/results/v1
+ *         auto_push: true
  *       added_at: "2026-03-20T10:00:00Z"
  *       last_opened_at: "2026-03-30T14:00:00Z"
  *
@@ -67,18 +64,11 @@ import { getAgentvConfigDir } from './paths.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
-export interface ProjectResultsSyncConfig {
-  autoPush?: boolean;
-  pushConflictPolicy?: 'block';
-}
-
 export interface ProjectResultsConfig {
-  repoUrl?: string;
-  repoPath?: string;
-  branch?: string;
+  repo?: string;
   path?: string;
-  sync?: ProjectResultsSyncConfig;
-  branchPrefix?: string;
+  branch?: string;
+  autoPush?: boolean;
 }
 
 export interface ProjectEntry {
@@ -107,42 +97,19 @@ export function getProjectsRegistryPath(): string {
 // internals stay camelCase. fromYaml / toYaml handle the translation; every
 // other function in this module works in camelCase only.
 
-interface ProjectResultsSyncYaml {
-  auto_push?: boolean;
-  push_conflict_policy?: 'block' | string;
-}
-
 interface ProjectResultsYaml {
-  repo?: ProjectResultsRepoYaml;
-  repo_url?: string;
-  repo_path?: string;
-  branch?: string;
-  remote?: string;
-  path?: string;
-  sync?: ProjectResultsSyncYaml;
-  branch_prefix?: string;
-}
-
-interface ProjectRepoYaml {
-  url?: string;
-  branch?: string;
-  path?: string;
-}
-
-interface ProjectResultsRepoYaml {
-  url?: string;
+  repo?: string;
   path?: string;
   branch?: string;
-  remote?: string;
+  auto_push?: boolean;
 }
 
 interface ProjectEntryYaml {
   id: string;
   name: string;
-  repo?: ProjectRepoYaml;
-  repo_url?: string;
+  repo?: string;
   path?: string;
-  ref?: string;
+  branch?: string;
   added_at: string;
   last_opened_at: string;
   results?: ProjectResultsYaml;
@@ -154,45 +121,10 @@ function readTrimmedString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-let warnedRemovedBackupAndForcePushPolicy = false;
-let warnedRemovedRequirePushConfig = false;
-let warnedRejectedFlatResultsRemoteConfig = false;
-
-function warnRemovedBackupAndForcePushPolicy(): void {
-  if (warnedRemovedBackupAndForcePushPolicy) {
-    return;
-  }
-  warnedRemovedBackupAndForcePushPolicy = true;
-  console.warn(
-    "[agentv] projects[].results.sync.push_conflict_policy: 'backup_and_force_push' is no longer supported and was ignored while loading the project registry. Remove the field or set it to 'block'; AgentV never force-pushes result branches.",
-  );
-}
-
-function warnRemovedRequirePushConfig(): void {
-  if (warnedRemovedRequirePushConfig) {
-    return;
-  }
-  warnedRemovedRequirePushConfig = true;
-  console.warn(
-    '[agentv] projects[].results.sync.require_push is no longer supported in persistent config and was ignored while loading the project registry. Use the per-run --results-require-push CLI flag instead.',
-  );
-}
-
-function warnRejectedFlatResultsRemoteConfig(): void {
-  if (warnedRejectedFlatResultsRemoteConfig) {
-    return;
-  }
-  warnedRejectedFlatResultsRemoteConfig = true;
-  console.warn(
-    '[agentv] projects[].results.remote is no longer supported in persistent config, so that results block was ignored while loading the project registry. Use projects[].results.repo.remote for a portable Git endpoint URL, or omit it and let AgentV use the local checkout remote alias internally.',
-  );
-}
-
 function fromYaml(raw: unknown): ProjectEntry | null {
   if (!raw || typeof raw !== 'object') return null;
   const e = raw as Partial<ProjectEntryYaml>;
-  const repo = e.repo && typeof e.repo === 'object' ? e.repo : undefined;
-  const sourcePath = readTrimmedString(repo?.path) ?? readTrimmedString(e.path);
+  const sourcePath = readTrimmedString(e.path);
   if (typeof e.id !== 'string' || typeof e.name !== 'string' || !sourcePath) {
     return null;
   }
@@ -203,63 +135,26 @@ function fromYaml(raw: unknown): ProjectEntry | null {
     addedAt: typeof e.added_at === 'string' ? e.added_at : '',
     lastOpenedAt: typeof e.last_opened_at === 'string' ? e.last_opened_at : '',
   };
-  const repoUrl = readTrimmedString(repo?.url) ?? readTrimmedString(e.repo_url);
+  const repoUrl = readTrimmedString(e.repo);
   if (repoUrl) {
     entry.repoUrl = repoUrl;
   }
-  const branch = readTrimmedString(repo?.branch) ?? readTrimmedString(e.ref);
+  const branch = readTrimmedString(e.branch);
   if (branch) {
     entry.ref = branch;
   }
-  if (e.results && typeof e.results === 'object') {
+  if (e.results && typeof e.results === 'object' && !Array.isArray(e.results)) {
     const r = e.results as Partial<ProjectResultsYaml>;
-    if (r.remote !== undefined) {
-      warnRejectedFlatResultsRemoteConfig();
-      return entry;
-    }
-    const resultsRepo =
-      r.repo && typeof r.repo === 'object' && !Array.isArray(r.repo) ? r.repo : undefined;
-    const repoUrl =
-      readTrimmedString(resultsRepo?.remote) ??
-      readTrimmedString(resultsRepo?.url) ??
-      readTrimmedString(r.repo_url);
-    const repoPath = repoUrl
-      ? undefined
-      : (readTrimmedString(resultsRepo?.path) ?? readTrimmedString(r.repo_path));
-    const clonePath = repoUrl
-      ? (readTrimmedString(resultsRepo?.path) ?? readTrimmedString(r.path))
-      : readTrimmedString(r.path);
-    const resultsBranch = readTrimmedString(resultsRepo?.branch) ?? readTrimmedString(r.branch);
-    if (repoUrl || repoPath) {
-      const sync = r.sync && typeof r.sync === 'object' ? r.sync : undefined;
+    const resultsRepo = readTrimmedString(r.repo);
+    const resultsPath = readTrimmedString(r.path);
+    const resultsBranch = readTrimmedString(r.branch);
+    if (resultsRepo || resultsPath || resultsBranch || typeof r.auto_push === 'boolean') {
       entry.results = {
-        ...(repoUrl ? { repoUrl } : {}),
-        ...(repoPath ? { repoPath } : {}),
+        ...(resultsRepo ? { repo: resultsRepo } : {}),
+        ...(resultsPath ? { path: resultsPath } : {}),
         ...(resultsBranch ? { branch: resultsBranch } : {}),
-        ...(clonePath ? { path: clonePath } : {}),
-        ...(sync &&
-        (typeof sync.auto_push === 'boolean' ||
-          sync.push_conflict_policy === 'block' ||
-          sync.push_conflict_policy === 'backup_and_force_push')
-          ? {
-              sync: {
-                ...(typeof sync.auto_push === 'boolean' ? { autoPush: sync.auto_push } : {}),
-                ...(sync.push_conflict_policy === 'block'
-                  ? { pushConflictPolicy: sync.push_conflict_policy }
-                  : {}),
-              },
-            }
-          : {}),
-        ...(typeof r.branch_prefix === 'string' && r.branch_prefix.trim().length > 0
-          ? { branchPrefix: r.branch_prefix.trim() }
-          : {}),
+        ...(typeof r.auto_push === 'boolean' ? { autoPush: r.auto_push } : {}),
       };
-      if (sync && 'require_push' in sync) {
-        warnRemovedRequirePushConfig();
-      }
-      if (sync?.push_conflict_policy === 'backup_and_force_push') {
-        warnRemovedBackupAndForcePushPolicy();
-      }
     }
   }
   return entry;
@@ -269,46 +164,18 @@ function toYaml(entry: ProjectEntry): ProjectEntryYaml {
   const yaml: ProjectEntryYaml = {
     id: entry.id,
     name: entry.name,
-    repo: {
-      ...(entry.repoUrl !== undefined && { url: entry.repoUrl }),
-      ...(entry.ref !== undefined && { branch: entry.ref }),
-      path: entry.path,
-    },
+    ...(entry.repoUrl !== undefined && { repo: entry.repoUrl }),
+    path: entry.path,
+    ...(entry.ref !== undefined && { branch: entry.ref }),
     added_at: entry.addedAt,
     last_opened_at: entry.lastOpenedAt,
   };
   if (entry.results) {
-    const resultsSync =
-      entry.results.sync?.autoPush !== undefined ||
-      entry.results.sync?.pushConflictPolicy !== undefined
-        ? {
-            sync: {
-              ...(entry.results.sync?.autoPush !== undefined && {
-                auto_push: entry.results.sync.autoPush,
-              }),
-              ...(entry.results.sync?.pushConflictPolicy !== undefined && {
-                push_conflict_policy: entry.results.sync.pushConflictPolicy,
-              }),
-            },
-          }
-        : {};
-    const branchPrefix =
-      entry.results.branchPrefix !== undefined ? { branch_prefix: entry.results.branchPrefix } : {};
-
-    const resultsRepo: ProjectResultsRepoYaml = {
-      ...(entry.results.repoUrl !== undefined && { remote: entry.results.repoUrl }),
-      ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
-      ...(entry.results.repoUrl &&
-        entry.results.path !== undefined && {
-          path: entry.results.path,
-        }),
-      ...(entry.results.repoUrl === undefined &&
-        entry.results.repoPath !== undefined && { path: entry.results.repoPath }),
-    };
     yaml.results = {
-      repo: resultsRepo,
-      ...resultsSync,
-      ...branchPrefix,
+      ...(entry.results.repo !== undefined && { repo: entry.results.repo }),
+      ...(entry.results.path !== undefined && { path: entry.results.path }),
+      ...(entry.results.branch !== undefined && { branch: entry.results.branch }),
+      ...(entry.results.autoPush !== undefined && { auto_push: entry.results.autoPush }),
     };
   }
   return yaml;

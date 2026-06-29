@@ -244,7 +244,6 @@ export interface ResultsRepoStatus {
   readonly auto_push?: boolean;
   readonly require_push?: boolean;
   readonly push_conflict_policy?: ResultPushConflictPolicy;
-  readonly branch_prefix?: string;
   readonly local_dir?: string;
   readonly last_synced_at?: string;
   readonly last_error?: string;
@@ -294,17 +293,27 @@ export interface NormalizedResultsConfig {
   readonly auto_push: boolean;
   readonly require_push: boolean;
   readonly push_conflict_policy: ResultPushConflictPolicy;
-  readonly branch_prefix: string;
   /** @internal Runtime mode; not part of YAML wire format. */
   readonly storageBranchWorktree: boolean;
 }
 
-export type RuntimeResultsConfig = Omit<ResultsConfig, 'sync'> & {
-  readonly sync?: ResultsConfig['sync'] & {
-    /** Runtime-only override, set by --results-require-push. Not YAML config. */
-    readonly require_push?: boolean;
-  };
-};
+/**
+ * Internal runtime shape accepted by {@link normalizeResultsConfig}. Extends the
+ * flat wire {@link ResultsConfig} with internal/CLI-only fields that never appear
+ * in persistent YAML: derived `repo_url`/`repo_path`, the local `remote` alias,
+ * and the per-run `require_push` override (`--results-require-push`).
+ */
+export interface RuntimeResultsConfig {
+  readonly mode?: 'github';
+  readonly repo?: string;
+  readonly repo_url?: string;
+  readonly repo_path?: string;
+  readonly branch?: string;
+  readonly remote?: string;
+  readonly path?: string;
+  readonly auto_push?: boolean;
+  readonly require_push?: boolean;
+}
 
 type StorageBranchResultsConfig = NormalizedResultsConfig & { readonly branch: string };
 
@@ -399,27 +408,21 @@ export function normalizeResultsConfig(
     return config;
   }
   const baseDir = options?.baseDir ?? process.cwd();
+  // `repo`/`repo_url` is a remote slug or URL. `repo_path` is an existing local
+  // checkout that pushes to its own origin (storage-branch worktree). `path` is
+  // an explicit clone destination for a remote-backed results repo.
   const repoUrl = (config.repo_url ?? config.repo)?.trim();
-  const repoPath = config.repo_path?.trim();
-  const explicitClonePath = config.path?.trim();
+  const explicitPath = config.path?.trim();
+  // `path` is a local checkout (storage-branch worktree) when no remote repo is
+  // configured; with a remote repo it is the explicit clone destination.
+  const repoPath = config.repo_path?.trim() ?? (repoUrl ? undefined : explicitPath);
+  const explicitClonePath = repoUrl ? explicitPath : undefined;
   const repo = repoUrl ?? repoPath ?? '';
   const branch = config.branch?.trim() || (repoPath ? DEFAULT_RESULTS_BRANCH : undefined);
   const useStorageBranchWorktree = Boolean(repoPath || (repoUrl && explicitClonePath && branch));
   const remote = config.remote?.trim() || 'origin';
-  const autoPush = config.sync?.auto_push ?? config.auto_push === true;
-  const requirePush = config.sync?.require_push === true;
-  const configuredPushConflictPolicy = (
-    config.sync as { push_conflict_policy?: unknown } | undefined
-  )?.push_conflict_policy;
-  if (configuredPushConflictPolicy === 'backup_and_force_push') {
-    throw new Error(
-      "results.sync.push_conflict_policy: 'backup_and_force_push' is no longer supported. Remove the field or set it to 'block'; AgentV never force-pushes result branches.",
-    );
-  }
-  if (configuredPushConflictPolicy !== undefined && configuredPushConflictPolicy !== 'block') {
-    throw new Error("results.sync.push_conflict_policy must be 'block'");
-  }
-  const pushConflictPolicy = configuredPushConflictPolicy ?? 'block';
+  const autoPush = config.auto_push === true;
+  const requirePush = config.require_push === true;
   const resolvedRepoPath = repoPath ? resolveLocalPath(repoPath, baseDir) : undefined;
   const resolvedPath = explicitClonePath
     ? resolveLocalPath(explicitClonePath, baseDir)
@@ -436,8 +439,7 @@ export function normalizeResultsConfig(
     path: resolvedPath,
     auto_push: autoPush,
     require_push: requirePush,
-    push_conflict_policy: pushConflictPolicy,
-    branch_prefix: config.branch_prefix?.trim() || 'eval-results',
+    push_conflict_policy: 'block',
     storageBranchWorktree: useStorageBranchWorktree,
   };
 }
@@ -932,8 +934,7 @@ function updateStatusFile(
   config: ResultsConfig | NormalizedResultsConfig,
   patch: PersistedStatus,
 ): void {
-  const repo =
-    typeof config.repo === 'string' ? config.repo : (config.repo_url ?? config.repo_path ?? '');
+  const repo = normalizeResultsConfig(config).repo;
   const cachePaths = getResultsRepoLocalPaths(repo);
   const current = readPersistedStatus(cachePaths.statusFile);
   writePersistedStatus(cachePaths.statusFile, {
@@ -1011,7 +1012,6 @@ export function getResultsRepoStatus(config?: ResultsConfig): ResultsRepoStatus 
     auto_push: normalized.auto_push,
     require_push: normalized.require_push,
     push_conflict_policy: normalized.push_conflict_policy,
-    branch_prefix: normalized.branch_prefix,
     local_dir: normalized.path,
     last_synced_at: persisted.last_synced_at,
     last_error: persisted.last_error,

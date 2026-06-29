@@ -8,6 +8,7 @@ import {
   type NormalizedResultsConfig,
   type ResultsConfig,
   type ResultsRepoStatus,
+  type RuntimeResultsConfig,
   confirmResultsMergeAndPull,
   directPushResultsWithDetails,
   directorySizeBytes,
@@ -154,20 +155,12 @@ function remoteMetadataManifestPath(
 
 export interface ResultsPublishOverrides {
   readonly repo?: string;
-  readonly repo_url?: string;
   readonly repo_path?: string;
   readonly branch?: string;
   readonly remote?: string;
   readonly auto_push?: boolean;
   readonly require_push?: boolean;
-  readonly push_conflict_policy?: 'block';
 }
-
-type RuntimeResultsConfig = Omit<ResultsConfig, 'sync'> & {
-  readonly sync?: ResultsConfig['sync'] & {
-    readonly require_push?: boolean;
-  };
-};
 
 const REMOTE_RUN_PREFIX = 'remote::';
 const SIZE_WARNING_BYTES = 10 * 1024 * 1024;
@@ -227,27 +220,10 @@ export async function loadNormalizedResultsConfig(
   const projectResults = project?.results
     ? ({
         mode: 'github' as const,
-        ...(project.results.repoUrl !== undefined && {
-          repo: project.results.repoUrl,
-          repo_url: project.results.repoUrl,
-        }),
-        ...(project.results.repoPath !== undefined && { repo_path: project.results.repoPath }),
-        ...(project.results.branch !== undefined && { branch: project.results.branch }),
+        ...(project.results.repo !== undefined && { repo: project.results.repo }),
         ...(project.results.path !== undefined && { path: project.results.path }),
-        ...((project.results.sync?.autoPush !== undefined ||
-          project.results.sync?.pushConflictPolicy !== undefined) && {
-          sync: {
-            ...(project.results.sync?.autoPush !== undefined && {
-              auto_push: project.results.sync.autoPush,
-            }),
-            ...(project.results.sync?.pushConflictPolicy !== undefined && {
-              push_conflict_policy: project.results.sync.pushConflictPolicy,
-            }),
-          },
-        }),
-        ...(project.results.branchPrefix !== undefined && {
-          branch_prefix: project.results.branchPrefix,
-        }),
+        ...(project.results.branch !== undefined && { branch: project.results.branch }),
+        ...(project.results.autoPush !== undefined && { auto_push: project.results.autoPush }),
       } satisfies ResultsConfig)
     : undefined;
   const resultsConfig = projectResults ?? resolveResultsConfigForProject(config, project?.id);
@@ -257,7 +233,7 @@ export async function loadNormalizedResultsConfig(
   const baseConfig = resultsConfig
     ? normalizeResultsConfig(resultsConfig, { baseDir: project?.path ?? repoRoot })
     : undefined;
-  const repoOverride = overrides?.repo ?? overrides?.repo_url ?? overrides?.repo_path;
+  const repoOverride = overrides?.repo ?? overrides?.repo_path;
   if (!baseConfig && !repoOverride) {
     return undefined;
   }
@@ -269,17 +245,15 @@ export async function loadNormalizedResultsConfig(
     mode: 'github',
     ...(overrides.repo !== undefined
       ? { repo: overrides.repo }
-      : overrides.repo_url !== undefined
-        ? { repo_url: overrides.repo_url }
-        : overrides.repo_path !== undefined
-          ? { repo_path: overrides.repo_path }
-          : baseConfig?.repo_path
-            ? { repo_path: baseConfig.repo_path }
-            : baseConfig?.repo_url
-              ? { repo_url: baseConfig.repo_url }
-              : baseConfig?.repo
-                ? { repo: baseConfig.repo }
-                : {}),
+      : overrides.repo_path !== undefined
+        ? { repo_path: overrides.repo_path }
+        : baseConfig?.repo_path
+          ? { repo_path: baseConfig.repo_path }
+          : baseConfig?.repo_url
+            ? { repo_url: baseConfig.repo_url }
+            : baseConfig?.repo
+              ? { repo: baseConfig.repo }
+              : {}),
     ...(overrides.branch !== undefined
       ? { branch: overrides.branch }
       : baseConfig?.branch
@@ -293,25 +267,12 @@ export async function loadNormalizedResultsConfig(
     ...(repoOverride === undefined && baseConfig?.repo_path === undefined && baseConfig?.path
       ? { path: baseConfig.path }
       : {}),
-    ...((overrides.auto_push !== undefined ||
-      overrides.require_push !== undefined ||
-      overrides.push_conflict_policy !== undefined ||
-      baseConfig?.auto_push !== undefined ||
-      baseConfig?.require_push !== undefined ||
-      baseConfig?.push_conflict_policy !== undefined) && {
-      sync: {
-        ...((overrides.auto_push ?? baseConfig?.auto_push) !== undefined && {
-          auto_push: overrides.auto_push ?? baseConfig?.auto_push,
-        }),
-        ...((overrides.require_push ?? baseConfig?.require_push) !== undefined && {
-          require_push: overrides.require_push ?? baseConfig?.require_push,
-        }),
-        ...((overrides.push_conflict_policy ?? baseConfig?.push_conflict_policy) !== undefined && {
-          push_conflict_policy: overrides.push_conflict_policy ?? baseConfig?.push_conflict_policy,
-        }),
-      },
+    ...((overrides.auto_push ?? baseConfig?.auto_push) !== undefined && {
+      auto_push: overrides.auto_push ?? baseConfig?.auto_push,
     }),
-    ...(baseConfig?.branch_prefix ? { branch_prefix: baseConfig.branch_prefix } : {}),
+    ...((overrides.require_push ?? baseConfig?.require_push) !== undefined && {
+      require_push: overrides.require_push ?? baseConfig?.require_push,
+    }),
   };
 
   return normalizeResultsConfig(merged, { baseDir: project?.path ?? repoRoot });
