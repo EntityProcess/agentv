@@ -235,8 +235,7 @@ jobs:
         if: needs.prepare.outputs.publish_action == 'publish-next'
         run: |
           bun run build
-          bun run validate:examples
-          bun run examples:oracle -- --output-dir "${{ runner.temp }}/example-oracle-publish-next"
+          bun run examples:oracle:gate -- --output-dir "${{ runner.temp }}/example-oracle-publish-next"
 
       - name: Publish to npm
         run: |
