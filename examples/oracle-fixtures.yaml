@@ -2,9 +2,11 @@ schema_version: agentv.example_oracle_manifest.v1
 description: >
   Maintained inventory controls for the deterministic example oracle sweep.
   The runner discovers example evals dynamically, generates replay target
-  fixtures from expected outputs or assertion-derived references, and skips
-  only the exclusions listed here. These fixtures are contract oracles for
-  example execution, not captured live-model golden transcripts.
+  fixtures from expected outputs or assertion-derived references only for
+  agent or LLM-backed targets, treats deterministic targets as their own
+  oracle, and skips only the exclusions listed here. These fixtures are
+  contract oracles for example execution, not captured live-model golden
+  transcripts.
 target_name: example_oracle
 source_target: example_oracle_source
 grader_target: example_oracle_grader

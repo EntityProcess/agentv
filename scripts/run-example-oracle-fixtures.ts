@@ -5,8 +5,19 @@ import path from 'node:path';
 
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
-import type { GraderConfig, JsonObject } from '../packages/core/src/evaluation/types.ts';
-import { loadTestSuite } from '../packages/core/src/evaluation/yaml-parser.ts';
+import { readTargetDefinitions } from '../packages/core/src/evaluation/providers/targets-file.ts';
+import type { TargetDefinition } from '../packages/core/src/evaluation/providers/types.ts';
+import type {
+  EvalTargetRef,
+  GraderConfig,
+  JsonObject,
+} from '../packages/core/src/evaluation/types.ts';
+import {
+  extractTargetFromSuite,
+  extractTargetRefsFromSuite,
+  extractTargetsFromSuite,
+  loadTestSuite,
+} from '../packages/core/src/evaluation/yaml-parser.ts';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const MANIFEST_PATH = path.join(ROOT, 'examples/oracle-fixtures.yaml');
@@ -14,6 +25,24 @@ const SOURCE_TARGET_FALLBACK = 'example_oracle_source';
 const TARGET_NAME_FALLBACK = 'example_oracle';
 const GRADER_TARGET_FALLBACK = 'example_oracle_grader';
 const REPLAY_SCHEMA_VERSION = 'agentv.replay_fixture.v1';
+const TARGET_FILE_CANDIDATES = [
+  'targets.yaml',
+  'targets.yml',
+  '.agentv/targets.yaml',
+  '.agentv/targets.yml',
+] as const;
+const DETERMINISTIC_PROVIDERS = new Set(['cli', 'copilot-log', 'mock', 'replay', 'transcript']);
+const PROVIDER_ALIASES = new Map([
+  ['azure-openai', 'azure'],
+  ['google', 'gemini'],
+  ['google-gemini', 'gemini'],
+  ['codex-cli', 'codex'],
+  ['copilot', 'copilot-cli'],
+  ['copilot_sdk', 'copilot-sdk'],
+  ['pi', 'pi-coding-agent'],
+  ['claude-code', 'claude'],
+  ['cc-mirror', 'claude-cli'],
+]);
 
 interface Manifest {
   readonly schema_version: string;
@@ -25,9 +54,14 @@ interface Manifest {
 
 interface InventoryEntry {
   readonly path: string;
-  readonly classification: 'runnable_with_oracle_fixture' | 'needs_fixture_added' | 'excluded';
+  readonly classification:
+    | 'requires_oracle_fixture'
+    | 'deterministic_target'
+    | 'needs_fixture_added'
+    | 'excluded';
   readonly tests: number;
   readonly fixture_source?: 'expected_output' | 'assertion_synthesis' | 'mixed';
+  readonly targets?: readonly string[];
   readonly reason?: string;
 }
 
@@ -54,6 +88,18 @@ interface CliOptions {
   readonly json: boolean;
   readonly evalFilters: readonly string[];
   readonly outputDir?: string;
+}
+
+interface RawTargetMetadata {
+  readonly target?: string;
+  readonly targets?: readonly string[];
+  readonly targetRefs?: readonly EvalTargetRef[];
+}
+
+interface TargetRequirement {
+  readonly requiresOracle: boolean;
+  readonly targets: readonly string[];
+  readonly reason: string;
 }
 
 function parseCliOptions(argv: readonly string[]): CliOptions {
@@ -108,6 +154,210 @@ function relativePath(filePath: string): string {
 
 function loadManifest(): Manifest {
   return parseYaml(readFileSync(MANIFEST_PATH, 'utf8')) as Manifest;
+}
+
+function readRawTargetMetadata(filePath: string): RawTargetMetadata {
+  if (/\.tsx?$/i.test(filePath)) {
+    return {};
+  }
+
+  try {
+    const parsed = parseYaml(readFileSync(filePath, 'utf8')) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    const suite = parsed as JsonObject;
+    return {
+      target: extractTargetFromSuite(suite),
+      targets: extractTargetsFromSuite(suite),
+      targetRefs: extractTargetRefsFromSuite(suite),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function targetFileChain(evalFilePath: string): string[] {
+  const directories: string[] = [];
+  let current = path.dirname(evalFilePath);
+  while (true) {
+    directories.push(current);
+    if (current === ROOT) break;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  const files: string[] = [];
+  for (const directory of directories) {
+    for (const candidate of TARGET_FILE_CANDIDATES) {
+      const filePath = path.join(directory, candidate);
+      if (existsSync(filePath)) files.push(filePath);
+    }
+  }
+  return files;
+}
+
+async function loadNearestTargetDefinitions(
+  evalFilePath: string,
+): Promise<readonly TargetDefinition[]> {
+  const [targetsFile] = targetFileChain(evalFilePath);
+  if (!targetsFile) {
+    return [];
+  }
+  return readTargetDefinitions(targetsFile);
+}
+
+function canonicalProvider(provider: unknown): string | undefined {
+  if (typeof provider !== 'string' || provider.trim().length === 0) {
+    return undefined;
+  }
+  const normalized = provider.trim().toLowerCase();
+  return PROVIDER_ALIASES.get(normalized) ?? normalized;
+}
+
+function resolveUseTargetName(value: unknown): { name?: string; env?: string } {
+  if (typeof value !== 'string') {
+    return {};
+  }
+  const raw = value.trim();
+  if (raw.length === 0) {
+    return {};
+  }
+  const envMatch = raw.match(/^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i);
+  if (!envMatch) {
+    return { name: raw };
+  }
+  const env = envMatch[1];
+  const resolved = process.env[env]?.trim();
+  return resolved ? { name: resolved, env } : { env };
+}
+
+function resolveTargetRequirementFromDefinition(
+  name: string,
+  definitions: readonly TargetDefinition[],
+  visited: readonly string[] = [],
+): TargetRequirement {
+  const definition = definitions.find((item) => item.name === name);
+  if (!definition) {
+    return {
+      requiresOracle: true,
+      targets: [name],
+      reason: `target '${name}' could not be resolved to a deterministic provider`,
+    };
+  }
+
+  const provider = canonicalProvider(definition.provider);
+  if (provider) {
+    const deterministic = DETERMINISTIC_PROVIDERS.has(provider);
+    return {
+      requiresOracle: !deterministic,
+      targets: [name],
+      reason: deterministic
+        ? `target '${name}' uses deterministic provider '${provider}'`
+        : `target '${name}' uses non-deterministic provider '${provider}'`,
+    };
+  }
+
+  const useTarget = resolveUseTargetName(definition.use_target);
+  if (!useTarget.name) {
+    return {
+      requiresOracle: true,
+      targets: [name],
+      reason: useTarget.env
+        ? `target '${name}' delegates through unset ${useTarget.env}`
+        : `target '${name}' does not declare a concrete deterministic provider`,
+    };
+  }
+
+  if (visited.includes(useTarget.name)) {
+    return {
+      requiresOracle: true,
+      targets: [name],
+      reason: `target '${name}' has a cyclic use_target chain`,
+    };
+  }
+
+  const resolved = resolveTargetRequirementFromDefinition(useTarget.name, definitions, [
+    ...visited,
+    name,
+  ]);
+  return {
+    requiresOracle: resolved.requiresOracle,
+    targets: [name, ...resolved.targets],
+    reason: `target '${name}' delegates to ${resolved.reason}`,
+  };
+}
+
+function targetNamesFromMetadata(options: {
+  readonly suiteTargets?: readonly string[];
+  readonly suiteTargetRefs?: readonly EvalTargetRef[];
+  readonly raw: RawTargetMetadata;
+}): readonly string[] {
+  const refs = options.suiteTargetRefs ?? options.raw.targetRefs;
+  if (refs && refs.length > 0) {
+    return refs.map((ref) => ref.name);
+  }
+  if (options.suiteTargets && options.suiteTargets.length > 0) {
+    return options.suiteTargets;
+  }
+  if (options.raw.targets && options.raw.targets.length > 0) {
+    return options.raw.targets;
+  }
+  return [options.raw.target ?? 'default'];
+}
+
+async function classifyTargetRequirement(options: {
+  readonly file: string;
+  readonly suite: Awaited<ReturnType<typeof loadTestSuite>>;
+}): Promise<TargetRequirement> {
+  const raw = readRawTargetMetadata(options.file);
+
+  if (options.suite.providerFactory) {
+    return {
+      requiresOracle: false,
+      targets: ['providerFactory'],
+      reason: 'eval uses a local provider factory',
+    };
+  }
+
+  if (options.suite.inlineTarget) {
+    const provider = canonicalProvider(options.suite.inlineTarget.provider);
+    const deterministic = provider ? DETERMINISTIC_PROVIDERS.has(provider) : false;
+    return {
+      requiresOracle: !deterministic,
+      targets: [options.suite.inlineTarget.name],
+      reason: deterministic
+        ? `inline target uses deterministic provider '${provider}'`
+        : `inline target uses non-deterministic provider '${provider ?? 'unknown'}'`,
+    };
+  }
+
+  let definitions = await loadNearestTargetDefinitions(options.file);
+  const refs = options.suite.targetRefs ?? raw.targetRefs;
+  if (refs) {
+    const synthetic = refs
+      .filter(
+        (ref) => ref.use_target && !definitions.some((definition) => definition.name === ref.name),
+      )
+      .map((ref) => ({ name: ref.name, use_target: ref.use_target }) as TargetDefinition);
+    definitions = [...definitions, ...synthetic];
+  }
+
+  const targetNames = targetNamesFromMetadata({
+    suiteTargets: options.suite.targets,
+    suiteTargetRefs: options.suite.targetRefs,
+    raw,
+  });
+  const requirements = targetNames.map((name) =>
+    resolveTargetRequirementFromDefinition(name, definitions),
+  );
+  const requiresOracle = requirements.some((requirement) => requirement.requiresOracle);
+  return {
+    requiresOracle,
+    targets: [...new Set(requirements.flatMap((requirement) => requirement.targets))],
+    reason: requirements.map((requirement) => requirement.reason).join('; '),
+  };
 }
 
 function discoverEvalFiles(filters: readonly string[]): string[] {
@@ -309,14 +559,14 @@ async function buildInventory(
 ): Promise<{
   entries: InventoryEntry[];
   records: string[];
-  runnableFiles: string[];
+  oracleFiles: string[];
 }> {
   const exclusions = new Map(
     (manifest.exclusions ?? []).map((item) => [normalizePath(item.path), item.reason]),
   );
   const records: string[] = [];
   const entries: InventoryEntry[] = [];
-  const runnableFiles: string[] = [];
+  const oracleFiles: string[] = [];
   const sourceTarget = manifest.source_target ?? SOURCE_TARGET_FALLBACK;
 
   for (const file of files) {
@@ -329,12 +579,24 @@ async function buildInventory(
 
     try {
       const suite = await loadTestSuite(file, ROOT);
+      const targetRequirement = await classifyTargetRequirement({ file, suite });
       if (suite.tests.length === 0) {
         entries.push({
           path: rel,
           classification: 'excluded',
           tests: 0,
           reason: 'AgentV loader returned zero runnable tests.',
+        });
+        continue;
+      }
+
+      if (!targetRequirement.requiresOracle) {
+        entries.push({
+          path: rel,
+          classification: 'deterministic_target',
+          tests: suite.tests.length,
+          targets: targetRequirement.targets,
+          reason: targetRequirement.reason,
         });
         continue;
       }
@@ -370,11 +632,12 @@ async function buildInventory(
         );
       }
 
-      runnableFiles.push(file);
+      oracleFiles.push(file);
       entries.push({
         path: rel,
-        classification: 'runnable_with_oracle_fixture',
+        classification: 'requires_oracle_fixture',
         tests: suite.tests.length,
+        targets: targetRequirement.targets,
         fixture_source:
           expected > 0 && synthesized > 0
             ? 'mixed'
@@ -392,7 +655,7 @@ async function buildInventory(
     }
   }
 
-  return { entries, records, runnableFiles };
+  return { entries, records, oracleFiles };
 }
 
 function writeGeneratedFiles(options: {
@@ -434,11 +697,12 @@ function writeGeneratedFiles(options: {
 function printInventory(entries: readonly InventoryEntry[]) {
   const counts = countBy(entries, (entry) => entry.classification);
   console.log(
-    `Example oracle inventory: ${entries.length} eval files | ${counts.runnable_with_oracle_fixture ?? 0} runnable | ${counts.needs_fixture_added ?? 0} need fixture | ${counts.excluded ?? 0} excluded`,
+    `Example oracle inventory: ${entries.length} eval files | ${counts.requires_oracle_fixture ?? 0} require oracle | ${counts.deterministic_target ?? 0} deterministic | ${counts.needs_fixture_added ?? 0} need fixture | ${counts.excluded ?? 0} excluded`,
   );
   for (const entry of entries) {
     const detail = entry.reason ?? entry.fixture_source ?? '';
-    console.log(`${entry.classification}\t${entry.tests}\t${entry.path}\t${detail}`);
+    const targets = entry.targets?.length ? entry.targets.join(',') : '';
+    console.log(`${entry.classification}\t${entry.tests}\t${entry.path}\t${targets}\t${detail}`);
   }
 }
 
@@ -532,7 +796,7 @@ async function main() {
   });
 
   const failures: { path: string; status: number; stderr: string }[] = [];
-  for (const file of inventory.runnableFiles) {
+  for (const file of inventory.oracleFiles) {
     const rel = relativePath(file);
     console.log(`Running oracle example eval: ${rel}`);
     const result = runEval({
@@ -552,7 +816,7 @@ async function main() {
     output_dir: outputRoot,
     targets_path: generated.targetsPath,
     fixtures_path: generated.fixturePath,
-    runnable_count: inventory.runnableFiles.length,
+    oracle_required_count: inventory.oracleFiles.length,
     failure_count: failures.length,
     failures,
   };
@@ -564,7 +828,9 @@ async function main() {
     console.log(`Generated replay fixtures: ${generated.fixturePath}`);
     console.log(`Generated targets: ${generated.targetsPath}`);
     console.log(`Oracle run output: ${outputRoot}`);
-    console.log(`Runnable evals: ${inventory.runnableFiles.length} | Failures: ${failures.length}`);
+    console.log(
+      `Oracle-required evals: ${inventory.oracleFiles.length} | Failures: ${failures.length}`,
+    );
   }
 
   if (failures.length > 0) {
