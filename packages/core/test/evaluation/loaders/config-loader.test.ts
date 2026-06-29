@@ -381,7 +381,6 @@ describe('parseResultsConfig', () => {
       {
         repo_path: '.',
         branch: 'agentv/results/v1',
-        remote: 'upstream',
         sync: {
           auto_push: false,
           push_conflict_policy: 'block',
@@ -394,12 +393,31 @@ describe('parseResultsConfig', () => {
       mode: 'github',
       repo_path: '.',
       branch: 'agentv/results/v1',
-      remote: 'upstream',
       sync: {
         auto_push: false,
         push_conflict_policy: 'block',
       },
     });
+  });
+
+  it('rejects flat results.remote in persistent config', () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const result = parseResultsConfig(
+        {
+          repo_path: '.',
+          branch: 'agentv/results/v1',
+          remote: 'origin',
+        },
+        '/tmp/.agentv/config.yaml',
+      );
+
+      expect(result).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('results.remote'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('results.repo.remote'));
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('rejects require_push in persistent results sync config', () => {

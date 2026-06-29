@@ -190,6 +190,31 @@ describe('validateConfigFile', () => {
     );
   });
 
+  it('errors on removed flat results.remote persistent config', async () => {
+    const filePath = path.join(tempDir, 'removed-flat-results-remote.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  repo_path: .
+  branch: agentv/results/v1
+  remote: origin
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'error',
+          location: 'results.remote',
+          message: expect.stringContaining('results.repo.remote'),
+        }),
+      ]),
+    );
+  });
+
   it('keeps flat project repo fields compatible with migration warnings', async () => {
     const filePath = path.join(tempDir, 'global-config-flat-project.yaml');
     await writeFile(
@@ -394,6 +419,15 @@ describe('validateConfigFile', () => {
       migration: 'repo.remote',
     },
 
+    {
+      field: 'results.remote',
+      yaml: `results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: origin`,
+      location: 'projects[0].results.remote',
+      migration: 'repo.remote',
+    },
     {
       field: 'results.repository',
       yaml: `results:

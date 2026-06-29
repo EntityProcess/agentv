@@ -20,30 +20,32 @@ The configured results branch tree IS the index. `git ls-tree -r <storage-ref> -
 
 ### Storage
 
-- `results.repo_path` points at an existing local Git checkout whose object database and refs AgentV may write to. Use `repo_path: .` to store results in a dedicated branch of the source repo without checking that branch out in the source worktree.
-- `results.repo_url` points at a remote results repository. AgentV manages a local clone at `results.path`; omit `path` to use the default AgentV data dir.
-- `results.branch` is the storage branch. `repo_path` configs default to `agentv/results/v1`.
+- `results.repo.path` points at an existing local Git checkout whose object database and refs AgentV may write to. Use `path: .` to store results in a dedicated branch of the source repo without checking that branch out in the source worktree.
+- `results.repo.remote` points at the portable Git endpoint URL. AgentV manages a local clone at `results.repo.path` when the path is separate or omitted.
+- `results.repo.branch` is the storage branch. Existing-checkout configs default to `agentv/results/v1`.
 - Local `.agentv/results/runs/` remains the active run workspace for local Dashboard, resume, and rerun flows. Publishing copies completed run artifacts into the branch-backed store under `runs/**` (the branch name already namespaces results, so no redundant `.agentv/results/` prefix on the branch). Editable tag overlays live alongside under `metadata/runs/**`.
 
 ```yaml
 # Existing checkout, usually the eval source repo.
 results:
-  repo_path: .
-  branch: agentv/results/v1
-  remote: origin
+  repo:
+    remote: https://github.com/OWNER/REPO.git
+    path: .
+    branch: agentv/results/v1
   sync:
-    auto_push: true
+    auto_push: false
 
 # Separate results repository.
 results:
-  repo_url: git@github.com:myorg/eval-results.git
-  branch: agentv/results/v1
-  path: ~/data/agentv-results
+  repo:
+    remote: git@github.com:myorg/eval-results.git
+    branch: agentv/results/v1
+    path: ~/data/agentv-results
   sync:
     auto_push: true
 ```
 
-The field is intentionally `repo_path`, not `repo`: `workspace.repos[].repo` is a portable repository identity, while `results.repo_path` is a filesystem path to an already-existing local checkout.
+The nested `results.repo.path` field is a filesystem path to an existing local checkout or managed clone location; `workspace.repos[].repo` remains a separate portable repository identity.
 
 ### Writes
 

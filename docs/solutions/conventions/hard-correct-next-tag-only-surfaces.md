@@ -33,14 +33,8 @@ release channels:
   especially when preserving the surface would encode a dangerous or misleading
   contract.
 
-For removed config values, make the correction explicit:
-
-```yaml
-results:
-  sync:
-    # Remove unsupported aliases and use the stable default.
-    push_conflict_policy: block
-```
+For removed config values, make the correction explicit: delete the unsupported
+field and rely on the stable default behavior when no replacement is needed.
 
 If existing local registries or generated config may contain the removed value,
 either reject it with migration guidance or drop it during a registry migration

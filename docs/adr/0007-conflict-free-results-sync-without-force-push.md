@@ -74,8 +74,8 @@ force push.
 `backup_and_force_push` is **hard-deprecated/removed** from supported config:
 the value shipped only on the `next` npm tag before stable release, so AgentV
 now rejects it with migration guidance instead of preserving a compatibility
-alias. Remove the field or set `sync.push_conflict_policy: block`; AgentV never
-force-pushes result branches.
+alias. Remove the field and rely on the default block-and-ask behavior; AgentV
+never force-pushes result branches.
 
 ## Consequences
 

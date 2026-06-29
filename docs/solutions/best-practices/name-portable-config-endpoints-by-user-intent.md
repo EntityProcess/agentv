@@ -74,15 +74,7 @@ results:
 
 **Avoid making a checked-in config depend on a local alias:**
 
-```yaml
-results:
-  repo:
-    remote: origin
-    path: .agentv/remotes/agentv-private
-    branch: agentv/results/v1
-```
-
-If a local alias override must exist for backward compatibility, keep it on an explicitly advanced or legacy option, not on the ordinary project config contract.
+Do not set `results.repo.remote` to a local alias such as `origin`. If AgentV is operating on an existing checkout, it may still use that checkout's local alias internally, but the persisted config should either use the endpoint URL or omit `results.repo.remote`.
 
 ## Related
 

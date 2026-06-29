@@ -233,7 +233,6 @@ export async function loadNormalizedResultsConfig(
         }),
         ...(project.results.repoPath !== undefined && { repo_path: project.results.repoPath }),
         ...(project.results.branch !== undefined && { branch: project.results.branch }),
-        ...(project.results.remote !== undefined && { remote: project.results.remote }),
         ...(project.results.path !== undefined && { path: project.results.path }),
         ...((project.results.sync?.autoPush !== undefined ||
           project.results.sync?.pushConflictPolicy !== undefined) && {

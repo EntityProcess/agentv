@@ -530,15 +530,12 @@ function validateFlatResultsRepoConfig(
     );
   }
 
-  if (
-    resultsRecord.remote !== undefined &&
-    (typeof resultsRecord.remote !== 'string' || resultsRecord.remote.trim().length === 0)
-  ) {
+  if (resultsRecord.remote !== undefined) {
     addError(
       errors,
       filePath,
       `${location}.remote`,
-      `Field '${location}.remote' must be a non-empty string`,
+      `Field '${location}.remote' was removed from persistent config because it was a local Git remote-name alias. Use '${location}.repo.remote' for the portable Git endpoint URL, or omit it and let AgentV use the checkout remote alias internally.`,
     );
   }
 
@@ -589,15 +586,6 @@ function warnFlatResultsMigration(
         `Field '${location}.${field}' is deprecated. Use '${replacement}' in the nested results repo schema.`,
       );
     }
-  }
-
-  if (resultsRecord.remote !== undefined) {
-    addWarning(
-      errors,
-      filePath,
-      `${location}.remote`,
-      `Field '${location}.remote' is a legacy local Git remote-name override. Prefer omitting it; nested '${location}.repo.remote' is the portable Git remote URL and AgentV manages local aliases automatically.`,
-    );
   }
 }
 
