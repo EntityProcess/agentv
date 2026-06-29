@@ -529,12 +529,13 @@ export function RunList({
       </div>
 
       <div className="hidden max-w-full overflow-x-auto rounded-lg border border-gray-800 sm:block">
-        <table className="min-w-[780px] w-full whitespace-nowrap text-left text-sm">
+        <table className="min-w-[860px] w-full whitespace-nowrap text-left text-sm">
           <thead className="border-b border-gray-800 bg-gray-900/50">
             <tr>
               {enableCombine && <th className="w-10 px-4 py-3" />}
               <th className="w-8 px-4 py-3" />
-              <th className="w-[22rem] px-4 py-3 font-medium text-gray-400">Run</th>
+              <th className="w-[18rem] px-4 py-3 font-medium text-gray-400">Experiment</th>
+              <th className="w-[16rem] px-4 py-3 font-medium text-gray-400">Target</th>
               <th className="px-4 py-3 font-medium text-gray-400">Remote</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Passed</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Failures</th>
@@ -563,6 +564,7 @@ export function RunList({
               const selectionDisabledReason = runSelectionDisabledReason(run);
               const selectable =
                 !selectionDisabledReason && selectableRunIds.includes(run.filename);
+              const targetLabel = run.target?.trim() || display.primary;
               return (
                 <tr key={run.filename} className="transition-colors hover:bg-gray-900/30">
                   {enableCombine && (
@@ -587,32 +589,39 @@ export function RunList({
                     <RunStatusMark view={view} />
                   </td>
 
-                  {/* Run name */}
-                  <td className="w-[22rem] max-w-[22rem] px-4 py-3">
+                  {/* Experiment */}
+                  <td className="w-[18rem] max-w-[18rem] px-4 py-3">
+                    <div className="min-w-0">
+                      <div
+                        className="truncate font-medium text-gray-200"
+                        title={`Experiment: ${experimentNamespace}`}
+                      >
+                        {experimentNamespace}
+                      </div>
+                      {runtimeSourceLabel ? (
+                        <div
+                          className="mt-0.5 truncate text-xs text-cyan-300"
+                          title={runtimeSourceTitle ?? runtimeSourceLabel}
+                        >
+                          {runtimeSourceLabel}
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+
+                  {/* Target */}
+                  <td className="w-[16rem] max-w-[16rem] px-4 py-3">
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-center gap-2">
                         <RunNameLink
                           projectId={projectId}
                           runId={run.filename}
-                          label={display.primary}
+                          label={targetLabel}
                           title={display.title}
                           className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         />
                         {metadataDirty ? <PendingSyncBadge /> : null}
                       </div>
-                      {display.secondary ? (
-                        <div
-                          className="mt-0.5 truncate text-xs text-gray-500"
-                          title={display.title}
-                        >
-                          {display.secondary}
-                        </div>
-                      ) : null}
-                      <RunSourceBadges
-                        experimentNamespace={experimentNamespace}
-                        runtimeSourceLabel={runtimeSourceLabel}
-                        runtimeSourceTitle={runtimeSourceTitle}
-                      />
                     </div>
                   </td>
 
@@ -654,7 +663,7 @@ export function RunList({
             {(hasNextPage || isFetchingNextPage) && (
               <tr ref={tableSentinelRef}>
                 <td
-                  colSpan={enableCombine ? 10 : 9}
+                  colSpan={enableCombine ? 11 : 10}
                   className="px-4 py-3 text-center text-xs text-gray-500"
                 >
                   {isFetchingNextPage ? 'Loading more runs...' : 'Scroll to load more...'}
