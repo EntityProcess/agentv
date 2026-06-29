@@ -31,7 +31,9 @@ The final design keeps the product boundary smaller:
 - `eval.yaml` is the only runnable authoring artifact.
 - `experiment:` is an inline run-time block inside `eval.yaml`.
 - `tests:` is the composition, import, and selection surface.
-- result bundles are written under `.agentv/results/<eval-name>/<timestamp>/`.
+- result invocations are written under
+  `.agentv/results/<experiment>/<timestamp>/`, with target/variant bundles below
+  the timestamp.
 - A directory named `experiments/` may be used as a user-owned repo convention
   for wrapper eval YAML files, but it does not create a separate experiment
   artifact type or schema-significant path.
@@ -371,28 +373,44 @@ This is the motivating distinction:
 
 ## Result Layout
 
-The canonical writer path is:
+ADR 0009 is the source of truth for result experiment bucket precedence,
+target/variant bundle layout, row identity, and sidecar path allocation. The
+canonical invocation directory is:
 
 ```text
-.agentv/results/<eval-name>/<timestamp>/...
+.agentv/results/<experiment>/<timestamp>/...
 ```
 
 There is no `.agentv/results/runs` segment in canonical writer output. There is
-also no default nested suite segment when the result group is already the same
-eval suite being run directly.
+also no schema-significant suite or imported-suite directory segment.
 
-If a wrapper eval imports another suite with `type: suite`, test artifacts from
-that imported suite are nested under the imported suite identity:
+Within the timestamp, new writers fan out into a target and optional variant
+bundle. Each target/variant bundle has its own `index.jsonl` and `summary.json`:
 
 ```text
-.agentv/results/<wrapper-eval-name>/<timestamp>/<imported-suite-name>/<test-id>/...
+.agentv/results/<experiment>/<timestamp>/<target>/<variant?>/
+  index.jsonl
+  summary.json
+  <row_id>/run-1/
+  <row_id>/run-2/
 ```
 
-The suite segment is required for imported suites because wrapper evals can
-compose many suites with overlapping test IDs, and the directory tree should
-remain inspectable without reading every manifest row. Test artifacts from tests
-owned directly by the wrapper eval can still live directly under `<test-id>`.
-All cases should also retain source suite metadata in manifests and index rows.
+The target/variant folder split is for storage isolation and manual browsing
+only. Dashboard, import, rerun, comparison, and export readers discover nested
+`index.jsonl` files, then use bundle summary and row metadata for `target`,
+`variant`, `eval_path`, `suite`, and `test_id` semantics. Legacy timestamp-level
+bundles with `index.jsonl` directly under
+`.agentv/results/<experiment>/<timestamp>/` remain readable.
+
+Inside each target/variant bundle, `index.jsonl` is authoritative for row
+identity and all bundle-relative sidecar paths. `row_id` directories are stable,
+filesystem-safe allocations such as `<safe_test_id>--<short_hash>`, and repeated
+runs live under `run-1`, `run-2`, and so on. The hash input includes the source
+eval identity or `eval_path`, suite label, `test_id`, target, and variant. This
+keeps same-`test_id` rows from different suites, duplicate suite labels, targets,
+and variants from overwriting each other without making path hierarchy a
+semantic contract. There is no required `rows/` parent directory. Source suite
+metadata still belongs in manifests and index rows.
 
 The result namespace remains `experiment` in artifacts and Dashboard. AgentV
 should not introduce a separate authored `run_group` field. For better DX,
