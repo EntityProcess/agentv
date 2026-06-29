@@ -8,7 +8,7 @@ import {
   type TargetProxyUsageMetadata,
   createTargetProxy,
 } from '../../runtime/target-proxy.js';
-import { toSnakeCaseDeep } from '../case-conversion.js';
+import { serializeSnakeCaseBoundaryPayload } from '../case-conversion.js';
 import { type ContentImage, isContentArray } from '../content.js';
 import type { AssertionEntry, JsonObject, TargetAccessConfig } from '../types.js';
 import { getRepoCheckoutTargets } from '../workspace/repo-checkout.js';
@@ -199,7 +199,7 @@ export class CodeGrader implements Grader {
       config: this.config ?? null,
     };
 
-    const inputPayload = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
+    const inputPayload = JSON.stringify(serializeSnakeCaseBoundaryPayload(payload), null, 2);
 
     // Set up target proxy if configured and grader provider is available
     let proxyEnv: Record<string, string> | undefined;
