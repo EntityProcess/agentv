@@ -13,6 +13,9 @@ The `results` command family works on existing local AgentV run workspaces and `
 
 Remote result repository exchange is intentionally not part of `agentv results`. New eval runs publish completed artifacts to a configured results repo or branch; `auto_push: true` additionally pushes that branch to the remote. Manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/tools/dashboard/#remote-results) for configuration and sync behavior, and [WIP checkpoints](/docs/tools/wip-checkpoints/) for recovering in-progress runs before final publish.
 
+For the canonical run output structure, file roles, and integration contract,
+start with [Result Artifact Contract](/docs/reference/result-artifacts/).
+
 ## Subcommands
 
 | Subcommand | Purpose |
@@ -97,6 +100,11 @@ agentv results export <run-workspace-or-run_manifest.jsonl> [--out <dir>] [--dup
 ```
 
 This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving. The run workspace is also where generated task bundles live: `run_manifest.jsonl` rows may point to per-result `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` entries. Keep those generated artifacts with the run when sharing or auditing results.
+
+The export source is still the canonical run bundle described in the
+[Result Artifact Contract](/docs/reference/result-artifacts/): `summary.json`
+for aggregate run facts, the row manifest for row discovery, and sidecars for
+detailed payloads.
 
 Each exported trace sidecar and `run_manifest.jsonl` row includes a stable `projection_identity` derived from AgentV-owned fields: `run_id`, `suite` or `eval_path`, `test_id`, `target`, `source_target`, `attempt`, `variant`, `envelope_id`, `trace_id`, `root_span_id`, and the projection format/version. Retrying the same completed run keeps the same projection ID even when you choose a different `--out` directory, because `run_id` comes from the source run directory or source manifest name rather than the export destination.
 

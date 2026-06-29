@@ -17,7 +17,9 @@ AgentV picks the experiment bucket from `--experiment`, then
 timestamped run bundle. Each line is a JSON object with one result per test
 case, and the run workspace also stores the manifest and related artifacts. Use
 this generated run folder as the portable audit surface: copy or sync the run
-directory, not a hand-authored parallel bundle.
+directory, not a hand-authored parallel bundle. See the
+[Result Artifact Contract](/docs/reference/result-artifacts/) for the complete
+run layout and reader rules.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -104,7 +106,8 @@ agentv eval evals/my-eval.yaml --output ./my-results
 ```
 
 `--output` is a run directory, not a file path. The canonical manifest is always
-`<output>/run_manifest.jsonl`.
+`<output>/run_manifest.jsonl`; the aggregate summary is
+`<output>/summary.json`.
 
 ### Read Results from the Run Manifest
 
@@ -135,7 +138,7 @@ my-results/
       grading.json
       metrics.json
       timing.json
-      transcript.json
+      transcript.jsonl
       transcript-raw.jsonl
       outputs/answer.md
     task/
@@ -153,6 +156,9 @@ share the generated run directory and its `run_manifest.jsonl` manifest. Source-
 case directories are still useful for organizing bulky prompts, fixtures, or
 tests while authoring an eval, but they are optional input organization rather
 than a separate artifact schema.
+
+For the full root layout, per-attempt sidecars, pointer rules, and integration
+guidance, use the [Result Artifact Contract](/docs/reference/result-artifacts/).
 
 Use repo-relative `eval_path`, `test_id`, and `target` as the source identity
 for a result row. `suite` and `name` are display metadata only; do not use them

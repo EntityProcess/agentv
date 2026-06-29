@@ -1,0 +1,249 @@
+---
+title: Result Artifact Contract
+description: The canonical AgentV run output layout, manifest roles, and integration contract.
+sidebar:
+  order: 1
+---
+
+AgentV writes each eval invocation as a portable run bundle. The bundle is the
+source of truth for Dashboard, reports, compare/trend tooling, CI gates, and
+external adapters.
+
+The contract is run-centric:
+
+- `summary.json` owns aggregate run facts.
+- `index.jsonl` owns row-level discovery and filtering.
+- Per-case sidecars own detailed payloads such as grading, metrics, transcripts,
+  timing, generated files, and raw provider evidence.
+- Dashboard, search, SQLite, HTML reports, and vendor exports are rebuildable
+  projections over the bundle.
+
+:::note
+This page names the intended canonical row index as `index.jsonl`. During the
+transition from the temporary `run_manifest.jsonl` filename, readers should
+accept either filename when inspecting existing bundles. New contract examples
+and integrations should converge on `index.jsonl`.
+:::
+
+## Directory Layout
+
+The default local layout is:
+
+```text
+.agentv/results/
+  <experiment>/
+    <run_id>/
+      summary.json
+      index.jsonl
+      tags.json                 # optional mutable Dashboard tags
+      <case-or-allocation>/
+        summary.json            # optional per-case aggregate, especially repeats
+        task/                   # optional generated task bundle
+          EVAL.yaml
+          targets.yaml
+          files/
+          graders/
+        run-1/
+          result.json
+          grading.json
+          metrics.json
+          timing.json
+          transcript.jsonl
+          transcript-raw.jsonl
+          outputs/
+            answer.md
+        run-2/
+          result.json
+          grading.json
+          metrics.json
+          timing.json
+          transcript.jsonl
+          transcript-raw.jsonl
+          outputs/
+            answer.md
+```
+
+The `<experiment>` and `<run_id>` directories are storage allocation. They help
+AgentV put completed runs somewhere predictable, but readers must not infer
+semantic truth from folder names. Use fields in `summary.json` and `index.jsonl`
+for experiment, target, variant, attempt, eval path, case identity, timing,
+scores, and artifact paths.
+
+`experiment` remains the comparison and runtime-policy concept: it is how users
+label a condition such as `baseline`, `candidate`, `with_skills`, or
+`without_skills`. The folder segment is a convenient bucket for that concept,
+not an alternate schema. If a bundle is copied, combined, published, or imported
+under a different directory, its rows still carry the facts consumers should
+query.
+
+## File Roles
+
+| File or field | Owns | Use it for |
+| --- | --- | --- |
+| `summary.json` | Aggregate run metadata and rollups: run id, experiment metadata, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
+| `index.jsonl` | Canonical row index: one row per result, attempt, or case-level aggregate, with identity fields, filter metadata, scores, status, and explicit run-relative paths to sidecars. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
+| `result.json` | Compact per-attempt manifest for one attempt directory. | Loading one attempt without scanning the whole run index. |
+| `grading.json` | Grader outputs, assertions, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
+| `metrics.json` | Derived executor behavior summary, such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, metric-style graders, adapter projections, and lightweight analysis. |
+| `timing.json` | Duration, token usage, cost usage, and source labels such as `provider_reported`, `token_estimated`, `aggregate`, or `unavailable`. | Cost/latency reporting and provider-accounting audits. |
+| `transcript.jsonl` | AgentV-normalized transcript/timeline rows. | Portable human review, replay, transcript-aware graders, and tool-trajectory analysis. |
+| `transcript-raw.jsonl` | Native provider or harness evidence when available. | Parser debugging, forensic review, and preserving source bytes without making provider schemas public AgentV fields. |
+| `task/` | Generated task bundle for the exact eval slice and target settings that produced a row. | Audit, external review, and rerun workflows that should not depend on a mutable source checkout. |
+| `artifact_pointers` | Offload indirection for large detached payload bytes. | Finding payloads published outside the primary metadata/control-plane branch, such as transcript bytes on `agentv/artifacts/v1`. |
+
+`summary.json` and `index.jsonl` are complementary, not redundant. A run list
+should not scan every row just to show pass rate or total duration, and a row
+reader should not parse aggregate summary structures to find one case's grading
+or transcript. Keep aggregate questions on `summary.json`; keep row and artifact
+discovery on `index.jsonl`.
+
+## Row Contract
+
+Each `index.jsonl` line is a JSON object. The exact field set grows as AgentV
+adds providers and projections, but stable rows follow these rules:
+
+- Field names are `snake_case`.
+- Identity and filter fields live on the row, not only in directory names.
+- Sidecar references are explicit path fields, relative to the run directory.
+- Large detached payloads may also have `artifact_pointers`, but ordinary
+  sidecars should still be discoverable through path fields.
+- Unknown fields should be preserved by adapters when they rewrite or project
+  rows.
+
+Example row:
+
+```json
+{
+  "timestamp": "2026-06-30T08:15:00.000Z",
+  "run_id": "2026-06-30T08-15-00-000Z",
+  "experiment": "with_skills",
+  "eval_path": "evals/support/refunds.eval.yaml",
+  "test_id": "refund-eligibility",
+  "target": "codex-gpt5",
+  "variant": "skills-v2",
+  "attempt": 1,
+  "execution_status": "ok",
+  "score": 0.92,
+  "duration_ms": 184200,
+  "result_dir": "refund-eligibility/run-1",
+  "summary_path": "refund-eligibility/summary.json",
+  "grading_path": "refund-eligibility/run-1/grading.json",
+  "metrics_path": "refund-eligibility/run-1/metrics.json",
+  "timing_path": "refund-eligibility/run-1/timing.json",
+  "transcript_path": "refund-eligibility/run-1/transcript.jsonl",
+  "transcript_raw_path": "refund-eligibility/run-1/transcript-raw.jsonl",
+  "output_path": "refund-eligibility/run-1/outputs/answer.md",
+  "answer_path": "refund-eligibility/run-1/outputs/answer.md",
+  "task_dir": "refund-eligibility/task"
+}
+```
+
+Rows can represent repeated attempts, multi-target runs, imported suites,
+manual `prepare`/`grade` attempts, or imported provider sessions. That is why
+`experiment`, `eval_path`, `test_id`, `target`, `variant`, `attempt`, and
+source metadata belong in `index.jsonl`: tools can filter dynamically without
+requiring every run to be pre-split into semantic folders.
+
+## Reader Rules
+
+Consumers should read a bundle in this order:
+
+1. Resolve the run directory from either a directory path or an `index.jsonl`
+   path.
+2. Load `summary.json` for aggregate metadata and run-level display.
+3. Stream `index.jsonl` for row identity, filters, status, scores, and sidecar
+   paths.
+4. Resolve sidecar paths relative to the run directory.
+5. Rebuild any local cache, search index, SQLite table, static report, or
+   vendor projection from `summary.json`, `index.jsonl`, and sidecars.
+
+Do not reconstruct paths from `suite`, `name`, `test_id`, `target`, or
+directory names. `result_dir` is readable when possible, but it is still an
+opaque run-local allocation that may be suffixed or otherwise changed to avoid
+collisions.
+
+Do not treat derived artifacts as canonical:
+
+- Dashboard indexes are caches over the run bundle.
+- Search indexes are caches over rows and sidecars.
+- SQLite databases are query accelerators.
+- HTML reports are renderings.
+- Vendor-neutral projection bundles are adapter handoffs.
+- Phoenix, Langfuse, Opik, or other backend views are external projections or
+  correlations, not AgentV's source of truth.
+
+## User Examples
+
+Run an eval and inspect the portable bundle:
+
+```bash
+agentv eval evals/support/refunds.eval.yaml --experiment with_skills
+ls .agentv/results/with_skills/<run_id>
+cat .agentv/results/with_skills/<run_id>/summary.json
+cat .agentv/results/with_skills/<run_id>/index.jsonl
+```
+
+Find failed rows without loading every sidecar:
+
+```bash
+jq -r 'select(.execution_status != "ok" or .score < 0.5) |
+  [.eval_path, .test_id, .target, .grading_path] | @tsv' \
+  .agentv/results/with_skills/<run_id>/index.jsonl
+```
+
+Compare two completed runs by their row indexes:
+
+```bash
+agentv compare \
+  .agentv/results/baseline/<run_id>/index.jsonl \
+  .agentv/results/candidate/<run_id>/index.jsonl
+```
+
+Generate a shareable report from the same canonical bundle:
+
+```bash
+agentv results report .agentv/results/with_skills/<run_id>
+```
+
+## Integration Author Examples
+
+An adapter that exports run results should treat `index.jsonl` as the row
+catalog:
+
+```ts
+import { createReadStream } from "node:fs";
+import path from "node:path";
+import { createInterface } from "node:readline";
+
+export async function* rows(runDir: string) {
+  const rl = createInterface({
+    input: createReadStream(path.join(runDir, "index.jsonl"), "utf8"),
+    crlfDelay: Infinity,
+  });
+
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    yield JSON.parse(line) as Record<string, unknown>;
+  }
+}
+
+for await (const row of rows(".agentv/results/with_skills/2026-run")) {
+  const gradingPath = row.grading_path;
+  if (typeof gradingPath === "string") {
+    console.log(path.join(".agentv/results/with_skills/2026-run", gradingPath));
+  }
+}
+```
+
+Adapter guidance:
+
+- Preserve unknown row fields when possible.
+- Prefer path fields such as `grading_path`, `metrics_path`, `timing_path`,
+  `transcript_path`, and `transcript_raw_path` over ad hoc path construction.
+- Use `artifact_pointers` only for detached payload lookup; do not make pointers
+  the discovery path for ordinary sidecars that are present in the run tree.
+- If you build a database or search index, store enough source metadata to
+  rebuild it from the run bundle and invalidate it when `summary.json` or
+  `index.jsonl` changes.
+- Keep backend-specific anonymization, upload, and schema mapping in the adapter
+  layer. AgentV's canonical bundle remains backend-neutral.
