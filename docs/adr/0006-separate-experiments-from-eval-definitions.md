@@ -159,17 +159,22 @@ multi-file command such as `agentv eval a.eval.yaml b.eval.yaml` remains a batch
 of independent eval-suite runs, rather than one implicit wrapper experiment with
 shared mutable setup.
 
-## Tests Import Surface
+## Suite And Test Import Surface
 
-`tests:` is the only composition, import, and selection surface.
+`imports.suites`, `imports.tests`, and inline `tests` are the authored
+composition surfaces.
 
-`include:` accepts direct paths and glob patterns. Include entries are
-structurally identified by the `include` field, so their `type:` field can use
-the ordinary AgentV wire-format discriminator without ambiguity:
+`imports.suites` imports full child eval suites. `imports.tests` imports raw
+case rows into the parent file's task context. Inline `tests` are raw cases
+owned by the current file. Legacy `tests[].include` entries remain a migration
+path for existing eval files, but new evals should use the flatter import
+groups.
 
-- `include: **/*.eval.yaml` imports eval suites.
-- `include: **/*.cases.yaml` imports raw cases.
-- `include: **/*.jsonl` imports raw cases.
+`path:` accepts direct paths and glob patterns:
+
+- `imports.suites[].path: **/*.eval.yaml` imports eval suites.
+- `imports.tests[].path: **/*.cases.yaml` imports raw cases.
+- `imports.tests[].path: **/*.jsonl` imports raw cases.
 
 `select:` filters imported cases with the same general selection shape used by
 old experiment suite selection. `select.test_ids` filters by test id and maps
@@ -216,29 +221,29 @@ In that example, `case-1` matches `select.tags: cargowise`.
 Imported tests run in deterministic order: resolved path first, then the test
 order inside each resolved source.
 
-`type: suite` preserves the imported suite task contract. That includes suite
+`imports.suites` preserves the imported suite task contract. That includes suite
 metadata, `workspace`, shared `input`, shared `assertions`, and tests. The
 parent eval still owns one run bundle and one runtime policy. Child suite
-`experiment:` blocks are ignored when imported with `type: suite`; they do not
+`experiment:` blocks are ignored when imported through `imports.suites`; they do not
 fall back into the parent run. Scoped runtime overrides that the parent wants
-to apply to imported tests live in `tests[].run`.
+to apply to imported tests live on the import entry's `run:` block.
 
-A parent eval that imports any child eval suite with `type: suite` must not
+A parent eval that imports any child eval suite with `imports.suites` must not
 define parent `workspace`. The wrapper owns runtime policy, not task
 environment. Imported child suites keep their own `workspace`, including
 `workspace.repos[]`, templates, hooks, and isolation. Existing local workspace
 paths are machine-local bindings supplied through CLI flags or
 `config.local.yaml`. If the parent should own workspace context, import raw cases
-with `type: tests` or shorthand paths instead of importing an eval suite.
+with `imports.tests` or shorthand paths instead of importing an eval suite.
 
-`type: tests` imports only raw test entries. It intentionally drops shared
+`imports.tests` imports only raw test entries. It intentionally drops shared
 suite context such as workspace, shared input, and shared assertions. Use this
 mode only when the imported file is a case corpus or when dropping suite context
 is the desired behavior.
 
 Suite files still support raw-case shorthand imports. A string-valued `tests`
-field or a string entry inside the `tests` list is equivalent to an include
-entry with `type: tests`:
+field or a string entry inside the `tests` list is equivalent to an
+`imports.tests` entry:
 
 ```yaml
 tests: ./cases.yaml
@@ -247,16 +252,13 @@ tests: ./cases.yaml
 ```yaml
 tests:
   - ./cases/*.cases.yaml
-  - include: ./suites/*.eval.yaml
-    type: suite
 ```
 
 The shorthand is only for raw case files or directories. Importing another eval
-suite must use object form with `include:` and `type: suite`, so authors cannot
-accidentally drop or preserve suite context without saying which behavior they
-want.
+suite must use `imports.suites`, so authors cannot accidentally drop or
+preserve suite context without saying which behavior they want.
 
-Do not use `import:` or `kind:` for `tests:` include entries.
+Do not use `import:` or `kind:` for import entries.
 
 Parent suite-level task fields should not silently override imported suite task
 fields. Explicit override syntax can be considered later if a concrete use case

@@ -19,14 +19,17 @@ Comprehensive docs: https://agentv.dev
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
-task fixtures, and the inline `experiment:` runtime block. Use `tests[]` include
-entries for composition. `type: suite` preserves imported suite context;
-`type: tests` imports raw cases only. String-valued `tests` and string entries
-inside `tests[]` are raw-case import shorthand for direct paths, directories, and
-globs; suite imports must use `include:` with `type: suite`. Use scoped `run:`
-on include entries or individual tests only for `threshold`, `repeat`,
-`timeout_seconds`, and `budget_usd`; keep target selection, setup, and workspace
-mutation under the parent `experiment:`.
+task fixtures, and the inline `experiment:` runtime block. Use `imports.suites`
+for full child suites that preserve their workspace, shared input, assertions,
+fixtures, and graders. Use `imports.tests` for raw case rows that should run in
+the parent file's context. Inline `tests` are also parent-owned raw cases.
+String-valued `tests` and string entries inside `tests[]` are raw-case import
+shorthand for direct paths, directories, and globs. Legacy `tests[].include`
+entries still load with a migration warning, but new evals should use
+`imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
+individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
+`budget_usd`; keep target selection, setup, and workspace mutation under the
+parent `experiment:`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
@@ -121,7 +124,7 @@ tests:
 
 ## Eval File Structure
 
-**Required:** `tests` (array or string raw-case path)
+**Required:** `tests` (array or string raw-case path) or `imports`
 **Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `experiment`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**

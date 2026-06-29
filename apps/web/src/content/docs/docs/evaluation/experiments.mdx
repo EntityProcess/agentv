@@ -64,75 +64,81 @@ experiment:
   workers: 2
 
 tests:
-  - include: ../evals/suites/refunds.eval.yaml
-    type: suite
-  - include: ../evals/cases/refund-smoke.cases.yaml
-    type: tests
+  - id: local-edge-case
+    input: Check a damaged final-sale refund.
+
+imports:
+  suites:
+    - path: ../evals/suites/refunds.eval.yaml
+  tests:
+    - path: ../evals/cases/refund-smoke.cases.yaml
 ```
 
 The `experiments/` folder is optional and user-owned. AgentV does not scan it
 for special files or infer runtime behavior from the path; the same wrapper eval
 could live under `evals/wrappers/`, `benchmarks/`, or beside the suite it runs.
 
-## Tests Imports
+## Suite And Test Imports
 
-Use `tests[]` for composition, imports, and selection.
+Use `imports.suites` for full child suites and `imports.tests` for raw test
+rows. Inline `tests` remain raw cases owned by the current file.
 
 ```yaml
+imports:
+  suites:
+    - path: evals/support/*.eval.yaml
+      select:
+        test_ids:
+          - refund-*
+          - missing-order-date
+        tags: regression
+        metadata:
+          priority: high
+      run:
+        threshold: 1.0
+        repeat:
+          count: 2
+          strategy: pass_all
+  tests:
+    - path: cases/*.cases.yaml
+    - path: cases/regression.jsonl
+
 tests:
-  - include: evals/support/*.eval.yaml
-    type: suite
-    select:
-      test_ids:
-        - refund-*
-        - missing-order-date
-      tags: regression
-      metadata:
-        priority: high
-    run:
-      threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
-  - include: cases/*.cases.yaml
-    type: tests
-  - include: cases/regression.jsonl
-    type: tests
   - cases/smoke/*.cases.yaml
 ```
 
-`type: suite` preserves the imported suite's task contract: metadata,
+`imports.suites` preserves the imported suite's task contract: metadata,
 `workspace`, shared `input`, shared `assertions`, and tests. The parent eval
 still owns the single run bundle and runtime policy. Child suite
 `experiment:` blocks are ignored when imported; use parent `experiment:` for
-run policy and `tests[].run` for scoped threshold, repeat, timeout, or budget
+run policy and import `run:` for scoped threshold, repeat, timeout, or budget
 overrides.
 
-A parent eval that imports any `type: suite` entry must not define top-level
+A parent eval that imports any `imports.suites` entry must not define top-level
 `workspace`. Imported suites own task environment. If the parent should provide
-workspace context, import raw cases with `type: tests` or shorthand paths
+workspace context, import raw cases with `imports.tests` or shorthand paths
 instead of importing an eval suite.
 
-`type: tests` imports only raw test entries. It intentionally drops shared
+`imports.tests` imports only raw test entries. It intentionally drops shared
 context from an imported eval suite, so parent suite fields apply to those raw
 cases.
 
-`tests[].select.test_ids` filters imported test IDs with glob patterns.
-`tests[].select.tags` filters each imported case's effective `metadata.tags`.
+Import `select.test_ids` filters imported test IDs with glob patterns.
+Import `select.tags` filters each imported case's effective `metadata.tags`.
 Effective case tags are suite-first and deduped:
 `suite.tags + suite.metadata.tags + test.metadata.tags`. Top-level suite `tags`
 still remain suite identity metadata for discovery and reporting; selection reads
-the merged case metadata view. `tests[].select.metadata` filters case metadata by
+the merged case metadata view. Import `select.metadata` filters case metadata by
 key/value, where selector values may be scalars or lists. Globbed include paths
 are resolved in deterministic path order, then test order.
 
 String-valued `tests` and string entries inside `tests[]` are raw-case import
-shorthand. They are equivalent to `include` with `type: tests` and may point at
+shorthand. They are equivalent to `imports.tests` and may point at
 raw case files, directories, or globs. Importing another eval suite must use
-object form with `include:` and `type: suite`.
+`imports.suites`.
 
-Suite imports are resolved as a deterministic include graph. Circular `type:
-suite` imports fail validation with the import chain; raw-case shorthand does
+Suite imports are resolved as a deterministic include graph. Circular
+`imports.suites` imports fail validation with the import chain; raw-case shorthand does
 not recursively load suite runtime blocks.
 
 Imported suite rows keep their source suite metadata in `run_manifest.jsonl`. Use each
@@ -145,7 +151,7 @@ Use scoped `run:` blocks for result interpretation and scheduling policies that
 vary by include group or test case. Precedence is:
 
 ```text
-test.run > tests[].run > parent experiment
+test.run > import run > parent experiment
 ```
 
 ```yaml
@@ -156,26 +162,26 @@ experiment:
     count: 3
     strategy: pass_at_k
 
+imports:
+  suites:
+    - path: ./evals/flaky-agentic/**/*.eval.yaml
+      select:
+        tags: [agentic]
+      run:
+        repeat:
+          count: 3
+          strategy: pass_at_k
+
+    - path: ./evals/regression/**/*.eval.yaml
+      select:
+        tags: [must-pass]
+      run:
+        threshold: 1.0
+        repeat:
+          count: 2
+          strategy: pass_all
+
 tests:
-  - include: ./evals/flaky-agentic/**/*.eval.yaml
-    type: suite
-    select:
-      tags: [agentic]
-    run:
-      repeat:
-        count: 3
-        strategy: pass_at_k
-
-  - include: ./evals/regression/**/*.eval.yaml
-    type: suite
-    select:
-      tags: [must-pass]
-    run:
-      threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
-
   - id: critical-case
     input: "..."
     criteria: Must pass exactly

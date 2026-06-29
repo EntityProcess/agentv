@@ -1,13 +1,13 @@
 # External Datasets Example
 
-Demonstrates loading test cases from external files using `file://` references.
+Demonstrates loading raw test cases from external files using `imports.tests`.
 
 ## What This Shows
 
-- Loading tests from external YAML files (`file://cases/accuracy.yaml`)
-- Loading tests from external JSONL files (`file://cases/regression.jsonl`)
-- Mixing inline test definitions with external file references
-- Glob patterns for loading multiple files (`file://cases/**/*.yaml`)
+- Loading tests from external YAML files (`imports.tests[].path: cases/accuracy.yaml`)
+- Loading tests from external JSONL files (`imports.tests[].path: cases/regression.jsonl`)
+- Mixing inline `tests` with imported raw test rows
+- Glob patterns for loading multiple files (`imports.tests[].path: cases/**/*.yaml`)
 
 ## Running
 
@@ -18,7 +18,7 @@ bun agentv eval examples/features/external-datasets/evals/dataset.eval.yaml
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` — Main eval with inline tests and `file://` references
+- `evals/dataset.eval.yaml` — Main eval with inline tests and `imports.tests` references
 - `evals/cases/accuracy.yaml` — YAML array of test cases
 - `evals/cases/regression.jsonl` — JSONL test data (one test per line)
 
@@ -46,7 +46,8 @@ One JSON test object per line:
 
 Use glob patterns to load from multiple files:
 ```yaml
-tests:
-  - file://cases/**/*.yaml    # All YAML files recursively
-  - file://cases/*.jsonl      # All JSONL files in cases/
+imports:
+  tests:
+    - path: cases/**/*.yaml    # All YAML files recursively
+    - path: cases/*.jsonl      # All JSONL files in cases/
 ```

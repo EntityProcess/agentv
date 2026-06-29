@@ -34,7 +34,7 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('validates inline experiment runtime and tests include entries', async () => {
+  it('validates inline experiment runtime and flatter import entries', async () => {
     const filePath = path.join(tempDir, 'inline-experiment-include.yaml');
     await writeFile(
       filePath,
@@ -43,23 +43,26 @@ experiment:
   targets: [codex, claude]
   workers: 2
 tests:
-  - include: ./evals/**/*.eval.yaml
-    type: suite
-    select:
-      test_ids: [pr50857-*]
-      tags: [sql-migration]
-      metadata:
-        type: [e2e, regression]
-        priority: high
-    run:
-      threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
-      timeout_seconds: 120
-      budget_usd: 2
-  - include: ./cases/**/*.cases.yaml
-    type: tests
+  - id: local-case
+    input: "Hello"
+imports:
+  suites:
+    - path: ./evals/**/*.eval.yaml
+      select:
+        test_ids: [pr50857-*]
+        tags: [sql-migration]
+        metadata:
+          type: [e2e, regression]
+          priority: high
+      run:
+        threshold: 1.0
+        repeat:
+          count: 2
+          strategy: pass_all
+        timeout_seconds: 120
+        budget_usd: 2
+  tests:
+    - path: ./cases/**/*.cases.yaml
 `,
     );
 
@@ -391,7 +394,7 @@ tests:
     ).toBe(true);
   });
 
-  it('warns when type: tests imports an eval suite and drops suite context', async () => {
+  it('warns when imports.tests-style raw imports drop eval suite context', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-tests-import.eval.yaml'),
       `workspace:
@@ -425,8 +428,31 @@ tests:
         (error) =>
           error.severity === 'warning' &&
           error.location === 'tests[0].include' &&
-          error.message.includes('type: tests imports raw cases') &&
+          error.message.includes('imports.tests imports raw cases') &&
           error.message.includes('drops suite context'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects missing raw case files under imports.tests', async () => {
+    const filePath = path.join(tempDir, 'missing-imports-tests-path.eval.yaml');
+    await writeFile(
+      filePath,
+      `imports:
+  tests:
+    - path: ./missing-cases.yaml
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'imports.tests[0].path' &&
+          error.message.includes('Cannot read external test file'),
       ),
     ).toBe(true);
   });
