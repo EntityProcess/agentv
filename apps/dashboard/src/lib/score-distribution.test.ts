@@ -91,6 +91,67 @@ describe('buildScoreDistributionModel', () => {
     ]);
   });
 
+  it('treats parent category filters as descendant rollups from category metadata', () => {
+    const data = compareFixture();
+    if (data.runs) {
+      data.runs[0].tests = [
+        {
+          test_id: 'network',
+          category: 'security/network',
+          score: 0.45,
+          passed: false,
+        },
+        {
+          test_id: 'application',
+          category: 'security/application',
+          score: 0.85,
+          passed: true,
+        },
+      ];
+    }
+
+    const model = buildScoreDistributionModel(data, filters({ category: 'security' }), NOW);
+
+    expect(model.categoryOptions).toEqual(
+      expect.arrayContaining([
+        { value: 'security', label: 'security', count: 2 },
+        { value: 'security/application', label: 'security/application', count: 1 },
+        { value: 'security/network', label: 'security/network', count: 1 },
+      ]),
+    );
+    expect(model.filteredScores).toBe(2);
+  });
+
+  it('does not derive category metadata from eval paths', () => {
+    const data = {
+      experiments: ['exp-a'],
+      targets: ['gpt-4o'],
+      cells: [
+        {
+          experiment: 'exp-a',
+          target: 'gpt-4o',
+          eval_count: 1,
+          passed_count: 1,
+          pass_rate: 1,
+          avg_score: 1,
+          tests: [
+            {
+              test_id: 'path-only',
+              eval_path: 'security/network.eval.yaml',
+              score: 1,
+              passed: true,
+            },
+          ],
+        },
+      ],
+    } as unknown as CompareResponse;
+
+    const model = buildScoreDistributionModel(data, filters({ category: 'security' }), NOW);
+
+    expect(model.categoryAvailable).toBe(false);
+    expect(model.filteredScores).toBe(0);
+  });
+
   it('returns empty buckets when no scores match the selected slice', () => {
     const model = buildScoreDistributionModel(
       compareFixture(),

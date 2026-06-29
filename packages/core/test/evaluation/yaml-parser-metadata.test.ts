@@ -74,6 +74,19 @@ tests:
     expect(suite.metadata).toBeUndefined();
   });
 
+  it('uses explicit YAML category as a canonical taxonomy path override', async () => {
+    const { filePath, dir } = createTempYaml(`
+category: " security / network "
+tests:
+  - id: test-1
+    input: "Hello"
+    criteria: "Greet"
+`);
+
+    const suite = await loadTestSuite(filePath, dir, { category: 'derived/path' });
+    expect(suite.tests[0].category).toBe('security/network');
+  });
+
   it('still loads tests correctly when metadata is present', async () => {
     const { filePath, dir } = createTempYaml(`
 name: my-eval

@@ -502,16 +502,22 @@ export interface FileContentResponse {
 
 export interface CategorySummary {
   name: string;
+  label?: string;
+  parent?: string;
+  depth?: number;
   total: number;
   passed: number;
   failed: number;
   avg_score: number;
   execution_error_count?: number;
   suite_count: number;
+  child_count?: number;
+  children?: CategorySummary[];
 }
 
 export interface CategoriesResponse {
   categories: CategorySummary[];
+  category_tree?: CategorySummary[];
 }
 
 export interface StudioConfigResponse {

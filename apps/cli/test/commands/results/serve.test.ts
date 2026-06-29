@@ -1457,17 +1457,113 @@ describe('serve app', () => {
           suite_count: number;
         }>;
       };
-      expect(categoriesData.categories).toEqual([
-        {
-          name: 'runtime',
-          total: 3,
-          passed: 1,
-          failed: 1,
-          avg_score: 0.75,
-          execution_error_count: 1,
-          suite_count: 1,
-        },
-      ]);
+      expect(categoriesData.categories).toHaveLength(1);
+      expect(categoriesData.categories[0]).toMatchObject({
+        name: 'runtime',
+        total: 3,
+        passed: 1,
+        failed: 1,
+        avg_score: 0.75,
+        execution_error_count: 1,
+        suite_count: 1,
+      });
+    });
+
+    it('returns hierarchical category rollups and descendant category drilldown', async () => {
+      const runsDir = localResultsExperimentDir(tempDir);
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-30-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl(
+          {
+            ...RESULT_A,
+            test_id: 'network-pass',
+            suite: 'network-suite',
+            category: 'security/network',
+            score: 1,
+          },
+          {
+            ...RESULT_B,
+            test_id: 'security-fail',
+            suite: 'root-suite',
+            category: 'security',
+            score: 0,
+          },
+          {
+            ...RESULT_A,
+            test_id: 'flat-pass',
+            suite: 'legacy-suite',
+            category: 'legacy-flat',
+            score: 1,
+          },
+        ),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const categoriesRes = await app.request(`/api/runs/${filename}/categories`);
+      expect(categoriesRes.status).toBe(200);
+      const categoriesData = (await categoriesRes.json()) as {
+        categories: Array<{
+          name: string;
+          parent?: string;
+          total: number;
+          passed: number;
+          failed: number;
+          child_count?: number;
+        }>;
+        category_tree?: Array<{ name: string; children?: Array<{ name: string }> }>;
+      };
+
+      expect(categoriesData.categories).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'security',
+            total: 2,
+            passed: 1,
+            failed: 1,
+            child_count: 1,
+          }),
+          expect.objectContaining({
+            name: 'security/network',
+            parent: 'security',
+            total: 1,
+            passed: 1,
+            failed: 0,
+          }),
+          expect.objectContaining({
+            name: 'legacy-flat',
+            total: 1,
+            passed: 1,
+            failed: 0,
+          }),
+        ]),
+      );
+      expect(categoriesData.category_tree).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'security',
+            children: [expect.objectContaining({ name: 'security/network' })],
+          }),
+        ]),
+      );
+
+      const suitesRes = await app.request(
+        `/api/runs/${filename}/categories/${encodeURIComponent('security')}/suites`,
+      );
+      expect(suitesRes.status).toBe(200);
+      const suitesData = (await suitesRes.json()) as {
+        suites: Array<{ name: string; total: number }>;
+      };
+      expect(suitesData.suites).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'network-suite', total: 1 }),
+          expect.objectContaining({ name: 'root-suite', total: 1 }),
+        ]),
+      );
     });
 
     it('infers the experiment name from the run id when live results have not written it yet', async () => {

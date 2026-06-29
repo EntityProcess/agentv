@@ -4,6 +4,7 @@ import fg from 'fast-glob';
 import micromatch from 'micromatch';
 import { stringify as stringifyYaml } from 'yaml';
 
+import { normalizeCategoryPath } from './category.js';
 import {
   type ExperimentConfig,
   normalizeExperimentConfig,
@@ -789,10 +790,12 @@ async function loadTestsFromParsedYamlValue(
         ? (renderedCase.window_size as number)
         : undefined;
 
+    const category = normalizeCategoryPath(suite.category ?? options?.category);
+
     const testCase: EvalTest = {
       id,
       suite: suiteName,
-      category: suite.category ?? options?.category,
+      category,
       conversation_id: conversationId,
       question: question,
       input: inputMessages,
