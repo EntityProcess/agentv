@@ -176,15 +176,6 @@ function validateProjects(errors: ValidationError[], filePath: string, projects:
   });
 }
 
-function addWarning(
-  errors: ValidationError[],
-  filePath: string,
-  location: string,
-  message: string,
-): void {
-  errors.push({ severity: 'warning', filePath, location, message });
-}
-
 function addError(
   errors: ValidationError[],
   filePath: string,
@@ -196,116 +187,6 @@ function addError(
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isGitRemoteUrlValue(value: string): boolean {
-  return /^(https?:\/\/|ssh:\/\/|git@|file:\/\/).+/.test(value.trim());
-}
-
-function validateProjectRepoConfig(
-  errors: ValidationError[],
-  filePath: string,
-  projectRecord: Record<string, unknown>,
-  location: string,
-): void {
-  if (projectRecord.source !== undefined) {
-    addError(
-      errors,
-      filePath,
-      `${location}.source`,
-      `Field '${location}.source' was removed. Move 'source.url' to '${location}.repo.url', move 'source.ref' to '${location}.repo.branch', and set '${location}.repo.path' to the local checkout path.`,
-    );
-  }
-
-  if (projectRecord.repository !== undefined) {
-    addError(
-      errors,
-      filePath,
-      `${location}.repository`,
-      `Field '${location}.repository' was removed. Use '${location}.repo.url' with a Git remote URL instead.`,
-    );
-  }
-
-  if (projectRecord.repo !== undefined) {
-    if (!isPlainObject(projectRecord.repo)) {
-      addError(
-        errors,
-        filePath,
-        `${location}.repo`,
-        `Field '${location}.repo' must be an object with path, optional url, and optional branch.`,
-      );
-      return;
-    }
-
-    for (const flatField of ['path', 'repo_url', 'ref']) {
-      if (projectRecord[flatField] !== undefined) {
-        addError(
-          errors,
-          filePath,
-          `${location}.${flatField}`,
-          `Do not mix '${location}.${flatField}' with '${location}.repo'. Move source repo fields under '${location}.repo'.`,
-        );
-      }
-    }
-
-    validateRequiredString(errors, filePath, projectRecord.repo.path, `${location}.repo.path`);
-    if (projectRecord.repo.url !== undefined) {
-      validateGitRemoteUrl(errors, filePath, projectRecord.repo.url, `${location}.repo.url`);
-    }
-    if (projectRecord.repo.branch !== undefined) {
-      validateRequiredString(
-        errors,
-        filePath,
-        projectRecord.repo.branch,
-        `${location}.repo.branch`,
-      );
-    }
-    if (projectRecord.repo.ref !== undefined) {
-      addError(
-        errors,
-        filePath,
-        `${location}.repo.ref`,
-        `Field '${location}.repo.ref' is not supported. Use '${location}.repo.branch'.`,
-      );
-    }
-    if (projectRecord.repo.remote !== undefined) {
-      addError(
-        errors,
-        filePath,
-        `${location}.repo.remote`,
-        `Use '${location}.repo.url' for the source Git URL. '${location}.repo.remote' is only valid inside results repo config.`,
-      );
-    }
-    return;
-  }
-
-  validateRequiredString(errors, filePath, projectRecord.path, `${location}.path`);
-  addWarning(
-    errors,
-    filePath,
-    `${location}.path`,
-    `Field '${location}.path' is deprecated. Use '${location}.repo.path'. Existing flat project entries still load and are written back in nested form.`,
-  );
-
-  if (projectRecord.repo_url !== undefined) {
-    validateGitRemoteUrl(errors, filePath, projectRecord.repo_url, `${location}.repo_url`);
-    addWarning(
-      errors,
-      filePath,
-      `${location}.repo_url`,
-      `Field '${location}.repo_url' is deprecated. Use '${location}.repo.url'.`,
-    );
-  }
-
-  if (projectRecord.ref !== undefined) {
-    validateRequiredString(errors, filePath, projectRecord.ref, `${location}.ref`);
-    addWarning(
-      errors,
-      filePath,
-      `${location}.ref`,
-      `Field '${location}.ref' is deprecated. Use '${location}.repo.branch'.`,
-    );
-  }
 }
 
 function validateRequiredString(
@@ -324,269 +205,28 @@ function validateRequiredString(
   }
 }
 
-function validateGitRemoteUrl(
+function validateOptionalString(
   errors: ValidationError[],
   filePath: string,
   value: unknown,
   location: string,
 ): void {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location,
-      message: `Field '${location}' must be a non-empty Git remote URL (e.g., https://github.com/EntityProcess/agentv.git or git@github.com:EntityProcess/agentv.git)`,
-    });
-    return;
-  }
-
-  const repoUrl = value.trim();
-  if (!isGitRemoteUrlValue(repoUrl)) {
-    errors.push({
-      severity: 'error',
-      filePath,
-      location,
-      message: `Field '${location}' must be a Git remote URL, not an owner/name shorthand. Use https://github.com/owner/repo.git or git@github.com:owner/repo.git.`,
-    });
+  if (value !== undefined && (typeof value !== 'string' || value.trim().length === 0)) {
+    addError(errors, filePath, location, `Field '${location}' must be a non-empty string`);
   }
 }
 
-function validateResultsRepoBlock(
+function validateProjectRepoConfig(
   errors: ValidationError[],
   filePath: string,
-  rawRepo: unknown,
+  projectRecord: Record<string, unknown>,
   location: string,
 ): void {
-  if (!isPlainObject(rawRepo)) {
-    addError(errors, filePath, location, `Field '${location}' must be an object`);
-    return;
-  }
-
-  const repoRecord = rawRepo;
-  const hasUrl = repoRecord.url !== undefined;
-  const hasRemote = repoRecord.remote !== undefined;
-  const hasPath = repoRecord.path !== undefined;
-
-  if (!hasRemote && !hasUrl && !hasPath) {
-    addError(errors, filePath, location, `Field '${location}' must set remote or path`);
-  }
-
-  if (hasRemote && hasUrl) {
-    addError(
-      errors,
-      filePath,
-      location,
-      `Field '${location}' must set only one remote endpoint. Use '${location}.remote'.`,
-    );
-  }
-
-  if (hasRemote) {
-    validateGitRemoteUrl(errors, filePath, repoRecord.remote, `${location}.remote`);
-  }
-
-  if (hasUrl) {
-    validateGitRemoteUrl(errors, filePath, repoRecord.url, `${location}.url`);
-    addWarning(
-      errors,
-      filePath,
-      `${location}.url`,
-      `Field '${location}.url' is accepted for compatibility. Use '${location}.remote' for the Git remote URL.`,
-    );
-  }
-
-  if (hasPath) {
-    validateRequiredString(errors, filePath, repoRecord.path, `${location}.path`);
-  }
-
-  if (
-    repoRecord.branch !== undefined &&
-    (typeof repoRecord.branch !== 'string' || repoRecord.branch.trim().length === 0)
-  ) {
-    addError(
-      errors,
-      filePath,
-      `${location}.branch`,
-      `Field '${location}.branch' must be a non-empty string`,
-    );
-  }
-}
-
-function validateResultsSyncAndBranchPrefix(
-  errors: ValidationError[],
-  filePath: string,
-  resultsRecord: Record<string, unknown>,
-  location: string,
-): void {
-  if (resultsRecord.auto_push !== undefined && typeof resultsRecord.auto_push !== 'boolean') {
-    addError(
-      errors,
-      filePath,
-      `${location}.auto_push`,
-      `Field '${location}.auto_push' must be a boolean`,
-    );
-  }
-
-  if (resultsRecord.sync !== undefined) {
-    if (
-      typeof resultsRecord.sync !== 'object' ||
-      resultsRecord.sync === null ||
-      Array.isArray(resultsRecord.sync)
-    ) {
-      addError(errors, filePath, `${location}.sync`, `Field '${location}.sync' must be an object`);
-    } else {
-      const syncRecord = resultsRecord.sync as Record<string, unknown>;
-      if (syncRecord.auto_push !== undefined && typeof syncRecord.auto_push !== 'boolean') {
-        addError(
-          errors,
-          filePath,
-          `${location}.sync.auto_push`,
-          `Field '${location}.sync.auto_push' must be a boolean`,
-        );
-      }
-      if (syncRecord.require_push !== undefined) {
-        addError(
-          errors,
-          filePath,
-          `${location}.sync.require_push`,
-          `Field '${location}.sync.require_push' was removed from persistent config. Use the per-run --results-require-push CLI flag instead.`,
-        );
-      }
-      if (syncRecord.push_conflict_policy === 'backup_and_force_push') {
-        addError(
-          errors,
-          filePath,
-          `${location}.sync.push_conflict_policy`,
-          `Field '${location}.sync.push_conflict_policy' uses removed value 'backup_and_force_push'; remove it or set it to 'block'. AgentV never force-pushes result branches.`,
-        );
-      } else if (
-        syncRecord.push_conflict_policy !== undefined &&
-        syncRecord.push_conflict_policy !== 'block'
-      ) {
-        addError(
-          errors,
-          filePath,
-          `${location}.sync.push_conflict_policy`,
-          `Field '${location}.sync.push_conflict_policy' must be 'block'`,
-        );
-      }
-    }
-  }
-
-  if (
-    resultsRecord.branch_prefix !== undefined &&
-    (typeof resultsRecord.branch_prefix !== 'string' ||
-      resultsRecord.branch_prefix.trim().length === 0)
-  ) {
-    addError(
-      errors,
-      filePath,
-      `${location}.branch_prefix`,
-      `Field '${location}.branch_prefix' must be a non-empty string`,
-    );
-  }
-}
-
-function validateFlatResultsRepoConfig(
-  errors: ValidationError[],
-  filePath: string,
-  resultsRecord: Record<string, unknown>,
-  location: string,
-  options: { allowLegacyRepoString: boolean },
-): void {
-  const hasLegacyRepo = typeof resultsRecord.repo === 'string';
-  const hasRepoUrl = resultsRecord.repo_url !== undefined;
-  const hasRepoPath = resultsRecord.repo_path !== undefined;
-  const sourceCount = [
-    options.allowLegacyRepoString && hasLegacyRepo,
-    hasRepoUrl,
-    hasRepoPath,
-  ].filter(Boolean).length;
-  if (sourceCount === 0) {
-    addError(errors, filePath, location, `Field '${location}' must set repo.remote or repo.path`);
-  } else if (sourceCount > 1) {
-    addError(
-      errors,
-      filePath,
-      location,
-      `Field '${location}' must set only one results repo source. Use '${location}.repo.remote' for a managed clone or '${location}.repo.path' for an existing local checkout.`,
-    );
-  } else if (hasLegacyRepo) {
-    validateRequiredString(errors, filePath, resultsRecord.repo, `${location}.repo`);
-  } else if (hasRepoUrl) {
-    validateGitRemoteUrl(errors, filePath, resultsRecord.repo_url, `${location}.repo_url`);
-  } else {
-    validateRequiredString(errors, filePath, resultsRecord.repo_path, `${location}.repo_path`);
-  }
-
-  if (
-    resultsRecord.branch !== undefined &&
-    (typeof resultsRecord.branch !== 'string' || resultsRecord.branch.trim().length === 0)
-  ) {
-    addError(
-      errors,
-      filePath,
-      `${location}.branch`,
-      `Field '${location}.branch' must be a non-empty string`,
-    );
-  }
-
-  if (resultsRecord.remote !== undefined) {
-    addError(
-      errors,
-      filePath,
-      `${location}.remote`,
-      `Field '${location}.remote' was removed from persistent config because it was a local Git remote-name alias. Use '${location}.repo.remote' for the portable Git endpoint URL, or omit it and let AgentV use the checkout remote alias internally.`,
-    );
-  }
-
-  if (resultsRecord.path !== undefined) {
-    if (typeof resultsRecord.path !== 'string' || resultsRecord.path.trim().length === 0) {
-      addError(
-        errors,
-        filePath,
-        `${location}.path`,
-        `Field '${location}.path' must be a non-empty string`,
-      );
-    } else {
-      const p = resultsRecord.path.trim();
-      if (!isFilesystemPath(p)) {
-        addError(
-          errors,
-          filePath,
-          `${location}.path`,
-          `'${location}.path' must be an absolute or home-relative filesystem path (e.g., ~/data/agentv-results). Found: '${p}'. Remove 'path' to use the default.`,
-        );
-      }
-    }
-  }
-}
-
-function warnFlatResultsMigration(
-  errors: ValidationError[],
-  filePath: string,
-  resultsRecord: Record<string, unknown>,
-  location: string,
-): void {
-  const migrations: Record<string, string> = {
-    repo: `${location}.repo.remote`,
-    repo_url: `${location}.repo.remote`,
-    repo_path: `${location}.repo.path`,
-    branch: `${location}.repo.branch`,
-    path: `${location}.repo.path`,
-    auto_push: `${location}.sync.auto_push`,
-    mode: '(remove this field)',
-  };
-
-  for (const [field, replacement] of Object.entries(migrations)) {
-    if (resultsRecord[field] !== undefined) {
-      addWarning(
-        errors,
-        filePath,
-        `${location}.${field}`,
-        `Field '${location}.${field}' is deprecated. Use '${replacement}' in the nested results repo schema.`,
-      );
-    }
-  }
+  // Source repo is flat: required local checkout `path`, optional `repo`
+  // (slug or Git URL), and optional `branch`.
+  validateRequiredString(errors, filePath, projectRecord.path, `${location}.path`);
+  validateOptionalString(errors, filePath, projectRecord.repo, `${location}.repo`);
+  validateOptionalString(errors, filePath, projectRecord.branch, `${location}.branch`);
 }
 
 function validateResultsConfigBody(
@@ -594,7 +234,7 @@ function validateResultsConfigBody(
   filePath: string,
   rawResults: unknown,
   location: string,
-  options: { allowLegacyRepoString: boolean; projectScoped: boolean },
+  options: { projectScoped: boolean },
 ): void {
   if (rawResults === undefined) {
     return;
@@ -605,72 +245,37 @@ function validateResultsConfigBody(
     return;
   }
 
-  const resultsRecord = rawResults;
-  if (resultsRecord.mode !== undefined) {
+  const r = rawResults;
+
+  if (r.mode !== undefined) {
     if (options.projectScoped) {
       addError(
         errors,
         filePath,
         `${location}.mode`,
-        `Remove '${location}.mode'; project results use '${location}.repo.remote' or '${location}.repo.path'.`,
+        `Remove '${location}.mode'; project results use '${location}.repo' and '${location}.path'.`,
       );
-    } else if (resultsRecord.mode !== 'github') {
+    } else if (r.mode !== 'github') {
       addError(errors, filePath, `${location}.mode`, `Field '${location}.mode' must be 'github'`);
     }
   }
 
-  for (const [field, message] of Object.entries({
-    repository: `Field '${location}.repository' was removed. Use '${location}.repo.remote' with a Git remote URL instead.`,
-    local_path: `Field '${location}.local_path' was removed. Use '${location}.repo.path' for the local clone path instead.`,
-  })) {
-    if (resultsRecord[field] !== undefined) {
-      addError(errors, filePath, `${location}.${field}`, message);
-    }
+  validateOptionalString(errors, filePath, r.repo, `${location}.repo`);
+  validateOptionalString(errors, filePath, r.path, `${location}.path`);
+  validateOptionalString(errors, filePath, r.branch, `${location}.branch`);
+
+  if (r.repo === undefined && r.path === undefined) {
+    addError(errors, filePath, location, `Field '${location}' must set repo or path`);
   }
 
-  if (options.projectScoped && resultsRecord.auto_push !== undefined) {
+  if (r.auto_push !== undefined && typeof r.auto_push !== 'boolean') {
     addError(
       errors,
       filePath,
       `${location}.auto_push`,
-      `Field '${location}.auto_push' was removed. Use '${location}.sync.auto_push' instead.`,
+      `Field '${location}.auto_push' must be a boolean`,
     );
   }
-
-  const hasNestedRepo = isPlainObject(resultsRecord.repo);
-  if (resultsRecord.repo !== undefined && !hasNestedRepo) {
-    if (typeof resultsRecord.repo === 'string' && options.allowLegacyRepoString) {
-      // Handled by the flat compatibility branch below.
-    } else {
-      addError(
-        errors,
-        filePath,
-        `${location}.repo`,
-        `Field '${location}.repo' must be an object. Use '${location}.repo.remote' for a Git remote URL or '${location}.repo.path' for an existing local checkout.`,
-      );
-    }
-  }
-
-  if (hasNestedRepo) {
-    for (const flatField of ['repo_url', 'repo_path', 'branch', 'remote', 'path']) {
-      if (resultsRecord[flatField] !== undefined) {
-        addError(
-          errors,
-          filePath,
-          `${location}.${flatField}`,
-          `Do not mix '${location}.${flatField}' with '${location}.repo'. Move results repo fields under '${location}.repo'.`,
-        );
-      }
-    }
-    validateResultsRepoBlock(errors, filePath, resultsRecord.repo, `${location}.repo`);
-  } else {
-    validateFlatResultsRepoConfig(errors, filePath, resultsRecord, location, {
-      allowLegacyRepoString: options.allowLegacyRepoString,
-    });
-    warnFlatResultsMigration(errors, filePath, resultsRecord, location);
-  }
-
-  validateResultsSyncAndBranchPrefix(errors, filePath, resultsRecord, location);
 }
 
 function validateProjectResultsConfig(
@@ -680,7 +285,6 @@ function validateProjectResultsConfig(
   location: string,
 ): void {
   validateResultsConfigBody(errors, filePath, rawResults, location, {
-    allowLegacyRepoString: false,
     projectScoped: true,
   });
 }
@@ -692,17 +296,6 @@ function validateResultsConfig(
   location: string,
 ): void {
   validateResultsConfigBody(errors, filePath, rawResults, location, {
-    allowLegacyRepoString: true,
     projectScoped: false,
   });
-}
-
-function isFilesystemPath(p: string): boolean {
-  return (
-    p.startsWith('/') ||
-    p.startsWith('~/') ||
-    p.startsWith('~\\') ||
-    p === '~' ||
-    /^[A-Za-z]:[/\\]/.test(p)
-  );
 }

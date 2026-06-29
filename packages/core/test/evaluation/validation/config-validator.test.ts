@@ -51,13 +51,10 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `results:
-  repo:
-    remote: https://github.com/EntityProcess/agentv-evals.git
-    branch: agentv-results
-    path: ~/data/agentv-results
-  sync:
-    auto_push: true
-  branch_prefix: eval-results
+  repo: https://github.com/EntityProcess/agentv-evals.git
+  branch: agentv-results
+  path: ~/data/agentv-results
+  auto_push: true
 `,
     );
 
@@ -89,18 +86,14 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    repo:
-      url: https://github.com/EntityProcess/agentv.git
-      branch: main
-      path: /srv/agentv
+    repo: https://github.com/EntityProcess/agentv.git
+    path: /srv/agentv
+    branch: main
     results:
-      repo:
-        remote: git@github.com:EntityProcess/agentv-results.git
-        branch: agentv-results
-        path: /srv/agentv-results
-      sync:
-        auto_push: true
-      branch_prefix: eval-results
+      repo: git@github.com:EntityProcess/agentv-results.git
+      branch: agentv-results
+      path: /srv/agentv-results
+      auto_push: true
 `,
     );
 
@@ -120,8 +113,7 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    repo:
-      path: /srv/agentv
+    path: /srv/agentv
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
 `,
@@ -145,16 +137,13 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    repo:
-      url: https://github.com/EntityProcess/agentv.git
-      path: /srv/agentv
+    repo: https://github.com/EntityProcess/agentv.git
+    path: /srv/agentv
     results:
-      repo:
-        remote: https://github.com/EntityProcess/agentv.git
-        path: .
-        branch: agentv/results/v1
-      sync:
-        auto_push: false
+      repo: https://github.com/EntityProcess/agentv.git
+      path: .
+      branch: agentv/results/v1
+      auto_push: false
 `,
     );
 
@@ -162,94 +151,6 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
-  });
-
-  it('errors on removed require_push persistent results sync config', async () => {
-    const filePath = path.join(tempDir, 'removed-require-push.yaml');
-    await writeFile(
-      filePath,
-      `results:
-  repo:
-    path: .
-  sync:
-    require_push: true
-`,
-    );
-
-    const result = await validateConfigFile(filePath);
-
-    expect(result.valid).toBe(false);
-    expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          severity: 'error',
-          location: 'results.sync.require_push',
-          message: expect.stringContaining('--results-require-push'),
-        }),
-      ]),
-    );
-  });
-
-  it('errors on removed flat results.remote persistent config', async () => {
-    const filePath = path.join(tempDir, 'removed-flat-results-remote.yaml');
-    await writeFile(
-      filePath,
-      `results:
-  repo_path: .
-  branch: agentv/results/v1
-  remote: origin
-`,
-    );
-
-    const result = await validateConfigFile(filePath);
-
-    expect(result.valid).toBe(false);
-    expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          severity: 'error',
-          location: 'results.remote',
-          message: expect.stringContaining('results.repo.remote'),
-        }),
-      ]),
-    );
-  });
-
-  it('keeps flat project repo fields compatible with migration warnings', async () => {
-    const filePath = path.join(tempDir, 'global-config-flat-project.yaml');
-    await writeFile(
-      filePath,
-      `projects:
-  - id: agentv
-    name: AgentV
-    repo_url: https://github.com/EntityProcess/agentv.git
-    path: /srv/agentv
-    ref: main
-    results:
-      repo_url: git@github.com:EntityProcess/agentv-results.git
-      branch: agentv-results
-      path: /srv/agentv-results
-      sync:
-        auto_push: true
-`,
-    );
-
-    const result = await validateConfigFile(filePath, { scope: 'global' });
-
-    expect(result.valid).toBe(true);
-    expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ severity: 'warning', location: 'projects[0].repo_url' }),
-        expect.objectContaining({ severity: 'warning', location: 'projects[0].path' }),
-        expect.objectContaining({ severity: 'warning', location: 'projects[0].ref' }),
-        expect.objectContaining({
-          severity: 'warning',
-          location: 'projects[0].results.repo_url',
-        }),
-        expect.objectContaining({ severity: 'warning', location: 'projects[0].results.branch' }),
-        expect.objectContaining({ severity: 'warning', location: 'projects[0].results.path' }),
-      ]),
-    );
   });
 
   it('infers AGENTV_HOME config.yaml as global even when the home dir is named .agentv', async () => {
@@ -262,8 +163,7 @@ describe('validateConfigFile', () => {
       `projects:
   - id: agentv
     name: AgentV
-    repo:
-      path: /srv/agentv
+    path: /srv/agentv
 `,
     );
 
@@ -302,26 +202,20 @@ describe('validateConfigFile', () => {
     );
   });
 
-  it('errors on invalid global project entries and nested results config', async () => {
+  it('errors on invalid global project entries and flat results config', async () => {
     const filePath = path.join(tempDir, 'global-config-invalid-projects.yaml');
     await writeFile(
       filePath,
       `projects:
   - id: ""
     name: 42
-    repo:
-      url: EntityProcess/agentv
-      path:
-      branch: ""
+    repo: 99
+    path: ""
+    branch: ""
     results:
-      repo:
-        remote: EntityProcess/results
-        branch: ""
-        path: repo/subdir
-      sync:
-        auto_push: yes
-        push_conflict_policy: overwrite
-      branch_prefix: ""
+      repo: ""
+      branch: ""
+      auto_push: maybe
   - not-an-object
 `,
     );
@@ -333,154 +227,23 @@ describe('validateConfigFile', () => {
       expect.arrayContaining([
         expect.objectContaining({ severity: 'error', location: 'projects[0].id' }),
         expect.objectContaining({ severity: 'error', location: 'projects[0].name' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].repo.url' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].repo.path' }),
-        expect.objectContaining({ severity: 'error', location: 'projects[0].repo.branch' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].repo' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].path' }),
+        expect.objectContaining({ severity: 'error', location: 'projects[0].branch' }),
         expect.objectContaining({
           severity: 'error',
-          location: 'projects[0].results.repo.branch',
+          location: 'projects[0].results.repo',
         }),
         expect.objectContaining({
           severity: 'error',
-          location: 'projects[0].results.repo.remote',
+          location: 'projects[0].results.branch',
         }),
         expect.objectContaining({
           severity: 'error',
-          location: 'projects[0].results.sync.auto_push',
-        }),
-        expect.objectContaining({
-          severity: 'error',
-          location: 'projects[0].results.sync.push_conflict_policy',
-        }),
-        expect.objectContaining({
-          severity: 'error',
-          location: 'projects[0].results.branch_prefix',
+          location: 'projects[0].results.auto_push',
         }),
         expect.objectContaining({ severity: 'error', location: 'projects[1]' }),
       ]),
-    );
-  });
-
-  it('reports backup_and_force_push as a removed push conflict policy', async () => {
-    const filePath = path.join(tempDir, 'removed-push-policy.yaml');
-    await writeFile(
-      filePath,
-      `projects:
-  - id: demo
-    name: Demo
-    repo:
-      path: /tmp/demo
-    results:
-      repo:
-        path: .
-      sync:
-        push_conflict_policy: backup_and_force_push
-`,
-    );
-
-    const result = await validateConfigFile(filePath, { scope: 'global' });
-
-    expect(result.valid).toBe(false);
-    const error = result.errors.find(
-      (entry) => entry.location === 'projects[0].results.sync.push_conflict_policy',
-    );
-    expect(error?.message).toContain('uses removed value');
-    expect(error?.message).toContain("set it to 'block'");
-  });
-
-  it.each([
-    {
-      field: 'repository',
-      yaml: 'repository: example/repo',
-      location: 'projects[0].repository',
-      migration: 'repo.url',
-    },
-    {
-      field: 'source',
-      yaml: `source:
-      url: https://github.com/example/repo
-      ref: main`,
-      location: 'projects[0].source',
-      migration: 'Move',
-    },
-    {
-      field: 'results.mode',
-      yaml: `results:
-      mode: github
-      repo_url: https://github.com/example/results.git`,
-      location: 'projects[0].results.mode',
-      migration: 'Remove',
-    },
-    {
-      field: 'results.repo',
-      yaml: `results:
-      repo: example/legacy-results`,
-      location: 'projects[0].results.repo',
-      migration: 'repo.remote',
-    },
-
-    {
-      field: 'results.remote',
-      yaml: `results:
-      repo_path: .
-      branch: agentv/results/v1
-      remote: origin`,
-      location: 'projects[0].results.remote',
-      migration: 'repo.remote',
-    },
-    {
-      field: 'results.repository',
-      yaml: `results:
-      repo:
-        remote: https://github.com/example/results.git
-      repository: example/results`,
-      location: 'projects[0].results.repository',
-      migration: 'repo.remote',
-    },
-    {
-      field: 'results.local_path',
-      yaml: `results:
-      repo:
-        remote: https://github.com/example/results.git
-      local_path: /srv/results`,
-      location: 'projects[0].results.local_path',
-      migration: 'path',
-    },
-    {
-      field: 'results.auto_push',
-      yaml: `results:
-      repo:
-        remote: https://github.com/example/results.git
-      auto_push: true`,
-      location: 'projects[0].results.auto_push',
-      migration: 'sync.auto_push',
-    },
-  ])('errors on removed legacy project field $field with migration guidance', async (legacy) => {
-    const filePath = path.join(tempDir, `global-config-legacy-${legacy.field}.yaml`);
-    await writeFile(
-      filePath,
-      `projects:
-  - id: legacy
-    name: Legacy
-    repo:
-      url: https://github.com/example/repo.git
-      path: /srv/legacy
-      branch: main
-    ${legacy.yaml}
-`,
-    );
-
-    const result = await validateConfigFile(filePath, { scope: 'global' });
-
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContainEqual(
-      expect.objectContaining({
-        severity: 'error',
-        location: legacy.location,
-      }),
-    );
-    expect(result.errors.find((e) => e.location === legacy.location)?.message).toContain(
-      legacy.migration,
     );
   });
 
@@ -526,9 +289,8 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `results:
-  repo:
-    path: .
-    branch: agentv/results/v1
+  path: .
+  branch: agentv/results/v1
 `,
     );
 
@@ -536,50 +298,6 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
-  });
-
-  it('keeps flat top-level results compatible with migration warnings', async () => {
-    const filePath = path.join(tempDir, 'config-results-flat-compatible.yaml');
-    await writeFile(
-      filePath,
-      `results:
-  repo_url: https://github.com/EntityProcess/agentv-evals.git
-  branch: agentv-results
-  path: ~/data/agentv-results
-  sync:
-    auto_push: true
-`,
-    );
-
-    const result = await validateConfigFile(filePath);
-
-    expect(result.valid).toBe(true);
-    expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ severity: 'warning', location: 'results.repo_url' }),
-        expect.objectContaining({ severity: 'warning', location: 'results.branch' }),
-        expect.objectContaining({ severity: 'warning', location: 'results.path' }),
-      ]),
-    );
-  });
-
-  it('errors on old-style subdirectory path', async () => {
-    const filePath = path.join(tempDir, 'config-results-old-path.yaml');
-    await writeFile(
-      filePath,
-      `results:
-  mode: github
-  repo: EntityProcess/agentv-evals
-  path: autopilot-dev/runs
-`,
-    );
-
-    const result = await validateConfigFile(filePath);
-
-    const fieldErrors = result.errors.filter(
-      (e) => e.severity === 'error' && e.location === 'results.path',
-    );
-    expect(fieldErrors).toHaveLength(1);
   });
 
   it('errors on invalid required_version type', async () => {

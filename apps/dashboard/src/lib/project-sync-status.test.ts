@@ -92,7 +92,6 @@ describe('getProjectSyncView', () => {
         configured: true,
         available: true,
         sync_status: 'push_conflict',
-        push_conflict_policy: 'block',
         block_reason: 'Results branch push conflict on agentv/results/v1',
       }),
     ).toMatchObject({

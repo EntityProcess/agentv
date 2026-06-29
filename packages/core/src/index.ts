@@ -146,6 +146,7 @@ export {
   type GitResultArtifactReadParams,
   type GitListedRun,
   type NormalizedResultsConfig,
+  type RuntimeResultsConfig,
   type PreparedResultsRepoBranch,
   type ResultPushConflictPolicy,
   type ResultsRepoLocalPaths,

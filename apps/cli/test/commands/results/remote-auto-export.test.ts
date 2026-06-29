@@ -50,11 +50,9 @@ function writeProjectConfig(
   writeFileSync(
     path.join(projectDir, '.agentv', 'config.yaml'),
     `results:
-  repo:
-    remote: ${JSON.stringify(params.repo)}
-${params.branch ? `    branch: ${JSON.stringify(params.branch)}\n` : ''}    path: ${JSON.stringify(params.path)}
-  sync:
-    auto_push: ${params.autoPush}
+  repo: ${JSON.stringify(params.repo)}
+${params.branch ? `  branch: ${JSON.stringify(params.branch)}\n` : ''}  path: ${JSON.stringify(params.path)}
+  auto_push: ${params.autoPush}
 `,
   );
 }
