@@ -156,7 +156,7 @@ function readTrimmedString(value: unknown): string | undefined {
 
 let warnedRemovedBackupAndForcePushPolicy = false;
 let warnedRemovedRequirePushConfig = false;
-let warnedRemovedFlatResultsRemoteConfig = false;
+let warnedRejectedFlatResultsRemoteConfig = false;
 
 function warnRemovedBackupAndForcePushPolicy(): void {
   if (warnedRemovedBackupAndForcePushPolicy) {
@@ -178,13 +178,13 @@ function warnRemovedRequirePushConfig(): void {
   );
 }
 
-function warnRemovedFlatResultsRemoteConfig(): void {
-  if (warnedRemovedFlatResultsRemoteConfig) {
+function warnRejectedFlatResultsRemoteConfig(): void {
+  if (warnedRejectedFlatResultsRemoteConfig) {
     return;
   }
-  warnedRemovedFlatResultsRemoteConfig = true;
+  warnedRejectedFlatResultsRemoteConfig = true;
   console.warn(
-    '[agentv] projects[].results.remote is no longer supported in persistent config and was ignored while loading the project registry. Use projects[].results.repo.remote for a portable Git endpoint URL, or omit it and let AgentV use the local checkout remote alias internally.',
+    '[agentv] projects[].results.remote is no longer supported in persistent config, so that results block was ignored while loading the project registry. Use projects[].results.repo.remote for a portable Git endpoint URL, or omit it and let AgentV use the local checkout remote alias internally.',
   );
 }
 
@@ -213,6 +213,10 @@ function fromYaml(raw: unknown): ProjectEntry | null {
   }
   if (e.results && typeof e.results === 'object') {
     const r = e.results as Partial<ProjectResultsYaml>;
+    if (r.remote !== undefined) {
+      warnRejectedFlatResultsRemoteConfig();
+      return entry;
+    }
     const resultsRepo =
       r.repo && typeof r.repo === 'object' && !Array.isArray(r.repo) ? r.repo : undefined;
     const repoUrl =
@@ -256,9 +260,6 @@ function fromYaml(raw: unknown): ProjectEntry | null {
       if (sync?.push_conflict_policy === 'backup_and_force_push') {
         warnRemovedBackupAndForcePushPolicy();
       }
-    }
-    if (!resultsRepo && r.remote !== undefined) {
-      warnRemovedFlatResultsRemoteConfig();
     }
   }
   return entry;

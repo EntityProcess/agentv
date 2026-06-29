@@ -263,7 +263,7 @@ describe('projects registry', () => {
     expect(yamlOnDisk).not.toContain('require_push:');
   });
 
-  it('warns and drops legacy flat results remote aliases from YAML', () => {
+  it('warns and rejects results blocks with legacy flat results remote aliases', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -285,17 +285,13 @@ describe('projects registry', () => {
 
     try {
       const registry = loadProjectRegistry();
-      expect(registry.projects[0].results).toEqual({
-        repoPath: '.',
-        branch: 'agentv/results/v1',
-      });
+      expect(registry.projects[0].results).toBeUndefined();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('projects[].results.remote'));
 
       saveProjectRegistry(registry);
       const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+      expect(yamlOnDisk).not.toContain('results:');
       expect(yamlOnDisk).toContain('repo:');
-      expect(yamlOnDisk).toContain('path: .');
-      expect(yamlOnDisk).toContain('branch: agentv/results/v1');
       expect(yamlOnDisk).not.toContain('remote: upstream');
       expect(yamlOnDisk).not.toContain('repo_path:');
     } finally {
