@@ -749,8 +749,13 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     const outputDir = path.join(tempDir, 'artifacts');
     await writeArtifactsFromResults([result], outputDir);
 
-    const artifactDir = path.join(outputDir, 'test-dataset', 'case-1');
-    const runDir = path.join(artifactDir, 'run-1');
+    const indexRows = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, string | undefined>);
+    const resultDir = indexRows[0]?.result_dir;
+    expect(resultDir).toMatch(/^case-1--[a-f0-9]{12}$/);
+    const runDir = path.join(outputDir, resultDir ?? '', 'run-1');
     const outputsDir = path.join(runDir, 'outputs');
     expect(readdirSync(runDir)).not.toContain('provider.log');
     expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
@@ -761,16 +766,10 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(readdirSync(outputsDir)).not.toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.json');
 
-    const indexRows = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
     expect(indexRows[0]?.trace_path).toBeUndefined();
-    expect(indexRows[0]?.transcript_path).toBe('test-dataset/case-1/run-1/transcript.jsonl');
-    expect(indexRows[0]?.transcript_raw_path).toBe(
-      'test-dataset/case-1/run-1/transcript-raw.jsonl',
-    );
+    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/run-1/transcript.jsonl`);
+    expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/run-1/transcript-raw.jsonl`);
   });
 
   it('reports failed progress status for batch item errors', async () => {

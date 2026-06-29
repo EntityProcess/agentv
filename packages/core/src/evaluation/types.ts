@@ -1180,12 +1180,15 @@ export type FailOnError = boolean;
 export interface EvaluationResult {
   readonly timestamp: string;
   readonly testId: string;
+  readonly source?: EvalTestSource;
   readonly suite?: string;
   readonly category?: string;
   readonly conversationId?: string;
   readonly score: number;
   readonly assertions: readonly AssertionEntry[];
   readonly target: string;
+  /** Optional explicit comparable variant. Path segments are not authoritative for this value. */
+  readonly variant?: string;
   /**
    * The target that actually served the response, when different from the
    * primary target. Present only when a fallback target was used.

@@ -156,7 +156,11 @@ function latestTimestamp(values: readonly (string | undefined)[]): string | unde
 }
 
 function resultKey(record: ResultManifestRecord, result: EvaluationResult): string {
-  return buildTestTargetKey(record.test_id ?? result.testId, record.target ?? result.target);
+  return buildTestTargetKey(
+    record.test_id ?? result.testId,
+    record.target ?? result.target,
+    record.variant ?? result.variant,
+  );
 }
 
 function loadSources(sources: readonly CombineRunSource[]): LoadedSource[] {

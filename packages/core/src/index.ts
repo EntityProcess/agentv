@@ -63,6 +63,8 @@ export {
   aggregateRunDir,
   buildAggregateGradingArtifact,
   buildRunSummaryArtifact,
+  buildEvalTestTargetKey,
+  buildEvaluationResultTargetKey,
   buildGradingArtifact,
   buildIndexArtifactEntry,
   buildResultIndexArtifact,

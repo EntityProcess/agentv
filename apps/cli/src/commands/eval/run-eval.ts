@@ -52,7 +52,8 @@ import {
 } from '../results/remote.js';
 import {
   aggregateRunDir,
-  buildTestTargetKey,
+  buildEvalTestTargetKey,
+  buildEvaluationResultTargetKey,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifactsFromResults,
@@ -65,6 +66,7 @@ import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-d
 import {
   buildDefaultRunDirFromName,
   createRunDirName,
+  discoverRunManifestPaths,
   normalizeExperimentName,
 } from './result-layout.js';
 import {
@@ -551,16 +553,6 @@ async function ensureFileExists(filePath: string, description: string): Promise<
   }
 }
 
-function buildDefaultOutputPathForExperiment(
-  cwd: string,
-  resultGroup: string | undefined,
-  runDirName: string,
-): string {
-  const runDir = buildDefaultRunDirFromName(cwd, resultGroup, runDirName);
-  mkdirSync(runDir, { recursive: true });
-  return path.join(runDir, 'index.jsonl');
-}
-
 function deriveEvalResultGroupName(evalFilePath: string | undefined): string {
   if (!evalFilePath) {
     return 'eval';
@@ -1013,6 +1005,94 @@ function applyVerboseOverride(selection: TargetSelection, cliVerbose: boolean): 
   };
 }
 
+function safeRunPathSegment(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  const segment = trimmed.replace(/[/\\:*?"<>|]/g, '_');
+  return !segment || segment === '.' || segment === '..' ? fallback : segment;
+}
+
+function targetVariantForSelection(selection: TargetSelection): string | undefined {
+  const target = selection.resolvedTarget;
+  if (target.kind === 'replay') {
+    return target.config.variant;
+  }
+  return undefined;
+}
+
+function resultBundleKey(result: Pick<EvaluationResult, 'target' | 'variant'>): string {
+  return JSON.stringify({
+    target: result.target ?? 'unknown',
+    variant: result.variant ?? null,
+  });
+}
+
+function resultBundleDir(
+  invocationDir: string,
+  result: Pick<EvaluationResult, 'target' | 'variant'>,
+): string {
+  const targetDir = safeRunPathSegment(result.target, 'unknown-target');
+  const variantDir = result.variant ? safeRunPathSegment(result.variant, 'variant') : undefined;
+  return variantDir
+    ? path.join(invocationDir, targetDir, variantDir)
+    : path.join(invocationDir, targetDir);
+}
+
+class BundleOutputWriter implements OutputWriter {
+  private readonly writers = new Map<
+    string,
+    { readonly dir: string; readonly indexPath: string; readonly writer: OutputWriter }
+  >();
+
+  constructor(
+    private readonly invocationDir: string,
+    private readonly appendMode: boolean,
+  ) {}
+
+  async append(result: EvaluationResult): Promise<void> {
+    const writer = await this.writerForResult(result);
+    await writer.append(result);
+  }
+
+  async close(): Promise<void> {
+    await Promise.all([...this.writers.values()].map((entry) => entry.writer.close()));
+  }
+
+  bundleDirs(): readonly string[] {
+    return [...this.writers.values()].map((entry) => entry.dir);
+  }
+
+  bundleIndexPaths(): readonly string[] {
+    return [...this.writers.values()].map((entry) => entry.indexPath);
+  }
+
+  private async writerForResult(result: EvaluationResult): Promise<OutputWriter> {
+    const key = resultBundleKey(result);
+    const existing = this.writers.get(key);
+    if (existing) {
+      return existing.writer;
+    }
+    const dir = resultBundleDir(this.invocationDir, result);
+    mkdirSync(dir, { recursive: true });
+    const indexPath = path.join(dir, 'index.jsonl');
+    const writer = await createOutputWriter(indexPath, { append: this.appendMode });
+    this.writers.set(key, { dir, indexPath, writer });
+    return writer;
+  }
+}
+
+async function readExistingResultsFromRunDir(runDir: string): Promise<EvaluationResult[]> {
+  const manifests = discoverRunManifestPaths(runDir);
+  const results: EvaluationResult[] = [];
+  for (const manifest of manifests) {
+    const content = await readFile(manifest, 'utf8');
+    results.push(...parseJsonlResults(content));
+  }
+  return results;
+}
+
 async function prepareFileMetadata(params: {
   readonly testFilePath: string;
   readonly repoRoot: string;
@@ -1317,6 +1397,7 @@ async function runSingleEvalFile(params: {
 
   // CLI provider verbose logging should only be enabled when --verbose flag is passed
   const resolvedTargetSelection = applyVerboseOverride(selection, options.verbose);
+  const explicitVariant = targetVariantForSelection(resolvedTargetSelection);
   const providerLabel = resolvedTargetSelection.resolvedTarget.kind;
   const targetMessage = options.verbose
     ? `Using target (${resolvedTargetSelection.targetSource}): ${resolvedTargetSelection.targetName} ${buildTargetLabelSuffix(providerLabel, resolvedTargetSelection.resolvedTarget)} via ${resolvedTargetSelection.targetsFilePath}`
@@ -1428,7 +1509,9 @@ async function runSingleEvalFile(params: {
       // Trim output messages for results JSONL based on --output-messages.
       // Each message is trimmed to { role, content } only (no toolCalls, startTime, etc.).
       // Full output with tool calls goes to OTel.
-      const resultWithMetadata = withSourceMetadata(result, testFilePath, options);
+      const resultWithVariant =
+        explicitVariant && !result.variant ? { ...result, variant: explicitVariant } : result;
+      const resultWithMetadata = withSourceMetadata(resultWithVariant, testFilePath, options);
       const trimmedResult = prepareResultForJsonl(resultWithMetadata, options);
       await outputWriter.append(trimmedResult);
 
@@ -1482,7 +1565,15 @@ async function runSingleEvalFile(params: {
     },
   });
 
-  return { results: results.map((result) => withSourceMetadata(result, testFilePath, options)) };
+  return {
+    results: results.map((result) =>
+      withSourceMetadata(
+        explicitVariant && !result.variant ? { ...result, variant: explicitVariant } : result,
+        testFilePath,
+        options,
+      ),
+    ),
+  };
 }
 
 export interface RunEvalResult {
@@ -1647,14 +1738,14 @@ export async function runEvalCommand(
   if (options.resume && !options.retryErrors) {
     const explicitResumeDir = options.outputDir;
     if (explicitResumeDir) {
-      const resumeIndexPath = path.join(path.resolve(explicitResumeDir), 'index.jsonl');
-      if (existsSync(resumeIndexPath)) {
-        const content = await readFile(resumeIndexPath, 'utf8');
-        const existingResults = parseJsonlResults(content);
+      const resumeDir = path.resolve(explicitResumeDir);
+      const resumeIndexPaths = discoverRunManifestPaths(resumeDir);
+      if (resumeIndexPaths.length > 0) {
+        const existingResults = await readExistingResultsFromRunDir(resumeDir);
         resumeSkipKeys = new Set<string>();
         for (const r of existingResults) {
           if (shouldSkipExistingResultForResume(r, options.rerunFailed)) {
-            resumeSkipKeys.add(buildTestTargetKey(r.testId, r.target));
+            resumeSkipKeys.add(buildEvaluationResultTargetKey(r));
           }
         }
         isResumeAppend = true;
@@ -1663,8 +1754,8 @@ export async function runEvalCommand(
           `${modeLabel}: found ${existingResults.length} existing result(s), skipping ${resumeSkipKeys.size} completed.`,
         );
       } else {
-        // No existing index.jsonl — behave like a normal run
-        console.log('Resume: no existing index.jsonl found, starting fresh run.');
+        // No existing bundle index.jsonl — behave like a normal run
+        console.log('Resume: no existing bundle index.jsonl found, starting fresh run.');
       }
     } else {
       console.warn(
@@ -1695,7 +1786,8 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  // Resolve artifact directory (runDir) and primary output path.
+  // Resolve artifact directory. The CLI run dir is an invocation root; each
+  // target/variant writes its own bundle index below it.
   // Precedence: --output > config output.dir > default
   const explicitDir = options.outputDir;
   let runDir: string;
@@ -1705,11 +1797,12 @@ export async function runEvalCommand(
   if (explicitDir) {
     runDir = path.resolve(explicitDir);
     mkdirSync(runDir, { recursive: true });
-    outputPath = path.join(runDir, 'index.jsonl');
+    outputPath = runDir;
   } else {
     // Default: .agentv/results/<eval-name>/<timestamp>/.
-    outputPath = buildDefaultOutputPathForExperiment(cwd, resultGroupName, runDirName);
-    runDir = path.dirname(outputPath);
+    runDir = buildDefaultRunDirFromName(cwd, resultGroupName, runDirName);
+    mkdirSync(runDir, { recursive: true });
+    outputPath = runDir;
   }
   if (!process.env.AGENTV_RUN_TIMESTAMP) {
     process.env.AGENTV_RUN_TIMESTAMP = path.basename(runDir);
@@ -1781,8 +1874,6 @@ export async function runEvalCommand(
       otelExporter = null;
     }
   }
-
-  const primaryWritePath = outputPath;
 
   console.log(`Artifact directory: ${runDir}`);
 
@@ -1896,10 +1987,9 @@ export async function runEvalCommand(
     throw new Error('--threshold must be between 0 and 1');
   }
 
-  // Build the output writer. Primary output is always JSONL to the artifact directory.
-  const outputWriter: OutputWriter = await createOutputWriter(primaryWritePath, {
-    append: isResumeAppend,
-  });
+  // Build the output writer. Each target/variant gets a separate bundle index
+  // below the invocation directory.
+  const outputWriter = new BundleOutputWriter(runDir, isResumeAppend);
 
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
@@ -1908,16 +1998,27 @@ export async function runEvalCommand(
   // When resuming, subtract tests that will be skipped
   let totalEvalCount = 0;
   let resumeSkippedCount = 0;
+  const plannedBundleCounts = new Map<
+    string,
+    { readonly target: string; readonly variant?: string; count: number }
+  >();
   for (const meta of fileMetadata.values()) {
-    const suiteTargetNames = meta.selections.map((s) => s.selection.targetName);
     for (const test of meta.testCases) {
-      const effectiveTargets = suiteTargetNames.length > 0 ? suiteTargetNames : ['unknown'];
-      for (const tn of effectiveTargets) {
-        const key = `${test.id}::${tn}`;
+      for (const { selection } of meta.selections) {
+        const target = selection.targetName;
+        const variant = targetVariantForSelection(selection);
+        const key = buildEvalTestTargetKey(test, target, variant);
         if (resumeSkipKeys?.has(key)) {
           resumeSkippedCount++;
         } else {
           totalEvalCount++;
+          const bundleKey = resultBundleKey({ target, variant });
+          const existing = plannedBundleCounts.get(bundleKey);
+          if (existing) {
+            existing.count += 1;
+          } else {
+            plannedBundleCounts.set(bundleKey, { target, variant, count: 1 });
+          }
         }
       }
     }
@@ -2039,21 +2140,23 @@ export async function runEvalCommand(
     );
   }
 
-  // Write a stub summary.json before dispatching tests, carrying the planned
-  // execution count so an interrupted run can still surface as resumable in
-  // Dashboard (results.length < planned_test_count) even when every recorded row
-  // has execution_status: ok. The end-of-run write preserves this value via
-  // readPlannedTestCount inside aggregateRunDir / writeArtifactsFromResults.
+  // Write a stub summary.json in each planned bundle before dispatching tests,
+  // carrying the planned execution count so an interrupted run can still
+  // surface as resumable in Dashboard. The end-of-run write preserves this
+  // value via readPlannedTestCount inside aggregateRunDir /
+  // writeArtifactsFromResults.
   // Skip on resume — we want to preserve the *original* planned count.
   if (!isResumeAppend && totalEvalCount > 0) {
     const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-    await writeInitialRunSummaryArtifact(runDir, {
-      evalFile,
-      plannedTestCount: totalEvalCount,
-      experiment: normalizeExperimentName(options.experiment),
-      experimentMetadata: runExperimentMetadata,
-      runtimeSource: runtimeSourceMetadata,
-    });
+    for (const bundle of plannedBundleCounts.values()) {
+      await writeInitialRunSummaryArtifact(resultBundleDir(runDir, bundle), {
+        evalFile,
+        plannedTestCount: bundle.count,
+        experiment: normalizeExperimentName(options.experiment),
+        experimentMetadata: runExperimentMetadata,
+        runtimeSource: runtimeSourceMetadata,
+      });
+    }
   }
 
   // Periodic WIP checkpoint loop: push partial results to a unique non-default
@@ -2099,6 +2202,7 @@ export async function runEvalCommand(
         const budgetMsg = `Run budget exceeded ($${fileBudgetTracker.currentCostUsd.toFixed(4)} / $${fileBudgetTracker.budgetCapUsd.toFixed(4)})`;
         console.log(`\n⚠ ${budgetMsg} — skipping ${path.basename(testFilePath)}`);
         for (const { selection } of targetPrep.selections) {
+          const explicitVariant = targetVariantForSelection(selection);
           const skippedResults: EvaluationResult[] = targetPrep.testCases.map((testCase) => ({
             timestamp: new Date().toISOString(),
             testId: testCase.id,
@@ -2121,6 +2225,7 @@ export async function runEvalCommand(
             failureReasonCode: 'budget_exceeded' as const,
             executionError: { message: budgetMsg, stage: 'setup' as const },
             target: selection.targetName,
+            variant: explicitVariant,
           }));
           for (const r of skippedResults) {
             await outputWriter.append(withSourceMetadata(r, testFilePath, fileOptions));
@@ -2143,7 +2248,10 @@ export async function runEvalCommand(
           // --resume / --rerun-failed: skip tests that are already completed
           const filteredTestCases = resumeSkipKeys
             ? applicableTestCases.filter(
-                (test) => !resumeSkipKeys.has(buildTestTargetKey(test.id, targetName)),
+                (test) =>
+                  !resumeSkipKeys.has(
+                    buildEvalTestTargetKey(test, targetName, targetVariantForSelection(selection)),
+                  ),
               )
             : applicableTestCases;
 
@@ -2212,6 +2320,7 @@ export async function runEvalCommand(
             console.error(
               `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
             );
+            const explicitVariant = targetVariantForSelection(selection);
             const errorResults: EvaluationResult[] = filteredTestCases.map((testCase) =>
               withSourceMetadata(
                 {
@@ -2237,6 +2346,7 @@ export async function runEvalCommand(
                   durationMs: 0,
                   tokenUsage: { input: 0, output: 0 },
                   target: selection.targetName,
+                  variant: explicitVariant,
                 },
                 testFilePath,
                 fileOptions,
@@ -2270,12 +2380,9 @@ export async function runEvalCommand(
     // Flush the output writer so all results are on disk before we read back.
     await outputWriter.close().catch(() => undefined);
 
-    // When resuming, compute summary from ALL results (old + new, deduplicated)
-    let summaryResults = allResults;
-    if (isResumeAppend) {
-      const content = await readFile(outputPath, 'utf8');
-      summaryResults = deduplicateByTestIdTarget(parseJsonlResults(content));
-    }
+    // Compute summary from the persisted bundle indexes so resume includes old
+    // rows and normal runs reflect the same manifests Dashboard will read.
+    const summaryResults = deduplicateByTestIdTarget(await readExistingResultsFromRunDir(runDir));
 
     const thresholdOpts =
       hasScopedRunPolicies || hasPerFileRuntimeThresholds
@@ -2305,57 +2412,77 @@ export async function runEvalCommand(
       console.log(formatMatrixSummary(summaryResults));
     }
 
-    // Write artifacts to the run directory (always, not conditional on flags)
+    // Write artifacts to target/variant bundle directories (always, not
+    // conditional on flags). The invocation root is only a container.
     if (allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
       const sourceTests = activeSourceTests;
       const taskBundleTargets = buildTaskBundleTargetSelections(activeTestFiles, fileMetadata);
+      const resultsByBundle = new Map<string, EvaluationResult[]>();
+      for (const result of allResults) {
+        const key = resultBundleKey(result);
+        const existing = resultsByBundle.get(key);
+        if (existing) {
+          existing.push(result);
+        } else {
+          resultsByBundle.set(key, [result]);
+        }
+      }
       if (isResumeAppend) {
-        // Resume mode: write per-test artifacts for newly-run tests, then aggregate
-        // from the full index.jsonl (old + new results with deduplication)
+        // Resume mode: write per-test artifacts for newly-run tests, then
+        // aggregate each bundle from its full index.jsonl (old + new results
+        // with deduplication).
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
-        await writePerTestArtifacts(allResults, runDir, {
-          experiment: normalizeExperimentName(options.experiment),
-          resultGroup: resultGroupName,
-          cwd,
-          repoRoot,
-          sourceTests,
-          taskBundleTargets,
-          runtimeSource: runtimeSourceMetadata,
-        });
-        const { summaryPath } = await aggregateRunDir(runDir, {
-          evalFile,
-          experiment: normalizeExperimentName(options.experiment),
-          experimentMetadata: runExperimentMetadata,
-          runtimeSource: runtimeSourceMetadata,
-        });
-        const indexPath = path.join(runDir, 'index.jsonl');
-        console.log(`Artifact workspace updated: ${runDir}`);
-        console.log(`  Index: ${indexPath}`);
-        console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
-        console.log(`  Summary: ${summaryPath}`);
-      } else {
-        const { testArtifactDir, summaryPath, indexPath } = await writeArtifactsFromResults(
-          allResults,
-          runDir,
-          {
-            evalFile,
+        for (const bundleResults of resultsByBundle.values()) {
+          const bundleDir = resultBundleDir(runDir, bundleResults[0]);
+          await writePerTestArtifacts(bundleResults, bundleDir, {
             experiment: normalizeExperimentName(options.experiment),
-            experimentMetadata: runExperimentMetadata,
             resultGroup: resultGroupName,
             cwd,
             repoRoot,
             sourceTests,
             taskBundleTargets,
             runtimeSource: runtimeSourceMetadata,
-          },
-        );
-        console.log(`Artifact workspace written to: ${runDir}`);
-        console.log(`  Index: ${indexPath}`);
-        console.log(
-          `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
-        );
-        console.log(`  Summary: ${summaryPath}`);
+          });
+          const { summaryPath } = await aggregateRunDir(bundleDir, {
+            evalFile,
+            experiment: normalizeExperimentName(options.experiment),
+            experimentMetadata: runExperimentMetadata,
+            runtimeSource: runtimeSourceMetadata,
+          });
+          const indexPath = path.join(bundleDir, 'index.jsonl');
+          console.log(`Artifact bundle updated: ${bundleDir}`);
+          console.log(`  Index: ${indexPath}`);
+          console.log(
+            `  Per-test artifacts: ${bundleDir} (${bundleResults.length} new test directories)`,
+          );
+          console.log(`  Summary: ${summaryPath}`);
+        }
+      } else {
+        for (const bundleResults of resultsByBundle.values()) {
+          const bundleDir = resultBundleDir(runDir, bundleResults[0]);
+          const { testArtifactDir, summaryPath, indexPath } = await writeArtifactsFromResults(
+            bundleResults,
+            bundleDir,
+            {
+              evalFile,
+              experiment: normalizeExperimentName(options.experiment),
+              experimentMetadata: runExperimentMetadata,
+              resultGroup: resultGroupName,
+              cwd,
+              repoRoot,
+              sourceTests,
+              taskBundleTargets,
+              runtimeSource: runtimeSourceMetadata,
+            },
+          );
+          console.log(`Artifact bundle written to: ${bundleDir}`);
+          console.log(`  Index: ${indexPath}`);
+          console.log(
+            `  Per-test artifacts: ${testArtifactDir} (${bundleResults.length} test directories)`,
+          );
+          console.log(`  Summary: ${summaryPath}`);
+        }
       }
     }
 
@@ -2381,10 +2508,16 @@ export async function runEvalCommand(
     }
 
     if (allResults.length > 0) {
+      const writtenIndexes = outputWriter.bundleIndexPaths();
+      outputPath = writtenIndexes[0] ?? outputPath;
       console.log(`\nResults written to: ${outputPath}`);
+      console.log(`\nResults written under: ${runDir}`);
+      for (const indexPath of writtenIndexes) {
+        console.log(`  ${indexPath}`);
+      }
 
       // Persist last run path for `agentv results` commands
-      await saveRunCache(cwd, outputPath).catch(() => undefined);
+      await saveRunCache(cwd, runDir).catch(() => undefined);
 
       finalExportStatus = await maybeAutoExportRunArtifacts({
         cwd,

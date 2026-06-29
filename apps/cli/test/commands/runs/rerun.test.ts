@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,6 +145,28 @@ async function readJsonLines(filePath: string): Promise<readonly Record<string, 
     .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
+async function discoverIndexPaths(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  if (entries.some((entry) => entry.isFile() && entry.name === 'index.jsonl')) {
+    return [path.join(dir, 'index.jsonl')];
+  }
+  const discovered: string[] = [];
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      discovered.push(...(await discoverIndexPaths(path.join(dir, entry.name))));
+    }
+  }
+  return discovered.sort();
+}
+
+async function readOutputBundle(
+  outputDir: string,
+): Promise<{ readonly indexPath: string; readonly rows: readonly Record<string, unknown>[] }> {
+  const [indexPath] = await discoverIndexPaths(outputDir);
+  expect(indexPath).toBeTruthy();
+  return { indexPath, rows: await readJsonLines(indexPath ?? '') };
+}
+
 function extractRerunOutputDir(stdout: string): string {
   const line = stdout.split(/\r?\n/).find((entry) => entry.startsWith('Rerun output directory:'));
   if (!line) {
@@ -186,7 +208,7 @@ describe('agentv runs rerun', () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('Rerunning 2 captured task bundle(s)');
-    const rows = await readJsonLines(path.join(created.outputDir, 'index.jsonl'));
+    const { indexPath, rows } = await readOutputBundle(created.outputDir);
     expect(rows.map((row) => row.test_id)).toEqual(['case-alpha', 'case-beta']);
     expect(rows.every((row) => row.target === 'captured')).toBe(true);
     expect(rows[0].metadata).toMatchObject({
@@ -197,7 +219,7 @@ describe('agentv runs rerun', () => {
       },
     });
 
-    const answerPath = path.join(created.outputDir, String(rows[0].answer_path));
+    const answerPath = path.join(path.dirname(indexPath), String(rows[0].answer_path));
     const answer = await readFile(answerPath, 'utf8');
     expect(answer).toContain('Alpha answer');
     expect(answer).not.toContain('Captured answer');
@@ -274,7 +296,7 @@ describe('agentv runs rerun', () => {
     ]);
 
     expect(result.exitCode).toBe(0);
-    const rows = await readJsonLines(path.join(created.outputDir, 'index.jsonl'));
+    const { rows } = await readOutputBundle(created.outputDir);
     expect(rows.map((row) => row.test_id)).toEqual(['case-alpha']);
   }, 30_000);
 
@@ -291,7 +313,7 @@ describe('agentv runs rerun', () => {
     expect(result.exitCode).toBe(0);
     const outputDir = extractRerunOutputDir(result.stdout);
     expect(path.relative(taskDir, outputDir).startsWith('..')).toBe(true);
-    const rows = await readJsonLines(path.join(outputDir, 'index.jsonl'));
+    const { rows } = await readOutputBundle(outputDir);
     expect(rows.map((row) => row.test_id)).toEqual(['case-alpha']);
   }, 30_000);
 
@@ -356,7 +378,7 @@ describe('agentv runs rerun', () => {
     ]);
 
     expect(result.exitCode).toBe(0);
-    const rows = await readJsonLines(path.join(created.outputDir, 'index.jsonl'));
+    const { rows } = await readOutputBundle(created.outputDir);
     expect(rows.every((row) => row.target === 'local')).toBe(true);
   }, 30_000);
 });

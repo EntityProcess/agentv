@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -45,12 +53,32 @@ function writeJsonlIndex(dir: string, results: Partial<EvaluationResult>[]): str
   return indexPath;
 }
 
+function readIndexRows(dir: string): Array<{ test_id: string; result_dir: string }> {
+  const indexPath = path.join(dir, 'index.jsonl');
+  if (!existsSync(indexPath)) {
+    return readdirSync(dir)
+      .filter((entry) => /--[a-f0-9]{12}$/.test(entry))
+      .map((entry) => ({ test_id: entry.replace(/--[a-f0-9]{12}$/, ''), result_dir: entry }));
+  }
+  return readFileSync(path.join(dir, 'index.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as { test_id: string; result_dir: string });
+}
+
+function rowRunPath(dir: string, testId: string, ...segments: string[]): string {
+  const row = readIndexRows(dir).find((entry) => entry.test_id === testId);
+  expect(row?.result_dir).toMatch(new RegExp(`^${testId}--[a-f0-9]{12}$`));
+  return path.join(dir, row?.result_dir ?? '', ...segments);
+}
+
 // ---------------------------------------------------------------------------
 // deduplicateByTestIdTarget
 // ---------------------------------------------------------------------------
 
 describe('deduplicateByTestIdTarget', () => {
-  it('keeps last entry per (testId, target) pair', () => {
+  it('keeps last entry per (testId, target, variant) tuple', () => {
     const results = [
       makeResult({ testId: 'a', target: 'x', score: 0.1 }),
       makeResult({ testId: 'a', target: 'x', score: 0.9 }),
@@ -67,6 +95,63 @@ describe('deduplicateByTestIdTarget', () => {
     const results = [
       makeResult({ testId: 'a', target: 'x', score: 0.3 }),
       makeResult({ testId: 'a', target: 'y', score: 0.7 }),
+    ];
+    const deduped = deduplicateByTestIdTarget(results);
+    expect(deduped).toHaveLength(2);
+  });
+
+  it('keeps entries with different variants for the same test and target', () => {
+    const results = [
+      makeResult({ testId: 'a', target: 'x', variant: 'baseline', score: 0.3 }),
+      makeResult({ testId: 'a', target: 'x', variant: 'candidate', score: 0.7 }),
+      makeResult({ testId: 'a', target: 'x', variant: 'candidate', score: 0.9 }),
+    ];
+    const deduped = deduplicateByTestIdTarget(results);
+    expect(deduped).toHaveLength(2);
+    expect(deduped.map((r) => [r.variant, r.score])).toEqual([
+      ['baseline', 0.3],
+      ['candidate', 0.9],
+    ]);
+  });
+
+  it('keeps entries with different suites for the same test and target', () => {
+    const results = [
+      makeResult({ suite: 'suite-a', testId: 'a', target: 'x', score: 0.3 }),
+      makeResult({ suite: 'suite-b', testId: 'a', target: 'x', score: 0.7 }),
+    ];
+    const deduped = deduplicateByTestIdTarget(results);
+    expect(deduped).toHaveLength(2);
+    expect(deduped.map((r) => r.suite)).toEqual(['suite-a', 'suite-b']);
+  });
+
+  it('keeps duplicate suite labels from different eval paths', () => {
+    const results = [
+      makeResult({
+        suite: 'duplicate-suite',
+        testId: 'a',
+        target: 'x',
+        source: {
+          evalFilePath: 'evals/a/cases.eval.yaml',
+          evalFileAbsolutePath: '/repo/evals/a/cases.eval.yaml',
+          testId: 'a',
+          testSnapshotYaml: 'id: a\n',
+          graderDefinitions: [],
+          references: [],
+        },
+      }),
+      makeResult({
+        suite: 'duplicate-suite',
+        testId: 'a',
+        target: 'x',
+        source: {
+          evalFilePath: 'evals/b/cases.eval.yaml',
+          evalFileAbsolutePath: '/repo/evals/b/cases.eval.yaml',
+          testId: 'a',
+          testSnapshotYaml: 'id: a\n',
+          graderDefinitions: [],
+          references: [],
+        },
+      }),
     ];
     const deduped = deduplicateByTestIdTarget(results);
     expect(deduped).toHaveLength(2);
@@ -180,17 +265,17 @@ describe('writePerTestArtifacts', () => {
     await writePerTestArtifacts(results, tmpDir);
 
     const grading1 = JSON.parse(
-      readFileSync(path.join(tmpDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
     );
     expect(grading1.assertions).toHaveLength(1);
 
     const timing1 = JSON.parse(
-      readFileSync(path.join(tmpDir, 'test-1', 'run-1', 'timing.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-1', 'run-1', 'timing.json'), 'utf8'),
     );
     expect(timing1.total_tokens).toBeGreaterThanOrEqual(0);
 
     const grading2 = JSON.parse(
-      readFileSync(path.join(tmpDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
     );
     expect(grading2.assertions).toHaveLength(1);
   });
@@ -201,7 +286,7 @@ describe('writePerTestArtifacts', () => {
     await writePerTestArtifacts(results, tmpDir);
 
     const answer = readFileSync(
-      path.join(tmpDir, 'test-1', 'run-1', 'outputs', 'answer.md'),
+      rowRunPath(tmpDir, 'test-1', 'run-1', 'outputs', 'answer.md'),
       'utf8',
     );
     expect(answer).toContain('hello');

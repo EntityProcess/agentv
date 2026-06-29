@@ -338,16 +338,20 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(0);
-      expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
+      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
+      expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).toContain(`Artifact directory: ${outputDir}`);
 
-      const results = await readJsonLines(path.join(outputDir, 'index.jsonl'));
+      const results = await readJsonLines(indexPath);
       expect(results).toHaveLength(2);
-      await expectFileExists(path.join(outputDir, 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-beta', 'run-1', 'grading.json'));
+      await expectFileExists(path.join(outputDir, 'file-target', 'summary.json'));
+      for (const row of results as Array<Record<string, unknown>>) {
+        const resultDir = row.result_dir as string;
+        await expectFileExists(path.join(outputDir, 'file-target', resultDir, 'summary.json'));
+        await expectFileExists(
+          path.join(outputDir, 'file-target', resultDir, 'run-1', 'grading.json'),
+        );
+      }
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -362,11 +366,17 @@ describe('agentv eval CLI', () => {
 
       const outputDir = path.join(fixture.suiteDir, 'configured-results');
       expect(exitCode).toBe(0);
-      expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
-      await expectFileExists(path.join(outputDir, 'index.jsonl'));
-      await expectFileExists(path.join(outputDir, 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'summary.json'));
-      await expectFileExists(path.join(outputDir, 'case-alpha', 'run-1', 'grading.json'));
+      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
+      expect(extractOutputPath(stdout)).toBe(indexPath);
+      await expectFileExists(indexPath);
+      await expectFileExists(path.join(outputDir, 'file-target', 'summary.json'));
+      const [firstRow] = (await readJsonLines(indexPath)) as Array<Record<string, unknown>>;
+      await expectFileExists(
+        path.join(outputDir, 'file-target', firstRow.result_dir as string, 'summary.json'),
+      );
+      await expectFileExists(
+        path.join(outputDir, 'file-target', firstRow.result_dir as string, 'run-1', 'grading.json'),
+      );
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
     }
@@ -400,17 +410,20 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(1);
-      expect(extractOutputPath(stdout)).toBe(path.join(outputDir, 'index.jsonl'));
+      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
+      expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).not.toContain('Export files:');
 
-      const canonicalResults = await readJsonLines(path.join(outputDir, 'index.jsonl'));
+      const canonicalResults = await readJsonLines(indexPath);
       expect(canonicalResults).toHaveLength(2);
-      await expectFileExists(path.join(outputDir, 'summary.json'));
+      await expectFileExists(path.join(outputDir, 'file-target', 'summary.json'));
       for (const row of canonicalResults) {
         expect(row.transcript_path).toMatch(/run-1\/transcript\.jsonl$/);
-        await expectFileExists(path.join(outputDir, row.transcript_path as string));
+        await expectFileExists(path.join(outputDir, 'file-target', row.transcript_path as string));
         expect(row.transcript_raw_path).toMatch(/run-1\/transcript-raw\.jsonl$/);
-        await expectFileExists(path.join(outputDir, row.transcript_raw_path as string));
+        await expectFileExists(
+          path.join(outputDir, 'file-target', row.transcript_raw_path as string),
+        );
       }
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });

@@ -693,6 +693,7 @@ export async function gradePreparedEvalCase(
     const baseResult = {
       timestamp: timestamp.toISOString(),
       testId: evalCase.id,
+      source: evalCase.source,
       suite: evalCase.suite,
       category: evalCase.category,
       conversationId: evalCase.conversation_id,
@@ -2558,6 +2559,7 @@ async function evaluateCandidate(options: {
   return {
     timestamp: completedAt.toISOString(),
     testId: evalCase.id,
+    source: evalCase.source,
     suite: evalCase.suite,
     category: evalCase.category,
     conversationId: evalCase.conversation_id,

@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs';
+import { type Dirent, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
@@ -76,6 +76,37 @@ export function resolveExistingRunPrimaryPath(runDir: string): string | undefine
   return undefined;
 }
 
+export function discoverRunManifestPaths(runDir: string): readonly string[] {
+  const direct = resolveExistingRunPrimaryPath(runDir);
+  if (direct) {
+    return [direct];
+  }
+
+  const manifests: string[] = [];
+  function walk(currentDir: string): void {
+    const primary = resolveExistingRunPrimaryPath(currentDir);
+    if (primary) {
+      manifests.push(primary);
+      return;
+    }
+
+    let entries: Dirent<string>[];
+    try {
+      entries = readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        walk(path.join(currentDir, entry.name));
+      }
+    }
+  }
+
+  walk(runDir);
+  return manifests.sort();
+}
+
 export function isDirectoryPath(filePath: string): boolean {
   try {
     return statSync(filePath).isDirectory();
@@ -90,11 +121,20 @@ export function resolveWorkspaceOrFilePath(filePath: string): string {
   }
 
   const existing = resolveExistingRunPrimaryPath(filePath);
-  if (!existing) {
-    throw new Error(`Result workspace is missing ${RESULT_INDEX_FILENAME}: ${filePath}`);
+  if (existing) {
+    return existing;
   }
 
-  return existing;
+  const nested = discoverRunManifestPaths(filePath);
+  if (nested.length === 1) {
+    return nested[0];
+  }
+  if (nested.length > 1) {
+    throw new Error(
+      `Result workspace contains multiple ${RESULT_INDEX_FILENAME} manifests; pass one bundle directory or manifest: ${filePath}`,
+    );
+  }
+  throw new Error(`Result workspace is missing ${RESULT_INDEX_FILENAME}: ${filePath}`);
 }
 
 export function resolveRunManifestPath(filePath: string): string {

@@ -156,8 +156,7 @@ export const evalRunCommand = command({
     }
 
     // Use tests[0].suite — loaders (yaml-parser, jsonl-parser) already apply the
-    // metadata.name → filename-basename → 'eval' fallback. This keeps subagent-mode
-    // artifact layout aligned with CLI mode (artifact-writer.ts:buildArtifactSubdir).
+    // metadata.name → filename-basename → 'eval' fallback for subagent-mode labels.
     const suiteName = tests[0]?.suite?.trim() ?? '';
     const safeSuiteName = suiteName ? suiteName.replace(/[\/\\:*?"<>|]/g, '_') : '';
 

@@ -29,6 +29,7 @@ export interface ResultManifestRecord {
   readonly category?: string;
   readonly experiment?: string;
   readonly target?: string;
+  readonly variant?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
   readonly trials?: readonly {
@@ -232,6 +233,7 @@ function hydrateManifestRecord(
     suite: record.suite,
     category: record.category,
     target: record.target,
+    variant: record.variant,
     score: record.score,
     executionStatus: record.execution_status,
     error: record.error,
@@ -310,6 +312,7 @@ export interface LightweightResultRecord {
   readonly suite?: string;
   readonly category?: string;
   readonly target?: string;
+  readonly variant?: string;
   readonly experiment?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
@@ -329,6 +332,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
     suite: record.suite,
     category: record.category,
     target: record.target,
+    variant: record.variant,
     experiment: record.experiment,
     score: record.score,
     scores: record.scores,
