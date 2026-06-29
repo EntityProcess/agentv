@@ -1,7 +1,7 @@
 /**
  * Result JSONL row schema used at the AgentV artifact boundary.
  *
- * Canonical AgentV run manifests are `run_manifest.jsonl` files with snake_case keys
+ * Canonical AgentV run manifests are `index.jsonl` files with snake_case keys
  * and a numeric `score`. Historical rows produced from TypeScript
  * `EvaluationResult` objects may contain a small set of camelCase aliases.
  * Normalize those aliases only at this boundary; callers should work with the
@@ -16,7 +16,7 @@ export class ResultRowSchemaError extends Error {
 }
 
 const MIGRATION_GUIDANCE =
-  'Expected an AgentV result row with a numeric score. Eval-case JSONL is input data, not a results artifact. Run `agentv eval <eval-file> --output <run-dir>` and pass the run workspace or its run_manifest.jsonl manifest.';
+  'Expected an AgentV result row with a numeric score. Eval-case JSONL is input data, not a results artifact. Run `agentv eval <eval-file> --output <run-dir>` and pass the run workspace or its index.jsonl manifest.';
 
 const RESULT_ROW_ALIASES = {
   answerPath: 'answer_path',

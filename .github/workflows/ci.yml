@@ -111,7 +111,7 @@ jobs:
             '
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agentv-build-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
           path: ${{ runner.temp }}/agentv-build-artifact/
@@ -213,6 +213,7 @@ jobs:
     name: Validate Evals
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: build
     steps:
       - uses: actions/checkout@v6
       - name: Setup Bun
@@ -223,8 +224,84 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build
-        run: bun run build
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: agentv-build-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/agentv-build-artifact
+
+      - name: Restore build artifact
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/agentv-build-artifact
+          EXPECTED_COMMIT_SHA: ${{ github.sha }}
+          EXPECTED_RUNNER_ARCH: ${{ runner.arch }}
+          EXPECTED_RUNNER_OS: ${{ runner.os }}
+        run: |
+          set -euo pipefail
+
+          bun -e '
+            import { createHash } from "node:crypto";
+            import { Buffer } from "node:buffer";
+            import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+            import path from "node:path";
+
+            const artifactDir = process.env.ARTIFACT_DIR;
+            if (!artifactDir) {
+              throw new Error("ARTIFACT_DIR is required");
+            }
+
+            const manifestPath = path.join(artifactDir, "manifest.json");
+            if (!existsSync(manifestPath)) {
+              throw new Error(`Build artifact manifest is missing: ${manifestPath}`);
+            }
+
+            const manifest = await Bun.file(manifestPath).json();
+            const rootPackageJson = await Bun.file("package.json").json();
+            const lockfile = await Bun.file("bun.lock").arrayBuffer();
+            const lockHash = createHash("sha256")
+              .update(Buffer.from(lockfile))
+              .digest("hex");
+
+            const expected = {
+              commit_sha: process.env.EXPECTED_COMMIT_SHA,
+              bun_lock_sha256: lockHash,
+              runner_os: process.env.EXPECTED_RUNNER_OS,
+              runner_arch: process.env.EXPECTED_RUNNER_ARCH,
+              bun_version_spec: rootPackageJson.packageManager ?? null,
+              bun_version: Bun.version,
+            };
+
+            for (const [key, value] of Object.entries(expected)) {
+              if (manifest[key] !== value) {
+                throw new Error(
+                  `Build artifact manifest mismatch for ${key}: expected ${value}, got ${manifest[key]}`,
+                );
+              }
+            }
+
+            const requiredPaths = [
+              "packages/core/dist",
+              "packages/sdk/dist",
+              "apps/cli/dist",
+              "apps/dashboard/dist",
+            ];
+            const includedPaths = new Set(manifest.included_paths ?? []);
+
+            for (const relativePath of requiredPaths) {
+              if (!includedPaths.has(`${relativePath}/**`)) {
+                throw new Error(`Build artifact manifest does not include ${relativePath}/**`);
+              }
+
+              const source = path.join(artifactDir, relativePath);
+              if (!existsSync(source)) {
+                throw new Error(`Build artifact path is missing: ${source}`);
+              }
+
+              rmSync(relativePath, { recursive: true, force: true });
+              mkdirSync(path.dirname(relativePath), { recursive: true });
+              cpSync(source, relativePath, { recursive: true });
+            }
+          '
 
       - name: Check evals directories have eval files
         run: bun scripts/validate-eval-dirs.ts

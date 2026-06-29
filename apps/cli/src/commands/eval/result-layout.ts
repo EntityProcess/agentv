@@ -1,15 +1,7 @@
-import { type Dirent, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { type Dirent, existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-export const RESULT_MANIFEST_FILENAME = 'run_manifest.jsonl';
-export const LEGACY_RESULT_INDEX_FILENAME = 'index.jsonl';
-// Backward-compatible export name retained for existing callers. New writes use
-// the row-level run manifest filename.
-export const RESULT_INDEX_FILENAME = RESULT_MANIFEST_FILENAME;
-export const RESULT_MANIFEST_FILENAMES = [
-  RESULT_MANIFEST_FILENAME,
-  LEGACY_RESULT_INDEX_FILENAME,
-] as const;
+export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RUN_SUMMARY_FILENAME = 'summary.json';
 export const RESULTS_DIRNAME = 'results';
 export const DEFAULT_EXPERIMENT_NAME = 'default';
@@ -73,48 +65,13 @@ export function resolveRunIndexPath(runDir: string): string {
 }
 
 export function isRunManifestPath(filePath: string): boolean {
-  return RESULT_MANIFEST_FILENAMES.includes(
-    path.basename(filePath) as (typeof RESULT_MANIFEST_FILENAMES)[number],
-  );
-}
-
-function safeSummaryManifestPath(runDir: string, manifestPath: unknown): string | undefined {
-  if (typeof manifestPath !== 'string' || manifestPath.trim().length === 0) {
-    return undefined;
-  }
-  if (path.isAbsolute(manifestPath)) {
-    return undefined;
-  }
-  const normalized = path.normalize(manifestPath);
-  if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
-    return undefined;
-  }
-  return path.join(runDir, normalized);
-}
-
-function resolveSummaryManifestPath(runDir: string): string | undefined {
-  try {
-    const summary = JSON.parse(readFileSync(path.join(runDir, RUN_SUMMARY_FILENAME), 'utf8')) as {
-      manifest_path?: unknown;
-    };
-    const manifestPath = safeSummaryManifestPath(runDir, summary.manifest_path);
-    return manifestPath && existsSync(manifestPath) ? manifestPath : undefined;
-  } catch {
-    return undefined;
-  }
+  return path.basename(filePath) === RESULT_INDEX_FILENAME;
 }
 
 export function resolveExistingRunPrimaryPath(runDir: string): string | undefined {
-  const summaryManifestPath = resolveSummaryManifestPath(runDir);
-  if (summaryManifestPath) {
-    return summaryManifestPath;
-  }
-
-  for (const filename of RESULT_MANIFEST_FILENAMES) {
-    const manifestPath = path.join(runDir, filename);
-    if (existsSync(manifestPath)) {
-      return manifestPath;
-    }
+  const indexPath = resolveRunIndexPath(runDir);
+  if (existsSync(indexPath)) {
+    return indexPath;
   }
 
   return undefined;
@@ -178,9 +135,7 @@ export function resolveWorkspaceOrFilePath(filePath: string): string {
       `Result workspace contains multiple run manifests; pass one bundle directory or manifest: ${filePath}`,
     );
   }
-  throw new Error(
-    `Result workspace is missing ${RESULT_MANIFEST_FILENAME} or legacy ${LEGACY_RESULT_INDEX_FILENAME}: ${filePath}`,
-  );
+  throw new Error(`Result workspace is missing ${RESULT_INDEX_FILENAME}: ${filePath}`);
 }
 
 export function resolveRunManifestPath(filePath: string): string {
@@ -190,7 +145,7 @@ export function resolveRunManifestPath(filePath: string): string {
 
   if (!isRunManifestPath(filePath)) {
     throw new Error(
-      `Expected a run workspace directory or ${RESULT_MANIFEST_FILENAME} manifest (legacy ${LEGACY_RESULT_INDEX_FILENAME} is also readable): ${filePath}`,
+      `Expected a run workspace directory or ${RESULT_INDEX_FILENAME} manifest: ${filePath}`,
     );
   }
 

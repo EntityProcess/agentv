@@ -205,7 +205,7 @@ export interface EvalConfig {
   readonly budgetUsd?: number;
   /** Optional run workspace directory for canonical AgentV artifacts. */
   readonly outputDir?: string;
-  /** Optional experiment name recorded in summary.json and run_manifest.jsonl. */
+  /** Optional experiment name recorded in summary.json and index.jsonl. */
   readonly experiment?: string;
 }
 

@@ -67,7 +67,7 @@ describe('results shared source resolution', () => {
     writeFileSync(flatFile, '{"test_id":"t1","score":1}\n');
 
     expect(() => resolveRunManifestPath(flatFile)).toThrow(
-      'Expected a run workspace directory or run_manifest.jsonl manifest',
+      'Expected a run workspace directory or index.jsonl manifest',
     );
   });
 

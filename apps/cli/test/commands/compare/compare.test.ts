@@ -27,10 +27,10 @@ describe('compare command', () => {
   });
 
   describe('loadJsonlResults', () => {
-    it('should load run_manifest.jsonl manifests from a run workspace', () => {
+    it('should load index.jsonl manifests from a run workspace', () => {
       const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
-      const filePath = path.join(runDir, 'run_manifest.jsonl');
+      const filePath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         filePath,
         '{"test_id": "case-1", "score": 0.8, "grading_path": "case-1/grading.json", "timing_path": "case-1/timing.json"}\n{"test_id": "case-2", "score": 0.9, "grading_path": "case-2/grading.json", "timing_path": "case-2/timing.json"}\n',
@@ -44,17 +44,13 @@ describe('compare command', () => {
       ]);
     });
 
-    it('should prefer summary.json manifest_path over a legacy index.jsonl in the same workspace', () => {
+    it('should resolve the row index from summary.json manifest_path in a run workspace', () => {
       const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
-      writeFileSync(
-        path.join(runDir, 'run_manifest.jsonl'),
-        '{"test_id": "canonical", "score": 0.8}\n',
-      );
-      writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id": "legacy", "score": 0.1}\n');
+      writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id": "canonical", "score": 0.8}\n');
       writeFileSync(
         path.join(runDir, 'summary.json'),
-        `${JSON.stringify({ manifest_path: 'run_manifest.jsonl' })}\n`,
+        `${JSON.stringify({ manifest_path: 'index.jsonl' })}\n`,
       );
 
       const results = loadJsonlResults(runDir);
@@ -62,21 +58,21 @@ describe('compare command', () => {
       expect(results).toEqual([{ testId: 'canonical', score: 0.8 }]);
     });
 
-    it('should still accept legacy index.jsonl manifests directly', () => {
+    it('should accept canonical index.jsonl manifests directly', () => {
       const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
       const filePath = path.join(runDir, 'index.jsonl');
-      writeFileSync(filePath, '{"test_id": "legacy-case", "score": 0.8}\n');
+      writeFileSync(filePath, '{"test_id": "case-1", "score": 0.8}\n');
 
       const results = loadJsonlResults(filePath);
 
-      expect(results).toEqual([{ testId: 'legacy-case', score: 0.8 }]);
+      expect(results).toEqual([{ testId: 'case-1', score: 0.8 }]);
     });
 
-    it('should handle empty lines in run_manifest.jsonl manifests', () => {
+    it('should handle empty lines in index.jsonl manifests', () => {
       const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
-      const filePath = path.join(runDir, 'run_manifest.jsonl');
+      const filePath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         filePath,
         '{"test_id": "case-1", "score": 0.8, "grading_path": "case-1/grading.json", "timing_path": "case-1/timing.json"}\n\n{"test_id": "case-2", "score": 0.9, "grading_path": "case-2/grading.json", "timing_path": "case-2/timing.json"}\n',
@@ -116,7 +112,7 @@ describe('compare command', () => {
       writeFileSync(filePath, '{"test_id": "case-1", "score": 0.8}\n');
 
       expect(() => loadJsonlResults(filePath)).toThrow(
-        'Expected a run workspace directory or run_manifest.jsonl manifest',
+        'Expected a run workspace directory or index.jsonl manifest',
       );
     });
   });
@@ -219,10 +215,10 @@ describe('compare command', () => {
       expect(groups.get('a')).toHaveLength(2);
     });
 
-    it('should group records from run_manifest.jsonl manifests', () => {
+    it('should group records from index.jsonl manifests', () => {
       const runDir = path.join(tempDir, 'eval_2026-03-24T00-00-00-000Z');
       mkdirSync(runDir, { recursive: true });
-      const filePath = path.join(runDir, 'run_manifest.jsonl');
+      const filePath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         filePath,
         [
@@ -242,7 +238,7 @@ describe('compare command', () => {
       writeFileSync(filePath, '{"test_id": "t1", "score": 0.8, "target": "a"}\n');
 
       expect(() => loadCombinedResults(filePath)).toThrow(
-        'Expected a run workspace directory or run_manifest.jsonl manifest',
+        'Expected a run workspace directory or index.jsonl manifest',
       );
     });
   });

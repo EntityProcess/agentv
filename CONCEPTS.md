@@ -24,11 +24,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Workspace** — The task environment an eval prepares for the agent: repositories, templates, fixture files, and lifecycle hooks. It is not prompt input; use `input` for instructions and `workspace.repos[]` for multi-repo workspaces the agent can inspect or modify through tools.
 
-**Run manifest** — The root `run_manifest.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `task_dir`, `summary_path`, and `grading_path`.
+**Run manifest** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `task_dir`, `summary_path`, and `grading_path`.
 
 **Result source identity** — The stable source identity for a result row: repo-relative `eval_path`, `test_id`, and `target`. `suite` and `name` are display metadata, not storage or routing identity.
 
-**Result directory** — The `result_dir` field in a `run_manifest.jsonl` row. It is a run-local directory allocation for that row's sidecars and outputs. Consumers discover it from `run_manifest.jsonl` and must not infer it from suite names, display names, test IDs, or targets.
+**Result directory** — The `result_dir` field in a `index.jsonl` row. It is a run-local directory allocation for that row's sidecars and outputs. Consumers discover it from `index.jsonl` and must not infer it from suite names, display names, test IDs, or targets.
 
 **Artifact sidecar** — A file beside or below a result directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
 

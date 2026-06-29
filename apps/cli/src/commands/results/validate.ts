@@ -4,7 +4,7 @@
  *
  * Checks:
  *   1. Directory follows the `.agentv/results/<experiment>/<timestamp>` naming convention
- *   2. run_manifest.jsonl exists and each line has required fields
+ *   2. index.jsonl exists and each line has required fields
  *   3. Per-case summary.json exists for every entry in the index
  *   4. Per-run result.json and grading.json exist for every materialized trial
  *   5. summary.json exists
@@ -20,11 +20,7 @@ import path from 'node:path';
 
 import { command, positional, string } from 'cmd-ts';
 
-import {
-  LEGACY_RESULT_INDEX_FILENAME,
-  RESULT_INDEX_FILENAME,
-  resolveExistingRunPrimaryPath,
-} from '../eval/result-layout.js';
+import { RESULT_INDEX_FILENAME, resolveExistingRunPrimaryPath } from '../eval/result-layout.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -108,7 +104,7 @@ function checkIndexJsonl(runDir: string): { diagnostics: Diagnostic[]; entries: 
   if (!indexPath || !existsSync(indexPath)) {
     diagnostics.push({
       severity: 'error',
-      message: `${RESULT_INDEX_FILENAME} is missing (legacy ${LEGACY_RESULT_INDEX_FILENAME} is also readable)`,
+      message: `${RESULT_INDEX_FILENAME} is missing`,
     });
     return { diagnostics, entries };
   }

@@ -5,7 +5,7 @@
  * Output structure:
  *   <output-dir>/
  *     summary.json             — run aggregate scores, metadata, and timing
- *     run_manifest.jsonl       — per-test manifest with artifact pointers
+ *     index.jsonl              — per-test manifest with artifact pointers
  *     <test-id>/
  *       summary.json           — per-case aggregate
  *       run-1/result.json      — per-run result
@@ -29,7 +29,6 @@ import type { EvaluationResult, ExportDuplicatePolicy, IndexArtifactEntry } from
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
 import {
-  LEGACY_RESULT_INDEX_FILENAME,
   RESULT_INDEX_FILENAME,
   isReservedResultsNamespace,
   isRunManifestPath,
@@ -71,9 +70,7 @@ export async function exportResults(
  */
 export function deriveOutputDir(cwd: string, sourceFile: string): string {
   if (!isRunManifestPath(sourceFile)) {
-    throw new Error(
-      `Expected a run manifest named ${RESULT_INDEX_FILENAME} (legacy ${LEGACY_RESULT_INDEX_FILENAME} is also readable): ${sourceFile}`,
-    );
+    throw new Error(`Expected a run manifest named ${RESULT_INDEX_FILENAME}: ${sourceFile}`);
   }
 
   const runDir = path.dirname(sourceFile);

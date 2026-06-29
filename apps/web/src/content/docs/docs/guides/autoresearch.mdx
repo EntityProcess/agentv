@@ -81,7 +81,7 @@ Each autoresearch session creates a self-contained experiment directory:
 │   ├── iterations.jsonl     # Per-cycle data (score, decision, mutation)
 │   └── trajectory.html      # Live-updating Chart.js visualization
 ├── 2026-04-15T10-30-00/     # Cycle 1 run artifacts
-│   ├── run_manifest.jsonl
+│   ├── index.jsonl
 │   ├── grading.json
 │   └── timing.json
 ├── 2026-04-15T10-35-00/     # Cycle 2 run artifacts
@@ -101,7 +101,7 @@ Review the mutation history with `git log` after the run completes.
 After each eval cycle, autoresearch runs `agentv compare` between the current candidate and the best baseline:
 
 ```bash
-agentv compare <baseline>/run_manifest.jsonl <candidate>/run_manifest.jsonl --json
+agentv compare <baseline>/index.jsonl <candidate>/index.jsonl --json
 ```
 
 The decision rule:

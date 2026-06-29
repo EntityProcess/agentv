@@ -141,7 +141,7 @@ Suite imports are resolved as a deterministic include graph. Circular
 `imports.suites` imports fail validation with the import chain; raw-case shorthand does
 not recursively load suite runtime blocks.
 
-Imported suite rows keep their source suite metadata in `run_manifest.jsonl`. Use each
+Imported suite rows keep their source suite metadata in `index.jsonl`. Use each
 row's `result_dir` as the authoritative path to generated artifacts inside the
 run directory; do not infer layout from suite names.
 
@@ -280,8 +280,8 @@ CLI `--experiment` sets the bucket explicitly. Without that flag, AgentV uses
 comparison and runtime-policy label for a run condition; folder names are only
 storage allocation and must not define result semantics.
 
-Imported source suite metadata appears in `run_manifest.jsonl` rows and manifests.
-Use `run_manifest.jsonl` fields such as `eval_path`, `test_id`, `target`, and
+Imported source suite metadata appears in `index.jsonl` rows and manifests.
+Use `index.jsonl` fields such as `eval_path`, `test_id`, `target`, and
 `result_dir` for identity and artifact discovery instead of reconstructing paths
 from suite names or wrapper layout.
 

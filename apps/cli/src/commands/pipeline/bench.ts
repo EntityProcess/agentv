@@ -6,7 +6,7 @@
  *
  * Writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
- *   - run_manifest.jsonl      (one line per test)
+ *   - index.jsonl      (one line per test)
  *   - summary.json            (aggregate statistics)
  */
 import { existsSync } from 'node:fs';

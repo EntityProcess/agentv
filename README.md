@@ -73,14 +73,14 @@ agentv eval evals/my-eval.yaml
 
 **5. Compare results across targets:**
 ```bash
-agentv compare .agentv/results/default/<timestamp>/run_manifest.jsonl
+agentv compare .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 ## Output formats
 
 ```bash
-agentv eval evals/my-eval.yaml --output ./run   # writes ./run/run_manifest.jsonl
-cat ./run/run_manifest.jsonl                         # JSONL results for scripts/CI
+agentv eval evals/my-eval.yaml --output ./run   # writes ./run/index.jsonl
+cat ./run/index.jsonl                         # JSONL results for scripts/CI
 ```
 
 ## TypeScript SDK

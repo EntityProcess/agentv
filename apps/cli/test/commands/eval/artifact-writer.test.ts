@@ -896,7 +896,7 @@ describe('writeArtifactsFromResults', () => {
     await rm(testDir, { recursive: true, force: true }).catch(() => undefined);
   });
 
-  it('writes summary, run manifest, and per-run artifact files', async () => {
+  it('writes summary, index.jsonl, and per-run artifact files', async () => {
     const results = [
       makeResult({ testId: 'alpha', score: 0.9, durationMs: 5000 }),
       makeResult({ testId: 'beta', score: 0.6, durationMs: 8000 }),
@@ -906,8 +906,9 @@ describe('writeArtifactsFromResults', () => {
       evalFile: 'my-eval.yaml',
     });
 
-    expect(path.basename(paths.indexPath)).toBe('run_manifest.jsonl');
-    expect(existsSync(path.join(testDir, 'index.jsonl'))).toBe(false);
+    expect(path.basename(paths.indexPath)).toBe('index.jsonl');
+    expect(paths.indexPath).toBe(path.join(testDir, 'index.jsonl'));
+    expect(existsSync(paths.indexPath)).toBe(true);
     const indexLines = await readIndexLines(paths.indexPath);
     expect(indexLines).toHaveLength(2);
     const alphaRowDir = expectRowDir(indexLines[0], 'alpha');
