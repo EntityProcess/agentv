@@ -10,10 +10,9 @@ import {
   type TestMessage,
   type WorkspaceConfig,
   parseYamlValue,
+  toSnakeCaseDeep,
 } from '@agentv/core';
 import { stringify as stringifyYaml } from 'yaml';
-
-import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 
 const TEST_BUNDLE_DIRNAME = 'test';
 const TASK_EVAL_FILENAME = 'EVAL.yaml';

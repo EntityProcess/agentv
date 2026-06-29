@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { type EvaluationResult, buildTraceFromMessages } from '@agentv/core';
-import { toSnakeCaseDeep } from '../../../src/utils/case-conversion.js';
+import { toSnakeCaseDeep } from '@agentv/core';
 
 import {
   RESULT_INDEX_FILENAME,

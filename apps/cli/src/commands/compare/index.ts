@@ -11,7 +11,7 @@ import {
   string,
 } from 'cmd-ts';
 
-import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
+import { toSnakeCaseDeep } from '@agentv/core';
 import { loadLightweightResults, resolveResultSourcePath } from '../results/manifest.js';
 
 // ANSI color codes (no dependency needed)

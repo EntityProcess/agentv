@@ -3,8 +3,8 @@
  * Handles stdin parsing, validation, error handling, and string output.
  */
 import { readFileSync } from 'node:fs';
+import { toCamelCaseDeep } from '@agentv/core';
 
-import { toCamelCaseDeep } from './case-conversion.js';
 import { enrichInput } from './deprecation.js';
 import { type CodeGraderInput, PromptTemplateInputSchema } from './schemas.js';
 

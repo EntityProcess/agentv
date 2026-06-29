@@ -2,9 +2,8 @@ import { createWriteStream } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { finished } from 'node:stream/promises';
+import { type EvaluationResult, serializeEvaluationResultWire } from '@agentv/core';
 import { Mutex } from 'async-mutex';
-
-import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 
 export class JsonlWriter {
   private readonly stream: ReturnType<typeof createWriteStream>;
@@ -22,13 +21,12 @@ export class JsonlWriter {
     return new JsonlWriter(stream);
   }
 
-  async append(record: unknown): Promise<void> {
+  async append(record: EvaluationResult): Promise<void> {
     await this.mutex.runExclusive(async () => {
       if (this.closed) {
         throw new Error('Cannot write to closed JSONL writer');
       }
-      // Convert camelCase keys to snake_case for Python ecosystem compatibility
-      const snakeCaseRecord = toSnakeCaseDeep(record);
+      const snakeCaseRecord = serializeEvaluationResultWire(record);
       const line = `${JSON.stringify(snakeCaseRecord)}\n`;
       if (!this.stream.write(line)) {
         await new Promise<void>((resolve, reject) => {

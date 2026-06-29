@@ -1,8 +1,8 @@
 import path from 'node:path';
 
+import { toSnakeCaseDeep } from '@agentv/core';
 import { command, flag, number, oneOf, option, optional, restPositionals, string } from 'cmd-ts';
 
-import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import { RESULT_INDEX_FILENAME, isRunManifestPath } from '../eval/result-layout.js';
 import { listResultFiles } from '../inspect/utils.js';
 import {
