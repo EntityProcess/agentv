@@ -1,0 +1,12 @@
+execution:
+  target: codex-local-proxy
+tests:
+  - id: dashboard-remote-case
+    criteria: The response is exactly the requested phrase with no conflicting text.
+    input: "Respond with exactly this phrase and nothing else: agentv dashboard remote dogfood ok"
+    assertions:
+      - name: exact_phrase_grader
+        type: llm-grader
+        prompt: undefined
+        config:
+          criteria: The answer should contain exactly the phrase "agentv dashboard remote dogfood ok" and no conflicting text.

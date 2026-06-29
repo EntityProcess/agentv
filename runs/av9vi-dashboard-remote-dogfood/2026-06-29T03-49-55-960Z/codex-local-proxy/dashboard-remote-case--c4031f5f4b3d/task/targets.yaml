@@ -1,0 +1,16 @@
+targets:
+  - name: codex-local-proxy
+    provider: codex
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    api_format: responses
+    grader_target: local-openai-grader
+    timeout_seconds: 90
+    workers: 1
+  - name: local-openai-grader
+    provider: openai
+    endpoint: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    api_format: chat

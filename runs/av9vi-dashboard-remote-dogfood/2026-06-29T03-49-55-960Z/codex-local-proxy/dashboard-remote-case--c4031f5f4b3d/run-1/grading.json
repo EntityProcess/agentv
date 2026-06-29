@@ -1,0 +1,32 @@
+{
+  "assertions": [
+    {
+      "text": "Response exactly matches the requested phrase with no extra text.",
+      "passed": true,
+      "evidence": "The answer is exactly: \"agentv dashboard remote dogfood ok\"."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "exact_phrase_grader",
+      "type": "llm-grader",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertions": [
+        {
+          "text": "Response exactly matches the requested phrase with no extra text.",
+          "passed": true,
+          "evidence": "The answer is exactly: \"agentv dashboard remote dogfood ok\"."
+        }
+      ]
+    }
+  ]
+}

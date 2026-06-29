@@ -1,0 +1,67 @@
+{
+  "metadata": {
+    "eval_file": "/tmp/agentv-av9vi-dashboard-remote-8fgws9/live.eval.yaml",
+    "timestamp": "2026-06-29T03:50:26.553Z",
+    "targets": [
+      "codex-local-proxy"
+    ],
+    "tests_run": [
+      "dashboard-remote-case"
+    ],
+    "experiment": "av9vi-dashboard-remote-dogfood",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "kind": "direct_suite",
+      "config_source": "cli_flags",
+      "experiment_namespace": "av9vi-dashboard-remote-dogfood",
+      "experiment_namespace_source": "cli",
+      "eval_files": [
+        "live.eval.yaml"
+      ],
+      "source_eval_files": [
+        "live.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "codex-local-proxy": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 23.429,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 14826,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "exact_phrase_grader:llm-grader": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "timing": {
+    "total_tokens": 14826,
+    "duration_ms": 23429,
+    "total_duration_seconds": 23.429,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 14803,
+      "output": 23,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "provider_reported",
+      "total_tokens": "provider_reported",
+      "duration": "provider_reported",
+      "cost": "unavailable"
+    }
+  },
+  "notes": []
+}

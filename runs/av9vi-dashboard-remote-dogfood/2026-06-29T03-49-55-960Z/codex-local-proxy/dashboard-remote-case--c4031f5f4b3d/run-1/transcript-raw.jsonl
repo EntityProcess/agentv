@@ -1,0 +1,7 @@
+# Codex SDK stream log
+# target: codex-local-proxy
+# eval: dashboard-remote-case
+# attempt: 1
+# started: 2026-06-29T03:49:57.984Z
+[+00:22] [item.completed] agent_message: agentv dashboard remote dogfood ok
+[+00:23] [turn.completed] input=14803 output=23
