@@ -236,7 +236,6 @@ describe('projects registry', () => {
         branch: agentv/results/v1
       sync:
         auto_push: false
-        push_conflict_policy: block
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
 `,
@@ -248,7 +247,7 @@ describe('projects registry', () => {
       repoUrl: 'git@github.com:example/source.git',
       path: '.',
       branch: 'agentv/results/v1',
-      sync: { autoPush: false, pushConflictPolicy: 'block' },
+      sync: { autoPush: false },
     });
 
     saveProjectRegistry(registry);
@@ -258,15 +257,16 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('path: .');
     expect(yamlOnDisk).toContain('branch: agentv/results/v1');
     expect(yamlOnDisk).toContain('auto_push: false');
-    expect(yamlOnDisk).toContain('push_conflict_policy: block');
+    expect(yamlOnDisk).not.toContain('push_conflict_policy:');
     expect(yamlOnDisk).not.toContain('repo_path:');
     expect(yamlOnDisk).not.toContain('repoPath:');
     expect(yamlOnDisk).not.toContain('require_push:');
   });
 
-  it('preserves legacy flat results remote aliases through YAML', () => {
+  it('warns and rejects results blocks with legacy flat results remote aliases', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => undefined);
     writeFileSync(
       registryPath,
       `projects:
@@ -283,19 +283,20 @@ describe('projects registry', () => {
       'utf-8',
     );
 
-    const registry = loadProjectRegistry();
-    expect(registry.projects[0].results).toEqual({
-      repoPath: '.',
-      branch: 'agentv/results/v1',
-      remote: 'upstream',
-    });
+    try {
+      const registry = loadProjectRegistry();
+      expect(registry.projects[0].results).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('projects[].results.remote'));
 
-    saveProjectRegistry(registry);
-    const yamlOnDisk = readFileSync(registryPath, 'utf-8');
-    expect(yamlOnDisk).toContain('repo_path: .');
-    expect(yamlOnDisk).toContain('branch: agentv/results/v1');
-    expect(yamlOnDisk).toContain('remote: upstream');
-    expect(yamlOnDisk).not.toContain('results:\n      repo:\n');
+      saveProjectRegistry(registry);
+      const yamlOnDisk = readFileSync(registryPath, 'utf-8');
+      expect(yamlOnDisk).not.toContain('results:');
+      expect(yamlOnDisk).toContain('repo:');
+      expect(yamlOnDisk).not.toContain('remote: upstream');
+      expect(yamlOnDisk).not.toContain('repo_path:');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('preserves unrelated global config keys when saving projects', () => {

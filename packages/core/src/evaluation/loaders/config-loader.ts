@@ -57,6 +57,7 @@ export type ResultsConfig = {
   readonly repo_path?: string;
   /** Optional remote branch used as the canonical git-backed results store. */
   readonly branch?: string;
+  /** Runtime-only local Git remote-name override. Persistent config should not set this. */
   readonly remote?: string;
   /** Local filesystem path for the results clone. Optional; defaults to ~/.agentv/results/<slug>/. */
   readonly path?: string;
@@ -685,7 +686,6 @@ type NestedResultsRepoConfig = {
   readonly repo_url?: string;
   readonly repo_path?: string;
   readonly branch?: string;
-  readonly remote?: string;
   readonly path?: string;
 };
 
@@ -811,15 +811,13 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     branch = obj.branch.trim();
   }
 
-  let remote: string | undefined;
-  if (nestedRepo?.remote !== undefined) {
-    remote = nestedRepo.remote;
-  } else if (obj.remote !== undefined) {
-    if (typeof obj.remote !== 'string' || obj.remote.trim().length === 0) {
-      logWarning(`Invalid results.remote in ${configPath}, expected non-empty string`);
+  if (obj.remote !== undefined) {
+    if (!hasNestedRepo) {
+      logWarning(
+        `results.remote in ${configPath} is no longer supported in persistent config. Use results.repo.remote for a portable Git endpoint URL, or omit it and let AgentV use the local checkout remote alias internally.`,
+      );
       return undefined;
     }
-    remote = obj.remote.trim();
   }
 
   let resultsPath: string | undefined;
@@ -895,7 +893,6 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
     ...(repoUrl && { repo_url: repoUrl }),
     ...(repoPath && { repo_path: repoPath }),
     ...(branch !== undefined && { branch }),
-    ...(remote !== undefined && { remote }),
     ...(resultsPath !== undefined && { path: resultsPath }),
     ...(typeof obj.auto_push === 'boolean' && { auto_push: obj.auto_push }),
     ...(sync && { sync }),

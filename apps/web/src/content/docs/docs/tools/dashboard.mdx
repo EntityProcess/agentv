@@ -291,10 +291,9 @@ projects:
         branch: agentv/results/v1
       sync:
         auto_push: false
-        push_conflict_policy: block
 ```
 
-`results.repo.remote` is the Git remote URL used when AgentV creates a fresh results checkout, and the intended remote URL for portable project config. `results.repo.path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. AgentV does not add or rewrite remotes inside an existing checkout; the checkout's existing `origin` must already point at the repository you want to fetch and push. When `results.repo.remote` is omitted, `results.repo.path` means an existing local Git checkout whose object database and refs AgentV should write to, and the branch defaults to `agentv/results/v1`. AgentV creates the branch automatically on first publish and commits only AgentV result paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. For CI workflows where a push failure should fail the command after local artifacts are written, invoke the run with `agentv eval run --results-require-push`. `sync.push_conflict_policy` defaults to `block`; the removed `backup_and_force_push` value is rejected with migration guidance because AgentV never force-pushes result branches. Non-fast-forward result branch pushes are auto-merged with artifact-aware Git merge drivers and pushed as a fast-forward, so the canonical results branch is never force-pushed or rewritten. Genuine overlay conflicts route to a timestamped temp branch plus a GitHub compare link for a human merge instead.
+`results.repo.remote` is the Git remote URL used when AgentV creates a fresh results checkout, and the intended remote URL for portable project config. `results.repo.path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. AgentV does not add or rewrite remotes inside an existing checkout; the checkout's existing `origin` must already point at the repository you want to fetch and push. When `results.repo.remote` is omitted, `results.repo.path` means an existing local Git checkout whose object database and refs AgentV should write to, and the branch defaults to `agentv/results/v1`. AgentV creates the branch automatically on first publish and commits only AgentV result paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. For CI workflows where a push failure should fail the command after local artifacts are written, invoke the run with `agentv eval run --results-require-push`. The default conflict behavior is block-and-ask; the removed `backup_and_force_push` value is rejected with migration guidance because AgentV never force-pushes result branches. Non-fast-forward result branch pushes are auto-merged with artifact-aware Git merge drivers and pushed as a fast-forward, so the canonical results branch is never force-pushed or rewritten. Genuine overlay conflicts route to a timestamped temp branch plus a GitHub compare link for a human merge instead.
 
 For a separate results repository, use `results.repo.remote` and an optional managed clone `results.repo.path`:
 
@@ -311,7 +310,6 @@ projects:
         path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
       sync:
         auto_push: true
-        push_conflict_policy: block
 ```
 
 `results.repo.remote` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured. When `results.repo.remote` is set and `results.repo.path` is missing or empty, AgentV creates that filesystem location with `git clone`. If `results.repo.path` already points at a Git checkout, AgentV treats that checkout's remotes as user-owned state: it fetches and pushes using the existing configured remote name (`origin` by default), but it does not run `git remote add` or `git remote set-url`. Omit `results.repo.remote` only when `results.repo.path` points at an already-existing local checkout such as `.`.
@@ -326,7 +324,6 @@ results:
     branch: agentv/results/v1
   sync:
     auto_push: false
-    push_conflict_policy: block
 ```
 
 Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
@@ -374,7 +371,7 @@ projects:
         auto_push: true
 ```
 
-Current flat fields (`path`, `repo_url`, `ref`, `results.repo_url`, `results.repo_path`, `results.branch`, `results.remote`, and `results.path`) still load with migration warnings and are written back in nested form the next time AgentV saves the project registry. Older removed fields (`source`, `repository`, `results.mode`, `results.repo` as a string, `results.repository`, `results.local_path`, and `results.auto_push`) fail validation with migration guidance.
+Current flat fields (`path`, `repo_url`, `ref`, `results.repo_url`, `results.repo_path`, `results.branch`, and `results.path`) still load with migration warnings and are written back in nested form the next time AgentV saves the project registry. Removed fields (`source`, `repository`, `results.mode`, `results.repo` as a string, `results.remote`, `results.repository`, `results.local_path`, and `results.auto_push`) fail validation with migration guidance.
 
 Use project-level **Sync Project** as the results exchange workflow. It handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
 
