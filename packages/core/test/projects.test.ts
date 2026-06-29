@@ -42,7 +42,7 @@ describe('projects registry', () => {
 
     const repoPath = makeRepo('alpha');
     const entry = addProject(repoPath);
-    expect(entry.name).toBe('alpha');
+    expect(entry.id).toBe('alpha');
     expect(entry.path).toBe(path.resolve(repoPath));
 
     // Subsequent load reflects the write (per-request reload model).
@@ -116,7 +116,6 @@ describe('projects registry', () => {
       registryPath,
       `projects:
   - id: remote-bench
-    name: Remote Bench
     repo: git@github.com:example/repo.git
     path: /srv/agentv/repo
     branch: main
@@ -143,7 +142,6 @@ describe('projects registry', () => {
       registryPath,
       `projects:
   - id: flat-source
-    name: Flat Source
     repo: git@github.com:example/repo.git
     path: /srv/agentv/repo
     branch: main
@@ -171,7 +169,6 @@ describe('projects registry', () => {
       registryPath,
       `projects:
   - id: results-project
-    name: Results Project
     path: /srv/agentv/repo
     results:
       repo: https://github.com/EntityProcess/results-project-runs.git
@@ -213,7 +210,6 @@ describe('projects registry', () => {
       registryPath,
       `projects:
   - id: branch-results
-    name: Branch Results
     repo: git@github.com:example/source.git
     path: /srv/agentv/repo
     results:
@@ -276,7 +272,6 @@ dashboard:
       localRegistryPath,
       `projects:
   - id: local-results
-    name: Local Results
     path: /srv/agentv/source
     results:
       path: /srv/agentv/results/local-results
@@ -308,7 +303,6 @@ dashboard:
       localRegistryPath,
       `projects:
   - id: local-only
-    name: Local Only
     path: /srv/agentv/source
     added_at: "2026-01-01T00:00:00Z"
     last_opened_at: "2026-01-01T00:00:00Z"
@@ -334,7 +328,7 @@ dashboard:
     const d = '$';
     writeFileSync(
       registryPath,
-      `projects:\n  - id: env-bench\n    name: Env Bench\n    repo: "${d}{{ BENCH_REPO_URL }}"\n    path: /srv/agentv/repo\n    branch: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n`,
+      `projects:\n  - id: env-bench\n    repo: "${d}{{ BENCH_REPO_URL }}"\n    path: /srv/agentv/repo\n    branch: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n`,
       'utf-8',
     );
 

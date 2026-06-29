@@ -446,7 +446,6 @@ describe('RepoManager', () => {
         [
           'projects:',
           '  - id: registered',
-          '    name: Registered',
           `    path: ${repoDir}`,
           '    added_at: "2026-01-01T00:00:00Z"',
           '    last_opened_at: "2026-01-01T00:00:00Z"',
@@ -543,7 +542,6 @@ describe('RepoManager', () => {
         [
           'projects:',
           '  - id: registered',
-          '    name: Registered',
           `    path: ${registeredRepo}`,
           '    added_at: "2026-01-01T00:00:00Z"',
           '    last_opened_at: "2026-01-01T00:00:00Z"',

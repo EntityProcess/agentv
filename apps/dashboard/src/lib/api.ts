@@ -446,7 +446,6 @@ export async function addProjectApi(projectPath: string): Promise<ProjectEntry> 
   const body = (await res.json()) as ProjectEntryWire;
   return {
     id: body.id,
-    name: body.name,
     path: body.path,
     addedAt: body.added_at,
     lastOpenedAt: body.last_opened_at,

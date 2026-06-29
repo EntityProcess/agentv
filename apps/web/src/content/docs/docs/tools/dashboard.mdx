@@ -216,7 +216,6 @@ To register a remote repo and keep it synced automatically, add the source repo 
 ```yaml
 projects:
   - id: my-evals
-    name: My Evals
     repo: https://github.com/example/my-evals.git
     path: /srv/agentv/my-evals
     branch: main
@@ -278,7 +277,6 @@ For a registered project, put results repo settings on that project's entry in `
 ```yaml
 projects:
   - id: agentv
-    name: AgentV
     repo: https://github.com/EntityProcess/agentv.git
     path: /home/entity/projects/EntityProcess/agentv
     branch: main
@@ -296,7 +294,6 @@ For a separate results repository, set `results.repo` and an optional managed cl
 ```yaml
 projects:
   - id: agentv
-    name: AgentV
     path: /home/entity/projects/EntityProcess/agentv
     results:
       repo: git@github.com:EntityProcess/agentv-examples-eval-results.git
@@ -331,7 +328,6 @@ Before:
 ```yaml
 projects:
   - id: agentv
-    name: AgentV
     path: /home/entity/projects/EntityProcess/agentv
     source:
       url: https://github.com/EntityProcess/agentv
@@ -348,7 +344,6 @@ After:
 ```yaml
 projects:
   - id: agentv
-    name: AgentV
     repo: https://github.com/EntityProcess/agentv.git
     path: /home/entity/projects/EntityProcess/agentv
     branch: main

@@ -673,14 +673,12 @@ describe('serve app', () => {
         expect(create.status).toBe(201);
         const created = (await create.json()) as {
           id: string;
-          name: string;
           path: string;
           added_at: string;
           last_opened_at: string;
         };
         expect(created).toMatchObject({
           id: 'project-to-register',
-          name: 'project-to-register',
           path: projectDir,
         });
         expect(created.added_at).toBeTruthy();
@@ -2152,7 +2150,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'project-no-publish',
-              name: 'Project No Publish',
               path: projectDir,
               results: {
                 repo: `file://${remoteDir}`,
@@ -2276,7 +2273,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'agentv',
-              name: 'AgentV',
               path: projectDir,
               results: {
                 repo: 'EntityProcess/agentv-examples-eval-results',
@@ -2328,7 +2324,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'project-sync-pull',
-              name: 'Project Sync Pull',
               path: projectDir,
               results: {
                 repo: `file://${remoteDir}`,
@@ -2405,7 +2400,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'project-sync-push',
-              name: 'Project Sync Push',
               path: projectDir,
               results: {
                 repo: `file://${remoteDir}`,
@@ -2473,7 +2467,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'project-sync-offline',
-              name: 'Project Sync Offline',
               path: projectDir,
               results: {
                 repo: missingRemoteUrl,
@@ -2531,7 +2524,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'project-sync-conflict',
-              name: 'Project Sync Conflict',
               path: projectDir,
               results: {
                 repo: `file://${remoteDir}`,
@@ -2657,7 +2649,6 @@ describe('serve app', () => {
           projects: [
             {
               id: 'project-confirm-merge',
-              name: 'Project Confirm Merge',
               path: projectDir,
               results: {
                 repo: `file://${remoteDir}`,

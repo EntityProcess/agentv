@@ -42,7 +42,6 @@ export interface RunMeta {
    */
   on_remote?: boolean;
   project_id?: string;
-  project_name?: string;
   /** Optional user-assigned tags from the run's sidecar tags.json. */
   tags?: string[];
   /** Tags currently present in the remote results repo before local metadata overlays. */
@@ -596,7 +595,6 @@ export interface RemoteStatusResponse {
 
 export interface ProjectSummary {
   id: string;
-  name: string;
   path: string;
   added_at: string;
   last_opened_at: string;
@@ -612,7 +610,6 @@ export interface ProjectListResponse {
 
 export interface ProjectEntry {
   id: string;
-  name: string;
   path: string;
   addedAt: string;
   lastOpenedAt: string;
@@ -620,7 +617,6 @@ export interface ProjectEntry {
 
 export interface ProjectEntryWire {
   id: string;
-  name: string;
   path: string;
   added_at: string;
   last_opened_at: string;
