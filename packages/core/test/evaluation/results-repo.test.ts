@@ -2808,4 +2808,46 @@ describe('WIP branch helpers', () => {
     const branchesAfter = git('git branch -r', cloneDir);
     expect(branchesAfter).not.toContain(`origin/${wipBranch}`);
   }, 30000);
+
+  it('deleteWipBranch ignores a missing remote WIP branch', async () => {
+    await expect(
+      deleteWipBranch({ config, wipBranch: 'agentv/wip/test-host/missing-run' }),
+    ).resolves.toBeUndefined();
+  }, 30000);
+
+  it('deleteWipBranch surfaces non-missing remote delete failures', async () => {
+    const wipBranch = 'agentv/wip/test-host/rejected-delete';
+    const handle = await setupWipWorktree({ config, wipBranch });
+    const runDir = path.join(rootDir, 'run-rejected-delete-test');
+    writeRunArtifacts(runDir, 'default', '2026-01-15T13-00-00');
+
+    try {
+      await pushWipCheckpoint({
+        handle,
+        sourceDir: runDir,
+        destinationPath: 'default/2026-01-15T13-00-00',
+      });
+    } finally {
+      await handle.cleanup();
+    }
+
+    const hookPath = path.join(remoteDir, 'hooks', 'update');
+    writeFileSync(
+      hookPath,
+      [
+        '#!/usr/bin/env sh',
+        'if [ "$3" = "0000000000000000000000000000000000000000" ]; then',
+        '  echo "unable to delete protected WIP branch" >&2',
+        '  exit 1',
+        'fi',
+        'exit 0',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(hookPath, 0o755);
+
+    await expect(deleteWipBranch({ config, wipBranch })).rejects.toThrow(
+      /unable to delete protected WIP branch|hook declined/,
+    );
+  }, 30000);
 });
