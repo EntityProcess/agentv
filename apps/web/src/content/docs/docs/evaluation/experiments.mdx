@@ -269,19 +269,22 @@ Do not set both `repeat` and `runs` in the same runtime block.
 
 ## Result Layout
 
-Eval runs write to the selected result group:
+Eval runs write to the selected result bucket:
 
 ```text
-.agentv/results/<result-group>/<timestamp>/
+.agentv/results/<experiment>/<timestamp>/
 ```
 
-CLI `--experiment` sets the result group explicitly. Without that flag, AgentV
-derives the group from the eval input: a single eval uses the eval metadata
-`name` when present or the eval filename otherwise, and multiple eval files use
-`multi-eval`. Inline `experiment.name` does not currently select the result
-group.
+CLI `--experiment` sets the bucket explicitly. Without that flag, AgentV uses
+`experiment.name` from the eval file, then `default`. The experiment remains the
+comparison and runtime-policy label for a run condition; folder names are only
+storage allocation and must not define result semantics.
 
 Imported source suite metadata appears in `run_manifest.jsonl` rows and manifests.
 Use `run_manifest.jsonl` fields such as `eval_path`, `test_id`, `target`, and
 `result_dir` for identity and artifact discovery instead of reconstructing paths
 from suite names or wrapper layout.
+
+For the complete result file contract, including why row metadata is semantic
+truth and directories are storage allocation, see
+[Result Artifact Contract](/docs/reference/result-artifacts/).
