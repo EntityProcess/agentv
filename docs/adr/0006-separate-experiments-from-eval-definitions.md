@@ -31,7 +31,9 @@ The final design keeps the product boundary smaller:
 - `eval.yaml` is the only runnable authoring artifact.
 - `experiment:` is an inline run-time block inside `eval.yaml`.
 - `tests:` is the composition, import, and selection surface.
-- result bundles are written under `.agentv/results/<eval-name>/<timestamp>/`.
+- result invocations are written under
+  `.agentv/results/<experiment>/<timestamp>/`, with target/variant bundles below
+  the timestamp.
 - A directory named `experiments/` may be used as a user-owned repo convention
   for wrapper eval YAML files, but it does not create a separate experiment
   artifact type or schema-significant path.
@@ -371,8 +373,9 @@ This is the motivating distinction:
 
 ## Result Layout
 
-ADR 0009 is the source of truth for result experiment bucket precedence, row
-identity, and sidecar path allocation. The canonical run bundle root is:
+ADR 0009 is the source of truth for result experiment bucket precedence,
+target/variant bundle layout, row identity, and sidecar path allocation. The
+canonical invocation directory is:
 
 ```text
 .agentv/results/<experiment>/<timestamp>/...
@@ -381,21 +384,33 @@ identity, and sidecar path allocation. The canonical run bundle root is:
 There is no `.agentv/results/runs` segment in canonical writer output. There is
 also no schema-significant suite or imported-suite directory segment.
 
-Within the timestamp, `index.jsonl` is authoritative for row identity and all
-run-relative sidecar paths. New writers should allocate deterministic row
-directories directly under the timestamp:
+Within the timestamp, new writers fan out into a target and optional variant
+bundle. Each target/variant bundle has its own `index.jsonl` and `summary.json`:
 
 ```text
-.agentv/results/<experiment>/<timestamp>/<row_id>/run-1/...
+.agentv/results/<experiment>/<timestamp>/<target>/<variant?>/
+  index.jsonl
+  summary.json
+  <row_id>/run-1/
+  <row_id>/run-2/
 ```
 
-`row_id` is a stable, filesystem-safe allocation such as
-`<safe_test_id>--<short_hash>`. The hash input includes the source eval identity
-or `eval_path`, suite label, `test_id`, target, and variant. This keeps
-same-`test_id` rows from different suites, duplicate suite labels, targets, and
-variants from overwriting each other without making path hierarchy a semantic
-contract. There is no required `rows/` parent directory. Source suite metadata
-still belongs in manifests and index rows.
+The target/variant folder split is for storage isolation and manual browsing
+only. Dashboard, import, rerun, comparison, and export readers discover nested
+`index.jsonl` files, then use bundle summary and row metadata for `target`,
+`variant`, `eval_path`, `suite`, and `test_id` semantics. Legacy timestamp-level
+bundles with `index.jsonl` directly under
+`.agentv/results/<experiment>/<timestamp>/` remain readable.
+
+Inside each target/variant bundle, `index.jsonl` is authoritative for row
+identity and all bundle-relative sidecar paths. `row_id` directories are stable,
+filesystem-safe allocations such as `<safe_test_id>--<short_hash>`, and repeated
+runs live under `run-1`, `run-2`, and so on. The hash input includes the source
+eval identity or `eval_path`, suite label, `test_id`, target, and variant. This
+keeps same-`test_id` rows from different suites, duplicate suite labels, targets,
+and variants from overwriting each other without making path hierarchy a
+semantic contract. There is no required `rows/` parent directory. Source suite
+metadata still belongs in manifests and index rows.
 
 The result namespace remains `experiment` in artifacts and Dashboard. AgentV
 should not introduce a separate authored `run_group` field. For better DX,
