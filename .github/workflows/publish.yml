@@ -231,10 +231,16 @@ jobs:
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
           CONTRACT_EVAL_MODEL: ${{ vars.CONTRACT_EVAL_MODEL || 'openai/gpt-4.1-mini' }}
 
+      - name: Build and run example oracle eval gate
+        if: needs.prepare.outputs.publish_action == 'publish-next'
+        run: |
+          bun run build
+          bun run examples:oracle -- --output-dir "${{ runner.temp }}/example-oracle-publish-next"
+
       - name: Publish to npm
         run: |
           if [ "${{ needs.prepare.outputs.publish_action }}" = "publish-next" ]; then
-            bun run publish:next
+            bun scripts/publish.ts next
           else
             bun run publish
           fi

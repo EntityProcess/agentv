@@ -31,7 +31,7 @@ const TARGET_FILE_CANDIDATES = [
   '.agentv/targets.yaml',
   '.agentv/targets.yml',
 ] as const;
-const DETERMINISTIC_PROVIDERS = new Set(['cli', 'copilot-log', 'mock', 'replay', 'transcript']);
+const ORACLE_PROVIDER_KINDS = new Set(['cli', 'copilot-log', 'mock', 'replay', 'transcript']);
 const PROVIDER_ALIASES = new Map([
   ['azure-openai', 'azure'],
   ['google', 'gemini'],
@@ -56,7 +56,7 @@ interface InventoryEntry {
   readonly path: string;
   readonly classification:
     | 'requires_oracle_fixture'
-    | 'deterministic_target'
+    | 'oracle_target'
     | 'needs_fixture_added'
     | 'excluded';
   readonly tests: number;
@@ -243,19 +243,19 @@ function resolveTargetRequirementFromDefinition(
     return {
       requiresOracle: true,
       targets: [name],
-      reason: `target '${name}' could not be resolved to a deterministic provider`,
+      reason: `target '${name}' could not be resolved to an oracle provider`,
     };
   }
 
   const provider = canonicalProvider(definition.provider);
   if (provider) {
-    const deterministic = DETERMINISTIC_PROVIDERS.has(provider);
+    const oracleProvider = ORACLE_PROVIDER_KINDS.has(provider);
     return {
-      requiresOracle: !deterministic,
+      requiresOracle: !oracleProvider,
       targets: [name],
-      reason: deterministic
-        ? `target '${name}' uses deterministic provider '${provider}'`
-        : `target '${name}' uses non-deterministic provider '${provider}'`,
+      reason: oracleProvider
+        ? `target '${name}' uses oracle provider '${provider}'`
+        : `target '${name}' uses non-oracle provider '${provider}'`,
     };
   }
 
@@ -266,7 +266,7 @@ function resolveTargetRequirementFromDefinition(
       targets: [name],
       reason: useTarget.env
         ? `target '${name}' delegates through unset ${useTarget.env}`
-        : `target '${name}' does not declare a concrete deterministic provider`,
+        : `target '${name}' does not declare a concrete oracle provider`,
     };
   }
 
@@ -323,13 +323,13 @@ async function classifyTargetRequirement(options: {
 
   if (options.suite.inlineTarget) {
     const provider = canonicalProvider(options.suite.inlineTarget.provider);
-    const deterministic = provider ? DETERMINISTIC_PROVIDERS.has(provider) : false;
+    const oracleProvider = provider ? ORACLE_PROVIDER_KINDS.has(provider) : false;
     return {
-      requiresOracle: !deterministic,
+      requiresOracle: !oracleProvider,
       targets: [options.suite.inlineTarget.name],
-      reason: deterministic
-        ? `inline target uses deterministic provider '${provider}'`
-        : `inline target uses non-deterministic provider '${provider ?? 'unknown'}'`,
+      reason: oracleProvider
+        ? `inline target uses oracle provider '${provider}'`
+        : `inline target uses non-oracle provider '${provider ?? 'unknown'}'`,
     };
   }
 
@@ -593,7 +593,7 @@ async function buildInventory(
       if (!targetRequirement.requiresOracle) {
         entries.push({
           path: rel,
-          classification: 'deterministic_target',
+          classification: 'oracle_target',
           tests: suite.tests.length,
           targets: targetRequirement.targets,
           reason: targetRequirement.reason,
@@ -697,7 +697,7 @@ function writeGeneratedFiles(options: {
 function printInventory(entries: readonly InventoryEntry[]) {
   const counts = countBy(entries, (entry) => entry.classification);
   console.log(
-    `Example oracle inventory: ${entries.length} eval files | ${counts.requires_oracle_fixture ?? 0} require oracle | ${counts.deterministic_target ?? 0} deterministic | ${counts.needs_fixture_added ?? 0} need fixture | ${counts.excluded ?? 0} excluded`,
+    `Example oracle inventory: ${entries.length} eval files | ${counts.requires_oracle_fixture ?? 0} require oracle | ${counts.oracle_target ?? 0} oracle target | ${counts.needs_fixture_added ?? 0} need fixture | ${counts.excluded ?? 0} excluded`,
   );
   for (const entry of entries) {
     const detail = entry.reason ?? entry.fixture_source ?? '';

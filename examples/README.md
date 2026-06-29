@@ -26,7 +26,7 @@ Run the deterministic oracle sweep when you need to prove agent or LLM-backed ex
 bun run examples:oracle
 ```
 
-The command discovers eval files under `examples/`, reads `examples/oracle-fixtures.yaml` for explicit exclusions, classifies deterministic targets as already covered, generates replay target fixtures under `.agentv/tmp/example-oracle-fixtures/` for evals that otherwise require an agent or LLM target, and runs those evals with an oracle replay target plus a deterministic CLI grader target. These fixtures are a contract oracle for example execution, not captured live-model golden transcripts; live provider dogfood remains a separate release-gate workflow. To inspect the inventory without running evals:
+The command discovers eval files under `examples/`, reads `examples/oracle-fixtures.yaml` for explicit exclusions, classifies oracle-capable targets as already covered, generates replay target fixtures under `.agentv/tmp/example-oracle-fixtures/` for evals that otherwise require an agent or LLM target, and runs those evals with an oracle replay target plus an oracle CLI grader target. These fixtures are a contract oracle for example execution, not captured live-model golden transcripts; live provider dogfood remains a separate release-gate workflow. To inspect the inventory without running evals:
 
 ```bash
 bun run examples:oracle -- --inventory

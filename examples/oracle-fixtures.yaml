@@ -3,7 +3,7 @@ description: >
   Maintained inventory controls for the deterministic example oracle sweep.
   The runner discovers example evals dynamically, generates replay target
   fixtures from expected outputs or assertion-derived references only for
-  agent or LLM-backed targets, treats deterministic targets as their own
+  agent or LLM-backed targets, treats oracle-capable targets as their own
   oracle, and skips only the exclusions listed here. These fixtures are
   contract oracles for example execution, not captured live-model golden
   transcripts.
