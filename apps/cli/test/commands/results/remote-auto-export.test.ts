@@ -63,12 +63,16 @@ function writeRunArtifacts(projectDir: string): string {
   const runDir = path.join(projectDir, '.agentv', 'results', 'default', 'run-001');
   mkdirSync(runDir, { recursive: true });
   writeFileSync(
-    path.join(runDir, 'index.jsonl'),
+    path.join(runDir, 'run_manifest.jsonl'),
     `${JSON.stringify({ test_id: 'alpha', score: 1 })}\n`,
   );
   writeFileSync(
     path.join(runDir, 'summary.json'),
-    `${JSON.stringify({ eval_file: 'evals/example.eval.yaml', tests_run: 1 }, null, 2)}\n`,
+    `${JSON.stringify(
+      { manifest_path: 'run_manifest.jsonl', eval_file: 'evals/example.eval.yaml', tests_run: 1 },
+      null,
+      2,
+    )}\n`,
   );
   return runDir;
 }
@@ -87,7 +91,7 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
   writeFileSync(path.join(artifactDir, 'transcript.jsonl'), transcriptContent);
   const transcriptSha = sha256Hex(transcriptContent);
   writeFileSync(
-    path.join(runDir, 'index.jsonl'),
+    path.join(runDir, 'run_manifest.jsonl'),
     `${JSON.stringify({
       test_id: 'alpha',
       score: 1,
@@ -108,7 +112,11 @@ function writeRunArtifactsWithPointers(projectDir: string): string {
   );
   writeFileSync(
     path.join(runDir, 'summary.json'),
-    `${JSON.stringify({ eval_file: 'evals/example.eval.yaml', tests_run: 1 }, null, 2)}\n`,
+    `${JSON.stringify(
+      { manifest_path: 'run_manifest.jsonl', eval_file: 'evals/example.eval.yaml', tests_run: 1 },
+      null,
+      2,
+    )}\n`,
   );
   return runDir;
 }
@@ -199,7 +207,7 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     expect(status).toBe('published');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      'runs/default/run-001/index.jsonl',
+      'runs/default/run-001/run_manifest.jsonl',
     );
   }, 20_000);
 
@@ -221,13 +229,13 @@ describe('maybeAutoExportRunArtifacts', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${resultsBranch}`,
       rootDir,
     );
-    expect(resultTree).toContain('runs/default/run-002/index.jsonl');
+    expect(resultTree).toContain('runs/default/run-002/run_manifest.jsonl');
     expect(resultTree).toContain('runs/default/run-002/summary.json');
     expect(resultTree).not.toContain('runs/default/run-002/alpha/trace.json');
     expect(resultTree).not.toContain('runs/default/run-002/alpha/transcript.jsonl');
     const index = JSON.parse(
       git(
-        `git --git-dir "${remoteDir}" show ${resultsBranch}:runs/default/run-002/index.jsonl`,
+        `git --git-dir "${remoteDir}" show ${resultsBranch}:runs/default/run-002/run_manifest.jsonl`,
         rootDir,
       ),
     );
@@ -315,10 +323,10 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     expect(status).toBe('published');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      'runs/default/run-001/index.jsonl',
+      'runs/default/run-001/run_manifest.jsonl',
     );
     expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
-      'runs/default/run-001/index.jsonl',
+      'runs/default/run-001/run_manifest.jsonl',
     );
   });
 });

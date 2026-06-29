@@ -3,9 +3,9 @@ import path from 'node:path';
 import type { EvaluationResult, TraceSummary } from '@agentv/core';
 import { DEFAULT_THRESHOLD, toCamelCaseDeep, toSnakeCaseDeep } from '@agentv/core';
 import {
-  RESULT_INDEX_FILENAME,
   buildResultsRootDir,
   isReservedResultsNamespace,
+  isRunManifestPath,
   resolveExistingRunPrimaryPath,
   resolveWorkspaceOrFilePath,
 } from '../eval/result-layout.js';
@@ -105,7 +105,7 @@ export interface RawTraceSpan {
  * Load all result or trace records from a supported source.
  *
  * Supported sources:
- * - Run workspace directories / index.jsonl manifests
+ * - Run workspace directories / run manifests
  * - Standalone trace JSONL files for trace-only workflows
  * - OTLP JSON trace files written via --otel-file
  */
@@ -116,7 +116,7 @@ export function loadResultFile(filePath: string): RawResult[] {
     return loadOtlpTraceFile(resolvedFilePath);
   }
 
-  if (path.basename(resolvedFilePath) === RESULT_INDEX_FILENAME) {
+  if (isRunManifestPath(resolvedFilePath)) {
     return loadManifestAsRawResults(resolvedFilePath);
   }
 

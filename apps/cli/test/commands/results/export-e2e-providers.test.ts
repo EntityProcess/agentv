@@ -16,6 +16,7 @@ import type {
   RunSummaryArtifact,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
+import { RESULT_INDEX_FILENAME } from '../../../src/commands/eval/artifact-writer.js';
 import { exportResults } from '../../../src/commands/results/export.js';
 
 // ── Provider-specific JSONL records (snake_case, matching on-disk format) ──
@@ -212,7 +213,7 @@ function toJsonl(...records: object[]): string {
 }
 
 function readIndex(outputDir: string): IndexArtifactEntry[] {
-  return readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+  return readFileSync(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8')
     .trim()
     .split('\n')
     .filter(Boolean)

@@ -11,7 +11,7 @@ export const evalAggregateCommand = command({
     runDir: positional({
       type: string,
       displayName: 'run-dir',
-      description: 'Path to a run directory containing index.jsonl',
+      description: 'Path to a run directory containing a run manifest',
     }),
   },
   handler: async (args) => {

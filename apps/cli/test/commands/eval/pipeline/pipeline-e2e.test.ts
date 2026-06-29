@@ -61,7 +61,7 @@ describe('eval pipeline e2e', () => {
       expect(grading.graders).toHaveLength(2);
       expect(grading.summary.pass_rate).toBeGreaterThan(0);
 
-      const indexContent = await readFile(join(outDir, 'index.jsonl'), 'utf8');
+      const indexContent = await readFile(join(outDir, 'run_manifest.jsonl'), 'utf8');
       const indexLines = indexContent
         .trim()
         .split('\n')

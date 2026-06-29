@@ -21,7 +21,7 @@ AgentV stays repo-native and workspace-native: it runs or imports evaluations ar
 
 - **Repo-native eval success** - Share of dogfood and example eval flows that run against real workspaces, hooks, repo materialization, or imported artifacts without extra infrastructure; measured by CI and manual UAT on canonical suites.
 - **Time to inspect a run** - Time from completed `agentv eval` to usable local review, compare, or report output from the canonical run bundle; measured through CLI and Dashboard/report workflows.
-- **Artifact portability coverage** - Share of integrations and follow-on workflows that consume `index.jsonl`, `summary.json`, trace sidecars, or imported run bundles instead of bespoke stores; measured by adapter smoke tests, docs, and example coverage.
+- **Artifact portability coverage** - Share of integrations and follow-on workflows that consume `run_manifest.jsonl`, `summary.json`, trace sidecars, or imported run bundles instead of bespoke stores; measured by adapter smoke tests, docs, and example coverage.
 - **Git-backed results reliability** - Success rate for publish, sync, resume, and WIP checkpoint flows across local branches and dedicated results repos; measured by integration tests and manual end-to-end verification.
 
 ## Tracks

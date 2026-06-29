@@ -19,7 +19,7 @@ describe('results validate', () => {
       );
       mkdirSync(runDir, { recursive: true });
       writeFileSync(
-        path.join(runDir, 'index.jsonl'),
+        path.join(runDir, 'run_manifest.jsonl'),
         `${JSON.stringify({
           timestamp: '2026-03-27T12:42:24.429Z',
           test_id: 'test-greeting',
@@ -43,6 +43,7 @@ describe('results validate', () => {
       writeFileSync(
         path.join(runDir, 'summary.json'),
         `${JSON.stringify({
+          manifest_path: 'run_manifest.jsonl',
           schema_version: 1,
           metadata: {
             experiment: 'with-skills',

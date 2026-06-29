@@ -34,6 +34,7 @@ import {
   buildTestTargetKey,
 } from '../eval/artifact-writer.js';
 import {
+  RESULT_INDEX_FILENAME,
   buildDefaultRunDirFromName,
   createRunDirName,
   normalizeExperimentName,
@@ -611,7 +612,7 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
 
   mkdirSync(runDir, { recursive: true });
   const records = rows.map((row) => rewriteAndCopyRecord(row, runDir, experiment));
-  const manifestPath = path.join(runDir, 'index.jsonl');
+  const manifestPath = path.join(runDir, RESULT_INDEX_FILENAME);
   writeJsonl(manifestPath, records);
 
   const summary = buildRunSummaryArtifact(results, '', 'combined', results.length);

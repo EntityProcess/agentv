@@ -401,7 +401,7 @@ export const runsRerunCommand = command({
     runDir: positional({
       type: string,
       displayName: 'run-dir',
-      description: 'Run workspace directory or index.jsonl manifest containing task bundles',
+      description: 'Run workspace directory or run manifest containing task bundles',
     }),
     testId: multioption({
       type: array(string),

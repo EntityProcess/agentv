@@ -16,8 +16,8 @@ import {
 
 import type { GradingArtifact, TimingArtifact } from '../eval/artifact-writer.js';
 import {
-  RESULT_INDEX_FILENAME,
   isDirectoryPath,
+  isRunManifestPath,
   resolveRunManifestPath,
 } from '../eval/result-layout.js';
 import { normalizeResultRow } from './result-row-schema.js';
@@ -289,7 +289,7 @@ export function parseResultManifest(content: string): ResultManifestRecord[] {
 
 export function resolveResultSourcePath(source: string, cwd?: string): string {
   const resolved = path.isAbsolute(source) ? source : path.resolve(cwd ?? process.cwd(), source);
-  if (isDirectoryPath(resolved) || path.basename(resolved) === RESULT_INDEX_FILENAME) {
+  if (isDirectoryPath(resolved) || isRunManifestPath(resolved)) {
     return resolveRunManifestPath(resolved);
   }
   return resolved;

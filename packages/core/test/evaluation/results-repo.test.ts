@@ -239,11 +239,12 @@ function randomToken(): string {
 
 function writeRunArtifacts(runDir: string, experiment: string, timestamp: string): void {
   mkdirSync(runDir, { recursive: true });
-  writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
+  writeFileSync(path.join(runDir, 'run_manifest.jsonl'), '{"test_id":"alpha"}\n');
   writeFileSync(
     path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
+        manifest_path: 'run_manifest.jsonl',
         metadata: {
           timestamp,
           experiment,
@@ -294,7 +295,7 @@ function writeRunArtifactsWithPointers(
   const legacyTraceSha = sha256Hex(legacyTraceContent);
   const transcriptSha = sha256Hex(transcriptContent);
   writeFileSync(
-    path.join(runDir, 'index.jsonl'),
+    path.join(runDir, 'run_manifest.jsonl'),
     `${JSON.stringify({
       test_id: 'alpha',
       score: 1,
@@ -402,7 +403,7 @@ describe('listGitRuns', () => {
     rmSync(repoDir, { recursive: true, force: true });
   });
 
-  it('returns committed runs derived from index.jsonl manifests', async () => {
+  it('returns committed runs derived from run manifests and legacy index.jsonl manifests', async () => {
     const defaultRunDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
     mkdirSync(defaultRunDir, { recursive: true });
     writeFileSync(
@@ -443,7 +444,7 @@ describe('listGitRuns', () => {
     const experimentRunDir = path.join(repoDir, 'runs', 'with-skills', '2026-05-21T11-00-00-000Z');
     mkdirSync(experimentRunDir, { recursive: true });
     writeFileSync(
-      path.join(experimentRunDir, 'index.jsonl'),
+      path.join(experimentRunDir, 'run_manifest.jsonl'),
       `${[
         JSON.stringify({
           test_id: 'alpha',
@@ -466,6 +467,7 @@ describe('listGitRuns', () => {
       path.join(experimentRunDir, 'summary.json'),
       JSON.stringify(
         {
+          manifest_path: 'run_manifest.jsonl',
           metadata: {
             display_name: 'remote friendly run',
             timestamp: '2026-05-21T11:00:00.000Z',
@@ -500,7 +502,7 @@ describe('listGitRuns', () => {
       experiment: 'with-skills',
       timestamp: '2026-05-21T11:00:00.000Z',
       display_name: 'remote friendly run',
-      manifest_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/index.jsonl',
+      manifest_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/run_manifest.jsonl',
       summary_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/summary.json',
       test_count: 3,
       pass_rate: 0.75,
@@ -516,6 +518,58 @@ describe('listGitRuns', () => {
       pass_rate: 0.5,
     });
     expect(runs[0].size_bytes).toBeGreaterThan(0);
+  });
+
+  it('does not double-count a remote bundle that has both manifest filenames', async () => {
+    const runDir = path.join(repoDir, 'runs', 'default', '2026-05-22T12-00-00-000Z');
+    mkdirSync(runDir, { recursive: true });
+    const canonical = `${JSON.stringify({
+      test_id: 'canonical',
+      target: 'codex',
+      score: 1,
+      timestamp: '2026-05-22T12:00:00.000Z',
+    })}\n`;
+    writeFileSync(path.join(runDir, 'run_manifest.jsonl'), canonical);
+    writeFileSync(
+      path.join(runDir, 'index.jsonl'),
+      `${JSON.stringify({
+        test_id: 'legacy',
+        target: 'codex',
+        score: 0,
+        timestamp: '2026-05-22T12:00:00.000Z',
+      })}\n`,
+    );
+    writeFileSync(
+      path.join(runDir, 'summary.json'),
+      JSON.stringify(
+        {
+          manifest_path: 'run_manifest.jsonl',
+          metadata: {
+            timestamp: '2026-05-22T12:00:00.000Z',
+            targets: ['codex'],
+            tests_run: ['canonical'],
+          },
+          run_summary: {
+            codex: {
+              pass_rate: { mean: 1 },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    git('git add runs && git commit -m "seed duplicate manifests"', repoDir);
+
+    const runs = await listGitRuns(repoDir, 'HEAD');
+
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({
+      run_id: '2026-05-22T12-00-00-000Z',
+      manifest_path: 'runs/default/2026-05-22T12-00-00-000Z/run_manifest.jsonl',
+      test_count: 1,
+      avg_score: 1,
+    });
   });
 
   it('returns an empty list when the ref has no committed runs', async () => {
@@ -536,7 +590,7 @@ describe('listGitRuns', () => {
     const runDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
     writeFileSync(
-      path.join(runDir, 'index.jsonl'),
+      path.join(runDir, 'run_manifest.jsonl'),
       `${JSON.stringify({
         test_id: 'alpha',
         target: 'gpt-4o',
@@ -547,6 +601,7 @@ describe('listGitRuns', () => {
       path.join(runDir, 'summary.json'),
       JSON.stringify(
         {
+          manifest_path: 'run_manifest.jsonl',
           metadata: {
             timestamp: '2026-05-20T10:00:00.000Z',
             targets: ['gpt-4o'],
@@ -591,10 +646,11 @@ describe('listGitRuns', () => {
   it('materializes an entire run subtree atomically from git objects', async () => {
     const runDir = path.join(repoDir, 'runs', 'with-files', '2026-05-22T10-00-00-000Z');
     mkdirSync(path.join(runDir, 'attachments'), { recursive: true });
-    writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
+    writeFileSync(path.join(runDir, 'run_manifest.jsonl'), '{"test_id":"alpha"}\n');
     writeFileSync(
       path.join(runDir, 'summary.json'),
       JSON.stringify({
+        manifest_path: 'run_manifest.jsonl',
         metadata: {
           timestamp: '2026-05-22T10:00:00.000Z',
           experiment: 'with-files',
@@ -615,7 +671,9 @@ describe('listGitRuns', () => {
 
     await materializeGitRun(repoDir, 'with-files/2026-05-22T10-00-00-000Z', 'HEAD');
 
-    expect(readFileSync(path.join(runDir, 'index.jsonl'), 'utf8')).toContain('"test_id":"alpha"');
+    expect(readFileSync(path.join(runDir, 'run_manifest.jsonl'), 'utf8')).toContain(
+      '"test_id":"alpha"',
+    );
     expect(readFileSync(path.join(runDir, 'attachments', 'response.md'), 'utf8')).toBe(
       'hello from git\n',
     );
@@ -1332,7 +1390,7 @@ describe('results repo write path', () => {
     expect(published).toBe(true);
     expect(git('git branch --show-current', resultsRepoDir)).toBe('main');
     const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, resultsRepoDir);
-    expect(branchFiles).toContain(`runs/external/${runTimestamp}/index.jsonl`);
+    expect(branchFiles).toContain(`runs/external/${runTimestamp}/run_manifest.jsonl`);
     expect(branchFiles).not.toContain('README.md');
   }, 20000);
 
@@ -1564,7 +1622,7 @@ describe('results repo write path', () => {
       `AgentV-Run: with-skills::${runTimestamp}`,
     );
     expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
-      `runs/with-skills/${runTimestamp}/index.jsonl`,
+      `runs/with-skills/${runTimestamp}/run_manifest.jsonl`,
     );
 
     const runs = await listGitRuns(cloneDir, 'main');
@@ -1637,7 +1695,7 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
     );
-    expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
+    expect(resultTree).toContain(`runs/${destinationPath}/run_manifest.jsonl`);
     expect(resultTree).toContain(`runs/${destinationPath}/summary.json`);
     expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
     expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
@@ -1649,11 +1707,11 @@ describe('results repo write path', () => {
     expect(artifactTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
     expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
     expect(artifactTree).not.toContain(`runs/${destinationPath}/summary.json`);
-    expect(artifactTree).not.toContain(`runs/${destinationPath}/index.jsonl`);
+    expect(artifactTree).not.toContain(`runs/${destinationPath}/run_manifest.jsonl`);
 
     const index = JSON.parse(
       gitRaw(
-        `git --git-dir "${remoteDir}" show ${storageBranch}:runs/${destinationPath}/index.jsonl`,
+        `git --git-dir "${remoteDir}" show ${storageBranch}:runs/${destinationPath}/run_manifest.jsonl`,
         rootDir,
       ).toString('utf8'),
     );
@@ -1740,7 +1798,7 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
     );
-    expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
+    expect(resultTree).toContain(`runs/${destinationPath}/run_manifest.jsonl`);
     expect(resultTree).toContain(`runs/${destinationPath}/summary.json`);
     expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
     expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
@@ -2124,17 +2182,17 @@ describe('results repo write path', () => {
     ).toBe('');
   }, 20000);
 
-  it('union-merges concurrent appends to the same run index without conflict', async () => {
+  it('union-merges concurrent appends to the same run manifest without conflict', async () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
-    const indexRel = path.join('runs', 'shared', '2026-05-25T12-00-00-000Z', 'index.jsonl');
+    const indexRel = path.join('runs', 'shared', '2026-05-25T12-00-00-000Z', 'run_manifest.jsonl');
 
     await ensureResultsRepoClone(config);
     git('git config user.email "test@example.com"', cloneDir);
     git('git config user.name "Test User"', cloneDir);
 
-    // Seed a shared run index on the remote and pull it into the clone.
+    // Seed a shared run manifest on the remote and pull it into the clone.
     const seedIndex = path.join(seedDir, indexRel);
     mkdirSync(path.dirname(seedIndex), { recursive: true });
     writeFileSync(seedIndex, '{"test_id":"base"}\n');

@@ -11,6 +11,7 @@ import {
   getCategories,
 } from './discover.js';
 import { type LastConfig, loadLastConfig, saveLastConfig } from './last-config.js';
+import { resolveExistingRunPrimaryPath } from './result-layout.js';
 import { runEvalCommand } from './run-eval.js';
 import { findRepoRoot } from './shared.js';
 
@@ -89,10 +90,10 @@ async function promptMainMenu(
   type MenuChoice = 'new' | 'rerun' | 'resume' | 'exit';
   const choices: Array<{ name: string; value: MenuChoice; description?: string }> = [];
 
-  // Resume entry: only when the prior run has a known artifact dir with an index.jsonl
+  // Resume entry: only when the prior run has a known artifact dir with a manifest.
   if (lastConfig?.outputDir) {
-    const indexPath = path.join(lastConfig.outputDir, 'index.jsonl');
-    if (existsSync(indexPath)) {
+    const indexPath = resolveExistingRunPrimaryPath(lastConfig.outputDir);
+    if (indexPath && existsSync(indexPath)) {
       const dirLabel = path.basename(lastConfig.outputDir);
       choices.push({
         name: '⏯  Resume last run',
@@ -349,7 +350,7 @@ async function executeConfig(
 
   // Persist config with the resolved artifact dir so the wizard can offer
   // "Resume last run" on the next invocation. Done after a successful run so
-  // the saved outputDir always points at a real index.jsonl.
+  // the saved outputDir always points at a real run manifest.
   if (result) {
     await saveLastConfig({
       timestamp: new Date().toISOString(),

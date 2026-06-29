@@ -682,7 +682,7 @@ export interface RunEvalRequest {
   resume?: boolean;
   /** Re-run failed/errored tests while keeping passing results. */
   rerun_failed?: boolean;
-  /** Path to a previous run dir or index.jsonl — re-run only execution_error cases. */
+  /** Path to a previous run dir or run manifest — re-run only execution_error cases. */
   retry_errors?: string;
   /** Artifact directory for run output — required to target an existing run dir. */
   output?: string;

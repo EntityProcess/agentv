@@ -4,13 +4,13 @@ import path from 'node:path';
 import { type RunCache, resolveRunCacheFile } from '../../../src/commands/eval/run-cache.js';
 
 describe('resolveRunCacheFile', () => {
-  it('should resolve new directory-based cache to index.jsonl inside dir', () => {
+  it('should resolve new directory-based cache to run_manifest.jsonl inside dir', () => {
     const cache: RunCache = {
       lastRunDir: '/results/default/2026-03-24T00-00-00-000Z',
       timestamp: '',
     };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/default/2026-03-24T00-00-00-000Z', 'index.jsonl'),
+      path.join('/results/default/2026-03-24T00-00-00-000Z', 'run_manifest.jsonl'),
     );
   });
 
@@ -29,7 +29,7 @@ describe('resolveRunCacheFile', () => {
       timestamp: '',
     };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/default/2026-03-24T00-00-00-000Z', 'index.jsonl'),
+      path.join('/results/default/2026-03-24T00-00-00-000Z', 'run_manifest.jsonl'),
     );
   });
 

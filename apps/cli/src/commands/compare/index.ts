@@ -472,7 +472,7 @@ export const compareCommand = command({
       type: string,
       displayName: 'results',
       description:
-        'Run workspace or index.jsonl manifest path(s). One source: single-run mode. Two sources: pairwise mode.',
+        'Run workspace or run manifest path(s). One source: single-run mode. Two sources: pairwise mode.',
     }),
     threshold: option({
       type: optional(number),
@@ -514,7 +514,7 @@ export const compareCommand = command({
 
     try {
       if (results.length === 0) {
-        throw new Error('At least one run workspace or index.jsonl manifest is required');
+        throw new Error('At least one run workspace or run manifest is required');
       }
 
       if (results.length === 2) {
@@ -602,7 +602,7 @@ export const compareCommand = command({
           process.exit(exitCode);
         }
       } else {
-        throw new Error('Expected 1 or 2 run workspaces or index.jsonl manifests');
+        throw new Error('Expected 1 or 2 run workspaces or run manifests');
       }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);

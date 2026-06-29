@@ -23,7 +23,7 @@ export const sourceArg = positional({
   type: optional(string),
   displayName: 'source',
   description:
-    'Run workspace directory or index.jsonl manifest (defaults to most recent in .agentv/results/)',
+    'Run workspace directory or run manifest (defaults to most recent in .agentv/results/)',
 });
 
 /**

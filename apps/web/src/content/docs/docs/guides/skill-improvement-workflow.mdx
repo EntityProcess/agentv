@@ -256,7 +256,7 @@ If you've been using the Agent Skills skill-creator workflow, AgentV reads your 
 | `claude -p "prompt"` | `agentv eval evals.json --target claude` | Same eval, richer engine |
 | `grading.json` (read) | `<test-id>/grading.json` (write) | Same per-test schema, AgentV writes one grading file per test case |
 | `summary.json` (read) | `<output>/summary.json` (write) | AgentV writes the canonical run summary; convert it in a wrapper if another tool needs a narrower compatibility shape |
-| n/a | `index.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
+| n/a | `run_manifest.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
 | with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
 | Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code graders, etc. |
 
@@ -274,7 +274,7 @@ agentv pipeline run evals/my-eval.yaml --experiment without_skills
 agentv pipeline run evals/my-eval.yaml --experiment with_skills
 ```
 
-Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `index.jsonl`, making it easy to filter and compare in dashboards.
+Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `run_manifest.jsonl`, making it easy to filter and compare in dashboards.
 
 This replaces the need for separate `--target baseline` / `--target candidate` configurations when the only difference between runs is the workspace setup (skills, config, etc.) rather than the target harness.
 

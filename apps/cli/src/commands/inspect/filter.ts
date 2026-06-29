@@ -14,7 +14,10 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
-import { isReservedResultsNamespace } from '../eval/result-layout.js';
+import {
+  isReservedResultsNamespace,
+  resolveExistingRunPrimaryPath,
+} from '../eval/result-layout.js';
 import { normalizeResultRow } from '../results/result-row-schema.js';
 import { c, formatScore, padLeft, padRight } from './utils.js';
 
@@ -34,9 +37,14 @@ export interface FilterableRecord {
 }
 
 /**
- * Recursively collect all index.jsonl files under the runs directory.
+ * Recursively collect one run manifest per bundle under the runs directory.
  */
 function collectIndexFiles(dir: string): string[] {
+  const primaryPath = resolveExistingRunPrimaryPath(dir);
+  if (primaryPath) {
+    return [primaryPath];
+  }
+
   const files: string[] = [];
   try {
     const entries = readdirSync(dir, { withFileTypes: true });
@@ -44,8 +52,6 @@ function collectIndexFiles(dir: string): string[] {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectIndexFiles(fullPath));
-      } else if (entry.name === 'index.jsonl') {
-        files.push(fullPath);
       }
     }
   } catch {
@@ -64,8 +70,6 @@ function collectCurrentResultIndexFiles(cwd: string): string[] {
       const fullPath = path.join(resultsDir, entry.name);
       if (entry.isDirectory()) {
         files.push(...collectIndexFiles(fullPath));
-      } else if (entry.name === 'index.jsonl') {
-        files.push(fullPath);
       }
     }
   } catch {

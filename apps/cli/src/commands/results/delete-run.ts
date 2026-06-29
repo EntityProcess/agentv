@@ -3,7 +3,7 @@
  * Dashboard API.
  *
  * Deletes exactly one local run workspace directory under `.agentv/results/`.
- * Callers may pass a run ID, run workspace directory, or `index.jsonl` path.
+ * Callers may pass a run ID, run workspace directory, or run manifest path.
  * Remote runs and paths outside the local results tree are rejected before
  * anything is removed.
  */
@@ -12,7 +12,9 @@ import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 import {
+  LEGACY_RESULT_INDEX_FILENAME,
   RESULT_INDEX_FILENAME,
+  isRunManifestPath,
   relativeRunPathFromCwd,
   resolveRunManifestPath,
 } from '../eval/result-layout.js';
@@ -32,8 +34,10 @@ export interface DeleteRunResult extends DeleteRunTarget {
 
 function assertLocalRunManifest(cwd: string, manifestPath: string, runId: string): DeleteRunTarget {
   const resolvedManifestPath = path.resolve(manifestPath);
-  if (path.basename(resolvedManifestPath) !== RESULT_INDEX_FILENAME) {
-    throw new Error('Expected a run workspace directory or index.jsonl manifest');
+  if (!isRunManifestPath(resolvedManifestPath)) {
+    throw new Error(
+      `Expected a run workspace directory or ${RESULT_INDEX_FILENAME} manifest (legacy ${LEGACY_RESULT_INDEX_FILENAME} is also readable)`,
+    );
   }
 
   const runDir = path.dirname(resolvedManifestPath);

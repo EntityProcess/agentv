@@ -6,7 +6,7 @@
  * content with surrounding context.
  *
  * Supported sources:
- * - Run result manifests (index.jsonl) — searches serialized JSON content
+ * - Run result manifests — searches serialized JSON content
  * - Transcript JSONL files — searches message content and tool call data
  *
  * To extend: add new scanners in the `scanSources()` function for additional

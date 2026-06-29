@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -19,6 +20,7 @@ import {
   type AggregateGradingArtifact,
   type GradingArtifact,
   type IndexArtifactEntry,
+  RESULT_INDEX_FILENAME,
   type RunSummaryArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
@@ -894,7 +896,7 @@ describe('writeArtifactsFromResults', () => {
     await rm(testDir, { recursive: true, force: true }).catch(() => undefined);
   });
 
-  it('writes summary, index, and per-run artifact files', async () => {
+  it('writes summary, run manifest, and per-run artifact files', async () => {
     const results = [
       makeResult({ testId: 'alpha', score: 0.9, durationMs: 5000 }),
       makeResult({ testId: 'beta', score: 0.6, durationMs: 8000 }),
@@ -904,6 +906,8 @@ describe('writeArtifactsFromResults', () => {
       evalFile: 'my-eval.yaml',
     });
 
+    expect(path.basename(paths.indexPath)).toBe('run_manifest.jsonl');
+    expect(existsSync(path.join(testDir, 'index.jsonl'))).toBe(false);
     const indexLines = await readIndexLines(paths.indexPath);
     expect(indexLines).toHaveLength(2);
     const alphaRowDir = expectRowDir(indexLines[0], 'alpha');
@@ -915,9 +919,12 @@ describe('writeArtifactsFromResults', () => {
     expect(artifactEntries.sort()).toEqual([
       alphaRowDir,
       betaRowDir,
-      'index.jsonl',
+      RESULT_INDEX_FILENAME,
       'summary.json',
     ]);
+
+    const rootSummary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(rootSummary.manifest_path).toBe(RESULT_INDEX_FILENAME);
 
     const alphaEntries = await readdir(path.join(paths.testArtifactDir, alphaRowDir));
     expect(alphaEntries.sort()).toEqual(['run-1', 'summary.json']);
@@ -1159,9 +1166,10 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults([], testDir);
 
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual(['index.jsonl', 'summary.json']);
+    expect(artifactEntries.sort()).toEqual([RESULT_INDEX_FILENAME, 'summary.json']);
 
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
     expect(summary.notes).toContain('No results to summarize');
     expect(summary.timing.total_tokens).toBe(0);
     expect(await readFile(paths.indexPath, 'utf8')).toBe('');
@@ -2240,9 +2248,10 @@ describe('writeArtifacts (from JSONL file)', () => {
     const artifactEntries = await readdir(paths.testArtifactDir);
     const [indexLine] = await readIndexLines(paths.indexPath);
     expect(artifactEntries).toContain(expectRowDir(indexLine, 'from-file'));
-    expect(artifactEntries).toContain('index.jsonl');
+    expect(artifactEntries).toContain(RESULT_INDEX_FILENAME);
 
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
     expect(summary.timing.duration_ms).toBe(12000);
     expect(summary.timing.total_tokens).toBe(700);
   });

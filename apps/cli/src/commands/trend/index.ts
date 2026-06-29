@@ -3,7 +3,7 @@ import path from 'node:path';
 import { command, flag, number, oneOf, option, optional, restPositionals, string } from 'cmd-ts';
 
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
-import { RESULT_INDEX_FILENAME } from '../eval/result-layout.js';
+import { RESULT_INDEX_FILENAME, isRunManifestPath } from '../eval/result-layout.js';
 import { listResultFiles } from '../inspect/utils.js';
 import {
   type LightweightResultRecord,
@@ -118,7 +118,7 @@ function colorizeSlope(value: number): string {
 
 function ensureTrendIndexPath(source: string, cwd: string): string {
   const resolved = resolveResultSourcePath(source, cwd);
-  if (path.basename(resolved) !== RESULT_INDEX_FILENAME) {
+  if (!isRunManifestPath(resolved)) {
     throw new Error(
       `Unsupported result source for trend: ${source}. Use a run workspace directory or ${RESULT_INDEX_FILENAME} manifest.`,
     );
@@ -148,7 +148,7 @@ export function resolveTrendSources(
   }
 
   const metas = listResultFiles(cwd)
-    .filter((meta) => path.basename(meta.path) === RESULT_INDEX_FILENAME)
+    .filter((meta) => isRunManifestPath(meta.path))
     .slice(0, last);
 
   if (metas.length < 2) {
@@ -409,7 +409,7 @@ export const trendCommand = command({
     runs: restPositionals({
       type: string,
       displayName: 'runs',
-      description: 'Run workspace directories or index.jsonl manifest paths',
+      description: 'Run workspace directories or run manifest paths',
     }),
     last: option({
       type: optional(number),

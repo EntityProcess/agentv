@@ -1,7 +1,7 @@
 /**
  * Per-run tag sidecar file helpers.
  *
- * Tags are stored as a `tags.json` sidecar next to the run's `index.jsonl`
+ * Tags are stored as a `tags.json` sidecar next to the run manifest
  * manifest. The sidecar is optional, mutable, and non-breaking — absence
  * means the run has no user-assigned tags.
  *
@@ -52,7 +52,7 @@ export interface RunTagsFile {
   tag_revision: string;
 }
 
-/** Resolve the tags sidecar path given a run manifest (index.jsonl) path. */
+/** Resolve the tags sidecar path given a run manifest path. */
 export function runTagsPath(manifestPath: string): string {
   return path.join(path.dirname(manifestPath), RUN_TAGS_FILENAME);
 }

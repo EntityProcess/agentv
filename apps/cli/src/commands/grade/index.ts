@@ -298,7 +298,7 @@ function printHumanOutput(result: GradePreparedResult): void {
     console.log(`Trace: ${result.tracePath}`);
   }
   console.log(`Artifact workspace: ${result.outputDir}`);
-  console.log(`Index: ${result.indexPath}`);
+  console.log(`Run manifest: ${result.indexPath}`);
 }
 
 function isTraceEnvelopeDocument(value: unknown): boolean {
@@ -625,7 +625,7 @@ export const gradeCommand = command({
       type: optional(string),
       long: 'output',
       short: 'o',
-      description: 'Run artifact directory (writes index.jsonl and per-test artifacts)',
+      description: 'Run artifact directory (writes run_manifest.jsonl and per-test artifacts)',
     }),
     response: option({
       type: optional(string),

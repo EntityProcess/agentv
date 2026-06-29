@@ -37,10 +37,15 @@ async function createRunWorkspace(
 ): Promise<{ runDir: string; indexPath: string }> {
   const runDir = path.join(rootDir, '.agentv', 'results', 'default', runName);
   await mkdir(runDir, { recursive: true });
-  const indexPath = path.join(runDir, 'index.jsonl');
+  const indexPath = path.join(runDir, 'run_manifest.jsonl');
   await writeFile(
     indexPath,
     `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(runDir, 'summary.json'),
+    `${JSON.stringify({ manifest_path: 'run_manifest.jsonl' })}\n`,
     'utf8',
   );
   return { runDir, indexPath };
@@ -237,6 +242,69 @@ describe('trend command', () => {
     expect(() => resolveTrendSources(cwd, [flatFile])).toThrow(
       'Unsupported result source for trend',
     );
+  });
+
+  it('still accepts legacy index.jsonl run manifests explicitly', async () => {
+    const cwd = await createTempDir();
+    cleanupDirs.push(cwd);
+
+    const runDir = path.join(cwd, '.agentv', 'results', 'default', '2026-03-01T10-00-00-000Z');
+    await mkdir(runDir, { recursive: true });
+    const legacyManifest = path.join(runDir, 'index.jsonl');
+    await writeFile(
+      legacyManifest,
+      `${JSON.stringify({
+        test_id: 't1',
+        target: 'alpha',
+        score: 0.9,
+        timestamp: '2026-03-01T10:00:00.000Z',
+      })}\n`,
+      'utf8',
+    );
+
+    expect(resolveTrendSources(cwd, [legacyManifest])).toEqual([legacyManifest]);
+  });
+
+  it('discovers legacy-only run workspaces with --last', async () => {
+    const cwd = await createTempDir();
+    cleanupDirs.push(cwd);
+
+    const firstRunDir = path.join(cwd, '.agentv', 'results', 'default', '2026-03-01T10-00-00-000Z');
+    const secondRunDir = path.join(
+      cwd,
+      '.agentv',
+      'results',
+      'default',
+      '2026-03-08T10-00-00-000Z',
+    );
+    await mkdir(firstRunDir, { recursive: true });
+    await mkdir(secondRunDir, { recursive: true });
+    const firstRecord = {
+      test_id: 't1',
+      score: 0.8,
+      timestamp: '2026-03-01T10:00:00.000Z',
+    };
+    const secondRecord = {
+      test_id: 't1',
+      score: 0.85,
+      timestamp: '2026-03-08T10:00:00.000Z',
+    };
+    await writeFile(
+      path.join(firstRunDir, 'index.jsonl'),
+      `${JSON.stringify(firstRecord)}\n`,
+      'utf8',
+    );
+    await writeFile(
+      path.join(secondRunDir, 'index.jsonl'),
+      `${JSON.stringify(secondRecord)}\n`,
+      'utf8',
+    );
+
+    const sources = resolveTrendSources(cwd, [], 2);
+    expect(sources).toEqual([
+      path.join(firstRunDir, 'index.jsonl'),
+      path.join(secondRunDir, 'index.jsonl'),
+    ]);
   });
 
   it('discovers canonical run workspaces with --last ordering oldest to newest', async () => {

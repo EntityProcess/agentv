@@ -338,7 +338,7 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(0);
-      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
+      const indexPath = path.join(outputDir, 'file-target', 'run_manifest.jsonl');
       expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).toContain(`Artifact directory: ${outputDir}`);
 
@@ -366,7 +366,7 @@ describe('agentv eval CLI', () => {
 
       const outputDir = path.join(fixture.suiteDir, 'configured-results');
       expect(exitCode).toBe(0);
-      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
+      const indexPath = path.join(outputDir, 'file-target', 'run_manifest.jsonl');
       expect(extractOutputPath(stdout)).toBe(indexPath);
       await expectFileExists(indexPath);
       await expectFileExists(path.join(outputDir, 'file-target', 'summary.json'));
@@ -382,7 +382,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('rejects removed --export and keeps --output as the canonical index location', async () => {
+  it('rejects removed --export and keeps --output as the canonical manifest location', async () => {
     const fixture = await createFixture();
     try {
       const outputDir = path.join(fixture.baseDir, 'run');
@@ -410,7 +410,7 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(1);
-      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
+      const indexPath = path.join(outputDir, 'file-target', 'run_manifest.jsonl');
       expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).not.toContain('Export files:');
 
@@ -454,14 +454,14 @@ describe('agentv eval CLI', () => {
       },
       {
         args: ['--output-format', 'html'],
-        expected: ['--output-format was removed', 'index.jsonl'],
+        expected: ['--output-format was removed', 'run_manifest.jsonl'],
       },
       {
         args: ['--output', 'results.xml'],
         expected: [
           '--output expects a run directory',
           'JUnit XML export from agentv eval has been removed',
-          '<dir>/index.jsonl',
+          '<dir>/run_manifest.jsonl',
         ],
       },
     ] as const;

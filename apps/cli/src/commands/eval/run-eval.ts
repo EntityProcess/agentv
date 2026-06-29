@@ -64,6 +64,7 @@ import { resolveOtelBackend } from './otel-backends.js';
 import { type OutputWriter, createOutputWriter } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import {
+  RESULT_INDEX_FILENAME,
   buildDefaultRunDirFromName,
   createRunDirName,
   discoverRunManifestPaths,
@@ -139,7 +140,7 @@ interface NormalizedOptions {
   readonly keepWorkspaces: boolean;
   /** Removed: use --output instead */
   readonly artifacts?: string;
-  /** Removed: the run directory always uses index.jsonl */
+  /** Removed: the run directory always uses run_manifest.jsonl */
   readonly outputFormat?: string;
   readonly graderTarget?: string;
   readonly model?: string;
@@ -288,7 +289,7 @@ function outputFileMigrationMessage(value: string): string {
     ext === '.xml'
       ? 'JUnit XML export from agentv eval has been removed.'
       : 'Flat result file export from agentv eval has been removed.';
-  return `--output expects a run directory, not a file path: ${value}\n${removalHint} Set --output <dir> for the canonical run artifacts; AgentV always writes <dir>/index.jsonl.`;
+  return `--output expects a run directory, not a file path: ${value}\n${removalHint} Set --output <dir> for the canonical run artifacts; AgentV always writes <dir>/${RESULT_INDEX_FILENAME}.`;
 }
 
 function artifactsMigrationMessage(artifactsDir: string, outputDir?: string): string {
@@ -1076,7 +1077,7 @@ class BundleOutputWriter implements OutputWriter {
     }
     const dir = resultBundleDir(this.invocationDir, result);
     mkdirSync(dir, { recursive: true });
-    const indexPath = path.join(dir, 'index.jsonl');
+    const indexPath = path.join(dir, RESULT_INDEX_FILENAME);
     const writer = await createOutputWriter(indexPath, { append: this.appendMode });
     this.writers.set(key, { dir, indexPath, writer });
     return writer;
@@ -1682,7 +1683,7 @@ export async function runEvalCommand(
   }
   if (options.outputFormat) {
     throw new Error(
-      '--output-format was removed from agentv eval. The run directory always writes index.jsonl.',
+      `--output-format was removed from agentv eval. The run directory always writes ${RESULT_INDEX_FILENAME}.`,
     );
   }
   if (options.artifacts) {
@@ -1754,8 +1755,8 @@ export async function runEvalCommand(
           `${modeLabel}: found ${existingResults.length} existing result(s), skipping ${resumeSkipKeys.size} completed.`,
         );
       } else {
-        // No existing bundle index.jsonl — behave like a normal run
-        console.log('Resume: no existing bundle index.jsonl found, starting fresh run.');
+        // No existing bundle manifest — behave like a normal run.
+        console.log('Resume: no existing bundle run manifest found, starting fresh run.');
       }
     } else {
       console.warn(
@@ -2430,7 +2431,7 @@ export async function runEvalCommand(
       }
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then
-        // aggregate each bundle from its full index.jsonl (old + new results
+        // aggregate each bundle from its full row manifest (old + new results
         // with deduplication).
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
         for (const bundleResults of resultsByBundle.values()) {
@@ -2450,9 +2451,9 @@ export async function runEvalCommand(
             experimentMetadata: runExperimentMetadata,
             runtimeSource: runtimeSourceMetadata,
           });
-          const indexPath = path.join(bundleDir, 'index.jsonl');
+          const indexPath = path.join(bundleDir, RESULT_INDEX_FILENAME);
           console.log(`Artifact bundle updated: ${bundleDir}`);
-          console.log(`  Index: ${indexPath}`);
+          console.log(`  Run manifest: ${indexPath}`);
           console.log(
             `  Per-test artifacts: ${bundleDir} (${bundleResults.length} new test directories)`,
           );
@@ -2477,7 +2478,7 @@ export async function runEvalCommand(
             },
           );
           console.log(`Artifact bundle written to: ${bundleDir}`);
-          console.log(`  Index: ${indexPath}`);
+          console.log(`  Run manifest: ${indexPath}`);
           console.log(
             `  Per-test artifacts: ${testArtifactDir} (${bundleResults.length} test directories)`,
           );

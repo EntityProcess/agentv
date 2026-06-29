@@ -80,7 +80,7 @@ Benchmark task packs map cleanly onto AgentV fields at authoring time:
 Use this separation only when it makes the source eval easier to maintain. It is
 not a first-class artifact schema. After an eval runs, AgentV writes the portable
 audit surface into the generated run folder: each result can link from
-`index.jsonl` to a run-local `task/` bundle containing `EVAL.yaml`,
+`run_manifest.jsonl` to a run-local `task/` bundle containing `EVAL.yaml`,
 `targets.yaml`, and copied `files/` or `graders/` snapshots where applicable.
 Review, Dashboard files views, and rerun workflows should inspect those generated
 run artifacts instead of requiring authors to maintain a parallel source-side

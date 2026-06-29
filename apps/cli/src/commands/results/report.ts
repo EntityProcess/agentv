@@ -296,7 +296,7 @@ export async function writeResultsReport(
 
 export const resultsReportCommand = command({
   name: 'report',
-  description: 'Generate a static HTML report from a run workspace or index.jsonl manifest',
+  description: 'Generate a static HTML report from a run workspace or run manifest',
   args: {
     source: sourceArg,
     out: option({

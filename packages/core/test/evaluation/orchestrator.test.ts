@@ -30,7 +30,10 @@ import {
   type ReplayFixtureRecord,
   serializeReplayFixtureRecord,
 } from '../../src/evaluation/replay-fixtures.js';
-import { writeArtifactsFromResults } from '../../src/evaluation/run-artifacts.js';
+import {
+  RESULT_INDEX_FILENAME,
+  writeArtifactsFromResults,
+} from '../../src/evaluation/run-artifacts.js';
 import { RunBudgetTracker } from '../../src/evaluation/run-budget-tracker.js';
 import {
   buildTraceEnvelopeFromEvaluationResult,
@@ -760,7 +763,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     const outputDir = path.join(tempDir, 'artifacts');
     await writeArtifactsFromResults([result], outputDir);
 
-    const indexRows = readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+    const indexRows = readFileSync(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8')
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, string | undefined>);
