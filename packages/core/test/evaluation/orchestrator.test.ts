@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -723,9 +730,13 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(result.failureReasonCode).toBe('provider_error');
   });
 
-  it('stores raw provider logs once as transcript-raw evidence', async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-raw-provider-log-'));
-    const rawLogPath = path.join(tempDir, 'provider-native-session.jsonl');
+  it('stores raw provider logs once as transcript-raw evidence and cleans staging files', async () => {
+    const stagingRoot = path.join(tmpdir(), 'agentv-provider-streams');
+    mkdirSync(stagingRoot, { recursive: true });
+    const tempDir = mkdtempSync(path.join(stagingRoot, 'raw-provider-log-'));
+    const rawLogDir = path.join(tempDir, 'suite', 'case-1', 'logs', 'codex');
+    mkdirSync(rawLogDir, { recursive: true });
+    const rawLogPath = path.join(rawLogDir, 'provider-native-session.jsonl');
     writeFileSync(rawLogPath, '{"event":"provider-native"}\n', 'utf8');
 
     const provider = new SequenceProvider('mock', {
@@ -770,6 +781,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(indexRows[0]?.trace_path).toBeUndefined();
     expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/run-1/transcript.jsonl`);
     expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/run-1/transcript-raw.jsonl`);
+    expect(existsSync(rawLogPath)).toBe(false);
   });
 
   it('reports failed progress status for batch item errors', async () => {

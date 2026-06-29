@@ -8,7 +8,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
@@ -1520,6 +1521,35 @@ function rawProviderLogSourcePath(result: EvaluationResult): string | undefined 
   return sourcePath ? sourcePath : undefined;
 }
 
+function providerStagingRoot(): string {
+  return path.resolve(tmpdir(), 'agentv-provider-streams');
+}
+
+function isAgentvProviderStagingPath(filePath: string): boolean {
+  const root = providerStagingRoot();
+  const resolved = path.resolve(filePath);
+  return resolved.startsWith(`${root}${path.sep}`);
+}
+
+async function cleanupProviderStagingFile(filePath: string): Promise<void> {
+  if (!isAgentvProviderStagingPath(filePath)) {
+    return;
+  }
+
+  await rm(filePath, { force: true });
+
+  const root = providerStagingRoot();
+  let current = path.dirname(path.resolve(filePath));
+  while (current !== root && current.startsWith(`${root}${path.sep}`)) {
+    try {
+      await rmdir(current);
+    } catch {
+      break;
+    }
+    current = path.dirname(current);
+  }
+}
+
 interface TraceEnvelopeSidecarParams {
   readonly result: EvaluationResult;
   readonly outputDir: string;
@@ -1748,6 +1778,7 @@ async function writeRawTranscriptJsonl(
   const rawSource = rawProviderLogSourcePath(result);
   if (rawSource) {
     await copyFile(rawSource, filePath);
+    await cleanupProviderStagingFile(rawSource).catch(() => undefined);
     return;
   }
   await writeGeneratedRawTranscriptJsonl(filePath, result, envelope);

@@ -65,8 +65,6 @@ export class ProgressDisplay {
   private readonly workers: Map<number, WorkerProgress> = new Map();
   private totalTests = 0;
   private completedTests = 0;
-  private readonly logPaths: string[] = [];
-  private readonly logPathSet = new Set<string>();
   private started = false;
   private finished = false;
   private readonly verbose: boolean;
@@ -133,24 +131,7 @@ export class ProgressDisplay {
   }
 
   addLogPaths(paths: readonly string[]): void {
-    const newPaths: string[] = [];
-    for (const path of paths) {
-      if (this.logPathSet.has(path)) {
-        continue;
-      }
-      this.logPathSet.add(path);
-      newPaths.push(path);
-    }
-
-    if (newPaths.length === 0) {
-      return;
-    }
-
-    this.logPaths.push(...newPaths);
-
-    for (const p of newPaths) {
-      console.log(`Provider log: ${p}`);
-    }
+    void paths;
   }
 
   finish(): void {

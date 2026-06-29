@@ -1655,6 +1655,7 @@ describe('writeArtifactsFromResults', () => {
 
     const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);
+    await expect(readFile(rawLogPath, 'utf8')).resolves.toBe(rawLog);
     await expect(readFile(path.join(testDir, rowDir, 'transcript.json'), 'utf8')).rejects.toThrow();
 
     const transcriptLines = (

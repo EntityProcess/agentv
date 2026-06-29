@@ -105,4 +105,24 @@ describe('ProgressDisplay', () => {
 
     expect(logs).toEqual(['1/1   ✅ test-01-biosecurity | wtalms-stg | 98% PASS']);
   });
+
+  it('does not print provider staging log paths', () => {
+    const display = new ProgressDisplay(1);
+    const logs: string[] = [];
+    const logSpy = mock((message?: unknown) => {
+      logs.push(String(message ?? ''));
+    });
+    const originalLog = console.log;
+    console.log = logSpy as typeof console.log;
+
+    try {
+      display.addLogPaths([
+        '/tmp/agentv-provider-streams/run-001/case/logs/codex/codex-stream.log',
+      ]);
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(logs).toEqual([]);
+  });
 });
