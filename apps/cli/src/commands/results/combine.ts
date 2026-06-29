@@ -96,7 +96,7 @@ export const resultsCombineCommand = command({
     sources: restPositionals({
       type: string,
       displayName: 'source',
-      description: 'Run workspace directory or index.jsonl manifest',
+      description: 'Run workspace directory or run manifest',
     }),
     output: option({
       type: optional(string),
@@ -125,7 +125,7 @@ export const resultsCombineCommand = command({
   },
   handler: async (args) => {
     if (args.sources.length < 2) {
-      console.error('Error: provide at least two run workspaces or index.jsonl manifests');
+      console.error('Error: provide at least two run workspaces or run manifests');
       process.exit(1);
     }
 

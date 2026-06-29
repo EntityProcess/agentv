@@ -6,7 +6,7 @@
  *
  * Writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
- *   - index.jsonl             (one line per test)
+ *   - run_manifest.jsonl      (one line per test)
  *   - summary.json            (aggregate statistics)
  */
 import { existsSync } from 'node:fs';
@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { command, positional, string } from 'cmd-ts';
 
-import { DEFAULT_THRESHOLD, type EvaluationResult } from '@agentv/core';
+import { DEFAULT_THRESHOLD, type EvaluationResult, RESULT_INDEX_FILENAME } from '@agentv/core';
 import { maybeAutoExportRunArtifacts } from '../results/remote.js';
 
 interface EvaluatorScore {
@@ -192,9 +192,9 @@ export const evalBenchCommand = command({
       );
     }
 
-    // Write index.jsonl
+    // Write row-level run manifest.
     await writeFile(
-      join(exportDir, 'index.jsonl'),
+      join(exportDir, RESULT_INDEX_FILENAME),
       indexLines.length > 0 ? `${indexLines.join('\n')}\n` : '',
       'utf8',
     );
@@ -202,6 +202,7 @@ export const evalBenchCommand = command({
     // Write summary.json
     const passRateStats = computeStats(allPassRates);
     const summary = {
+      manifest_path: RESULT_INDEX_FILENAME,
       metadata: {
         eval_file: manifest.eval_file,
         timestamp: manifest.timestamp,

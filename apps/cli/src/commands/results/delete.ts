@@ -2,7 +2,7 @@
  * `agentv results delete` — remove one or more local run workspaces.
  *
  * The command requires confirmation unless `--yes` is passed. It accepts local
- * run IDs, run workspace directories, or `index.jsonl` manifests and refuses
+ * run IDs, run workspace directories, or run manifests and refuses
  * remote runs.
  */
 
@@ -28,7 +28,7 @@ export const resultsDeleteCommand = command({
     runs: restPositionals({
       type: string,
       displayName: 'run',
-      description: 'Local run ID, run workspace directory, or index.jsonl manifest',
+      description: 'Local run ID, run workspace directory, or run manifest',
     }),
     yes: flag({
       long: 'yes',

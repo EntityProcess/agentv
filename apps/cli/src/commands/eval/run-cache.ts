@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
   RESULT_INDEX_FILENAME,
   discoverRunManifestPaths,
+  isRunManifestPath,
   resolveExistingRunPrimaryPath,
   resolveRunIndexPath,
 } from './result-layout.js';
@@ -67,8 +68,7 @@ export async function resolveCachedRunDir(cwd: string): Promise<string | undefin
 
 export async function saveRunCache(cwd: string, resultPath: string): Promise<void> {
   const dir = path.join(cwd, '.agentv');
-  const lastRunDir =
-    path.basename(resultPath) === RESULT_INDEX_FILENAME ? path.dirname(resultPath) : resultPath;
+  const lastRunDir = isRunManifestPath(resultPath) ? path.dirname(resultPath) : resultPath;
   await mkdir(dir, { recursive: true });
   const cache: RunCache = {
     lastRunDir,

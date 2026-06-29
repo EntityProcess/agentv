@@ -77,7 +77,11 @@ import { Hono } from 'hono';
 
 import { enforceRequiredVersion } from '../../version-check.js';
 import { parseJsonlResults } from '../eval/artifact-writer.js';
-import { relativeRunPathFromCwd } from '../eval/result-layout.js';
+import {
+  RESULT_INDEX_FILENAME,
+  isRunManifestPath,
+  relativeRunPathFromCwd,
+} from '../eval/result-layout.js';
 import { loadRunCache, resolveRunCacheFile } from '../eval/run-cache.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { listResultFiles } from '../inspect/utils.js';
@@ -131,7 +135,7 @@ const DIRECT_DASHBOARD_SOURCE_GUIDANCE = [
   'Run it from a project root, or pass --dir so Dashboard uses <project>/.agentv/results/:',
   '  agentv dashboard --dir <project-dir>',
   'To browse external results, configure results.repo.remote or results.repo.path in config YAML.',
-  'For a one-off run bundle, use: agentv results report <run-workspace-or-index.jsonl>',
+  `For a one-off run bundle, use: agentv results report <run-workspace-or-${RESULT_INDEX_FILENAME}>`,
 ].join('\n');
 
 function unsupportedDashboardSourceError(source: string, cwd: string): Error {
@@ -679,7 +683,8 @@ function manifestRecordSelection(
 function relativeRunPathFromNormalizedManifestPath(manifestPath: string): string | undefined {
   const parts = manifestPath.split('/').filter(Boolean);
   const runsIndex = parts.lastIndexOf('runs');
-  if (runsIndex === -1 || parts.at(-1) !== 'index.jsonl') {
+  const manifestName = parts.at(-1);
+  if (runsIndex === -1 || !manifestName || !isRunManifestPath(manifestName)) {
     return undefined;
   }
   const runParts = parts.slice(runsIndex + 1, -1);
@@ -3031,7 +3036,7 @@ function validateLocalCompletedRun(
   }
 
   const manifestPath = path.resolve(meta.path);
-  if (path.basename(manifestPath) !== 'index.jsonl') {
+  if (!isRunManifestPath(manifestPath)) {
     return { error: 'Run workspace is invalid', status: 400 };
   }
 

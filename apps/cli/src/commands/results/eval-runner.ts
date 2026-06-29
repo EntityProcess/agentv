@@ -29,7 +29,11 @@ import type { Hono } from 'hono';
 
 import { TARGET_FILE_CANDIDATES } from '../../utils/targets.js';
 import { discoverEvalFiles } from '../eval/discover.js';
-import { buildDefaultRunDir, normalizeExperimentName } from '../eval/result-layout.js';
+import {
+  RESULT_INDEX_FILENAME,
+  buildDefaultRunDir,
+  normalizeExperimentName,
+} from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { normalizeTags, writeRunTags } from './run-tags.js';
 
@@ -74,12 +78,12 @@ function pruneFinishedRuns() {
 }
 
 /**
- * Look up the target for a Dashboard-launched run by its index.jsonl path.
+ * Look up the target for a Dashboard-launched run by its run manifest path.
  * Called by handleRuns in serve.ts when the JSONL has 0 records (run just started).
  */
 export function getActiveRunTarget(indexJsonlPath: string): string | undefined {
   for (const run of activeRuns.values()) {
-    if (run.outputDir && path.join(run.outputDir, 'index.jsonl') === indexJsonlPath) {
+    if (run.outputDir && path.join(run.outputDir, RESULT_INDEX_FILENAME) === indexJsonlPath) {
       return run.target;
     }
   }
@@ -87,14 +91,14 @@ export function getActiveRunTarget(indexJsonlPath: string): string | undefined {
 }
 
 /**
- * Look up the in-memory status for a Dashboard-launched run by its index.jsonl path.
+ * Look up the in-memory status for a Dashboard-launched run by its manifest path.
  * Returns 'starting' | 'running' | 'finished' | 'failed' if the run is tracked,
  * else undefined. Used by handleRuns to render a spinner for active runs in the
  * RunList instead of a misleading red ✗ derived from a 0 pass-rate.
  */
 export function getActiveRunStatus(indexJsonlPath: string): DashboardRun['status'] | undefined {
   for (const run of activeRuns.values()) {
-    if (run.outputDir && path.join(run.outputDir, 'index.jsonl') === indexJsonlPath) {
+    if (run.outputDir && path.join(run.outputDir, RESULT_INDEX_FILENAME) === indexJsonlPath) {
       return run.status;
     }
   }
@@ -149,7 +153,7 @@ interface RunEvalRequest {
   resume?: boolean;
   /** Re-run failed/errored tests while keeping passing results. */
   rerun_failed?: boolean;
-  /** Path to a previous run dir or index.jsonl — re-run only execution_error cases. */
+  /** Path to a previous run dir or run manifest — re-run only execution_error cases. */
   retry_errors?: string;
   /** Artifact directory for run output. Required when resume/rerun_failed are set without auto-detect. */
   output?: string;
@@ -330,7 +334,7 @@ function openConsoleLogStream(outputDir: string): WriteStream | undefined {
 function writeInitialRunTags(outputDir: string, tags: readonly string[]): void {
   if (tags.length === 0) return;
   mkdirSync(outputDir, { recursive: true });
-  writeRunTags(path.join(outputDir, 'index.jsonl'), tags);
+  writeRunTags(path.join(outputDir, RESULT_INDEX_FILENAME), tags);
 }
 
 // ── Route registration ───────────────────────────────────────────────────
@@ -504,7 +508,7 @@ export function registerEvalRoutes(
   // ── Stop a running eval ────────────────────────────────────────────────
   // POST (not DELETE) because Stop is part of the stop → resume → complete
   // workflow, not a destructive cancel. The run remains resumable from the
-  // partial index.jsonl on disk. Idempotent: hitting /stop on a terminal
+  // partial run manifest on disk. Idempotent: hitting /stop on a terminal
   // run returns 200 with `stopped: false, reason: 'already_terminal'`
   // rather than 4xx, so clients can fire-and-forget.
   //

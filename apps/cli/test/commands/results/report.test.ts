@@ -6,7 +6,10 @@ import vm from 'node:vm';
 
 import { type EvaluationResult, type GraderResult, buildTraceFromMessages } from '@agentv/core';
 
-import { writeArtifactsFromResults } from '../../../src/commands/eval/artifact-writer.js';
+import {
+  RESULT_INDEX_FILENAME,
+  writeArtifactsFromResults,
+} from '../../../src/commands/eval/artifact-writer.js';
 import {
   deriveReportPath,
   loadReportSource,
@@ -115,7 +118,7 @@ describe('results report', () => {
       { evalFile: 'evals/demo.eval.yaml' },
     );
 
-    const indexPath = path.join(runDir, 'index.jsonl');
+    const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
     const lines = readFileSync(indexPath, 'utf8')
       .trim()
       .split('\n')

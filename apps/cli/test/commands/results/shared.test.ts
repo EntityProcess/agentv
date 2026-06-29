@@ -27,7 +27,7 @@ describe('results shared source resolution', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('resolves an explicit run workspace directory to index.jsonl', async () => {
+  it('resolves an explicit legacy run workspace directory to index.jsonl', async () => {
     const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
     writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"t1","score":1}\n');
@@ -67,7 +67,7 @@ describe('results shared source resolution', () => {
     writeFileSync(flatFile, '{"test_id":"t1","score":1}\n');
 
     expect(() => resolveRunManifestPath(flatFile)).toThrow(
-      'Expected a run workspace directory or index.jsonl manifest',
+      'Expected a run workspace directory or run_manifest.jsonl manifest',
     );
   });
 

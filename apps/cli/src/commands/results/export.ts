@@ -1,11 +1,11 @@
 /**
- * `agentv results export` — converts a canonical run workspace or index.jsonl
+ * `agentv results export` — converts a canonical run workspace or run manifest
  * manifest into a directory structure matching the artifact-writer output format.
  *
  * Output structure:
  *   <output-dir>/
  *     summary.json             — run aggregate scores, metadata, and timing
- *     index.jsonl              — per-test manifest with artifact pointers
+ *     run_manifest.jsonl       — per-test manifest with artifact pointers
  *     <test-id>/
  *       summary.json           — per-case aggregate
  *       run-1/result.json      — per-run result
@@ -28,7 +28,12 @@ import { command, flag, oneOf, option, optional, positional, string } from 'cmd-
 import type { EvaluationResult, ExportDuplicatePolicy, IndexArtifactEntry } from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
-import { RESULT_INDEX_FILENAME, isReservedResultsNamespace } from '../eval/result-layout.js';
+import {
+  LEGACY_RESULT_INDEX_FILENAME,
+  RESULT_INDEX_FILENAME,
+  isReservedResultsNamespace,
+  isRunManifestPath,
+} from '../eval/result-layout.js';
 import { loadManifestResults } from './manifest.js';
 import {
   type ProjectionBundle,
@@ -65,8 +70,10 @@ export async function exportResults(
  * Derive the default output directory from a run manifest path.
  */
 export function deriveOutputDir(cwd: string, sourceFile: string): string {
-  if (path.basename(sourceFile) !== RESULT_INDEX_FILENAME) {
-    throw new Error(`Expected a run manifest named ${RESULT_INDEX_FILENAME}: ${sourceFile}`);
+  if (!isRunManifestPath(sourceFile)) {
+    throw new Error(
+      `Expected a run manifest named ${RESULT_INDEX_FILENAME} (legacy ${LEGACY_RESULT_INDEX_FILENAME} is also readable): ${sourceFile}`,
+    );
   }
 
   const runDir = path.dirname(sourceFile);
@@ -87,7 +94,7 @@ export function deriveOutputDir(cwd: string, sourceFile: string): string {
 }
 
 export function deriveExportRunId(sourceFile: string): string {
-  if (path.basename(sourceFile) === RESULT_INDEX_FILENAME) {
+  if (isRunManifestPath(sourceFile)) {
     return path.basename(path.dirname(sourceFile));
   }
   return path.basename(sourceFile, path.extname(sourceFile));
@@ -136,13 +143,13 @@ export function buildProjectionBundleFromExportedIndex(options: {
 
 export const resultsExportCommand = command({
   name: 'export',
-  description: 'Export a run workspace or index.jsonl manifest into a per-test directory structure',
+  description: 'Export a run workspace or run manifest into a per-test directory structure',
   args: {
     source: positional({
       type: optional(string),
       displayName: 'source',
       description:
-        'Run workspace directory or index.jsonl manifest to export (defaults to most recent in .agentv/results/)',
+        'Run workspace directory or run manifest to export (defaults to most recent in .agentv/results/)',
     }),
     out: option({
       type: optional(string),

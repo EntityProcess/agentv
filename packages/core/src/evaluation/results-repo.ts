@@ -66,7 +66,10 @@ const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // never overwrites the user's git config. See createOrphanResultsBranch.
 const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
-const RESULT_INDEX_FILENAME = 'index.jsonl';
+const RESULT_MANIFEST_FILENAME = 'run_manifest.jsonl';
+const LEGACY_RESULT_INDEX_FILENAME = 'index.jsonl';
+const RESULT_INDEX_FILENAME = RESULT_MANIFEST_FILENAME;
+const RESULT_MANIFEST_FILENAMES = [RESULT_MANIFEST_FILENAME, LEGACY_RESULT_INDEX_FILENAME] as const;
 
 // Artifact-aware merge config for the AgentV-owned results checkout. These two
 // pieces let `git merge` reconcile concurrent result writes automatically so
@@ -80,7 +83,8 @@ const RESULT_INDEX_FILENAME = 'index.jsonl';
 // never conflicts on them and they need no attribute.
 const RESULTS_REPO_GITATTRIBUTES_FILE = '.gitattributes';
 const RESULTS_REPO_GITATTRIBUTES_CONTENT = `# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
-# Append-only run index: union concurrent appends (lines are orthogonal).
+# Append-only run manifests: union concurrent appends (lines are orthogonal).
+run_manifest.jsonl merge=union
 index.jsonl merge=union
 # Editable run overlay (tags/feedback): 3-way JSON set/field union via the
 # agentv-json driver; a genuine scalar conflict falls through to a human merge.
@@ -3014,9 +3018,50 @@ function isDeprecatedTraceArtifactPath(relativePath: string): boolean {
   return relativePath === 'trace.json' || relativePath.endsWith('/trace.json');
 }
 
+function isResultManifestFilename(filename: string): boolean {
+  return RESULT_MANIFEST_FILENAMES.includes(filename as (typeof RESULT_MANIFEST_FILENAMES)[number]);
+}
+
+function safeLocalSummaryManifestPath(
+  sourceDir: string,
+  manifestPath: unknown,
+): string | undefined {
+  if (typeof manifestPath !== 'string' || manifestPath.trim().length === 0) {
+    return undefined;
+  }
+  if (path.isAbsolute(manifestPath)) {
+    return undefined;
+  }
+  const normalized = path.normalize(manifestPath);
+  if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
+    return undefined;
+  }
+  return path.join(sourceDir, normalized);
+}
+
+function resolveLocalResultManifestPath(sourceDir: string): string | undefined {
+  try {
+    const summary = JSON.parse(readFileSync(path.join(sourceDir, 'summary.json'), 'utf8')) as {
+      manifest_path?: unknown;
+    };
+    const manifestPath = safeLocalSummaryManifestPath(sourceDir, summary.manifest_path);
+    if (manifestPath && existsSync(manifestPath)) {
+      return manifestPath;
+    }
+  } catch {}
+
+  for (const filename of RESULT_MANIFEST_FILENAMES) {
+    const manifestPath = path.join(sourceDir, filename);
+    if (existsSync(manifestPath)) {
+      return manifestPath;
+    }
+  }
+  return undefined;
+}
+
 function collectArtifactSidecarPointers(sourceDir: string): ArtifactSidecarPointer[] {
-  const indexPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
-  if (!existsSync(indexPath)) {
+  const indexPath = resolveLocalResultManifestPath(sourceDir);
+  if (!indexPath) {
     return [];
   }
 
@@ -3162,7 +3207,7 @@ async function preparePublishedResultsSource(params: {
     for (const sourceFile of sourceFiles) {
       const relativeFile = path.relative(params.sourceDir, sourceFile).split(path.sep).join('/');
       const destinationFile = path.join(publishedRoot, ...relativeFile.split('/'));
-      if (relativeFile === RESULT_INDEX_FILENAME) {
+      if (isResultManifestFilename(relativeFile)) {
         const original = readFileSync(sourceFile, 'utf8');
         const rewritten = original
           .split(/\r?\n/)
@@ -3811,6 +3856,7 @@ type GitBatchBlob = {
 };
 
 type GitRunSummary = {
+  readonly manifest_path?: string;
   readonly metadata?: {
     readonly display_name?: string;
     readonly timestamp?: string;
@@ -3825,6 +3871,50 @@ type GitRunSummary = {
     }
   >;
 };
+
+function safeGitSummaryManifestPath(runDir: string, manifestPath: unknown): string | undefined {
+  if (typeof manifestPath !== 'string' || manifestPath.trim().length === 0) {
+    return undefined;
+  }
+  if (manifestPath.startsWith('/')) {
+    return undefined;
+  }
+  const normalized = path.posix.normalize(manifestPath);
+  if (normalized === '..' || normalized.startsWith('../')) {
+    return undefined;
+  }
+  return path.posix.join(runDir, normalized);
+}
+
+function buildGitManifestPaths(
+  treePaths: readonly string[],
+  summaryByPath: ReadonlyMap<string, GitRunSummary>,
+): string[] {
+  const treePathSet = new Set(treePaths);
+  const manifestByRunDir = new Map<string, string>();
+
+  for (const [summaryPath, summary] of summaryByPath) {
+    const runDir = path.posix.dirname(summaryPath);
+    const manifestPath = safeGitSummaryManifestPath(runDir, summary.manifest_path);
+    if (manifestPath && treePathSet.has(manifestPath)) {
+      manifestByRunDir.set(runDir, manifestPath);
+    }
+  }
+
+  for (const filename of RESULT_MANIFEST_FILENAMES) {
+    for (const treePath of treePaths) {
+      if (!treePath.endsWith(`/${filename}`)) {
+        continue;
+      }
+      const runDir = path.posix.dirname(treePath);
+      if (!manifestByRunDir.has(runDir)) {
+        manifestByRunDir.set(runDir, treePath);
+      }
+    }
+  }
+
+  return [...manifestByRunDir.values()].sort();
+}
 
 function buildGitRunId(relativeRunPath: string): string {
   const normalized = relativeRunPath.split(path.sep).join('/');
@@ -4341,22 +4431,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const indexPaths = treePaths.filter((line) => line.endsWith('/index.jsonl'));
-  if (indexPaths.length === 0) {
-    return [];
-  }
-
-  const batchInput = `${indexPaths.map((indexPath) => `${ref}:${indexPath}`).join('\n')}\n`;
-  const blobs = parseGitBatchBlobs(await runGitBatch(repoDir, batchInput));
-  if (blobs.length !== indexPaths.length) {
-    throw new Error(
-      `Expected ${indexPaths.length} git blobs but received ${blobs.length} while listing results runs`,
-    );
-  }
-
-  const summaryPaths = indexPaths
-    .map((indexPath) => path.posix.join(path.posix.dirname(indexPath), 'summary.json'))
-    .filter((summaryPath) => treePaths.includes(summaryPath));
+  const summaryPaths = treePaths.filter((line) => line.endsWith('/summary.json'));
   const summaryByPath = new Map<string, GitRunSummary>();
   if (summaryPaths.length > 0) {
     const summaryBatchInput = `${summaryPaths.map((summaryPath) => `${ref}:${summaryPath}`).join('\n')}\n`;
@@ -4367,6 +4442,19 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
       if (!summaryPath || !blob) continue;
       summaryByPath.set(summaryPath, JSON.parse(blob.content.toString('utf8')) as GitRunSummary);
     }
+  }
+
+  const indexPaths = buildGitManifestPaths(treePaths, summaryByPath);
+  if (indexPaths.length === 0) {
+    return [];
+  }
+
+  const batchInput = `${indexPaths.map((indexPath) => `${ref}:${indexPath}`).join('\n')}\n`;
+  const blobs = parseGitBatchBlobs(await runGitBatch(repoDir, batchInput));
+  if (blobs.length !== indexPaths.length) {
+    throw new Error(
+      `Expected ${indexPaths.length} git blobs but received ${blobs.length} while listing results runs`,
+    );
   }
 
   const runs = blobs.flatMap((blob, index): GitListedRun[] => {

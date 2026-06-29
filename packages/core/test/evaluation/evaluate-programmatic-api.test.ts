@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { evaluate } from '../../src/evaluation/evaluate.js';
+import { RESULT_INDEX_FILENAME } from '../../src/evaluation/run-artifacts.js';
 
 const PROGRAMMATIC_API_TIMEOUT_MS = 15_000;
 
@@ -131,10 +132,10 @@ describe('evaluate() — programmatic API extensions', () => {
 
         expect(result.artifacts).toBeDefined();
         expect(result.artifacts?.runDir).toBe(outputDir);
-        expect(result.artifacts?.indexPath).toBe(path.join(outputDir, 'index.jsonl'));
+        expect(result.artifacts?.indexPath).toBe(path.join(outputDir, RESULT_INDEX_FILENAME));
         expect(result.artifacts?.summaryPath).toBe(path.join(outputDir, 'summary.json'));
 
-        const indexContent = await readFile(path.join(outputDir, 'index.jsonl'), 'utf8');
+        const indexContent = await readFile(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8');
         expect(indexContent).toContain('"test_id":"programmatic-artifacts"');
         expect(indexContent).toContain('"experiment":"sdk-test"');
         const [indexRow] = indexContent

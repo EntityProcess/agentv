@@ -52,12 +52,12 @@ export const evalRunCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Run artifact directory (writes index.jsonl, summary.json, and per-case artifacts)',
+        'Run artifact directory (writes run_manifest.jsonl, summary.json, and per-case artifacts)',
     }),
     outputFormat: option({
       type: optional(string),
       long: 'output-format',
-      description: '[Removed] Run directories always write index.jsonl',
+      description: '[Removed] Run directories always write run_manifest.jsonl',
     }),
     experiment: option({
       type: optional(string),
@@ -161,7 +161,7 @@ export const evalRunCommand = command({
       type: optional(string),
       long: 'retry-errors',
       description:
-        'Path to a previous run workspace or index.jsonl manifest — re-run only execution_error test cases',
+        'Path to a previous run workspace or run manifest — re-run only execution_error test cases',
     }),
     resume: flag({
       long: 'resume',

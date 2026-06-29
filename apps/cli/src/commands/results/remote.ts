@@ -23,7 +23,7 @@ import {
   syncResultsRepoForProject,
 } from '@agentv/core';
 
-import { relativeRunPathFromCwd } from '../eval/result-layout.js';
+import { RESULT_INDEX_FILENAME, relativeRunPathFromCwd } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import {
   type ResultFileMeta,
@@ -149,7 +149,7 @@ function remoteMetadataManifestPath(
   if (!relativeRunPath) {
     return undefined;
   }
-  return path.join(config.path, 'runs', ...relativeRunPath.split('/'), 'index.jsonl');
+  return path.join(config.path, 'runs', ...relativeRunPath.split('/'), RESULT_INDEX_FILENAME);
 }
 
 export interface ResultsPublishOverrides {

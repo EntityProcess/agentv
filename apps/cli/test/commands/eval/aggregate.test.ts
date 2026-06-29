@@ -15,6 +15,7 @@ import { type EvaluationResult, buildTraceFromMessages } from '@agentv/core';
 import { toSnakeCaseDeep } from '../../../src/utils/case-conversion.js';
 
 import {
+  RESULT_INDEX_FILENAME,
   aggregateRunDir,
   deduplicateByTestIdTarget,
   parseJsonlResults,
@@ -46,21 +47,25 @@ function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult
   };
 }
 
-function writeJsonlIndex(dir: string, results: Partial<EvaluationResult>[]): string {
-  const indexPath = path.join(dir, 'index.jsonl');
+function writeJsonlIndex(
+  dir: string,
+  results: Partial<EvaluationResult>[],
+  filename = RESULT_INDEX_FILENAME,
+): string {
+  const indexPath = path.join(dir, filename);
   const lines = results.map((r) => JSON.stringify(toSnakeCaseDeep(makeResult(r)))).join('\n');
   writeFileSync(indexPath, `${lines}\n`);
   return indexPath;
 }
 
 function readIndexRows(dir: string): Array<{ test_id: string; result_dir: string }> {
-  const indexPath = path.join(dir, 'index.jsonl');
+  const indexPath = path.join(dir, RESULT_INDEX_FILENAME);
   if (!existsSync(indexPath)) {
     return readdirSync(dir)
       .filter((entry) => /--[a-f0-9]{12}$/.test(entry))
       .map((entry) => ({ test_id: entry.replace(/--[a-f0-9]{12}$/, ''), result_dir: entry }));
   }
-  return readFileSync(path.join(dir, 'index.jsonl'), 'utf8')
+  return readFileSync(indexPath, 'utf8')
     .trim()
     .split('\n')
     .filter(Boolean)
@@ -200,7 +205,7 @@ describe('aggregateRunDir', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('reads index.jsonl, deduplicates, and writes summary.json with timing rollups', async () => {
+  it('reads run_manifest.jsonl, deduplicates, and writes summary.json with timing rollups', async () => {
     writeJsonlIndex(tmpDir, [
       { testId: 'a', target: 'x', score: 0.1, executionStatus: 'execution_error' },
       { testId: 'a', target: 'x', score: 0.9, executionStatus: 'ok' },
@@ -212,10 +217,29 @@ describe('aggregateRunDir', () => {
     expect(result.targetCount).toBe(1);
 
     const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
+    expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
     expect(summary.metadata.tests_run).toContain('a');
     expect(summary.metadata.tests_run).toContain('b');
     expect(summary.run_summary.x).toBeDefined();
     expect(summary.timing.total_tokens).toBeGreaterThanOrEqual(0);
+  });
+
+  it('falls back to legacy index.jsonl bundles', async () => {
+    writeJsonlIndex(
+      tmpDir,
+      [
+        { testId: 'legacy-a', target: 'x', score: 0.9, executionStatus: 'ok' },
+        { testId: 'legacy-b', target: 'x', score: 0.8, executionStatus: 'ok' },
+      ],
+      'index.jsonl',
+    );
+
+    const result = await aggregateRunDir(tmpDir);
+    expect(result.testCount).toBe(2);
+
+    const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
+    expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
+    expect(summary.metadata.tests_run).toEqual(['legacy-a', 'legacy-b']);
   });
 
   it('uses last entry for duplicates in benchmark stats', async () => {

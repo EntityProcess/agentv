@@ -135,7 +135,7 @@ Suite imports are resolved as a deterministic include graph. Circular `type:
 suite` imports fail validation with the import chain; raw-case shorthand does
 not recursively load suite runtime blocks.
 
-Imported suite rows keep their source suite metadata in `index.jsonl`. Use each
+Imported suite rows keep their source suite metadata in `run_manifest.jsonl`. Use each
 row's `result_dir` as the authoritative path to generated artifacts inside the
 run directory; do not infer layout from suite names.
 
@@ -275,7 +275,7 @@ derives the group from the eval input: a single eval uses the eval metadata
 `multi-eval`. Inline `experiment.name` does not currently select the result
 group.
 
-Imported source suite metadata appears in `index.jsonl` rows and manifests.
-Use `index.jsonl` fields such as `eval_path`, `test_id`, `target`, and
+Imported source suite metadata appears in `run_manifest.jsonl` rows and manifests.
+Use `run_manifest.jsonl` fields such as `eval_path`, `test_id`, `target`, and
 `result_dir` for identity and artifact discovery instead of reconstructing paths
 from suite names or wrapper layout.

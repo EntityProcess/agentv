@@ -2,7 +2,7 @@
  * Canonical AgentV run artifact helpers.
  *
  * This module owns the shared run-workspace contract used by CLI and
- * programmatic evals: `index.jsonl`, run-root `summary.json`, per-case
+ * programmatic evals: `run_manifest.jsonl`, run-root `summary.json`, per-case
  * `summary.json`, `run-N/result.json`, and transcript projections. Keep wire
  * keys in snake_case here so every caller produces the same artifacts.
  */
@@ -55,7 +55,11 @@ import type {
   TrialResult,
 } from './types.js';
 
-export const RESULT_INDEX_FILENAME = 'index.jsonl';
+export const RESULT_MANIFEST_FILENAME = 'run_manifest.jsonl';
+export const LEGACY_RESULT_INDEX_FILENAME = 'index.jsonl';
+// Backward-compatible export name retained for existing callers. New writes use
+// the row-level run manifest filename.
+export const RESULT_INDEX_FILENAME = RESULT_MANIFEST_FILENAME;
 export const RUN_SUMMARY_FILENAME = 'summary.json';
 
 const TIMING_SOURCE_VALUES = [
@@ -163,7 +167,8 @@ export async function aggregateRunDir(
     runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<{ summaryPath: string; testCount: number; targetCount: number }> {
-  const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
+  const indexPath =
+    (await resolveExistingResultManifestPath(runDir)) ?? path.join(runDir, RESULT_INDEX_FILENAME);
   const content = await readFile(indexPath, 'utf8');
   const allResults = parseJsonlResults(content);
   const results = deduplicateByTestIdTarget(allResults);
@@ -185,6 +190,54 @@ export async function aggregateRunDir(
 
   const targetSet = new Set(results.map((r) => r.target ?? 'unknown'));
   return { summaryPath, testCount: results.length, targetCount: targetSet.size };
+}
+
+async function readTextIfExists(filePath: string): Promise<string | undefined> {
+  return readFile(filePath, 'utf8').catch(() => undefined);
+}
+
+function safeSummaryManifestPath(runDir: string, manifestPath: unknown): string | undefined {
+  if (typeof manifestPath !== 'string' || manifestPath.trim().length === 0) {
+    return undefined;
+  }
+  if (path.isAbsolute(manifestPath)) {
+    return undefined;
+  }
+  const normalized = path.normalize(manifestPath);
+  if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
+    return undefined;
+  }
+  return path.join(runDir, normalized);
+}
+
+async function readRunSummaryManifestPath(runDir: string): Promise<string | undefined> {
+  const summaryText = await readTextIfExists(path.join(runDir, RUN_SUMMARY_FILENAME));
+  if (!summaryText) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(summaryText) as { manifest_path?: unknown };
+    const manifestPath = safeSummaryManifestPath(runDir, parsed.manifest_path);
+    if (manifestPath && (await readTextIfExists(manifestPath)) !== undefined) {
+      return manifestPath;
+    }
+  } catch {}
+  return undefined;
+}
+
+async function resolveExistingResultManifestPath(runDir: string): Promise<string | undefined> {
+  const summaryManifestPath = await readRunSummaryManifestPath(runDir);
+  if (summaryManifestPath) {
+    return summaryManifestPath;
+  }
+
+  for (const filename of [RESULT_MANIFEST_FILENAME, LEGACY_RESULT_INDEX_FILENAME]) {
+    const manifestPath = path.join(runDir, filename);
+    if ((await readTextIfExists(manifestPath)) !== undefined) {
+      return manifestPath;
+    }
+  }
+  return undefined;
 }
 
 async function readRunSummaryMetadata(summaryPath: string): Promise<{
@@ -340,6 +393,7 @@ export interface TimingArtifact {
 }
 
 export interface RunSummaryArtifact {
+  readonly manifest_path: string;
   readonly metadata: {
     readonly eval_file: string;
     readonly timestamp: string;
@@ -1310,6 +1364,7 @@ export function buildRunSummaryArtifact(
   const timestamp = firstResult?.timestamp ?? new Date().toISOString();
 
   return {
+    manifest_path: RESULT_MANIFEST_FILENAME,
     metadata: {
       eval_file: evalFile,
       timestamp,
@@ -1566,7 +1621,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     runId: params.runId ?? path.basename(params.outputDir),
     experiment: params.experiment,
     variant: params.result.variant,
-    source: { path: RESULT_INDEX_FILENAME },
+    source: { path: RESULT_MANIFEST_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
@@ -1847,8 +1902,11 @@ function projectionIdentityRecordKey(record: unknown): string | undefined {
 }
 
 async function readExistingIndexRecords(outputDir: string): Promise<readonly unknown[]> {
-  const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
-  const content = await readFile(indexPath, 'utf8').catch(() => undefined);
+  const indexPath = await resolveExistingResultManifestPath(outputDir);
+  if (!indexPath) {
+    return [];
+  }
+  const content = await readTextIfExists(indexPath);
   if (content === undefined) {
     return [];
   }
@@ -1914,8 +1972,11 @@ async function rewriteExistingIndexRecords(
     return;
   }
 
-  const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
-  const content = await readFile(indexPath, 'utf8').catch(() => undefined);
+  const indexPath = await resolveExistingResultManifestPath(outputDir);
+  if (!indexPath) {
+    return;
+  }
+  const content = indexPath ? await readTextIfExists(indexPath) : undefined;
   if (content === undefined) {
     return;
   }

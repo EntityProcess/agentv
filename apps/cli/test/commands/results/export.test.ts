@@ -10,6 +10,7 @@ import type {
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { parseJsonlResults } from '../../../src/commands/eval/artifact-writer.js';
+import { RESULT_INDEX_FILENAME } from '../../../src/commands/eval/result-layout.js';
 import {
   buildProjectionBundleFromExportedIndex,
   deriveExportRunId,
@@ -164,7 +165,7 @@ function toJsonl(...records: object[]): string {
 }
 
 function readIndex(outputDir: string): IndexArtifactEntry[] {
-  return readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+  return readFileSync(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8')
     .trim()
     .split('\n')
     .filter(Boolean)
@@ -217,10 +218,10 @@ describe('results export', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('loadExportSource resolves run workspaces to index.jsonl', async () => {
+  it('loadExportSource resolves run workspaces to run_manifest.jsonl', async () => {
     const runDir = path.join(tempDir, '2026-03-18T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
-    const sourceFile = path.join(runDir, 'index.jsonl');
+    const sourceFile = path.join(runDir, RESULT_INDEX_FILENAME);
     writeFileSync(sourceFile, toJsonl(RESULT_FULL));
 
     const { sourceFile: loadedSource, results } = await loadExportSource(runDir, tempDir);
@@ -249,7 +250,7 @@ describe('results export', () => {
         'results',
         'with-skills',
         '2026-03-18T10-00-00-000Z',
-        'index.jsonl',
+        RESULT_INDEX_FILENAME,
       ),
     );
     expect(outputDir).toBe(
@@ -259,7 +260,7 @@ describe('results export', () => {
 
   it('deriveOutputDir rejects non-manifest paths', () => {
     expect(() => deriveOutputDir(tempDir, path.join(tempDir, 'results.jsonl'))).toThrow(
-      'Expected a run manifest named index.jsonl',
+      'Expected a run manifest named run_manifest.jsonl',
     );
   });
 
@@ -412,6 +413,7 @@ describe('results export', () => {
     expect(existsSync(summaryPath)).toBe(true);
 
     const benchmark: RunSummaryArtifact = JSON.parse(readFileSync(summaryPath, 'utf8'));
+    expect(benchmark.manifest_path).toBe(RESULT_INDEX_FILENAME);
     expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
     expect(benchmark.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
     // artifact-writer uses string[] for tests_run, not a count
@@ -424,7 +426,7 @@ describe('results export', () => {
     expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
-  it('should create index.jsonl with per-test artifact pointers', async () => {
+  it('should create run_manifest.jsonl with per-test artifact pointers', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,
@@ -435,7 +437,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const indexPath = path.join(outputDir, 'index.jsonl');
+    const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
     expect(existsSync(indexPath)).toBe(true);
 
     const entries = readFileSync(indexPath, 'utf8')
@@ -691,7 +693,7 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'summary.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'index.jsonl'))).toBe(true);
+    expect(existsSync(path.join(outputDir, RESULT_INDEX_FILENAME))).toBe(true);
     expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
     expect(existsSync(path.join(runArtifactDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(
       true,
