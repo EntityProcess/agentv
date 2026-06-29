@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   RESULT_INDEX_FILENAME,
+  discoverRunManifestPaths,
   resolveExistingRunPrimaryPath,
   resolveRunIndexPath,
 } from './result-layout.js';
@@ -27,7 +28,11 @@ export interface RunCache {
  */
 export function resolveRunCacheFile(cache: RunCache): string {
   if (cache.lastRunDir) {
-    return resolveExistingRunPrimaryPath(cache.lastRunDir) ?? resolveRunIndexPath(cache.lastRunDir);
+    const direct = resolveExistingRunPrimaryPath(cache.lastRunDir);
+    if (direct) {
+      return direct;
+    }
+    return discoverRunManifestPaths(cache.lastRunDir)[0] ?? resolveRunIndexPath(cache.lastRunDir);
   }
   return '';
 }
@@ -61,14 +66,12 @@ export async function resolveCachedRunDir(cwd: string): Promise<string | undefin
 }
 
 export async function saveRunCache(cwd: string, resultPath: string): Promise<void> {
-  if (path.basename(resultPath) !== RESULT_INDEX_FILENAME) {
-    return;
-  }
-
   const dir = path.join(cwd, '.agentv');
+  const lastRunDir =
+    path.basename(resultPath) === RESULT_INDEX_FILENAME ? path.dirname(resultPath) : resultPath;
   await mkdir(dir, { recursive: true });
   const cache: RunCache = {
-    lastRunDir: path.dirname(resultPath),
+    lastRunDir,
     timestamp: new Date().toISOString(),
   };
   await writeFile(cachePath(cwd), `${JSON.stringify(cache, null, 2)}\n`, 'utf-8');

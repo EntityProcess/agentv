@@ -163,15 +163,6 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
-function artifactDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  const testId = record.test_id ?? 'unknown';
-  return path.join(outputDir, ...(record.suite ? [record.suite] : []), testId);
-}
-
-function runArtifactDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  return path.join(artifactDir(outputDir, record), 'run-1');
-}
-
 function readIndex(outputDir: string): IndexArtifactEntry[] {
   return readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
     .trim()
@@ -180,7 +171,38 @@ function readIndex(outputDir: string): IndexArtifactEntry[] {
     .map((line) => JSON.parse(line) as IndexArtifactEntry);
 }
 
-function readAnswer(outputDir: string, record: { suite?: string; test_id?: string }): string {
+function findIndexEntry(
+  outputDir: string,
+  record: { suite?: string; target?: string; test_id?: string },
+): IndexArtifactEntry {
+  const entry = readIndex(outputDir).find(
+    (candidate) =>
+      candidate.test_id === (record.test_id ?? 'unknown') &&
+      candidate.target === (record.target ?? 'unknown') &&
+      candidate.suite === record.suite,
+  );
+  expect(entry?.result_dir).toMatch(/^[^/]+--[a-f0-9]{12}$/);
+  return entry as IndexArtifactEntry;
+}
+
+function artifactDir(
+  outputDir: string,
+  record: { suite?: string; target?: string; test_id?: string },
+): string {
+  return path.join(outputDir, findIndexEntry(outputDir, record).result_dir);
+}
+
+function runArtifactDir(
+  outputDir: string,
+  record: { suite?: string; target?: string; test_id?: string },
+): string {
+  return path.join(artifactDir(outputDir, record), 'run-1');
+}
+
+function readAnswer(
+  outputDir: string,
+  record: { suite?: string; target?: string; test_id?: string },
+): string {
   return readFileSync(path.join(runArtifactDir(outputDir, record), 'outputs', 'answer.md'), 'utf8');
 }
 
@@ -276,7 +298,7 @@ describe('results export', () => {
     });
     expect(first.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      timing_path: 'privacy/test-private/run-1/timing.json',
+      timing_path: expect.stringMatching(/^test-private--[a-f0-9]{12}\/run-1\/timing\.json$/),
     });
     expect(first.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(first.entries[0].artifact_refs).not.toHaveProperty('output_path');
@@ -351,24 +373,26 @@ describe('results export', () => {
       content: 'full',
       redaction_level: 'none',
     });
+    const resultDir = bundle.entries[0].artifact_refs.result_dir;
+    expect(resultDir).toMatch(/^test-private--[a-f0-9]{12}$/);
     expect(bundle.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      result_dir: 'privacy/test-private',
-      summary_path: 'privacy/test-private/summary.json',
-      grading_path: 'privacy/test-private/run-1/grading.json',
-      timing_path: 'privacy/test-private/run-1/timing.json',
-      metrics_path: 'privacy/test-private/run-1/metrics.json',
-      output_path: 'privacy/test-private/run-1/outputs/answer.md',
-      answer_path: 'privacy/test-private/run-1/outputs/answer.md',
-      transcript_path: 'privacy/test-private/run-1/transcript.jsonl',
-      transcript_raw_path: 'privacy/test-private/run-1/transcript-raw.jsonl',
+      result_dir: resultDir,
+      summary_path: `${resultDir}/summary.json`,
+      grading_path: `${resultDir}/run-1/grading.json`,
+      timing_path: `${resultDir}/run-1/timing.json`,
+      metrics_path: `${resultDir}/run-1/metrics.json`,
+      output_path: `${resultDir}/run-1/outputs/answer.md`,
+      answer_path: `${resultDir}/run-1/outputs/answer.md`,
+      transcript_path: `${resultDir}/run-1/transcript.jsonl`,
+      transcript_raw_path: `${resultDir}/run-1/transcript-raw.jsonl`,
     });
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('trace_path');
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(bundle.entries[0].trace).not.toHaveProperty('envelope_ref');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
     expect(bundle.entries[0].trace_envelope.artifacts).not.toHaveProperty('trace_path');
-    expect(bundle.entries[0].feedback.grading_path).toBe('privacy/test-private/run-1/grading.json');
+    expect(bundle.entries[0].feedback.grading_path).toBe(`${resultDir}/run-1/grading.json`);
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');
     expect(serialized).toContain('SECRET_PROMPT_TEXT');
@@ -420,19 +444,21 @@ describe('results export', () => {
       .map((line) => JSON.parse(line) as IndexArtifactEntry);
 
     expect(entries).toHaveLength(1);
+    const rowDir = entries[0].result_dir;
+    expect(rowDir).toMatch(/^test-greeting--[a-f0-9]{12}$/);
     expect(entries[0]).toMatchObject({
       test_id: 'test-greeting',
       target: 'gpt-4o',
       execution_status: 'ok',
-      result_dir: 'demo/test-greeting',
-      summary_path: 'demo/test-greeting/summary.json',
-      grading_path: 'demo/test-greeting/run-1/grading.json',
-      timing_path: 'demo/test-greeting/run-1/timing.json',
-      metrics_path: 'demo/test-greeting/run-1/metrics.json',
-      output_path: 'demo/test-greeting/run-1/outputs/answer.md',
-      answer_path: 'demo/test-greeting/run-1/outputs/answer.md',
-      transcript_path: 'demo/test-greeting/run-1/transcript.jsonl',
-      transcript_raw_path: 'demo/test-greeting/run-1/transcript-raw.jsonl',
+      result_dir: rowDir,
+      summary_path: `${rowDir}/summary.json`,
+      grading_path: `${rowDir}/run-1/grading.json`,
+      timing_path: `${rowDir}/run-1/timing.json`,
+      metrics_path: `${rowDir}/run-1/metrics.json`,
+      output_path: `${rowDir}/run-1/outputs/answer.md`,
+      answer_path: `${rowDir}/run-1/outputs/answer.md`,
+      transcript_path: `${rowDir}/run-1/transcript.jsonl`,
+      transcript_raw_path: `${rowDir}/run-1/transcript-raw.jsonl`,
     });
     expect(entries[0]).not.toHaveProperty('input_path');
     expect(entries[0].projection_identity).toMatchObject({

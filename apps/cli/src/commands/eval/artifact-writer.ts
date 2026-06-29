@@ -19,6 +19,8 @@ import {
   buildAggregateGradingArtifact,
   buildIndexArtifactEntry as buildCoreIndexArtifactEntry,
   buildResultIndexArtifact as buildCoreResultIndexArtifact,
+  buildEvalTestTargetKey,
+  buildEvaluationResultTargetKey,
   buildGradingArtifact,
   buildRunSummaryArtifact,
   buildTestTargetKey,
@@ -41,6 +43,8 @@ import {
 export {
   aggregateRunDir,
   buildAggregateGradingArtifact,
+  buildEvalTestTargetKey,
+  buildEvaluationResultTargetKey,
   buildRunSummaryArtifact,
   buildGradingArtifact,
   buildTestTargetKey,

@@ -10,6 +10,7 @@ import {
   type GraderResult,
   METRICS_SCHEMA_VERSION,
   MetricsArtifactWireSchema,
+  buildResultIndexArtifact,
   buildTraceFromMessages,
   parseYamlValue,
 } from '@agentv/core';
@@ -73,6 +74,33 @@ function makeEvaluatorResult(overrides: Partial<GraderResult> = {}): GraderResul
     ],
     ...overrides,
   } as GraderResult;
+}
+
+async function readIndexLines(indexPath: string): Promise<IndexArtifactEntry[]> {
+  const content = (await readFile(indexPath, 'utf8')).trim();
+  if (!content) return [];
+  return content.split('\n').map((line) => JSON.parse(line) as IndexArtifactEntry);
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function expectRowDir(
+  entry: Pick<IndexArtifactEntry, 'result_dir' | 'test_id'> | undefined,
+  expectedPrefix = entry?.test_id ?? 'unknown',
+): string {
+  expect(entry?.result_dir).toMatch(new RegExp(`^${escapeRegex(expectedPrefix)}--[a-f0-9]{12}$`));
+  return entry?.result_dir ?? '';
+}
+
+function runArtifactPath(
+  rootDir: string,
+  entry: Pick<IndexArtifactEntry, 'result_dir'> | undefined,
+  ...segments: string[]
+): string {
+  expect(entry?.result_dir).toBeTruthy();
+  return path.join(rootDir, entry?.result_dir ?? '', ...segments);
 }
 
 // ---------------------------------------------------------------------------
@@ -876,14 +904,25 @@ describe('writeArtifactsFromResults', () => {
       evalFile: 'my-eval.yaml',
     });
 
+    const indexLines = await readIndexLines(paths.indexPath);
+    expect(indexLines).toHaveLength(2);
+    const alphaRowDir = expectRowDir(indexLines[0], 'alpha');
+    const betaRowDir = expectRowDir(indexLines[1], 'beta');
+    expect(alphaRowDir).not.toBe(betaRowDir);
+
     // Check per-test artifact directories
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries.sort()).toEqual(['alpha', 'beta', 'index.jsonl', 'summary.json']);
+    expect(artifactEntries.sort()).toEqual([
+      alphaRowDir,
+      betaRowDir,
+      'index.jsonl',
+      'summary.json',
+    ]);
 
-    const alphaEntries = await readdir(path.join(paths.testArtifactDir, 'alpha'));
+    const alphaEntries = await readdir(path.join(paths.testArtifactDir, alphaRowDir));
     expect(alphaEntries.sort()).toEqual(['run-1', 'summary.json']);
 
-    const alphaRunEntries = await readdir(path.join(paths.testArtifactDir, 'alpha', 'run-1'));
+    const alphaRunEntries = await readdir(path.join(paths.testArtifactDir, alphaRowDir, 'run-1'));
     expect(alphaRunEntries.sort()).toEqual([
       'grading.json',
       'metrics.json',
@@ -895,13 +934,16 @@ describe('writeArtifactsFromResults', () => {
     ]);
 
     const alphaGrading: GradingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'alpha', 'run-1', 'grading.json'), 'utf8'),
+      await readFile(
+        path.join(paths.testArtifactDir, alphaRowDir, 'run-1', 'grading.json'),
+        'utf8',
+      ),
     );
     expect(alphaGrading.summary).toBeDefined();
     expect(alphaGrading).not.toHaveProperty('execution_metrics');
 
     const alphaTiming: TimingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'alpha', 'run-1', 'timing.json'), 'utf8'),
+      await readFile(path.join(paths.testArtifactDir, alphaRowDir, 'run-1', 'timing.json'), 'utf8'),
     );
     expect(alphaTiming.duration_ms).toBe(5000);
 
@@ -910,15 +952,10 @@ describe('writeArtifactsFromResults', () => {
     expect(summary.metadata.tests_run.sort()).toEqual(['alpha', 'beta']);
     expect(summary.timing.duration_ms).toBe(13000);
 
-    const indexLines = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line) as IndexArtifactEntry);
-    expect(indexLines).toHaveLength(2);
-    expect(indexLines[0]?.summary_path).toBe('alpha/summary.json');
-    expect(indexLines[0]?.grading_path).toBe('alpha/run-1/grading.json');
-    expect(indexLines[0]?.timing_path).toBe('alpha/run-1/timing.json');
-    expect(indexLines[0]?.metrics_path).toBe('alpha/run-1/metrics.json');
+    expect(indexLines[0]?.summary_path).toBe(`${alphaRowDir}/summary.json`);
+    expect(indexLines[0]?.grading_path).toBe(`${alphaRowDir}/run-1/grading.json`);
+    expect(indexLines[0]?.timing_path).toBe(`${alphaRowDir}/run-1/timing.json`);
+    expect(indexLines[0]?.metrics_path).toBe(`${alphaRowDir}/run-1/metrics.json`);
   });
 
   it('writes optional runtime source metadata to summary and index rows', async () => {
@@ -1001,10 +1038,8 @@ describe('writeArtifactsFromResults', () => {
 
     const paths = await writeArtifactsFromResults(results, testDir, { sourceTests });
 
-    const [indexEntry] = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line) as IndexArtifactEntry);
+    const [indexEntry] = await readIndexLines(paths.indexPath);
+    const repeatRowDir = expectRowDir(indexEntry, 'repeat-case');
     expect(indexEntry?.trials).toEqual([
       { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
       { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
@@ -1016,19 +1051,19 @@ describe('writeArtifactsFromResults', () => {
       ci95_upper: 1,
       stddev: 0.53,
     });
-    expect(indexEntry?.result_dir).toBe('repeat-case');
-    expect(indexEntry?.summary_path).toBe('repeat-case/summary.json');
+    expect(indexEntry?.result_dir).toBe(repeatRowDir);
+    expect(indexEntry?.summary_path).toBe(`${repeatRowDir}/summary.json`);
     expect(indexEntry?.task_dir).toBeUndefined();
     expect(indexEntry?.input_path).toBeUndefined();
     expect(indexEntry?.grading_path).toBeUndefined();
     expect(indexEntry?.timing_path).toBeUndefined();
     expect(indexEntry?.metrics_path).toBeUndefined();
 
-    const repeatEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case'));
+    const repeatEntries = await readdir(path.join(paths.testArtifactDir, repeatRowDir));
     expect(repeatEntries.sort()).toEqual(['run-1', 'run-2', 'summary.json']);
 
     const caseSummary = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, 'repeat-case', 'summary.json'), 'utf8'),
+      await readFile(path.join(paths.testArtifactDir, repeatRowDir, 'summary.json'), 'utf8'),
     ) as Record<string, unknown>;
     expect(caseSummary).toMatchObject({
       total_runs: 2,
@@ -1060,11 +1095,11 @@ describe('writeArtifactsFromResults', () => {
     expect(typeof caseSummary.fingerprint).toBe('string');
 
     await expect(
-      readFile(path.join(paths.testArtifactDir, 'repeat-case', 'grading.json'), 'utf8'),
+      readFile(path.join(paths.testArtifactDir, repeatRowDir, 'grading.json'), 'utf8'),
     ).rejects.toThrow();
 
     for (const runDir of ['run-1', 'run-2']) {
-      const runEntries = await readdir(path.join(paths.testArtifactDir, 'repeat-case', runDir));
+      const runEntries = await readdir(path.join(paths.testArtifactDir, repeatRowDir, runDir));
       expect(runEntries.sort()).toEqual([
         'grading.json',
         'metrics.json',
@@ -1078,7 +1113,7 @@ describe('writeArtifactsFromResults', () => {
 
     const runOneResult = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, 'repeat-case', 'run-1', 'result.json'),
+        path.join(paths.testArtifactDir, repeatRowDir, 'run-1', 'result.json'),
         'utf8',
       ),
     ) as Record<string, unknown>;
@@ -1098,14 +1133,14 @@ describe('writeArtifactsFromResults', () => {
     });
 
     const runTwoAnswer = await readFile(
-      path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'outputs', 'answer.md'),
+      path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'outputs', 'answer.md'),
       'utf8',
     );
     expect(runTwoAnswer).toBe('second attempt');
 
     const runTwoResult = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, 'repeat-case', 'run-2', 'result.json'),
+        path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'result.json'),
         'utf8',
       ),
     ) as Record<string, unknown>;
@@ -1147,16 +1182,19 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const indexLines = await readIndexLines(paths.indexPath);
+    const testOne = indexLines.find((line) => line.test_id === 'test-1');
+    const testTwo = indexLines.find((line) => line.test_id === 'test-2');
 
     const gradingOne: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, testOne, 'run-1', 'grading.json'), 'utf8'),
     );
     const gradingTwo: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, testTwo, 'run-1', 'grading.json'), 'utf8'),
     );
     const timingOne: TimingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'test-1', 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, testOne, 'run-1', 'timing.json'), 'utf8'),
     );
 
     expect(gradingOne.summary.total).toBe(1);
@@ -1215,16 +1253,18 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'transcript-case');
 
-    const transcriptPath = path.join(testDir, 'transcript-case', 'run-1', 'transcript.jsonl');
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript.jsonl');
     const transcriptLines = (await readFile(transcriptPath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line));
 
     const rawTranscriptLines = (
-      await readFile(path.join(testDir, 'transcript-case', 'run-1', 'transcript-raw.jsonl'), 'utf8')
+      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl'), 'utf8')
     )
       .trim()
       .split('\n')
@@ -1275,20 +1315,15 @@ describe('writeArtifactsFromResults', () => {
       message_index: 0,
       role: 'user',
     });
+    await expect(readFile(path.join(testDir, rowDir, 'transcript.json'), 'utf8')).rejects.toThrow();
     await expect(
-      readFile(path.join(testDir, 'transcript-case', 'transcript.json'), 'utf8'),
-    ).rejects.toThrow();
-    await expect(
-      readFile(path.join(testDir, 'transcript-case', 'run-1', 'trace.json'), 'utf8'),
+      readFile(runArtifactPath(testDir, indexLine, 'run-1', 'trace.json'), 'utf8'),
     ).rejects.toThrow();
 
-    const indexLine = JSON.parse(
-      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
-    );
     expect(indexLine).not.toHaveProperty('trace_path');
-    expect(indexLine.transcript_path).toBe('transcript-case/run-1/transcript.jsonl');
-    expect(indexLine.transcript_raw_path).toBe('transcript-case/run-1/transcript-raw.jsonl');
-    expect(indexLine.metrics_path).toBe('transcript-case/run-1/metrics.json');
+    expect(indexLine?.transcript_path).toBe(`${rowDir}/run-1/transcript.jsonl`);
+    expect(indexLine?.transcript_raw_path).toBe(`${rowDir}/run-1/transcript-raw.jsonl`);
+    expect(indexLine?.metrics_path).toBe(`${rowDir}/run-1/metrics.json`);
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
 
     expect(indexLine.artifact_pointers).toBeUndefined();
@@ -1383,16 +1418,15 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'summary-case');
 
-    const indexLine = JSON.parse(
-      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
-    );
-    expect(indexLine.metrics_path).toBe('summary-case/run-1/metrics.json');
+    expect(indexLine?.metrics_path).toBe(`${rowDir}/run-1/metrics.json`);
 
     const summary = MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(path.join(testDir, 'summary-case', 'run-1', 'metrics.json'), 'utf8'),
+        await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'metrics.json'), 'utf8'),
       ),
     );
 
@@ -1410,7 +1444,7 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(summary.source_artifacts).not.toHaveProperty('trace_path');
     await expect(
-      readFile(path.join(testDir, 'summary-case', 'run-1', 'trace.json'), 'utf8'),
+      readFile(runArtifactPath(testDir, indexLine, 'run-1', 'trace.json'), 'utf8'),
     ).rejects.toThrow();
     expect(summary.metrics.total_turns).toBe(2);
     expect(summary.metrics.total_tool_calls).toBe(4);
@@ -1483,7 +1517,7 @@ describe('writeArtifactsFromResults', () => {
     expect(summary).not.toHaveProperty('usage_summary');
 
     const timing = JSON.parse(
-      await readFile(path.join(testDir, 'summary-case', 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'timing.json'), 'utf8'),
     );
     expect(timing).toMatchObject({
       total_tokens: 140,
@@ -1535,24 +1569,27 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const indexLines = await readIndexLines(paths.indexPath);
+    const aggregateRow = indexLines.find((line) => line.test_id === 'aggregate-usage');
+    const estimatedRow = indexLines.find((line) => line.test_id === 'estimated-usage');
 
     const aggregateTiming = JSON.parse(
-      await readFile(path.join(testDir, 'aggregate-usage', 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, aggregateRow, 'run-1', 'timing.json'), 'utf8'),
     );
     const estimatedTiming = JSON.parse(
-      await readFile(path.join(testDir, 'estimated-usage', 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, estimatedRow, 'run-1', 'timing.json'), 'utf8'),
     );
     const runSummary = JSON.parse(await readFile(path.join(testDir, 'summary.json'), 'utf8'));
 
     MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(path.join(testDir, 'aggregate-usage', 'run-1', 'metrics.json'), 'utf8'),
+        await readFile(runArtifactPath(testDir, aggregateRow, 'run-1', 'metrics.json'), 'utf8'),
       ),
     );
     MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(path.join(testDir, 'estimated-usage', 'run-1', 'metrics.json'), 'utf8'),
+        await readFile(runArtifactPath(testDir, estimatedRow, 'run-1', 'metrics.json'), 'utf8'),
       ),
     );
 
@@ -1609,19 +1646,20 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'raw-log-case');
 
-    const copiedRawLogPath = path.join(testDir, 'raw-log-case', 'run-1', 'provider.log');
+    const copiedRawLogPath = runArtifactPath(testDir, indexLine, 'run-1', 'provider.log');
     await expect(readFile(copiedRawLogPath, 'utf8')).rejects.toThrow();
 
-    const transcriptPath = path.join(testDir, 'raw-log-case', 'run-1', 'transcript-raw.jsonl');
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);
-    await expect(
-      readFile(path.join(testDir, 'raw-log-case', 'transcript.json'), 'utf8'),
-    ).rejects.toThrow();
+    await expect(readFile(rawLogPath, 'utf8')).resolves.toBe(rawLog);
+    await expect(readFile(path.join(testDir, rowDir, 'transcript.json'), 'utf8')).rejects.toThrow();
 
     const transcriptLines = (
-      await readFile(path.join(testDir, 'raw-log-case', 'run-1', 'transcript.jsonl'), 'utf8')
+      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript.jsonl'), 'utf8')
     )
       .trim()
       .split('\n')
@@ -1633,12 +1671,9 @@ describe('writeArtifactsFromResults', () => {
       content: [{ type: 'text', text: 'Raw log copied' }],
     });
 
-    const indexLine = JSON.parse(
-      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
-    );
     expect(indexLine.raw_provider_log_path).toBeUndefined();
-    expect(indexLine.transcript_path).toBe('raw-log-case/run-1/transcript.jsonl');
-    expect(indexLine.transcript_raw_path).toBe('raw-log-case/run-1/transcript-raw.jsonl');
+    expect(indexLine.transcript_path).toBe(`${rowDir}/run-1/transcript.jsonl`);
+    expect(indexLine.transcript_raw_path).toBe(`${rowDir}/run-1/transcript-raw.jsonl`);
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
@@ -1663,11 +1698,9 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
 
-    const indexLine = JSON.parse(
-      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
-    );
+    const [indexLine] = await readIndexLines(paths.indexPath);
     expect(indexLine.external_trace).toEqual({
       provider: 'phoenix',
       source: 'codex',
@@ -1685,7 +1718,7 @@ describe('writeArtifactsFromResults', () => {
     expect(JSON.stringify(indexLine)).not.toContain('api_key');
 
     const transcriptJson = await readFile(
-      path.join(testDir, 'external-trace-case', 'run-1', 'transcript.jsonl'),
+      runArtifactPath(testDir, indexLine, 'run-1', 'transcript.jsonl'),
       'utf8',
     );
     expect(transcriptJson).not.toContain('secret');
@@ -1701,33 +1734,29 @@ describe('writeArtifactsFromResults', () => {
       }),
     ];
 
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const [indexLine] = await readIndexLines(paths.indexPath);
 
-    const transcriptPath = path.join(
-      testDir,
-      'no-transcript-case',
-      'run-1',
-      'transcript-raw.jsonl',
-    );
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
 
-    const indexLine = JSON.parse(
-      (await readFile(path.join(testDir, 'index.jsonl'), 'utf8')).trim(),
-    );
     expect(indexLine).not.toHaveProperty('transcript_path');
-    expect(indexLine.metrics_path).toBe('no-transcript-case/run-1/metrics.json');
+    expect(indexLine.metrics_path).toBe(
+      `${expectRowDir(indexLine, 'no-transcript-case')}/run-1/metrics.json`,
+    );
     expect(indexLine.artifact_pointers).toBeUndefined();
   });
 
   it('sanitizes test IDs for directory names', async () => {
     const results = [makeResult({ testId: 'path/to:test*1' })];
-    await writeArtifactsFromResults(results, testDir);
+    const paths = await writeArtifactsFromResults(results, testDir);
+    const [indexLine] = await readIndexLines(paths.indexPath);
 
     const artifactEntries = await readdir(testDir);
-    expect(artifactEntries).toContain('path_to_test_1');
+    expect(artifactEntries).toContain(expectRowDir(indexLine, 'path_to_test_1'));
   });
 
-  it('writes artifacts without target subdirectory (one run = one target)', async () => {
+  it('writes artifacts in a deterministic row id directory without target hierarchy', async () => {
     const results = [
       makeResult({
         testId: 'shared-id',
@@ -1739,54 +1768,82 @@ describe('writeArtifactsFromResults', () => {
     ];
 
     const paths = await writeArtifactsFromResults(results, testDir);
-    const indexLines = (await readFile(paths.indexPath, 'utf8')).trim().split('\n').map(JSON.parse);
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'shared-id');
 
-    expect(indexLines[0].grading_path).toBe('shared-id/run-1/grading.json');
+    expect(indexLine.grading_path).toBe(`${rowDir}/run-1/grading.json`);
+    expect(rowDir).not.toContain('/');
 
     const grading: GradingArtifact = JSON.parse(
-      await readFile(path.join(testDir, 'shared-id', 'run-1', 'grading.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'grading.json'), 'utf8'),
     );
 
     expect(grading.assertions[0].text).toBe('baseline-check');
   });
 
-  it('prefixes artifact paths with suite when present', async () => {
+  it('uses distinct row ids for the same test id across targets', async () => {
     const paths = await writeArtifactsFromResults(
-      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      [
+        makeResult({ testId: 'shared-id', target: 'mock-alpha', output: 'alpha answer' }),
+        makeResult({ testId: 'shared-id', target: 'mock-beta', output: 'beta answer' }),
+      ],
       testDir,
     );
 
-    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map(JSON.parse);
-    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
+    const indexLines = await readIndexLines(paths.indexPath);
+    const rowDirs = indexLines.map((line) => expectRowDir(line, 'shared-id'));
+    expect(new Set(rowDirs).size).toBe(2);
+    expect(indexLines.map((line) => line.grading_path)).toEqual(
+      rowDirs.map((rowDir) => `${rowDir}/run-1/grading.json`),
+    );
+    const answers = await Promise.all(
+      indexLines.map((line) =>
+        readFile(runArtifactPath(testDir, line, 'run-1', 'outputs', 'answer.md'), 'utf8'),
+      ),
+    );
+    expect(answers.sort()).toEqual(['alpha answer', 'beta answer']);
   });
 
-  it('does not prefix artifact paths with suite when it matches the result group', async () => {
+  it('uses distinct row ids for the same test id across suites', async () => {
     const paths = await writeArtifactsFromResults(
-      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      [
+        makeResult({ suite: 'suite-a', testId: 'shared-id', target: 'baseline' }),
+        makeResult({ suite: 'suite-b', testId: 'shared-id', target: 'baseline' }),
+      ],
       testDir,
-      { resultGroup: 'eval-top-months-chart' },
     );
 
-    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map(JSON.parse);
-    expect(indexLine.suite).toBe('eval-top-months-chart');
-    expect(indexLine.grading_path).toBe('shared-id/run-1/grading.json');
+    const indexLines = await readIndexLines(paths.indexPath);
+    const rowDirs = indexLines.map((line) => expectRowDir(line, 'shared-id'));
+    expect(indexLines.map((line) => line.suite).sort()).toEqual(['suite-a', 'suite-b']);
+    expect(new Set(rowDirs).size).toBe(2);
+    expect(rowDirs.every((rowDir) => !rowDir.includes('/'))).toBe(true);
   });
 
-  it('prefixes imported suite artifacts even when the suite matches the result group', async () => {
+  it('uses distinct row ids for duplicate suite labels from different eval paths', async () => {
     const sourceTests = [
       {
         id: 'shared-id',
-        suite: 'eval-top-months-chart',
+        suite: 'duplicate-suite',
         source: {
-          evalFilePath: 'evals/imported.eval.yaml',
-          evalFileAbsolutePath: path.join(testDir, 'evals/imported.eval.yaml'),
-          importedSuiteName: 'eval-top-months-chart',
+          evalFilePath: 'evals/one.eval.yaml',
+          evalFileAbsolutePath: path.join(testDir, 'evals/one.eval.yaml'),
+          evalFileRepoPath: 'evals/one.eval.yaml',
+          importedSuiteName: 'duplicate-suite',
+          testId: 'shared-id',
+          testSnapshotYaml: 'id: shared-id',
+          graderDefinitions: [],
+          references: [],
+        },
+      } as EvalTest,
+      {
+        id: 'shared-id',
+        suite: 'duplicate-suite',
+        source: {
+          evalFilePath: 'evals/two.eval.yaml',
+          evalFileAbsolutePath: path.join(testDir, 'evals/two.eval.yaml'),
+          evalFileRepoPath: 'evals/two.eval.yaml',
+          importedSuiteName: 'duplicate-suite',
           testId: 'shared-id',
           testSnapshotYaml: 'id: shared-id',
           graderDefinitions: [],
@@ -1795,46 +1852,82 @@ describe('writeArtifactsFromResults', () => {
       } as EvalTest,
     ];
     const paths = await writeArtifactsFromResults(
-      [makeResult({ suite: 'eval-top-months-chart', testId: 'shared-id', target: 'baseline' })],
+      [
+        makeResult({
+          suite: 'duplicate-suite',
+          testId: 'shared-id',
+          target: 'baseline',
+          source: sourceTests[0].source,
+        }),
+        makeResult({
+          suite: 'duplicate-suite',
+          testId: 'shared-id',
+          target: 'baseline',
+          source: sourceTests[1].source,
+        }),
+      ],
       testDir,
-      { resultGroup: 'eval-top-months-chart', sourceTests },
+      { sourceTests },
     );
 
-    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map(JSON.parse);
-    expect(indexLine.grading_path).toBe('eval-top-months-chart/shared-id/run-1/grading.json');
+    const indexLines = await readIndexLines(paths.indexPath);
+    const rowDirs = indexLines.map((line) => expectRowDir(line, 'shared-id'));
+    expect(new Set(rowDirs).size).toBe(2);
+    expect(indexLines.map((line) => line.projection_identity?.dimensions.eval_path).sort()).toEqual(
+      ['evals/one.eval.yaml', 'evals/two.eval.yaml'],
+    );
   });
 
-  it('uses the imported suite name for wrapper suite artifact paths', async () => {
-    const sourceTests = [
-      {
-        id: 'shared-id',
-        suite: 'wrapper-suite',
-        source: {
-          evalFilePath: 'evals/imported.eval.yaml',
-          evalFileAbsolutePath: path.join(testDir, 'evals/imported.eval.yaml'),
-          importedSuiteName: 'imported-suite',
+  it('includes variant in deterministic row id hashing when projection identity exposes it', () => {
+    const base = makeResult({ suite: 'variant-suite', testId: 'shared-id', target: 'replay' });
+    const alpha = buildResultIndexArtifact(base, undefined, {
+      projectionIdentity: {
+        schemaVersion: 'agentv.projection_identity.v1',
+        id: 'alpha',
+        key: 'alpha',
+        dimensions: {
+          runId: 'run-1',
+          suite: 'variant-suite',
+          evalPath: 'evals/variant.eval.yaml',
           testId: 'shared-id',
-          testSnapshotYaml: 'id: shared-id',
-          graderDefinitions: [],
-          references: [],
+          target: 'replay',
+          sourceTarget: 'codex',
+          attempt: 0,
+          variant: 'alpha',
+          envelopeId: 'envelope-alpha',
+          traceId: 'trace-alpha',
+          rootSpanId: 'root-alpha',
+          projectionFormat: 'execution_trace',
+          projectionVersion: 'agentv.execution_trace.v1',
         },
-      } as EvalTest,
-    ];
-    const paths = await writeArtifactsFromResults(
-      [makeResult({ suite: 'wrapper-suite', testId: 'shared-id', target: 'baseline' })],
-      testDir,
-      { resultGroup: 'wrapper-suite', sourceTests },
-    );
+      },
+    });
+    const beta = buildResultIndexArtifact(base, undefined, {
+      projectionIdentity: {
+        schemaVersion: 'agentv.projection_identity.v1',
+        id: 'beta',
+        key: 'beta',
+        dimensions: {
+          runId: 'run-1',
+          suite: 'variant-suite',
+          evalPath: 'evals/variant.eval.yaml',
+          testId: 'shared-id',
+          target: 'replay',
+          sourceTarget: 'codex',
+          attempt: 0,
+          variant: 'beta',
+          envelopeId: 'envelope-beta',
+          traceId: 'trace-beta',
+          rootSpanId: 'root-beta',
+          projectionFormat: 'execution_trace',
+          projectionVersion: 'agentv.execution_trace.v1',
+        },
+      },
+    });
 
-    const [indexLine] = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map(JSON.parse);
-    expect(indexLine.result_dir).toBe('imported-suite/shared-id');
-    expect(indexLine.grading_path).toBe('imported-suite/shared-id/run-1/grading.json');
+    expectRowDir(alpha, 'shared-id');
+    expectRowDir(beta, 'shared-id');
+    expect(alpha.result_dir).not.toBe(beta.result_dir);
   });
 
   it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {
@@ -1954,20 +2047,21 @@ describe('writeArtifactsFromResults', () => {
       },
     );
 
-    const taskDir = path.join(outputDir, 'trace-case', 'task');
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'trace-case');
+    const taskDir = path.join(outputDir, rowDir, 'task');
     const evalPath = path.join(taskDir, 'EVAL.yaml');
     const targetsPath = path.join(taskDir, 'targets.yaml');
     const taskEval = await readFile(evalPath, 'utf8');
     const taskTargets = await readFile(targetsPath, 'utf8');
-    const indexLine = JSON.parse((await readFile(paths.indexPath, 'utf8')).trim());
 
     expect(indexLine).toMatchObject({
-      result_dir: 'trace-case',
-      task_dir: 'trace-case/task',
-      eval_path: 'trace-case/task/EVAL.yaml',
-      targets_path: 'trace-case/task/targets.yaml',
-      files_path: 'trace-case/task/files',
-      graders_path: 'trace-case/task/graders',
+      result_dir: rowDir,
+      task_dir: `${rowDir}/task`,
+      eval_path: `${rowDir}/task/EVAL.yaml`,
+      targets_path: `${rowDir}/task/targets.yaml`,
+      files_path: `${rowDir}/task/files`,
+      graders_path: `${rowDir}/task/graders`,
     });
     expect(await readFile(path.join(taskDir, 'files', 'src', 'input.txt'), 'utf8')).toBe(
       'input fixture\n',
@@ -1998,9 +2092,7 @@ describe('writeArtifactsFromResults', () => {
     expect(taskTargets).toContain('api_key: "[redacted]"');
     expect(taskEval).not.toContain('literal-secret');
     expect(taskTargets).not.toContain('literal-secret');
-    await expect(
-      readdir(path.join(outputDir, 'trace-case', '.agentv', 'results')),
-    ).rejects.toThrow();
+    await expect(readdir(path.join(outputDir, rowDir, '.agentv', 'results'))).rejects.toThrow();
     await expect(readdir(path.join(taskDir, '.agentv', 'results'))).rejects.toThrow();
   });
 
@@ -2049,13 +2141,17 @@ describe('writeArtifactsFromResults', () => {
       },
     );
 
-    const indexLines = (await readFile(paths.indexPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line) as IndexArtifactEntry);
-    expect(indexLines.map((line) => line.task_dir)).toEqual(['alpha/task', 'beta/task']);
-    expect(await readdir(path.join(testDir, 'multi-out', 'alpha', 'task'))).toContain('EVAL.yaml');
-    expect(await readdir(path.join(testDir, 'multi-out', 'beta', 'task'))).toContain('EVAL.yaml');
+    const indexLines = await readIndexLines(paths.indexPath);
+    const rowDirs = indexLines.map((line) => expectRowDir(line, line.test_id));
+    expect(indexLines.map((line, index) => line.task_dir)).toEqual(
+      rowDirs.map((rowDir) => `${rowDir}/task`),
+    );
+    expect(await readdir(path.join(testDir, 'multi-out', rowDirs[0] ?? '', 'task'))).toContain(
+      'EVAL.yaml',
+    );
+    expect(await readdir(path.join(testDir, 'multi-out', rowDirs[1] ?? '', 'task'))).toContain(
+      'EVAL.yaml',
+    );
   });
 
   it('matches task bundle targets by resolved result target while preserving selected target name', async () => {
@@ -2097,11 +2193,12 @@ describe('writeArtifactsFromResults', () => {
       },
     );
 
-    const indexLine = JSON.parse((await readFile(paths.indexPath, 'utf8')).trim());
-    expect(indexLine.task_dir).toBe('alias-case/task');
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    const rowDir = expectRowDir(indexLine, 'alias-case');
+    expect(indexLine.task_dir).toBe(`${rowDir}/task`);
 
     const taskEval = await readFile(
-      path.join(testDir, 'resolved-target-out', 'alias-case', 'task', 'EVAL.yaml'),
+      path.join(testDir, 'resolved-target-out', rowDir, 'task', 'EVAL.yaml'),
       'utf8',
     );
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
@@ -2141,7 +2238,8 @@ describe('writeArtifacts (from JSONL file)', () => {
     const paths = await writeArtifacts(jsonlPath, outputDir);
 
     const artifactEntries = await readdir(paths.testArtifactDir);
-    expect(artifactEntries).toContain('from-file');
+    const [indexLine] = await readIndexLines(paths.indexPath);
+    expect(artifactEntries).toContain(expectRowDir(indexLine, 'from-file'));
     expect(artifactEntries).toContain('index.jsonl');
 
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));

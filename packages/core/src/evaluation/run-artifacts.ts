@@ -8,7 +8,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
@@ -88,8 +89,51 @@ export interface RunRuntimeSourceMetadata {
   readonly source_eval_files?: readonly string[];
 }
 
-export function buildTestTargetKey(testId?: string, target?: string): string {
-  return `${testId ?? 'unknown'}::${target ?? 'unknown'}`;
+export function buildTestTargetKey(testId?: string, target?: string, variant?: string): string {
+  return `${testId ?? 'unknown'}::${target ?? 'unknown'}::${variant ?? ''}`;
+}
+
+function stringField(record: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = record?.[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function resultProjectionDimensions(result: EvaluationResult): Record<string, unknown> | undefined {
+  const projectionIdentity = (result as unknown as Record<string, unknown>).projectionIdentity;
+  if (!isRecord(projectionIdentity)) {
+    return undefined;
+  }
+  const dimensions = projectionIdentity.dimensions;
+  return isRecord(dimensions) ? dimensions : undefined;
+}
+
+export function buildEvaluationResultTargetKey(result: EvaluationResult): string {
+  const dimensions = resultProjectionDimensions(result);
+  return JSON.stringify({
+    eval_path:
+      stringField(dimensions, 'evalPath') ??
+      sourceEvalPath(result, undefined) ??
+      stringField(result as unknown as Record<string, unknown>, 'evalPath') ??
+      null,
+    suite: stringField(dimensions, 'suite') ?? getSuite(result) ?? null,
+    test_id: stringField(dimensions, 'testId') ?? result.testId ?? 'unknown',
+    target: stringField(dimensions, 'target') ?? result.target ?? 'unknown',
+    variant: stringField(dimensions, 'variant') ?? result.variant ?? null,
+  });
+}
+
+export function buildEvalTestTargetKey(
+  test: Pick<EvalTest, 'id' | 'suite' | 'source'>,
+  target?: string,
+  variant?: string,
+): string {
+  return JSON.stringify({
+    eval_path: evalSourcePath(test.source) ?? null,
+    suite: test.suite ?? null,
+    test_id: test.id ?? 'unknown',
+    target: target ?? 'unknown',
+    variant: variant ?? null,
+  });
 }
 
 export function deduplicateByTestIdTarget(
@@ -97,11 +141,11 @@ export function deduplicateByTestIdTarget(
 ): EvaluationResult[] {
   const seen = new Map<string, number>();
   for (let i = 0; i < results.length; i++) {
-    seen.set(buildTestTargetKey(results[i].testId, results[i].target), i);
+    seen.set(buildEvaluationResultTargetKey(results[i]), i);
   }
   const deduped: EvaluationResult[] = [];
   for (let i = 0; i < results.length; i++) {
-    const key = buildTestTargetKey(results[i].testId, results[i].target);
+    const key = buildEvaluationResultTargetKey(results[i]);
     if (seen.get(key) === i) {
       deduped.push(results[i]);
     }
@@ -300,6 +344,7 @@ export interface RunSummaryArtifact {
     readonly eval_file: string;
     readonly timestamp: string;
     readonly targets: readonly string[];
+    readonly variants?: readonly string[];
     readonly tests_run: readonly string[];
     readonly experiment?: string;
     readonly experiment_config?: ExperimentArtifactMetadata;
@@ -345,6 +390,7 @@ export interface IndexArtifactEntry {
   readonly experiment?: string;
   readonly score: number;
   readonly target: string;
+  readonly variant?: string;
   readonly token_usage?: EvaluationResult['tokenUsage'];
   readonly cost_usd?: number;
   readonly duration_ms?: number;
@@ -889,7 +935,6 @@ async function writeTrialRunArtifacts(params: {
   const envelope = buildTraceEnvelopeSidecar({
     result,
     outputDir: params.outputDir,
-    testDir: runDir,
     evalPath: resolveEnvelopeEvalPath(result, params.testByTestId, params.evalFile),
     experiment: params.experiment,
     runId: attemptRunId,
@@ -1178,13 +1223,18 @@ export function buildRunSummaryArtifact(
   runtimeSource?: RunRuntimeSourceMetadata,
 ): RunSummaryArtifact {
   const targetSet = new Set<string>();
+  const variantSet = new Set<string>();
   const testIdSet = new Set<string>();
   for (const result of results) {
     targetSet.add(result.target ?? 'unknown');
+    if (result.variant) {
+      variantSet.add(result.variant);
+    }
     testIdSet.add(result.testId ?? 'unknown');
   }
 
   const targets = [...targetSet].sort();
+  const variants = [...variantSet].sort();
   const testIds = [...testIdSet].sort();
 
   const runSummary: RunSummaryArtifact['run_summary'] = {};
@@ -1264,6 +1314,7 @@ export function buildRunSummaryArtifact(
       eval_file: evalFile,
       timestamp,
       targets,
+      variants: variants.length > 0 ? variants : undefined,
       tests_run: testIds,
       experiment,
       experiment_config: experimentMetadata,
@@ -1344,25 +1395,62 @@ function safeTestId(testId: string | undefined): string {
   return safeArtifactPathSegment(testId, 'unknown');
 }
 
+const ROW_ID_PREFIX_MAX_LENGTH = 64;
+const ROW_ID_HASH_LENGTH = 12;
+
 function getSuite(result: EvaluationResult): string | undefined {
   return result.suite;
 }
 
+function evalSourcePath(source: EvalTest['source'] | undefined): string | undefined {
+  return source?.evalFileRepoPath ?? source?.evalFilePath;
+}
+
+function sourceEvalPath(
+  result: EvaluationResult,
+  sourceTest: EvalTest | undefined,
+): string | undefined {
+  return evalSourcePath(result.source) ?? evalSourcePath(sourceTest?.source);
+}
+
+function compactRowIdPrefix(testId: string | undefined): string {
+  const safe = safeTestId(testId);
+  return safe.length > ROW_ID_PREFIX_MAX_LENGTH ? safe.slice(0, ROW_ID_PREFIX_MAX_LENGTH) : safe;
+}
+
+function buildRowArtifactHashInput(
+  result: EvaluationResult,
+  sourceTest?: EvalTest,
+  projectionIdentity?: ProjectionIdentity,
+): {
+  readonly eval_path: string | null;
+  readonly suite: string | null;
+  readonly test_id: string;
+  readonly target: string;
+  readonly variant: string | null;
+} {
+  const dimensions = projectionIdentity?.dimensions;
+  return {
+    eval_path: dimensions?.evalPath ?? sourceEvalPath(result, sourceTest) ?? null,
+    suite: dimensions?.suite ?? getSuite(result) ?? null,
+    test_id: dimensions?.testId ?? result.testId ?? 'unknown',
+    target: dimensions?.target ?? result.target ?? 'unknown',
+    variant: dimensions?.variant ?? result.variant ?? null,
+  };
+}
+
 function buildArtifactSubdir(
   result: EvaluationResult,
-  resultGroup?: string,
+  _resultGroup?: string,
   sourceTest?: EvalTest,
+  projectionIdentity?: ProjectionIdentity,
 ): string {
-  const segments = [];
-  const evalSet = getSuite(result);
-  const importedSuiteName = sourceTest?.source?.importedSuiteName;
-  if (importedSuiteName !== undefined) {
-    segments.push(safeArtifactPathSegment(importedSuiteName, 'default'));
-  } else if (evalSet && evalSet !== resultGroup) {
-    segments.push(safeArtifactPathSegment(evalSet, 'default'));
-  }
-  segments.push(safeTestId(result.testId));
-  return path.posix.join(...segments);
+  const hashInput = buildRowArtifactHashInput(result, sourceTest, projectionIdentity);
+  const digest = createHash('sha256')
+    .update(JSON.stringify(hashInput))
+    .digest('hex')
+    .slice(0, ROW_ID_HASH_LENGTH);
+  return `${compactRowIdPrefix(hashInput.test_id)}--${digest}`;
 }
 
 function toRelativeArtifactPath(outputDir: string, filePath: string): string {
@@ -1374,6 +1462,13 @@ function findResultSourceTest(
   testByTestId: ReadonlyMap<string, EvalTest>,
 ): EvalTest | undefined {
   const testId = result.testId ?? 'unknown';
+  const resultSourcePath = evalSourcePath(result.source);
+  if (resultSourcePath) {
+    const sourceMatch = testByTestId.get(sourceTestLookupKey(`source:${resultSourcePath}`, testId));
+    if (sourceMatch) {
+      return sourceMatch;
+    }
+  }
   const suite = getSuite(result);
   if (suite) {
     const suiteMatch = testByTestId.get(sourceTestLookupKey(suite, testId));
@@ -1396,6 +1491,10 @@ function buildSourceTestLookup(
   for (const test of tests) {
     if (test.suite) {
       lookup.set(sourceTestLookupKey(test.suite, test.id), test);
+    }
+    const sourcePath = evalSourcePath(test.source);
+    if (sourcePath) {
+      lookup.set(sourceTestLookupKey(`source:${sourcePath}`, test.id), test);
     }
     if (!lookup.has(test.id)) {
       lookup.set(test.id, test);
@@ -1422,10 +1521,38 @@ function rawProviderLogSourcePath(result: EvaluationResult): string | undefined 
   return sourcePath ? sourcePath : undefined;
 }
 
+function providerStagingRoot(): string {
+  return path.resolve(tmpdir(), 'agentv-provider-streams');
+}
+
+function isAgentvProviderStagingPath(filePath: string): boolean {
+  const root = providerStagingRoot();
+  const resolved = path.resolve(filePath);
+  return resolved.startsWith(`${root}${path.sep}`);
+}
+
+async function cleanupProviderStagingFile(filePath: string): Promise<void> {
+  if (!isAgentvProviderStagingPath(filePath)) {
+    return;
+  }
+
+  await rm(filePath, { force: true });
+
+  const root = providerStagingRoot();
+  let current = path.dirname(path.resolve(filePath));
+  while (current !== root && current.startsWith(`${root}${path.sep}`)) {
+    try {
+      await rmdir(current);
+    } catch {
+      break;
+    }
+    current = path.dirname(current);
+  }
+}
+
 interface TraceEnvelopeSidecarParams {
   readonly result: EvaluationResult;
   readonly outputDir: string;
-  readonly testDir: string;
   readonly evalPath?: string;
   readonly experiment?: string;
   readonly runId?: string;
@@ -1438,6 +1565,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     evalPath: params.evalPath,
     runId: params.runId ?? path.basename(params.outputDir),
     experiment: params.experiment,
+    variant: params.result.variant,
     source: { path: RESULT_INDEX_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
@@ -1478,6 +1606,7 @@ export function buildIndexArtifactEntry(
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
+    variant: result.variant,
     token_usage: result.tokenUsage,
     cost_usd: result.costUsd,
     duration_ms: result.durationMs,
@@ -1543,7 +1672,12 @@ export function buildResultIndexArtifact(
     runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): ResultIndexArtifact {
-  const artifactSubdir = buildArtifactSubdir(result);
+  const artifactSubdir = buildArtifactSubdir(
+    result,
+    undefined,
+    undefined,
+    options?.projectionIdentity,
+  );
   const hasAnswer = result.output.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedTrialRuns(result);
@@ -1557,6 +1691,7 @@ export function buildResultIndexArtifact(
     conversation_id: result.conversationId,
     score: result.score,
     target: result.target ?? 'unknown',
+    variant: result.variant,
     token_usage: result.tokenUsage,
     cost_usd: result.costUsd,
     duration_ms: result.durationMs,
@@ -1643,6 +1778,7 @@ async function writeRawTranscriptJsonl(
   const rawSource = rawProviderLogSourcePath(result);
   if (rawSource) {
     await copyFile(rawSource, filePath);
+    await cleanupProviderStagingFile(rawSource).catch(() => undefined);
     return;
   }
   await writeGeneratedRawTranscriptJsonl(filePath, result, envelope);
@@ -1694,7 +1830,12 @@ function indexRecordKey(record: unknown): string | undefined {
         ? record.testId
         : undefined;
   const target = typeof record.target === 'string' ? record.target : undefined;
-  return testId ? buildTestTargetKey(testId, target) : undefined;
+  const variant = typeof record.variant === 'string' ? record.variant : undefined;
+  return testId ? buildTestTargetKey(testId, target, variant) : undefined;
+}
+
+function indexRecordReplacementKey(record: unknown): string | undefined {
+  return projectionIdentityRecordKey(record) ?? indexRecordKey(record);
 }
 
 function projectionIdentityRecordKey(record: unknown): string | undefined {
@@ -1780,7 +1921,10 @@ async function rewriteExistingIndexRecords(
   }
 
   const replacementsByKey = new Map(
-    replacements.map((record) => [buildTestTargetKey(record.test_id, record.target), record]),
+    replacements.flatMap((record) => {
+      const key = indexRecordReplacementKey(record);
+      return key ? [[key, record] as const] : [];
+    }),
   );
   const seen = new Set<string>();
   const records: unknown[] = [];
@@ -1790,7 +1934,7 @@ async function rewriteExistingIndexRecords(
     }
     try {
       const parsed = JSON.parse(line) as unknown;
-      const key = indexRecordKey(parsed);
+      const key = indexRecordReplacementKey(parsed);
       const replacement = key ? replacementsByKey.get(key) : undefined;
       if (key && replacement) {
         records.push(replacement);
@@ -1802,8 +1946,8 @@ async function rewriteExistingIndexRecords(
   }
 
   for (const replacement of replacements) {
-    const key = buildTestTargetKey(replacement.test_id, replacement.target);
-    if (!seen.has(key)) {
+    const key = indexRecordReplacementKey(replacement);
+    if (!key || !seen.has(key)) {
       records.push(replacement);
     }
   }
@@ -2011,14 +2155,11 @@ export async function writePerTestArtifacts(
 
   for (const result of results) {
     const sourceTest = findResultSourceTest(result, testByTestId);
-    const artifactSubdir = buildArtifactSubdir(result, options?.resultGroup, sourceTest);
-    const testDir = path.join(outputDir, artifactSubdir);
-    await mkdir(testDir, { recursive: true });
+    const evalPath = resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile);
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
-      testDir,
-      evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
+      evalPath,
       experiment: options?.experiment,
       runId: options?.runId,
       duplicatePolicy,
@@ -2027,6 +2168,14 @@ export async function writePerTestArtifacts(
     if (!projectionIdentity) {
       throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
     }
+    const artifactSubdir = buildArtifactSubdir(
+      result,
+      options?.resultGroup,
+      sourceTest,
+      projectionIdentity,
+    );
+    const testDir = path.join(outputDir, artifactSubdir);
+    await mkdir(testDir, { recursive: true });
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const aggregateTiming = buildRepeatAggregateTimingArtifact(result);
     const summary = buildRepeatCaseSummaryArtifact(result, aggregateTiming, projectionIdentity.id);
@@ -2130,14 +2279,11 @@ export async function writeArtifactsFromResults(
 
   const plans = results.map((result) => {
     const sourceTest = findResultSourceTest(result, testByTestId);
-    const artifactSubdir = buildArtifactSubdir(result, options?.resultGroup, sourceTest);
-    const testDir = path.join(outputDir, artifactSubdir);
-    const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
+    const evalPath = resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile);
     const envelope = buildTraceEnvelopeSidecar({
       result,
       outputDir,
-      testDir,
-      evalPath: resolveEnvelopeEvalPath(result, testByTestId, options?.evalFile),
+      evalPath,
       experiment: options?.experiment,
       runId: options?.runId,
       duplicatePolicy,
@@ -2146,6 +2292,14 @@ export async function writeArtifactsFromResults(
     if (!projectionIdentity) {
       throw new Error(`Result ${result.testId ?? 'unknown'} is missing projection identity`);
     }
+    const artifactSubdir = buildArtifactSubdir(
+      result,
+      options?.resultGroup,
+      sourceTest,
+      projectionIdentity,
+    );
+    const testDir = path.join(outputDir, artifactSubdir);
+    const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const identityId = projectionIdentity.id;
     const isSingleRun = !hasPersistedTrialRuns(result);
     const singleRunDir = path.join(testDir, trialRunDirName(0));

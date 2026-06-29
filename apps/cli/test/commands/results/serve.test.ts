@@ -1457,17 +1457,113 @@ describe('serve app', () => {
           suite_count: number;
         }>;
       };
-      expect(categoriesData.categories).toEqual([
-        {
-          name: 'runtime',
-          total: 3,
-          passed: 1,
-          failed: 1,
-          avg_score: 0.75,
-          execution_error_count: 1,
-          suite_count: 1,
-        },
-      ]);
+      expect(categoriesData.categories).toHaveLength(1);
+      expect(categoriesData.categories[0]).toMatchObject({
+        name: 'runtime',
+        total: 3,
+        passed: 1,
+        failed: 1,
+        avg_score: 0.75,
+        execution_error_count: 1,
+        suite_count: 1,
+      });
+    });
+
+    it('returns hierarchical category rollups and descendant category drilldown', async () => {
+      const runsDir = localResultsExperimentDir(tempDir);
+      mkdirSync(runsDir, { recursive: true });
+      const filename = '2026-03-25T10-30-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl(
+          {
+            ...RESULT_A,
+            test_id: 'network-pass',
+            suite: 'network-suite',
+            category: 'security/network',
+            score: 1,
+          },
+          {
+            ...RESULT_B,
+            test_id: 'security-fail',
+            suite: 'root-suite',
+            category: 'security',
+            score: 0,
+          },
+          {
+            ...RESULT_A,
+            test_id: 'flat-pass',
+            suite: 'legacy-suite',
+            category: 'legacy-flat',
+            score: 1,
+          },
+        ),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+
+      const categoriesRes = await app.request(`/api/runs/${filename}/categories`);
+      expect(categoriesRes.status).toBe(200);
+      const categoriesData = (await categoriesRes.json()) as {
+        categories: Array<{
+          name: string;
+          parent?: string;
+          total: number;
+          passed: number;
+          failed: number;
+          child_count?: number;
+        }>;
+        category_tree?: Array<{ name: string; children?: Array<{ name: string }> }>;
+      };
+
+      expect(categoriesData.categories).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'security',
+            total: 2,
+            passed: 1,
+            failed: 1,
+            child_count: 1,
+          }),
+          expect.objectContaining({
+            name: 'security/network',
+            parent: 'security',
+            total: 1,
+            passed: 1,
+            failed: 0,
+          }),
+          expect.objectContaining({
+            name: 'legacy-flat',
+            total: 1,
+            passed: 1,
+            failed: 0,
+          }),
+        ]),
+      );
+      expect(categoriesData.category_tree).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'security',
+            children: [expect.objectContaining({ name: 'security/network' })],
+          }),
+        ]),
+      );
+
+      const suitesRes = await app.request(
+        `/api/runs/${filename}/categories/${encodeURIComponent('security')}/suites`,
+      );
+      expect(suitesRes.status).toBe(200);
+      const suitesData = (await suitesRes.json()) as {
+        suites: Array<{ name: string; total: number }>;
+      };
+      expect(suitesData.suites).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'network-suite', total: 1 }),
+          expect.objectContaining({ name: 'root-suite', total: 1 }),
+        ]),
+      );
     });
 
     it('infers the experiment name from the run id when live results have not written it yet', async () => {
@@ -3850,6 +3946,61 @@ describe('serve app', () => {
   });
 
   describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
+    it('discovers nested bundle indexes and loads the requested row sidecar by manifest metadata', async () => {
+      const runsDir = localResultsExperimentDir(tempDir, 'multi-target');
+      const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
+      const alphaDir = 'case-one--111111111111';
+      const betaDir = 'case-one--222222222222';
+      const alphaBundleDir = path.join(timestampDir, 'storage-alpha');
+      const betaBundleDir = path.join(timestampDir, 'storage-beta');
+      const alphaAnswer = path.join(alphaBundleDir, alphaDir, 'run-1', 'outputs', 'answer.md');
+      const betaAnswer = path.join(betaBundleDir, betaDir, 'run-1', 'outputs', 'answer.md');
+
+      mkdirSync(path.dirname(alphaAnswer), { recursive: true });
+      mkdirSync(path.dirname(betaAnswer), { recursive: true });
+      writeFileSync(alphaAnswer, 'alpha answer');
+      writeFileSync(betaAnswer, 'beta answer');
+      writeFileSync(
+        path.join(alphaBundleDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'multi-target',
+          test_id: 'case-one',
+          target: 'mock-alpha',
+          result_dir: alphaDir,
+          answer_path: `${alphaDir}/run-1/outputs/answer.md`,
+        }),
+      );
+      writeFileSync(
+        path.join(betaBundleDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'multi-target',
+          test_id: 'case-one',
+          target: 'mock-beta',
+          result_dir: betaDir,
+          answer_path: `${betaDir}/run-1/outputs/answer.md`,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const listRes = await app.request('/api/runs');
+      expect(listRes.status).toBe(200);
+      const listData = (await listRes.json()) as {
+        runs: Array<{ filename: string; target?: string }>;
+      };
+      const betaRun = listData.runs.find((run) => run.target === 'mock-beta');
+      expect(betaRun?.filename).toBeTruthy();
+
+      const res = await app.request(
+        `/api/runs/${encodeURIComponent(betaRun?.filename ?? '')}/evals/case-one/files/${betaDir}/run-1/outputs/answer.md?result_dir=${encodeURIComponent(betaDir)}`,
+      );
+
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { content: string };
+      expect(data.content).toBe('beta answer');
+    });
+
     it('loads file content for experiment-scoped run ids', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'with-skills');
       const runId = 'with-skills::2026-03-25T10-00-00-000Z';

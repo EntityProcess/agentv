@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import type {
   GradingArtifact,
+  IndexArtifactEntry,
   RunSummaryArtifact,
   TimingArtifact,
 } from '../../../src/commands/eval/artifact-writer.js';
@@ -210,13 +211,33 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
-function artifactDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  const testId = record.test_id ?? 'unknown';
-  return path.join(outputDir, ...(record.suite ? [record.suite] : []), testId);
+function readIndex(outputDir: string): IndexArtifactEntry[] {
+  return readFileSync(path.join(outputDir, 'index.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as IndexArtifactEntry);
 }
 
-function runArtifactDir(outputDir: string, record: { suite?: string; test_id?: string }): string {
-  return path.join(artifactDir(outputDir, record), 'run-1');
+function findIndexEntry(
+  outputDir: string,
+  record: { suite?: string; target?: string; test_id?: string },
+): IndexArtifactEntry {
+  const entry = readIndex(outputDir).find(
+    (candidate) =>
+      candidate.test_id === (record.test_id ?? 'unknown') &&
+      candidate.target === (record.target ?? 'unknown') &&
+      candidate.suite === record.suite,
+  );
+  expect(entry?.result_dir).toMatch(/^[^/]+--[a-f0-9]{12}$/);
+  return entry as IndexArtifactEntry;
+}
+
+function runArtifactDir(
+  outputDir: string,
+  record: { suite?: string; target?: string; test_id?: string },
+): string {
+  return path.join(outputDir, findIndexEntry(outputDir, record).result_dir, 'run-1');
 }
 
 describe('export e2e — multi-provider metrics verification', () => {
