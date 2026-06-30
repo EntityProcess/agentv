@@ -80,40 +80,41 @@ agentv eval evals/my-eval.yaml
 
 **5. Compare two runs** (pass two `index.jsonl` manifests — e.g. before and after a change):
 ```bash
-agentv compare .agentv/results/default/<before-timestamp>/index.jsonl .agentv/results/default/<after-timestamp>/index.jsonl
+agentv compare .agentv/results/<experiment>/<before-timestamp>/default/index.jsonl .agentv/results/<experiment>/<after-timestamp>/default/index.jsonl
 ```
 
 ## Results
 
-Each run writes a timestamped bundle under `.agentv/results/<experiment>/<timestamp>/`. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
+Each run writes a timestamped bundle under `.agentv/results/<experiment>/<timestamp>/<run-id>/`. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
 
 ```bash
-agentv eval evals/my-eval.yaml --output ./run   # writes ./run/index.jsonl
-cat ./run/index.jsonl                            # JSONL results for scripts/CI
+agentv eval evals/my-eval.yaml --output ./run   # writes ./run/default/index.jsonl
+cat ./run/default/index.jsonl                    # JSONL results for scripts/CI
 ```
 
 Run bundle layout:
 
 ```
 .agentv/results/
-└── default/                          # <experiment> — the eval name
+└── my-eval/                          # <experiment> — the eval name
     └── 2026-06-30T08-30-00-000Z/     # <timestamp> — one run
-        ├── index.jsonl               # flat per-test results (scripts/CI, `agentv compare`)
-        ├── summary.json              # run rollup: pass rate, counts, cost
-        └── fizzbuzz/                 # <test-id>
-            ├── summary.json          # per-test rollup across runs
-            ├── task/                 # frozen inputs, for reproducibility
-            │   ├── EVAL.yaml         #   resolved eval spec
-            │   ├── targets.yaml      #   resolved target config
-            │   └── graders/          #   grader files used
-            └── run-1/                # one attempt (run-N for repeats/trials)
-                ├── result.json       # attempt result + score
-                ├── grading.json      # per-assertion grading detail
-                ├── metrics.json      # tokens, cost, tool calls
-                ├── timing.json       # durations
-                ├── transcript.jsonl       # parsed agent transcript
-                ├── transcript-raw.jsonl   # raw agent output (debugging)
-                └── outputs/          # captured stdout and grader outputs
+        └── default/                  # <run-id>
+            ├── index.jsonl           # flat per-test results (scripts/CI, `agentv compare`)
+            ├── summary.json          # run rollup: pass rate, counts, cost
+            └── fizzbuzz--a1b2c3d4/   # <case-allocation>
+                ├── summary.json      # per-test rollup across runs
+                ├── task/             # frozen inputs, for reproducibility
+                │   ├── EVAL.yaml     #   resolved eval spec
+                │   ├── targets.yaml  #   resolved target config
+                │   └── graders/      #   grader files used
+                └── run-1/            # one attempt (run-N for repeats/trials)
+                    ├── result.json   # compact attempt manifest
+                    ├── grading.json  # per-assertion grading detail
+                    ├── metrics.json  # tool calls, transcript stats, behavior metrics
+                    ├── timing.json   # duration, token usage, cost
+                    ├── transcript.jsonl       # parsed agent transcript
+                    ├── transcript-raw.jsonl   # raw agent output (debugging)
+                    └── outputs/      # captured stdout and grader outputs
 ```
 
 ## TypeScript SDK
