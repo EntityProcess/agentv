@@ -44,7 +44,7 @@ Use the simplest surface that matches the job:
 - **YAML / JSONL first** for portable eval specs you want to run from the CLI, check into a repo, or share across TypeScript and Python workflows.
 - **`defineEval()` / `evalSuite()`** when you want a `.eval.ts` file that mirrors YAML concepts and lowers back to the canonical snake_case contract.
 - **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
-- **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
+- **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput`.
 - **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
 - **`agentv eval <verifier.test.ts>`** for deterministic workspace checks that fit normal Vitest `expect(...)` tests.
 
@@ -348,7 +348,7 @@ const { results, summary } = await evaluate({
       id: 'greeting',
       input: 'Say hello',
       expectedOutput: 'Hello there!',
-      assert: [{ type: 'contains', value: 'Hello' }],
+      assertions: [{ type: 'contains', value: 'Hello' }],
     },
   ],
 });
@@ -356,7 +356,7 @@ const { results, summary } = await evaluate({
 console.log(`${summary.passed}/${summary.total} passed`);
 ```
 
-A strict OR is easy with `assert` inline handlers:
+A strict OR is easy with inline assertion handlers:
 
 ```typescript
 import { evaluate } from '@agentv/sdk';
@@ -367,7 +367,7 @@ const { summary } = await evaluate({
       id: 'capital',
       input: 'What is the capital of France?',
       expectedOutput: 'Paris',
-      assert: [
+      assertions: [
         ({ output }) => ({
           name: 'capital-or-phrase',
           score: ((output ?? '').includes('Paris') || /capital of france/i.test(output ?? '')) ? 1 : 0,

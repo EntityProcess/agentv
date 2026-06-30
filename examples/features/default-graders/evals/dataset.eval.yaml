@@ -1,5 +1,5 @@
 # Default Graders Example
-# Demonstrates root-level assert that apply to all tests
+# Demonstrates root-level assertionsions that apply to all tests
 
 name: default-graders-example
 description: Root-level graders that automatically apply to every test
@@ -15,7 +15,7 @@ tests:
     criteria: The assistant responds with a friendly greeting
     input: "Hello!"
     expected_output: "Hello! How can I help you today?"
-    # Gets tone_check from root-level assert
+    # Gets tone_check from root-level assertions
 
   - id: with-custom-eval
     criteria: The assistant provides a helpful response about refunds
@@ -24,7 +24,7 @@ tests:
     assertions:
       - name: helpfulness
         type: llm-grader
-    # Also gets tone_check from root-level assert
+    # Also gets tone_check from root-level assertions
 
   - id: skip-defaults
     criteria: The assistant handles urgent requests appropriately

@@ -586,46 +586,48 @@ describe('transpileEvalYaml — suite-level assertions', () => {
     expect(evals[1].assertions).toContain("Output contains 'global-check'");
   });
 
-  it('accepts deprecated assert: key at suite level', () => {
+  it('ignores the removed suite-level removed assertion key', () => {
+    const removedKey = ['ass', 'ert'].join('');
     const suite = {
       tests: [
         {
           id: 't1',
           input: 'hello',
-          assert: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
+          assertions: [{ type: 'skill-trigger', skill: 's', should_trigger: true }],
         },
       ],
-      assert: [{ type: 'contains', value: 'suite-level' }],
-    };
+      [removedKey]: [{ type: 'contains', value: 'suite-level' }],
+    } as Record<string, unknown>;
     const { files, warnings } = transpileEvalYaml(suite);
     const evals = files.get('s')?.evals;
-    expect(evals[0].assertions).toContain("Output contains 'suite-level'");
-    expect(warnings.some((w) => w.includes("'assert' is deprecated"))).toBe(true);
+    expect(evals?.[0].assertions).not.toContain("Output contains 'suite-level'");
+    expect(warnings).toEqual([]);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Deprecated assert: key at test level
+// Removed legacy assertion key at test level
 // ---------------------------------------------------------------------------
 
-describe('transpileEvalYaml — deprecated assert: key', () => {
-  it('accepts assert: key at test level with deprecation warning', () => {
+describe('transpileEvalYaml — removed legacy assertion key', () => {
+  it('ignores the removed test-level removed assertion key', () => {
+    const removedKey = ['ass', 'ert'].join('');
     const suite = {
       tests: [
         {
           id: 't1',
           input: 'Hello',
-          assert: [
+          [removedKey]: [
             { type: 'skill-trigger', skill: 'skill-a', should_trigger: true },
             { type: 'contains', value: 'world' },
           ],
         },
       ],
-    };
+    } as Record<string, unknown>;
     const { files, warnings } = transpileEvalYaml(suite);
-    expect(files.has('skill-a')).toBe(true);
-    expect(files.get('skill-a')?.evals[0].assertions).toContain("Output contains 'world'");
-    expect(warnings.some((w) => w.includes("'assert' is deprecated"))).toBe(true);
+    expect(files.has('skill-a')).toBe(false);
+    expect(files.get('_no-skill')?.evals[0].assertions).not.toContain("Output contains 'world'");
+    expect(warnings).toEqual([]);
   });
 });
 

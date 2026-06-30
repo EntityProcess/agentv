@@ -3,7 +3,7 @@
 # This avoids repeating the same system prompt file in each test case.
 
 name: suite-level-input-example
-description: Suite-level input prepended to all tests (like suite-level assert)
+description: Suite-level input prepended to all tests (like suite-level assertions)
 
 execution:
   target: llm

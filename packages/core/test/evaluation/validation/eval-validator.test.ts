@@ -867,8 +867,8 @@ tests:
     expect(warnings).toHaveLength(0);
   });
 
-  describe('assert field validation', () => {
-    it('validates assert array items have type field', async () => {
+  describe('assertions field validation', () => {
+    it('validates assertions array items have type field', async () => {
       const filePath = path.join(tempDir, 'assert-missing-type.yaml');
       await writeFile(
         filePath,
@@ -886,7 +886,7 @@ tests:
       expect(warnings.some((e) => e.message.includes("'type'"))).toBe(true);
     });
 
-    it('warns on invalid assert type', async () => {
+    it('warns on invalid assertion type', async () => {
       const filePath = path.join(tempDir, 'assert-invalid-type.yaml');
       await writeFile(
         filePath,
@@ -1099,7 +1099,7 @@ tests:
       expect(warnings.some((e) => e.message.includes('required'))).toBe(true);
     });
 
-    it('warns when assert is not an array', async () => {
+    it('warns when assertions is not an array', async () => {
       const filePath = path.join(tempDir, 'assert-not-array.yaml');
       await writeFile(
         filePath,
@@ -1154,7 +1154,7 @@ tests:
       expect(warnings.some((e) => e.message.includes('string or an object'))).toBe(true);
     });
 
-    it('passes valid assert array', async () => {
+    it('passes valid assertions array', async () => {
       const filePath = path.join(tempDir, 'assert-valid.yaml');
       await writeFile(
         filePath,
@@ -1758,14 +1758,15 @@ tests:
       ).toBe(true);
     });
 
-    it('warns on assert as deprecated field at test level', async () => {
-      const filePath = path.join(tempDir, 'assert-deprecated.yaml');
+    it('errors on removed assertion field at test level', async () => {
+      const removedKey = ['ass', 'ert'].join('');
+      const filePath = path.join(tempDir, 'removed-test-field.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "Hello"
-    assert:
+    ${removedKey}:
       - type: contains
         value: "hello"
 `,
@@ -1773,20 +1774,22 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(true);
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(result.valid).toBe(false);
+      const errors = result.errors.filter((e) => e.severity === 'error');
       expect(
-        warnings.some(
-          (e) => e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
+        errors.some(
+          (e) =>
+            e.message.includes("'assert' has been removed") && e.message.includes("'assertions'"),
         ),
       ).toBe(true);
     });
 
-    it('warns on assert as deprecated field at top level', async () => {
-      const filePath = path.join(tempDir, 'assert-top-deprecated.yaml');
+    it('errors on removed assertion field at top level', async () => {
+      const removedKey = ['ass', 'ert'].join('');
+      const filePath = path.join(tempDir, 'removed-top-field.yaml');
       await writeFile(
         filePath,
-        `assert:
+        `${removedKey}:
   - type: contains
     value: "hello"
 tests:
@@ -1797,10 +1800,12 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
+      expect(result.valid).toBe(false);
+      const errors = result.errors.filter((e) => e.severity === 'error');
       expect(
-        warnings.some(
-          (e) => e.message.includes("'assert' is deprecated") && e.message.includes("'assertions'"),
+        errors.some(
+          (e) =>
+            e.message.includes("'assert' has been removed") && e.message.includes("'assertions'"),
         ),
       ).toBe(true);
     });

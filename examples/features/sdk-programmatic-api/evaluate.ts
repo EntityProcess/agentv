@@ -15,7 +15,7 @@ const { results, summary } = await evaluate({
       id: 'greeting',
       input: 'Say hello and introduce yourself briefly.',
       expectedOutput: "Hello! I'm an AI assistant here to help you.",
-      assert: [{ type: 'contains', value: 'Hello' }],
+      assertions: [{ type: 'contains', value: 'Hello' }],
     },
     {
       id: 'json-output',
@@ -24,7 +24,7 @@ const { results, summary } = await evaluate({
         { role: 'user', content: 'Return a JSON object with a "status" field set to "ok".' },
       ],
       expectedOutput: '{"status": "ok"}',
-      assert: [
+      assertions: [
         { type: 'is-json', required: true },
         { type: 'contains', value: 'ok' },
       ],

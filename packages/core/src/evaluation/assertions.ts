@@ -5,11 +5,11 @@
  * that doesn't fit a built-in grader type. For built-in assertions
  * (contains, regex, is-json, etc.), use config objects instead:
  *
- *   assert: [{ type: 'contains', value: 'hello' }]
+ *   assertions: [{ type: 'contains', value: 'hello' }]
  *
  * Inline functions are for custom logic:
  *
- *   assert: [({ output }) => ({ name: 'len', score: output.length > 5 ? 1 : 0 })]
+ *   assertions: [({ output }) => ({ name: 'len', score: output.length > 5 ? 1 : 0 })]
  */
 
 /** Context passed to inline assertion functions */

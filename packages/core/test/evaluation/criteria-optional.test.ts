@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { loadTests } from '../../src/evaluation/yaml-parser.js';
 
-describe('criteria is optional when expected_output or assert is present', () => {
+describe('criteria is optional when expected_output or assertions is present', () => {
   let tempDir: string;
 
   beforeAll(async () => {

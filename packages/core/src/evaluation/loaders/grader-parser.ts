@@ -56,7 +56,6 @@ export async function parseGraders(
     readonly execution?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
-    readonly assert?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -66,18 +65,17 @@ export async function parseGraders(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level graders priority: assertions > assert > legacy execution/top-level assertion lists
+  // Case-level graders priority: assertions > legacy execution/top-level assertion lists
   const caseEvaluators =
     rawEvalCase.assertions ??
-    rawEvalCase.assert ??
     (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assertions
     rawEvalCase.evaluators; // deprecated: use assertions
 
-  // Root-level default graders: assertions > assert > legacy execution assertion list
+  // Root-level default graders: assertions > legacy execution assertion list
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assertions
+    : (globalExecution?.assertions ?? globalExecution?.evaluators); // deprecated: use assertions
 
   // Parse case-level evaluators
   const parsedCase = await parseGraderList(
@@ -251,7 +249,6 @@ export async function collectAssertionTemplateSourceReferences(
     readonly execution?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
-    readonly assert?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -261,13 +258,12 @@ export async function collectAssertionTemplateSourceReferences(
   const executionObject = isJsonObject(execution) ? execution : undefined;
   const caseEvaluators =
     rawEvalCase.assertions ??
-    rawEvalCase.assert ??
     (executionObject ? executionObject.evaluators : undefined) ??
     rawEvalCase.evaluators;
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators);
+    : (globalExecution?.assertions ?? globalExecution?.evaluators);
 
   return [
     ...(await collectAssertionTemplateReferencesFromValue(caseEvaluators, searchRoots, evalId)),
@@ -368,7 +364,7 @@ async function collectAssertionTemplateReferencesFromObject(
   includeContext: IncludeContext,
 ): Promise<readonly EvalSourceReference[]> {
   const references: EvalSourceReference[] = [];
-  for (const key of ['assertions', 'assert', 'evaluators'] as const) {
+  for (const key of ['assertions', 'evaluators'] as const) {
     references.push(
       ...(await collectAssertionTemplateReferencesFromValue(
         value[key],
@@ -411,7 +407,7 @@ async function parseGraderList(
             if (typeof item === 'string') {
               const trimmed = item.trim();
               if (trimmed.length === 0) {
-                logWarning(`Skipping empty string criterion in assert array for '${evalId}'`);
+                logWarning(`Skipping empty string criterion in assertions array for '${evalId}'`);
               } else {
                 strings.push(trimmed);
               }
@@ -647,8 +643,8 @@ async function parseGraderList(
     }
 
     if (typeValue === 'composite') {
-      // Accept assertions > assert > evaluators (deprecated)
-      const rawMembers = rawEvaluator.assertions ?? rawEvaluator.assert ?? rawEvaluator.evaluators; // evaluators deprecated
+      // Accept assertions > evaluators (deprecated)
+      const rawMembers = rawEvaluator.assertions ?? rawEvaluator.evaluators; // evaluators deprecated
       if (!Array.isArray(rawMembers)) {
         logWarning(
           `Skipping composite evaluator '${name}' in '${evalId}': missing assertions (or evaluators) array`,

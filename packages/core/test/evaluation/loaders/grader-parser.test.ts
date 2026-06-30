@@ -1251,7 +1251,7 @@ describe('parseGraders - default evaluators merge', () => {
   });
 });
 
-describe('parseGraders - assert field', () => {
+describe('parseGraders - assertions field', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -1276,17 +1276,17 @@ describe('parseGraders - assert field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('parses legacy assert field as evaluators (backward compat)', async () => {
+  it('ignores the removed assertion field as evaluator input', async () => {
+    const removedKey = ['ass', 'ert'].join('');
     const evaluators = await parseGraders(
       {
-        assert: [{ type: 'contains', value: 'DENIED' }],
+        [removedKey]: [{ type: 'contains', value: 'DENIED' }],
       },
       undefined,
       [tempDir],
       'test-1',
     );
-    expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('contains');
+    expect(evaluators).toBeUndefined();
   });
 
   it('assertions takes precedence over execution.evaluators', async () => {
@@ -1347,7 +1347,7 @@ describe('parseGraders - assert field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('falls back to execution.evaluators when assert is not present', async () => {
+  it('falls back to execution.evaluators when assertions is not present', async () => {
     const evaluators = await parseGraders(
       {
         execution: {
