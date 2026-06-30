@@ -14,8 +14,7 @@ governance: &gov
   risk_tier: high
   owner: security-team
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: html-comment-injection-in-readme

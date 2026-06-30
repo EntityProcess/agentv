@@ -62,9 +62,9 @@ already-exported secrets into `.env`.
 ## Referencing Targets in Evals
 
 Select the system under test with top-level `target` or CLI `--target`.
-Existing target-matrix evals may still use legacy suite-level
-`execution.targets`. Test cases do not choose targets; split target-specific
-cases into separate eval suites or select them with tags/filters.
+Test cases do not choose targets; split target-specific cases into separate eval
+suites, select them with tags/filters, or run the same eval with different
+`--target` values.
 
 ```yaml
 target: azure-base
@@ -239,23 +239,14 @@ Eval files can define per-target hooks that run setup/teardown scripts to custom
 
 Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config. Keep installs, builds, fixture generation, and case resets in `workspace.hooks`.
 
-Target hooks for matrix evals are defined in the eval file's legacy
-`execution.targets` array using object form:
+Target hooks can be scoped to an eval-local target object:
 
 ```yaml
-execution:
-  targets:
-    - baseline                          # string shorthand (no hooks)
-    - name: with-skills                 # object form with hooks
-      use_target: default
-      hooks:
-        before_each:
-          command: ["setup-plugins.sh", "skills"]
-    - name: with-guidelines
-      use_target: default
-      hooks:
-        before_each:
-          command: ["sh", "-c", "cp guidelines.md {{workspace_path}}/.claude/"]
+target:
+  extends: default
+  hooks:
+    before_each:
+      command: ["setup-plugins.sh", "skills"]
 ```
 
 ### Hook execution order

@@ -13,8 +13,7 @@
 
 description: Tool-call F1 scoring examples
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # ==========================================

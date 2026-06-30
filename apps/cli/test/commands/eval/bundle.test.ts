@@ -92,8 +92,7 @@ await Bun.write(\`\${payload.workspace_path}/hook-ran.txt\`, 'ok\\n');
 
     const evalPath = path.join(sourceDir, 'evals', 'demo.eval.yaml');
     const sourceEvalBefore = `name: portable-demo
-execution:
-  target: inherited
+target: inherited
 workspace:
   template: ../workspace-template
   hooks:
@@ -142,7 +141,8 @@ tests: ../data/cases.yaml
     const bundledEvalText = await readFile(path.join(bundleDir, 'evals', 'demo.eval.yaml'), 'utf8');
     expect(bundledEvalText).not.toContain(sourceDir);
     const bundledEval = parseYamlValue(bundledEvalText) as Record<string, unknown>;
-    expect(bundledEval.execution).toEqual({ target: 'inherited' });
+    expect(bundledEval.target).toBe('inherited');
+    expect(bundledEval.execution).toBeUndefined();
     const [testCase] = bundledEval.tests as Record<string, unknown>[];
     expect(testCase.id).toBe('case-alpha');
     expect(testCase.workspace).toMatchObject({

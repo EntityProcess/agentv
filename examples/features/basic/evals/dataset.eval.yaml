@@ -5,8 +5,7 @@ name: basic
 description: Example showing basic features, conversation threading, multiple graders
 
 # File-level default target
-execution:
-  target: llm
+target: llm
 
 tests:
   # ==========================================

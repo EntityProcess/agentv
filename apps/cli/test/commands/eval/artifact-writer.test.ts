@@ -2090,7 +2090,7 @@ describe('writeArtifactsFromResults', () => {
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
     const [assertion] = testCase.assertions as Record<string, unknown>[];
-    expect(parsedEval.execution).toEqual({ target: 'gpt-4o' });
+    expect(parsedEval.target).toBe('gpt-4o');
     expect(testCase.input).toBe('file://files/src/input.txt');
     expect(assertion.prompt).toBe('file://graders/src/grader.md');
     expect(assertion.prompt_script).toEqual([
@@ -2217,7 +2217,7 @@ describe('writeArtifactsFromResults', () => {
       'utf8',
     );
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
-    expect(parsedEval.execution).toEqual({ target: 'mock-target' });
+    expect(parsedEval.target).toBe('mock-target');
   });
 });
 

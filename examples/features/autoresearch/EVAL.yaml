@@ -4,8 +4,7 @@ description: |
   and reasoning quality. Used as an autoresearch demo — the prompt artifact starts
   weak and the optimization loop iteratively improves it.
 
-execution:
-  target: llm
+target: llm
 
 defaults:
   system_message: &system_prompt |

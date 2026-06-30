@@ -1,52 +1,53 @@
 # Benchmark Tooling
 
-Utilities for multi-model benchmarking workflows with AgentV.
+Utilities for comparing completed multi-model benchmark runs with AgentV.
 
-## N-Way Multi-Model Comparison (built-in)
+## Completed Run Comparison
 
-`agentv compare` natively supports canonical run manifests with a `target` field, enabling N-way matrix comparison without splitting files.
+`agentv compare` reads completed run manifests with a `target` field and compares finished runs. Use it after running the same eval once per target. For N-way analysis, combine completed runs first or use Dashboard analytics for the aggregated experiment × target matrix.
 
 ### Quick Start
 
 ```bash
-# Compare a recent canonical run
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
+# Compare two completed target runs
+agentv compare \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl
 ```
 
 Output:
 
 ```
-Score Matrix
+Comparing: gpt-4.1 → claude-sonnet-4
 
-  Test ID          gemini-3-flash-preview  gpt-4.1  gpt-5-mini
-  ───────────────  ──────────────────────  ───────  ──────────
-  code-generation                    0.70     0.80        0.75
-  greeting                           0.90     0.85        0.95
-  summarization                      0.85     0.90        0.80
-
-Pairwise Summary:
-  gemini-3-flash-preview → gpt-4.1:     1 win, 0 losses, 2 ties  (Δ +0.033)
-  gemini-3-flash-preview → gpt-5-mini:  0 wins, 0 losses, 3 ties  (Δ +0.017)
-  gpt-4.1 → gpt-5-mini:                 0 wins, 0 losses, 3 ties  (Δ -0.017)
+  Test ID          Baseline  Candidate     Delta  Result
+  ───────────────  ────────  ─────────  ────────  ────────
+  code-generation      0.80       0.86     +0.06  = tie
+  greeting             0.85       0.95     +0.10  = tie
+  summarization        0.90       0.84     -0.06  = tie
 ```
 
 ### Usage
 
 ```bash
-# N-way matrix (all targets)
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
+# Pairwise completed-run comparison
+agentv compare \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl
 
-# With baseline regression check (exits 1 if any target regresses)
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1
-
-# Pairwise from combined file
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
-
-# Filter to specific targets
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --targets gpt-4.1 --targets gpt-5-mini
+# N-way matrix from completed runs
+agentv results combine \
+  .agentv/results/model-benchmark/<gpt-timestamp> \
+  .agentv/results/model-benchmark/<claude-timestamp> \
+  .agentv/results/model-benchmark/<gemini-timestamp> \
+  --output .agentv/results/model-benchmark/combined
+agentv compare .agentv/results/model-benchmark/combined/index.jsonl
 
 # JSON output
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
+agentv compare \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl \
+  --json
 ```
 
 ### Pairwise Mode
@@ -54,7 +55,9 @@ agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
 Extract a head-to-head comparison between two specific targets:
 
 ```bash
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
+agentv compare \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<candidate-timestamp>/index.jsonl
 ```
 
 ```
@@ -92,7 +95,7 @@ Each line includes a `target` field to identify which model produced the result:
 
 ## split-by-target
 
-Splits a combined results JSONL file into one file per `target`, enabling pairwise comparison with `agentv compare`. This is an alternative to the built-in N-way comparison above, useful when you need separate files per target for other tools.
+Splits a combined results JSONL file into one file per `target`, enabling pairwise comparison with `agentv compare`. Use this when you need separate files per target for other tools.
 
 ### Usage
 
@@ -123,19 +126,30 @@ Target names are normalized for safe filenames:
 
 ### Downstream Compare Workflow
 
-Use `agentv compare` directly on the canonical run manifest for pairwise or matrix comparisons:
+Use `agentv compare` on completed run manifests for pairwise analysis, or combine completed runs before matrix-style analysis:
 
 ```bash
-# 1. Run a matrix evaluation that produces a canonical run workspace
-bun agentv eval my-eval.yaml
+# 1. Run the same eval once per target
+bun agentv eval my-eval.yaml --target gpt-4.1 --experiment model-benchmark
+bun agentv eval my-eval.yaml --target claude-sonnet-4 --experiment model-benchmark
 
-# 2. Compare any two targets from the same run
-bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
-  --baseline gpt-4.1 --candidate claude-sonnet-4
+# 2. Compare two completed runs
+bun agentv compare \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl
 
-# 3. JSON output for CI pipelines
-bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
-  --baseline gpt-4.1 --candidate claude-sonnet-4 --json
+# 3. Combine completed runs for an N-way matrix
+bun agentv results combine \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl \
+  --output .agentv/results/model-benchmark/combined
+bun agentv compare .agentv/results/model-benchmark/combined/index.jsonl
+
+# 4. JSON output for CI pipelines
+bun agentv compare \
+  .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
+  .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl \
+  --json
 ```
 
 The `compare` command matches records by `test_id`, calculates score deltas, and classifies each as win/loss/tie. It exits non-zero on regressions, making it suitable for CI gates.

@@ -259,87 +259,74 @@ function stripLocalOnlyExecutionDefaults(
   return nextConfig;
 }
 
-function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | undefined {
-  if (suite.experiment !== undefined) {
+function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
+  if (suite.experiment !== undefined && typeof suite.experiment !== 'string') {
+    throw new Error("Invalid top-level 'experiment': use a string run/result grouping label.");
+  }
+  if (suite.policy !== undefined) {
     throw new Error(
-      "Top-level 'experiment' has been removed from eval YAML. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.",
+      "Top-level 'policy' is not part of eval YAML. Put runs, early_exit, timeout_seconds, threshold, and budget_usd at the top level.",
     );
   }
-  const runtime = suite.execution;
-  if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) {
-    return undefined;
+  if (suite.execution !== undefined) {
+    throw new Error(
+      "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.",
+    );
   }
-  return runtime as Record<string, unknown>;
 }
 
-function getSuitePolicyBlock(suite: JsonObject): Record<string, unknown> | undefined {
-  const policy = suite.policy;
-  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) {
+function getSuiteTopLevelNumber(
+  suite: JsonObject,
+  field: string,
+  validate: (value: number) => boolean,
+  label: string,
+): number | undefined {
+  rejectAuthoredRuntimeContainers(suite);
+  const raw = suite[field];
+  if (raw === undefined || raw === null) {
     return undefined;
   }
-  return policy as Record<string, unknown>;
+  if (typeof raw === 'number' && validate(raw)) {
+    return raw;
+  }
+  logWarning(`Invalid ${label}: ${raw}. Ignoring.`);
+  return undefined;
 }
 
-/**
- * Extract target name from parsed eval suite (checks execution.target then falls back to root-level target).
- */
+/** Extract the single top-level target name from a parsed eval suite. */
 export function extractTargetFromSuite(suite: JsonObject): string | undefined {
+  rejectAuthoredRuntimeContainers(suite);
   const targetValue = suite.target;
   if (typeof targetValue === 'string' && targetValue.trim().length > 0) {
     return targetValue.trim();
   }
-
-  const runtime = getSuiteRuntimeBlock(suite);
-  const runtimeTarget = runtime?.target;
-  if (typeof runtimeTarget === 'string' && runtimeTarget.trim().length > 0) {
-    return runtimeTarget.trim();
+  if (isJsonObject(targetValue)) {
+    const name = targetValue.name;
+    const extendsTarget = targetValue.extends;
+    if (typeof name === 'string' && name.trim().length > 0) {
+      return name.trim();
+    }
+    if (typeof extendsTarget === 'string' && extendsTarget.trim().length > 0) {
+      return extendsTarget.trim();
+    }
   }
 
   return undefined;
 }
 
 /**
- * Extract target refs from parsed eval suite.
- * Supports both string shorthand and object form with hooks.
- * Returns undefined when no targets array is specified.
+ * Matrix target refs are not authored in eval YAML. The CLI keeps this helper
+ * as an internal no-op for call sites that still handle runtime-only matrices.
  */
 export function extractTargetRefsFromSuite(
   suite: JsonObject,
 ): readonly EvalTargetRef[] | undefined {
-  const runtime = getSuiteRuntimeBlock(suite);
-  if (!runtime) {
-    return undefined;
-  }
-
-  const targets = runtime.targets;
-  if (!Array.isArray(targets)) {
-    return undefined;
-  }
-
-  const refs: EvalTargetRef[] = [];
-  for (const t of targets) {
-    if (typeof t === 'string' && t.trim().length > 0) {
-      refs.push({ name: t.trim() });
-    } else if (t && typeof t === 'object' && !Array.isArray(t) && 'name' in t) {
-      const obj = t as Record<string, unknown>;
-      const name = typeof obj.name === 'string' ? obj.name.trim() : '';
-      if (name.length === 0) continue;
-      const useTarget = typeof obj.use_target === 'string' ? obj.use_target.trim() : undefined;
-      const hooks = parseTargetHooks(obj.hooks);
-      refs.push({
-        name,
-        ...(useTarget && { use_target: useTarget }),
-        ...(hooks && { hooks }),
-      });
-    }
-  }
-  return refs.length > 0 ? refs : undefined;
+  rejectAuthoredRuntimeContainers(suite);
+  return undefined;
 }
 
 /**
- * Extract target names from parsed eval suite (backward-compat wrapper).
- * Precedence: execution.targets (array) > execution.target (singular).
- * Returns undefined when no targets array is specified.
+ * Extract runtime-only matrix target names from parsed eval suite.
  */
 export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | undefined {
   const refs = extractTargetRefsFromSuite(suite);
@@ -389,7 +376,7 @@ function parseHookConfig(raw: unknown): WorkspaceHookConfig | undefined {
  * Parse target hooks from a raw hooks object.
  * Returns undefined if no valid hooks are found.
  */
-function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
+export function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const obj = raw as Record<string, unknown>;
 
@@ -409,6 +396,14 @@ function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
 }
 
 /**
+ * Eval YAML does not own concurrency.
+ */
+export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
+  rejectAuthoredRuntimeContainers(suite);
+  return undefined;
+}
+
+/**
  * Cache configuration parsed from execution block.
  */
 export interface CacheConfig {
@@ -417,138 +412,49 @@ export interface CacheConfig {
 }
 
 /**
- * Extract cache configuration from parsed eval suite's execution block.
+ * Eval YAML does not own response cache configuration.
  * Returns undefined when no cache config is specified.
  */
 export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
-    return undefined;
-  }
-
-  const cache = executionObj.cache;
-
-  if (cache === undefined || cache === null) {
-    return undefined;
-  }
-
-  if (typeof cache !== 'boolean') {
-    logWarning(`Invalid execution.cache: ${cache}. Must be a boolean. Ignoring.`);
-    return undefined;
-  }
-
-  if (executionObj.cachePath !== undefined) {
-    logWarning('Invalid execution.cachePath: use snake_case execution.cache_path in YAML.');
-  }
-
-  const cachePath = executionObj.cache_path;
-  const resolvedCachePath =
-    typeof cachePath === 'string' && cachePath.trim().length > 0 ? cachePath.trim() : undefined;
-
-  return { enabled: cache, cachePath: resolvedCachePath };
-}
-
-/**
- * Extract suite-level total budget from parsed eval suite's execution block.
- * Returns undefined when not specified.
- */
-export function extractBudgetUsd(suite: JsonObject): number | undefined {
-  const policyObj = getSuitePolicyBlock(suite);
-  const policyBudget = policyObj?.budget_usd;
-  if (policyBudget !== undefined && policyBudget !== null) {
-    if (typeof policyBudget === 'number' && policyBudget > 0) {
-      return policyBudget;
-    }
-    logWarning(`Invalid policy.budget_usd: ${policyBudget}. Must be a positive number. Ignoring.`);
-    return undefined;
-  }
-
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
-    return undefined;
-  }
-
-  // Reject the old key with a clear error
-  if ('total_budget_usd' in executionObj || 'totalBudgetUsd' in executionObj) {
-    throw new Error(
-      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
-    );
-  }
-
-  const rawBudget = executionObj.budget_usd ?? executionObj.budgetUsd;
-
-  if (rawBudget === undefined || rawBudget === null) {
-    return undefined;
-  }
-
-  if (typeof rawBudget === 'number' && rawBudget > 0) {
-    return rawBudget;
-  }
-
-  logWarning(`Invalid execution.budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`);
+  rejectAuthoredRuntimeContainers(suite);
   return undefined;
 }
 
 /**
- * Extract `execution.fail_on_error` from parsed eval suite.
+ * Extract suite-level total budget from top-level eval YAML.
+ * Returns undefined when not specified.
+ */
+export function extractBudgetUsd(suite: JsonObject): number | undefined {
+  return getSuiteTopLevelNumber(
+    suite,
+    'budget_usd',
+    (value) => value > 0,
+    'budget_usd. Must be a positive number',
+  );
+}
+
+/**
+ * Eval YAML does not own execution error tolerance.
  * Accepts `true` or `false`.
  * Returns undefined when not specified.
  */
 export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
-    return undefined;
-  }
-
-  const raw = executionObj.fail_on_error ?? executionObj.failOnError;
-
-  if (raw === undefined || raw === null) {
-    return undefined;
-  }
-
-  if (typeof raw === 'boolean') {
-    return raw;
-  }
-
-  logWarning(`Invalid execution.fail_on_error: ${raw}. Must be true or false. Ignoring.`);
+  rejectAuthoredRuntimeContainers(suite);
   return undefined;
 }
 
 /**
- * Extract `execution.threshold` from parsed eval suite.
+ * Extract top-level suite quality threshold.
  * Accepts a number in [0, 1] range.
  * Returns undefined when not specified.
  */
 export function extractThreshold(suite: JsonObject): number | undefined {
-  const policyObj = getSuitePolicyBlock(suite);
-  const policyThreshold = policyObj?.threshold;
-  if (policyThreshold !== undefined && policyThreshold !== null) {
-    if (typeof policyThreshold === 'number' && policyThreshold >= 0 && policyThreshold <= 1) {
-      return policyThreshold;
-    }
-    logWarning(
-      `Invalid policy.threshold: ${policyThreshold}. Must be a number between 0 and 1. Ignoring.`,
-    );
-    return undefined;
-  }
-
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
-    return undefined;
-  }
-
-  const raw = executionObj.threshold;
-
-  if (raw === undefined || raw === null) {
-    return undefined;
-  }
-
-  if (typeof raw === 'number' && raw >= 0 && raw <= 1) {
-    return raw;
-  }
-
-  logWarning(`Invalid execution.threshold: ${raw}. Must be a number between 0 and 1. Ignoring.`);
-  return undefined;
+  return getSuiteTopLevelNumber(
+    suite,
+    'threshold',
+    (value) => value >= 0 && value <= 1,
+    'threshold. Must be a number between 0 and 1',
+  );
 }
 
 export function parseExecutionDefaults(
@@ -667,7 +573,7 @@ function warnRemovedExperimentPointer(raw: unknown, configPath: string, key: str
     return;
   }
   logWarning(
-    `${key} in ${configPath} is ignored. Runtime configuration now belongs in eval.yaml under top-level target and policy.`,
+    `${key} in ${configPath} is ignored. Runtime configuration belongs in eval.yaml under top-level target and run controls.`,
   );
 }
 

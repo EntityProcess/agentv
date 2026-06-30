@@ -104,6 +104,7 @@ const CODEX_SETTINGS = new Set([
   'api_key',
   'api_format',
   'model',
+  'reasoning_effort',
   'model_reasoning_effort',
   'model_verbosity',
   'sandbox_mode',

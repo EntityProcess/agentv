@@ -350,6 +350,17 @@ const EvalTargetRefSchema = z.object({
   hooks: TargetHooksSchema.optional(),
 });
 
+const EvalLocalTargetSchema = z
+  .object({
+    extends: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
+    provider: z.string().min(1).optional(),
+    model: z.string().min(1).optional(),
+    reasoning_effort: z.string().min(1).optional(),
+    hooks: TargetHooksSchema.optional(),
+  })
+  .passthrough();
+
 // ---------------------------------------------------------------------------
 // Execution block
 // ---------------------------------------------------------------------------
@@ -389,43 +400,6 @@ const RunOverrideSchema = z
     threshold: z.number().min(0).max(1).optional(),
     repeat: ExperimentRepeatSchema.optional(),
     timeout_seconds: z.number().gt(0).optional(),
-    budget_usd: z.number().gt(0).optional(),
-  })
-  .strict();
-
-const ExperimentTargetRefSchema = z.union([
-  z.string().min(1),
-  z
-    .object({
-      name: z.string().min(1),
-      use_target: z.string().min(1).optional(),
-      hooks: JsonObjectSchema.optional(),
-    })
-    .strict(),
-]);
-
-const ExperimentRuntimeSchema = ExecutionSchema.extend({
-  agent: z.string().min(1).optional(),
-  model: z.string().min(1).optional(),
-  agent_options: JsonObjectSchema.optional(),
-  targets: z.array(ExperimentTargetRefSchema).min(1).optional(),
-  scripts: z.never().optional(),
-  repeat: ExperimentRepeatSchema.optional(),
-  runs: z.number().int().min(1).optional(),
-  early_exit: z.boolean().optional(),
-  timeout_seconds: z.number().gt(0).optional(),
-  budget_usd: z.number().gt(0).optional(),
-  workspace: z.never().optional(),
-  setup: z.never().optional(),
-}).refine((value) => value.repeat === undefined || value.runs === undefined, {
-  message: 'Use repeat or runs, not both.',
-});
-
-const EvalPolicySchema = z
-  .object({
-    runs: z.number().int().min(1).optional(),
-    timeout_seconds: z.number().gt(0).optional(),
-    threshold: z.number().min(0).max(1).optional(),
     budget_usd: z.number().gt(0).optional(),
   })
   .strict();
@@ -550,12 +524,18 @@ export const EvalFileSchema = z
     // Deprecated aliases
     eval_cases: TestsSchema.optional(),
     // Target
-    target: z.string().optional(),
-    model: z.string().min(1).optional(),
-    // Runtime policy. `execution` remains a legacy top-level alias for older evals.
-    policy: EvalPolicySchema.optional(),
-    experiment: z.never().optional(),
-    execution: ExperimentRuntimeSchema.optional(),
+    target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
+    model: z.never().optional(),
+    // Run/result grouping label and flat run controls
+    experiment: z.string().min(1).optional(),
+    runs: z.number().int().min(1).optional(),
+    early_exit: z.boolean().optional(),
+    timeout_seconds: z.number().gt(0).optional(),
+    budget_usd: z.number().gt(0).optional(),
+    threshold: z.number().min(0).max(1).optional(),
+    on_run_complete: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    policy: z.never().optional(),
+    execution: z.never().optional(),
     // Suite-level assertions
     assertions: z.array(EvaluatorSchema).optional(),
     // Suite-level content preprocessors shared by evaluators

@@ -7,8 +7,7 @@
 
 description: Trial output consistency via embedding similarity
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # ── High consistency: semantically identical outputs ──────────────

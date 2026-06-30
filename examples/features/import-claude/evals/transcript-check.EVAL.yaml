@@ -1,5 +1,4 @@
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: transcript-quality

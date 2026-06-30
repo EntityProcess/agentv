@@ -92,7 +92,7 @@ describe('validateTargetsFile', () => {
         (error) =>
           error.severity === 'error' &&
           error.location === 'targets[0].modelReasoningEffort' &&
-          error.message.includes("Use 'model_reasoning_effort' instead"),
+          error.message.includes("Use 'reasoning_effort' instead"),
       ),
     ).toBe(true);
     expect(
@@ -105,7 +105,7 @@ describe('validateTargetsFile', () => {
     ).toBe(true);
   });
 
-  it('accepts codex model_reasoning_effort', async () => {
+  it('accepts codex reasoning_effort', async () => {
     const filePath = path.join(tempDir, 'codex-reasoning-effort.yaml');
     await writeFile(
       filePath,
@@ -113,7 +113,7 @@ describe('validateTargetsFile', () => {
   - name: codex-target
     provider: codex
     model: \${{ CODEX_MODEL }}
-    model_reasoning_effort: \${{ CODEX_REASONING_EFFORT }}
+    reasoning_effort: \${{ CODEX_REASONING_EFFORT }}
 `,
     );
 
@@ -159,7 +159,7 @@ describe('validateTargetsFile', () => {
   - name: codex-local-openai
     provider: codex
     model: \${{ CODEX_MODEL }}
-    model_reasoning_effort: medium
+    reasoning_effort: medium
     model_verbosity: medium
     base_url: \${{ OPENAI_ENDPOINT }}
     api_key: \${{ OPENAI_API_KEY }}

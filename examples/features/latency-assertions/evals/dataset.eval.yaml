@@ -34,8 +34,7 @@
 name: latency-assertions
 description: Latency assertions for per-step performance validation
 
-execution:
-  target: mock_latency_agent
+target: mock_latency_agent
 
 tests:
   # ==========================================

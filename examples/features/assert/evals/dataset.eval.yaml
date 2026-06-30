@@ -3,8 +3,7 @@ description: Demonstrates eval spec v2 assert features
 version: "1.0"
 tags: [demo, assert]
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # ==========================================

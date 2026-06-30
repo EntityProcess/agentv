@@ -1,12 +1,12 @@
 # Multi-Model Benchmark Showcase
 
-Demonstrates a complete **multi-model × multi-metric × variability** evaluation workflow end-to-end. Run the same tests against multiple LLMs, score them on weighted metrics, measure variability with experiment repeat runs, and compare results.
+Demonstrates a complete **multi-model × multi-metric × variability** evaluation workflow end-to-end. Run the same eval once per target, score each run on weighted metrics, measure variability with repeated attempts, and compare completed runs.
 
 ## What This Shows
 
 | Feature | How it's used |
 |---------|---------------|
-| **Targets matrix** | Every test runs against `copilot`, `claude`, and `gemini-llm` |
+| **Per-target runs** | Run the same eval separately for `copilot`, `claude`, and `gemini-llm` |
 | **Weighted graders** | Accuracy (3×), completeness (2×), clarity (1×) |
 | **Repeat runs** | 2 attempts per test to surface non-determinism |
 | **Compare workflow** | Side-by-side model comparison from result files |
@@ -17,7 +17,7 @@ Demonstrates a complete **multi-model × multi-metric × variability** evaluatio
 multi-model-benchmark/
 ├── README.md                        # This file
 ├── evals/
-│   └── benchmark.eval.yaml          # Eval definition, targets, repeat policy, and metrics
+│   └── benchmark.eval.yaml          # Eval definition, target binding, repeat controls, and metrics
 └── prompts/
     ├── accuracy-rubric.md           # Factual correctness grader (weight 3.0)
     ├── completeness-rubric.md       # Coverage grader (weight 2.0)
@@ -26,7 +26,7 @@ multi-model-benchmark/
 
 ## Prerequisites
 
-1. Configure targets in `.agentv/targets.yaml` at the repository root. The eval references `copilot`, `claude`, and `gemini-llm` — these must be defined with valid provider credentials.
+1. Configure targets in `.agentv/targets.yaml` at the repository root. The example commands use `copilot`, `claude`, and `gemini-llm` — these must be defined with valid provider credentials.
 2. Install dependencies: `bun install`
 
 ## Running the Evaluation
@@ -34,41 +34,51 @@ multi-model-benchmark/
 From the repository root:
 
 ```bash
-# Run the full matrix (all targets × all tests × 2 repeat attempts)
-bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
+# Run once per target. Use the same experiment label so Dashboard analytics
+# can group the completed runs.
+bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
+  --target copilot --experiment multi-model-benchmark
+bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
+  --target claude --experiment multi-model-benchmark
+bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
+  --target gemini-llm --experiment multi-model-benchmark
 ```
 
 ### Cost & Safety
 
-The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 repeat attempts × 3 grader calls each, expect roughly **90 LLM calls**. A `policy.budget_usd: 2.00` cap is set in the eval file.
+The eval uses a **low-cost model by default**. For each target, 5 tests × 2 repeat attempts × 3 grader calls is roughly **30 LLM calls**. A `budget_usd: 2.00` cap is set in the eval file.
 
 To run against a single target first:
 
 ```bash
-# Test with just one model before running the full matrix
+# Test with one model before running the other targets
 bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
   --target copilot
 ```
 
 ## Comparing Models
 
-The eval produces a canonical run workspace with `target` in each `index.jsonl` record. Use `agentv compare` to see all models side by side:
+Each eval produces a canonical run workspace with `target` in each `index.jsonl` record. Use `agentv compare` or Dashboard analytics to see completed runs side by side:
 
 ```bash
-# N-way matrix — see all models at once
-agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl
+# Pairwise: compare two completed runs
+agentv compare \
+  .agentv/results/multi-model-benchmark/<copilot-timestamp>/index.jsonl \
+  .agentv/results/multi-model-benchmark/<claude-timestamp>/index.jsonl
 
-# Designate a baseline for CI regression gating
-agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl --baseline copilot
+# N-way: combine completed runs, then compare the combined manifest
+agentv results combine \
+  .agentv/results/multi-model-benchmark/<copilot-timestamp> \
+  .agentv/results/multi-model-benchmark/<claude-timestamp> \
+  .agentv/results/multi-model-benchmark/<gemini-timestamp> \
+  --output .agentv/results/multi-model-benchmark/combined
+agentv compare .agentv/results/multi-model-benchmark/combined/index.jsonl
 
-# Pairwise: compare two specific targets
-agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl --baseline copilot --candidate claude
-
-# JSON output for CI integration
-agentv compare .agentv/results/multi-model-benchmark/<timestamp>/index.jsonl --json
+# Dashboard analytics also shows an experiment × target matrix over completed runs
+agentv dashboard
 ```
 
-### Expected Output
+### Aggregated Analytics Output
 
 ```
 Score Matrix
@@ -91,16 +101,15 @@ Pairwise Summary:
 
 ## How It Works
 
-### 1. Targets Matrix
+### 1. Target Selection
 
-The legacy `execution.targets` array runs every test against each listed model:
+The eval file names one default target. Run the same eval with different
+`--target` values to compare models:
 
-```yaml
-execution:
-  targets:
-    - copilot       # e.g., gpt-5-mini
-    - claude        # e.g., claude-haiku
-    - gemini-llm   # e.g., gemini-flash
+```bash
+agentv eval evals/benchmark.eval.yaml --target copilot
+agentv eval evals/benchmark.eval.yaml --target claude
+agentv eval evals/benchmark.eval.yaml --target gemini-llm
 ```
 
 ### 2. Weighted Graders
@@ -119,15 +128,14 @@ assertions:
 
 Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
-### 3. Policy Repeat
+### 3. Repeat Runs
 
-Each test runs twice through the top-level policy block. The current repeated
+Each test runs twice through top-level run controls. The current repeated
 attempt aggregation treats a case as successful when any attempt succeeds.
 
 ```yaml
-policy:
-  runs: 2
-  budget_usd: 2.00
+runs: 2
+budget_usd: 2.00
 ```
 
 This surfaces non-determinism — if a model passes on run 1 but fails on run 2,
@@ -135,7 +143,7 @@ that signals inconsistency worth investigating.
 
 ### 4. Compare
 
-The `agentv compare` command reads a canonical run manifest (`index.jsonl`, with `target` per record) and shows an N-way matrix with pairwise summaries. Each pair classifies per-test deltas:
+The `agentv compare` command reads completed run manifests (`index.jsonl`, with `target` per record) and shows pairwise summaries. Dashboard analytics aggregates completed runs into an experiment × target matrix. Each pair classifies per-test deltas:
 
 - **Win**: candidate score exceeds baseline by threshold (default 0.10)
 - **Loss**: baseline score exceeds candidate by threshold
@@ -151,7 +159,7 @@ benchmark.eval.yaml
         ▼
 ┌─────────────────────────┐
 │  agentv eval             │
-│  (per target × repeat)  │
+│  (one target × repeats) │
 └────────┬────────────────┘
          │
          ▼
@@ -160,8 +168,9 @@ benchmark.eval.yaml
          │
          ▼
 ┌─────────────────────────┐
-│  agentv compare          │
-│  (N-way matrix + deltas)│
+│  agentv compare /        │
+│  Dashboard analytics     │
+│  (completed-run deltas) │
 └─────────────────────────┘
 ```
 
@@ -169,18 +178,14 @@ benchmark.eval.yaml
 
 ### Adding a model
 
-Add a new target to `.agentv/targets.yaml`, then reference it in the eval:
+Add a new target to `.agentv/targets.yaml`, then run the same eval with `--target <name>` and the same `--experiment` label.
 
-```yaml
-execution:
-  targets:
-    - copilot
-    - claude
-    - gemini-llm
-    - my_new_model    # Add here
+```bash
+bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml \
+  --target my_new_model --experiment multi-model-benchmark
 ```
 
-### Adding an grader
+### Adding a grader
 
 Add a new grader prompt in `prompts/` and reference it in the eval's `assertions` block:
 
@@ -194,17 +199,15 @@ assertions:
 
 ### Adjusting run count
 
-Increase `policy.runs` for more variability data (at proportional cost):
+Increase `runs` for more variability data (at proportional cost):
 
 ```yaml
-policy:
-  runs: 5
-  budget_usd: 5.00
+runs: 5
+budget_usd: 5.00
 ```
 
 ## See Also
 
-- [`examples/features/matrix-evaluation/`](../../features/matrix-evaluation/) — minimal targets matrix example
 - [`examples/features/weighted-graders/`](../../features/weighted-graders/) — per-grader weight patterns
 - [`examples/features/trials/`](../../features/trials/) — experiment run-count configuration
 - [`examples/features/compare/`](../../features/compare/) — baseline vs candidate comparison

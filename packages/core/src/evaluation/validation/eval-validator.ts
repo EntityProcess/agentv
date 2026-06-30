@@ -68,6 +68,12 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'policy',
   'experiment',
   'execution',
+  'runs',
+  'early_exit',
+  'timeout_seconds',
+  'budget_usd',
+  'threshold',
+  'on_run_complete',
   'assertions',
   'evaluators',
   'preprocessors',
@@ -102,9 +108,14 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'workers',
     "'workers' has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.",
   ],
+  ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
-    'experiment',
-    "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.",
+    'policy',
+    "Top-level 'policy' is not part of eval YAML. Put runs, early_exit, timeout_seconds, threshold, and budget_usd at the top level.",
+  ],
+  [
+    'execution',
+    "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.",
   ],
 ]);
 
@@ -273,6 +284,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
+  if (parsed.experiment !== undefined && typeof parsed.experiment !== 'string') {
+    errors.push({
+      severity: 'error',
+      filePath: absolutePath,
+      location: 'experiment',
+      message: "Top-level 'experiment' must be a string run/result grouping label.",
+    });
+  }
 
   // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
@@ -795,8 +814,7 @@ async function validateCompositionDiagnostics(
     return;
   }
 
-  const parentHasRuntime =
-    parsed.target !== undefined || parsed.policy !== undefined || parsed.execution !== undefined;
+  const parentHasRuntime = hasWrapperRuntimeControls(parsed);
   const hasSuiteImport = imports.some((entry) => entry.type === 'suite');
 
   if (hasSuiteImport) {
@@ -806,7 +824,7 @@ async function validateCompositionDiagnostics(
         filePath,
         location,
         message:
-          'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns runtime policy, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
+          'Parent workspace is not allowed when an eval imports suites with type: suite. A wrapper eval owns target and run controls, while imported suites own task environment. Move workspace into the child suite, or import raw cases with type: tests when you intentionally want parent workspace context.',
       });
     }
   }
@@ -820,13 +838,8 @@ async function validateCompositionDiagnostics(
         if (!childParsed) {
           continue;
         }
-        const runtimeField =
-          childParsed.experiment !== undefined
-            ? 'experiment'
-            : childParsed.execution !== undefined
-              ? 'legacy execution'
-              : undefined;
-        if (!runtimeField) {
+        const runtimeFields = childRuntimeControlFields(childParsed);
+        if (runtimeFields.length === 0) {
           continue;
         }
 
@@ -835,8 +848,8 @@ async function validateCompositionDiagnostics(
           filePath,
           location: entry.location,
           message: parentHasRuntime
-            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child runtime blocks are ignored for imports.suites. The parent eval owns wrapper runtime through top-level target/policy; move runtime settings to the parent target/policy or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`
-            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child runtime blocks are ignored for imports.suites. The parent eval owns wrapper runtime, and this parent has no target/policy, so no child runtime settings are applied. Add parent target/policy or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`,
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored for imports.suites. The parent eval owns wrapper target and run controls; move them to the parent eval or use import run overrides for per-case thresholds, timeouts, and budgets.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeFields.join(', ')}, but child target and run controls are ignored for imports.suites. The parent eval owns wrapper target and run controls, and this parent has none, so no child target or run controls are applied. Add parent target/run controls or use import run overrides for per-case thresholds, timeouts, and budgets.`,
         });
       }
       continue;
@@ -851,11 +864,42 @@ async function validateCompositionDiagnostics(
           severity: 'warning',
           filePath,
           location: entry.location,
-          message: `imports.tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, and experiment. Parent suite context applies. Use imports.suites to preserve child test and workspace semantics.`,
+          message: `imports.tests imports raw cases from eval suite '${resolvedSuite.displayPath}' and drops suite context, including child workspace, input, assertions, metadata, target, and run controls. Parent suite context applies. Use imports.suites to preserve child test and workspace semantics.`,
         });
       }
     }
   }
+}
+
+const WRAPPER_RUNTIME_CONTROL_FIELDS = [
+  'experiment',
+  'target',
+  'runs',
+  'early_exit',
+  'timeout_seconds',
+  'budget_usd',
+  'threshold',
+  'on_run_complete',
+] as const;
+
+function hasWrapperRuntimeControls(parsed: JsonObject): boolean {
+  return WRAPPER_RUNTIME_CONTROL_FIELDS.some((field) => parsed[field] !== undefined);
+}
+
+function childRuntimeControlFields(parsed: JsonObject): readonly string[] {
+  const fields: string[] = WRAPPER_RUNTIME_CONTROL_FIELDS.filter(
+    (field) => parsed[field] !== undefined,
+  );
+  if (parsed.execution !== undefined) {
+    fields.push('execution');
+  }
+  if (parsed.policy !== undefined) {
+    fields.push('policy');
+  }
+  if (parsed.model !== undefined) {
+    fields.push('model');
+  }
+  return fields;
 }
 
 function parentWorkspaceLocations(parsed: JsonObject): readonly string[] {

@@ -16,8 +16,7 @@
 
 tags: [agent]
 
-execution:
-  target: copilot-log
+target: copilot-log
 
 workspace:
   template: ../workspace/

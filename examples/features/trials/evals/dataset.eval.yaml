@@ -5,9 +5,8 @@ name: trials
 description: Repeat runs example with 2 attempts configured inline
 
 target: llm
-policy:
-  runs: 2
-  budget_usd: 1.00
+runs: 2
+budget_usd: 1.00
 
 tests:
   - id: math-basics

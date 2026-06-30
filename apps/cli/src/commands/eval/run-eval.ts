@@ -1108,7 +1108,8 @@ async function prepareFileMetadata(params: {
         )
       : suite.tests;
   const testIds = testCases.map((value) => value.id);
-  const suiteTargets = suite.targets;
+  const suiteTargetSpec = suite.targetSpec;
+  const suiteTargets = suiteTargetSpec ? [suiteTargetSpec.name] : suite.targets;
   const defaultBudgetUsd =
     effectiveOptions.cliBudgetUsd === undefined
       ? (effectiveOptions.budgetUsd ?? suite.budgetUsd)
@@ -1194,7 +1195,8 @@ async function prepareFileMetadata(params: {
     // Determine target names: CLI --target flags override YAML
     const cliTargets = effectiveOptions.cliTargets;
     const experimentTargets = effectiveOptions.experimentTargets ?? [];
-    const suiteTargets = suite.targets;
+    const suiteTargetSpec = suite.targetSpec;
+    const suiteTargets = suiteTargetSpec ? [suiteTargetSpec.name] : suite.targets;
     const suiteTargetRefs = suite.targetRefs;
     const experimentTargetRefs = effectiveOptions.experimentTargetRefs;
 
@@ -1250,6 +1252,8 @@ async function prepareFileMetadata(params: {
             : effectiveOptions.target,
         fileTargetName:
           targetSource === 'test-file' && targetNames.length === 1 ? targetNames[0] : undefined,
+        fileTargetSpec:
+          targetSource === 'test-file' && targetNames.length === 1 ? suiteTargetSpec : undefined,
         modelOverride: effectiveOptions.targetModelOverride,
         env: process.env,
       });

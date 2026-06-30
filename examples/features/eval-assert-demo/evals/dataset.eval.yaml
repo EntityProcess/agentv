@@ -5,8 +5,7 @@
 
 description: Code graders with eval assert CLI integration
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: capital-of-france

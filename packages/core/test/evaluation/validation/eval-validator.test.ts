@@ -34,15 +34,14 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('validates top-level target and policy runtime with flatter import entries', async () => {
-    const filePath = path.join(tempDir, 'policy-include.yaml');
+  it('validates top-level target and run controls with flatter import entries', async () => {
+    const filePath = path.join(tempDir, 'run-controls-include.yaml');
     await writeFile(
       filePath,
       `name: wrapper
 target: codex
-policy:
-  threshold: 0.8
-  runs: 2
+threshold: 0.8
+runs: 2
 tests:
   - id: local-case
     input: "Hello"
@@ -177,7 +176,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects removed parent experiment blocks when importing suites', async () => {
+  it('rejects object-shaped parent experiment blocks when importing suites', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment-workspace.eval.yaml'),
       `tests:
@@ -206,7 +205,7 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' has been removed"),
+          error.message.includes("Top-level 'experiment' must be a string"),
       ),
     ).toBe(true);
   });
@@ -246,7 +245,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects experiment workspace blocks', async () => {
+  it('rejects object-shaped experiment workspace blocks', async () => {
     const filePath = path.join(tempDir, 'experiment-workspace-legacy-isolation.eval.yaml');
     await writeFile(
       filePath,
@@ -268,12 +267,12 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' has been removed"),
+          error.message.includes("Top-level 'experiment' must be a string"),
       ),
     ).toBe(true);
   });
 
-  it('rejects task workspace fields in experiment workspace', async () => {
+  it('rejects task workspace fields in object-shaped experiment', async () => {
     const filePath = path.join(tempDir, 'experiment-workspace-repos.eval.yaml');
     await writeFile(
       filePath,
@@ -297,12 +296,12 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' has been removed"),
+          error.message.includes("Top-level 'experiment' must be a string"),
       ),
     ).toBe(true);
   });
 
-  it('rejects runtime workspace overrides in experiment workspace', async () => {
+  it('rejects runtime workspace overrides in object-shaped experiment', async () => {
     const filePath = path.join(tempDir, 'experiment-workspace-runtime.eval.yaml');
     await writeFile(
       filePath,
@@ -325,7 +324,7 @@ tests:
         (error) =>
           error.severity === 'error' &&
           error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' has been removed"),
+          error.message.includes("Top-level 'experiment' must be a string"),
       ),
     ).toBe(true);
   });
@@ -397,12 +396,11 @@ tests:
     ).toBe(true);
   });
 
-  it('warns that imported child legacy execution is ignored by wrapper composition', async () => {
+  it('warns that imported child target and run controls are ignored by wrapper composition', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment.eval.yaml'),
-      `execution:
-  target: child-target
-  threshold: 0.9
+      `target: child-target
+threshold: 0.9
 tests:
   - id: child-case
     criteria: Goal
@@ -426,8 +424,8 @@ tests:
         (error) =>
           error.severity === 'warning' &&
           error.location === 'tests[0].include' &&
-          error.message.includes('child runtime blocks are ignored') &&
-          error.message.includes('parent eval owns wrapper runtime'),
+          error.message.includes('child target and run controls are ignored') &&
+          error.message.includes('parent eval owns wrapper target and run controls'),
       ),
     ).toBe(true);
   });
@@ -495,12 +493,11 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects removed experiment blocks even when legacy execution is present', async () => {
+  it('rejects removed execution blocks when experiment label is present', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(
       filePath,
-      `experiment:
-  target: codex
+      `experiment: codex-run
 execution:
   target: claude
 tests:
@@ -516,8 +513,8 @@ tests:
     expect(
       result.errors.some(
         (error) =>
-          error.location === 'experiment' &&
-          error.message.includes("Top-level 'experiment' has been removed"),
+          error.location === 'execution' &&
+          error.message.includes("Top-level 'execution' is not part of eval YAML"),
       ),
     ).toBe(true);
   });
@@ -1329,7 +1326,7 @@ tests: "./cases-shorthand-workspace.yaml"
           (error) =>
             error.severity === 'error' &&
             error.location === 'experiment' &&
-            error.message.includes("Top-level 'experiment' has been removed"),
+            error.message.includes("Top-level 'experiment' must be a string"),
         ),
       ).toBe(true);
     });

@@ -626,13 +626,13 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
   });
 
-  it('resolves codex model_reasoning_effort from env', () => {
+  it('resolves codex reasoning_effort from env', () => {
     const target = resolveTargetDefinition(
       {
         name: 'codex',
         provider: 'codex',
         model: '${{ CODEX_MODEL }}',
-        model_reasoning_effort: '${{ CODEX_REASONING_EFFORT }}',
+        reasoning_effort: '${{ CODEX_REASONING_EFFORT }}',
       },
       {
         CODEX_MODEL: 'gpt-5.5',
@@ -655,7 +655,7 @@ describe('resolveTargetDefinition', () => {
         name: 'codex-local-openai',
         provider: 'codex',
         model: '${{ CODEX_MODEL }}',
-        model_reasoning_effort: 'medium',
+        reasoning_effort: 'medium',
         model_verbosity: 'medium',
         base_url: '${{ OPENAI_BASE_URL }}',
         api_key: '${{ OPENAI_API_KEY }}',
@@ -687,17 +687,17 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
-  it('rejects unsupported codex model_reasoning_effort values', () => {
+  it('rejects unsupported codex reasoning_effort values', () => {
     expect(() =>
       resolveTargetDefinition(
         {
           name: 'codex',
           provider: 'codex',
-          model_reasoning_effort: 'tiny',
+          reasoning_effort: 'tiny',
         },
         {},
       ),
-    ).toThrow(/model_reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
+    ).toThrow(/reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
   });
 
   it('resolves copilot alias to copilot-cli', () => {
@@ -1361,14 +1361,14 @@ describe('createProvider', () => {
     expect(resolved.config.tools).toBe('read,bash,edit,write');
   });
 
-  it('resolves pi-coding-agent thinking level from target config', () => {
+  it('resolves pi-coding-agent reasoning_effort level from target config', () => {
     const resolved = resolveTargetDefinition(
       {
         name: 'pi-openai-codex',
         provider: 'pi-coding-agent',
         subprovider: 'openai-codex',
         model: 'gpt-5.5',
-        thinking: 'medium',
+        reasoning_effort: 'medium',
       },
       {},
     );
@@ -1465,14 +1465,14 @@ describe('createProvider', () => {
     expect(resolved.config.baseUrl).toBeUndefined();
   });
 
-  it('resolves pi-cli thinking level from env-backed config', () => {
+  it('resolves pi-cli reasoning_effort level from env-backed config', () => {
     const resolved = resolveTargetDefinition(
       {
         name: 'pi-cli-openai-codex',
         provider: 'pi-cli',
         subprovider: 'openai-codex',
         model: 'gpt-5.5',
-        thinking: '${{ PI_THINKING }}',
+        reasoning_effort: '${{ PI_THINKING }}',
       },
       { PI_THINKING: 'medium' },
     );

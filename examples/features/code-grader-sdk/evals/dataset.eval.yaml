@@ -4,8 +4,7 @@
 description: Demonstrates TypeScript helpers for code_grader payloads
 
 # Uses the CLI target defined in .agentv/targets.yaml
-execution:
-  target: local_cli
+target: local_cli
 
 tags: [agent]
 

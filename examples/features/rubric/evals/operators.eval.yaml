@@ -4,8 +4,7 @@
 name: rubric-operators
 description: "Focused example showing correctness and contradiction rubric operators"
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: finance-summary-operator-guards

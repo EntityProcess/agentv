@@ -4,8 +4,7 @@ description: Demonstrates the threshold aggregator — pass if N% of child grade
 # Demonstrates the threshold aggregator: pass if N% of child graders pass.
 # Borderline verdicts count as passing (lenient).
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: flexible-gate

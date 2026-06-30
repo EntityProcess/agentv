@@ -80,9 +80,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Benchmark across models or measure consistency
 | Example | Description |
 |---------|-------------|
-| [matrix-evaluation](matrix-evaluation/) | Run the same tests against multiple targets and display a score matrix |
-| [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv compare` cross-model score matrix |
-| [trials](trials/) | Configure repeated attempts with `policy.runs` |
+| [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv compare` over completed runs |
+| [trials](trials/) | Configure repeated attempts with `runs` |
 | [trial-output-consistency](trial-output-consistency/) | Measure output consistency across trials using pairwise cosine similarity |
 | [compare](compare/) | Compare a run against a stored baseline |
 
@@ -159,7 +158,6 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [langfuse-export](langfuse-export/) | Observability & export |
 | [latency-assertions](latency-assertions/) | Tool & agent evaluation |
 | [local-cli](local-cli/) | Workspace & targets |
-| [matrix-evaluation](matrix-evaluation/) | Benchmarking |
 | [multi-turn-conversation](multi-turn-conversation/) | LLM grading |
 | [nlp-metrics](nlp-metrics/) | Deterministic assertions |
 | [preprocessors](preprocessors/) | LLM grading |

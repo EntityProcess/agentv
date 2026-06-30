@@ -6,8 +6,7 @@
 # 3. Diverse examples covering edge cases, including ambiguities between defects and feature requests.
 
 description: CargoWise criticality rating (CR1-CR9) classification eval for support ticket triage in logistics software.
-execution:
-  target: llm
+target: llm
 
 assertions:
   - name: json_schema_validator

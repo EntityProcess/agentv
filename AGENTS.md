@@ -49,6 +49,7 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 - Research-only workers must not run `bun install`, `bun run build`, tests, or evals unless the assigned work explicitly needs that command and the worker records why.
 - Prefer commit-addressed CI build artifacts over copying mutable main-tree build output. A prebuilt artifact is valid only when its manifest commit SHA, `bun.lock` hash, runner platform, Bun version expectation, and included output paths match the consuming checkout.
 - Implementation workers must rebuild any package whose source they changed; never trust a prebuilt artifact for a touched package, and never publish `node_modules`, Bun caches, `.turbo`, `.cache`, or `.tsbuildinfo` as the build artifact.
+- Public docs and examples should describe the current user-facing contract directly. Reserve historical context for files that are explicitly migration guides, changelogs, or ADRs.
 - Wire formats are `snake_case`; internal TypeScript is `camelCase`. Translate only at the boundary.
 - In AgentV, a `project` holds runs, traces, and experiments; a `benchmark` is a curated eval suite. Do not collapse those terms.
 - `artifact_pointers` are an offload indirection for large detached payload bytes, such as transcript artifacts. Do not use them as the discovery path for ordinary per-case sidecars; expose those with explicit index/manifest path fields such as `metrics_path`.

@@ -108,14 +108,11 @@ tests:
     expect(suite.metadata?.name).toBe('my-eval');
   });
 
-  it('works with metadata alongside execution config', async () => {
+  it('works with metadata alongside target config', async () => {
     const { filePath, dir } = createTempYaml(`
 name: matrix-eval
 description: Eval with targets
-execution:
-  targets:
-    - copilot
-    - claude
+target: copilot
 tests:
   - id: test-1
     input: "Hello"
@@ -125,7 +122,7 @@ tests:
     const suite = await loadTestSuite(filePath, dir);
     expect(suite.metadata).toBeDefined();
     expect(suite.metadata?.name).toBe('matrix-eval');
-    expect(suite.targets).toEqual(['copilot', 'claude']);
+    expect(suite.targetSpec).toEqual({ name: 'copilot' });
   });
 
   it('parses metadata with tags as array', async () => {

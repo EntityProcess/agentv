@@ -4,8 +4,7 @@
 name: sdk-custom-assertion
 description: Demonstrates custom assertions via defineAssertion() and convention discovery
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: greeting-response

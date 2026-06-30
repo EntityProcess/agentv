@@ -5,10 +5,10 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and run policy for an evaluation run. Top-level `name` is the experiment/result namespace, top-level `target` identifies the system under test, and top-level [`policy`](/docs/evaluation/experiments/) owns thresholds, budgets, timeouts, and repeat runs. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval data formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. Top-level `experiment` is the run/result grouping label, top-level `target` identifies the system under test, and flat fields such as `runs`, `threshold`, `timeout_seconds`, and `budget_usd` control repeated attempts and gates. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
-Eval files describe the task, target binding, and run policy. Concurrency is an operator/run setting: pass `--workers` or set `execution.workers` in `agentv.config.*` / `.agentv/config.yaml` instead of authoring `workers` in eval YAML.
+Eval files describe the task, target binding, and run controls. Concurrency is an operator/run setting: pass `--workers` or set `execution.workers` in `agentv.config.*` / `.agentv/config.yaml` instead of authoring `workers` in eval YAML.
 
 ## Authoring Shapes
 
@@ -24,7 +24,8 @@ experiment format.
   it with `imports.tests`, `tests: ./cases.yaml`, or string shorthand; parent
   suite context applies because raw cases do not carry their own suite context.
 - A **wrapper eval** is eval YAML that imports one or more suites with
-  `imports.suites` and binds runtime policy with top-level `target`/`policy`.
+  `imports.suites` and binds run controls with top-level `target`, `runs`,
+  `threshold`, `timeout_seconds`, and `budget_usd`.
   Wrapper evals can live anywhere in the repo. A wrapper that imports suites
   with `imports.suites` must not define parent `workspace`; imported suites own
   task environment. Machine-local existing workspace paths belong in CLI flags
@@ -57,14 +58,13 @@ Raw cases are just case data:
   expected_output: Offer a replacement or refund path.
 ```
 
-A wrapper eval stays ordinary eval YAML while choosing runtime policy:
+A wrapper eval stays ordinary eval YAML while choosing a target and run controls:
 
 ```yaml
 # experiments/refunds-codex.eval.yaml
 name: refunds-codex
 target: codex-gpt5
-policy:
-  runs: 2
+runs: 2
 
 imports:
   suites:
@@ -80,7 +80,7 @@ tests:
 
 The `experiments/` directory in that example is optional and user-owned. AgentV
 does not infer behavior from the path; the wrapper runs because it is eval YAML
-with tests or imports. The wrapper owns runtime policy only. Put
+with tests or imports. The wrapper owns target selection and run controls. Put
 workspace setup in imported child suites. Parent workspace-affecting fields,
 including top-level `workspace`, are for parent-owned raw cases, including
 cases imported with `imports.tests`. Runtime workspace path overrides belong in
@@ -114,8 +114,12 @@ tests:
 | `suite` | Optional suite identifier |
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
-| `model` | Optional model override for the selected target |
-| `policy` | Runtime/gating policy (`runs`, `threshold`, `timeout_seconds`, `budget_usd`) |
+| `experiment` | Optional run/result grouping label |
+| `runs` | Optional number of attempts per case |
+| `early_exit` | Optional early exit for repeated attempts |
+| `timeout_seconds` | Optional per-case timeout |
+| `budget_usd` | Optional suite budget |
+| `threshold` | Optional suite quality threshold |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
@@ -394,7 +398,7 @@ input: Fix the null check bug in parser.ts
 - **Alphabetical ordering:** Subdirectories are sorted alphabetically for deterministic order
 - **Per-case workspace:** A `workspace/` subdirectory inside the case directory automatically sets `workspace.template` to that path, unless the case already defines a `workspace` field
 - **Skipped directories:** Subdirectories without `case.yaml` are skipped with a warning
-- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, `target`, and `policy` still apply to directory-discovered cases
+- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, `target`, and top-level run controls still apply to directory-discovered cases
 
 This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
 For guidance on keeping provenance metadata, patches, oracle files, and generated

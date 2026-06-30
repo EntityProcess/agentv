@@ -34,8 +34,7 @@ workspace:
           git -c user.email=test@agentv.dev -c user.name="AgentV Test" add . &&
           git -c user.email=test@agentv.dev -c user.name="AgentV Test" commit -m "init"
 
-execution:
-  target: mock_agent
+target: mock_agent
 
 tests:
   - id: root-file-and-repo-change

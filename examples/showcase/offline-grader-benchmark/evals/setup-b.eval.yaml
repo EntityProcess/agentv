@@ -1,6 +1,5 @@
 description: Offline grader benchmark — setup B (alternate prompt on the same labeled export)
-execution:
-  target: fixture_replay
+target: fixture_replay
 
 tests:
   - file://../fixtures/labeled-grader-export.jsonl

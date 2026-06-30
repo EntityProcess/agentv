@@ -2,8 +2,7 @@ description: |-
   Comprehensive Evaluation Suite for 'Three Levels of Listening'.
   TIER 1: Basic capability (Explicit Content & Emotion).
   TIER 2: Advanced capability (Implicit Process, Somatization, & Resistance).
-execution:
-  target: gemini-llm
+target: gemini-llm
 
 assertions:
   - name: json_schema_validator

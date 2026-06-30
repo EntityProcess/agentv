@@ -164,17 +164,14 @@ workspace is what makes multi-target comparison valid: every target sees the
 same substrate, and differences in results come from the harness, not from a
 different checkout.
 
-Use target hooks for per-harness setup:
+Use an eval-local target object for per-harness setup:
 
 ```yaml
-execution:
-  targets:
-    - baseline
-    - name: with-skills
-      use_target: baseline
-      hooks:
-        before_each:
-          command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.claude/skills\""]
+target:
+  extends: baseline
+  hooks:
+    before_each:
+      command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.claude/skills\""]
 ```
 
 Workspace hooks run first on setup, then target hooks. Teardown runs in the

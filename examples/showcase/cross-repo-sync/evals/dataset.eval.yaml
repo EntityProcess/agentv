@@ -15,8 +15,7 @@ workspace:
       timeout_ms: 5000
       cwd: .
 
-execution:
-  target: mock_agent
+target: mock_agent
 
 tests:
   - id: eval-spec-v2-sync

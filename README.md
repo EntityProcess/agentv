@@ -17,10 +17,10 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Eval suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
-- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Use `model` when you need to override the target's default model for a run.
-- **Experiment** is the named condition being measured over that corpus, such as `backend-with-skills` or `backend-without-skills`.
-- **Policy** controls how AgentV executes and gates the eval: runs, thresholds, timeouts, and budgets. It is not the experiment identity.
-- **Run** is one concrete execution of an experiment against a target/model that writes portable artifacts for readers such as Dashboard, compare, and trend.
+- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by name from `targets.yaml` or with an eval-local target object.
+- **Experiment** is the run/result grouping label being measured over that corpus, such as `backend-with-skills` or `backend-without-skills`.
+- **Run controls** configure repeats, exits, timeouts, budgets, thresholds, and completion hooks with top-level fields such as `runs`, `early_exit`, `timeout_seconds`, `budget_usd`, `threshold`, and `on_run_complete`.
+- **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ```mermaid
 flowchart LR
@@ -28,8 +28,8 @@ flowchart LR
   category["Category<br/>path-derived grouping"]
   context["Workspace / fixtures / graders<br/>task-owned context"]
   experiment["Experiment<br/>named run condition"]
-  target["Target + model<br/>system under test"]
-  policy["Policy<br/>execution + gates"]
+  target["Target<br/>system under test"]
+  controls["Run controls<br/>execution + gates"]
   run["Run<br/>concrete execution"]
   artifacts["Run artifacts<br/>summary.json + index.jsonl + sidecars"]
   readers["Dashboard / compare / trend<br/>derived readers"]
@@ -40,7 +40,7 @@ flowchart LR
   category --> run
   experiment --> run
   target --> run
-  policy --> run
+  controls --> run
   run --> artifacts
   artifacts --> readers
 ```
@@ -57,20 +57,17 @@ agentv init
 
 **3. Create an eval** in `evals/`:
 ```yaml
-experiment: backend-with-skills
 description: Code generation quality
+experiment: backend-with-skills
 target: copilot-sdk
-model: claude-sonnet-4.6
+runs: 3
+early_exit: false
+timeout_seconds: 600
+threshold: 0.8
+budget_usd: 5
 
 workspace:
   isolation: per_case
-
-policy:
-  runs: 3
-  early_exit: false
-  timeout_seconds: 600
-  threshold: 0.8
-  budget_usd: 5
 
 tests:
   - id: fizzbuzz
@@ -85,6 +82,26 @@ tests:
         prompt: ./graders/correctness.md
 ```
 
+The target can be an eval-local object when this eval needs target settings of its own:
+
+```yaml
+description: Code generation quality with GPT-5 target settings
+experiment: backend-with-skills-gpt5
+target:
+  extends: codex-gpt5
+  model: gpt-5.1
+  reasoning_effort: high
+runs: 2
+timeout_seconds: 900
+threshold: 0.85
+
+tests:
+  - id: fizzbuzz
+    input: Write FizzBuzz in Python
+```
+
+`target: codex-gpt5` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `codex-gpt5`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed.
+
 **4. Run it:**
 ```bash
 agentv eval evals/my-eval.yaml
@@ -97,7 +114,7 @@ agentv compare .agentv/results/backend-without-skills/<timestamp>/copilot-sdk--c
 
 ## Results
 
-Each run writes a timestamped invocation directory under `.agentv/results/<experiment>/<timestamp>/`. In this example, `experiment: backend-with-skills` names the condition being measured, `target: copilot-sdk` selects the system under test, and `model: claude-sonnet-4.6` overrides that target's default model. The resolved target identity is still `copilot-sdk--claude-sonnet-4.6` so CI baselines can distinguish model changes. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
+Each run writes a timestamped invocation directory under `.agentv/results/<experiment>/<timestamp>/`. In this example, `experiment: backend-with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
 
 ```bash
 agentv eval evals/my-eval.yaml
@@ -163,17 +180,17 @@ Use `defineEval()` when you want AgentV to run the TypeScript eval file:
 import { defineEval } from '@agentv/sdk';
 
 export default defineEval({
-  experiment: 'backend-with-skills',
   description: 'Code generation quality',
-  target: 'copilot-sdk',
-  model: 'claude-sonnet-4.6',
-  policy: {
-    runs: 3,
-    earlyExit: false,
-    timeoutSeconds: 600,
-    threshold: 0.8,
-    budgetUsd: 5,
+  experiment: 'backend-with-skills',
+  target: {
+    extends: 'copilot-sdk',
+    model: 'claude-sonnet-4.6',
   },
+  runs: 3,
+  earlyExit: false,
+  timeoutSeconds: 600,
+  threshold: 0.8,
+  budgetUsd: 5,
   workspace: {
     isolation: 'per_case',
   },

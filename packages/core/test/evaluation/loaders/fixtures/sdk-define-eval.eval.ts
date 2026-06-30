@@ -5,12 +5,9 @@ const suite = {
   name: 'sdk-define-eval-suite',
   description: 'YAML-aligned TypeScript suite authored with @agentv/sdk',
   tags: ['sdk', 'typescript', 'yaml'],
-  execution: {
-    targets: ['mock-target'],
-    skipDefaults: true,
-    budgetUsd: 2,
-    threshold: 0.75,
-  },
+  target: 'mock-target',
+  budgetUsd: 2,
+  threshold: 0.75,
   workspace: {
     hooks: {
       beforeAll: {
@@ -46,12 +43,9 @@ export default Object.defineProperties(suite, {
       name: suite.name,
       description: suite.description,
       tags: suite.tags,
-      execution: {
-        targets: ['mock-target'],
-        skip_defaults: true,
-        budget_usd: 2,
-        threshold: 0.75,
-      },
+      target: suite.target,
+      budget_usd: suite.budgetUsd,
+      threshold: suite.threshold,
       workspace: {
         hooks: {
           before_all: {

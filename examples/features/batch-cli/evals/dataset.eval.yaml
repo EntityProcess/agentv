@@ -9,8 +9,7 @@
 name: batch-cli
 description: Batch CLI demo (AML screening) using structured input → CSV → JSONL with trace extraction
 
-execution:
-  target: batch_cli
+target: batch_cli
 
 tags: [agent]
 

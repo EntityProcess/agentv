@@ -114,7 +114,7 @@ targets:
     provider: codex
     executable: codex-eng
     model: ${{ CODEX_MODEL }}
-    model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
+    reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
     grader_target: azure-base
 ```
 
@@ -122,7 +122,7 @@ targets:
 |-------|----------|-------------|
 | `executable` | No | Codex binary or profile shim to run, such as `codex-eng` |
 | `model` | No | Model to use |
-| `model_reasoning_effort` | No | Codex SDK reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
+| `reasoning_effort` | No | Codex SDK reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
 | `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 

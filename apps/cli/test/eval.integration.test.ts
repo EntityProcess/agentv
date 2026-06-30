@@ -234,15 +234,6 @@ async function expectFileExists(filePath: string): Promise<void> {
   await access(filePath);
 }
 
-async function prependYamlCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
-  const original = await readFile(fixture.testFilePath, 'utf8');
-  await writeFile(
-    fixture.testFilePath,
-    `execution:\n  cache: true\n  cache_path: ${cachePath}\n\n${original}`,
-    'utf8',
-  );
-}
-
 describe('agentv eval CLI', () => {
   it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
@@ -582,7 +573,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs inline target and policy config with suite test selection and run knobs', async () => {
+  it('runs eval-local target config with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {
       await writeFile(
@@ -609,13 +600,13 @@ describe('agentv eval CLI', () => {
         wrapperPath,
         [
           'name: native-exp',
-          'target: codex-target',
-          'model: gpt-5-codex',
-          'policy:',
-          '  timeout_seconds: 12',
-          '  threshold: 0.8',
-          '  budget_usd: 3',
-          '  runs: 2',
+          'target:',
+          '  extends: codex-target',
+          '  model: gpt-5-codex',
+          'timeout_seconds: 12',
+          'threshold: 0.8',
+          'budget_usd: 3',
+          'runs: 2',
           'tests:',
           '  - include: sample.test.yaml',
           '    type: suite',
@@ -659,8 +650,9 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
         target: 'codex-target',
-        model: 'gpt-5-codex',
         runs: 2,
+        threshold: 0.8,
+        budget_usd: 3,
         timeout_seconds: 12,
       });
       expect(
@@ -681,7 +673,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('keeps non-concurrency runtime policy isolated across multiple eval files', async () => {
+  it('keeps non-concurrency run controls isolated across multiple eval files', async () => {
     const fixture = await createFixture();
     try {
       const firstPath = path.join(fixture.suiteDir, 'first.eval.yaml');
@@ -691,9 +683,8 @@ describe('agentv eval CLI', () => {
         [
           'name: first',
           'target: cli-target',
-          'policy:',
-          '  timeout_seconds: 11',
-          '  budget_usd: 0.11',
+          'timeout_seconds: 11',
+          'budget_usd: 0.11',
           'tests:',
           '  - id: first-case',
           '    input: first',
@@ -707,9 +698,8 @@ describe('agentv eval CLI', () => {
         [
           'name: second',
           'target: file-target',
-          'policy:',
-          '  timeout_seconds: 22',
-          '  budget_usd: 0.22',
+          'timeout_seconds: 22',
+          'budget_usd: 0.22',
           'tests:',
           '  - id: second-case',
           '    input: second',
@@ -800,27 +790,6 @@ describe('agentv eval CLI', () => {
     try {
       const cachePath = '.agentv/ts-response-cache';
       await writeTsCacheConfig(fixture, cachePath);
-
-      const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
-
-      const resolvedCachePath = path.resolve(fixture.suiteDir, cachePath);
-      expect(stdout).toContain(`Response cache: enabled (${resolvedCachePath})`);
-      const diagnostics = await readDiagnostics(fixture);
-      expect(diagnostics).toMatchObject({
-        hasCache: true,
-        cachePath: resolvedCachePath,
-        useCache: true,
-      });
-    } finally {
-      await rm(fixture.baseDir, { recursive: true, force: true });
-    }
-  }, 30_000);
-
-  it('honors eval YAML execution.cache_path', async () => {
-    const fixture = await createFixture();
-    try {
-      const cachePath = '.agentv/yaml-response-cache';
-      await prependYamlCacheConfig(fixture, cachePath);
 
       const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
 

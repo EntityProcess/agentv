@@ -27,7 +27,7 @@ tests:
 | `criteria` | Conditional | Description of what a correct response should contain. Required only when the case has no `expected_output` or `assertions` |
 | `input` | Yes | Input sent to the target (string, object, or message array) |
 | `expected_output` | No | Expected response for comparison (string, object, or message array) |
-| `execution` | No | Per-case execution overrides such as `skip_defaults` or `threshold`; target selection belongs in top-level `target`, legacy `execution.targets`, or CLI `--target` |
+| `execution` | No | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
 | `rubrics` | No | Structured evaluation criteria |
@@ -92,8 +92,8 @@ expected_output:
 ## Per-Case Execution Overrides
 
 Override graders or local scoring settings for specific tests. Do not put
-target selection in cases; use top-level `target`, legacy `execution.targets`,
-CLI `--target`, separate eval suites, or tags/filters for target-specific cases.
+target selection in cases; use top-level `target`, CLI `--target`, separate
+eval suites, or tags/filters for target-specific cases.
 
 ```yaml
 tests:

@@ -1,69 +1,22 @@
 # Compare Command Example
 
-The `agentv compare` command supports three modes: N-way matrix from a canonical run manifest, pairwise from a canonical run manifest, and two-run pairwise.
+The `agentv compare` command compares completed run manifests. Run the same eval once per target, then pass the finished run manifests to compare. For N-way matrix analysis, combine completed runs first and compare the combined manifest.
 
 ## Use Case
 
 Compare model performance across different configurations:
-- N-way matrix comparison across 3+ models from a single run manifest
-- Baseline regression gating in CI (exit 1 if any target regresses)
-- Head-to-head pairwise between two specific targets
-- Before/after optimization runs (two-run pairwise)
+- Baseline regression gating in CI (exit 1 if the candidate regresses)
+- Head-to-head pairwise comparison between two completed runs
+- N-way matrix comparison from combined completed runs
+- Before/after optimization runs
 
 ## Sample Files
 
-- canonical run workspaces under `.agentv/results/default/<timestamp>/`
+- completed run workspaces under `.agentv/results/default/<timestamp>/`
 
 ## Usage
 
-### N-Way Matrix (run manifest)
-
-```bash
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
-```
-
-Output:
-```
-Score Matrix
-
-  Test ID          gemini-3-flash-preview  gpt-4.1  gpt-5-mini
-  ───────────────  ──────────────────────  ───────  ──────────
-  code-generation                    0.70     0.80        0.75
-  greeting                           0.90     0.85        0.95
-  summarization                      0.85     0.90        0.80
-
-Pairwise Summary:
-  gemini-3-flash-preview → gpt-4.1:     1 win, 0 losses, 2 ties  (Δ +0.033)
-  gemini-3-flash-preview → gpt-5-mini:  0 wins, 0 losses, 3 ties  (Δ +0.017)
-  gpt-4.1 → gpt-5-mini:                 0 wins, 0 losses, 3 ties  (Δ -0.017)
-```
-
-### Baseline Regression Check
-
-```bash
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1
-# Exits 1 if any target regresses vs gpt-4.1
-```
-
-### Pairwise from a Single Run Manifest
-
-```bash
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 --candidate gpt-5-mini
-```
-
-```
-Comparing: gpt-4.1 → gpt-5-mini
-
-  Test ID          Baseline  Candidate     Delta  Result
-  ───────────────  ────────  ─────────  ────────  ────────
-  greeting             0.85       0.95     +0.10  = tie
-  code-generation      0.80       0.75     -0.05  = tie
-  summarization        0.90       0.80     -0.10  = tie
-
-Summary: 0 wins, 0 losses, 3 ties | Mean Δ: -0.017 | Status: regressed
-```
-
-### Two-Run Pairwise
+### Pairwise Compare
 
 ```bash
 agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
@@ -85,6 +38,29 @@ Comparing: .agentv/results/default/<baseline-timestamp>/index.jsonl → .agentv/
 Summary: 1 win, 0 losses, 4 ties | Mean Δ: +0.054 | Status: improved
 ```
 
+### N-Way Matrix From Completed Runs
+
+```bash
+agentv results combine \
+  .agentv/results/default/<gpt-timestamp> \
+  .agentv/results/default/<claude-timestamp> \
+  .agentv/results/default/<gemini-timestamp> \
+  --output .agentv/results/default/combined
+agentv compare .agentv/results/default/combined/index.jsonl
+```
+
+Output:
+
+```
+Score Matrix
+
+  Test ID          claude-sonnet-4  gemini-3-flash-preview  gpt-4.1
+  ───────────────  ───────────────  ──────────────────────  ───────
+  code-generation             0.86                    0.70     0.80
+  greeting                    0.95                    0.90     0.85
+  summarization               0.84                    0.80     0.90
+```
+
 ### With Custom Threshold
 
 Use a stricter threshold (0.05) for win/loss classification:
@@ -99,20 +75,17 @@ agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
 For machine-readable output (CI pipelines, scripts):
 
 ```bash
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --json
+agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<candidate-timestamp>/index.jsonl --json
 ```
 
 Output uses snake_case for Python ecosystem compatibility:
 
 ```json
 {
-  "matrix": [
-    {"test_id": "code-generation", "scores": {"gemini-3-flash-preview": 0.7, "gpt-4.1": 0.8, "gpt-5-mini": 0.75}}
-  ],
   "pairwise": [
-    {"baseline": "gemini-3-flash-preview", "candidate": "gpt-4.1", "summary": {"wins": 1, "losses": 0, "ties": 2, "mean_delta": 0.033}}
-  ],
-  "targets": ["gemini-3-flash-preview", "gpt-4.1", "gpt-5-mini"]
+    {"test_id": "code-generation", "baseline_score": 0.72, "candidate_score": 0.88, "delta": 0.16, "result": "win"}
+  ]
 }
 ```
 
@@ -121,17 +94,15 @@ Output uses snake_case for Python ecosystem compatibility:
 | Mode | Exit Code |
 |---|---|
 | Two-file pairwise | Exit 1 on regression (meanDelta < 0) |
-| Combined with `--baseline` | Exit 1 if any target regresses vs baseline |
-| Combined without `--baseline` | Exit 0 (informational) |
+| Combined manifest with `--baseline` | Exit 1 if any target regresses vs baseline |
+| Combined manifest without `--baseline` | Exit 0 (informational) |
+| JSON output | Same pass/fail behavior as pairwise |
 
 ## CI Integration
 
 Use exit codes for automated quality gates:
 
 ```bash
-# N-way: fail if any target regresses vs baseline
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline gpt-4.1 || echo "Regression detected!"
-
-# Two-run: fail if candidate regresses
+# Fail if candidate regresses
 agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl || echo "Regression detected!"
 ```

@@ -26,7 +26,9 @@ import {
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractThreshold,
+  extractWorkersFromSuite,
   loadConfig,
+  parseTargetHooks,
 } from './loaders/config-loader.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
 import {
@@ -46,6 +48,7 @@ import {
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
+import type { TargetDefinition } from './providers/types.js';
 import type {
   ConversationAggregation,
   ConversationMode,
@@ -60,6 +63,7 @@ import type {
   JsonObject,
   JsonValue,
   RepoConfig,
+  TargetHooksConfig,
   TestMessage,
   TestMessageContent,
   TurnFailurePolicy,
@@ -177,6 +181,11 @@ type RawTestSuite = JsonObject & {
   readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
   readonly policy?: JsonValue;
+  readonly runs?: JsonValue;
+  readonly early_exit?: JsonValue;
+  readonly timeout_seconds?: JsonValue;
+  readonly budget_usd?: JsonValue;
+  readonly threshold?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
@@ -296,6 +305,7 @@ function interpolateRawEvalCase(raw: RawEvalCase, vars: JsonObject | undefined):
  */
 export async function readTestSuiteMetadata(testFilePath: string): Promise<{
   target?: string;
+  targetSpec?: EvalTargetSpec;
   targets?: readonly string[];
   targetRefs?: readonly import('./types.js').EvalTargetRef[];
 }> {
@@ -310,6 +320,7 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
 
     return {
       target: extractTargetFromSuite(parsed),
+      targetSpec: parseEvalTargetSpec((parsed as RawTestSuite).target),
       targets: extractTargetsFromSuite(parsed),
       targetRefs: extractTargetRefsFromSuite(parsed),
     };
@@ -324,26 +335,37 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
  */
 export type EvalSuiteResult = {
   readonly tests: readonly EvalTest[];
-  /** Suite-level targets from execution.targets (matrix evaluation) */
+  /** Runtime target list from CLI/project config, not authored eval YAML. */
   readonly targets?: readonly string[];
-  /** Suite-level target refs with hooks from execution.targets (object form) */
+  /** Runtime target refs with hooks from CLI/project config, not authored eval YAML. */
   readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
-  /** Suite-level cache config from execution.cache */
+  /** Single authored target string or eval-local overlay object. */
+  readonly targetSpec?: EvalTargetSpec;
+  /** Suite-level workers from project config or CLI, not authored eval YAML. */
+  readonly workers?: number;
+  /** Suite-level cache config from project/CLI runtime surfaces. */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
   /** Suite-level metadata (name, description, version, etc.) */
   readonly metadata?: import('./metadata.js').EvalMetadata;
   /** Suite-level total cost budget in USD */
   readonly budgetUsd?: number;
-  /** Execution error tolerance: true or false */
+  /** Execution error tolerance from project/CLI runtime surfaces. */
   readonly failOnError?: import('./types.js').FailOnError;
   /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
   readonly threshold?: number;
-  /** Top-level runtime block from `experiment:` or legacy `execution:`. */
+  /** Internal normalized run controls derived from flat eval YAML. */
   readonly experimentConfig?: ExperimentConfig;
   /** Inline target definition from a TS eval config. */
   readonly inlineTarget?: import('./providers/types.js').TargetDefinition;
   /** Custom provider factory from a TS eval config task(). */
   readonly providerFactory?: import('./providers/provider-registry.js').ProviderFactoryFn;
+};
+
+export type EvalTargetSpec = {
+  readonly name: string;
+  readonly extends?: string;
+  readonly definition?: TargetDefinition;
+  readonly hooks?: TargetHooksConfig;
 };
 
 /**
@@ -528,16 +550,12 @@ async function loadTestsFromParsedYamlValue(
   const rawSuiteInput = suite.input;
   const rawSuiteInputFiles = suite.input_files;
 
-  // Extract global target from top-level target or legacy execution.target.
-  const rawGlobalExecution = readSuiteRuntimeBlock(suite, evalFilePath);
-  const _globalTarget = asString(suite.target) ?? asString(rawGlobalExecution?.target);
+  readSuiteRuntimeBlock(suite, evalFilePath);
 
   // Build global execution context, including suite-level assertions (which is a sibling of execution)
   const suiteAssertions = suite.assertions;
   const globalExecution: JsonObject | undefined =
-    suiteAssertions !== undefined
-      ? { ...(rawGlobalExecution ?? {}), assertions: suiteAssertions }
-      : rawGlobalExecution;
+    suiteAssertions !== undefined ? { assertions: suiteAssertions } : undefined;
 
   const results: EvalTest[] = [];
 
@@ -855,6 +873,8 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
     tests,
     targets: extractTargetsFromSuite(parsed),
     targetRefs: extractTargetRefsFromSuite(parsed),
+    targetSpec: parseEvalTargetSpec((parsed as RawTestSuite).target),
+    workers: extractWorkersFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
     budgetUsd: extractBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),
@@ -1311,10 +1331,10 @@ async function resolveIncludePaths(
 ): Promise<readonly string[]> {
   const absolutePattern = path.resolve(evalFileDir, includePath);
   if (hasGlobMagic(includePath)) {
-    const matches = await fg(absolutePattern.replaceAll('\\', '/'), {
+    const matches = (await fg(absolutePattern.replaceAll('\\', '/'), {
       onlyFiles: true,
       absolute: true,
-    });
+    })) as string[];
     return dedupeResolvedPathsByIdentity([...new Set(matches.sort())]);
   }
   return [absolutePattern];
@@ -1409,72 +1429,88 @@ function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
     return 'workspace';
   }
 
-  const runtime = suite.execution;
-  if (isJsonObject(runtime) && runtime.workspace !== undefined) {
-    return 'execution.workspace';
-  }
-
   return undefined;
 }
 
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
-  if (suite.experiment !== undefined) {
+  if (suite.experiment !== undefined && typeof suite.experiment !== 'string') {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' must be a string run/result grouping label.`,
     );
   }
-  const runtime = suite.execution;
-  return isJsonObject(runtime) ? runtime : undefined;
+  if (suite.policy !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put runs, early_exit, timeout_seconds, threshold, and budget_usd at the top level.`,
+    );
+  }
+  if (suite.execution !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.`,
+    );
+  }
+  if (suite.model !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'model' is not part of eval YAML. Put model inside the target object.`,
+    );
+  }
+  return undefined;
 }
 
 function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | undefined {
   const suite = parsed as RawTestSuite;
-  const runtime = readSuiteRuntimeBlock(suite, 'eval file');
-  const policy = isJsonObject(suite.policy) ? suite.policy : undefined;
-  validatePolicyFields(policy);
-  const target = asString(suite.target);
-  const model = asString(suite.model);
-  if (!runtime && !policy && !target && !model) {
+  readSuiteRuntimeBlock(suite, 'eval file');
+  const targetSpec = parseEvalTargetSpec(suite.target);
+  const experimentName = asString(suite.experiment);
+  const runtimeConfig: JsonObject = {
+    ...(experimentName !== undefined ? { name: experimentName } : {}),
+    ...(targetSpec !== undefined ? { target: targetSpec.name } : {}),
+    ...(suite.runs !== undefined ? { runs: suite.runs } : {}),
+    ...(suite.early_exit !== undefined ? { early_exit: suite.early_exit } : {}),
+    ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),
+    ...(suite.budget_usd !== undefined ? { budget_usd: suite.budget_usd } : {}),
+    ...(suite.threshold !== undefined ? { threshold: suite.threshold } : {}),
+  };
+  if (Object.keys(runtimeConfig).length === 0) {
     return undefined;
   }
-  return normalizeExperimentConfig({
-    ...(runtime ?? {}),
-    ...(target !== undefined ? { target } : {}),
-    ...(model !== undefined ? { model } : {}),
-    ...(policy ?? {}),
-  });
+  return normalizeExperimentConfig(runtimeConfig);
 }
 
-const ALLOWED_POLICY_FIELDS: ReadonlySet<string> = new Set([
-  'runs',
-  'timeout_seconds',
-  'threshold',
-  'budget_usd',
-]);
+function parseEvalTargetSpec(rawTarget: JsonValue | undefined): EvalTargetSpec | undefined {
+  if (rawTarget === undefined || rawTarget === null) {
+    return undefined;
+  }
+  if (typeof rawTarget === 'string') {
+    const name = rawTarget.trim();
+    return name.length > 0 ? { name } : undefined;
+  }
+  if (!isJsonObject(rawTarget)) {
+    throw new Error("Invalid top-level 'target': use a target name or target object.");
+  }
 
-function validatePolicyFields(policy: JsonObject | undefined): void {
-  if (!policy) {
-    return;
-  }
-  const camelCasePolicyFields = ['earlyExit', 'timeoutSeconds', 'budgetUsd'];
-  for (const field of camelCasePolicyFields) {
-    if (policy[field] !== undefined) {
-      throw new Error(
-        `Invalid policy.${field}. Eval YAML uses snake_case; use policy.${toSnakeCase(field)}.`,
-      );
-    }
-  }
-  for (const key of Object.keys(policy)) {
-    if (!ALLOWED_POLICY_FIELDS.has(key)) {
-      throw new Error(
-        `Invalid policy.${key}. Top-level policy supports only runs, timeout_seconds, threshold, and budget_usd. Legacy repeat strategy controls belong under execution or scoped run overrides.`,
-      );
-    }
-  }
-}
+  const rawExtends = rawTarget.extends;
+  const extendsTarget =
+    typeof rawExtends === 'string' && rawExtends.trim().length > 0 ? rawExtends.trim() : undefined;
+  const rawName = rawTarget.name;
+  const name =
+    typeof rawName === 'string' && rawName.trim().length > 0
+      ? rawName.trim()
+      : (extendsTarget ?? 'eval-local-target');
+  const hooks = parseTargetHooks(rawTarget.hooks);
+  const definitionEntries = Object.entries(rawTarget).filter(
+    ([key]) => key !== 'extends' && key !== 'hooks',
+  );
+  const definition = {
+    ...Object.fromEntries(definitionEntries),
+    name,
+  } as unknown as TargetDefinition;
 
-function toSnakeCase(value: string): string {
-  return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  return {
+    name,
+    ...(extendsTarget !== undefined && { extends: extendsTarget }),
+    definition,
+    ...(hooks !== undefined && { hooks }),
+  };
 }
 
 const SOURCE_SECRET_KEY_PATTERN =

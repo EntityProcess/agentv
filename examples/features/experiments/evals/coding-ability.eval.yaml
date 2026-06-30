@@ -1,6 +1,5 @@
 name: coding-ability
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: review-null-check

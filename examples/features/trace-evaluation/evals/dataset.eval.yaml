@@ -8,8 +8,7 @@
 
 description: Trace-based evaluation of agent internals using code graders
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # ==========================================
