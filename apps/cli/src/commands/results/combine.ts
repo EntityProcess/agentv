@@ -103,7 +103,7 @@ export const resultsCombineCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Output run workspace directory (defaults to .agentv/results/<experiment>/<earliest-source-time>)',
+        'Output run workspace directory (defaults to .agentv/results/<earliest-source-time>)',
     }),
     experiment: option({
       type: optional(string),

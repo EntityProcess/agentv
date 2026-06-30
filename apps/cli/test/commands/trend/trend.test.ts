@@ -35,7 +35,7 @@ async function createRunWorkspace(
   runName: string,
   records: readonly RunRecordInput[],
 ): Promise<{ runDir: string; indexPath: string }> {
-  const runDir = path.join(rootDir, '.agentv', 'results', 'default', runName);
+  const runDir = path.join(rootDir, '.agentv', 'results', runName);
   await mkdir(runDir, { recursive: true });
   const indexPath = path.join(runDir, 'index.jsonl');
   await writeFile(
@@ -269,14 +269,8 @@ describe('trend command', () => {
     const cwd = await createTempDir();
     cleanupDirs.push(cwd);
 
-    const firstRunDir = path.join(cwd, '.agentv', 'results', 'default', '2026-03-01T10-00-00-000Z');
-    const secondRunDir = path.join(
-      cwd,
-      '.agentv',
-      'results',
-      'default',
-      '2026-03-08T10-00-00-000Z',
-    );
+    const firstRunDir = path.join(cwd, '.agentv', 'results', '2026-03-01T10-00-00-000Z');
+    const secondRunDir = path.join(cwd, '.agentv', 'results', '2026-03-08T10-00-00-000Z');
     await mkdir(firstRunDir, { recursive: true });
     await mkdir(secondRunDir, { recursive: true });
     const firstRecord = {

@@ -136,17 +136,12 @@ async function createStaleResultBranchPushFixture(params: {
   await directPushResults({
     config,
     sourceDir: firstSourceDir,
-    destinationPath: path.join('local-stale', '2026-06-23T09-00-00-000Z'),
+    destinationPath: '2026-06-23T09-00-00-000Z',
     commitMessage: 'feat(results): local stale base',
   });
 
   git(`git switch --quiet ${params.storageBranch}`, params.seedDir);
-  const remoteOnlyPath = path.join(
-    params.seedDir,
-    'runs',
-    'remote-only',
-    '2026-06-23T09-30-00-000Z',
-  );
+  const remoteOnlyPath = path.join(params.seedDir, 'runs', '2026-06-23T09-30-00-000Z');
   writeRunArtifacts(remoteOnlyPath, 'remote-only', '2026-06-23T09:30:00.000Z');
   git('git add runs && git commit --quiet -m "remote result wins race"', params.seedDir);
   git(`git push --quiet origin HEAD:${params.storageBranch}`, params.seedDir);
@@ -157,7 +152,7 @@ async function createStaleResultBranchPushFixture(params: {
 
   return {
     localSourceDir,
-    localDestinationPath: path.join('local-conflict', '2026-06-23T10-00-00-000Z'),
+    localDestinationPath: '2026-06-23T10-00-00-000Z',
     remoteAdvancedCommit: git(
       `git --git-dir "${params.remoteDir}" rev-parse ${params.storageBranch}`,
       params.rootDir,
@@ -404,7 +399,7 @@ describe('listGitRuns', () => {
   });
 
   it('returns committed runs derived from canonical index.jsonl manifests', async () => {
-    const defaultRunDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
+    const defaultRunDir = path.join(repoDir, 'runs', '2026-05-20T10-00-00-000Z');
     mkdirSync(defaultRunDir, { recursive: true });
     writeFileSync(
       path.join(defaultRunDir, 'index.jsonl'),
@@ -441,7 +436,7 @@ describe('listGitRuns', () => {
       ),
     );
 
-    const experimentRunDir = path.join(repoDir, 'runs', 'with-skills', '2026-05-21T11-00-00-000Z');
+    const experimentRunDir = path.join(repoDir, 'runs', '2026-05-21T11-00-00-000Z');
     mkdirSync(experimentRunDir, { recursive: true });
     writeFileSync(
       path.join(experimentRunDir, 'index.jsonl'),
@@ -495,15 +490,15 @@ describe('listGitRuns', () => {
 
     expect(runs).toHaveLength(2);
     expect(runs.map((run) => run.run_id)).toEqual([
-      'with-skills::2026-05-21T11-00-00-000Z',
+      '2026-05-21T11-00-00-000Z',
       '2026-05-20T10-00-00-000Z',
     ]);
     expect(runs[0]).toMatchObject({
       experiment: 'with-skills',
       timestamp: '2026-05-21T11:00:00.000Z',
       display_name: 'remote friendly run',
-      manifest_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/index.jsonl',
-      summary_path: 'runs/with-skills/2026-05-21T11-00-00-000Z/summary.json',
+      manifest_path: 'runs/2026-05-21T11-00-00-000Z/index.jsonl',
+      summary_path: 'runs/2026-05-21T11-00-00-000Z/summary.json',
       test_count: 3,
       pass_rate: 0.75,
       avg_score: 0,
@@ -513,7 +508,7 @@ describe('listGitRuns', () => {
       experiment: 'default',
       display_name: '2026-05-20T10-00-00-000Z',
       target: 'gpt-4o',
-      manifest_path: 'runs/default/2026-05-20T10-00-00-000Z/index.jsonl',
+      manifest_path: 'runs/2026-05-20T10-00-00-000Z/index.jsonl',
       test_count: 2,
       pass_rate: 0.5,
     });
@@ -535,7 +530,7 @@ describe('listGitRuns', () => {
   });
 
   it('ignores inherited git hook environment variables', async () => {
-    const runDir = path.join(repoDir, 'runs', 'default', '2026-05-20T10-00-00-000Z');
+    const runDir = path.join(repoDir, 'runs', '2026-05-20T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
     writeFileSync(
       path.join(runDir, 'index.jsonl'),
@@ -592,7 +587,7 @@ describe('listGitRuns', () => {
   });
 
   it('materializes an entire run subtree atomically from git objects', async () => {
-    const runDir = path.join(repoDir, 'runs', 'with-files', '2026-05-22T10-00-00-000Z');
+    const runDir = path.join(repoDir, 'runs', '2026-05-22T10-00-00-000Z');
     mkdirSync(path.join(runDir, 'attachments'), { recursive: true });
     writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
     writeFileSync(
@@ -617,7 +612,7 @@ describe('listGitRuns', () => {
 
     rmSync(runDir, { recursive: true, force: true });
 
-    await materializeGitRun(repoDir, 'with-files/2026-05-22T10-00-00-000Z', 'HEAD');
+    await materializeGitRun(repoDir, '2026-05-22T10-00-00-000Z', 'HEAD');
 
     expect(readFileSync(path.join(runDir, 'index.jsonl'), 'utf8')).toContain('"test_id":"alpha"');
     expect(readFileSync(path.join(runDir, 'attachments', 'response.md'), 'utf8')).toBe(
@@ -645,7 +640,7 @@ describe('listGitRuns', () => {
     const defaultBranch = git('git branch --show-current', repoDir);
     git('git checkout -b agentv-results', repoDir);
 
-    const runDir = path.join(repoDir, 'runs', 'branch-only', '2026-06-12T10-00-00-000Z');
+    const runDir = path.join(repoDir, 'runs', '2026-06-12T10-00-00-000Z');
     writeRunArtifacts(runDir, 'branch-only', '2026-06-12T10:00:00.000Z');
     writeFileSync(path.join(runDir, 'attachments.txt'), 'from branch\n');
     git('git add runs && git commit -m "seed branch run"', repoDir);
@@ -653,9 +648,9 @@ describe('listGitRuns', () => {
 
     const runs = await listGitRuns(repoDir, 'agentv-results');
     expect(runs).toHaveLength(1);
-    expect(runs[0].run_id).toBe('branch-only::2026-06-12T10-00-00-000Z');
+    expect(runs[0].run_id).toBe('2026-06-12T10-00-00-000Z');
 
-    await materializeGitRun(repoDir, 'branch-only/2026-06-12T10-00-00-000Z', 'agentv-results');
+    await materializeGitRun(repoDir, '2026-06-12T10-00-00-000Z', 'agentv-results');
     expect(readFileSync(path.join(runDir, 'attachments.txt'), 'utf8')).toBe('from branch\n');
   });
 });
@@ -776,14 +771,7 @@ describe('results repo write path', () => {
     git('git add README.md && git commit --quiet -m "seed source"', projectDir);
 
     const runTimestamp = '2026-06-17T10-00-00-000Z';
-    const runDir = path.join(
-      projectDir,
-      '.agentv',
-      'results',
-      'runs',
-      'current-repo',
-      runTimestamp,
-    );
+    const runDir = path.join(projectDir, '.agentv', 'results', runTimestamp);
     writeRunArtifacts(runDir, 'current-repo', '2026-06-17T10:00:00.000Z');
     writeFileSync(path.join(projectDir, 'UNRELATED.txt'), 'do not publish\n');
 
@@ -794,14 +782,14 @@ describe('results repo write path', () => {
         auto_push: false,
       },
       sourceDir: runDir,
-      destinationPath: path.join('current-repo', runTimestamp),
+      destinationPath: runTimestamp,
       commitMessage: 'feat(results): current-repo - 1/1 PASS (1.000)',
     });
 
     expect(published).toBe(true);
     expect(git('git branch --show-current', projectDir)).toBe('main');
     const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, projectDir);
-    expect(branchFiles).toContain(`runs/current-repo/${runTimestamp}/summary.json`);
+    expect(branchFiles).toContain(`runs/${runTimestamp}/summary.json`);
     expect(branchFiles).not.toContain('README.md');
     expect(branchFiles).not.toContain('UNRELATED.txt');
     expect(git('git status --short --branch', projectDir)).toContain('## main');
@@ -817,14 +805,7 @@ describe('results repo write path', () => {
     git('git add README.md && git commit --quiet -m "seed source"', projectDir);
 
     const runTimestamp = '2026-06-17T10-05-00-000Z';
-    const runDir = path.join(
-      projectDir,
-      '.agentv',
-      'results',
-      'runs',
-      'human-author',
-      runTimestamp,
-    );
+    const runDir = path.join(projectDir, '.agentv', 'results', runTimestamp);
     writeRunArtifacts(runDir, 'human-author', '2026-06-17T10:05:00.000Z');
 
     const published = await directPushResults({
@@ -834,7 +815,7 @@ describe('results repo write path', () => {
         auto_push: false,
       },
       sourceDir: runDir,
-      destinationPath: path.join('human-author', runTimestamp),
+      destinationPath: runTimestamp,
       commitMessage: 'feat(results): human-author - 1/1 PASS (1.000)',
     });
 
@@ -870,14 +851,7 @@ describe('results repo write path', () => {
           );
 
           const runTimestamp = '2026-06-17T10-07-00-000Z';
-          const runDir = path.join(
-            projectDir,
-            '.agentv',
-            'results',
-            'runs',
-            'env-author',
-            runTimestamp,
-          );
+          const runDir = path.join(projectDir, '.agentv', 'results', runTimestamp);
           writeRunArtifacts(runDir, 'env-author', '2026-06-17T10:07:00.000Z');
 
           const published = await directPushResults({
@@ -887,7 +861,7 @@ describe('results repo write path', () => {
               auto_push: false,
             },
             sourceDir: runDir,
-            destinationPath: path.join('env-author', runTimestamp),
+            destinationPath: runTimestamp,
             commitMessage: 'feat(results): env-author - 1/1 PASS (1.000)',
           });
 
@@ -926,14 +900,7 @@ describe('results repo write path', () => {
           );
 
           const runTimestamp = '2026-06-17T10-10-00-000Z';
-          const runDir = path.join(
-            projectDir,
-            '.agentv',
-            'results',
-            'runs',
-            'fallback-author',
-            runTimestamp,
-          );
+          const runDir = path.join(projectDir, '.agentv', 'results', runTimestamp);
           writeRunArtifacts(runDir, 'fallback-author', '2026-06-17T10:10:00.000Z');
 
           const published = await directPushResults({
@@ -943,7 +910,7 @@ describe('results repo write path', () => {
               auto_push: false,
             },
             sourceDir: runDir,
-            destinationPath: path.join('fallback-author', runTimestamp),
+            destinationPath: runTimestamp,
             commitMessage: 'feat(results): fallback-author - 1/1 PASS (1.000)',
           });
 
@@ -971,14 +938,7 @@ describe('results repo write path', () => {
     const originalOrigin = git('git remote get-url origin', projectDir);
 
     const runTimestamp = '2026-06-22T04-00-00-000Z';
-    const runDir = path.join(
-      projectDir,
-      '.agentv',
-      'results',
-      'runs',
-      'url-backed-source',
-      runTimestamp,
-    );
+    const runDir = path.join(projectDir, '.agentv', 'results', runTimestamp);
     writeRunArtifacts(runDir, 'url-backed-source', '2026-06-22T04:00:00.000Z');
 
     const published = await directPushResults({
@@ -989,7 +949,7 @@ describe('results repo write path', () => {
         auto_push: true,
       },
       sourceDir: runDir,
-      destinationPath: path.join('url-backed-source', runTimestamp),
+      destinationPath: runTimestamp,
       commitMessage: 'feat(results): url-backed-source - 1/1 PASS (1.000)',
     });
 
@@ -1001,7 +961,7 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
       rootDir,
     );
-    expect(remoteFiles).toContain(`runs/url-backed-source/${runTimestamp}/summary.json`);
+    expect(remoteFiles).toContain(`runs/${runTimestamp}/summary.json`);
     expect(remoteFiles).not.toContain('README.md');
   }, 20000);
 
@@ -1050,7 +1010,6 @@ describe('results repo write path', () => {
       projectDir,
       'metadata',
       'runs',
-      'default',
       '2026-06-22T00-19-03-060Z',
       'tags.json',
     );
@@ -1069,7 +1028,7 @@ describe('results repo write path', () => {
 
     await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
       sync_status: 'dirty',
-      dirty_paths: ['metadata/runs/default/2026-06-22T00-19-03-060Z/tags.json'],
+      dirty_paths: ['metadata/runs/2026-06-22T00-19-03-060Z/tags.json'],
     });
 
     const status = await syncResultsRepoForProject(config);
@@ -1084,7 +1043,7 @@ describe('results repo write path', () => {
     });
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).toContain('metadata/runs/default/2026-06-22T00-19-03-060Z/tags.json');
+    ).toContain('metadata/runs/2026-06-22T00-19-03-060Z/tags.json');
     await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
       sync_status: 'clean',
       dirty_paths: [],
@@ -1107,7 +1066,6 @@ describe('results repo write path', () => {
       seedDir,
       'metadata',
       'runs',
-      'remote-only',
       '2026-06-22T00-00-00-000Z',
       'tags.json',
     );
@@ -1157,7 +1115,6 @@ describe('results repo write path', () => {
       seedDir,
       'metadata',
       'runs',
-      'remote-only',
       '2026-06-22T00-00-00-000Z',
       'tags.json',
     );
@@ -1170,7 +1127,6 @@ describe('results repo write path', () => {
       projectDir,
       'metadata',
       'runs',
-      'local',
       '2026-06-22T01-00-00-000Z',
       'tags.json',
     );
@@ -1199,8 +1155,8 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
     );
-    expect(remoteFiles).toContain('metadata/runs/remote-only/2026-06-22T00-00-00-000Z/tags.json');
-    expect(remoteFiles).toContain('metadata/runs/local/2026-06-22T01-00-00-000Z/tags.json');
+    expect(remoteFiles).toContain('metadata/runs/2026-06-22T00-00-00-000Z/tags.json');
+    expect(remoteFiles).toContain('metadata/runs/2026-06-22T01-00-00-000Z/tags.json');
     expect(git('git branch --show-current', projectDir)).toBe('main');
   }, 20000);
 
@@ -1216,7 +1172,7 @@ describe('results repo write path', () => {
       projectDir,
     );
 
-    const metadataPath = 'metadata/runs/shared/2026-06-22T03-00-00-000Z/tags.json';
+    const metadataPath = 'metadata/runs/2026-06-22T03-00-00-000Z/tags.json';
     git(`git switch --quiet ${storageBranch}`, seedDir);
     const remoteTagPath = path.join(seedDir, ...metadataPath.split('/'));
     mkdirSync(path.dirname(remoteTagPath), { recursive: true });
@@ -1270,7 +1226,6 @@ describe('results repo write path', () => {
       projectDir,
       'metadata',
       'runs',
-      'local',
       '2026-06-22T02-00-00-000Z',
       'tags.json',
     );
@@ -1299,11 +1254,11 @@ describe('results repo write path', () => {
     });
     expect(status.block_reason).toContain('Results repo push was rejected');
     expect(git(`git ls-tree -r --name-only ${storageBranch}`, projectDir)).toContain(
-      'metadata/runs/local/2026-06-22T02-00-00-000Z/tags.json',
+      'metadata/runs/2026-06-22T02-00-00-000Z/tags.json',
     );
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).not.toContain('metadata/runs/local/2026-06-22T02-00-00-000Z/tags.json');
+    ).not.toContain('metadata/runs/2026-06-22T02-00-00-000Z/tags.json');
     expect(git('git branch --show-current', projectDir)).toBe('main');
   }, 20000);
 
@@ -1319,7 +1274,7 @@ describe('results repo write path', () => {
     git('git add README.md && git commit --quiet -m "seed results repo"', resultsRepoDir);
 
     const runTimestamp = '2026-06-17T11-00-00-000Z';
-    const runDir = path.join(projectDir, '.agentv', 'results', 'external', runTimestamp);
+    const runDir = path.join(projectDir, '.agentv', 'results', runTimestamp);
     writeRunArtifacts(runDir, 'external', '2026-06-17T11:00:00.000Z');
 
     const published = await directPushResults({
@@ -1329,14 +1284,14 @@ describe('results repo write path', () => {
         auto_push: false,
       },
       sourceDir: runDir,
-      destinationPath: path.join('external', runTimestamp),
+      destinationPath: runTimestamp,
       commitMessage: 'feat(results): external - 1/1 PASS (1.000)',
     });
 
     expect(published).toBe(true);
     expect(git('git branch --show-current', resultsRepoDir)).toBe('main');
     const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, resultsRepoDir);
-    expect(branchFiles).toContain(`runs/external/${runTimestamp}/index.jsonl`);
+    expect(branchFiles).toContain(`runs/${runTimestamp}/index.jsonl`);
     expect(branchFiles).not.toContain('README.md');
   }, 20000);
 
@@ -1345,7 +1300,7 @@ describe('results repo write path', () => {
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
     const runTimestamp = '2026-05-22T11-00-00-000Z';
-    const destinationPath = path.join('retry', runTimestamp);
+    const destinationPath = runTimestamp;
     const config = createResultsConfig(remoteDir, cloneDir);
     const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
     writeRunArtifacts(sourceDir, 'retry', '2026-05-22T11:00:00.000Z');
@@ -1367,7 +1322,7 @@ describe('results repo write path', () => {
     ).rejects.toThrow(/simulated interrupted push/);
     expect(git('git rev-list --count origin/main..main', cloneDir)).toBe('1');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      `runs/retry/${runTimestamp}/summary.json`,
+      `runs/${runTimestamp}/summary.json`,
     );
 
     rmSync(hookPath, { force: true });
@@ -1383,10 +1338,10 @@ describe('results repo write path', () => {
 
     expect(git('git rev-list --count origin/main..main', cloneDir)).toBe('0');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      `runs/retry/${runTimestamp}/summary.json`,
+      `runs/${runTimestamp}/summary.json`,
     );
     expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
-      `AgentV-Run: retry::${runTimestamp}`,
+      `AgentV-Run: ${runTimestamp}`,
     );
   }, 20000);
 
@@ -1436,7 +1391,7 @@ describe('results repo write path', () => {
       rootDir,
     );
     expect(remoteFiles).toContain(`runs/${fixture.localDestinationPath}/summary.json`);
-    expect(remoteFiles).toContain('runs/remote-only/2026-06-23T09-30-00-000Z/summary.json');
+    expect(remoteFiles).toContain('runs/2026-06-23T09-30-00-000Z/summary.json');
     // No backup ref was ever created in the merge path.
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
@@ -1492,7 +1447,7 @@ describe('results repo write path', () => {
     const result = await directPushResultsWithDetails({
       config,
       sourceDir,
-      destinationPath: path.join('race-local', '2026-06-24T10-00-00-000Z'),
+      destinationPath: '2026-06-24T10-00-00-000Z',
       commitMessage: 'feat(results): push race',
     });
 
@@ -1512,7 +1467,7 @@ describe('results repo write path', () => {
       rootDir,
     );
     expect(remoteFiles).toContain('RACE.md');
-    expect(remoteFiles).toContain('runs/race-local/2026-06-24T10-00-00-000Z/summary.json');
+    expect(remoteFiles).toContain('runs/2026-06-24T10-00-00-000Z/summary.json');
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
     ).toBe('');
@@ -1523,7 +1478,7 @@ describe('results repo write path', () => {
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
     const runTimestamp = '2026-05-22T10-00-00-000Z';
-    const destinationPath = path.join('with-skills', runTimestamp);
+    const destinationPath = runTimestamp;
     const config = createResultsConfig(remoteDir, cloneDir);
     writeRunArtifacts(sourceDir, 'with-skills', '2026-05-22T10:00:00.000Z');
 
@@ -1540,19 +1495,17 @@ describe('results repo write path', () => {
 
     expect(pushed).toBe(true);
     expect(git('git rev-parse --show-toplevel', cloneDir)).toBe(cloneDir);
-    expect(git('git log -1 --pretty=%B main', cloneDir)).toContain(
-      `AgentV-Run: with-skills::${runTimestamp}`,
-    );
+    expect(git('git log -1 --pretty=%B main', cloneDir)).toContain(`AgentV-Run: ${runTimestamp}`);
     expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
-      `AgentV-Run: with-skills::${runTimestamp}`,
+      `AgentV-Run: ${runTimestamp}`,
     );
     expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
-      `runs/with-skills/${runTimestamp}/index.jsonl`,
+      `runs/${runTimestamp}/index.jsonl`,
     );
 
     const runs = await listGitRuns(cloneDir, 'main');
     expect(runs).toHaveLength(1);
-    expect(runs[0].run_id).toBe(`with-skills::${runTimestamp}`);
+    expect(runs[0].run_id).toBe(runTimestamp);
   }, 20000);
 
   it('pushes direct results to the configured storage branch', async () => {
@@ -1561,7 +1514,7 @@ describe('results repo write path', () => {
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
     const runTimestamp = '2026-06-12T10-00-00-000Z';
-    const destinationPath = path.join('branch-storage', runTimestamp);
+    const destinationPath = runTimestamp;
     const config = {
       ...createResultsConfig(remoteDir, cloneDir),
       branch: storageBranch,
@@ -1582,14 +1535,14 @@ describe('results repo write path', () => {
     expect(pushed).toBe(true);
     expect(git('git branch --show-current', cloneDir)).toBe('main');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      `runs/branch-storage/${runTimestamp}/summary.json`,
+      `runs/${runTimestamp}/summary.json`,
     );
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).toContain(`runs/branch-storage/${runTimestamp}/summary.json`);
+    ).toContain(`runs/${runTimestamp}/summary.json`);
     expect(
       git(`git --git-dir "${remoteDir}" log -1 --pretty=%B ${storageBranch}`, rootDir),
-    ).toContain(`AgentV-Run: branch-storage::${runTimestamp}`);
+    ).toContain(`AgentV-Run: ${runTimestamp}`);
   }, 20000);
 
   it('pushes artifact pointer payloads to the sidecar artifact branch', async () => {
@@ -1598,7 +1551,7 @@ describe('results repo write path', () => {
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
     const runTimestamp = '2026-06-21T12-00-00-000Z';
-    const destinationPath = path.posix.join('sidecar', runTimestamp);
+    const destinationPath = runTimestamp;
     const config = {
       ...createResultsConfig(remoteDir, cloneDir),
       branch: storageBranch,
@@ -1685,7 +1638,7 @@ describe('results repo write path', () => {
     const cloneDir = path.join(rootDir, 'results-clone');
     const sourceDir = path.join(rootDir, 'source-run');
     const runTimestamp = '2026-06-21T13-00-00-000Z';
-    const destinationPath = path.posix.join('sidecar-backfill', runTimestamp);
+    const destinationPath = runTimestamp;
     const config = {
       ...createResultsConfig(remoteDir, cloneDir),
       branch: storageBranch,
@@ -1694,7 +1647,7 @@ describe('results repo write path', () => {
 
     git(`git switch --quiet --orphan ${storageBranch}`, seedDir);
     git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
-    const seededRunDir = path.join(seedDir, 'runs', ...destinationPath.split('/'));
+    const seededRunDir = path.join(seedDir, 'runs', destinationPath);
     mkdirSync(path.dirname(seededRunDir), { recursive: true });
     cpSync(sourceDir, seededRunDir, { recursive: true });
     git('git add runs && git commit --quiet -m "seed published run"', seedDir);
@@ -1758,7 +1711,7 @@ describe('results repo write path', () => {
       directPushResults({
         config,
         sourceDir,
-        destinationPath: path.join('missing-branch', '2026-06-12T11-00-00-000Z'),
+        destinationPath: '2026-06-12T11-00-00-000Z',
         commitMessage: 'feat(results): missing branch',
       }),
     ).resolves.toBe(true);
@@ -1767,7 +1720,7 @@ describe('results repo write path', () => {
     );
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only agentv-results`, rootDir),
-    ).toContain('runs/missing-branch/2026-06-12T11-00-00-000Z/summary.json');
+    ).toContain('runs/2026-06-12T11-00-00-000Z/summary.json');
   }, 20000);
 
   it('syncResultsRepo refreshes refs without checking out the base branch', async () => {
@@ -1806,7 +1759,7 @@ describe('results repo write path', () => {
       behind: 0,
     });
 
-    const localRunDir = path.join(cloneDir, 'runs', 'local-only', '2026-05-23T10-00-00-000Z');
+    const localRunDir = path.join(cloneDir, 'runs', '2026-05-23T10-00-00-000Z');
     writeRunArtifacts(localRunDir, 'local-only', '2026-05-23T10:00:00.000Z');
     git('git add runs && git commit --quiet -m "local result"', cloneDir);
 
@@ -1898,7 +1851,7 @@ describe('results repo write path', () => {
     git('git config user.name "Test User"', cloneDir);
 
     const runTimestamp = '2026-05-24T10-00-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', 'metadata', runTimestamp);
+    const runDir = path.join(cloneDir, 'runs', runTimestamp);
     writeRunArtifacts(runDir, 'metadata', '2026-05-24T10:00:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -1910,7 +1863,7 @@ describe('results repo write path', () => {
       blocked: false,
     });
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      `runs/metadata/${runTimestamp}/summary.json`,
+      `runs/${runTimestamp}/summary.json`,
     );
   }, 20000);
 
@@ -1948,7 +1901,7 @@ describe('results repo write path', () => {
     writeFileSync(path.join(cloneDir, 'package.json'), '{"dependencies":{"agentv":"next"}}\n');
 
     const runTimestamp = '2026-05-24T11-00-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', 'safe-run', runTimestamp);
+    const runDir = path.join(cloneDir, 'runs', runTimestamp);
     writeRunArtifacts(runDir, 'safe-run', '2026-05-24T11:00:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -1961,7 +1914,7 @@ describe('results repo write path', () => {
     });
     expect(status.dirty_paths).toEqual([]);
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      `runs/safe-run/${runTimestamp}/summary.json`,
+      `runs/${runTimestamp}/summary.json`,
     );
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
       'package.json',
@@ -1983,7 +1936,7 @@ describe('results repo write path', () => {
     git('git add package.json', cloneDir);
 
     const runTimestamp = '2026-05-24T11-30-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', 'staged-unrelated', runTimestamp);
+    const runDir = path.join(cloneDir, 'runs', runTimestamp);
     writeRunArtifacts(runDir, 'staged-unrelated', '2026-05-24T11:30:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -1995,7 +1948,7 @@ describe('results repo write path', () => {
       blocked: false,
     });
     const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
-    expect(remoteFiles).toContain(`runs/staged-unrelated/${runTimestamp}/summary.json`);
+    expect(remoteFiles).toContain(`runs/${runTimestamp}/summary.json`);
     expect(remoteFiles).not.toContain('package.json');
     expect(git('git status --porcelain', cloneDir)).toContain('A  package.json');
   }, 20000);
@@ -2041,7 +1994,7 @@ describe('results repo write path', () => {
     git('git push --quiet origin main', seedDir);
 
     const runTimestamp = '2026-05-24T12-00-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', 'pulled-then-pushed', runTimestamp);
+    const runDir = path.join(cloneDir, 'runs', runTimestamp);
     writeRunArtifacts(runDir, 'pulled-then-pushed', '2026-05-24T12:00:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -2055,7 +2008,7 @@ describe('results repo write path', () => {
     });
     const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
     expect(remoteFiles).toContain('REMOTE.md');
-    expect(remoteFiles).toContain(`runs/pulled-then-pushed/${runTimestamp}/summary.json`);
+    expect(remoteFiles).toContain(`runs/${runTimestamp}/summary.json`);
     expect(remoteFiles).not.toContain('package.json');
     expect(readFileSync(path.join(cloneDir, 'package.json'), 'utf8')).toBe(
       '{"dependencies":{"agentv":"next"}}\n',
@@ -2071,11 +2024,11 @@ describe('results repo write path', () => {
     git('git config user.email "test@example.com"', cloneDir);
     git('git config user.name "Test User"', cloneDir);
 
-    const runDir = path.join(cloneDir, 'runs', 'local-only', '2026-05-25T10-00-00-000Z');
+    const runDir = path.join(cloneDir, 'runs', '2026-05-25T10-00-00-000Z');
     writeRunArtifacts(runDir, 'local-only', '2026-05-25T10:00:00.000Z');
     git('git add runs && git commit --quiet -m "local result"', cloneDir);
 
-    const remoteRunDir = path.join(seedDir, 'runs', 'remote-only', '2026-05-25T11-00-00-000Z');
+    const remoteRunDir = path.join(seedDir, 'runs', '2026-05-25T11-00-00-000Z');
     writeRunArtifacts(remoteRunDir, 'remote-only', '2026-05-25T11:00:00.000Z');
     git('git add runs && git commit --quiet -m "remote result"', seedDir);
     const remoteBefore = git('git rev-parse HEAD', seedDir);
@@ -2100,8 +2053,8 @@ describe('results repo write path', () => {
       ),
     ).not.toThrow();
     const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
-    expect(remoteFiles).toContain('runs/local-only/2026-05-25T10-00-00-000Z/summary.json');
-    expect(remoteFiles).toContain('runs/remote-only/2026-05-25T11-00-00-000Z/summary.json');
+    expect(remoteFiles).toContain('runs/2026-05-25T10-00-00-000Z/summary.json');
+    expect(remoteFiles).toContain('runs/2026-05-25T11-00-00-000Z/summary.json');
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
     ).toBe('');
@@ -2111,7 +2064,7 @@ describe('results repo write path', () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
-    const indexRel = path.join('runs', 'shared', '2026-05-25T12-00-00-000Z', 'index.jsonl');
+    const indexRel = path.join('runs', '2026-05-25T12-00-00-000Z', 'index.jsonl');
 
     await ensureResultsRepoClone(config);
     git('git config user.email "test@example.com"', cloneDir);
@@ -2492,7 +2445,7 @@ describe('results branch stable genesis', () => {
         auto_push: true,
       },
       sourceDir,
-      destinationPath: path.join(params.experiment, fsTimestamp),
+      destinationPath: fsTimestamp,
       commitMessage: `feat(results): ${params.experiment}`,
     });
   }
@@ -2528,7 +2481,7 @@ describe('results branch stable genesis', () => {
     expect(isAncestor(remoteDir, mainSha, DEFAULT_RESULTS_BRANCH)).toBe(false);
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, rootDir),
-    ).toContain('runs/expA/2026-06-19T10-00-00-000Z/summary.json');
+    ).toContain('runs/2026-06-19T10-00-00-000Z/summary.json');
   }, 20000);
 
   it('mints a byte-identical genesis root regardless of wall-clock time', async () => {
@@ -2546,7 +2499,7 @@ describe('results branch stable genesis', () => {
       await directPushResults({
         config: { repo_path: repoDir, branch: DEFAULT_RESULTS_BRANCH, auto_push: false },
         sourceDir,
-        destinationPath: path.join(label, fsTimestamp),
+        destinationPath: fsTimestamp,
         commitMessage: `feat(results): ${label}`,
       });
       return git(`git rev-list --max-parents=0 ${DEFAULT_RESULTS_BRANCH}`, repoDir);
@@ -2588,8 +2541,8 @@ describe('results branch stable genesis', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
       rootDir,
     );
-    expect(tree).toContain('runs/expA/2026-06-19T10-00-00-000Z/summary.json');
-    expect(tree).toContain('runs/expB/2026-06-19T11-00-00-000Z/summary.json');
+    expect(tree).toContain('runs/2026-06-19T10-00-00-000Z/summary.json');
+    expect(tree).toContain('runs/2026-06-19T11-00-00-000Z/summary.json');
   }, 30000);
 
   it('reconciles two independent first-inits onto a single shared genesis', async () => {
@@ -2610,7 +2563,7 @@ describe('results branch stable genesis', () => {
     await directPushResults({
       config: { repo_path: cloneA, branch: DEFAULT_RESULTS_BRANCH, auto_push: true },
       sourceDir: runA,
-      destinationPath: path.join('expA', '2026-06-19T10-00-00-000Z'),
+      destinationPath: '2026-06-19T10-00-00-000Z',
       commitMessage: 'feat(results): expA',
     });
 
@@ -2620,7 +2573,7 @@ describe('results branch stable genesis', () => {
     await directPushResults({
       config: { repo_path: cloneB, branch: DEFAULT_RESULTS_BRANCH, auto_push: true },
       sourceDir: runB,
-      destinationPath: path.join('expB', '2026-06-19T11-00-00-000Z'),
+      destinationPath: '2026-06-19T11-00-00-000Z',
       commitMessage: 'feat(results): expB',
     });
 
@@ -2630,14 +2583,14 @@ describe('results branch stable genesis', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
       rootDir,
     );
-    expect(tree).toContain('runs/expA/2026-06-19T10-00-00-000Z/summary.json');
-    expect(tree).toContain('runs/expB/2026-06-19T11-00-00-000Z/summary.json');
+    expect(tree).toContain('runs/2026-06-19T10-00-00-000Z/summary.json');
+    expect(tree).toContain('runs/2026-06-19T11-00-00-000Z/summary.json');
   }, 30000);
 });
 
 describe('buildWipBranchName', () => {
   it('produces an agentv/wip/<hostname>/<basename> branch name', () => {
-    const runDir = '/some/path/.agentv/results/default/2026-01-15T10-00-00';
+    const runDir = '/some/path/.agentv/results/2026-01-15T10-00-00';
     const branch = buildWipBranchName(runDir);
     expect(branch).toMatch(/^agentv\/wip\/[^/]+\/2026-01-15T10-00-00$/);
   });
@@ -2722,7 +2675,7 @@ describe('WIP branch helpers', () => {
       const pushed = await pushWipCheckpoint({
         handle,
         sourceDir: runDir,
-        destinationPath: 'default/2026-01-15T10-00-00',
+        destinationPath: '2026-01-15T10-00-00',
       });
       expect(pushed).toBe(true);
 
@@ -2746,7 +2699,7 @@ describe('WIP branch helpers', () => {
       const first = await pushWipCheckpoint({
         handle,
         sourceDir: runDir,
-        destinationPath: 'default/2026-01-15T11-00-00',
+        destinationPath: '2026-01-15T11-00-00',
       });
       expect(first).toBe(true);
 
@@ -2754,7 +2707,7 @@ describe('WIP branch helpers', () => {
       const second = await pushWipCheckpoint({
         handle,
         sourceDir: runDir,
-        destinationPath: 'default/2026-01-15T11-00-00',
+        destinationPath: '2026-01-15T11-00-00',
       });
       expect(second).toBe(false);
     } finally {
@@ -2772,7 +2725,7 @@ describe('WIP branch helpers', () => {
       await pushWipCheckpoint({
         handle,
         sourceDir: runDir,
-        destinationPath: 'default/2026-01-15T12-00-00',
+        destinationPath: '2026-01-15T12-00-00',
       });
     } finally {
       await handle.cleanup();
@@ -2808,7 +2761,7 @@ describe('WIP branch helpers', () => {
       await pushWipCheckpoint({
         handle,
         sourceDir: runDir,
-        destinationPath: 'default/2026-01-15T13-00-00',
+        destinationPath: '2026-01-15T13-00-00',
       });
     } finally {
       await handle.cleanup();

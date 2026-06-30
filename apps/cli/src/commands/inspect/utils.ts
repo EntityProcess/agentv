@@ -564,15 +564,7 @@ export interface ResultFileMeta {
 function buildRunId(relativeRunPath: string): string {
   const normalized = relativeRunPath.split(path.sep).join('/');
   const segments = normalized.split('/').filter(Boolean);
-  if (segments.length >= 2) {
-    const experiment = segments.slice(0, -1).join('/');
-    const timestamp = segments.at(-1);
-    if (experiment === 'default') {
-      return timestamp ?? normalized;
-    }
-    return `${experiment}::${timestamp}`;
-  }
-  return segments[0];
+  return segments[0] ?? normalized;
 }
 
 function readRunDisplayName(runDir: string): string | undefined {
@@ -603,13 +595,6 @@ function collectRunManifestPaths(
       sortName,
     });
     return;
-  }
-
-  const entries = readdirSync(currentDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      collectRunManifestPaths(runsDir, path.join(currentDir, entry.name), files);
-    }
   }
 }
 
@@ -675,13 +660,15 @@ function listResultFilesFromRoot(
 /**
  * Enumerate canonical run manifests in `.agentv/results/`.
  *
- * Reserved local namespaces such as `.agentv/results/runs/`,
+ * Reserved local namespaces such as `.agentv/results/.indexes/`,
+ * `.agentv/results/.cache/`, `.agentv/results/runs/`,
  * `.agentv/results/metadata/`, and `.agentv/results/export/` are intentionally
- * skipped by default discovery.
+ * skipped by default discovery. Discovery only treats direct children of
+ * `.agentv/results/` as committed run bundles.
  */
 export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
   const metas = listResultFilesFromRoot(buildResultsRootDir(cwd), {
-    skipTopLevelDirs: new Set(['export', 'metadata', 'runs']),
+    skipTopLevelDirs: new Set(['export', 'metadata', 'runs', '.indexes', '.cache']),
   }).sort((a, b) => {
     const byTimestamp = b.timestamp.localeCompare(a.timestamp);
     return byTimestamp !== 0 ? byTimestamp : b.displayName.localeCompare(a.displayName);
@@ -692,7 +679,7 @@ export function listResultFiles(cwd: string, limit?: number): ResultFileMeta[] {
 export function listResultFilesFromRunsDir(runsDir: string, limit?: number): ResultFileMeta[] {
   return listResultFilesFromRoot(runsDir, {
     limit,
-    skipTopLevelDirs: new Set(['export', 'metadata', 'runs']),
+    skipTopLevelDirs: new Set(['export', 'metadata', 'runs', '.indexes', '.cache']),
   });
 }
 

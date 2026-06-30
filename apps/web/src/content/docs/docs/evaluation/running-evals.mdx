@@ -11,13 +11,12 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`.
-AgentV picks the experiment bucket from `--experiment`, then
-`eval.yaml` `experiment.name`, then `default`. Each CLI invocation writes one
-timestamped run bundle. Each line is a JSON object with one result per test
-case, and the run workspace also stores the manifest and related artifacts. Use
-this generated run folder as the portable audit surface: copy or sync the run
-directory, not a hand-authored parallel bundle. See the
+Results are written to `.agentv/results/<run_id>/index.jsonl`. Each CLI
+invocation writes one run bundle. The experiment label is stored in
+`summary.json` and row metadata. Each line is a JSON object with one result per
+test case, and the run workspace also stores the summary and related artifacts.
+Use this generated run folder as the portable audit surface: copy or sync the
+run directory, not a hand-authored parallel bundle. See the
 [Result Artifact Contract](/docs/reference/result-artifacts/) for the complete
 run layout and reader rules.
 
@@ -187,7 +186,7 @@ result-oriented workflows. For full-fidelity span inspection, export OTLP JSON e
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv inspect stats .agentv/results/default/<timestamp>/index.jsonl
+agentv inspect stats .agentv/results/<run_id>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
@@ -363,13 +362,13 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 agentv eval evals/my-eval.yaml --resume
 
 # Or target a specific run dir explicitly
-agentv eval evals/my-eval.yaml --output .agentv/results/default/<timestamp> --resume
+agentv eval evals/my-eval.yaml --output .agentv/results/<run_id> --resume
 
 # Re-run errors AND failed cases against the last run dir
 agentv eval evals/my-eval.yaml --rerun-failed
 
 # Re-run only execution errors from any prior run by path
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp>/index.jsonl
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/<run_id>/index.jsonl
 ```
 
 After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.

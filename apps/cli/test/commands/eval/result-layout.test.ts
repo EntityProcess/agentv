@@ -15,37 +15,37 @@ import {
 } from '../../../src/commands/eval/result-layout.js';
 
 describe('result layout', () => {
-  it('groups default run directories under the default result group', () => {
+  it('writes default run directories directly under the results root', () => {
     const cwd = '/repo';
     const timestamp = new Date('2026-06-22T12:34:56.789Z');
 
     expect(buildDefaultRunDir(cwd, undefined, timestamp)).toBe(
-      path.join('/repo', '.agentv', 'results', 'default', '2026-06-22T12-34-56-789Z'),
+      path.join('/repo', '.agentv', 'results', '2026-06-22T12-34-56-789Z'),
     );
   });
 
-  it('groups named run directories under the result group', () => {
+  it('keeps experiment as metadata rather than a path segment', () => {
     expect(buildDefaultRunDirFromName('/repo', 'with-skills', '2026-run')).toBe(
-      path.join('/repo', '.agentv', 'results', 'with-skills', '2026-run'),
+      path.join('/repo', '.agentv', 'results', '2026-run'),
     );
   });
 
   it('reserves non-run namespaces at the results root', () => {
-    for (const namespace of ['export', 'metadata', 'runs']) {
+    for (const namespace of ['export', 'metadata', 'runs', '.indexes', '.cache']) {
       expect(() => normalizeExperimentName(namespace)).toThrow('reserved');
       expect(
-        relativeRunPathFromCwd(
-          '/repo',
-          path.join('/repo', '.agentv', 'results', namespace, 'default', '2026-run'),
-        ),
+        relativeRunPathFromCwd('/repo', path.join('/repo', '.agentv', 'results', namespace)),
       ).toBeUndefined();
     }
+    expect(
+      relativeRunPathFromCwd('/repo', path.join('/repo', '.agentv', 'results', '2026-run')),
+    ).toBe('2026-run');
     expect(
       relativeRunPathFromCwd(
         '/repo',
         path.join('/repo', '.agentv', 'results', 'default', '2026-run'),
       ),
-    ).toBe('default/2026-run');
+    ).toBeUndefined();
   });
 
   it('resolves the canonical index.jsonl file in a run directory', () => {
@@ -61,7 +61,7 @@ describe('result layout', () => {
     }
   });
 
-  it('discovers one canonical index.jsonl manifest per legacy nested bundle', () => {
+  it('discovers nested manifests only for explicit parser fallback paths', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-layout-test-'));
     try {
       const bundleDir = path.join(tempDir, 'default', '2026-run', 'target-a');

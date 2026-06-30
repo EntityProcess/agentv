@@ -93,8 +93,8 @@ function toJsonl(...records: object[]): string {
   return `${records.map((r) => JSON.stringify(r)).join('\n')}\n`;
 }
 
-function localResultsExperimentDir(baseDir: string, experiment = 'default'): string {
-  return path.join(baseDir, '.agentv', 'results', experiment);
+function localResultsExperimentDir(baseDir: string, _experiment = 'default'): string {
+  return path.join(baseDir, '.agentv', 'results');
 }
 
 function localRunDir(baseDir: string, experiment: string, timestamp: string): string {
@@ -102,8 +102,7 @@ function localRunDir(baseDir: string, experiment: string, timestamp: string): st
 }
 
 function localRunDirFromRunId(baseDir: string, runId: string): string {
-  const [experiment, timestamp] = runId.includes('::') ? runId.split('::') : ['default', runId];
-  return localRunDir(baseDir, experiment ?? 'default', timestamp ?? runId);
+  return path.join(baseDir, '.agentv', 'results', runId);
 }
 
 function traceSessionEnvelope(input?: {
@@ -258,7 +257,7 @@ function writeRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
+  const runDir = path.join(cloneDir, 'runs', timestamp);
   mkdirSync(runDir, { recursive: true });
   const records = Array.isArray(resultRecords) ? resultRecords : [resultRecords];
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
@@ -267,6 +266,7 @@ function writeRemoteRunArtifact(
     JSON.stringify(
       {
         metadata: {
+          run_id: timestamp,
           timestamp: isoTimestamp,
           experiment,
           targets: ['gpt-4o'],
@@ -285,7 +285,7 @@ function writeRemoteRunArtifact(
   git(`git add "${runDir}" && git commit --quiet -m "add ${experiment}"`, cloneDir);
   git(`git push --quiet origin HEAD:${branch}`, cloneDir);
   git('git fetch --quiet origin --prune', cloneDir);
-  return `${experiment}::${timestamp}`;
+  return timestamp;
 }
 
 function writeDirtyRemoteRunArtifact(
@@ -298,7 +298,7 @@ function writeDirtyRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, 'runs', experiment, timestamp);
+  const runDir = path.join(cloneDir, 'runs', timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
   writeFileSync(
@@ -306,6 +306,7 @@ function writeDirtyRemoteRunArtifact(
     JSON.stringify(
       {
         metadata: {
+          run_id: timestamp,
           timestamp: isoTimestamp,
           experiment,
           targets: ['gpt-4o'],
@@ -321,7 +322,7 @@ function writeDirtyRemoteRunArtifact(
       2,
     ),
   );
-  return `${experiment}::${timestamp}`;
+  return timestamp;
 }
 
 function writeRemoteTagMetadataOverlay(
@@ -330,7 +331,7 @@ function writeRemoteTagMetadataOverlay(
   timestamp: string,
   tags: readonly string[],
 ): string {
-  const metadataPath = path.join(repoDir, 'metadata', 'runs', experiment, timestamp, 'tags.json');
+  const metadataPath = path.join(repoDir, 'metadata', 'runs', timestamp, 'tags.json');
   mkdirSync(path.dirname(metadataPath), { recursive: true });
   writeFileSync(
     metadataPath,
@@ -351,12 +352,16 @@ function writeLocalRunArtifact(
   );
   const runDir = localRunDir(projectDir, experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
-  writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl({ ...resultRecord, experiment }));
+  writeFileSync(
+    path.join(runDir, 'index.jsonl'),
+    toJsonl({ ...resultRecord, experiment, run_id: timestamp }),
+  );
   writeFileSync(
     path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
         metadata: {
+          run_id: timestamp,
           timestamp: isoTimestamp,
           experiment,
           targets: ['gpt-4o'],
@@ -372,7 +377,7 @@ function writeLocalRunArtifact(
       2,
     ),
   );
-  return `${experiment}::${timestamp}`;
+  return timestamp;
 }
 
 function writeWtgDogfoodNoncanonicalArtifact(baseDir: string): {
@@ -1563,7 +1568,7 @@ describe('serve app', () => {
       );
     });
 
-    it('infers the experiment name from the run id when live results have not written it yet', async () => {
+    it('does not infer the experiment name from the run id when live results have not written it yet', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'issue-1198-live-name');
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-03-25T12-00-00-000Z';
@@ -1580,9 +1585,9 @@ describe('serve app', () => {
       };
       expect(data.runs).toHaveLength(1);
       expect(data.runs[0]).toMatchObject({
-        experiment: 'issue-1198-live-name',
         target: 'gpt-4o',
       });
+      expect(data.runs[0]).not.toHaveProperty('experiment');
     });
 
     it('merges cached remote runs and tags them with remote source metadata', async () => {
@@ -1598,7 +1603,6 @@ describe('serve app', () => {
           'EntityProcess-agentv-evals',
           '.agentv',
           'results',
-          'default',
           '2026-03-26T10-00-00-000Z',
         );
         mkdirSync(remoteRunDir, { recursive: true });
@@ -1823,23 +1827,8 @@ describe('serve app', () => {
         metadata_dirty: true,
       });
 
-      const localTagsPath = path.join(
-        tempDir,
-        '.agentv',
-        'results',
-        'runs',
-        experiment,
-        timestamp,
-        'tags.json',
-      );
-      const overlayTagsPath = path.join(
-        cloneDir,
-        'metadata',
-        'runs',
-        experiment,
-        timestamp,
-        'tags.json',
-      );
+      const localTagsPath = path.join(tempDir, '.agentv', 'results', timestamp, 'tags.json');
+      const overlayTagsPath = path.join(cloneDir, 'metadata', 'runs', timestamp, 'tags.json');
       expect(existsSync(localTagsPath)).toBe(false);
       expect(existsSync(overlayTagsPath)).toBe(true);
 
@@ -1929,7 +1918,6 @@ describe('serve app', () => {
       const runManifestPath = path.join(
         cloneDir,
         'runs',
-        'external-sync',
         '2026-03-26T11-00-00-000Z',
         'index.jsonl',
       );
@@ -1991,18 +1979,11 @@ describe('serve app', () => {
         metadata_dirty: true,
       });
 
-      const artifactTagsPath = path.join(
-        cloneDir,
-        'runs',
-        'green-uat',
-        '2026-03-26T12-00-00-000Z',
-        'tags.json',
-      );
+      const artifactTagsPath = path.join(cloneDir, 'runs', '2026-03-26T12-00-00-000Z', 'tags.json');
       const overlayTagsPath = path.join(
         cloneDir,
         'metadata',
         'runs',
-        'green-uat',
         '2026-03-26T12-00-00-000Z',
         'tags.json',
       );
@@ -2189,7 +2170,7 @@ describe('serve app', () => {
   });
 
   describe('GET /api/projects/all-runs', () => {
-    it('infers experiment names for live benchmark runs before records persist them', async () => {
+    it('does not infer experiment names for live benchmark runs before records persist them', async () => {
       const homedirSpy = spyOn(os, 'homedir').mockReturnValue(path.join(tempDir, 'home'));
 
       try {
@@ -2213,9 +2194,9 @@ describe('serve app', () => {
         expect(data.runs).toHaveLength(1);
         expect(data.runs[0]).toMatchObject({
           project_id: project.id,
-          experiment: 'issue-1198-benchmark',
           target: 'gpt-4o',
         });
+        expect(data.runs[0]).not.toHaveProperty('experiment');
       } finally {
         homedirSpy.mockRestore();
       }
@@ -2366,17 +2347,7 @@ describe('serve app', () => {
           blocked: false,
           run_count: 1,
         });
-        expect(
-          existsSync(
-            path.join(
-              cloneDir,
-              'runs',
-              'project-sync-pull',
-              runId.replace('project-sync-pull::', ''),
-              'index.jsonl',
-            ),
-          ),
-        ).toBe(true);
+        expect(existsSync(path.join(cloneDir, 'runs', runId, 'index.jsonl'))).toBe(true);
       } finally {
         if (previousHome === undefined) {
           process.env.AGENTV_HOME = undefined;
@@ -2441,7 +2412,7 @@ describe('serve app', () => {
           run_count: 1,
         });
         expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
-          `metadata/runs/project-sync-push/${runTimestamp}/tags.json`,
+          `metadata/runs/${runTimestamp}/tags.json`,
         );
       } finally {
         if (previousHome === undefined) {
@@ -2537,13 +2508,7 @@ describe('serve app', () => {
         });
 
         const runTimestamp = '2026-03-26T13-00-00-000Z';
-        const relativeMetadataPath = path.posix.join(
-          'metadata',
-          'runs',
-          'project-sync-conflict',
-          runTimestamp,
-          'tags.json',
-        );
+        const relativeMetadataPath = path.posix.join('metadata', 'runs', runTimestamp, 'tags.json');
         writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['base']);
         git('git add metadata && git commit --quiet -m "seed tag metadata"', seedDir);
         git('git push --quiet origin main', seedDir);
@@ -2622,17 +2587,9 @@ describe('serve app', () => {
       expect(data.blocked).toBe(false);
       expect(data.run_count).toBe(1);
       expect(
-        existsSync(
-          path.join(
-            cloneDir,
-            'runs',
-            'confirm-merge-unscoped',
-            '2026-03-26T14-00-00-000Z',
-            'index.jsonl',
-          ),
-        ),
+        existsSync(path.join(cloneDir, 'runs', '2026-03-26T14-00-00-000Z', 'index.jsonl')),
       ).toBe(true);
-      expect(runId).toBe('confirm-merge-unscoped::2026-03-26T14-00-00-000Z');
+      expect(runId).toBe('2026-03-26T14-00-00-000Z');
     }, 15000);
 
     it('resumes sync by pulling the target branch (project-scoped)', async () => {
@@ -2685,17 +2642,7 @@ describe('serve app', () => {
           blocked: false,
           run_count: 1,
         });
-        expect(
-          existsSync(
-            path.join(
-              cloneDir,
-              'runs',
-              'project-confirm-merge',
-              runId.replace('project-confirm-merge::', ''),
-              'index.jsonl',
-            ),
-          ),
-        ).toBe(true);
+        expect(existsSync(path.join(cloneDir, 'runs', runId, 'index.jsonl'))).toBe(true);
       } finally {
         if (previousHome === undefined) {
           process.env.AGENTV_HOME = undefined;
@@ -2816,7 +2763,7 @@ describe('serve app', () => {
         );
       }
       return {
-        runId: opts?.experiment ? `${opts.experiment}::${name}` : name,
+        runId: name,
         runDir,
         manifestPath,
       };
@@ -2904,7 +2851,7 @@ describe('serve app', () => {
       expect(accepted.status).toBe(201);
       const acceptedData = (await accepted.json()) as { run_id: string; experiment: string };
       expect(acceptedData.experiment).toBe('smoke-regression');
-      expect(acceptedData.run_id).toStartWith('smoke-regression::');
+      expect(acceptedData.run_id).not.toContain('::');
       expect(existsSync(localRunDirFromRunId(tempDir, acceptedData.run_id))).toBe(true);
 
       const detailRes = await app.request(`/api/runs/${encodeURIComponent(acceptedData.run_id)}`);
@@ -3054,7 +3001,6 @@ describe('serve app', () => {
           'EntityProcess-agentv-evals',
           '.agentv',
           'results',
-          'default',
           '2026-06-01T11-00-00-000Z',
         );
         mkdirSync(remoteRunDir, { recursive: true });
@@ -3125,7 +3071,7 @@ describe('serve app', () => {
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
       writeFileSync(path.join(runDir, 'tags.json'), '{"tags":["stale"]}\n');
       return {
-        runId: opts?.experiment ? `${opts.experiment}::${name}` : name,
+        runId: name,
         runDir,
       };
     }
@@ -3157,7 +3103,6 @@ describe('serve app', () => {
           'EntityProcess-agentv-evals',
           '.agentv',
           'results',
-          'default',
           '2026-06-01T11-00-00-000Z',
         );
         mkdirSync(remoteRunDir, { recursive: true });
@@ -3219,7 +3164,7 @@ describe('serve app', () => {
       traceContent: string,
       recordOverrides?: Record<string, unknown>,
     ): string {
-      const runId = `${experiment}::${timestamp}`;
+      const runId = timestamp;
       const runDir = localRunDir(projectDir, experiment, timestamp);
       const tracePath = path.join(runDir, traceArtifactPath);
       mkdirSync(path.dirname(tracePath), { recursive: true });
@@ -3238,7 +3183,7 @@ describe('serve app', () => {
 
     it('projects a local AgentV trace sidecar through the Dashboard read model', async () => {
       const traceArtifactPath = 'demo/test-greeting/trace.json';
-      const runId = 'with-trace::2026-03-25T09-00-00-000Z';
+      const runId = '2026-03-25T09-00-00-000Z';
       writeLocalTraceRun(
         tempDir,
         'with-trace',
@@ -3341,7 +3286,7 @@ describe('serve app', () => {
 
     it('returns a typed dangling state when the trace pointer cannot be read', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'dangling-trace');
-      const runId = 'dangling-trace::2026-03-25T10-45-00-000Z';
+      const runId = '2026-03-25T10-45-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T10-45-00-000Z');
       const artifactPath = 'demo/test-greeting/trace.json';
 
@@ -3454,7 +3399,7 @@ describe('serve app', () => {
       const secret = 'outside trace secret';
       writeFileSync(path.join(tempDir, 'outside-trace.json'), secret);
       const runsDir = localResultsExperimentDir(tempDir, 'escaped-trace');
-      const runId = 'escaped-trace::2026-03-25T11-00-00-000Z';
+      const runId = '2026-03-25T11-00-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T11-00-00-000Z');
       const artifactPath = '../../../../../outside-trace.json';
 
@@ -3485,7 +3430,7 @@ describe('serve app', () => {
   describe('GET /api/runs/:filename/evals/:evalId/transcript', () => {
     it('loads canonical transcript JSONL lazily from the manifest pointer', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'with-transcript');
-      const runId = 'with-transcript::2026-03-25T10-00-00-000Z';
+      const runId = '2026-03-25T10-00-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
       const transcriptArtifactPath = 'demo/test-greeting/transcript.jsonl';
       const answerArtifactPath = 'demo/test-greeting/answer.md';
@@ -3547,7 +3492,7 @@ describe('serve app', () => {
 
     it('loads pointer-shaped transcript metadata when it resolves to a local artifact path', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'pointer-transcript');
-      const runId = 'pointer-transcript::2026-03-25T11-00-00-000Z';
+      const runId = '2026-03-25T11-00-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T11-00-00-000Z');
       const artifactPath = 'demo/test-greeting/transcript.jsonl';
       const transcriptPath = path.join(timestampDir, artifactPath);
@@ -3598,11 +3543,11 @@ describe('serve app', () => {
       const resultsBranch = 'dogfood/serve-sidecar-contract';
       const experiment = 'sidecar-only';
       const timestamp = '2026-03-25T15-00-00-000Z';
-      const runId = `remote::${experiment}::${timestamp}`;
+      const runId = `remote::${timestamp}`;
       const transcriptArtifactPath = 'demo/test-greeting/transcript.jsonl';
       const traceArtifactPath = 'demo/test-greeting/trace.json';
-      const transcriptKey = `runs/${experiment}/${timestamp}/${transcriptArtifactPath}`;
-      const traceKey = `runs/${experiment}/${timestamp}/${traceArtifactPath}`;
+      const transcriptKey = `runs/${timestamp}/${transcriptArtifactPath}`;
+      const traceKey = `runs/${timestamp}/${traceArtifactPath}`;
       const transcriptJsonl = `${JSON.stringify({
         schema_version: 'agentv.transcript.v1',
         test_id: 'test-greeting',
@@ -3622,13 +3567,14 @@ describe('serve app', () => {
 
       git(`git switch --quiet --orphan ${resultsBranch}`, seedDir);
       git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
-      const runDir = path.join(seedDir, 'runs', experiment, timestamp);
+      const runDir = path.join(seedDir, 'runs', timestamp);
       mkdirSync(runDir, { recursive: true });
       writeFileSync(
         path.join(runDir, 'index.jsonl'),
         toJsonl({
           ...RESULT_A,
           experiment,
+          run_id: timestamp,
           artifact_pointers: {
             trace: {
               ref: AGENTV_RESULTS_ARTIFACTS_REF,
@@ -3787,7 +3733,7 @@ describe('serve app', () => {
 
     it('returns a clear dangling state when the transcript pointer cannot be read', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'dangling-transcript');
-      const runId = 'dangling-transcript::2026-03-25T13-00-00-000Z';
+      const runId = '2026-03-25T13-00-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T13-00-00-000Z');
       const artifactPath = 'demo/test-greeting/transcript.jsonl';
 
@@ -3823,7 +3769,7 @@ describe('serve app', () => {
       writeFileSync(outsidePath, secret);
 
       const runsDir = localResultsExperimentDir(tempDir, 'escaped-transcript');
-      const runId = 'escaped-transcript::2026-03-25T13-30-00-000Z';
+      const runId = '2026-03-25T13-30-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T13-30-00-000Z');
       const artifactPath = 'demo/test-greeting/transcript.jsonl';
       const symlinkPath = path.join(timestampDir, artifactPath);
@@ -3858,7 +3804,7 @@ describe('serve app', () => {
       writeFileSync(outsidePath, secret);
 
       const runsDir = localResultsExperimentDir(tempDir, 'escaped-answer');
-      const runId = 'escaped-answer::2026-03-25T13-45-00-000Z';
+      const runId = '2026-03-25T13-45-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T13-45-00-000Z');
       const transcriptArtifactPath = 'demo/test-greeting/transcript.jsonl';
       const answerArtifactPath = 'demo/test-greeting/answer.md';
@@ -3915,14 +3861,7 @@ describe('serve app', () => {
         transcript_path: transcriptArtifactPath,
         trace_path: traceArtifactPath,
       });
-      const timestampDir = path.join(
-        tempDir,
-        '.agentv',
-        'results',
-        'runs',
-        'lazy-guard',
-        timestamp,
-      );
+      const timestampDir = path.join(tempDir, '.agentv', 'results', timestamp);
       mkdirSync(path.join(timestampDir, transcriptArtifactPath), { recursive: true });
       mkdirSync(path.dirname(path.join(timestampDir, traceArtifactPath)), { recursive: true });
       writeFileSync(
@@ -3965,54 +3904,43 @@ describe('serve app', () => {
   });
 
   describe('GET /api/runs/:filename/evals/:evalId/files/*', () => {
-    it('discovers nested bundle indexes and loads the requested row sidecar by manifest metadata', async () => {
+    it('loads the requested row sidecar by direct run manifest metadata', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'multi-target');
       const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
       const alphaDir = 'case-one--111111111111';
       const betaDir = 'case-one--222222222222';
-      const alphaBundleDir = path.join(timestampDir, 'storage-alpha');
-      const betaBundleDir = path.join(timestampDir, 'storage-beta');
-      const alphaAnswer = path.join(alphaBundleDir, alphaDir, 'run-1', 'outputs', 'answer.md');
-      const betaAnswer = path.join(betaBundleDir, betaDir, 'run-1', 'outputs', 'answer.md');
+      const alphaAnswer = path.join(timestampDir, alphaDir, 'run-1', 'outputs', 'answer.md');
+      const betaAnswer = path.join(timestampDir, betaDir, 'run-1', 'outputs', 'answer.md');
 
       mkdirSync(path.dirname(alphaAnswer), { recursive: true });
       mkdirSync(path.dirname(betaAnswer), { recursive: true });
       writeFileSync(alphaAnswer, 'alpha answer');
       writeFileSync(betaAnswer, 'beta answer');
       writeFileSync(
-        path.join(alphaBundleDir, 'index.jsonl'),
-        toJsonl({
-          ...RESULT_A,
-          experiment: 'multi-target',
-          test_id: 'case-one',
-          target: 'mock-alpha',
-          result_dir: alphaDir,
-          answer_path: `${alphaDir}/run-1/outputs/answer.md`,
-        }),
-      );
-      writeFileSync(
-        path.join(betaBundleDir, 'index.jsonl'),
-        toJsonl({
-          ...RESULT_A,
-          experiment: 'multi-target',
-          test_id: 'case-one',
-          target: 'mock-beta',
-          result_dir: betaDir,
-          answer_path: `${betaDir}/run-1/outputs/answer.md`,
-        }),
+        path.join(timestampDir, 'index.jsonl'),
+        toJsonl(
+          {
+            ...RESULT_A,
+            experiment: 'multi-target',
+            test_id: 'case-one',
+            target: 'mock-alpha',
+            result_dir: alphaDir,
+            answer_path: `${alphaDir}/run-1/outputs/answer.md`,
+          },
+          {
+            ...RESULT_A,
+            experiment: 'multi-target',
+            test_id: 'case-one',
+            target: 'mock-beta',
+            result_dir: betaDir,
+            answer_path: `${betaDir}/run-1/outputs/answer.md`,
+          },
+        ),
       );
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const listRes = await app.request('/api/runs');
-      expect(listRes.status).toBe(200);
-      const listData = (await listRes.json()) as {
-        runs: Array<{ filename: string; target?: string }>;
-      };
-      const betaRun = listData.runs.find((run) => run.target === 'mock-beta');
-      expect(betaRun?.filename).toBeTruthy();
-
       const res = await app.request(
-        `/api/runs/${encodeURIComponent(betaRun?.filename ?? '')}/evals/case-one/files/${betaDir}/run-1/outputs/answer.md?result_dir=${encodeURIComponent(betaDir)}`,
+        `/api/runs/${encodeURIComponent('2026-03-25T10-00-00-000Z')}/evals/case-one/files/${betaDir}/run-1/outputs/answer.md?result_dir=${encodeURIComponent(betaDir)}`,
       );
 
       expect(res.status).toBe(200);
@@ -4020,9 +3948,9 @@ describe('serve app', () => {
       expect(data.content).toBe('beta answer');
     });
 
-    it('loads file content for experiment-scoped run ids', async () => {
+    it('loads file content for run ids with experiment row metadata', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'with-skills');
-      const runId = 'with-skills::2026-03-25T10-00-00-000Z';
+      const runId = '2026-03-25T10-00-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
       const responsePath = path.join(
         timestampDir,
@@ -4055,7 +3983,7 @@ describe('serve app', () => {
 
     it('serves transcript JSONL artifacts as browser-visible raw text and downloads', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'with-transcript');
-      const runId = 'with-transcript::2026-03-25T10-00-00-000Z';
+      const runId = '2026-03-25T10-00-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
       const artifactPath = 'demo/test-greeting/transcript.jsonl';
       const transcriptPath = path.join(timestampDir, artifactPath);
@@ -4100,7 +4028,7 @@ describe('serve app', () => {
       writeFileSync(outsidePath, secret);
 
       const runsDir = localResultsExperimentDir(tempDir, 'escaped-file');
-      const runId = 'escaped-file::2026-03-25T10-30-00-000Z';
+      const runId = '2026-03-25T10-30-00-000Z';
       const timestampDir = path.join(runsDir, '2026-03-25T10-30-00-000Z');
       const artifactPath = 'demo/test-greeting/outputs/response.md';
       const symlinkPath = path.join(timestampDir, artifactPath);
@@ -4353,7 +4281,7 @@ describe('serve app', () => {
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
           target: 'gpt-4o',
-          output: '.agentv/results/default/2026-05-06T00-00-00-000Z',
+          output: '.agentv/results/2026-05-06T00-00-00-000Z',
           resume: true,
         }),
       });
@@ -4363,7 +4291,7 @@ describe('serve app', () => {
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
       expect(data.command).toContain('--resume');
-      expect(data.command).toContain('--output .agentv/results/default/2026-05-06T00-00-00-000Z');
+      expect(data.command).toContain('--output .agentv/results/2026-05-06T00-00-00-000Z');
     });
 
     it('builds --rerun-failed + --output flags from the request', async () => {
@@ -4374,14 +4302,14 @@ describe('serve app', () => {
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
           target: 'gpt-4o',
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
           rerun_failed: true,
         }),
       });
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
       expect(data.command).toContain('--rerun-failed');
-      expect(data.command).toContain('--output .agentv/results/default/r1');
+      expect(data.command).toContain('--output .agentv/results/r1');
     });
 
     it('builds a selected experiment output path and writes initial tags beside the new run', async () => {
@@ -4399,7 +4327,7 @@ describe('serve app', () => {
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
       expect(data.command).toContain('--experiment smoke');
-      expect(data.command).toContain(path.join('.agentv', 'results', 'smoke'));
+      expect(data.command).toContain(path.join('.agentv', 'results'));
       const outputDir = data.command.match(/--output ([^\s]+)/)?.[1];
       expect(outputDir).toBeString();
 
@@ -4418,12 +4346,12 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          retry_errors: '.agentv/results/default/r0/index.jsonl',
+          retry_errors: '.agentv/results/r0/index.jsonl',
         }),
       });
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
+      expect(data.command).toContain('--retry-errors .agentv/results/r0/index.jsonl');
     });
 
     it('rejects resume + rerun_failed combo with 400', async () => {
@@ -4433,7 +4361,7 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
           resume: true,
           rerun_failed: true,
         }),
@@ -4450,9 +4378,9 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
           resume: true,
-          retry_errors: '.agentv/results/default/r0/index.jsonl',
+          retry_errors: '.agentv/results/r0/index.jsonl',
         }),
       });
       expect(res.status).toBe(400);
@@ -4465,7 +4393,7 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
           resume: true,
           tags: ['baseline'],
         }),
@@ -4483,7 +4411,7 @@ describe('serve app', () => {
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
           resume: true,
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
         }),
       });
       expect(res.status).toBe(403);
@@ -4497,7 +4425,7 @@ describe('serve app', () => {
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
           resume: true,
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
         }),
       });
       expect(res.status).toBe(403);
@@ -4565,14 +4493,14 @@ describe('serve app', () => {
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
           target: 'gpt-4o',
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
           resume: true,
         }),
       });
       expect(res.status).toBe(200);
       const data = (await res.json()) as { command: string };
       expect(data.command).toContain('--resume');
-      expect(data.command).toContain('--output .agentv/results/default/r1');
+      expect(data.command).toContain('--output .agentv/results/r1');
       expect(data.command).not.toContain('--rerun-failed');
     });
 
@@ -4583,7 +4511,7 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          output: '.agentv/results/default/r1',
+          output: '.agentv/results/r1',
           rerun_failed: true,
         }),
       });
@@ -4600,12 +4528,12 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          retry_errors: '.agentv/results/default/r0/index.jsonl',
+          retry_errors: '.agentv/results/r0/index.jsonl',
         }),
       });
       expect(res.status).toBe(200);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
+      expect(data.command).toContain('--retry-errors .agentv/results/r0/index.jsonl');
     });
 
     it('emits --experiment for selected experiment requests', async () => {
@@ -4704,7 +4632,7 @@ describe('serve app', () => {
         source: 'local' | 'remote';
       };
       expect(data.source).toBe('local');
-      expect(data.run_dir).toBe(path.join('.agentv', 'results', 'default', filename));
+      expect(data.run_dir).toBe(path.join('.agentv', 'results', filename));
       expect(data.suite_filter).toBe('examples/demo.eval.yaml');
     });
 
@@ -4747,7 +4675,7 @@ describe('serve app', () => {
       );
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const res = await app.request(`/api/runs/${encodeURIComponent(`cli-smoke::${filename}`)}`);
+      const res = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
 
       expect(res.status).toBe(200);
       const data = (await res.json()) as {

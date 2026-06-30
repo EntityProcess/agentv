@@ -16,6 +16,10 @@ Extends:
   keeps result identity in `index.jsonl` rows and uses `default` as the fallback
   result experiment.
 
+Updated by [ADR 0012](0012-finalize-run-artifact-layout.md), which makes
+artifact-format v2 runs direct children of `.agentv/results/` and treats
+`experiment` as run metadata rather than path identity.
+
 ## Context
 
 AgentV needs a result output contract that works for local runs, CI gates,
@@ -46,7 +50,7 @@ metadata, but AgentV's run bundle remains the source of truth.
 An AgentV result output is a run-centric bundle with this root contract:
 
 ```text
-.agentv/results/<experiment>/<run_id>/
+.agentv/results/<run_id>/
   summary.json
   index.jsonl
   tags.json                 # optional mutable overlay
@@ -102,23 +106,22 @@ source for run identity or artifact discovery.
 
 ## Directory Paths Are Allocation
 
-The `.agentv/results/<experiment>/<run_id>/` path is storage allocation. It
-gives AgentV a predictable place to write and discover completed bundles, but
-the path does not define semantic truth.
+The `.agentv/results/<run_id>/` path is storage allocation. It gives AgentV a
+predictable place to write and discover completed bundles, but the path does
+not define semantic truth.
 
-The experiment remains AgentV's comparison and runtime-policy concept. Users
-can label run conditions such as `baseline`, `candidate`, `with_skills`, or
-`without_skills`, and tools can use that label for grouping and comparison.
-However, readers must use row and summary metadata for semantics. If a run is
-copied under a different folder, combined with another run, synced to a results
-branch, or imported from another machine, the manifest fields still carry the
-truth.
+The experiment label remains AgentV's run grouping metadata. Users can label
+conditions such as `baseline`, `candidate`, `with_skills`, or `without_skills`,
+and tools can use that label for grouping and comparison. However, readers must
+use row and summary metadata for semantics. If a run is copied under a different
+folder, combined with another run, synced to a results branch, or imported from
+another machine, the manifest fields still carry the truth.
 
-AgentV must not use a semantic `experiments/<name>/...` folder hierarchy as the
-source of truth. A repository may keep wrapper eval YAML files under a directory
-named `experiments/`, but that is user-owned organization for ordinary eval
-files. It does not define result identity, runtime behavior, or Dashboard
-routing.
+AgentV must not use a semantic `experiments/<name>/...` or
+`.agentv/results/<experiment>/<run_id>/` folder hierarchy as the source of
+truth. A repository may keep eval YAML files under a directory named
+`experiments/`, but that is user-owned organization for ordinary eval files. It
+does not define result identity, runtime behavior, or Dashboard routing.
 
 `result_dir` is also allocation. It should stay readable when possible, but it
 can be suffixed or otherwise allocated to avoid collisions. The public row
@@ -159,9 +162,9 @@ This aligns with Margin Evals' manifest-first and run-centric lessons:
   model.
 
 AgentV does not copy Margin Evals' exact layout. AgentV keeps its own
-`summary.json` plus `index.jsonl` split, AgentV transcript sidecars, repeat-run
-attempt folders, generated test bundles, Git-backed result branch model, and
-optional detached `artifact_pointers`.
+`summary.json` plus `index.jsonl` split, AgentV transcript sidecars,
+`run-N/` artifact attempt folders, generated test bundles, Git-backed result
+branch model, and optional detached `artifact_pointers`.
 
 ## Consequences
 
@@ -217,7 +220,9 @@ files as the canonical contract.
 - Projecting AgentV-owned runs, transcripts, datasets, experiments, or indexes
   into Phoenix.
 - Requiring a semantic `experiments/` directory.
-- Removing compatibility readers for older bundles in this ADR.
+- Preserving Dashboard discovery for older `.agentv/results/<experiment>/<run_id>/`
+  bundles after artifact-format v2. ADR 0012 hard-deprecates that layout for new
+  v2 run discovery.
 - Freezing every possible row field. This ADR defines ownership and discovery;
   field additions remain additive and versioned.
 

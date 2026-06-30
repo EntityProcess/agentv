@@ -6,11 +6,11 @@ import { type RunCache, resolveRunCacheFile } from '../../../src/commands/eval/r
 describe('resolveRunCacheFile', () => {
   it('should resolve new directory-based cache to index.jsonl inside dir', () => {
     const cache: RunCache = {
-      lastRunDir: '/results/default/2026-03-24T00-00-00-000Z',
+      lastRunDir: '/results/2026-03-24T00-00-00-000Z',
       timestamp: '',
     };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/default/2026-03-24T00-00-00-000Z', 'index.jsonl'),
+      path.join('/results/2026-03-24T00-00-00-000Z', 'index.jsonl'),
     );
   });
 
@@ -24,12 +24,12 @@ describe('resolveRunCacheFile', () => {
 
   it('should prefer lastRunDir over lastResultFile when both present', () => {
     const cache: RunCache = {
-      lastRunDir: '/results/default/2026-03-24T00-00-00-000Z',
+      lastRunDir: '/results/2026-03-24T00-00-00-000Z',
       lastResultFile: '/results/default/eval_old.jsonl',
       timestamp: '',
     };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/default/2026-03-24T00-00-00-000Z', 'index.jsonl'),
+      path.join('/results/2026-03-24T00-00-00-000Z', 'index.jsonl'),
     );
   });
 

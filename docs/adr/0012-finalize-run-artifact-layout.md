@@ -1,4 +1,4 @@
-# 12. Finalize run artifact layout at the timestamp bundle
+# 12. Artifact layout v2 stores committed runs at the results root
 
 Date: 2026-06-30
 
@@ -6,53 +6,44 @@ Date: 2026-06-30
 
 Accepted
 
-Supersedes the target/variant folder fan-out portions of
-[ADR 0009](0009-eval-path-result-identity-and-default-experiment.md) and
-[ADR 0006](0006-separate-experiments-from-eval-definitions.md). Extends
-[ADR 0011](0011-result-output-artifact-contract.md), which keeps result output
-run-centric and manifest-first.
+Supersedes the experiment-parent result layout portions of
+[ADR 0009](0009-eval-path-result-identity-and-default-experiment.md),
+[ADR 0006](0006-separate-experiments-from-eval-definitions.md), and
+[ADR 0011](0011-result-output-artifact-contract.md).
 
 ## Context
 
-AgentV now treats the timestamped result directory as the run bundle boundary:
+AgentV run bundles are the portable source of truth for Dashboard, reports,
+compare/trend tooling, CI gates, and export adapters. The previous layout used
+the experiment label as a parent directory:
 
 ```text
 .agentv/results/<experiment>/<timestamp>/
 ```
 
-Earlier same-week decisions used target and variant folders below the timestamp
-to avoid sidecar collisions in multi-target runs. The implementation has since
-settled on allocated per-row result directories with readable test-id prefixes
-and short hash suffixes. That allocation already solves collisions without
-making target, model, variant, suite, or test IDs path dimensions.
+That made a mutable grouping label look like storage identity. It also forced
+Dashboard and trend discovery to infer experiment from ancestry when the run
+summary should carry that metadata explicitly.
 
-The relevant implementation points are:
-
-- `apps/cli/src/commands/eval/result-layout.ts` creates default run roots as
-  `.agentv/results/<experiment>/<timestamp>/` and keeps `index.jsonl` as the
-  manifest filename.
-- `packages/core/src/evaluation/run-artifacts.ts` writes `summary.json`,
-  `index.jsonl`, and per-result sidecars under allocated `result_dir` folders
-  such as `<safe_test_id>--<short_hash>/run-1/`.
-- `apps/cli/src/commands/results/manifest.ts`,
-  `apps/cli/src/commands/results/serve.ts`, and
-  `packages/core/src/evaluation/results-repo.ts` consume explicit manifest
-  fields such as `result_dir`, `summary_path`, `grading_path`, `metrics_path`,
-  and `transcript_path` instead of deriving sidecar locations from directory
-  names.
+Artifact-format v2 phase 1 removes that path dependency. The active schema
+direction also treats `experiment` as a string metadata/run-grouping label, not
+as an object wrapper for runtime policy. Runtime fields such as `target`,
+`runs`, `early_exit`, `timeout_seconds`, `budget_usd`, and `threshold` belong at
+the eval root or target object as the schema defines them; this ADR does not
+duplicate that schema migration.
 
 ## Decision
 
-New AgentV runs write one run bundle at:
+New committed local run bundles are written directly under the results root:
 
 ```text
-.agentv/results/<experiment>/<timestamp>/
+.agentv/results/<run_id>/
   summary.json
   index.jsonl
-  tags.json                 # optional mutable overlay
-  <allocated-result-dir>/
+  tags.json                 # optional mutable Dashboard tags
+  <test-id>-<uuid>/
     summary.json
-    test/                   # optional generated test bundle
+    test/
     run-1/
       result.json
       grading.json
@@ -61,106 +52,109 @@ New AgentV runs write one run bundle at:
       transcript.jsonl
       transcript-raw.jsonl
       outputs/
-    run-2/
-      ...
 ```
 
-Do not add `target`, `model`, `variant`, or `cases` as required folders below
-or above `<timestamp>`. Target, model, provider, variant, eval path, suite, and
-test identity are metadata. They belong in root `summary.json.metadata` for
-run-level facts and in `index.jsonl` rows for row-level filtering and artifact
-discovery.
+`summary.json` is the run-level manifest/summary. It must include enough
+metadata for Dashboard discovery without path inference, including `run_id`,
+`experiment` when known, target/model/provider metadata when available,
+timestamps, planned/completed counts, and aggregate stats.
 
-`index.jsonl` remains the filename for the run manifest/result index. The name
-is established across CLI, Dashboard, result repo sync, compare, trend, and
-adapter code. Renaming it would create churn without improving the contract.
-Documentation should call it the run manifest or result index where that role is
-clearer.
+`index.jsonl` remains the per-case result index. It is intentionally not renamed
+to `manifest.jsonl` in this phase. Rows continue to use explicit run-relative
+path fields such as `result_dir`, `summary_path`, `grading_path`,
+`metrics_path`, `timing_path`, `transcript_path`, `transcript_raw_path`,
+`answer_path`, and `test_dir`.
 
-`result_dir` values are opaque run-local allocations. Writers should keep them
-readable when possible, using a safe test-id or slug prefix plus a UUID/hash-like
-suffix, but consumers must not parse identity from those names. Consumers must
-resolve ordinary sidecars through explicit `index.jsonl` fields such as:
+The top-level `.agentv/results/` namespace reserves dot-prefixed directories for
+rebuildable or local state:
 
-- `result_dir`
-- `summary_path`
-- `grading_path`
-- `timing_path`
-- `metrics_path`
-- `transcript_path`
-- `transcript_raw_path`
-- `answer_path`
-- `test_dir`
+```text
+.agentv/results/.indexes/
+.agentv/results/.cache/
+```
+
+Discovery must skip dot-prefixed top-level directories. Existing non-run
+namespaces such as `metadata`, `export`, and the removed `runs` namespace remain
+reserved.
+
+The per-case `run-1/`, `run-2/`, etc. folders stay in place. They are artifact
+attempt/execution folders, not the primary comparison dimension. Repeated
+stochastic evaluation should be represented by explicit sample metadata such as
+`sample_index` and `sample_count`; infrastructure retries should be represented
+separately with retry metadata such as `retry_index`, `retry_count`, and
+`retry_reason` when that schema exists. Do not overload `run-N` names to mean
+both samples and retries.
+
+The results repository storage branch stores committed run bundles as
+`runs/<run_id>/` and mutable metadata overlays as `metadata/runs/<run_id>/`.
+That branch is already a results namespace, so it does not include the
+`.agentv/results/` prefix.
 
 ## Compatibility
 
-Legacy bundles that already contain target-folder manifests remain readable.
-Readers may discover nested `index.jsonl` files when a run root has no direct
-manifest, and they must continue to honor legacy `index.jsonl` rows whose
-explicit paths point into old target-folder layouts. Do not move old artifacts
-as part of this decision.
+This is a hard deprecation of the old experiment-parent layout for
+artifact-format v2. New writers do not create
+`.agentv/results/<experiment>/<timestamp>/`, and Dashboard/result discovery is
+not required to show those legacy bundles.
 
-When a root `index.jsonl` exists, it is the authoritative manifest for that run
-directory. Nested target-folder manifests are legacy compatibility input, not a
-new writer contract.
+Users who need old runs to appear in v2 Dashboard views should regenerate or
+re-export them into `.agentv/results/<run_id>/` with `experiment` recorded in
+`summary.json` metadata. Small parser fallbacks may remain where existing tools
+need them for explicit paths, but they are not the product contract.
 
 ## Consequences
 
 Positive:
 
-- New run bundles have one obvious root manifest and summary.
-- Dashboard and results-repo listings can use root `summary.json.metadata`
-  fields such as `targets` without walking per-result rows for basic run facts.
-- Multi-target and variant rows still avoid filesystem collisions through
-  allocated result directories.
-- Target/model comparisons stay a query over run and row metadata instead of a
-  storage hierarchy.
+- A run id is the only committed run-bundle path identity.
+- Experiment grouping is explicit metadata, so copied or re-exported bundles do
+  not lose meaning when paths change.
+- Dashboard and trend discovery can skip local cache/index namespaces without
+  special-casing experiment names.
+- Compare dimensions such as experiment, target, variant, samples, retries, and
+  tags stay query metadata instead of storage hierarchy.
 
 Negative:
 
-- Humans cannot browse target folders under a timestamp. They must use
-  `summary.json`, `index.jsonl`, Dashboard filters, or compare tooling.
-- Some accepted same-week ADR text now requires this superseding ADR for the
-  final layout.
+- Old local result directories may disappear from v2 Dashboard discovery until
+  regenerated or re-exported.
+- Users cannot browse all runs for an experiment by opening one parent folder;
+  they should use Dashboard filters, `summary.json.metadata.experiment`, tags,
+  or CLI queries.
 
 ## Alternatives Considered
 
-### Target or model folders under the timestamp
+### Preserve legacy discovery during migration
 
-Rejected. Target/model folders make storage look semantic and encourage readers
-to infer identity from paths. They also create needless nesting for the
-single-target case and become awkward when target, provider, model, variant, and
-runtime policy are all useful comparison dimensions.
+Rejected. The product direction for v2 is hard deprecation. Keeping path
+fallbacks as a supported discovery mode would keep experiment ancestry as an
+implicit source of truth.
 
-### Target folders above the timestamp
+### Add `.agentv/results/runs/<run_id>/`
 
-Rejected. Moving target above timestamp fragments one run invocation into
-multiple run roots and makes run-level summary metadata harder to define.
+Rejected for this phase. The extra `runs/` segment is redundant in a directory
+that already stores results and conflicts with the reserved local namespace
+model.
 
-### A `cases/` parent folder
+### Rename `index.jsonl` to `manifest.jsonl`
 
-Rejected. `index.jsonl` already distinguishes control-plane files from
-per-result sidecars. Adding `cases/` would be a cosmetic migration with no
-current reader or writer need.
+Rejected for this phase. `index.jsonl` is already the wired row-level result
+index across CLI, Dashboard, compare/trend, result repo sync, reports, and
+adapters. `summary.json` now carries the run-level manifest role.
 
-### Rename `index.jsonl`
+### Adopt Margin's full `internal/` layout now
 
-Rejected. The file acts as the run manifest/result index, but the established
-filename is portable and already wired through CLI, Dashboard, result repo, and
-adapter code.
-
-### Add `internal/` now
-
-Rejected for artifact-format v1. A future artifact-format v2 migration may add
-an `internal/` directory for machine-facing caches or implementation details,
-but v1 keeps canonical files at the run root and per-result allocations under
-explicit manifest paths.
+Rejected for v2 phase 1. Margin's distinction between portable manifests,
+samples, retries, and internal state remains useful, but this phase only moves
+committed run bundles to `.agentv/results/<run_id>/` and reserves dot-prefixed
+local namespaces for rebuildable state.
 
 ## Non-Goals
 
-- Moving or rewriting existing target-folder artifacts.
-- Renaming `index.jsonl`.
-- Defining a new result database or derived Dashboard index.
-- Finalizing a full run-level model metadata schema. Root `summary.json.metadata`
-  already carries `targets`; richer provider/model fields can be added
-  additively when the Dashboard run-list work needs them.
+- Flattening or renaming per-case `run-N/` attempt folders.
+- Completing the schema-v2 repeat naming migration. User-facing docs should
+  prefer `pass_any` and `pass_all` when they mention repeat strategies, but that
+  schema migration is tracked separately.
+- Moving Dashboard/search indexes into a committed run bundle.
+- Projecting AgentV-owned runs, transcripts, datasets, experiments, or indexes
+  into Phoenix.

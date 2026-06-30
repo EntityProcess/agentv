@@ -55,7 +55,7 @@ describe('WipCheckpointLoop', () => {
         branch_prefix: 'agentv/results',
       },
       runDir: '/tmp/run-001',
-      destinationPath: 'default/run-001',
+      destinationPath: 'run-001',
       intervalMs: 1,
       dependencies: {
         buildWipBranchName: (runDir) => `agentv/wip/test/${runDir.split('/').pop()}`,

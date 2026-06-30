@@ -160,6 +160,7 @@ export async function aggregateRunDir(
   options?: {
     evalFile?: string;
     experiment?: string;
+    runId?: string;
     plannedTestCount?: number;
     experimentMetadata?: ExperimentArtifactMetadata;
     runtimeSource?: RunRuntimeSourceMetadata;
@@ -179,6 +180,7 @@ export async function aggregateRunDir(
     results,
     options?.evalFile,
     options?.experiment,
+    options?.runId ?? path.basename(runDir),
     plannedTestCount,
     options?.experimentMetadata,
     runtimeSource,
@@ -392,6 +394,7 @@ export interface TimingArtifact {
 export interface RunSummaryArtifact {
   readonly manifest_path: string;
   readonly metadata: {
+    readonly run_id?: string;
     readonly eval_file: string;
     readonly timestamp: string;
     readonly targets: readonly string[];
@@ -1290,6 +1293,7 @@ export function buildRunSummaryArtifact(
   results: readonly EvaluationResult[],
   evalFile = '',
   experiment?: string,
+  runId?: string,
   plannedTestCount?: number,
   experimentMetadata?: ExperimentArtifactMetadata,
   runtimeSource?: RunRuntimeSourceMetadata,
@@ -1384,6 +1388,7 @@ export function buildRunSummaryArtifact(
   return {
     manifest_path: RESULT_INDEX_FILENAME,
     metadata: {
+      run_id: runId,
       eval_file: evalFile,
       timestamp,
       targets,
@@ -1407,6 +1412,7 @@ export async function writeInitialRunSummaryArtifact(
     evalFile: string;
     plannedTestCount: number;
     experiment?: string;
+    runId?: string;
     experimentMetadata?: ExperimentArtifactMetadata;
     runtimeSource?: RunRuntimeSourceMetadata;
   },
@@ -1416,6 +1422,7 @@ export async function writeInitialRunSummaryArtifact(
     [],
     options.evalFile,
     options.experiment,
+    options.runId ?? path.basename(runDir),
     options.plannedTestCount,
     options.experimentMetadata,
     options.runtimeSource,
@@ -2517,6 +2524,7 @@ export async function writeArtifactsFromResults(
     results,
     options?.evalFile,
     options?.experiment,
+    options?.runId ?? path.basename(outputDir),
     plannedTestCount,
     options?.experimentMetadata,
     runtimeSource,

@@ -265,8 +265,8 @@ describe('trace utils', () => {
       expect(metas).toEqual([]);
     });
 
-    it('should enumerate run workspaces in .agentv/results/default/', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'default');
+    it('should enumerate direct run workspaces in .agentv/results/', () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results');
       mkdirSync(runsDir, { recursive: true });
 
       const olderRunDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
@@ -342,8 +342,26 @@ describe('trace utils', () => {
       expect(metas).toEqual([]);
     });
 
+    it('should skip dot-prefixed local result namespaces by default', () => {
+      for (const namespace of ['.indexes', '.cache']) {
+        const runDir = path.join(
+          tempDir,
+          '.agentv',
+          'results',
+          namespace,
+          '2026-02-20T21-38-05-833Z',
+        );
+        mkdirSync(runDir, { recursive: true });
+        writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
+      }
+
+      const metas = listResultFiles(tempDir);
+
+      expect(metas).toEqual([]);
+    });
+
     it('should respect limit', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'default');
+      const runsDir = path.join(tempDir, '.agentv', 'results');
       mkdirSync(runsDir, { recursive: true });
 
       const olderRunDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
@@ -358,8 +376,8 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('2026-02-21T10-00-00-000Z');
     });
 
-    it('should ignore non-directory entries in results experiments', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'default');
+    it('should ignore non-directory entries in results root', () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results');
       mkdirSync(runsDir, { recursive: true });
 
       writeFileSync(path.join(runsDir, 'notes.txt'), 'not a result file');
@@ -369,8 +387,8 @@ describe('trace utils', () => {
       expect(metas).toHaveLength(0);
     });
 
-    it('should discover index.jsonl inside grouped run directories', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'default');
+    it('should discover index.jsonl inside direct run directories', () => {
+      const runsDir = path.join(tempDir, '.agentv', 'results');
       const runDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
@@ -387,7 +405,7 @@ describe('trace utils', () => {
       expect(metas[0].filename).toBe('2026-02-20T21-38-05-833Z');
     });
 
-    it('should discover nested experiment run directories and emit safe run ids', () => {
+    it('should not discover deprecated nested experiment run directories', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results');
       const runDir = path.join(runsDir, 'with-skills', '2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
@@ -396,14 +414,12 @@ describe('trace utils', () => {
 
       const metas = listResultFiles(tempDir);
 
-      expect(metas).toHaveLength(1);
-      expect(metas[0].filename).toBe('with-skills::2026-02-20T21-38-05-833Z');
-      expect(metas[0].displayName).toBe('2026-02-20T21-38-05-833Z');
+      expect(metas).toEqual([]);
     });
 
     it('should use benchmark metadata display names when listing run workspaces', () => {
       const runsDir = path.join(tempDir, '.agentv', 'results');
-      const runDir = path.join(runsDir, 'combined', '2026-02-20T21-38-05-833Z');
+      const runDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
       mkdirSync(runDir, { recursive: true });
 
       writeFileSync(path.join(runDir, 'index.jsonl'), `${RESULT_WITH_TRACE}\n`);
@@ -419,12 +435,12 @@ describe('trace utils', () => {
       const metas = listResultFiles(tempDir);
 
       expect(metas).toHaveLength(1);
-      expect(metas[0].filename).toBe('combined::2026-02-20T21-38-05-833Z');
+      expect(metas[0].filename).toBe('2026-02-20T21-38-05-833Z');
       expect(metas[0].displayName).toBe('Combined run (dogfood-run-a + dogfood-run-b)');
     });
 
     it('should skip directories without index.jsonl', () => {
-      const runsDir = path.join(tempDir, '.agentv', 'results', 'default');
+      const runsDir = path.join(tempDir, '.agentv', 'results');
       const emptyDir = path.join(runsDir, '2026-02-20T21-38-05-833Z');
       mkdirSync(emptyDir, { recursive: true });
 

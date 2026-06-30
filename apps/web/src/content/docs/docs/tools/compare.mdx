@@ -12,15 +12,14 @@ The `compare` command computes deltas between two evaluation runs for A/B testin
 Run two evaluations and compare them:
 
 ```bash
-agentv eval evals/my-eval.yaml --output .agentv/results/default/before
+agentv eval evals/my-eval.yaml --output .agentv/results/before
 # ... make changes to your agent ...
-agentv eval evals/my-eval.yaml --output .agentv/results/default/after
-agentv compare .agentv/results/default/before/index.jsonl .agentv/results/default/after/index.jsonl
+agentv eval evals/my-eval.yaml --output .agentv/results/after
+agentv compare .agentv/results/before/index.jsonl .agentv/results/after/index.jsonl
 ```
 
-`index.jsonl` is the canonical row-level result manifest. Existing
-`index.jsonl` run manifests from older AgentV runs remain readable for
-compatibility, but new runs write `index.jsonl`.
+`index.jsonl` is the canonical row-level result index. New runs live at
+`.agentv/results/<run_id>/index.jsonl`.
 
 ## Options
 
@@ -127,13 +126,13 @@ Compare different model versions:
 
 ```bash
 # Run baseline evaluation
-agentv eval evals/*.yaml --target gpt-4 --output .agentv/results/default/baseline
+agentv eval evals/*.yaml --target gpt-4 --output .agentv/results/baseline
 
 # Run candidate evaluation
-agentv eval evals/*.yaml --target gpt-4o --output .agentv/results/default/candidate
+agentv eval evals/*.yaml --target gpt-4o --output .agentv/results/candidate
 
 # Compare results
-agentv compare .agentv/results/default/baseline/index.jsonl .agentv/results/default/candidate/index.jsonl
+agentv compare .agentv/results/baseline/index.jsonl .agentv/results/candidate/index.jsonl
 ```
 
 ### Prompt Optimization
@@ -142,13 +141,13 @@ Compare before/after prompt changes:
 
 ```bash
 # Run with original prompt
-agentv eval evals/*.yaml --output .agentv/results/default/before
+agentv eval evals/*.yaml --output .agentv/results/before
 
 # Modify prompt, then run again
-agentv eval evals/*.yaml --output .agentv/results/default/after
+agentv eval evals/*.yaml --output .agentv/results/after
 
 # Compare with strict threshold
-agentv compare .agentv/results/default/before/index.jsonl .agentv/results/default/after/index.jsonl --threshold 0.05
+agentv compare .agentv/results/before/index.jsonl .agentv/results/after/index.jsonl --threshold 0.05
 ```
 
 ### CI Quality Gate
@@ -158,8 +157,8 @@ Fail CI if the candidate regresses:
 ```bash
 #!/bin/bash
 agentv compare \
-  .agentv/results/default/baseline/index.jsonl \
-  .agentv/results/default/candidate/index.jsonl
+  .agentv/results/baseline/index.jsonl \
+  .agentv/results/candidate/index.jsonl
 if [ $? -eq 1 ]; then
   echo "Regression detected! Candidate performs worse than baseline."
   exit 1

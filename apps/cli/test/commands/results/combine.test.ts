@@ -45,7 +45,7 @@ describe('results combine', () => {
   });
 
   function seedRun(name: string, records: object[], experiment = 'default'): string {
-    const runDir = path.join(tempDir, '.agentv', 'results', experiment, name);
+    const runDir = path.join(tempDir, '.agentv', 'results', name);
     mkdirSync(path.join(runDir, 'demo', 'test-a'), { recursive: true });
     writeFileSync(
       path.join(runDir, 'index.jsonl'),
@@ -54,7 +54,10 @@ describe('results combine', () => {
     );
     writeFileSync(
       path.join(runDir, 'summary.json'),
-      `${JSON.stringify({ manifest_path: 'index.jsonl' })}\n`,
+      `${JSON.stringify({
+        manifest_path: 'index.jsonl',
+        metadata: { run_id: name, experiment },
+      })}\n`,
       'utf8',
     );
     writeFileSync(path.join(runDir, 'demo', 'test-a', 'grading.json'), '{"assertions":[]}\n');
@@ -125,8 +128,8 @@ describe('results combine', () => {
     });
 
     expect(combined.experiment).toBe('smoke');
-    expect(combined.runId).toBe('smoke::2026-06-01T10-00-00-000Z');
-    expect(combined.runDir).toContain(path.join('.agentv', 'results', 'smoke'));
+    expect(combined.runId).toBe('2026-06-01T10-00-00-000Z');
+    expect(combined.runDir).toContain(path.join('.agentv', 'results'));
     expect(readIndex(combined.manifestPath).map((record) => record.experiment)).toEqual([
       'smoke',
       'smoke',
@@ -186,7 +189,7 @@ describe('results combine', () => {
     });
 
     expect(combined.experiment).toBe('smoke-regression');
-    expect(combined.runId).toBe('smoke-regression::2026-06-01T10-00-00-000Z');
+    expect(combined.runId).toBe('2026-06-01T10-00-00-000Z');
     expect(readIndex(combined.manifestPath).map((record) => record.experiment)).toEqual([
       'smoke-regression',
       'smoke-regression',

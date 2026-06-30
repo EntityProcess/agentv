@@ -3,7 +3,7 @@
  * artifacts compatible with the AgentV dashboard and results commands.
  *
  * Checks:
- *   1. Directory follows the `.agentv/results/<experiment>/<timestamp>` naming convention
+ *   1. Directory follows the `.agentv/results/<run_id>` naming convention
  *   2. index.jsonl exists and each line has required fields
  *   3. Per-case summary.json exists for every entry in the index
  *   4. Per-run result.json and grading.json exist for every materialized trial
@@ -56,13 +56,13 @@ function checkDirectoryNaming(runDir: string): Diagnostic[] {
     diagnostics.push({
       severity: 'error',
       message:
-        'The .agentv/results/runs namespace is no longer supported. Expected: .agentv/results/<experiment>/<timestamp>',
+        'The .agentv/results/runs namespace is no longer supported. Expected: .agentv/results/<run_id>',
     });
-  } else if (resultsIndex < 0 || resultsIndex > pathSegments.length - 3) {
+  } else if (resultsIndex < 0 || resultsIndex !== pathSegments.length - 2) {
     diagnostics.push({
       severity: 'warning',
       message:
-        'Directory is not under the canonical results tree. Expected: .agentv/results/<experiment>/<timestamp>',
+        'Directory is not under the canonical results tree. Expected: .agentv/results/<run_id>',
     });
   }
 

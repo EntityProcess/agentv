@@ -31,7 +31,7 @@ The `dashboard` command launches a web-based dashboard for browsing evaluation r
 agentv dashboard
 ```
 
-Dashboard auto-discovers run workspaces from `.agentv/results/<experiment>/<timestamp>/` in the current directory and opens at `http://localhost:3117`. Runs without an explicit experiment use `.agentv/results/default/<timestamp>/`.
+Dashboard auto-discovers v2 run workspaces from `.agentv/results/<run_id>/` in the current directory and opens at `http://localhost:3117`. Experiment is read from `summary.json` or row metadata, not from the path.
 
 To open a different project, pass the project root with `--dir`:
 
@@ -39,7 +39,7 @@ To open a different project, pass the project root with `--dir`:
 agentv dashboard --dir /path/to/project
 ```
 
-Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/` tree, plus an external results repository or run directory configured under `results:` in YAML. The old `.agentv/results/runs/**` layout is not a Dashboard-visible layout. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
+Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/` tree, plus an external results repository or run directory configured under `results:` in YAML. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
 
 ## Data boundary
 
@@ -109,7 +109,7 @@ In the per-test results table, click a test ID to open its checks, transcript, s
 
 ## Run management
 
-In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. If all selected runs are from one experiment, the combined run inherits that experiment, including `default`; if selected runs span experiments, Dashboard asks for a new experiment name before creating the combined run. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
+In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. If all selected runs are from one experiment, the combined run records that experiment label, including `default`; if selected runs span experiments, Dashboard asks for a new experiment name before creating the combined run. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
 
 When you launch an eval from Dashboard, set the experiment and initial tags before the run starts. The selected experiment is recorded with the new run, and tags are written to that run workspace's `tags.json` sidecar; existing runs are not changed.
 
@@ -163,9 +163,9 @@ Select 2+ rows with the checkboxes and click the sticky **Compare N** action to 
 
 ### Retroactive tags
 
-Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); local tags are stored in a `tags.json` sidecar next to `index.jsonl` in the timestamped result folder, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to record an empty tag state. The sidecar includes a `tag_revision`; if a stale browser tab submits tags after the run's tags changed, Dashboard rejects the write and asks you to refresh before retrying.
+Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); local tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run folder, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to record an empty tag state. The sidecar includes a `tag_revision`; if a stale browser tab submits tags after the run's tags changed, Dashboard rejects the write and asks you to refresh before retrying.
 
-Remote run payloads stay immutable, but their tags are editable. Dashboard writes remote tag changes as metadata overlays under `metadata/runs/.../tags.json` in the configured results repo clone/branch. That overlay path is a remote-results implementation detail, not part of the local `.agentv/results/<experiment>/<timestamp>/` layout. Remote tag overlays use the same `tag_revision` stale-write check as local tags. Until those overlays are synced, the run and project show a dirty state; **Sync Project** commits and pushes them when it is safe to do so.
+Remote run payloads stay immutable, but their tags are editable. Dashboard writes remote tag changes as metadata overlays under `metadata/runs/<run_id>/tags.json` in the configured results repo clone/branch. That overlay path is a remote-results implementation detail, not part of the local `.agentv/results/<run_id>/` layout. Remote tag overlays use the same `tag_revision` stale-write check as local tags. Until those overlays are synced, the run and project show a dirty state; **Sync Project** commits and pushes them when it is safe to do so.
 
 Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
 
@@ -360,15 +360,9 @@ Use project-level **Sync Project** as the results exchange workflow. It handles 
 
 There is no separate `agentv results remote status` or `agentv results remote sync` command. The `agentv results` CLI stays focused on local run workspaces; manual remote exchange is Dashboard/API-only, with eval auto-export covering the common CI/publisher path.
 
-Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe. AgentV creates a missing storage branch automatically and pushes with a non-fast-forward retry. Temporary result/PR branch names use a fixed prefix; they are not the storage branch.
+Each run writes to a unique run-id directory, so concurrent pushes from multiple machines are safe. AgentV creates a missing storage branch automatically and pushes with a non-fast-forward retry. Temporary result/PR branch names use a fixed prefix; they are not the storage branch.
 
-### What happens to existing local runs?
-
-Existing runs already present under `.agentv/results/<experiment>/<timestamp>/` stay exactly where they are and continue to appear in Dashboard as **local** runs. Runs in the removed `.agentv/results/runs/**` layout are not discovered by Dashboard.
-
-Adding a `results` block does **not** backfill those historical runs into the results branch automatically. Result publishing only affects runs created after the results repo is configured. `auto_push` controls network push and best-effort WIP checkpoints for in-progress `agentv eval` runs.
-
-If you want older local-only runs in the remote repo, rerun them or copy the run directories into the managed clone manually before syncing the project.
+Adding a `results` block does not backfill local run workspaces into the results branch automatically. Result publishing affects runs created after the results repo is configured. `auto_push` controls network push and best-effort WIP checkpoints for in-progress `agentv eval` runs.
 
 ### Authentication
 

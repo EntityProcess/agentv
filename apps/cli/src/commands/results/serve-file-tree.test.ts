@@ -40,7 +40,7 @@ function gitTranscriptEntry(prefix: string): ArtifactCatalogEntry {
     kind: 'transcript',
     storage: 'git',
     ref: 'agentv/artifacts/v1',
-    key: `runs/default/2026-06-22T01-12-44-924Z/${prefix}/transcript.jsonl`,
+    key: `runs/2026-06-22T01-12-44-924Z/${prefix}/transcript.jsonl`,
   };
 }
 

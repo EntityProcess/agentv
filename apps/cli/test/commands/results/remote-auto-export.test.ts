@@ -58,7 +58,7 @@ ${params.branch ? `  branch: ${JSON.stringify(params.branch)}\n` : ''}  path: ${
 }
 
 function writeRunArtifacts(projectDir: string): string {
-  const runDir = path.join(projectDir, '.agentv', 'results', 'default', 'run-001');
+  const runDir = path.join(projectDir, '.agentv', 'results', 'run-001');
   mkdirSync(runDir, { recursive: true });
   writeFileSync(
     path.join(runDir, 'index.jsonl'),
@@ -80,7 +80,7 @@ function sha256Hex(content: Buffer | string): string {
 }
 
 function writeRunArtifactsWithPointers(projectDir: string): string {
-  const runDir = path.join(projectDir, '.agentv', 'results', 'default', 'run-002');
+  const runDir = path.join(projectDir, '.agentv', 'results', 'run-002');
   const artifactDir = path.join(runDir, 'alpha');
   mkdirSync(artifactDir, { recursive: true });
   const transcriptContent = Buffer.from(
@@ -205,7 +205,7 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     expect(status).toBe('published');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      'runs/default/run-001/index.jsonl',
+      'runs/run-001/index.jsonl',
     );
   }, 20_000);
 
@@ -227,26 +227,21 @@ describe('maybeAutoExportRunArtifacts', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${resultsBranch}`,
       rootDir,
     );
-    expect(resultTree).toContain('runs/default/run-002/index.jsonl');
-    expect(resultTree).toContain('runs/default/run-002/summary.json');
-    expect(resultTree).not.toContain('runs/default/run-002/alpha/trace.json');
-    expect(resultTree).not.toContain('runs/default/run-002/alpha/transcript.jsonl');
+    expect(resultTree).toContain('runs/run-002/index.jsonl');
+    expect(resultTree).toContain('runs/run-002/summary.json');
+    expect(resultTree).not.toContain('runs/run-002/alpha/trace.json');
+    expect(resultTree).not.toContain('runs/run-002/alpha/transcript.jsonl');
     const index = JSON.parse(
-      git(
-        `git --git-dir "${remoteDir}" show ${resultsBranch}:runs/default/run-002/index.jsonl`,
-        rootDir,
-      ),
+      git(`git --git-dir "${remoteDir}" show ${resultsBranch}:runs/run-002/index.jsonl`, rootDir),
     );
     expect(index.artifact_pointers).not.toHaveProperty('trace');
-    expect(index.artifact_pointers.transcript.key).toBe(
-      'runs/default/run-002/alpha/transcript.jsonl',
-    );
+    expect(index.artifact_pointers.transcript.key).toBe('runs/run-002/alpha/transcript.jsonl');
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_ARTIFACTS_REF}`,
       rootDir,
     );
-    expect(artifactTree).not.toContain('runs/default/run-002/alpha/trace.json');
-    expect(artifactTree).toContain('runs/default/run-002/alpha/transcript.jsonl');
+    expect(artifactTree).not.toContain('runs/run-002/alpha/trace.json');
+    expect(artifactTree).toContain('runs/run-002/alpha/transcript.jsonl');
   }, 20_000);
 
   it('returns already_published when the final results branch is already up to date', async () => {
@@ -321,10 +316,8 @@ describe('maybeAutoExportRunArtifacts', () => {
 
     expect(status).toBe('published');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      'runs/default/run-001/index.jsonl',
+      'runs/run-001/index.jsonl',
     );
-    expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
-      'runs/default/run-001/index.jsonl',
-    );
+    expect(git('git ls-tree -r --name-only main', cloneDir)).toContain('runs/run-001/index.jsonl');
   });
 });

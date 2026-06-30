@@ -129,15 +129,17 @@ function readManifestRecords(manifestPath: string): ResultManifestRecord[] {
 function readSummaryMetadata(manifestPath: string): {
   timestamp?: string;
   displayName?: string;
+  experiment?: string;
 } {
   try {
     const summaryPath = path.join(path.dirname(manifestPath), 'summary.json');
     const parsed = JSON.parse(readFileSync(summaryPath, 'utf8')) as {
-      metadata?: { timestamp?: string; display_name?: string };
+      metadata?: { timestamp?: string; display_name?: string; experiment?: string };
     };
     return {
       timestamp: parsed.metadata?.timestamp,
       displayName: parsed.metadata?.display_name,
+      experiment: parsed.metadata?.experiment,
     };
   } catch {
     return {};
@@ -318,21 +320,7 @@ function uniqueRunDir(baseDir: string): string {
 
 function toRunId(cwd: string, runDir: string): string {
   const relative = relativeRunPathFromCwd(cwd, runDir);
-  if (!relative) {
-    return path.basename(runDir);
-  }
-  const parts = relative.split(path.posix.sep);
-  if (parts.length <= 1) {
-    return relative;
-  }
-  const experiment = parts[0];
-  const timestamp = parts.slice(1).join(path.posix.sep);
-  return experiment === 'default' ? timestamp : `${experiment}::${timestamp}`;
-}
-
-function experimentFromRelativeRunPath(relativeRunPath: string): string {
-  const experiment = relativeRunPath.split(path.posix.sep).filter(Boolean)[0];
-  return normalizeExperimentName(experiment);
+  return relative ?? path.basename(runDir);
 }
 
 function resolveCombinedExperiment(
@@ -559,14 +547,20 @@ export function buildCombineRunSources(
     const relativeRunPath = relativeRunPathFromCwd(cwd, runDir);
     if (!relativeRunPath) {
       throw new Error(
-        `Run workspace is outside the canonical results layout: ${runDir}. Expected .agentv/results/<experiment>/<timestamp>`,
+        `Run workspace is outside the canonical results layout: ${runDir}. Expected .agentv/results/<run_id>`,
       );
     }
+    const records = readManifestRecords(manifestPath);
+    const summaryMetadata = readSummaryMetadata(manifestPath);
+    const experiment =
+      summaryMetadata.experiment ??
+      records.find((record) => typeof record.experiment === 'string')?.experiment ??
+      'default';
     return {
       id: options?.ids?.[index] ?? toRunId(cwd, runDir),
       displayName: options?.displayNames?.[index] ?? path.basename(runDir),
       manifestPath,
-      experiment: experimentFromRelativeRunPath(relativeRunPath),
+      experiment: normalizeExperimentName(experiment),
       tags: options?.tags?.[index],
     };
   });
@@ -588,15 +582,7 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
   );
   const relativeOutputRunPath = relativeRunPathFromCwd(options.cwd, runDir);
   if (!relativeOutputRunPath) {
-    throw new Error(
-      `Output run workspace must use .agentv/results/<experiment>/<timestamp>: ${runDir}`,
-    );
-  }
-  const outputExperiment = experimentFromRelativeRunPath(relativeOutputRunPath);
-  if (outputExperiment !== experiment) {
-    throw new Error(
-      `Output run workspace experiment "${outputExperiment}" must match combined experiment "${experiment}".`,
-    );
+    throw new Error(`Output run workspace must use .agentv/results/<run_id>: ${runDir}`);
   }
   const { rows, conflicts } = selectRows(
     loadedSources,
@@ -616,7 +602,13 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
   const manifestPath = path.join(runDir, RESULT_INDEX_FILENAME);
   writeJsonl(manifestPath, records);
 
-  const summary = buildRunSummaryArtifact(results, '', 'combined', results.length);
+  const summary = buildRunSummaryArtifact(
+    results,
+    '',
+    'combined',
+    path.basename(runDir),
+    results.length,
+  );
   const summaryWithMetadata: RunSummaryArtifact & {
     metadata: RunSummaryArtifact['metadata'] & {
       display_name: string;
