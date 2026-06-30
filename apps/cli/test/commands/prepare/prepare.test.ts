@@ -116,7 +116,18 @@ describe('agentv prepare', () => {
 
     const result = await execa(
       'bun',
-      ['--no-env-file', CLI_ENTRY, 'prepare', evalPath, '--test-id', 'case-1', '--out', outDir],
+      [
+        '--no-env-file',
+        CLI_ENTRY,
+        'prepare',
+        evalPath,
+        '--test-id',
+        'case-1',
+        '--target',
+        'codex',
+        '--out',
+        outDir,
+      ],
       {
         cwd: tempDir,
         env: {
@@ -196,6 +207,8 @@ describe('agentv prepare', () => {
         evalPath,
         '--test-id',
         'case-1',
+        '--target',
+        'codex',
         '--out',
         outDir,
         '--format',

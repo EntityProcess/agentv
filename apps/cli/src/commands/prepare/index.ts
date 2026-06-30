@@ -273,11 +273,18 @@ async function prepareAttempt(options: {
     throw new Error(`Test ID '${options.testId}' not found in ${evalPath}`);
   }
 
+  const targetRefs =
+    suite.targetSpec?.hooks !== undefined && suite.targetSpec.name === options.target
+      ? [
+          ...(suite.targetRefs ?? []),
+          { name: suite.targetSpec.name, hooks: suite.targetSpec.hooks },
+        ]
+      : suite.targetRefs;
   const { resolvedTarget, targetHooks } = await selectPrepareTarget({
     evalPath,
     repoRoot,
     target: options.target,
-    targetRefs: suite.targetRefs,
+    targetRefs,
   });
 
   const prepared = await prepareEvalWorkspace({
