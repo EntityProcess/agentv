@@ -76,14 +76,13 @@ workspace:
       command: ["bun", "../scripts/hook.ts", "workspace_before_all"]
     before_each:
       command: ["bun", "../scripts/hook.ts", "workspace_before_each"]
-execution:
-  targets:
-    - name: codex
-      hooks:
-        before_all:
-          command: ["bun", "../scripts/hook.ts", "target_before_all"]
-        before_each:
-          command: ["bun", "../scripts/hook.ts", "target_before_each"]
+target:
+  extends: codex
+  hooks:
+    before_all:
+      command: ["bun", "../scripts/hook.ts", "target_before_all"]
+    before_each:
+      command: ["bun", "../scripts/hook.ts", "target_before_each"]
 assertions:
   - name: secret-grader
     type: code-grader

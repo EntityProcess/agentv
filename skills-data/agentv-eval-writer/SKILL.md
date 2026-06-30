@@ -636,7 +636,8 @@ import { defineEval, graders } from '@agentv/sdk';
 export default defineEval({
   name: 'helper-suite',
   target: 'default',
-  policy: { runs: 3, threshold: 0.8 },
+  runs: 3,
+  threshold: 0.8,
   tests: [
     {
       id: 'json-answer',

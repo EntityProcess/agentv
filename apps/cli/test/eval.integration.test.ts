@@ -234,11 +234,10 @@ async function expectFileExists(filePath: string): Promise<void> {
   await access(filePath);
 }
 
-async function prependYamlCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
-  const original = await readFile(fixture.testFilePath, 'utf8');
+async function writeLocalYamlCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
   await writeFile(
-    fixture.testFilePath,
-    `execution:\n  cache: true\n  cache_path: ${cachePath}\n\n${original}`,
+    path.join(fixture.suiteDir, '.agentv', 'config.local.yaml'),
+    `execution:\n  cache: true\n  cache_path: ${cachePath}\n`,
     'utf8',
   );
 }
@@ -587,7 +586,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs inline target and policy config with suite test selection and run knobs', async () => {
+  it('runs eval-local target config with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {
       await writeFile(
@@ -614,13 +613,13 @@ describe('agentv eval CLI', () => {
         wrapperPath,
         [
           'name: native-exp',
-          'target: codex-target',
-          'model: gpt-5-codex',
-          'policy:',
-          '  timeout_seconds: 12',
-          '  threshold: 0.8',
-          '  budget_usd: 3',
-          '  runs: 2',
+          'target:',
+          '  extends: codex-target',
+          '  model: gpt-5-codex',
+          'timeout_seconds: 12',
+          'threshold: 0.8',
+          'budget_usd: 3',
+          'runs: 2',
           'tests:',
           '  - include: sample.test.yaml',
           '    type: suite',
@@ -686,7 +685,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('keeps non-concurrency runtime policy isolated across multiple eval files', async () => {
+  it('keeps non-concurrency run controls isolated across multiple eval files', async () => {
     const fixture = await createFixture();
     try {
       const firstPath = path.join(fixture.suiteDir, 'first.eval.yaml');
@@ -696,9 +695,8 @@ describe('agentv eval CLI', () => {
         [
           'name: first',
           'target: cli-target',
-          'policy:',
-          '  timeout_seconds: 11',
-          '  budget_usd: 0.11',
+          'timeout_seconds: 11',
+          'budget_usd: 0.11',
           'tests:',
           '  - id: first-case',
           '    input: first',
@@ -712,9 +710,8 @@ describe('agentv eval CLI', () => {
         [
           'name: second',
           'target: file-target',
-          'policy:',
-          '  timeout_seconds: 22',
-          '  budget_usd: 0.22',
+          'timeout_seconds: 22',
+          'budget_usd: 0.22',
           'tests:',
           '  - id: second-case',
           '    input: second',
@@ -821,11 +818,11 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('honors eval YAML execution.cache_path', async () => {
+  it('honors config.local.yaml execution.cache_path', async () => {
     const fixture = await createFixture();
     try {
       const cachePath = '.agentv/yaml-response-cache';
-      await prependYamlCacheConfig(fixture, cachePath);
+      await writeLocalYamlCacheConfig(fixture, cachePath);
 
       const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
 
