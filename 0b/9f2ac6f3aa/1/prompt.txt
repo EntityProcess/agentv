@@ -1,0 +1,1103 @@
+You are the fresh AgentV coordinator taking over from an older coordinator context.
+
+Role:
+- Coordinate only. Do not implement feature code directly in the main checkout.
+- Use workers/worktrees for implementation and browser/dogfood verification.
+- Keep Beads and GitHub issue/PR state aligned.
+- Respect the dirty main checkout and never revert user changes.
+
+Repository:
+- Main checkout: /home/entity/projects/EntityProcess/agentv
+- Beads workspace: /home/entity/projects/EntityProcess/agentv/.beads
+- Start by reading AGENTS.md and the relevant .agents guides if you need to make coordination decisions.
+- Current main status at handoff:
+  - Branch: main
+  - Behind origin/main by 2 commits after PR #1555 merged.
+  - Dirty pre-existing user/showcase files:
+    - examples/showcase/cross-repo-sync/evals/dataset.eval.yaml
+    - examples/showcase/cross-repo-sync/scripts/run-ts.sh
+    - examples/showcase/cross-repo-sync/scripts/validate-sync.ts
+    - examples/showcase/cross-repo-sync/workspace-template/mock-agent.sh
+    - examples/showcase/export-screening/evals/validate_risk_output.ts
+  - Do not touch or revert those unless the user explicitly asks.
+
+Current Workmux status at handoff:
+- agentv (main): working, old coordinator in /home/entity/projects/EntityProcess/agentv
+- result-row-id-sidecars: working, implementation worker
+- av-e6l-wip-cleanup: done, PR #1555 worker
+- ai-research-wiki Margin Evals doc worker is in tmux session "margin-evals-layout-doc", not the agentv Workmux session.
+
+Primary active task:
+- Bead: av-9vi
+- GitHub issue: https://github.com/EntityProcess/agentv/issues/1557
+- Status: in_progress
+- Assignee at handoff: Christopher Tso
+- Metadata at handoff:
+  - machine: entity-vps
+  - worker: codex-implementation
+  - branch: result-row-id-sidecars
+  - worktree: /home/entity/projects/EntityProcess/agentv__worktrees/result-row-id-sidecars
+- Worker handle: result-row-id-sidecars
+- Worker status at handoff: actively implementing and running focused tests.
+
+Canonical result-layout design to enforce:
+- AgentV remains a superset of Vercel-style naming; do not hard-code Next/Vercel semantics.
+- Keep `experiment` as the campaign namespace in eval YAML and artifacts.
+- Keep timestamp as the invocation/batch folder.
+- Multi-target CLI should fan out into separate target/variant bundles under the same timestamp, not one shared index.jsonl.
+- Canonical storage direction:
+  .agentv/results/<experiment>/<timestamp>/<target>/<variant?>/
+    index.jsonl
+    summary.json
+    <row_id>/run-1/
+    <row_id>/run-2/
+- Path target/variant is for storage isolation and manual browsing only.
+- Dashboard/readers must not parse target/variant semantics from folder names.
+- index.jsonl/run metadata is authoritative for target, variant, eval_path, suite, test_id, sidecar paths, and display metadata.
+- Discovery may walk folders to find nested index.jsonl files, then semantics come from manifest/rows.
+- No migration or special parsing for hypothetical experiment--target. AgentV does not currently support that layout.
+- Deterministic row_id is still needed inside a target/variant bundle for same test_id across suites/eval paths.
+- Do not add a rows/ parent folder unless the implementation proves it is necessary.
+- Use run-1, run-2, etc. for repeated attempts/flaky repeats. Do not introduce an `attempts` concept now.
+
+Current implementation worker findings at handoff:
+- Worker has started implementing bundle fan-out in CLI/artifact boundary.
+- It added target/variant-aware bundle paths and writes bundle-specific index.jsonl/summary.json.
+- It has been adjusting aggregation/resume identity to include suite/eval path/variant so same test_id across suites does not collide.
+- It fixed a BundleOutputWriter constructor field that shadowed append().
+- Focused earlier tests passed, but a later full test surfaced stale results export assertions expecting old suite/test_id sidecar paths.
+- Latest visible worker state: rebuilding @agentv/core after adding exports for buildEvalTestTargetKey/buildEvaluationResultTargetKey, then rerunning focused aggregate/artifact tests.
+
+Acceptance for av-9vi / issue #1557:
+- CLI writes one nested index.jsonl per target/variant bundle under the timestamp.
+- Legacy root-level index.jsonl remains readable.
+- Dashboard discovers nested index.jsonl under timestamp folders.
+- Dashboard list/open/detail/drilldown works for nested target/variant bundles.
+- Dashboard compare can compare target/variant bundles under the same experiment.
+- Dashboard uses row metadata, not path parsing, for target/variant/eval/suite/test semantics.
+- Remote sync dogfood against branch agentv/results/v1 works, including fresh branch creation.
+- Browser UAT against the dashboard is performed before ready.
+- Live provider plus real LLM grader dogfood is required before marking ready unless a blocker is recorded.
+- Focused tests, full relevant tests, build, formatting/lint, and GitHub Actions should pass before merge.
+- When implementation stabilizes, update the ADR/issue if the final code shape differs from PR #1556.
+
+PR #1555 status:
+- PR: https://github.com/EntityProcess/agentv/pull/1555
+- Title: fix(results): ignore missing WIP branch cleanup
+- Worker handle: av-e6l-wip-cleanup
+- Worktree: /home/entity/projects/EntityProcess/agentv__worktrees/av-e6l-wip-cleanup
+- Branch: fix/av-e6l-wip-delete-missing
+- Final state: merged on 2026-06-29 at squash commit d819615ae2b1147b23d33a9c480ceef1951b6b43.
+- Remote branch was deleted.
+- Bead av-o0o is closed and pushed.
+- No further action needed except mentioning it if the user asks.
+
+ADR / docs PR:
+- PR: https://github.com/EntityProcess/agentv/pull/1556
+- Branch: docs/row-id-result-layout
+- Draft PR, CI green at handoff.
+- It may be partially stale because the design evolved to nested target/variant under timestamp.
+- Do not merge it until it is reconciled with the final implementation and issue #1557.
+
+Research wiki worker:
+- Repo: /home/entity/projects/tsoyang-org-wiki/ai-research-wiki
+- Worktree: /home/entity/projects/tsoyang-org-wiki/ai-research-wiki__worktrees/margin-evals-layout-doc
+- Branch: margin-evals-layout-doc
+- Commit: 14ccad3 Document Margin Evals result layout
+- Draft PR: https://github.com/tsoyang-org/ai-research-wiki/pull/38
+- Bead arw-tmk is closed and pushed.
+- No further action needed unless the user wants Vercel/next-evals findings added too.
+
+Operational next steps:
+1. Monitor result-row-id-sidecars with:
+   - workmux status result-row-id-sidecars
+   - workmux capture result-row-id-sidecars
+   - git -C /home/entity/projects/EntityProcess/agentv__worktrees/result-row-id-sidecars status --short --branch
+2. When that worker reports done, inspect the diff and test results before letting it open/push a PR.
+3. Confirm dashboard changes are complete, not just CLI/core.
+4. Spawn dedicated browser/dogfood workers only once the implementation PR/branch is ready enough to test.
+5. Keep GitHub issue #1557 and Bead av-9vi updated with material decisions, blockers, and PR links.
+6. Do not spawn standby workers without a concrete task.
+
+When reporting back, include:
+- Active handles, branches, and worktree paths.
+- Current workmux status.
+- Beads workspace and relevant bead IDs.
+- Local setup files changed.
+- Whether any Codex fallback was used.
+
+---
+
+You are the fresh AgentV coordinator taking over from an older coordinator context.
+
+Role:
+- Coordinate only. Do not implement feature code directly in the main checkout.
+- Use workers/worktrees for implementation and browser/dogfood verification.
+- Keep Beads and GitHub issue/PR state aligned.
+- Respect the dirty main checkout and never revert user changes.
+
+Repository:
+- Main checkout: /home/entity/projects/EntityProcess/agentv
+- Beads workspace: /home/entity/projects/EntityProcess/agentv/.beads
+- Start by reading AGENTS.md and the relevant .agents guides if you need to make coordination decisions.
+- Current main status at handoff:
+  - Branch: main
+  - Behind origin/main by 2 commits after PR #1555 merged.
+  - Dirty pre-existing user/showcase files:
+    - examples/showcase/cross-repo-sync/evals/dataset.eval.yaml
+    - examples/showcase/cross-repo-sync/scripts/run-ts.sh
+    - examples/showcase/cross-repo-sync/scripts/validate-sync.ts
+    - examples/showcase/cross-repo-sync/workspace-template/mock-agent.sh
+    - examples/showcase/export-screening/evals/validate_risk_output.ts
+  - Do not touch or revert those unless the user explicitly asks.
+
+Current Workmux status at handoff:
+- agentv (main): working, old coordinator in /home/entity/projects/EntityProcess/agentv
+- result-row-id-sidecars: working, implementation worker
+- av-e6l-wip-cleanup: done, PR #1555 worker
+- ai-research-wiki Margin Evals doc worker is in tmux session "margin-evals-layout-doc", not the agentv Workmux session.
+
+Primary active task:
+- Bead: av-9vi
+- GitHub issue: https://github.com/EntityProcess/agentv/issues/1557
+- Status: in_progress
+- Assignee at handoff: Christopher Tso
+- Metadata at handoff:
+  - machine: entity-vps
+  - worker: codex-implementation
+  - branch: result-row-id-sidecars
+  - worktree: /home/entity/projects/EntityProcess/agentv__worktrees/result-row-id-sidecars
+- Worker handle: result-row-id-sidecars
+- Worker status at handoff: actively implementing and running focused tests.
+
+Canonical result-layout design to enforce:
+- AgentV remains a superset of Vercel-style naming; do not hard-code Next/Vercel semantics.
+- Keep `experiment` as the campaign namespace in eval YAML and artifacts.
+- Keep timestamp as the invocation/batch folder.
+- Multi-target CLI should fan out into separate target/variant bundles under the same timestamp, not one shared index.jsonl.
+- Canonical storage direction:
+  .agentv/results/<experiment>/<timestamp>/<target>/<variant?>/
+    index.jsonl
+    summary.json
+    <row_id>/run-1/
+    <row_id>/run-2/
+- Path target/variant is for storage isolation and manual browsing only.
+- Dashboard/readers must not parse target/variant semantics from folder names.
+- index.jsonl/run metadata is authoritative for target, variant, eval_path, suite, test_id, sidecar paths, and display metadata.
+- Discovery may walk folders to find nested index.jsonl files, then semantics come from manifest/rows.
+- No migration or special parsing for hypothetical experiment--target. AgentV does not currently support that layout.
+- Deterministic row_id is still needed inside a target/variant bundle for same test_id across suites/eval paths.
+- Do not add a rows/ parent folder unless the implementation proves it is necessary.
+- Use run-1, run-2, etc. for repeated attempts/flaky repeats. Do not introduce an `attempts` concept now.
+
+Current implementation worker findings at handoff:
+- Worker has started implementing bundle fan-out in CLI/artifact boundary.
+- It added target/variant-aware bundle paths and writes bundle-specific index.jsonl/summary.json.
+- It has been adjusting aggregation/resume identity to include suite/eval path/variant so same test_id across suites does not collide.
+- It fixed a BundleOutputWriter constructor field that shadowed append().
+- Focused earlier tests passed, but a later full test surfaced stale results export assertions expecting old suite/test_id sidecar paths.
+- Latest visible worker state: rebuilding @agentv/core after adding exports for buildEvalTestTargetKey/buildEvaluationResultTargetKey, then rerunning focused aggregate/artifact tests.
+
+Acceptance for av-9vi / issue #1557:
+- CLI writes one nested index.jsonl per target/variant bundle under the timestamp.
+- Legacy root-level index.jsonl remains readable.
+- Dashboard discovers nested index.jsonl under timestamp folders.
+- Dashboard list/open/detail/drilldown works for nested target/variant bundles.
+- Dashboard compare can compare target/variant bundles under the same experiment.
+- Dashboard uses row metadata, not path parsing, for target/variant/eval/suite/test semantics.
+- Remote sync dogfood against branch agentv/results/v1 works, including fresh branch creation.
+- Browser UAT against the dashboard is performed before ready.
+- Live provider plus real LLM grader dogfood is required before marking ready unless a blocker is recorded.
+- Focused tests, full relevant tests, build, formatting/lint, and GitHub Actions should pass before merge.
+- When implementation stabilizes, update the ADR/issue if the final code shape differs from PR #1556.
+
+PR #1555 status:
+- PR: https://github.com/EntityProcess/agentv/pull/1555
+- Title: fix(results): ignore missing WIP branch cleanup
+- Worker handle: av-e6l-wip-cleanup
+- Worktree: /home/entity/projects/EntityProcess/agentv__worktrees/av-e6l-wip-cleanup
+- Branch: fix/av-e6l-wip-delete-missing
+- Final state: merged on 2026-06-29 at squash commit d819615ae2b1147b23d33a9c480ceef1951b6b43.
+- Remote branch was deleted.
+- Bead av-o0o is closed and pushed.
+- No further action needed except mentioning it if the user asks.
+
+ADR / docs PR:
+- PR: https://github.com/EntityProcess/agentv/pull/1556
+- Branch: docs/row-id-result-layout
+- Draft PR, CI green at handoff.
+- It may be partially stale because the design evolved to nested target/variant under timestamp.
+- Do not merge it until it is reconciled with the final implementation and issue #1557.
+
+Research wiki worker:
+- Repo: /home/entity/projects/tsoyang-org-wiki/ai-research-wiki
+- Worktree: /home/entity/projects/tsoyang-org-wiki/ai-research-wiki__worktrees/margin-evals-layout-doc
+- Branch: margin-evals-layout-doc
+
+---
+
+- Commit: 14ccad3 Document Margin Evals result layout
+- Draft PR: https://github.com/tsoyang-org/ai-research-wiki/pull/38
+- Bead arw-tmk is closed and pushed.
+- No further action needed unless the user wants Vercel/next-evals findings added too.
+
+Operational next steps:
+1. Monitor result-row-id-sidecars with:
+   - workmux status result-row-id-sidecars
+   - workmux capture result-row-id-sidecars
+   - git -C /home/entity/projects/EntityProcess/agentv__worktrees/result-row-id-sidecars status --short --branch
+2. When that worker reports done, inspect the diff and test results before letting it open/push a PR.
+3. Confirm dashboard changes are complete, not just CLI/core.
+4. Spawn dedicated browser/dogfood workers only once the implementation PR/branch is ready enough to test.
+5. Keep GitHub issue #1557 and Bead av-9vi updated with material decisions, blockers, and PR links.
+6. Do not spawn standby workers without a concrete task.
+
+When reporting back, include:
+- Active handles, branches, and worktree paths.
+- Current workmux status.
+- Beads workspace and relevant bead IDs.
+- Local setup files changed.
+- Whether any Codex fallback was used.
+
+---
+
+can we close av-e6l-wip-cleanup workkmux, for the other workmux is it making progress and alignedw ith our spec
+
+---
+
+we have local openai endpoint (http://127.0.0.1:10531/v1 and i thought agentv has codex-sdk packaged just like copilot-sdk.
+
+---
+
+if there's any steps unclear we should improve repo instrucitons and link it to evals to prove the instructions work.
+
+---
+
+can we prune our beeds that are closed. also what other beads are outstanidng  and adjacent to our current changes
+
+---
+
+what's the status, ready to merge?
+
+---
+
+also spawn worker to review whether agentv supports use cases mentioned in https://github.com/WiseTechGlobal/WFAI/blob/J55/draft-ai-platform-architecture/ai-platform-architecture/03-eval-system.md and whehter it aligns well with the architecture, and if you suggest any changes to agentv architecture. push research into ai-research-wiki.
+
+---
+
+the result row worker is done. is it ready to merge
+
+---
+
+can dogfood be saved to agentv-private repo in orphan branch
+
+---
+
+also every eval in agentv example needs an oracle file then we simply overrride with oracle target. this way we can verify whether all the evals can run in the current shape without llm calls and we can dogfood much cheaper. can you spawn workmux worker to do this.
+
+---
+
+review the remote repo sync schema.
+
+I see people using the below:
+
+    results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: origin
+      sync:
+        auto_push: true
+        require_push: false
+
+https://github.com/WiseTechGlobal/agentv-deploy
+
+is this the correct way basedo n latest agentv scehma
+
+---
+
+do you think this shape is confusin? maybe both project repo and results repo should use same repo shape?
+
+---
+
+shouldn't url be remote
+
+---
+
+so this is aligned with what gastownhall/beads ? this is the research below:
+
+# Example YAML Config for Dolt Repo Sync
+
+Here's an example YAML configuration for Dolt repository sync in `.beads/config.yaml`:
+
+```yaml
+# Dolt sync configuration
+sync:
+  remote: git+ssh://git@github.com/org/repo.git  # Primary Dolt remote URL
+
+# Optional Dolt federation (for multi-peer sync)
+federation:
+  remote: dolthub://myorg/beads  # DoltHub or cloud remote
+  sovereignty: T2  # Data sovereignty tier: T1, T2, T3, or T4
+
+# Dolt history & sync behavior
+dolt:
+  auto-commit: on    # Create a Dolt commit after each successful write
+  auto-push: false   # Opt-in for single-writer setups
+  auto-push-interval: 5m   # Minimum time between auto-pushes
+  auto-push-timeout: 30s   # Timeout for a single auto-push attempt
+``` [1](#0-0) [2](#0-1) [3](#0-2) 
+
+## Key Configuration Options
+
+### Remote Configuration
+- **`sync.remote`**: Primary Dolt remote URL (supports `dolthub://`, `gs://`, `s3://`, `az://`, `file://`, or git protocols like `git+ssh://`) [4](#0-3) 
+- **`federation.remote`**: Dolt remote URL for federation setups [5](#0-4) 
+- **`federation.sovereignty`**: Data sovereignty tier (`T1`-`T4`) controlling data residency restrictions [6](#0-5) 
+
+### Sync Behavior
+- **`dolt.auto-commit`**: Automatically create Dolt commits after write commands (default: `on`) [7](#0-6) 
+- **`dolt.auto-push`**: Automatically push to Dolt remote after writes (opt-in, default: `false`) [8](#0-7) 
+- **`dolt.auto-push-interval`**: Minimum time between auto-pushes (default: `5m`) [9](#0-8) 
+- **`dolt.auto-push-timeout`**: Timeout for single auto-push attempt (default: `30s`) [10](#0-9) 
+
+## Notes
+
+The `sync.remote` key is a YAML-only configuration key that must be set in `config.yaml` rather than the database, as it's read during startup before the database is opened [11](#0-10) . For existing projects, you can also set the remote using `bd dolt remote add origin <url>` which will automatically write to `sync.remote` in the config file [12](#0-11) .
+
+Wiki pages you might want to explore:
+- [Workspace Setup and Configuration (gastownhall/beads)](/wiki/gastownhall/beads#4)
+- [Troubleshooting and Recovery (gastownhall/beads)](/wiki/gastownhall/beads#8)
+
+### Citations
+
+**File:** docs/CONFIG.md (L125-127)
+```markdown
+  auto-push-interval: 5m  # Minimum time between auto-pushes
+  auto-push-timeout: 30s  # Bound one push attempt when the remote is unreachable
+```
+```
+
+**File:** docs/CONFIG.md (L170-175)
+```markdown
+- `federation.remote`: Dolt remote URL (e.g., `dolthub://org/beads`, `gs://bucket/beads`, `s3://bucket/beads`, `az://account.blob.core.windows.net/container/beads`)
+- `federation.sovereignty`: Data sovereignty tier:
+  - `T1`: Full sovereignty - data never leaves controlled infrastructure
+  - `T2`: Regional sovereignty - data stays within region/jurisdiction
+  - `T3`: Provider sovereignty - data with trusted cloud provider
+  - `T4`: No restrictions - data can be anywhere
+```
+
+**File:** docs/CONFIG.md (L177-185)
+```markdown
+#### Example Configuration
+
+```yaml
+# .beads/config.yaml
+# Optional: Dolt federation
+federation:
+  remote: dolthub://myorg/beads
+  sovereignty: T2
+```
+```
+
+**File:** website/docs/reference/configuration.md (L95-97)
+```markdown
+| `dolt.auto-commit` | `--dolt-auto-commit` | `BD_DOLT_AUTO_COMMIT` | `on` | Create a Dolt history commit after each successful write |
+| `dolt.auto-push` | — | `BD_DOLT_AUTO_PUSH` | `false` | Auto-push to Dolt remote after writes (opt-in) |
+| `dolt.shared-server` | `--shared-server` | `BEADS_DOLT_SHARED_SERVER` | `false` | Share one Dolt server at `~/.beads/shared-server/` |
+```
+
+**File:** website/docs/reference/configuration.md (L120-121)
+```markdown
+| `federation.remote` | — | `BD_FEDERATION_REMOTE` | (none) | Dolt remote URL (`dolthub://`, `gs://`, `s3://`, `az://`, `file://`) |
+| `federation.sovereignty` | — | `BD_FEDERATION_SOVEREIGNTY` | (none) | Sovereignty tier: `T1`, `T2`, `T3`, `T4` |
+```
+
+**File:** website/docs/reference/configuration.md (L211-224)
+```markdown
+# Dolt history & sync
+dolt:
+  auto-commit: on    # Create a Dolt commit after each successful write
+  auto-push: false   # Opt-in for single-writer setups
+
+# Issue creation policies
+create:
+  require-description: true
+
+validation:
+  on-create: warn    # Warn when creating issues missing required sections
+  on-close: none
+  on-sync: none
+
+```
+
+**File:** internal/config/yaml_config.go (L16-23)
+```go
+// YamlOnlyKeys are configuration keys that must be stored in config.yaml
+// rather than the database. These are "startup" settings that are
+// read before the database is opened.
+//
+// This fixes GH#536: users were confused when `bd config set no-db true`
+// appeared to succeed but had no effect (because no-db is read from yaml
+// at startup, not from the database).
+var YamlOnlyKeys = map[string]bool{
+```
+
+**File:** internal/config/yaml_config.go (L39-42)
+```go
+	// Sync settings
+	"sync.remote":     true, // Primary: any Dolt-compatible remote URL
+	"sync.git-remote": true, // Deprecated: falls back from sync.remote
+	"sync.require_confirmation_on_mass_delete": true,
+```
+
+**File:** docs/SYNC_SETUP.md (L92-95)
+```markdown
+`bd dolt remote add origin ...` writes `sync.remote` to `.beads/config.yaml`.
+Commit and push that config file with your normal git workflow. Other clones can
+then run `bd bootstrap` if their database is missing/stale, or `bd dolt pull`
+when they already have the right database.
+```
+
+
+For agent-orhcestrator this is the research:
+
+# Example Workspace/Repo Configuration
+
+Here are example YAML configurations for Agent Orchestrator, ranging from minimal to comprehensive setups.
+
+## Minimal Configuration
+
+The absolute minimum required configuration:
+
+```yaml
+projects:
+  my-app:
+    repo: owner/my-app
+    path: ~/my-app
+    defaultBranch: main
+``` [1](#0-0) 
+
+## Basic Configuration with Defaults
+
+A typical configuration with sensible defaults:
+
+```yaml
+# agent-orchestrator.yaml
+$schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json
+port: 3000
+
+defaults:
+  runtime: tmux       # default on macOS / Linux; on Windows the default is `process` (ConPTY)
+  agent: claude-code
+  workspace: worktree
+  notifiers: [desktop]
+
+projects:
+  my-app:
+    repo: owner/my-app
+    path: ~/my-app
+    defaultBranch: main
+    sessionPrefix: app
+
+reactions:
+  ci-failed:
+    auto: true
+    action: send-to-agent
+    retries: 2
+  changes-requested:
+    auto: true
+    action: send-to-agent
+    escalateAfter: 30m
+  approved-and-green:
+    auto: false # flip to true for auto-merge
+    action: notify
+``` [2](#0-1) 
+
+## Full Configuration Example
+
+The comprehensive example file with all available options:
+
+```yaml
+# Agent Orchestrator Configuration
+# Copy to agent-orchestrator.yaml and customize.
+$schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json
+
+# Web dashboard port
+port: 3000
+
+# Terminal server ports
+terminalPort: 14800
+directTerminalPort: 14801
+
+# Power management
+power:
+  preventIdleSleep: true  # Default on macOS, no-op on Linux
+
+# Lifecycle controls
+lifecycle:
+  autoCleanupOnMerge: true
+  mergeCleanupIdleGraceMs: 300000
+
+# Default plugins
+defaults:
+  agent: claude-code
+  workspace: worktree
+  notifiers: [desktop]
+
+projects:
+  my-app:
+    name: My App
+    repo: org/my-app
+    path: ~/my-app
+    defaultBranch: main
+    sessionPrefix: app
+
+    # Per-project plugin overrides
+    agent: claude-code
+    runtime: tmux
+
+    # Agent-specific config
+    agentConfig:
+      permissions: skip
+      model: opus
+
+    # Files to symlink into workspaces
+    symlinks: [.env, .claude]
+
+    # Commands to run after workspace creation
+    postCreate:
+      - "pnpm install"
+
+    # Inline rules
+    agentRules: |
+      Always run tests before pushing.
+      Use conventional commits (feat:, fix:, chore:).
+``` [3](#0-2) 
+
+## Multi-Project Configuration
+
+Example for managing multiple repositories:
+
+```yaml
+projects:
+  frontend:
+    repo: org/frontend
+    path: ~/frontend
+    sessionPrefix: fe
+
+  backend:
+    repo: org/backend
+    path: ~/backend
+    sessionPrefix: api
+
+  docs:
+    repo: org/docs
+    path: ~/docs
+    sessionPrefix: doc
+``` [4](#0-3) 
+
+## Local Project Config (Flat Format)
+
+Modern project-local configuration without the `projects:` wrapper:
+
+```yaml
+agent: claude-code
+runtime: tmux
+workspace: worktree
+
+symlinks:
+  - .env
+  - .claude
+
+postCreate:
+  - pnpm install
+
+agentRules: |
+  Run tests before pushing.
+  Keep PRs small and focused.
+``` [5](#0-4) 
+
+## Notes
+
+- The `$schema` line enables editor autocomplete and validation [6](#0-5) 
+- Runtime defaults to `tmux` on macOS/Linux and `process` on Windows [7](#0-6) 
+- Additional examples are available in the `examples/` directory [8](#0-7) 
+- Configuration can be validated using `ao doctor` [9](#0-8) 
+
+Wiki pages you might want to explore:
+- [Agent Orchestrator Overview (AgentWrapper/agent-orchestrator)](/wiki/AgentWrapper/agent-orchestrator#1)
+- [Getting Started: Installation & Quickstart (AgentWrapper/agent-orchestrator)](/wiki/AgentWrapper/agent-orchestrator#1.1)
+- [Configuration Reference (AgentWrapper/agent-orchestrator)](/wiki/AgentWrapper/agent-orchestrator#6)
+
+### Citations
+
+**File:** SETUP.md (L186-192)
+```markdown
+```yaml
+projects:
+  my-app:
+    repo: owner/my-app
+    path: ~/my-app
+    defaultBranch: main
+```
+```
+
+**File:** SETUP.md (L624-640)
+```markdown
+```yaml
+projects:
+  frontend:
+    repo: org/frontend
+    path: ~/frontend
+    sessionPrefix: fe
+
+  backend:
+    repo: org/backend
+    path: ~/backend
+    sessionPrefix: api
+
+  docs:
+    repo: org/docs
+    path: ~/docs
+    sessionPrefix: doc
+```
+```
+
+**File:** README.md (L136-167)
+```markdown
+```yaml
+# agent-orchestrator.yaml
+$schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json
+# Runtime data is auto-derived under ~/.agent-orchestrator/{hash}-{projectId}/
+port: 3000
+
+defaults:
+  runtime: tmux       # default on macOS / Linux; on Windows the default is `process` (ConPTY)
+  agent: claude-code
+  workspace: worktree
+  notifiers: [desktop]
+
+projects:
+  my-app:
+    repo: owner/my-app
+    path: ~/my-app
+    defaultBranch: main
+    sessionPrefix: app
+
+reactions:
+  ci-failed:
+    auto: true
+    action: send-to-agent
+    retries: 2
+  changes-requested:
+    auto: true
+    action: send-to-agent
+    escalateAfter: 30m
+  approved-and-green:
+    auto: false # flip to true for auto-merge
+    action: notify
+```
+```
+
+**File:** README.md (L171-172)
+```markdown
+Keep the `$schema` line so editors can autocomplete and validate against [`schema/config.schema.json`](schema/config.schema.json).
+
+```
+
+**File:** agent-orchestrator.yaml.example (L1-120)
+```text
+# Agent Orchestrator Configuration
+# Copy to agent-orchestrator.yaml and customize.
+$schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json
+
+# Runtime data directories are auto-derived from this config location under:
+#   ~/.agent-orchestrator/{hash}-{projectId}/
+# You usually do not need to configure paths manually.
+
+# Web dashboard port
+port: 3000
+
+# Terminal server ports (defaults: 14800/14801 — chosen to avoid conflicts with dev tools)
+# Override when running multiple dashboards to avoid EADDRINUSE
+# terminalPort: 14800
+# directTerminalPort: 14801
+
+# Power management — controls system sleep while AO is running
+# power:
+#   preventIdleSleep: true  # Default on macOS, no-op on Linux
+#                           # Keeps Mac awake for remote dashboard access (e.g., via Tailscale)
+#                           # Uses caffeinate -i -w <pid> — auto-releases when AO exits
+#                           # Note: lid-close sleep is enforced by hardware and cannot be prevented
+
+# Lifecycle — controls how AO cleans up sessions after their PRs merge
+# lifecycle:
+#   autoCleanupOnMerge: true        # Default. When a PR is detected as merged, tear down
+#                                   # the tmux session, remove the worktree, and archive
+#                                   # metadata so `ao status` stays clean. Set false if
+#                                   # you want merged worktrees preserved for inspection.
+#   mergeCleanupIdleGraceMs: 300000 # Grace window (ms) before forcing cleanup on an agent
+#                                   # that is still active at merge time. Default 5 min.
+
+# Default plugins (these are the defaults — you can omit this section)
+# runtime defaults to 'tmux' on Linux/macOS, 'process' on Windows
+defaults:
+  # runtime: tmux         # tmux (Linux/macOS default) | process (Windows default)
+  agent: claude-code      # claude-code | codex | aider | opencode | cursor | kimicode
+  # orchestrator:
+  #   agent: claude-code
+  # worker:
+  #   agent: codex
+  workspace: worktree     # worktree | clone
+  notifiers: [desktop]    # desktop | slack | discord | webhook | composio | openclaw
+
+# Installer-managed external plugins (optional)
+# plugins:
+#   - name: owasp-auditor
+#     source: registry     # registry | npm | local
+#     package: "@ao-plugins/owasp-auditor"
+#     version: "^0.1.0"
+#     enabled: true
+#
+#   - name: local-dev-plugin
+#     source: local
+#     path: ./plugins/local-dev-plugin
+#     enabled: true
+
+# Projects — at minimum, specify repo and path
+projects:
+  my-app:
+    name: My App
+    repo: org/my-app
+    path: ~/my-app
+    defaultBranch: main
+    sessionPrefix: app
+
+    # Issue tracker (defaults to github issues)
+    # tracker:
+    #   plugin: linear
+    #   teamId: "your-team-id"
+
+    # SCM webhook acceleration (optional)
+    # scm:
+    #   plugin: github
+    #   webhook:
+    #     path: /api/webhooks/github
+    #     secretEnvVar: GITHUB_WEBHOOK_SECRET
+    #     signatureHeader: x-hub-signature-256
+    #     eventHeader: x-github-event
+    #     deliveryHeader: x-github-delivery
+    #     maxBodyBytes: 1048576
+
+    # Per-project environment variables forwarded into worker session runtimes.
+    # Useful for scoping per-project tokens (e.g. pinning gh auth via GH_TOKEN).
+    # AO-internal vars (AO_SESSION, AO_PROJECT_ID, etc.) always take precedence.
+    # env:
+    #   GH_TOKEN: ghp_xxx
+
+    # Files to symlink into workspaces
+    # symlinks: [.env, .claude]
+
+    # Commands to run after workspace creation
+    # postCreate:
+    #   - "pnpm install"
+
+    # Agent-specific config
+    # agentConfig:
+    #   permissions: skip    # --dangerously-skip-permissions
+    #   model: opus
+
+    # Optional role-specific agent overrides
+    # orchestrator:
+    #   agent: claude-code
+    #   agentConfig:
+    #     model: claude-sonnet-4-5
+    # worker:
+    #   agent: codex
+    #   agentConfig:
+    #     model: gpt-5-codex
+
+    # Inline rules included in every agent prompt for this project
+    # agentRules: |
+    #   Always run tests before pushing.
+    #   Use conventional commits (feat:, fix:, chore:).
+
+    # Path to a rules file (relative to project path)
+    # agentRulesFile: .agent-rules.md
+
+    # Rules for the orchestrator agent (reserved for future use)
+    # orchestratorRules: |
+```
+
+**File:** website/content/docs/configuration/index.mdx (L56-71)
+```text
+```yaml title="agent-orchestrator.yaml"
+agent: claude-code
+runtime: tmux
+workspace: worktree
+
+symlinks:
+  - .env
+  - .claude
+
+postCreate:
+  - pnpm install
+
+agentRules: |
+  Run tests before pushing.
+  Keep PRs small and focused.
+```
+```
+
+**File:** website/content/docs/examples.mdx (L6-10)
+```text
+All examples live in the [`examples/` directory](https://github.com/ComposioHQ/agent-orchestrator/tree/main/examples) of the AO repository. Pick the one closest to your setup, copy it to your project root as `agent-orchestrator.yaml`, fill in your repo path and any API keys, and you're ready to spawn agents.
+
+```bash
+cp examples/simple-github.yaml agent-orchestrator.yaml
+```
+```
+
+
+for entireio/cli this is the research:
+
+Based on the codebase context, you're asking for configuration examples that set up repository sync for checkpoint data. The Entire CLI uses JSON configuration files to sync checkpoint branches to a separate repository via the `checkpoint_remote` setting. [1](#0-0) 
+
+## JSON Configuration Example
+
+Here's a complete `settings.json` example that configures checkpoint sync to a separate repository:
+
+```json
+{
+  "enabled": true,
+  "strategy_options": {
+    "checkpoint_remote": {
+      "provider": "github",
+      "repo": "myorg/checkpoints-private"
+    }
+  }
+}
+```
+
+This configuration should be placed in `.entire/settings.json` in your repository root. [2](#0-1) 
+
+## Configuration Details
+
+The `checkpoint_remote` object requires two fields: [3](#0-2) 
+
+- **`provider`**: The git hosting provider (e.g., "github")
+- **`repo`**: The repository in "owner/repo" format (must contain a slash) [4](#0-3) 
+
+## Alternative: CLI Configuration
+
+You can also configure this via the CLI instead of editing the JSON file directly: [5](#0-4) 
+
+```bash
+entire enable --checkpoint-remote github:myorg/checkpoints-private
+```
+
+## How It Works
+
+When configured, Entire will: [6](#0-5) 
+
+1. Derive the checkpoint URL using the same protocol (SSH or HTTPS) as your push remote
+2. Push the `entire/checkpoints/v1` branch to the specified checkpoint repository instead of your default push remote
+3. Skip pushing if a fork is detected (when push remote owner differs from checkpoint repo owner) [7](#0-6) 
+4. Fetch the checkpoint branch locally if it exists on the remote but not locally (one-time setup) [8](#0-7) 
+
+## Notes
+
+- The configuration only supports JSON format, not YAML, based on the codebase implementation
+- The `repo` field must contain a slash (e.g., "org/repo") or the configuration will be rejected [4](#0-3) 
+- Legacy string format (e.g., `"checkpoint_remote": "git@github.com:org/repo.git"`) is no longer supported and will be ignored [9](#0-8) 
+
+Wiki pages you might want to explore:
+- [Getting Started (entireio/cli)](/wiki/entireio/cli#2)
+- [Configuration Options Reference (entireio/cli)](/wiki/entireio/cli#7.2)
+
+### Citations
+
+**File:** README.md (L284-293)
+```markdown
+```json
+{
+  "strategy_options": {
+    "checkpoint_remote": {
+      "provider": "github",
+      "repo": "myorg/checkpoints-private"
+    }
+  }
+}
+```
+```
+
+**File:** README.md (L295-299)
+```markdown
+Or via the CLI:
+
+```bash
+entire enable --checkpoint-remote github:myorg/checkpoints-private
+```
+```
+
+**File:** cmd/entire/cli/settings/settings.go (L19-24)
+```go
+const (
+	// EntireSettingsFile is the path to the Entire settings file
+	EntireSettingsFile = ".entire/settings.json"
+	// EntireSettingsLocalFile is the path to the local settings override file (not committed)
+	EntireSettingsLocalFile = ".entire/settings.local.json"
+)
+```
+
+**File:** cmd/entire/cli/settings/settings.go (L429-434)
+```go
+// CheckpointRemoteConfig holds the structured checkpoint remote configuration.
+// Stored in strategy_options.checkpoint_remote as {"provider": "github", "repo": "org/repo"}.
+type CheckpointRemoteConfig struct {
+	Provider string // e.g., "github"
+	Repo     string // e.g., "org/checkpoints-repo"
+}
+```
+
+**File:** cmd/entire/cli/settings/settings.go (L466-468)
+```go
+	if !strings.Contains(repo, "/") {
+		return nil
+	}
+```
+
+**File:** cmd/entire/cli/strategy/checkpoint_remote.go (L99-107)
+```go
+	// Fork detection: compare owners
+	checkpointOwner := config.Owner()
+	if pushInfo.owner != "" && checkpointOwner != "" && !strings.EqualFold(pushInfo.owner, checkpointOwner) {
+		logging.Debug(ctx, "checkpoint-remote: push remote owner differs from checkpoint remote owner, skipping (fork detected)",
+			slog.String("push_owner", pushInfo.owner),
+			slog.String("checkpoint_owner", checkpointOwner),
+		)
+		return ps
+	}
+```
+
+**File:** cmd/entire/cli/strategy/checkpoint_remote.go (L109-118)
+```go
+	// Derive checkpoint URL using same protocol as push remote
+	checkpointURL, err := deriveCheckpointURLFromInfo(pushInfo, config)
+	if err != nil {
+		logging.Warn(ctx, "checkpoint-remote: could not derive URL from push remote",
+			slog.String("remote", pushRemoteName),
+			slog.String("repo", config.Repo),
+			slog.String("error", err.Error()),
+		)
+		return ps
+	}
+```
+
+**File:** cmd/entire/cli/strategy/checkpoint_remote.go (L122-130)
+```go
+	// If the checkpoint branch doesn't exist locally, try to fetch it from the URL.
+	// This is a one-time operation — once the branch exists locally, subsequent pushes
+	// skip the fetch entirely. Only fetch the metadata branch; trails are always pushed
+	// to the user's push remote, not the checkpoint remote.
+	if err := fetchMetadataBranchIfMissing(ctx, checkpointURL); err != nil {
+		logging.Warn(ctx, "checkpoint-remote: failed to fetch metadata branch",
+			slog.String("error", err.Error()),
+		)
+	}
+```
+
+**File:** cmd/entire/cli/settings/settings_checkpoint_remote_test.go (L86-95)
+```go
+func TestGetCheckpointRemote_LegacyStringIgnored(t *testing.T) {
+	t.Parallel()
+
+	s := &EntireSettings{
+		StrategyOptions: map[string]any{
+			"checkpoint_remote": "git@github.com:org/checkpoints.git",
+		},
+	}
+	assert.Nil(t, s.GetCheckpointRemote())
+}
+```
+
+---
+
+so you prefer remote not url now?
+
+---
+
+agentv has nothing to do with beads, i'm just looking at how other projects name it
+
+---
+
+i don't tink agentv has any use of the remote name, can you confirm. if so we can use remote and no need for remote_name alias
+
+---
+
+please remove the legacy plumbing.
+
+---
+
+should we do this in $worktree
+
+---
+
+also i don't think we need push_conflict_policy, default is just block and ask user to resolve  conflicts
+
+---
+
+check status again
+
+---
+
+also can we merge https://github.com/EntityProcess/agentv/pull/1556
+
+---
+
+is it an issue that index JSONL is inside target folder what is the current directory structure for output artifacts
+
+---
+
+will this be lower performance
+
+---
+
+is the docs row id worker done now and ready to merge
+
+---
+
+also does index.jsonl confuse with summary.json naming. should summary.json be the entry point and reference index.jsonl. they both sound like doing the same thing. should one be simply run_manfiest.jsonl
+
+---
+
+but summary.json is not jsonl so it can represent aggregate level data whereas the run_manifest.jsonl cannot
+
+---
+
+so should we simply call it manifest or will that be ambgouos.
+
+---
+
+so what if we have other manifest.
+
+---
+
+os this is better and more standard namining compared with index?
+
+---
+
+ok lets rename to run_manifest, spawn worker then
+
+---
+
+also should summary.json reference run_manifest.jsonl so basically if we decide to change the manifest name none of the consumers will break since summary.json defines where to look
+
+---
+
+also this means we need to update dashboard to consume it right
+
+---
+
+also same as the compare and trend subcommand
