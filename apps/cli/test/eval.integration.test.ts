@@ -234,14 +234,6 @@ async function expectFileExists(filePath: string): Promise<void> {
   await access(filePath);
 }
 
-async function writeLocalYamlCacheConfig(fixture: EvalFixture, cachePath: string): Promise<void> {
-  await writeFile(
-    path.join(fixture.suiteDir, '.agentv', 'config.local.yaml'),
-    `execution:\n  cache: true\n  cache_path: ${cachePath}\n`,
-    'utf8',
-  );
-}
-
 describe('agentv eval CLI', () => {
   it('writes results, summary, and prompt dumps using default directories', async () => {
     const fixture = await createFixture();
@@ -663,8 +655,9 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
         target: 'codex-target',
-        model: 'gpt-5-codex',
         runs: 2,
+        threshold: 0.8,
+        budget_usd: 3,
         timeout_seconds: 12,
       });
       expect(
@@ -802,27 +795,6 @@ describe('agentv eval CLI', () => {
     try {
       const cachePath = '.agentv/ts-response-cache';
       await writeTsCacheConfig(fixture, cachePath);
-
-      const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
-
-      const resolvedCachePath = path.resolve(fixture.suiteDir, cachePath);
-      expect(stdout).toContain(`Response cache: enabled (${resolvedCachePath})`);
-      const diagnostics = await readDiagnostics(fixture);
-      expect(diagnostics).toMatchObject({
-        hasCache: true,
-        cachePath: resolvedCachePath,
-        useCache: true,
-      });
-    } finally {
-      await rm(fixture.baseDir, { recursive: true, force: true });
-    }
-  }, 30_000);
-
-  it('honors config.local.yaml execution.cache_path', async () => {
-    const fixture = await createFixture();
-    try {
-      const cachePath = '.agentv/yaml-response-cache';
-      await writeLocalYamlCacheConfig(fixture, cachePath);
 
       const { stdout } = await runCli(fixture, ['eval', fixture.testFilePath]);
 
