@@ -176,8 +176,10 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `tests` instead */
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly model?: JsonValue;
   readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
+  readonly policy?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
@@ -530,9 +532,9 @@ async function loadTestsFromParsedYamlValue(
   const rawSuiteInput = suite.input;
   const rawSuiteInputFiles = suite.input_files;
 
-  // Extract global target from execution.target (or legacy root-level target)
+  // Extract global target from top-level target or legacy execution.target.
   const rawGlobalExecution = readSuiteRuntimeBlock(suite, evalFilePath);
-  const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
+  const _globalTarget = asString(suite.target) ?? asString(rawGlobalExecution?.target);
 
   // Build global execution context, including suite-level assertions (which is a sibling of execution)
   const suiteAssertions = suite.assertions;
@@ -1361,30 +1363,72 @@ function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
     return 'workspace';
   }
 
-  const runtime = suite.experiment ?? suite.execution;
+  const runtime = suite.execution;
   if (isJsonObject(runtime) && runtime.workspace !== undefined) {
-    return suite.experiment !== undefined ? 'experiment.workspace' : 'execution.workspace';
+    return 'execution.workspace';
   }
 
   return undefined;
 }
 
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
-  if (suite.experiment !== undefined && suite.execution !== undefined) {
+  if (suite.experiment !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: use either 'experiment' or legacy 'execution', not both.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.`,
     );
   }
-  const runtime = suite.experiment ?? suite.execution;
+  const runtime = suite.execution;
   return isJsonObject(runtime) ? runtime : undefined;
 }
 
 function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | undefined {
-  const runtime = readSuiteRuntimeBlock(parsed as RawTestSuite, 'eval file');
-  if (!runtime) {
+  const suite = parsed as RawTestSuite;
+  const runtime = readSuiteRuntimeBlock(suite, 'eval file');
+  const policy = isJsonObject(suite.policy) ? suite.policy : undefined;
+  validatePolicyFields(policy);
+  const target = asString(suite.target);
+  const model = asString(suite.model);
+  if (!runtime && !policy && !target && !model) {
     return undefined;
   }
-  return normalizeExperimentConfig(runtime);
+  return normalizeExperimentConfig({
+    ...(runtime ?? {}),
+    ...(target !== undefined ? { target } : {}),
+    ...(model !== undefined ? { model } : {}),
+    ...(policy ?? {}),
+  });
+}
+
+const ALLOWED_POLICY_FIELDS: ReadonlySet<string> = new Set([
+  'runs',
+  'timeout_seconds',
+  'threshold',
+  'budget_usd',
+]);
+
+function validatePolicyFields(policy: JsonObject | undefined): void {
+  if (!policy) {
+    return;
+  }
+  const camelCasePolicyFields = ['earlyExit', 'timeoutSeconds', 'budgetUsd'];
+  for (const field of camelCasePolicyFields) {
+    if (policy[field] !== undefined) {
+      throw new Error(
+        `Invalid policy.${field}. Eval YAML uses snake_case; use policy.${toSnakeCase(field)}.`,
+      );
+    }
+  }
+  for (const key of Object.keys(policy)) {
+    if (!ALLOWED_POLICY_FIELDS.has(key)) {
+      throw new Error(
+        `Invalid policy.${key}. Top-level policy supports only runs, timeout_seconds, threshold, and budget_usd. Legacy repeat strategy controls belong under execution or scoped run overrides.`,
+      );
+    }
+  }
+}
+
+function toSnakeCase(value: string): string {
+  return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
 const SOURCE_SECRET_KEY_PATTERN =

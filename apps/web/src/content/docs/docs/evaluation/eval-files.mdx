@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and inline runtime block for an evaluation run. Runtime choices such as target matrices, thresholds, budgets, and repeat runs belong under top-level [`experiment:`](/docs/evaluation/experiments/). Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval data formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run policy for an evaluation run. Top-level `name` is the experiment/result namespace, top-level `target` identifies the system under test, and top-level [`policy`](/docs/evaluation/experiments/) owns thresholds, budgets, timeouts, and repeat runs. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 
@@ -23,7 +23,7 @@ experiment format.
   it with `imports.tests`, `tests: ./cases.yaml`, or string shorthand; parent
   suite context applies because raw cases do not carry their own suite context.
 - A **wrapper eval** is eval YAML that imports one or more suites with
-  `imports.suites` and binds runtime policy in its inline `experiment:` block.
+  `imports.suites` and binds runtime policy with top-level `target`/`policy`.
   Wrapper evals can live anywhere in the repo. A wrapper that imports suites
   with `imports.suites` must not define parent `workspace`; imported suites own
   task environment. Machine-local existing workspace paths belong in CLI flags
@@ -60,11 +60,10 @@ A wrapper eval stays ordinary eval YAML while choosing runtime policy:
 
 ```yaml
 # experiments/refunds-codex.eval.yaml
-experiment:
-  target: codex-gpt5
-  repeat:
-    count: 2
-    strategy: pass_all
+name: refunds-codex
+target: codex-gpt5
+policy:
+  runs: 2
 
 imports:
   suites:
@@ -80,7 +79,7 @@ tests:
 
 The `experiments/` directory in that example is optional and user-owned. AgentV
 does not infer behavior from the path; the wrapper runs because it is eval YAML
-with an inline `experiment:` block. The wrapper owns runtime policy only. Put
+with tests or imports. The wrapper owns runtime policy only. Put
 workspace setup in imported child suites. Parent workspace-affecting fields,
 including top-level `workspace`, are for parent-owned raw cases, including
 cases imported with `imports.tests`. Runtime workspace path overrides belong in
@@ -94,8 +93,7 @@ The primary format. A single file contains metadata, inline runtime config, and 
 
 ```yaml
 description: Math problem solving evaluation
-experiment:
-  target: default
+target: default
 
 assertions:
   - Correctly calculates the answer
@@ -114,9 +112,11 @@ tests:
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
-| `experiment` | Runtime policy (`target`, `targets`, `workers`, `repeat`, `threshold`, `timeout_seconds`, `budget_usd`, etc.) |
+| `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
+| `model` | Optional model override for the selected target |
+| `policy` | Runtime/gating policy (`runs`, `threshold`, `timeout_seconds`, `budget_usd`) |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
-| `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
+| `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
@@ -324,8 +324,7 @@ Instead of inlining tests in the same file, you can point `tests` to an external
 ```yaml
 name: my-eval
 description: My evaluation suite
-experiment:
-  target: default
+target: default
 tests: ./cases.yaml
 ```
 
@@ -394,7 +393,7 @@ input: Fix the null check bug in parser.ts
 - **Alphabetical ordering:** Subdirectories are sorted alphabetically for deterministic order
 - **Per-case workspace:** A `workspace/` subdirectory inside the case directory automatically sets `workspace.template` to that path, unless the case already defines a `workspace` field
 - **Skipped directories:** Subdirectories without `case.yaml` are skipped with a warning
-- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, and `experiment` still apply to directory-discovered cases
+- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, `target`, and `policy` still apply to directory-discovered cases
 
 This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
 For guidance on keeping provenance metadata, patches, oracle files, and generated
@@ -489,8 +488,7 @@ An optional YAML sidecar file provides metadata and execution config. Place it a
 ```yaml
 description: Math evaluation dataset
 suite: math-tests
-experiment:
-  target: azure-base
+target: azure-base
 assertions:
   - name: correctness
     type: llm-grader

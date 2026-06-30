@@ -13,6 +13,12 @@ Partially superseded by
 [ADR 0009](0009-eval-path-result-identity-and-default-experiment.md) for result
 experiment bucket precedence, result row identity, and run bundle path naming.
 
+Partially superseded on 2026-06-30 by GitHub issue #1575 / Bead `av-ogpn.1`:
+top-level `experiment:` is no longer an authored eval YAML field. The eval file
+defines the experiment; top-level `name` is the result namespace, top-level
+`target` identifies the system under test, and top-level `policy` owns
+runtime/gating controls.
+
 ## Context
 
 AgentV needs a stable authoring contract for repo-native evals, run-time knobs,
@@ -57,18 +63,18 @@ The only runnable authoring artifact is `eval.yaml` or another `*.eval.yaml`
 file. A project may place wrapper eval files under an `experiments/` directory
 when their main job is to bind runtime policy over reusable suites, but those
 files are still ordinary eval YAML files. AgentV must not infer behavior from
-that directory name. Runtime controls live in an inline `experiment:` block:
+that directory name. Runtime controls live in top-level `target` and `policy`
+fields:
 
 ```yaml
 name: cargowise-sql-migration-codex
-
-experiment:
-  target: agent
+target: agent
+model: gpt-5-codex
+execution:
   workers: 4
+policy:
   threshold: 0.8
-  repeat:
-    count: 3
-    strategy: pass_at_k
+  runs: 3
   timeout_seconds: 900
   budget_usd: 2.00
 
@@ -77,9 +83,7 @@ tests:
     type: suite
     run:
       threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
+      timeout_seconds: 600
     select:
       test_ids:
         - pr50857-*
@@ -97,9 +101,9 @@ tests:
     type: tests
 ```
 
-`experiment:` is canonical for new eval YAML. `execution:` remains a legacy
-alias only for already-existing eval files. Docs, examples, schema snapshots,
-and new fixtures should use `experiment:`. New surfaces should not teach
+Top-level `target`, `model`, and `policy:` are canonical for new eval YAML.
+`experiment:` is rejected. `execution:` remains a legacy alias only for
+already-existing eval files and target matrices. New surfaces should not teach
 `execution:` except when documenting compatibility for old eval files.
 
 The old experiment runtime fields are ported into the parent eval file:
@@ -107,7 +111,7 @@ The old experiment runtime fields are ported into the parent eval file:
 - target or target matrix
 - workers
 - thresholds
-- repeat policy such as `count` and `pass_at_k`
+- repeated run count through `policy.runs`
 - timeout
 - budget
 - other run-time controls that do not define the task itself
@@ -149,9 +153,11 @@ must stay with the lifecycle surface that actually owns that work:
 - `targets[].hooks` prepare the target runner or provider variant. Agent
   discovery files, provider-specific config, and target-specific harness setup
   belong here.
-- `experiment:` selects runtime policy: target or target matrix, workers,
-  repeat strategy, threshold, timeout, budget, sandbox/runtime knobs, and result
-  identity.
+- Top-level `target` selects the system under test. Top-level `policy` selects
+  runtime and gating controls: repeat strategy, threshold, timeout, budget, and
+  early-exit behavior. Workspace state reuse stays under
+  `workspace.isolation`, and Docker/container binding stays under
+  `workspace.docker`.
 
 This differs from external experiment formats that allow generic scripts on the
 experiment object. AgentV keeps those scripts in workspace or target hooks so a
@@ -286,16 +292,15 @@ child-child workspace merging.
 
 ## Runtime Overrides
 
-The parent `experiment:` block is the default runtime policy for the whole eval.
-Some evals need stricter or looser policy for a selected group of tests, such as
-`pass_at_k` for stochastic agentic tasks and `pass_all` for hard regression
-gates. AgentV supports scoped runtime overrides for scoring and scheduling
-policy without creating separate experiment files.
+The parent top-level `target`, `model`, and `policy:` fields are the default
+runtime policy for the whole eval. Some evals need stricter or looser policy for
+a selected group of tests. AgentV supports scoped runtime overrides for scoring
+and scheduling policy without creating separate experiment files.
 
 Runtime override precedence is:
 
 ```text
-test.run > tests[].run > parent experiment
+test.run > tests[].run > parent policy
 ```
 
 Group-level overrides live beside `include`, `type`, and `select`:
@@ -307,9 +312,7 @@ tests:
     select:
       tags: [agentic]
     run:
-      repeat:
-        count: 3
-        strategy: pass_at_k
+      timeout_seconds: 300
 
   - include: ./evals/regression/**/*.eval.yaml
     type: suite
@@ -317,9 +320,7 @@ tests:
       tags: [must-pass]
     run:
       threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
+      budget_usd: 1.00
 ```
 
 Case-level overrides use the same `run:` key:
@@ -330,15 +331,15 @@ tests:
     input: "..."
     run:
       threshold: 1.0
-      repeat:
-        count: 1
+      timeout_seconds: 120
 ```
 
 Initial scoped override fields should focus on result interpretation and
 scheduling:
 
 - `threshold`
-- `repeat`
+- `timeout_seconds`
+- `budget_usd`
 - `timeout_seconds`
 - `budget_usd`
 

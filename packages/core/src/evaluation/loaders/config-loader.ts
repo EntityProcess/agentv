@@ -259,31 +259,39 @@ function stripLocalOnlyExecutionDefaults(
 }
 
 function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | undefined {
-  if (suite.experiment !== undefined && suite.execution !== undefined) {
-    throw new Error("Use either top-level 'experiment' or legacy 'execution', not both.");
+  if (suite.experiment !== undefined) {
+    throw new Error(
+      "Top-level 'experiment' has been removed from eval YAML. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.",
+    );
   }
-  const runtime = suite.experiment ?? suite.execution;
+  const runtime = suite.execution;
   if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) {
     return undefined;
   }
   return runtime as Record<string, unknown>;
 }
 
+function getSuitePolicyBlock(suite: JsonObject): Record<string, unknown> | undefined {
+  const policy = suite.policy;
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) {
+    return undefined;
+  }
+  return policy as Record<string, unknown>;
+}
+
 /**
  * Extract target name from parsed eval suite (checks execution.target then falls back to root-level target).
  */
 export function extractTargetFromSuite(suite: JsonObject): string | undefined {
-  // Check experiment.target first, then legacy execution.target, then root-level target.
+  const targetValue = suite.target;
+  if (typeof targetValue === 'string' && targetValue.trim().length > 0) {
+    return targetValue.trim();
+  }
+
   const runtime = getSuiteRuntimeBlock(suite);
   const runtimeTarget = runtime?.target;
   if (typeof runtimeTarget === 'string' && runtimeTarget.trim().length > 0) {
     return runtimeTarget.trim();
-  }
-
-  // Fallback to legacy root-level target
-  const targetValue = suite.target;
-  if (typeof targetValue === 'string' && targetValue.trim().length > 0) {
-    return targetValue.trim();
   }
 
   return undefined;
@@ -461,6 +469,16 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
  * Returns undefined when not specified.
  */
 export function extractBudgetUsd(suite: JsonObject): number | undefined {
+  const policyObj = getSuitePolicyBlock(suite);
+  const policyBudget = policyObj?.budget_usd;
+  if (policyBudget !== undefined && policyBudget !== null) {
+    if (typeof policyBudget === 'number' && policyBudget > 0) {
+      return policyBudget;
+    }
+    logWarning(`Invalid policy.budget_usd: ${policyBudget}. Must be a positive number. Ignoring.`);
+    return undefined;
+  }
+
   const executionObj = getSuiteRuntimeBlock(suite);
   if (!executionObj) {
     return undefined;
@@ -518,6 +536,18 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
  * Returns undefined when not specified.
  */
 export function extractThreshold(suite: JsonObject): number | undefined {
+  const policyObj = getSuitePolicyBlock(suite);
+  const policyThreshold = policyObj?.threshold;
+  if (policyThreshold !== undefined && policyThreshold !== null) {
+    if (typeof policyThreshold === 'number' && policyThreshold >= 0 && policyThreshold <= 1) {
+      return policyThreshold;
+    }
+    logWarning(
+      `Invalid policy.threshold: ${policyThreshold}. Must be a number between 0 and 1. Ignoring.`,
+    );
+    return undefined;
+  }
+
   const executionObj = getSuiteRuntimeBlock(suite);
   if (!executionObj) {
     return undefined;
@@ -646,7 +676,7 @@ function warnRemovedExperimentPointer(raw: unknown, configPath: string, key: str
     return;
   }
   logWarning(
-    `${key} in ${configPath} is ignored. Runtime configuration now belongs in eval.yaml under experiment:.`,
+    `${key} in ${configPath} is ignored. Runtime configuration now belongs in eval.yaml under top-level target and policy.`,
   );
 }
 

@@ -61,14 +61,13 @@ already-exported secrets into `.env`.
 
 ## Referencing Targets in Evals
 
-Select targets at the eval runtime level with `experiment.target`,
-`experiment.targets`, legacy suite-level `execution.target(s)`, or CLI
-`--target`. Test cases do not choose targets; split target-specific cases into
-separate eval suites or select them with tags/filters.
+Select the system under test with top-level `target` or CLI `--target`.
+Existing target-matrix evals may still use legacy suite-level
+`execution.targets`. Test cases do not choose targets; split target-specific
+cases into separate eval suites or select them with tags/filters.
 
 ```yaml
-experiment:
-  targets: [azure-base, vscode_dev]
+target: azure-base
 
 tests:
   - id: test-1
@@ -240,10 +239,11 @@ Eval files can define per-target hooks that run setup/teardown scripts to custom
 
 Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config. Keep installs, builds, fixture generation, and case resets in `workspace.hooks`.
 
-Target hooks are defined in the eval file's `experiment.targets` array using object form:
+Target hooks for matrix evals are defined in the eval file's legacy
+`execution.targets` array using object form:
 
 ```yaml
-experiment:
+execution:
   targets:
     - baseline                          # string shorthand (no hooks)
     - name: with-skills                 # object form with hooks

@@ -6,6 +6,11 @@ Date: 2026-06-27
 
 Proposed
 
+Superseded for eval authoring placement on 2026-06-30 by GitHub issue #1575 /
+Bead `av-ogpn.1`: top-level `experiment:` is no longer an authored eval YAML
+field. Use top-level `target` and `policy`; keep the Dashboard/result
+"Experiment" concept as a derived grouping label.
+
 ## Context
 
 Research for bead `av-2h9` compared AgentV with SWE-bench, SWE-bench Verified,
@@ -23,8 +28,8 @@ denominator:
 - `tests[].id` and `tests[].metadata` for case identity and imported row
   provenance;
 - `workspace.repos[]`, templates, hooks, and isolation for operational setup;
-- inline `experiment:` for target binding, repeat policy, gates, and runtime
-  knobs;
+- top-level `target` plus `policy` for target binding, repeat policy, gates,
+  and runtime knobs;
 - `expected_output`, assertions, and code graders for reference data and hidden
   verification;
 - AgentV run bundles as the artifact source of truth.

@@ -19,7 +19,7 @@ Comprehensive docs: https://agentv.dev
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
-task fixtures, and the inline `experiment:` runtime block. Use `imports.suites`
+task fixtures, top-level `target`, and top-level `policy`. Use `imports.suites`
 for full child suites that preserve their workspace, shared input, assertions,
 fixtures, and graders. Use `imports.tests` for raw case rows that should run in
 the parent file's context. Inline `tests` are also parent-owned raw cases.
@@ -27,9 +27,9 @@ String-valued `tests` and string entries inside `tests[]` are raw-case import
 shorthand for direct paths, directories, and globs. Legacy `tests[].include`
 entries still load with a migration warning, but new evals should use
 `imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
-individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
-`budget_usd`; keep target selection, setup, and workspace mutation under the
-parent `experiment:`.
+individual tests only for `threshold`, `timeout_seconds`, and
+`budget_usd`; keep target selection at top-level `target` or CLI `--target`,
+and keep setup and workspace mutation under `workspace`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
 
@@ -110,8 +110,7 @@ tests:
 
 ```yaml
 description: Example eval
-experiment:
-  target: default
+target: default
 
 tests:
   - id: greeting
@@ -125,7 +124,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `experiment`, `suite`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `target`, `policy`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -136,7 +135,7 @@ tests:
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
-| `execution` | no | Per-case non-target execution overrides such as `skip_defaults` or `threshold`; target selection belongs in `experiment.target(s)` or CLI `--target` |
+| `execution` | no | Per-case non-target execution overrides such as `skip_defaults` or `threshold`; target selection belongs in top-level `target`, legacy `execution.targets`, or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
@@ -580,10 +579,11 @@ When halted, remaining tests get `executionStatus: 'execution_error'` with `fail
 
 ## Suite-Level Quality Threshold
 
-Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use `policy.runs` when each case should be attempted more than once.
 
 ```yaml
-execution:
+policy:
+  runs: 3
   threshold: 0.8
 ```
 
@@ -639,7 +639,8 @@ import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'helper-suite',
-  execution: { targets: ['default'] },
+  target: 'default',
+  policy: { runs: 3, threshold: 0.8 },
   tests: [
     {
       id: 'json-answer',

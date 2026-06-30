@@ -8,7 +8,7 @@ Demonstrates a complete **multi-model × multi-metric × variability** evaluatio
 |---------|---------------|
 | **Targets matrix** | Every test runs against `copilot`, `claude`, and `gemini-llm` |
 | **Weighted graders** | Accuracy (3×), completeness (2×), clarity (1×) |
-| **Repeat runs (pass@k)** | 2 attempts per test to surface non-determinism |
+| **Repeat runs** | 2 attempts per test to surface non-determinism |
 | **Compare workflow** | Side-by-side model comparison from result files |
 
 ## Files
@@ -40,7 +40,7 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ### Cost & Safety
 
-The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 repeat attempts × 3 grader calls each, expect roughly **90 LLM calls**. A `experiment.repeat.cost_limit_usd: 2.00` cap is set in the eval file.
+The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 repeat attempts × 3 grader calls each, expect roughly **90 LLM calls**. A `policy.budget_usd: 2.00` cap is set in the eval file.
 
 To run against a single target first:
 
@@ -93,10 +93,10 @@ Pairwise Summary:
 
 ### 1. Targets Matrix
 
-The inline `experiment.targets` array runs every test against each listed model:
+The legacy `execution.targets` array runs every test against each listed model:
 
 ```yaml
-experiment:
+execution:
   targets:
     - copilot       # e.g., gpt-5-mini
     - claude        # e.g., claude-haiku
@@ -119,21 +119,15 @@ assertions:
 
 Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
-### 3. Experiment repeat
+### 3. Policy Repeat
 
-Each test runs twice through the inline experiment block. `pass_at_k` uses
-early-exit ergonomics by default: a case can stop once any attempt succeeds.
+Each test runs twice through the top-level policy block. The current repeated
+attempt aggregation treats a case as successful when any attempt succeeds.
 
 ```yaml
-experiment:
-  targets:
-    - copilot
-    - claude
-    - gemini-llm
-  repeat:
-    count: 2
-    strategy: pass_at_k
-    cost_limit_usd: 2.00
+policy:
+  runs: 2
+  budget_usd: 2.00
 ```
 
 This surfaces non-determinism — if a model passes on run 1 but fails on run 2,
@@ -175,14 +169,15 @@ benchmark.eval.yaml
 
 ### Adding a model
 
-Add a new target to `.agentv/targets.yaml`, then reference it in the experiment:
+Add a new target to `.agentv/targets.yaml`, then reference it in the eval:
 
 ```yaml
-targets:
-  - copilot
-  - claude
-  - gemini-llm
-  - my_new_model    # Add here
+execution:
+  targets:
+    - copilot
+    - claude
+    - gemini-llm
+    - my_new_model    # Add here
 ```
 
 ### Adding an grader
@@ -199,13 +194,12 @@ assertions:
 
 ### Adjusting run count
 
-Increase experiment `repeat.count` for more variability data (at proportional cost):
+Increase `policy.runs` for more variability data (at proportional cost):
 
 ```yaml
-repeat:
-  count: 5
-  strategy: pass_at_k
-  cost_limit_usd: 5.00
+policy:
+  runs: 5
+  budget_usd: 5.00
 ```
 
 ## See Also

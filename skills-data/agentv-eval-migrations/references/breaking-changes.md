@@ -3,6 +3,43 @@
 This reference tracks schema changes that eval authors and migration agents
 should apply when modernizing AgentV eval files.
 
+## Eval Runtime Policy Moved Out Of `experiment`
+
+Do not author top-level `experiment:` in eval YAML. The whole eval file defines
+the experiment; top-level `name` is the result namespace, top-level `target`
+identifies the system under test, and top-level `policy` owns runtime/gating
+controls.
+
+Old:
+
+```yaml
+name: backend-with-skills
+experiment:
+  target: copilot--claude-opus-4.8
+  model: claude-opus-4.8
+  runs: 3
+  timeout_seconds: 600
+  threshold: 0.8
+  budget_usd: 5
+```
+
+New:
+
+```yaml
+name: backend-with-skills
+target: copilot--claude-opus-4.8
+model: claude-opus-4.8
+
+workspace:
+  isolation: per_case
+
+policy:
+  runs: 3
+  timeout_seconds: 600
+  threshold: 0.8
+  budget_usd: 5
+```
+
 ## Workspace Isolation Spelling
 
 Old:

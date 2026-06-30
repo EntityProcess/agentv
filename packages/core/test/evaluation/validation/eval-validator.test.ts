@@ -34,14 +34,15 @@ describe('validateEvalFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('validates inline experiment runtime and flatter import entries', async () => {
-    const filePath = path.join(tempDir, 'inline-experiment-include.yaml');
+  it('validates top-level target and policy runtime with flatter import entries', async () => {
+    const filePath = path.join(tempDir, 'policy-include.yaml');
     await writeFile(
       filePath,
       `name: wrapper
-experiment:
-  targets: [codex, claude]
-  workers: 2
+target: codex
+policy:
+  threshold: 0.8
+  runs: 2
 tests:
   - id: local-case
     input: "Hello"
@@ -176,7 +177,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects parent experiment workspace when importing suites', async () => {
+  it('rejects removed parent experiment blocks when importing suites', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment-workspace.eval.yaml'),
       `tests:
@@ -204,9 +205,8 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'experiment.workspace' &&
-          error.message.includes('Parent workspace is not allowed') &&
-          error.message.includes('type: suite'),
+          error.location === 'experiment' &&
+          error.message.includes("Top-level 'experiment' has been removed"),
       ),
     ).toBe(true);
   });
@@ -267,8 +267,8 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'experiment.workspace' &&
-          error.message.includes('has been removed from eval YAML'),
+          error.location === 'experiment' &&
+          error.message.includes("Top-level 'experiment' has been removed"),
       ),
     ).toBe(true);
   });
@@ -296,8 +296,8 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'experiment.workspace' &&
-          error.message.includes('has been removed from eval YAML'),
+          error.location === 'experiment' &&
+          error.message.includes("Top-level 'experiment' has been removed"),
       ),
     ).toBe(true);
   });
@@ -324,8 +324,8 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'experiment.workspace' &&
-          error.message.includes('has been removed from eval YAML'),
+          error.location === 'experiment' &&
+          error.message.includes("Top-level 'experiment' has been removed"),
       ),
     ).toBe(true);
   });
@@ -358,10 +358,10 @@ tests:
     ).toBe(true);
   });
 
-  it('warns that imported child experiments are ignored by wrapper composition', async () => {
+  it('warns that imported child legacy execution is ignored by wrapper composition', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment.eval.yaml'),
-      `experiment:
+      `execution:
   target: child-target
   workers: 2
   threshold: 0.9
@@ -388,8 +388,8 @@ tests:
         (error) =>
           error.severity === 'warning' &&
           error.location === 'tests[0].include' &&
-          error.message.includes('child experiment blocks are ignored') &&
-          error.message.includes('parent has no experiment'),
+          error.message.includes('child runtime blocks are ignored') &&
+          error.message.includes('parent eval owns wrapper runtime'),
       ),
     ).toBe(true);
   });
@@ -457,7 +457,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects eval files with both experiment and legacy execution', async () => {
+  it('rejects removed experiment blocks even when legacy execution is present', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(
       filePath,
@@ -475,7 +475,13 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.message.includes('experiment'))).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.location === 'experiment' &&
+          error.message.includes("Top-level 'experiment' has been removed"),
+      ),
+    ).toBe(true);
   });
 
   it('rejects scoped run overrides that include target-changing fields', async () => {
@@ -1284,8 +1290,8 @@ tests: "./cases-shorthand-workspace.yaml"
         result.errors.some(
           (error) =>
             error.severity === 'error' &&
-            error.location === 'experiment.workspace' &&
-            error.message.includes('has been removed from eval YAML'),
+            error.location === 'experiment' &&
+            error.message.includes("Top-level 'experiment' has been removed"),
         ),
       ).toBe(true);
     });

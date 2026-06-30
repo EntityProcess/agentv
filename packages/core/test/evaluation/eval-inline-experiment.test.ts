@@ -6,7 +6,7 @@ import path from 'node:path';
 import { validateEvalFile } from '../../src/evaluation/validation/eval-validator.js';
 import { loadTestSuite } from '../../src/evaluation/yaml-parser.js';
 
-describe('eval.yaml inline experiment and tests imports', () => {
+describe('eval.yaml runtime policy and tests imports', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -17,18 +17,17 @@ describe('eval.yaml inline experiment and tests imports', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses top-level experiment as the canonical runtime block', async () => {
+  it('parses top-level target and policy as the canonical runtime block', async () => {
     const evalPath = path.join(tempDir, 'runtime.eval.yaml');
     await writeFile(
       evalPath,
       [
-        'experiment:',
-        '  targets: [codex, claude]',
-        '  workers: 2',
+        'name: runtime-suite',
+        'target: codex',
+        'model: gpt-5-codex',
+        'policy:',
         '  threshold: 0.7',
-        '  repeat:',
-        '    count: 2',
-        '    strategy: mean',
+        '  runs: 2',
         '  timeout_seconds: 30',
         '  budget_usd: 1.5',
         'tests:',
@@ -42,18 +41,39 @@ describe('eval.yaml inline experiment and tests imports', () => {
     const suite = await loadTestSuite(evalPath, tempDir);
 
     expect(suite.experimentConfig).toMatchObject({
-      targets: ['codex', 'claude'],
-      workers: 2,
+      target: 'codex',
+      model: 'gpt-5-codex',
       threshold: 0.7,
-      repeat: { count: 2, strategy: 'mean' },
+      runs: 2,
       timeoutSeconds: 30,
       budgetUsd: 1.5,
     });
-    expect(suite.targets).toEqual(['codex', 'claude']);
-    expect(suite.workers).toBe(2);
+    expect(suite.targets).toBeUndefined();
+    expect(suite.workers).toBeUndefined();
   });
 
-  it('accepts top-level execution as a legacy runtime alias but rejects both blocks', async () => {
+  it('rejects repeat strategy config under top-level policy', async () => {
+    const evalPath = path.join(tempDir, 'repeat-policy.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'target: codex',
+        'policy:',
+        '  repeat:',
+        '    count: 2',
+        '    strategy: pass_at_k',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/policy\.repeat/);
+  });
+
+  it('accepts top-level execution as a legacy runtime alias but rejects experiment blocks', async () => {
     const legacyPath = path.join(tempDir, 'legacy.eval.yaml');
     await writeFile(
       legacyPath,
@@ -72,14 +92,12 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(legacy.experimentConfig?.target).toBe('mock');
     expect(legacy.targets).toBeUndefined();
 
-    const conflictPath = path.join(tempDir, 'conflict.eval.yaml');
+    const removedPath = path.join(tempDir, 'removed.eval.yaml');
     await writeFile(
-      conflictPath,
+      removedPath,
       [
         'experiment:',
         '  target: codex',
-        'execution:',
-        '  target: claude',
         'tests:',
         '  - id: one',
         '    input: hello',
@@ -88,7 +106,28 @@ describe('eval.yaml inline experiment and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(conflictPath, tempDir)).rejects.toThrow(/experiment.*execution/);
+    await expect(loadTestSuite(removedPath, tempDir)).rejects.toThrow(
+      /top-level 'experiment' has been removed/,
+    );
+  });
+
+  it('rejects camelCase fields under YAML policy', async () => {
+    const evalPath = path.join(tempDir, 'camel-policy.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'target: codex',
+        'policy:',
+        '  timeoutSeconds: 30',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/policy\.timeoutSeconds/);
   });
 
   it('rejects per-test execution workspace blocks', async () => {
@@ -425,12 +464,12 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(identitySuite.tests[0]?.metadata?.tags).toEqual(['suite-identity']);
   });
 
-  it('type: suite preserves child suite context while parent experiment owns runtime', async () => {
+  it('type: suite preserves child suite context while parent target and policy own runtime', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'experiment:',
+        'execution:',
         '  target: child-target',
         '  workers: 1',
         '  threshold: 0.2',
@@ -456,13 +495,10 @@ describe('eval.yaml inline experiment and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'experiment:',
-        '  target: parent-target',
-        '  workers: 2',
+        'target: parent-target',
+        'policy:',
         '  threshold: 0.8',
-        '  repeat:',
-        '    count: 3',
-        '    strategy: pass_at_k',
+        '  runs: 3',
         '  timeout_seconds: 30',
         '  budget_usd: 1.5',
         'input: parent shared input',
@@ -481,7 +517,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
 
     expect(suite.experimentConfig?.target).toBe('parent-target');
     expect(suite.experimentConfig?.threshold).toBe(0.8);
-    expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_at_k' });
+    expect(suite.experimentConfig?.runs).toBe(3);
     expect(test.run).toBeUndefined();
     expect(test.suite).toBe('child-suite');
     expect(test.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));
@@ -526,7 +562,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
   });
 
-  it('rejects parent experiment workspace when importing eval suites with type: suite', async () => {
+  it('rejects removed parent experiment blocks when importing eval suites with type: suite', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -554,7 +590,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Experiment workspace has been removed from eval YAML/,
+      /top-level 'experiment' has been removed/,
     );
   });
 
@@ -590,12 +626,12 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
   });
 
-  it('ignores imported child experiment defaults when parent has no experiment', async () => {
+  it('ignores imported child legacy execution defaults when parent has no policy', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'experiment:',
+        'execution:',
         '  threshold: 0.2',
         '  repeat:',
         '    count: 5',
@@ -623,12 +659,12 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(suite.tests[0]?.run).toBeUndefined();
   });
 
-  it('applies include-level run overrides without importing child experiment defaults', async () => {
+  it('applies include-level run overrides without importing child legacy execution defaults', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'experiment:',
+        'execution:',
         '  threshold: 0.2',
         '  repeat:',
         '    count: 5',
@@ -665,12 +701,12 @@ describe('eval.yaml inline experiment and tests imports', () => {
     });
   });
 
-  it('applies test.run over include-level run overrides without child experiment defaults', async () => {
+  it('applies test.run over include-level run overrides without child legacy execution defaults', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'experiment:',
+        'execution:',
         '  threshold: 0.2',
         '  repeat:',
         '    count: 5',
@@ -729,12 +765,12 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(byId.get('child-critical')?.threshold).toBe(1.0);
   });
 
-  it('ignores imported child experiment fields that cannot be scoped in a wrapper', async () => {
+  it('ignores imported child legacy execution fields that cannot be scoped in a wrapper', async () => {
     await writeFile(
       path.join(tempDir, 'child-a.eval.yaml'),
       [
         'name: child-a',
-        'experiment:',
+        'execution:',
         '  workers: 2',
         'tests:',
         '  - id: a',
@@ -747,7 +783,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       path.join(tempDir, 'child-b.eval.yaml'),
       [
         'name: child-b',
-        'experiment:',
+        'execution:',
         '  workers: 4',
         'tests:',
         '  - id: b',
@@ -786,7 +822,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
         'assertions:',
         '  - type: contains',
         '    value: child',
-        'experiment:',
+        'execution:',
         '  threshold: 0.2',
         'tests:',
         '  - id: child-case',
@@ -800,8 +836,8 @@ describe('eval.yaml inline experiment and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'experiment:',
-        '  target: codex-gpt5',
+        'target: codex-gpt5',
+        'policy:',
         '  threshold: 0.8',
         'imports:',
         '  suites:',
@@ -990,7 +1026,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'experiment:',
+        'execution:',
         '  target: child-target',
         'tests:',
         '  - id: child-case',
@@ -1003,8 +1039,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       parentPath,
       [
         'name: parent-suite',
-        'experiment:',
-        '  target: parent-target',
+        'target: parent-target',
         'imports:',
         '  suites:',
         '    - path: child.eval.yaml',
@@ -1025,7 +1060,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
       true,
     );
     expect(
-      warnings.some((error) => error.message.includes('child experiment blocks are ignored')),
+      warnings.some((error) => error.message.includes('child runtime blocks are ignored')),
     ).toBe(true);
     expect(
       warnings.some((error) => error.message.includes('imports.tests imports raw cases')),

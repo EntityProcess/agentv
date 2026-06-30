@@ -4,6 +4,7 @@ import path from 'node:path';
 interface ResolvedTargetLike {
   readonly name: string;
   readonly kind: string;
+  readonly config?: Readonly<Record<string, unknown>>;
 }
 
 interface RunEvaluationOptionsLike {
@@ -172,6 +173,10 @@ async function maybeWriteDiagnostics(
   const payload = {
     target: options.target?.name,
     targetKind: options.target?.kind,
+    targetModel:
+      options.target?.config && typeof options.target.config.model === 'string'
+        ? options.target.config.model
+        : null,
     agentTimeoutMs: options.agentTimeoutMs ?? null,
     promptDumpDir: options.promptDumpDir,
     filter: options.filter ?? null,

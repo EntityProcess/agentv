@@ -1,8 +1,7 @@
 name: external-datasets-demo
 version: "1.0"
 
-experiment:
-  target: llm
+target: llm
 
 imports:
   tests:

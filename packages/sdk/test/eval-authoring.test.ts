@@ -7,6 +7,14 @@ describe('YAML-aligned eval authoring helpers', () => {
     const suite = defineEval({
       name: 'sdk-yaml-suite',
       inputFiles: ['fixtures/shared-system.md'],
+      target: 'mock-target',
+      model: 'gpt-5-codex',
+      policy: {
+        runs: 3,
+        timeoutSeconds: 600,
+        threshold: 0.8,
+        budgetUsd: 1.5,
+      },
       execution: {
         targets: [
           {
@@ -90,6 +98,14 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(lowered).toEqual({
       name: 'sdk-yaml-suite',
       input_files: ['fixtures/shared-system.md'],
+      target: 'mock-target',
+      model: 'gpt-5-codex',
+      policy: {
+        runs: 3,
+        timeout_seconds: 600,
+        threshold: 0.8,
+        budget_usd: 1.5,
+      },
       execution: {
         targets: [
           {
@@ -188,5 +204,21 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(yaml).toContain('assertions:');
     expect(yaml).not.toContain('expectedOutput');
     expect(yaml).not.toContain('inputFiles');
+  });
+
+  it('rejects removed experiment authoring blocks', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-experiment',
+        experiment: { target: 'mock' },
+        tests: [
+          {
+            id: 'hello',
+            input: 'Say hello',
+            assertions: [{ type: 'contains', value: 'hello' }],
+          },
+        ],
+      } as never),
+    ).toThrow(/top-level 'experiment'/);
   });
 });
