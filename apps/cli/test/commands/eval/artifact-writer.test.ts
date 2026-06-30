@@ -1010,7 +1010,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.runtime_source).toEqual(runtimeSource);
   });
 
-  it('writes repeat runs in Vercel-compatible case and run folders', async () => {
+  it('writes repeat runs in AgentV case and run folders', async () => {
     const results = [
       makeResult({
         testId: 'repeat-case',
@@ -1146,7 +1146,8 @@ describe('writeArtifactsFromResults', () => {
       ),
     ) as Record<string, unknown>;
     expect(runOneResult).toMatchObject({
-      status: 'failed',
+      execution_status: 'quality_failure',
+      verdict: 'fail',
       duration_ms: 2000,
       duration_seconds: 2,
       model: 'test-target',
@@ -1159,6 +1160,7 @@ describe('writeArtifactsFromResults', () => {
         duration_ms: 2000,
       },
     });
+    expect(runOneResult).not.toHaveProperty('status');
 
     const runTwoAnswer = await readFile(
       path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'outputs', 'answer.md'),
@@ -1173,6 +1175,8 @@ describe('writeArtifactsFromResults', () => {
       ),
     ) as Record<string, unknown>;
     expect(runTwoResult).toMatchObject({
+      execution_status: 'ok',
+      verdict: 'pass',
       grading_path: './grading.json',
       metrics_path: './metrics.json',
       transcript_path: './transcript.jsonl',
@@ -1181,6 +1185,7 @@ describe('writeArtifactsFromResults', () => {
         duration_ms: 4000,
       },
     });
+    expect(runTwoResult).not.toHaveProperty('status');
   });
 
   it('handles empty results array', async () => {
@@ -1358,7 +1363,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.artifact_pointers).toBeUndefined();
   });
 
-  it('writes AgentV metrics as Agent Skills and Vercel-style behavior projections', async () => {
+  it('writes AgentV metrics as Agent Skills and executor behavior projections', async () => {
     const input = [{ role: 'user' as const, content: 'Inspect the repo and fetch context' }];
     const output = [
       {

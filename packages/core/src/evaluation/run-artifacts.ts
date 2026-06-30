@@ -508,8 +508,9 @@ export interface AdditionalResultArtifactsContext {
   readonly sourceTestsById: ReadonlyMap<string, EvalTest>;
 }
 
-export interface VercelRunResultArtifact {
-  readonly status: 'passed' | 'failed' | 'error';
+export interface AgentVRunResultArtifact {
+  readonly execution_status: EvaluationResult['executionStatus'];
+  readonly verdict: TrialResult['verdict'];
   readonly duration_ms?: number;
   readonly duration_seconds: number;
   readonly model: string;
@@ -890,23 +891,13 @@ function buildRepeatCaseSummaryArtifact(
   };
 }
 
-function toVercelRunStatus(
-  trial: TrialResult,
-  result: EvaluationResult,
-): VercelRunResultArtifact['status'] {
-  if (trial.executionStatus === 'execution_error' || result.executionStatus === 'execution_error') {
-    return 'error';
-  }
-  return trial.verdict === 'pass' ? 'passed' : 'failed';
-}
-
 function toFilePathList(entries: readonly unknown[]): readonly string[] {
   return entries
     .map((entry) => (isRecord(entry) && typeof entry.path === 'string' ? entry.path : undefined))
     .filter((entry): entry is string => entry !== undefined);
 }
 
-function buildVercelRunResultArtifact(params: {
+function buildAgentVRunResultArtifact(params: {
   readonly trial: TrialResult;
   readonly result: EvaluationResult;
   readonly metricsArtifact: ReturnType<typeof buildMetricsArtifact> & {
@@ -915,13 +906,14 @@ function buildVercelRunResultArtifact(params: {
   readonly hasTranscript: boolean;
   readonly hasOutput: boolean;
   readonly hasFileChanges: boolean;
-}): VercelRunResultArtifact {
+}): AgentVRunResultArtifact {
   const metrics = params.metricsArtifact.metrics;
   const fileChangesPath = params.hasFileChanges
     ? `./${CANONICAL_FILE_CHANGES_ARTIFACT_PATH}`
     : undefined;
   return dropUndefined({
-    status: toVercelRunStatus(params.trial, params.result),
+    execution_status: params.trial.executionStatus ?? params.result.executionStatus,
+    verdict: params.trial.verdict,
     duration_ms: resultDurationMs(params.result),
     duration_seconds: resultDurationSeconds(params.result),
     model: params.result.target ?? 'unknown',
@@ -950,7 +942,7 @@ function buildVercelRunResultArtifact(params: {
           })
         : undefined,
     timing: params.metricsArtifact.timing,
-  }) as unknown as VercelRunResultArtifact;
+  }) as unknown as AgentVRunResultArtifact;
 }
 
 function singleRunTrial(result: EvaluationResult): TrialResult {
@@ -1050,7 +1042,7 @@ async function writeTrialRunArtifacts(params: {
   await writeFile(
     path.join(runDir, 'result.json'),
     `${JSON.stringify(
-      buildVercelRunResultArtifact({
+      buildAgentVRunResultArtifact({
         trial: params.trial,
         result,
         metricsArtifact,

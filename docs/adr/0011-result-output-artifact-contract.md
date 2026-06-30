@@ -65,6 +65,10 @@ An AgentV result output is a run-centric bundle with this root contract:
         file_changes.diff     # when workspace file changes exist
 ```
 
+`run-N/result.json` uses AgentV-owned status fields: `execution_status` carries
+the attempt execution classification and `verdict` carries the grader verdict.
+It does not export external runner status enums.
+
 `summary.json` and `index.jsonl` are complementary:
 
 - `summary.json` owns aggregate run metadata and rollups: counts, pass rate,
