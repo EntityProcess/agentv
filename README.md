@@ -113,41 +113,41 @@ agentv eval evals/my-eval.yaml
 
 **5. Compare two runs** (pass two `index.jsonl` manifests — e.g. before and after a change):
 ```bash
-agentv compare .agentv/results/backend-without-skills/<timestamp>/copilot-sdk--claude-sonnet-4.6/index.jsonl .agentv/results/backend-with-skills/<timestamp>/copilot-sdk--claude-sonnet-4.6/index.jsonl
+agentv compare .agentv/results/<baseline-run-id>/index.jsonl .agentv/results/<candidate-run-id>/index.jsonl
 ```
 
 ## Results
 
-Each run writes a timestamped invocation directory under `.agentv/results/<experiment>/<timestamp>/`. In this example, `experiment: backend-with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
+Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `experiment: backend-with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
 
 ```bash
 agentv eval evals/my-eval.yaml
-cat .agentv/results/backend-with-skills/<timestamp>/copilot-sdk--claude-sonnet-4.6/index.jsonl
+cat .agentv/results/<run_id>/index.jsonl
 ```
 
 Run bundle layout:
 
 ```
 .agentv/results/
-└── backend-with-skills/              # <experiment> — comparison/run grouping
-    └── 2026-06-30T08-30-00-000Z/     # <timestamp> — one run
-        └── copilot-sdk--claude-sonnet-4.6/ # <target> — resolved system under test
-            ├── index.jsonl           # flat per-test results (scripts/CI, `agentv compare`)
-            ├── summary.json          # run rollup: pass rate, counts, cost
-            └── fizzbuzz--a1b2c3d4/   # <result_dir> for one test case
-                ├── summary.json      # per-test rollup across runs
-                ├── test/             # generated test bundle: frozen inputs for reproducibility
-                │   ├── EVAL.yaml     #   resolved eval spec
-                │   ├── targets.yaml  #   resolved target config
-                │   └── graders/      #   grader files used
-                └── run-1/            # one attempt (run-N for repeats/trials)
-                    ├── result.json   # compact attempt manifest
-                    ├── grading.json  # per-assertion grading detail
-                    ├── metrics.json  # tool calls, transcript stats, behavior metrics
-                    ├── timing.json   # duration, token usage, cost
-                    ├── transcript.jsonl       # parsed agent transcript
-                    ├── transcript-raw.jsonl   # raw agent output (debugging)
-                    └── outputs/      # captured stdout and grader outputs
+├── 2026-06-30T08-30-00-000Z/     # <run_id> — one committed run bundle
+│   ├── index.jsonl               # row index for scripts/CI and `agentv compare`
+│   ├── summary.json              # run rollup: metadata, pass rate, counts, cost
+│   └── fizzbuzz--a1b2c3d4/       # <result_dir> for one test/target row
+│       ├── summary.json          # optional per-case rollup across attempts
+│       ├── test/                 # generated test bundle: frozen inputs for reproducibility
+│       │   ├── EVAL.yaml         #   resolved eval spec
+│       │   ├── targets.yaml      #   resolved target config
+│       │   └── graders/          #   grader files used
+│       └── run-1/                # one attempt (run-N for repeats/trials)
+│           ├── result.json       # compact attempt manifest
+│           ├── grading.json      # per-assertion grading detail
+│           ├── metrics.json      # tool calls, transcript stats, behavior metrics
+│           ├── timing.json       # duration, token usage, cost
+│           ├── transcript.jsonl       # parsed agent transcript
+│           ├── transcript-raw.jsonl   # raw agent output (debugging)
+│           └── outputs/          # captured stdout and grader outputs
+├── .indexes/                     # reserved local/rebuildable indexes
+└── .cache/                       # reserved local cache
 ```
 
 ## TypeScript SDK
