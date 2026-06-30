@@ -1,3 +1,63 @@
+import { z } from 'zod';
+import type { Trace, TraceSummary } from './trace.js';
+import type { EvaluationResult } from './types.js';
+
+/**
+ * Shared case-conversion and boundary serialization helpers.
+ *
+ * AgentV internals use camelCase TypeScript objects. Persisted JSON/JSONL and
+ * process-boundary payloads use snake_case for portability. This module is the
+ * single conversion implementation used by core, SDK, and CLI code.
+ */
+
+const JsonObjectSchema = z.object({}).passthrough();
+const TokenUsageBoundarySchema = z
+  .object({
+    input: z.number(),
+    output: z.number(),
+    cached: z.number().optional(),
+    reasoning: z.number().optional(),
+  })
+  .passthrough();
+
+export const TraceSummaryBoundarySchema = z
+  .object({
+    eventCount: z.number().int().nonnegative(),
+    toolCalls: z.record(z.string(), z.number()),
+    errorCount: z.number().int().nonnegative(),
+    toolDurations: z.record(z.string(), z.array(z.number())).optional(),
+    llmCallCount: z.number().int().nonnegative().optional(),
+  })
+  .passthrough();
+
+export const TraceBoundarySchema = TraceSummaryBoundarySchema.extend({
+  messages: z.array(z.unknown()),
+  events: z.array(z.unknown()),
+  tokenUsage: TokenUsageBoundarySchema.optional(),
+  costUsd: z.number().optional(),
+  durationMs: z.number().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+}).passthrough();
+
+export const EvaluationResultBoundarySchema = z
+  .object({
+    timestamp: z.string(),
+    testId: z.string(),
+    score: z.number(),
+    assertions: z.array(z.unknown()),
+    target: z.string(),
+    output: z.string(),
+    trace: TraceBoundarySchema,
+    executionStatus: z.enum(['ok', 'quality_failure', 'execution_error']).optional(),
+  })
+  .passthrough();
+
+export type TraceSummaryWire = Record<string, unknown>;
+export type TraceWire = Record<string, unknown>;
+export type EvaluationResultWire = Record<string, unknown>;
+
 /**
  * Converts a camelCase string to snake_case.
  * Examples:
@@ -85,4 +145,36 @@ export function toCamelCaseDeep(obj: unknown): unknown {
   }
 
   return obj;
+}
+
+export function serializeTraceSummaryWire(summary: TraceSummary): TraceSummaryWire {
+  return toSnakeCaseDeep(TraceSummaryBoundarySchema.parse(summary)) as TraceSummaryWire;
+}
+
+export function parseTraceSummaryBoundary(value: unknown): TraceSummary {
+  return TraceSummaryBoundarySchema.parse(value) as TraceSummary;
+}
+
+export function serializeTraceWire(trace: Trace): TraceWire {
+  return toSnakeCaseDeep(TraceBoundarySchema.parse(trace)) as TraceWire;
+}
+
+export function parseTraceBoundary(value: unknown): Trace {
+  return TraceBoundarySchema.parse(value) as Trace;
+}
+
+export function serializeEvaluationResultWire(result: EvaluationResult): EvaluationResultWire {
+  return toSnakeCaseDeep(EvaluationResultBoundarySchema.parse(result)) as EvaluationResultWire;
+}
+
+export function parseEvaluationResultBoundary(value: unknown): EvaluationResult {
+  return EvaluationResultBoundarySchema.parse(value) as EvaluationResult;
+}
+
+/**
+ * Serialize a generic object-shaped process-boundary payload. Use focused
+ * serializers above when the payload is an AgentV-owned result or trace model.
+ */
+export function serializeSnakeCaseBoundaryPayload(value: unknown): unknown {
+  return toSnakeCaseDeep(JsonObjectSchema.parse(value));
 }

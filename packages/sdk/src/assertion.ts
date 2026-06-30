@@ -6,8 +6,8 @@
  * contract focused on pass/fail with optional score granularity.
  */
 import { readFileSync } from 'node:fs';
+import { toCamelCaseDeep } from '@agentv/core';
 
-import { toCamelCaseDeep } from './case-conversion.js';
 import { enrichInput } from './deprecation.js';
 import {
   type CodeGraderInput,

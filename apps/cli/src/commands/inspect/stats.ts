@@ -1,5 +1,5 @@
+import { toSnakeCaseDeep } from '@agentv/core';
 import { command, oneOf, option, optional, positional, string } from 'cmd-ts';
-import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 import {
   type RawResult,
   c,

@@ -16,6 +16,7 @@ import {
   traceEnvelopeToNormalizedTranscriptJsonLines,
   traceEnvelopeToTranscriptJsonLines,
 } from '../import/types.js';
+import { parseEvaluationResultBoundary, toCamelCaseDeep } from './case-conversion.js';
 import type { ExperimentArtifactMetadata } from './experiment.js';
 import {
   type ExternalTraceMetadataWire,
@@ -2012,27 +2013,6 @@ async function rewriteExistingIndexRecords(
   await writeJsonlFile(indexPath, records);
 }
 
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-function toCamelCaseDeep(obj: unknown): unknown {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => toCamelCaseDeep(item));
-  }
-  if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[toCamelCase(key)] = toCamelCaseDeep(value);
-    }
-    return result;
-  }
-  return obj;
-}
-
 type ParsedEvaluationResult = Record<string, unknown> & {
   timestamp: string;
   testId: string;
@@ -2151,7 +2131,7 @@ export function parseJsonlResults(content: string): EvaluationResult[] {
     const camelCased = toCamelCaseDeep(canonicalRow);
     const normalized = normalizeParsedResult(camelCased);
     if (normalized) {
-      results.push(normalized);
+      results.push(parseEvaluationResultBoundary(normalized));
     }
   }
   return results;

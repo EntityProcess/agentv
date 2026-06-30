@@ -107,7 +107,23 @@ export {
   shouldEnableCache,
   shouldSkipCacheForTemperature,
 } from './evaluation/cache/response-cache.js';
-export { toSnakeCaseDeep, toCamelCaseDeep } from './evaluation/case-conversion.js';
+export {
+  EvaluationResultBoundarySchema,
+  TraceBoundarySchema,
+  TraceSummaryBoundarySchema,
+  parseEvaluationResultBoundary,
+  parseTraceBoundary,
+  parseTraceSummaryBoundary,
+  serializeEvaluationResultWire,
+  serializeSnakeCaseBoundaryPayload,
+  serializeTraceSummaryWire,
+  serializeTraceWire,
+  toCamelCaseDeep,
+  toSnakeCaseDeep,
+  type EvaluationResultWire,
+  type TraceSummaryWire,
+  type TraceWire,
+} from './evaluation/case-conversion.js';
 export {
   ensureResultsRepoClone,
   syncResultsRepo,

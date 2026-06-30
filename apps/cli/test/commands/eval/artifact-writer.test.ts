@@ -14,6 +14,7 @@ import {
   buildResultIndexArtifact,
   buildTraceFromMessages,
   parseYamlValue,
+  toSnakeCaseDeep,
 } from '@agentv/core';
 
 import {
@@ -33,7 +34,6 @@ import {
   writeArtifactsFromResults,
 } from '../../../src/commands/eval/artifact-writer.js';
 import { prepareResultForJsonl } from '../../../src/commands/eval/run-eval.js';
-import { toSnakeCaseDeep } from '../../../src/utils/case-conversion.js';
 
 function makeResult(overrides: Partial<EvaluationResult> = {}): EvaluationResult {
   const result = {

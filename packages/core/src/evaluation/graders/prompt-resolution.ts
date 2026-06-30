@@ -13,7 +13,7 @@
 
 import path from 'node:path';
 
-import { toSnakeCaseDeep } from '../case-conversion.js';
+import { serializeSnakeCaseBoundaryPayload } from '../case-conversion.js';
 import { readTextFile } from '../file-utils.js';
 import type { Message } from '../providers/types.js';
 import { VALID_TEMPLATE_VARIABLES } from '../template-variables.js';
@@ -114,7 +114,7 @@ async function executePromptTemplate(
     config: config ?? context.config ?? null,
   };
 
-  const inputJson = JSON.stringify(toSnakeCaseDeep(payload), null, 2);
+  const inputJson = JSON.stringify(serializeSnakeCaseBoundaryPayload(payload), null, 2);
 
   const scriptPath = script[script.length - 1];
   const cwd = path.dirname(scriptPath);
