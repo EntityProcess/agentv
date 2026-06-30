@@ -263,13 +263,12 @@
                                   },
                                   "strategy": {
                                     "type": "string",
-                                    "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                                    "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                                  },
+                                  "early_exit": {
+                                    "type": "boolean"
                                   },
                                   "cost_limit_usd": {
-                                    "type": "number",
-                                    "minimum": 0
-                                  },
-                                  "costLimitUsd": {
                                     "type": "number",
                                     "minimum": 0
                                   }
@@ -410,13 +409,12 @@
                             },
                             "strategy": {
                               "type": "string",
-                              "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                              "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                            },
+                            "early_exit": {
+                              "type": "boolean"
                             },
                             "cost_limit_usd": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "costLimitUsd": {
                               "type": "number",
                               "minimum": 0
                             }
@@ -554,13 +552,12 @@
                                   },
                                   "strategy": {
                                     "type": "string",
-                                    "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                                    "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                                  },
+                                  "early_exit": {
+                                    "type": "boolean"
                                   },
                                   "cost_limit_usd": {
-                                    "type": "number",
-                                    "minimum": 0
-                                  },
-                                  "costLimitUsd": {
                                     "type": "number",
                                     "minimum": 0
                                   }
@@ -701,13 +698,12 @@
                             },
                             "strategy": {
                               "type": "string",
-                              "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                              "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                            },
+                            "early_exit": {
+                              "type": "boolean"
                             },
                             "cost_limit_usd": {
-                              "type": "number",
-                              "minimum": 0
-                            },
-                            "costLimitUsd": {
                               "type": "number",
                               "minimum": 0
                             }
@@ -5607,13 +5603,12 @@
                               },
                               "strategy": {
                                 "type": "string",
-                                "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                                "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                              },
+                              "early_exit": {
+                                "type": "boolean"
                               },
                               "cost_limit_usd": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "costLimitUsd": {
                                 "type": "number",
                                 "minimum": 0
                               }
@@ -7321,13 +7316,12 @@
                               },
                               "strategy": {
                                 "type": "string",
-                                "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                                "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                              },
+                              "early_exit": {
+                                "type": "boolean"
                               },
                               "cost_limit_usd": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "costLimitUsd": {
                                 "type": "number",
                                 "minimum": 0
                               }
@@ -12235,13 +12229,12 @@
                               },
                               "strategy": {
                                 "type": "string",
-                                "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                                "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                              },
+                              "early_exit": {
+                                "type": "boolean"
                               },
                               "cost_limit_usd": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "costLimitUsd": {
                                 "type": "number",
                                 "minimum": 0
                               }
@@ -13949,13 +13942,12 @@
                               },
                               "strategy": {
                                 "type": "string",
-                                "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
+                                "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+                              },
+                              "early_exit": {
+                                "type": "boolean"
                               },
                               "cost_limit_usd": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "costLimitUsd": {
                                 "type": "number",
                                 "minimum": 0
                               }
@@ -14220,12 +14212,33 @@
           "type": "string",
           "minLength": 1
         },
+        "repeat": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["pass_any", "pass_all", "mean", "confidence_interval"]
+            },
+            "early_exit": {
+              "type": "boolean"
+            },
+            "cost_limit_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": ["count"],
+          "additionalProperties": false
+        },
         "runs": {
-          "type": "integer",
-          "minimum": 1
+          "not": {}
         },
         "early_exit": {
-          "type": "boolean"
+          "not": {}
         },
         "timeout_seconds": {
           "type": "number",

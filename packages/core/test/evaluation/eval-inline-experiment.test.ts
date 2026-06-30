@@ -17,7 +17,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses top-level target and run controls as the canonical runtime block', async () => {
+  it('parses top-level target and repeat controls as the canonical runtime block', async () => {
     const evalPath = path.join(tempDir, 'runtime.eval.yaml');
     await writeFile(
       evalPath,
@@ -29,7 +29,10 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  model: gpt-5.1',
         '  reasoning_effort: high',
         'threshold: 0.7',
-        'runs: 2',
+        'repeat:',
+        '  count: 2',
+        '  strategy: pass_any',
+        '  early_exit: true',
         'timeout_seconds: 30',
         'budget_usd: 1.5',
         'tests:',
@@ -46,7 +49,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       target: 'codex',
       name: 'release-gate',
       threshold: 0.7,
-      runs: 2,
+      repeat: { count: 2, strategy: 'pass_any', earlyExit: true },
       timeoutSeconds: 30,
       budgetUsd: 1.5,
     });
@@ -137,7 +140,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'policy:',
         '  repeat:',
         '    count: 2',
-        '    strategy: pass_at_k',
+        '    strategy: pass_any',
         'tests:',
         '  - id: one',
         '    input: hello',
@@ -147,6 +150,25 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
 
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/top-level 'policy'/);
+  });
+
+  it('rejects removed top-level runs and early_exit controls', async () => {
+    const evalPath = path.join(tempDir, 'removed-repeat-controls.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'target: codex',
+        'runs: 2',
+        'early_exit: true',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/repeat.count/);
   });
 
   it('rejects top-level execution blocks and non-string experiment values', async () => {
@@ -566,7 +588,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: parent-suite',
         'target: parent-target',
         'threshold: 0.8',
-        'runs: 3',
+        'repeat:',
+        '  count: 3',
+        '  strategy: pass_any',
         'timeout_seconds: 30',
         'budget_usd: 1.5',
         'input: parent shared input',
@@ -585,7 +609,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
 
     expect(suite.experimentConfig?.target).toBe('parent-target');
     expect(suite.experimentConfig?.threshold).toBe(0.8);
-    expect(suite.experimentConfig?.runs).toBe(3);
+    expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_any' });
     expect(test.run).toBeUndefined();
     expect(test.suite).toBe('child-suite');
     expect(test.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));

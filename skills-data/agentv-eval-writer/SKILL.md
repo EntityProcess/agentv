@@ -27,7 +27,7 @@ String-valued `tests` and string entries inside `tests[]` are raw-case import
 shorthand for direct paths, directories, and globs. Legacy `tests[].include`
 entries still load with a migration warning, but new evals should use
 `imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
-individual tests only for `threshold`, `timeout_seconds`, and
+individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
 `budget_usd`; keep target selection at top-level `target` or CLI `--target`,
 and keep setup and workspace mutation under `workspace`.
 
@@ -124,7 +124,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `runs`, `early_exit`, `timeout_seconds`, `budget_usd`, `threshold`, `suite`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `repeat`, `timeout_seconds`, `budget_usd`, `threshold`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -567,10 +567,13 @@ See `references/rubric-grader.md` for score-range mode and scoring formula.
 
 ## Suite-Level Quality Threshold
 
-Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use top-level `runs` when each case should be attempted more than once.
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use top-level `repeat` when each case should be attempted more than once.
 
 ```yaml
-runs: 3
+repeat:
+  count: 3
+  strategy: pass_any
+  early_exit: false
 threshold: 0.8
 ```
 
@@ -636,7 +639,11 @@ import { defineEval, graders } from '@agentv/sdk';
 export default defineEval({
   name: 'helper-suite',
   target: 'default',
-  runs: 3,
+  repeat: {
+    count: 3,
+    strategy: 'pass_any',
+    earlyExit: false,
+  },
   threshold: 0.8,
   tests: [
     {

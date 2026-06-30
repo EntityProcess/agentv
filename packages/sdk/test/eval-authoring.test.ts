@@ -19,7 +19,11 @@ describe('YAML-aligned eval authoring helpers', () => {
           },
         },
       },
-      runs: 3,
+      repeat: {
+        count: 3,
+        strategy: 'pass_any',
+        earlyExit: false,
+      },
       timeoutSeconds: 600,
       threshold: 0.8,
       budgetUsd: 1.5,
@@ -99,7 +103,11 @@ describe('YAML-aligned eval authoring helpers', () => {
           },
         },
       },
-      runs: 3,
+      repeat: {
+        count: 3,
+        strategy: 'pass_any',
+        early_exit: false,
+      },
       timeout_seconds: 600,
       threshold: 0.8,
       budget_usd: 1.5,
@@ -198,5 +206,21 @@ describe('YAML-aligned eval authoring helpers', () => {
         ],
       } as never),
     ).toThrow(/top-level 'experiment'/);
+  });
+
+  it('rejects removed top-level repeat aliases', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-runs',
+        runs: 3,
+        tests: [
+          {
+            id: 'hello',
+            input: 'Say hello',
+            assertions: [{ type: 'contains', value: 'hello' }],
+          },
+        ],
+      } as never),
+    ).toThrow(/top-level 'runs'/);
   });
 });

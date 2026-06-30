@@ -803,17 +803,10 @@ function buildExperimentTrialsConfig(experiment: ExperimentConfig): TrialsConfig
       ...(experiment.repeat.costLimitUsd !== undefined && {
         costLimitUsd: experiment.repeat.costLimitUsd,
       }),
-      ...(experiment.earlyExit !== undefined && { earlyExit: experiment.earlyExit }),
+      ...(experiment.repeat.earlyExit !== undefined && { earlyExit: experiment.repeat.earlyExit }),
     };
   }
-  if (!experiment.runs || experiment.runs <= 1) {
-    return undefined;
-  }
-  return {
-    count: experiment.runs,
-    strategy: 'pass_at_k',
-    ...(experiment.earlyExit !== undefined && { earlyExit: experiment.earlyExit }),
-  };
+  return undefined;
 }
 
 type EffectiveRunPolicy = {

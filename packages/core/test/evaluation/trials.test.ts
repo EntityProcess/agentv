@@ -4,19 +4,19 @@ import { aggregateTrials, getTCritical } from '../../src/evaluation/trials.js';
 import type { TrialResult, TrialsConfig } from '../../src/evaluation/types.js';
 
 describe('aggregateTrials', () => {
-  describe('pass_at_k strategy', () => {
+  describe('pass_any strategy', () => {
     it('returns best score when one trial passes', () => {
       const trials: TrialResult[] = [
         { attempt: 0, score: 0.5, verdict: 'fail' },
         { attempt: 1, score: 0.9, verdict: 'pass' },
       ];
-      const config: TrialsConfig = { count: 3, strategy: 'pass_at_k' };
+      const config: TrialsConfig = { count: 3, strategy: 'pass_any' };
 
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBe(0.9);
-      expect(result.aggregation.strategy).toBe('pass_at_k');
-      if (result.aggregation.strategy === 'pass_at_k') {
+      expect(result.aggregation.strategy).toBe('pass_any');
+      if (result.aggregation.strategy === 'pass_any') {
         expect(result.aggregation.passedAttempts).toBe(1);
         expect(result.aggregation.totalAttempts).toBe(2);
       }
@@ -28,12 +28,12 @@ describe('aggregateTrials', () => {
         { attempt: 1, score: 0.4, verdict: 'fail' },
         { attempt: 2, score: 0.2, verdict: 'fail' },
       ];
-      const config: TrialsConfig = { count: 3, strategy: 'pass_at_k' };
+      const config: TrialsConfig = { count: 3, strategy: 'pass_any' };
 
       const result = aggregateTrials(trials, config);
 
       expect(result.score).toBe(0.4);
-      if (result.aggregation.strategy === 'pass_at_k') {
+      if (result.aggregation.strategy === 'pass_any') {
         expect(result.aggregation.passedAttempts).toBe(0);
         expect(result.aggregation.totalAttempts).toBe(3);
       }
@@ -41,7 +41,7 @@ describe('aggregateTrials', () => {
 
     it('handles single trial', () => {
       const trials: TrialResult[] = [{ attempt: 0, score: 0.85, verdict: 'pass' }];
-      const config: TrialsConfig = { count: 1, strategy: 'pass_at_k' };
+      const config: TrialsConfig = { count: 1, strategy: 'pass_any' };
 
       const result = aggregateTrials(trials, config);
 

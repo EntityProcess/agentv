@@ -41,7 +41,10 @@ describe('validateEvalFile', () => {
       `name: wrapper
 target: codex
 threshold: 0.8
-runs: 2
+repeat:
+  count: 2
+  strategy: pass_any
+  early_exit: true
 tests:
   - id: local-case
     input: "Hello"
@@ -59,6 +62,7 @@ imports:
         repeat:
           count: 2
           strategy: pass_all
+          early_exit: true
         timeout_seconds: 120
         budget_usd: 2
   tests:
@@ -70,6 +74,28 @@ imports:
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects removed top-level runs and early_exit with migration guidance', async () => {
+    const filePath = path.join(tempDir, 'removed-repeat-fields.yaml');
+    await writeFile(
+      filePath,
+      `target: codex
+runs: 2
+early_exit: true
+tests:
+  - id: local-case
+    input: "Hello"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.message.includes('Use repeat.count'))).toBe(true);
+    expect(result.errors.some((error) => error.message.includes('Use repeat.early_exit'))).toBe(
+      true,
+    );
   });
 
   it('rejects unsupported test-level execution.targets', async () => {

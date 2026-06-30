@@ -1,11 +1,14 @@
 # AgentV Repeat Runs Example
-# Demonstrates policy runs for handling LLM non-determinism
+# Demonstrates repeat policy for handling LLM non-determinism
 
 name: trials
 description: Repeat runs example with 2 attempts configured inline
 
 target: llm
-runs: 2
+repeat:
+  count: 2
+  strategy: pass_any
+  early_exit: false
 budget_usd: 1.00
 
 tests:

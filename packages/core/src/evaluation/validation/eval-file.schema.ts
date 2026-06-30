@@ -376,7 +376,7 @@ const ExecutionSchema = z.object({
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
-  /** Removed before stable release. Run counts belong under top-level policy.runs. */
+  /** Removed before stable release. Repeat counts belong under top-level repeat.count. */
   trials: z.never().optional(),
   budget_usd: z.number().min(0).optional(),
   budgetUsd: z.number().min(0).optional(),
@@ -389,9 +389,9 @@ const ExecutionSchema = z.object({
 const ExperimentRepeatSchema = z
   .object({
     count: z.number().int().min(1),
-    strategy: z.enum(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']).optional(),
+    strategy: z.enum(['pass_any', 'pass_all', 'mean', 'confidence_interval']).optional(),
+    early_exit: z.boolean().optional(),
     cost_limit_usd: z.number().min(0).optional(),
-    costLimitUsd: z.number().min(0).optional(),
   })
   .strict();
 
@@ -528,8 +528,9 @@ export const EvalFileSchema = z
     model: z.never().optional(),
     // Run/result grouping label and flat run controls
     experiment: z.string().min(1).optional(),
-    runs: z.number().int().min(1).optional(),
-    early_exit: z.boolean().optional(),
+    repeat: ExperimentRepeatSchema.optional(),
+    runs: z.never().optional(),
+    early_exit: z.never().optional(),
     timeout_seconds: z.number().gt(0).optional(),
     budget_usd: z.number().gt(0).optional(),
     threshold: z.number().min(0).max(1).optional(),

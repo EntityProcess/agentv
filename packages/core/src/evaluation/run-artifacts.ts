@@ -336,7 +336,7 @@ export type TrialResultArtifact = {
 
 export type TrialAggregationArtifact =
   | {
-      readonly strategy: 'pass_at_k';
+      readonly strategy: 'pass_any';
       readonly passed_attempts: number;
       readonly total_attempts: number;
     }
@@ -726,7 +726,7 @@ function toTrialAggregationArtifact(
     return undefined;
   }
   switch (aggregation.strategy) {
-    case 'pass_at_k':
+    case 'pass_any':
       return {
         strategy: aggregation.strategy,
         passed_attempts: aggregation.passedAttempts,

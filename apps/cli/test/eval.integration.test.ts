@@ -606,7 +606,10 @@ describe('agentv eval CLI', () => {
           'timeout_seconds: 12',
           'threshold: 0.8',
           'budget_usd: 3',
-          'runs: 2',
+          'repeat:',
+          '  count: 2',
+          '  strategy: pass_any',
+          '  early_exit: true',
           'tests:',
           '  - include: sample.test.yaml',
           '    type: suite',
@@ -618,6 +621,7 @@ describe('agentv eval CLI', () => {
           '      repeat:',
           '        count: 3',
           '        strategy: pass_all',
+          '        early_exit: true',
           '',
         ].join('\n'),
         'utf8',
@@ -641,6 +645,7 @@ describe('agentv eval CLI', () => {
         trials: {
           count: 3,
           strategy: 'pass_all',
+          earlyExit: true,
         },
       });
 
@@ -650,7 +655,11 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
         target: 'codex-target',
-        runs: 2,
+        repeat: {
+          count: 2,
+          strategy: 'pass_any',
+          early_exit: true,
+        },
         threshold: 0.8,
         budget_usd: 3,
         timeout_seconds: 12,

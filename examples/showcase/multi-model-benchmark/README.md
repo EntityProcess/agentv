@@ -130,11 +130,15 @@ Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
 ### 3. Repeat Runs
 
-Each test runs twice through top-level run controls. The current repeated
-attempt aggregation treats a case as successful when any attempt succeeds.
+Each test runs twice through top-level repeat controls. The repeated-attempt
+aggregation below treats a case as successful when any completed attempt
+succeeds.
 
 ```yaml
-runs: 2
+repeat:
+  count: 2
+  strategy: pass_any
+  early_exit: false
 budget_usd: 2.00
 ```
 
@@ -199,10 +203,13 @@ assertions:
 
 ### Adjusting run count
 
-Increase `runs` for more variability data (at proportional cost):
+Increase `repeat.count` for more variability data (at proportional cost):
 
 ```yaml
-runs: 5
+repeat:
+  count: 5
+  strategy: pass_any
+  early_exit: false
 budget_usd: 5.00
 ```
 

@@ -1744,10 +1744,10 @@ describe('runEvaluation with trials', () => {
     };
   }
 
-  it('pass_at_k: passes on second trial and early exits', async () => {
+  it('pass_any: passes on second trial and early exits', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.4, 0.9]);
-    const trials: TrialsConfig = { count: 5, strategy: 'pass_at_k' };
+    const trials: TrialsConfig = { count: 5, strategy: 'pass_any', earlyExit: true };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1765,8 +1765,8 @@ describe('runEvaluation with trials', () => {
     expect(result.trials).toHaveLength(2); // Early exit after pass
     expect(result.trials?.[0].verdict).toBe('fail');
     expect(result.trials?.[1].verdict).toBe('pass');
-    expect(result.aggregation?.strategy).toBe('pass_at_k');
-    if (result.aggregation?.strategy === 'pass_at_k') {
+    expect(result.aggregation?.strategy).toBe('pass_any');
+    if (result.aggregation?.strategy === 'pass_any') {
       expect(result.aggregation.passedAttempts).toBe(1);
       expect(result.aggregation.totalAttempts).toBe(2);
     }
@@ -1774,10 +1774,30 @@ describe('runEvaluation with trials', () => {
     expect(provider.callCount).toBe(2);
   });
 
-  it('pass_at_k: all fail runs all trials', async () => {
+  it('pass_any: without early_exit runs all trials for variance data', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.9, 0.4, 0.8]);
+    const trials: TrialsConfig = { count: 3, strategy: 'pass_any' };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    expect(results[0].trials).toHaveLength(3);
+    expect(results[0].aggregation?.strategy).toBe('pass_any');
+    expect(provider.callCount).toBe(3);
+  });
+
+  it('pass_any: all fail runs all trials', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.3, 0.4, 0.2]);
-    const trials: TrialsConfig = { count: 3, strategy: 'pass_at_k' };
+    const trials: TrialsConfig = { count: 3, strategy: 'pass_any' };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1793,6 +1813,27 @@ describe('runEvaluation with trials', () => {
     expect(result.trials).toHaveLength(3);
     expect(result.score).toBe(0.4); // Best score
     expect(provider.callCount).toBe(3);
+  });
+
+  it('pass_all: early exits after the first failed trial', async () => {
+    const provider = new MultiCallProvider();
+    const evalRegistry = createScoringEvaluator([0.9, 0.4, 0.9]);
+    const trials: TrialsConfig = { count: 3, strategy: 'pass_all', earlyExit: true };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evalRegistry,
+      evalCases: [baseTestCase],
+      trials,
+    });
+
+    expect(results[0].score).toBe(0.4);
+    expect(results[0].trials).toHaveLength(2);
+    expect(results[0].aggregation?.strategy).toBe('pass_all');
+    expect(provider.callCount).toBe(2);
   });
 
   it('mean: averages scores correctly', async () => {
@@ -1857,7 +1898,7 @@ describe('runEvaluation with trials', () => {
       },
     };
     const evalRegistry = createScoringEvaluator([0.5, 0.5, 0.5, 0.5, 0.5]);
-    const trials: TrialsConfig = { count: 5, strategy: 'pass_at_k', costLimitUsd: 5.0 };
+    const trials: TrialsConfig = { count: 5, strategy: 'pass_any', costLimitUsd: 5.0 };
 
     const results = await runEvaluation({
       testFilePath: 'in-memory.yaml',
@@ -1898,7 +1939,7 @@ describe('runEvaluation with trials', () => {
   it('disables cache when trials > 1', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.5, 0.9]);
-    const trials: TrialsConfig = { count: 2, strategy: 'pass_at_k' };
+    const trials: TrialsConfig = { count: 2, strategy: 'pass_any' };
 
     const cache: EvaluationCache = {
       async get() {
@@ -3069,7 +3110,7 @@ describe('suite-level total budget guardrail', () => {
       { ...baseTestCase, id: 'case-4' },
     ];
 
-    // evaluatorRegistry always returns 0.8 (pass), so pass_at_k exits after 1 trial per case.
+    // evaluatorRegistry always returns 0.8 (pass), so pass_any exits after 1 trial per case.
     // Each case costs $2. Budget of $5 is exceeded after case-3 ($6 >= $5).
     // Case-4 should be budget-exceeded.
     const results = await runEvaluation({
@@ -3081,7 +3122,7 @@ describe('suite-level total budget guardrail', () => {
       evalCases,
       budgetUsd: 5.0,
       maxConcurrency: 1,
-      trials: { count: 2, strategy: 'pass_at_k' },
+      trials: { count: 2, strategy: 'pass_any', earlyExit: true },
     });
 
     expect(results).toHaveLength(4);
