@@ -37,21 +37,9 @@ describe('results shared source resolution', () => {
     expect(resolved.sourceFile).toBe(path.join(runDir, 'index.jsonl'));
   });
 
-  it('auto-discovers the most recent canonical run workspace', async () => {
-    const olderRunDir = path.join(
-      tempDir,
-      '.agentv',
-      'results',
-      'default',
-      '2026-03-24T10-00-00-000Z',
-    );
-    const newerRunDir = path.join(
-      tempDir,
-      '.agentv',
-      'results',
-      'default',
-      '2026-03-25T10-00-00-000Z',
-    );
+  it('auto-discovers the most recent direct run workspace', async () => {
+    const olderRunDir = path.join(tempDir, '.agentv', 'results', '2026-03-24T10-00-00-000Z');
+    const newerRunDir = path.join(tempDir, '.agentv', 'results', '2026-03-25T10-00-00-000Z');
     mkdirSync(olderRunDir, { recursive: true });
     mkdirSync(newerRunDir, { recursive: true });
     writeFileSync(path.join(olderRunDir, 'index.jsonl'), '{"test_id":"old","score":1}\n');

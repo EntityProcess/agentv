@@ -631,7 +631,9 @@ describe('agentv eval CLI', () => {
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
-      expect(outputPath).toContain(`${path.sep}native-exp${path.sep}`);
+      expect(path.dirname(path.dirname(outputPath))).toBe(
+        path.join(fixture.suiteDir, '.agentv', 'results'),
+      );
 
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
@@ -728,7 +730,9 @@ describe('agentv eval CLI', () => {
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
-      expect(outputPath).toContain(`${path.sep}multi-eval${path.sep}`);
+      expect(path.dirname(path.dirname(outputPath))).toBe(
+        path.join(fixture.suiteDir, '.agentv', 'results'),
+      );
 
       const diagnostics = await readDiagnostics(fixture);
       const calls = diagnostics.calls as Array<Record<string, unknown>>;
