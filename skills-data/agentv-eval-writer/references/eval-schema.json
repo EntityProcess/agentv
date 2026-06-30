@@ -1998,63 +1998,71 @@
                                 "criteria": {
                                   "type": "array",
                                   "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "operator": {
+                                    "anyOf": [
+                                      {
                                         "type": "string",
-                                        "enum": ["correctness", "contradiction"]
+                                        "minLength": 1
                                       },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "min_score": {
-                                        "type": "number",
-                                        "exclusiveMinimum": true,
-                                        "minimum": 0,
-                                        "maximum": 1
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
                                           },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
+                                          "outcome": {
+                                            "type": "string"
+                                          },
+                                          "operator": {
+                                            "type": "string",
+                                            "enum": ["correctness", "contradiction"]
+                                          },
+                                          "weight": {
+                                            "type": "number"
+                                          },
+                                          "required": {
+                                            "type": "boolean"
+                                          },
+                                          "min_score": {
+                                            "type": "number",
+                                            "exclusiveMinimum": true,
+                                            "minimum": 0,
+                                            "maximum": 1
+                                          },
+                                          "score_ranges": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "score_range": {
+                                                  "type": "array",
+                                                  "minItems": 2,
+                                                  "maxItems": 2,
+                                                  "items": [
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    },
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    }
+                                                  ]
+                                                },
+                                                "outcome": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                }
+                                              },
+                                              "required": ["score_range", "outcome"],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "additionalProperties": false
                                       }
-                                    },
-                                    "additionalProperties": false
+                                    ]
                                   },
                                   "minItems": 1
                                 }
@@ -3145,63 +3153,71 @@
                                 "criteria": {
                                   "type": "array",
                                   "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "operator": {
+                                    "anyOf": [
+                                      {
                                         "type": "string",
-                                        "enum": ["correctness", "contradiction"]
+                                        "minLength": 1
                                       },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "min_score": {
-                                        "type": "number",
-                                        "exclusiveMinimum": true,
-                                        "minimum": 0,
-                                        "maximum": 1
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
                                           },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
+                                          "outcome": {
+                                            "type": "string"
+                                          },
+                                          "operator": {
+                                            "type": "string",
+                                            "enum": ["correctness", "contradiction"]
+                                          },
+                                          "weight": {
+                                            "type": "number"
+                                          },
+                                          "required": {
+                                            "type": "boolean"
+                                          },
+                                          "min_score": {
+                                            "type": "number",
+                                            "exclusiveMinimum": true,
+                                            "minimum": 0,
+                                            "maximum": 1
+                                          },
+                                          "score_ranges": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "score_range": {
+                                                  "type": "array",
+                                                  "minItems": 2,
+                                                  "maxItems": 2,
+                                                  "items": [
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    },
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    }
+                                                  ]
+                                                },
+                                                "outcome": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                }
+                                              },
+                                              "required": ["score_range", "outcome"],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "additionalProperties": false
                                       }
-                                    },
-                                    "additionalProperties": false
+                                    ]
                                   },
                                   "minItems": 1
                                 }
@@ -4306,63 +4322,71 @@
                                     "criteria": {
                                       "type": "array",
                                       "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string"
-                                          },
-                                          "outcome": {
-                                            "type": "string"
-                                          },
-                                          "operator": {
+                                        "anyOf": [
+                                          {
                                             "type": "string",
-                                            "enum": ["correctness", "contradiction"]
+                                            "minLength": 1
                                           },
-                                          "weight": {
-                                            "type": "number"
-                                          },
-                                          "required": {
-                                            "type": "boolean"
-                                          },
-                                          "min_score": {
-                                            "type": "number",
-                                            "exclusiveMinimum": true,
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "score_ranges": {
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "score_range": {
-                                                  "type": "array",
-                                                  "minItems": 2,
-                                                  "maxItems": 2,
-                                                  "items": [
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    },
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    }
-                                                  ]
-                                                },
-                                                "outcome": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                }
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
                                               },
-                                              "required": ["score_range", "outcome"],
-                                              "additionalProperties": false
-                                            }
+                                              "outcome": {
+                                                "type": "string"
+                                              },
+                                              "operator": {
+                                                "type": "string",
+                                                "enum": ["correctness", "contradiction"]
+                                              },
+                                              "weight": {
+                                                "type": "number"
+                                              },
+                                              "required": {
+                                                "type": "boolean"
+                                              },
+                                              "min_score": {
+                                                "type": "number",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "maximum": 1
+                                              },
+                                              "score_ranges": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "score_range": {
+                                                      "type": "array",
+                                                      "minItems": 2,
+                                                      "maxItems": 2,
+                                                      "items": [
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        },
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        }
+                                                      ]
+                                                    },
+                                                    "outcome": {
+                                                      "type": "string",
+                                                      "minLength": 1
+                                                    }
+                                                  },
+                                                  "required": ["score_range", "outcome"],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "additionalProperties": false
                                           }
-                                        },
-                                        "additionalProperties": false
+                                        ]
                                       },
                                       "minItems": 1
                                     }
@@ -5459,63 +5483,71 @@
                                     "criteria": {
                                       "type": "array",
                                       "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string"
-                                          },
-                                          "outcome": {
-                                            "type": "string"
-                                          },
-                                          "operator": {
+                                        "anyOf": [
+                                          {
                                             "type": "string",
-                                            "enum": ["correctness", "contradiction"]
+                                            "minLength": 1
                                           },
-                                          "weight": {
-                                            "type": "number"
-                                          },
-                                          "required": {
-                                            "type": "boolean"
-                                          },
-                                          "min_score": {
-                                            "type": "number",
-                                            "exclusiveMinimum": true,
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "score_ranges": {
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "score_range": {
-                                                  "type": "array",
-                                                  "minItems": 2,
-                                                  "maxItems": 2,
-                                                  "items": [
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    },
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    }
-                                                  ]
-                                                },
-                                                "outcome": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                }
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
                                               },
-                                              "required": ["score_range", "outcome"],
-                                              "additionalProperties": false
-                                            }
+                                              "outcome": {
+                                                "type": "string"
+                                              },
+                                              "operator": {
+                                                "type": "string",
+                                                "enum": ["correctness", "contradiction"]
+                                              },
+                                              "weight": {
+                                                "type": "number"
+                                              },
+                                              "required": {
+                                                "type": "boolean"
+                                              },
+                                              "min_score": {
+                                                "type": "number",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "maximum": 1
+                                              },
+                                              "score_ranges": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "score_range": {
+                                                      "type": "array",
+                                                      "minItems": 2,
+                                                      "maxItems": 2,
+                                                      "items": [
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        },
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        }
+                                                      ]
+                                                    },
+                                                    "outcome": {
+                                                      "type": "string",
+                                                      "minLength": 1
+                                                    }
+                                                  },
+                                                  "required": ["score_range", "outcome"],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "additionalProperties": false
                                           }
-                                        },
-                                        "additionalProperties": false
+                                        ]
                                       },
                                       "minItems": 1
                                     }
@@ -7083,63 +7115,71 @@
                                           "criteria": {
                                             "type": "array",
                                             "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "id": {
-                                                  "type": "string"
-                                                },
-                                                "outcome": {
-                                                  "type": "string"
-                                                },
-                                                "operator": {
+                                              "anyOf": [
+                                                {
                                                   "type": "string",
-                                                  "enum": ["correctness", "contradiction"]
+                                                  "minLength": 1
                                                 },
-                                                "weight": {
-                                                  "type": "number"
-                                                },
-                                                "required": {
-                                                  "type": "boolean"
-                                                },
-                                                "min_score": {
-                                                  "type": "number",
-                                                  "exclusiveMinimum": true,
-                                                  "minimum": 0,
-                                                  "maximum": 1
-                                                },
-                                                "score_ranges": {
-                                                  "type": "array",
-                                                  "items": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "score_range": {
-                                                        "type": "array",
-                                                        "minItems": 2,
-                                                        "maxItems": 2,
-                                                        "items": [
-                                                          {
-                                                            "type": "integer",
-                                                            "minimum": 0,
-                                                            "maximum": 10
-                                                          },
-                                                          {
-                                                            "type": "integer",
-                                                            "minimum": 0,
-                                                            "maximum": 10
-                                                          }
-                                                        ]
-                                                      },
-                                                      "outcome": {
-                                                        "type": "string",
-                                                        "minLength": 1
-                                                      }
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
                                                     },
-                                                    "required": ["score_range", "outcome"],
-                                                    "additionalProperties": false
-                                                  }
+                                                    "outcome": {
+                                                      "type": "string"
+                                                    },
+                                                    "operator": {
+                                                      "type": "string",
+                                                      "enum": ["correctness", "contradiction"]
+                                                    },
+                                                    "weight": {
+                                                      "type": "number"
+                                                    },
+                                                    "required": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "min_score": {
+                                                      "type": "number",
+                                                      "exclusiveMinimum": true,
+                                                      "minimum": 0,
+                                                      "maximum": 1
+                                                    },
+                                                    "score_ranges": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "score_range": {
+                                                            "type": "array",
+                                                            "minItems": 2,
+                                                            "maxItems": 2,
+                                                            "items": [
+                                                              {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 10
+                                                              },
+                                                              {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 10
+                                                              }
+                                                            ]
+                                                          },
+                                                          "outcome": {
+                                                            "type": "string",
+                                                            "minLength": 1
+                                                          }
+                                                        },
+                                                        "required": ["score_range", "outcome"],
+                                                        "additionalProperties": false
+                                                      }
+                                                    }
+                                                  },
+                                                  "additionalProperties": false
                                                 }
-                                              },
-                                              "additionalProperties": false
+                                              ]
                                             },
                                             "minItems": 1
                                           }
@@ -8588,63 +8628,71 @@
                                 "criteria": {
                                   "type": "array",
                                   "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "operator": {
+                                    "anyOf": [
+                                      {
                                         "type": "string",
-                                        "enum": ["correctness", "contradiction"]
+                                        "minLength": 1
                                       },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "min_score": {
-                                        "type": "number",
-                                        "exclusiveMinimum": true,
-                                        "minimum": 0,
-                                        "maximum": 1
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
                                           },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
+                                          "outcome": {
+                                            "type": "string"
+                                          },
+                                          "operator": {
+                                            "type": "string",
+                                            "enum": ["correctness", "contradiction"]
+                                          },
+                                          "weight": {
+                                            "type": "number"
+                                          },
+                                          "required": {
+                                            "type": "boolean"
+                                          },
+                                          "min_score": {
+                                            "type": "number",
+                                            "exclusiveMinimum": true,
+                                            "minimum": 0,
+                                            "maximum": 1
+                                          },
+                                          "score_ranges": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "score_range": {
+                                                  "type": "array",
+                                                  "minItems": 2,
+                                                  "maxItems": 2,
+                                                  "items": [
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    },
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    }
+                                                  ]
+                                                },
+                                                "outcome": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                }
+                                              },
+                                              "required": ["score_range", "outcome"],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "additionalProperties": false
                                       }
-                                    },
-                                    "additionalProperties": false
+                                    ]
                                   },
                                   "minItems": 1
                                 }
@@ -9735,63 +9783,71 @@
                                 "criteria": {
                                   "type": "array",
                                   "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "outcome": {
-                                        "type": "string"
-                                      },
-                                      "operator": {
+                                    "anyOf": [
+                                      {
                                         "type": "string",
-                                        "enum": ["correctness", "contradiction"]
+                                        "minLength": 1
                                       },
-                                      "weight": {
-                                        "type": "number"
-                                      },
-                                      "required": {
-                                        "type": "boolean"
-                                      },
-                                      "min_score": {
-                                        "type": "number",
-                                        "exclusiveMinimum": true,
-                                        "minimum": 0,
-                                        "maximum": 1
-                                      },
-                                      "score_ranges": {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "object",
-                                          "properties": {
-                                            "score_range": {
-                                              "type": "array",
-                                              "minItems": 2,
-                                              "maxItems": 2,
-                                              "items": [
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                },
-                                                {
-                                                  "type": "integer",
-                                                  "minimum": 0,
-                                                  "maximum": 10
-                                                }
-                                              ]
-                                            },
-                                            "outcome": {
-                                              "type": "string",
-                                              "minLength": 1
-                                            }
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
                                           },
-                                          "required": ["score_range", "outcome"],
-                                          "additionalProperties": false
-                                        }
+                                          "outcome": {
+                                            "type": "string"
+                                          },
+                                          "operator": {
+                                            "type": "string",
+                                            "enum": ["correctness", "contradiction"]
+                                          },
+                                          "weight": {
+                                            "type": "number"
+                                          },
+                                          "required": {
+                                            "type": "boolean"
+                                          },
+                                          "min_score": {
+                                            "type": "number",
+                                            "exclusiveMinimum": true,
+                                            "minimum": 0,
+                                            "maximum": 1
+                                          },
+                                          "score_ranges": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "score_range": {
+                                                  "type": "array",
+                                                  "minItems": 2,
+                                                  "maxItems": 2,
+                                                  "items": [
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    },
+                                                    {
+                                                      "type": "integer",
+                                                      "minimum": 0,
+                                                      "maximum": 10
+                                                    }
+                                                  ]
+                                                },
+                                                "outcome": {
+                                                  "type": "string",
+                                                  "minLength": 1
+                                                }
+                                              },
+                                              "required": ["score_range", "outcome"],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "additionalProperties": false
                                       }
-                                    },
-                                    "additionalProperties": false
+                                    ]
                                   },
                                   "minItems": 1
                                 }
@@ -10896,63 +10952,71 @@
                                     "criteria": {
                                       "type": "array",
                                       "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string"
-                                          },
-                                          "outcome": {
-                                            "type": "string"
-                                          },
-                                          "operator": {
+                                        "anyOf": [
+                                          {
                                             "type": "string",
-                                            "enum": ["correctness", "contradiction"]
+                                            "minLength": 1
                                           },
-                                          "weight": {
-                                            "type": "number"
-                                          },
-                                          "required": {
-                                            "type": "boolean"
-                                          },
-                                          "min_score": {
-                                            "type": "number",
-                                            "exclusiveMinimum": true,
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "score_ranges": {
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "score_range": {
-                                                  "type": "array",
-                                                  "minItems": 2,
-                                                  "maxItems": 2,
-                                                  "items": [
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    },
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    }
-                                                  ]
-                                                },
-                                                "outcome": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                }
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
                                               },
-                                              "required": ["score_range", "outcome"],
-                                              "additionalProperties": false
-                                            }
+                                              "outcome": {
+                                                "type": "string"
+                                              },
+                                              "operator": {
+                                                "type": "string",
+                                                "enum": ["correctness", "contradiction"]
+                                              },
+                                              "weight": {
+                                                "type": "number"
+                                              },
+                                              "required": {
+                                                "type": "boolean"
+                                              },
+                                              "min_score": {
+                                                "type": "number",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "maximum": 1
+                                              },
+                                              "score_ranges": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "score_range": {
+                                                      "type": "array",
+                                                      "minItems": 2,
+                                                      "maxItems": 2,
+                                                      "items": [
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        },
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        }
+                                                      ]
+                                                    },
+                                                    "outcome": {
+                                                      "type": "string",
+                                                      "minLength": 1
+                                                    }
+                                                  },
+                                                  "required": ["score_range", "outcome"],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "additionalProperties": false
                                           }
-                                        },
-                                        "additionalProperties": false
+                                        ]
                                       },
                                       "minItems": 1
                                     }
@@ -12049,63 +12113,71 @@
                                     "criteria": {
                                       "type": "array",
                                       "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string"
-                                          },
-                                          "outcome": {
-                                            "type": "string"
-                                          },
-                                          "operator": {
+                                        "anyOf": [
+                                          {
                                             "type": "string",
-                                            "enum": ["correctness", "contradiction"]
+                                            "minLength": 1
                                           },
-                                          "weight": {
-                                            "type": "number"
-                                          },
-                                          "required": {
-                                            "type": "boolean"
-                                          },
-                                          "min_score": {
-                                            "type": "number",
-                                            "exclusiveMinimum": true,
-                                            "minimum": 0,
-                                            "maximum": 1
-                                          },
-                                          "score_ranges": {
-                                            "type": "array",
-                                            "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "score_range": {
-                                                  "type": "array",
-                                                  "minItems": 2,
-                                                  "maxItems": 2,
-                                                  "items": [
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    },
-                                                    {
-                                                      "type": "integer",
-                                                      "minimum": 0,
-                                                      "maximum": 10
-                                                    }
-                                                  ]
-                                                },
-                                                "outcome": {
-                                                  "type": "string",
-                                                  "minLength": 1
-                                                }
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
                                               },
-                                              "required": ["score_range", "outcome"],
-                                              "additionalProperties": false
-                                            }
+                                              "outcome": {
+                                                "type": "string"
+                                              },
+                                              "operator": {
+                                                "type": "string",
+                                                "enum": ["correctness", "contradiction"]
+                                              },
+                                              "weight": {
+                                                "type": "number"
+                                              },
+                                              "required": {
+                                                "type": "boolean"
+                                              },
+                                              "min_score": {
+                                                "type": "number",
+                                                "exclusiveMinimum": true,
+                                                "minimum": 0,
+                                                "maximum": 1
+                                              },
+                                              "score_ranges": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "score_range": {
+                                                      "type": "array",
+                                                      "minItems": 2,
+                                                      "maxItems": 2,
+                                                      "items": [
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        },
+                                                        {
+                                                          "type": "integer",
+                                                          "minimum": 0,
+                                                          "maximum": 10
+                                                        }
+                                                      ]
+                                                    },
+                                                    "outcome": {
+                                                      "type": "string",
+                                                      "minLength": 1
+                                                    }
+                                                  },
+                                                  "required": ["score_range", "outcome"],
+                                                  "additionalProperties": false
+                                                }
+                                              }
+                                            },
+                                            "additionalProperties": false
                                           }
-                                        },
-                                        "additionalProperties": false
+                                        ]
                                       },
                                       "minItems": 1
                                     }
@@ -13673,63 +13745,71 @@
                                           "criteria": {
                                             "type": "array",
                                             "items": {
-                                              "type": "object",
-                                              "properties": {
-                                                "id": {
-                                                  "type": "string"
-                                                },
-                                                "outcome": {
-                                                  "type": "string"
-                                                },
-                                                "operator": {
+                                              "anyOf": [
+                                                {
                                                   "type": "string",
-                                                  "enum": ["correctness", "contradiction"]
+                                                  "minLength": 1
                                                 },
-                                                "weight": {
-                                                  "type": "number"
-                                                },
-                                                "required": {
-                                                  "type": "boolean"
-                                                },
-                                                "min_score": {
-                                                  "type": "number",
-                                                  "exclusiveMinimum": true,
-                                                  "minimum": 0,
-                                                  "maximum": 1
-                                                },
-                                                "score_ranges": {
-                                                  "type": "array",
-                                                  "items": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                      "score_range": {
-                                                        "type": "array",
-                                                        "minItems": 2,
-                                                        "maxItems": 2,
-                                                        "items": [
-                                                          {
-                                                            "type": "integer",
-                                                            "minimum": 0,
-                                                            "maximum": 10
-                                                          },
-                                                          {
-                                                            "type": "integer",
-                                                            "minimum": 0,
-                                                            "maximum": 10
-                                                          }
-                                                        ]
-                                                      },
-                                                      "outcome": {
-                                                        "type": "string",
-                                                        "minLength": 1
-                                                      }
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
                                                     },
-                                                    "required": ["score_range", "outcome"],
-                                                    "additionalProperties": false
-                                                  }
+                                                    "outcome": {
+                                                      "type": "string"
+                                                    },
+                                                    "operator": {
+                                                      "type": "string",
+                                                      "enum": ["correctness", "contradiction"]
+                                                    },
+                                                    "weight": {
+                                                      "type": "number"
+                                                    },
+                                                    "required": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "min_score": {
+                                                      "type": "number",
+                                                      "exclusiveMinimum": true,
+                                                      "minimum": 0,
+                                                      "maximum": 1
+                                                    },
+                                                    "score_ranges": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "score_range": {
+                                                            "type": "array",
+                                                            "minItems": 2,
+                                                            "maxItems": 2,
+                                                            "items": [
+                                                              {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 10
+                                                              },
+                                                              {
+                                                                "type": "integer",
+                                                                "minimum": 0,
+                                                                "maximum": 10
+                                                              }
+                                                            ]
+                                                          },
+                                                          "outcome": {
+                                                            "type": "string",
+                                                            "minLength": 1
+                                                          }
+                                                        },
+                                                        "required": ["score_range", "outcome"],
+                                                        "additionalProperties": false
+                                                      }
+                                                    }
+                                                  },
+                                                  "additionalProperties": false
                                                 }
-                                              },
-                                              "additionalProperties": false
+                                              ]
                                             },
                                             "minItems": 1
                                           }
@@ -15075,63 +15155,71 @@
                       "criteria": {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "outcome": {
-                              "type": "string"
-                            },
-                            "operator": {
+                          "anyOf": [
+                            {
                               "type": "string",
-                              "enum": ["correctness", "contradiction"]
+                              "minLength": 1
                             },
-                            "weight": {
-                              "type": "number"
-                            },
-                            "required": {
-                              "type": "boolean"
-                            },
-                            "min_score": {
-                              "type": "number",
-                              "exclusiveMinimum": true,
-                              "minimum": 0,
-                              "maximum": 1
-                            },
-                            "score_ranges": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "score_range": {
-                                    "type": "array",
-                                    "minItems": 2,
-                                    "maxItems": 2,
-                                    "items": [
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      }
-                                    ]
-                                  },
-                                  "outcome": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  }
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
                                 },
-                                "required": ["score_range", "outcome"],
-                                "additionalProperties": false
-                              }
+                                "outcome": {
+                                  "type": "string"
+                                },
+                                "operator": {
+                                  "type": "string",
+                                  "enum": ["correctness", "contradiction"]
+                                },
+                                "weight": {
+                                  "type": "number"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "min_score": {
+                                  "type": "number",
+                                  "exclusiveMinimum": true,
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "score_ranges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "score_range": {
+                                        "type": "array",
+                                        "minItems": 2,
+                                        "maxItems": 2,
+                                        "items": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 10
+                                          },
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 10
+                                          }
+                                        ]
+                                      },
+                                      "outcome": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": ["score_range", "outcome"],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "additionalProperties": false
                             }
-                          },
-                          "additionalProperties": false
+                          ]
                         },
                         "minItems": 1
                       }
@@ -16222,63 +16310,71 @@
                       "criteria": {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "outcome": {
-                              "type": "string"
-                            },
-                            "operator": {
+                          "anyOf": [
+                            {
                               "type": "string",
-                              "enum": ["correctness", "contradiction"]
+                              "minLength": 1
                             },
-                            "weight": {
-                              "type": "number"
-                            },
-                            "required": {
-                              "type": "boolean"
-                            },
-                            "min_score": {
-                              "type": "number",
-                              "exclusiveMinimum": true,
-                              "minimum": 0,
-                              "maximum": 1
-                            },
-                            "score_ranges": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "score_range": {
-                                    "type": "array",
-                                    "minItems": 2,
-                                    "maxItems": 2,
-                                    "items": [
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      {
-                                        "type": "integer",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      }
-                                    ]
-                                  },
-                                  "outcome": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  }
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
                                 },
-                                "required": ["score_range", "outcome"],
-                                "additionalProperties": false
-                              }
+                                "outcome": {
+                                  "type": "string"
+                                },
+                                "operator": {
+                                  "type": "string",
+                                  "enum": ["correctness", "contradiction"]
+                                },
+                                "weight": {
+                                  "type": "number"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "min_score": {
+                                  "type": "number",
+                                  "exclusiveMinimum": true,
+                                  "minimum": 0,
+                                  "maximum": 1
+                                },
+                                "score_ranges": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "score_range": {
+                                        "type": "array",
+                                        "minItems": 2,
+                                        "maxItems": 2,
+                                        "items": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 10
+                                          },
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 10
+                                          }
+                                        ]
+                                      },
+                                      "outcome": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    },
+                                    "required": ["score_range", "outcome"],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "additionalProperties": false
                             }
-                          },
-                          "additionalProperties": false
+                          ]
                         },
                         "minItems": 1
                       }
@@ -17458,63 +17554,71 @@
                   "criteria": {
                     "type": "array",
                     "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "outcome": {
-                          "type": "string"
-                        },
-                        "operator": {
+                      "anyOf": [
+                        {
                           "type": "string",
-                          "enum": ["correctness", "contradiction"]
+                          "minLength": 1
                         },
-                        "weight": {
-                          "type": "number"
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "min_score": {
-                          "type": "number",
-                          "exclusiveMinimum": true,
-                          "minimum": 0,
-                          "maximum": 1
-                        },
-                        "score_ranges": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "score_range": {
-                                "type": "array",
-                                "minItems": 2,
-                                "maxItems": 2,
-                                "items": [
-                                  {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  },
-                                  {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 10
-                                  }
-                                ]
-                              },
-                              "outcome": {
-                                "type": "string",
-                                "minLength": 1
-                              }
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
                             },
-                            "required": ["score_range", "outcome"],
-                            "additionalProperties": false
-                          }
+                            "outcome": {
+                              "type": "string"
+                            },
+                            "operator": {
+                              "type": "string",
+                              "enum": ["correctness", "contradiction"]
+                            },
+                            "weight": {
+                              "type": "number"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            },
+                            "min_score": {
+                              "type": "number",
+                              "exclusiveMinimum": true,
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "score_ranges": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "score_range": {
+                                    "type": "array",
+                                    "minItems": 2,
+                                    "maxItems": 2,
+                                    "items": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 10
+                                      },
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 10
+                                      }
+                                    ]
+                                  },
+                                  "outcome": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": ["score_range", "outcome"],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "additionalProperties": false
                         }
-                      },
-                      "additionalProperties": false
+                      ]
                     },
                     "minItems": 1
                   }

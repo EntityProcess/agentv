@@ -87,6 +87,8 @@ const RubricItemSchema = z.object({
   score_ranges: z.array(ScoreRangeSchema).optional(),
 });
 
+const RubricCriterionSchema = z.union([z.string().min(1), RubricItemSchema]);
+
 // --- Type-specific evaluator schemas ---
 
 const CodeGraderSchema = EvaluatorCommonSchema.extend({
@@ -237,7 +239,7 @@ const EqualsSchema = EvaluatorCommonSchema.extend({
 
 const RubricsSchema = EvaluatorCommonSchema.extend({
   type: z.literal('rubrics'),
-  criteria: z.array(RubricItemSchema).min(1),
+  criteria: z.array(RubricCriterionSchema).min(1),
 });
 
 /** Union of all grader types */
