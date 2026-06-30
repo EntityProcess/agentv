@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {
-  type EvalTargetSpec,
   type EvalTargetRef,
+  type EvalTargetSpec,
   type TargetDefinition,
   loadTestSuite,
   readTargetDefinitions,

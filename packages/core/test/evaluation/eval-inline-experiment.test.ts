@@ -658,7 +658,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /top-level 'experiment' has been removed/,
+      /top-level 'experiment' must be a string/,
     );
   });
 
@@ -1093,7 +1093,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       true,
     );
     expect(
-      warnings.some((error) => error.message.includes('child runtime blocks are ignored')),
+      warnings.some((error) => error.message.includes('child target and run controls are ignored')),
     ).toBe(true);
     expect(
       warnings.some((error) => error.message.includes('imports.tests imports raw cases')),

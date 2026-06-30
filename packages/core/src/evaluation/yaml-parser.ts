@@ -48,6 +48,7 @@ import {
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
+import type { TargetDefinition } from './providers/types.js';
 import type {
   ConversationAggregation,
   ConversationMode,
@@ -62,9 +63,9 @@ import type {
   JsonObject,
   JsonValue,
   RepoConfig,
+  TargetHooksConfig,
   TestMessage,
   TestMessageContent,
-  TargetHooksConfig,
   TurnFailurePolicy,
   WorkspaceConfig,
   WorkspaceEnvConfig,
@@ -75,7 +76,6 @@ import type {
 import { isJsonObject, isTestMessage } from './types.js';
 import { parseRepoConfig } from './workspace/repo-config-parser.js';
 import { parseYamlValue } from './yaml-loader.js';
-import type { TargetDefinition } from './providers/types.js';
 
 // Re-export public APIs from modules
 export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builder.js';

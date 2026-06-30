@@ -268,7 +268,7 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
 }
 
 function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
-  const rawDefinition = definition as Record<string, unknown>;
+  const rawDefinition = definition as unknown as Record<string, unknown>;
   if (
     Object.prototype.hasOwnProperty.call(rawDefinition, 'experiment') &&
     typeof rawDefinition.experiment !== 'string'

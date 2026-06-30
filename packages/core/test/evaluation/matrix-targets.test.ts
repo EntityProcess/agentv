@@ -13,7 +13,7 @@ function createTempYaml(content: string): { filePath: string; dir: string } {
 }
 
 describe('matrix evaluation - loadTestSuite', () => {
-  it('extracts suite-level targets from execution.targets', async () => {
+  it('rejects suite-level execution target matrices', async () => {
     const { filePath, dir } = createTempYaml(`
 execution:
   targets:
@@ -25,14 +25,14 @@ tests:
     criteria: "Greet"
 `);
 
-    const suite = await loadTestSuite(filePath, dir);
-    expect(suite.targets).toEqual(['copilot', 'claude']);
+    await expect(loadTestSuite(filePath, dir)).rejects.toThrow(
+      "top-level 'execution' is not part of eval YAML",
+    );
   });
 
-  it('returns undefined targets when not specified', async () => {
+  it('uses singular top-level target without targets matrix metadata', async () => {
     const { filePath, dir } = createTempYaml(`
-execution:
-  target: copilot
+target: copilot
 tests:
   - id: test-1
     input: "Hello"
@@ -40,6 +40,7 @@ tests:
 `);
 
     const suite = await loadTestSuite(filePath, dir);
+    expect(suite.targetSpec).toEqual({ name: 'copilot' });
     expect(suite.targets).toBeUndefined();
   });
 
@@ -62,7 +63,7 @@ tests:
 `);
 
     await expect(loadTestSuite(filePath, dir)).rejects.toThrow(
-      "test 'copilot-only'.execution.targets is not supported.",
+      "top-level 'execution' is not part of eval YAML",
     );
   });
 });
