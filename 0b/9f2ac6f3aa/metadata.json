@@ -3,7 +3,7 @@
   "checkpoint_id": "0b9f2ac6f3aa",
   "strategy": "manual-commit",
   "branch": "preserve/main-showcase-uncommitted-before-file-changes-merge",
-  "checkpoints_count": 95,
+  "checkpoints_count": 96,
   "files_touched": [
     "examples/showcase/cross-repo-sync/evals/dataset.eval.yaml",
     "examples/showcase/cross-repo-sync/scripts/run-ts.sh",
@@ -41,13 +41,19 @@
       "transcript": "/0b/9f2ac6f3aa/4/full.jsonl",
       "content_hash": "/0b/9f2ac6f3aa/4/content_hash.txt",
       "prompt": "/0b/9f2ac6f3aa/4/prompt.txt"
+    },
+    {
+      "metadata": "/0b/9f2ac6f3aa/5/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/5/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/5/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5653113,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 88348032,
-    "output_tokens": 506966,
-    "api_call_count": 1245
+    "input_tokens": 73043345,
+    "cache_creation_tokens": 641125,
+    "cache_read_tokens": 152354601,
+    "output_tokens": 708283,
+    "api_call_count": 1973
   }
 }
