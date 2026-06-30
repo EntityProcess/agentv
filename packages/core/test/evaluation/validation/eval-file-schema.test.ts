@@ -88,7 +88,6 @@ describe('EvalFileSchema input shorthand', () => {
         early_exit: true,
         timeout_seconds: 300,
         budget_usd: 2,
-        sandbox: 'auto',
       },
       tests: [
         {
@@ -173,6 +172,18 @@ describe('EvalFileSchema input shorthand', () => {
       policy: {
         setup: [{ script: 'bun install' }],
         scripts: ['bun test'],
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects sandbox under policy because environment binding belongs under workspace or targets', () => {
+    const result = EvalFileSchema.safeParse({
+      target: 'codex',
+      policy: {
+        sandbox: 'auto',
       },
       tests: [baseTest],
     });

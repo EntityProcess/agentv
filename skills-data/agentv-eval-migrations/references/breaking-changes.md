@@ -15,7 +15,7 @@ Old:
 ```yaml
 name: backend-with-skills
 experiment:
-  target: copilot
+  target: copilot--claude-opus-4.8
   repeat:
     count: 3
     strategy: pass_at_k
@@ -23,14 +23,17 @@ experiment:
   timeout_seconds: 600
   threshold: 0.8
   budget_usd: 5
-  sandbox: auto
 ```
 
 New:
 
 ```yaml
 name: backend-with-skills
-target: copilot
+target: copilot--claude-opus-4.8
+
+workspace:
+  isolation: per_case
+
 policy:
   repeat:
     count: 3
@@ -39,7 +42,6 @@ policy:
   timeout_seconds: 600
   threshold: 0.8
   budget_usd: 5
-  sandbox: auto
 ```
 
 ## Workspace Isolation Spelling

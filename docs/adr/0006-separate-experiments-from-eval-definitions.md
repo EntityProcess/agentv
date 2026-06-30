@@ -63,14 +63,15 @@ The only runnable authoring artifact is `eval.yaml` or another `*.eval.yaml`
 file. A project may place wrapper eval files under an `experiments/` directory
 when their main job is to bind runtime policy over reusable suites, but those
 files are still ordinary eval YAML files. AgentV must not infer behavior from
-that directory name. Runtime controls live in an inline `experiment:` block:
+that directory name. Runtime controls live in top-level `target` and `policy`
+fields:
 
 ```yaml
 name: cargowise-sql-migration-codex
-
-experiment:
-  target: agent
+target: agent
+execution:
   workers: 4
+policy:
   threshold: 0.8
   repeat:
     count: 3
@@ -155,9 +156,11 @@ must stay with the lifecycle surface that actually owns that work:
 - `targets[].hooks` prepare the target runner or provider variant. Agent
   discovery files, provider-specific config, and target-specific harness setup
   belong here.
-- `experiment:` selects runtime policy: target or target matrix, workers,
-  repeat strategy, threshold, timeout, budget, sandbox/runtime knobs, and result
-  identity.
+- Top-level `target` selects the system under test. Top-level `policy` selects
+  runtime and gating controls: repeat strategy, threshold, timeout, budget, and
+  early-exit behavior. Workspace state reuse stays under
+  `workspace.isolation`, and Docker/container binding stays under
+  `workspace.docker`.
 
 This differs from external experiment formats that allow generic scripts on the
 experiment object. AgentV keeps those scripts in workspace or target hooks so a

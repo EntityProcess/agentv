@@ -100,7 +100,7 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['assert', "'assert' has been removed. Use 'assertions' instead."],
   [
     'experiment',
-    "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, budget_usd, and sandbox under top-level 'policy'.",
+    "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, and budget_usd under top-level 'policy'.",
   ],
 ]);
 

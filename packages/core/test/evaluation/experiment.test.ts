@@ -20,7 +20,6 @@ describe('inline experiment config', () => {
       workers: 4,
       threshold: 0.8,
       budget_usd: 1.25,
-      sandbox: 'auto',
     });
 
     expect(config).toMatchObject({
@@ -35,7 +34,6 @@ describe('inline experiment config', () => {
       timeoutSeconds: 900,
       workers: 4,
       budgetUsd: 1.25,
-      sandbox: 'auto',
     });
     expect(config.fingerprint).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -71,7 +69,7 @@ describe('inline experiment config', () => {
     });
   });
 
-  it('rejects invalid run counts and sandbox values', () => {
+  it('rejects invalid run counts', () => {
     expect(() => normalizeExperimentConfig({ runs: 0 })).toThrow(/runs/);
     expect(() => normalizeExperimentConfig({ repeat: {} })).toThrow(/repeat.count/);
     expect(() => normalizeExperimentConfig({ repeat: { count: 2, strategy: 'median' } })).toThrow(
@@ -83,7 +81,6 @@ describe('inline experiment config', () => {
     expect(() => normalizeExperimentConfig({ repeat: { count: 2 }, runs: 2 })).toThrow(
       /repeat and runs/,
     );
-    expect(() => normalizeExperimentConfig({ sandbox: 'host' })).toThrow(/sandbox/);
     expect(() => normalizeExperimentConfig({ setup: [{ script: 'bun install' }] })).toThrow(
       /setup is not supported/,
     );

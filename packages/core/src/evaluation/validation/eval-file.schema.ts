@@ -421,7 +421,6 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
   early_exit: z.boolean().optional(),
   timeout_seconds: z.number().gt(0).optional(),
   budget_usd: z.number().gt(0).optional(),
-  sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
   workspace: z.never().optional(),
   setup: z.never().optional(),
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
@@ -435,7 +434,6 @@ const EvalPolicySchema = z
     timeout_seconds: z.number().gt(0).optional(),
     threshold: z.number().min(0).max(1).optional(),
     budget_usd: z.number().gt(0).optional(),
-    sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
   })
   .strict();
 

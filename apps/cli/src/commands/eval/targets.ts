@@ -97,6 +97,7 @@ export interface TargetSelectionOptions {
   readonly explicitTargetsPath?: string;
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
+  readonly fileTargetName?: string;
   readonly env: NodeJS.ProcessEnv;
 }
 
@@ -157,7 +158,7 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   }
 
   const definitions = await readTargetDefinitions(targetsFilePath);
-  const fileTargetName = await readTestSuiteTarget(testFilePath);
+  const fileTargetName = options.fileTargetName ?? (await readTestSuiteTarget(testFilePath));
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
   const targetDefinition = resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath);
@@ -187,6 +188,7 @@ export async function selectMultipleTargets(
   options: TargetSelectionOptions & {
     readonly targetNames: readonly string[];
     readonly targetRefs?: readonly import('@agentv/core').EvalTargetRef[];
+    readonly targetSource?: 'cli' | 'test-file';
   },
 ): Promise<readonly TargetSelection[]> {
   const { testFilePath, repoRoot, cwd, explicitTargetsPath, env, targetNames, targetRefs } =
@@ -261,7 +263,7 @@ export async function selectMultipleTargets(
         definitions,
         resolvedTarget,
         targetName: name,
-        targetSource: 'cli',
+        targetSource: options.targetSource ?? 'cli',
         targetsFilePath,
         ...(hooks && { targetHooks: hooks }),
       });

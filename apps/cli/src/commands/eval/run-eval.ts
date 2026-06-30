@@ -155,6 +155,7 @@ interface NormalizedOptions {
   readonly experiment?: string;
   readonly experimentConfig?: ExperimentConfig;
   readonly experimentMetadata?: ExperimentArtifactMetadata;
+  readonly experimentTargets?: readonly string[];
   readonly experimentTargetRefs?: readonly EvalTargetRef[];
   readonly experimentTrialsConfig?: TrialsConfig;
   readonly budgetUsd?: number;
@@ -744,19 +745,18 @@ function applyExperimentOptions(
   const experimentTargetNames = experimentTargetRefs?.map((target) => target.name) ?? [];
   const experimentTarget =
     experiment.target && experiment.target.trim().length > 0 ? experiment.target : undefined;
-  const nextCliTargets =
-    options.cliTargets.length > 0
-      ? options.cliTargets
-      : experimentTargetNames.length > 0
+  const experimentTargets =
+    options.cliTargets.length === 0
+      ? experimentTargetNames.length > 0
         ? experimentTargetNames
         : experimentTarget
           ? [experimentTarget]
-          : options.cliTargets;
+          : undefined
+      : undefined;
 
   return {
     ...options,
-    target: options.target ?? (nextCliTargets.length === 1 ? nextCliTargets[0] : undefined),
-    cliTargets: nextCliTargets,
+    target: options.target,
     agentTimeoutSeconds: options.agentTimeoutSeconds ?? experiment.timeoutSeconds,
     workers: options.workers ?? experiment.workers,
     workspaceMode: options.workspaceMode,
@@ -765,6 +765,7 @@ function applyExperimentOptions(
     threshold: options.threshold ?? experiment.threshold,
     experimentConfig: experiment,
     experimentMetadata: buildExperimentArtifactMetadata(experiment),
+    experimentTargets,
     experimentTargetRefs: options.cliTargets.length === 0 ? experimentTargetRefs : undefined,
     experimentTrialsConfig: buildExperimentTrialsConfig(experiment),
   };
@@ -1229,6 +1230,7 @@ async function prepareFileMetadata(params: {
   } else {
     // Determine target names: CLI --target flags override YAML
     const cliTargets = effectiveOptions.cliTargets;
+    const experimentTargets = effectiveOptions.experimentTargets ?? [];
     const suiteTargets = suite.targets;
     const suiteTargetRefs = suite.targetRefs;
     const experimentTargetRefs = effectiveOptions.experimentTargetRefs;
@@ -1236,8 +1238,13 @@ async function prepareFileMetadata(params: {
     // Resolve which target names to use (precedence: CLI/experiment > suite YAML targets > default)
     let targetNames: readonly string[];
     let targetRefs: readonly EvalTargetRef[] | undefined;
+    let targetSource: 'cli' | 'test-file' = 'test-file';
     if (cliTargets.length > 0) {
       targetNames = cliTargets;
+      targetRefs = experimentTargetRefs;
+      targetSource = 'cli';
+    } else if (experimentTargets.length > 0) {
+      targetNames = experimentTargets;
       targetRefs = experimentTargetRefs;
     } else if (suiteTargets && suiteTargets.length > 0) {
       targetNames = suiteTargets;
@@ -1257,6 +1264,7 @@ async function prepareFileMetadata(params: {
         env: process.env,
         targetNames,
         targetRefs,
+        targetSource,
       });
 
       selections = multiSelections.map((sel) => ({
@@ -1270,7 +1278,14 @@ async function prepareFileMetadata(params: {
         repoRoot,
         cwd,
         explicitTargetsPath: effectiveOptions.targetsPath,
-        cliTargetName: targetNames.length === 1 ? targetNames[0] : effectiveOptions.target,
+        cliTargetName:
+          targetSource === 'cli'
+            ? targetNames.length === 1
+              ? targetNames[0]
+              : effectiveOptions.target
+            : effectiveOptions.target,
+        fileTargetName:
+          targetSource === 'test-file' && targetNames.length === 1 ? targetNames[0] : undefined,
         env: process.env,
       });
 

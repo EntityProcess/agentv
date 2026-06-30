@@ -149,7 +149,6 @@ export interface EvalPolicy {
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
-  readonly sandbox?: 'auto' | 'docker' | 'vercel';
 }
 
 export interface EvalExecution {
@@ -271,7 +270,7 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
 function rejectDeprecatedExperimentField(definition: EvalDefinition): void {
   if (Object.prototype.hasOwnProperty.call(definition, 'experiment')) {
     throw new Error(
-      "defineEval() no longer accepts top-level 'experiment'. Move experiment.target to top-level 'target' and move repeat, earlyExit, timeoutSeconds, threshold, budgetUsd, and sandbox under top-level 'policy'.",
+      "defineEval() no longer accepts top-level 'experiment'. Move experiment.target to top-level 'target' and move repeat, earlyExit, timeoutSeconds, threshold, and budgetUsd under top-level 'policy'.",
     );
   }
 }

@@ -13959,10 +13959,6 @@
               "type": "number",
               "exclusiveMinimum": true,
               "minimum": 0
-            },
-            "sandbox": {
-              "type": "string",
-              "enum": ["auto", "docker", "vercel"]
             }
           },
           "additionalProperties": false
@@ -16389,10 +16385,6 @@
               "type": "number",
               "exclusiveMinimum": true,
               "minimum": 0
-            },
-            "sandbox": {
-              "type": "string",
-              "enum": ["auto", "docker", "vercel"]
             },
             "setup": {
               "not": {}

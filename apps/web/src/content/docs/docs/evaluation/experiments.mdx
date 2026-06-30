@@ -8,7 +8,7 @@ sidebar:
 AgentV eval files are the only runnable authoring artifact. The eval file
 defines the experiment. Use top-level `name` as the result namespace,
 top-level `target` for the system under test, and top-level `policy` for
-runtime and gating controls such as timeout, sandbox, budgets, thresholds, and
+runtime and gating controls such as timeout, budgets, thresholds, and
 repeat-run policy.
 AgentV does not have a separate `experiment.yaml` file, top-level `run_group`,
 or schema-significant `experiments/` directory.
@@ -36,7 +36,7 @@ tests:
 
 `experiment:` was a prerelease authoring block and is rejected. Move
 `experiment.target` to top-level `target`, and move `repeat`, `early_exit`,
-`timeout_seconds`, `threshold`, `budget_usd`, and `sandbox` under `policy`.
+`timeout_seconds`, `threshold`, and `budget_usd` under `policy`.
 `execution:` is accepted only as a legacy top-level runtime alias for existing
 eval files and target matrices.
 

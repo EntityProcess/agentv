@@ -1373,7 +1373,7 @@ function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
   if (suite.experiment !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, budget_usd, and sandbox under top-level 'policy'.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, and budget_usd under top-level 'policy'.`,
     );
   }
   const runtime = suite.execution;

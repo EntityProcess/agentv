@@ -584,7 +584,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('runs inline experiment config with suite test selection and run knobs', async () => {
+  it('runs inline target and policy config with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {
       await writeFile(
@@ -611,11 +611,11 @@ describe('agentv eval CLI', () => {
         wrapperPath,
         [
           'name: native-exp',
-          'experiment:',
-          '  name: native-exp',
-          '  target: cli-target',
-          '  timeout_seconds: 12',
+          'target: cli-target',
+          'execution:',
           '  workers: 4',
+          'policy:',
+          '  timeout_seconds: 12',
           '  threshold: 0.8',
           '  budget_usd: 3',
           '  repeat:',
@@ -664,7 +664,6 @@ describe('agentv eval CLI', () => {
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
-        name: 'native-exp',
         target: 'cli-target',
         repeat: {
           count: 2,
@@ -693,7 +692,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('keeps inline experiment runtime isolated across multiple eval files', async () => {
+  it('keeps inline runtime policy isolated across multiple eval files', async () => {
     const fixture = await createFixture();
     try {
       const firstPath = path.join(fixture.suiteDir, 'first.eval.yaml');
@@ -702,10 +701,11 @@ describe('agentv eval CLI', () => {
         firstPath,
         [
           'name: first',
-          'experiment:',
-          '  target: cli-target',
-          '  timeout_seconds: 11',
+          'target: cli-target',
+          'execution:',
           '  workers: 1',
+          'policy:',
+          '  timeout_seconds: 11',
           '  budget_usd: 0.11',
           'tests:',
           '  - id: first-case',
@@ -719,10 +719,11 @@ describe('agentv eval CLI', () => {
         secondPath,
         [
           'name: second',
-          'experiment:',
-          '  target: file-target',
-          '  timeout_seconds: 22',
+          'target: file-target',
+          'execution:',
           '  workers: 2',
+          'policy:',
+          '  timeout_seconds: 22',
           '  budget_usd: 0.22',
           'tests:',
           '  - id: second-case',
@@ -793,7 +794,7 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
         kind: 'direct_suite',
-        config_source: 'defaults',
+        config_source: 'inline_experiment',
         experiment_namespace: 'cli-smoke',
         experiment_namespace_source: 'cli',
         eval_files: ['sample.test.yaml'],

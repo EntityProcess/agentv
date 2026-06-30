@@ -2,8 +2,6 @@ import { createHash } from 'node:crypto';
 
 import type { EvalRunOverride, TrialStrategy } from './types.js';
 
-export type ExperimentSandbox = 'auto' | 'docker' | 'vercel';
-
 export type ExperimentTargetRefWire =
   | string
   | {
@@ -47,7 +45,6 @@ export type ExperimentConfigWire = {
   readonly workers?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
-  readonly sandbox?: ExperimentSandbox;
   readonly workspace?: never;
 };
 
@@ -65,7 +62,6 @@ export type ExperimentConfig = {
   readonly workers?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
-  readonly sandbox?: ExperimentSandbox;
   readonly fingerprint?: string;
 };
 
@@ -87,10 +83,8 @@ export type ExperimentArtifactMetadata = {
   readonly workers?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
-  readonly sandbox?: ExperimentSandbox;
 };
 
-const VALID_SANDBOXES: ReadonlySet<string> = new Set(['auto', 'docker', 'vercel']);
 const VALID_REPEAT_STRATEGIES: ReadonlySet<string> = new Set([
   'pass_at_k',
   'pass_all',
@@ -135,7 +129,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     rawConfig.budget_usd ?? rawConfig.budgetUsd,
     'budget_usd',
   );
-  const sandbox = readOptionalSandbox(rawConfig.sandbox);
   rejectExperimentWorkspace(rawConfig.workspace);
 
   const configWithoutFingerprint: Omit<ExperimentConfig, 'fingerprint'> = {
@@ -152,7 +145,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     ...(workers !== undefined && { workers }),
     ...(threshold !== undefined && { threshold }),
     ...(budgetUsd !== undefined && { budgetUsd }),
-    ...(sandbox !== undefined && { sandbox }),
   };
 
   return {
@@ -228,7 +220,6 @@ export function buildExperimentArtifactMetadata(
     ...(config.workers !== undefined && { workers: config.workers }),
     ...(config.threshold !== undefined && { threshold: config.threshold }),
     ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
-    ...(config.sandbox !== undefined && { sandbox: config.sandbox }),
   };
 }
 
@@ -367,16 +358,6 @@ function readOptionalPositiveNumber(raw: unknown, location: string): number | un
     throw new Error(`Experiment ${location} must be a positive number.`);
   }
   return raw;
-}
-
-function readOptionalSandbox(raw: unknown): ExperimentSandbox | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== 'string' || !VALID_SANDBOXES.has(raw)) {
-    throw new Error("Experiment sandbox must be one of 'auto', 'docker', or 'vercel'.");
-  }
-  return raw as ExperimentSandbox;
 }
 
 function readOptionalRecord(raw: unknown): Record<string, unknown> | undefined {

@@ -17,7 +17,6 @@ describe('YAML-aligned eval authoring helpers', () => {
         timeoutSeconds: 600,
         threshold: 0.8,
         budgetUsd: 1.5,
-        sandbox: 'auto',
       },
       execution: {
         targets: [
@@ -112,7 +111,6 @@ describe('YAML-aligned eval authoring helpers', () => {
         timeout_seconds: 600,
         threshold: 0.8,
         budget_usd: 1.5,
-        sandbox: 'auto',
       },
       execution: {
         targets: [

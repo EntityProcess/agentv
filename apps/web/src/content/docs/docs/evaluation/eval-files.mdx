@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and run policy for an evaluation run. Top-level `name` is the experiment/result namespace, top-level `target` identifies the system under test, and top-level [`policy`](/docs/evaluation/experiments/) owns thresholds, budgets, timeouts, sandbox, and repeat runs. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval data formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run policy for an evaluation run. Top-level `name` is the experiment/result namespace, top-level `target` identifies the system under test, and top-level [`policy`](/docs/evaluation/experiments/) owns thresholds, budgets, timeouts, and repeat runs. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 
@@ -115,7 +115,7 @@ tests:
 | `suite` | Optional suite identifier |
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
-| `policy` | Runtime/gating policy (`repeat`, `early_exit`, `threshold`, `timeout_seconds`, `budget_usd`, `sandbox`) |
+| `policy` | Runtime/gating policy (`repeat`, `early_exit`, `threshold`, `timeout_seconds`, `budget_usd`) |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
