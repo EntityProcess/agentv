@@ -66,6 +66,7 @@ export interface ResultManifestRecord {
   readonly external_trace?: ExternalTraceMetadataWire;
   readonly response_path?: string;
   readonly result_dir?: string;
+  readonly test_dir?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
   readonly targets_path?: string;

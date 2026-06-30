@@ -572,6 +572,111 @@ describe('results export', () => {
     );
   });
 
+  it('exports generated test bundle refs and files from source manifests', async () => {
+    const sourceDir = path.join(tempDir, 'source-run');
+    mkdirSync(path.join(sourceDir, 'case', 'test'), { recursive: true });
+    writeFileSync(
+      path.join(sourceDir, 'case', 'test', 'EVAL.yaml'),
+      'tests:\n  - id: test-greeting\n',
+    );
+    writeFileSync(path.join(sourceDir, 'case', 'test', 'targets.yaml'), 'targets: []\n');
+    const sourceFile = path.join(sourceDir, RESULT_INDEX_FILENAME);
+    const outputDir = path.join(tempDir, 'output');
+    const content = toJsonl({
+      ...RESULT_FULL,
+      result_dir: 'case',
+      test_dir: 'case/test',
+      eval_path: 'case/test/EVAL.yaml',
+      targets_path: 'case/test/targets.yaml',
+    });
+
+    await exportResults(sourceFile, content, outputDir);
+
+    const [entry] = readIndex(outputDir);
+    expect(entry.test_dir).toBe(`${entry.result_dir}/test`);
+    expect(entry.task_dir).toBeUndefined();
+    expect(entry.eval_path).toBe(`${entry.result_dir}/test/EVAL.yaml`);
+    expect(entry.targets_path).toBe(`${entry.result_dir}/test/targets.yaml`);
+    expect(readFileSync(path.join(outputDir, entry.eval_path ?? ''), 'utf8')).toContain(
+      'test-greeting',
+    );
+
+    const bundle = buildProjectionBundleFromExportedIndex({
+      sourceFile,
+      outputDir,
+      cwd: tempDir,
+      includeRawContent: true,
+    });
+    expect(bundle.entries[0].artifact_refs).toMatchObject({
+      status: 'emitted',
+      test_dir: entry.test_dir,
+      eval_path: entry.eval_path,
+      targets_path: entry.targets_path,
+    });
+  });
+
+  it('exports legacy task_dir bundles as new test_dir artifacts', async () => {
+    const sourceDir = path.join(tempDir, 'legacy-run');
+    mkdirSync(path.join(sourceDir, 'case', 'task'), { recursive: true });
+    writeFileSync(
+      path.join(sourceDir, 'case', 'task', 'EVAL.yaml'),
+      'tests:\n  - id: test-greeting\n',
+    );
+    writeFileSync(path.join(sourceDir, 'case', 'task', 'targets.yaml'), 'targets: []\n');
+    const sourceFile = path.join(sourceDir, RESULT_INDEX_FILENAME);
+    const outputDir = path.join(tempDir, 'output');
+    const content = toJsonl({
+      ...RESULT_FULL,
+      result_dir: 'case',
+      task_dir: 'case/task',
+      eval_path: 'case/task/EVAL.yaml',
+      targets_path: 'case/task/targets.yaml',
+    });
+
+    await exportResults(sourceFile, content, outputDir);
+
+    const [entry] = readIndex(outputDir);
+    expect(entry.test_dir).toBe(`${entry.result_dir}/test`);
+    expect(entry.task_dir).toBeUndefined();
+    expect(entry.eval_path).toBe(`${entry.result_dir}/test/EVAL.yaml`);
+    expect(entry.targets_path).toBe(`${entry.result_dir}/test/targets.yaml`);
+    expect(readFileSync(path.join(outputDir, entry.eval_path ?? ''), 'utf8')).toContain(
+      'test-greeting',
+    );
+  });
+
+  it('preserves source bundle refs in dry-run projection inputs', async () => {
+    const sourceDir = path.join(tempDir, 'source-run');
+    mkdirSync(sourceDir, { recursive: true });
+    const sourceFile = path.join(sourceDir, RESULT_INDEX_FILENAME);
+    writeFileSync(
+      sourceFile,
+      toJsonl({
+        ...RESULT_FULL,
+        result_dir: 'case',
+        task_dir: 'case/task',
+        eval_path: 'case/task/EVAL.yaml',
+        targets_path: 'case/task/targets.yaml',
+      }),
+    );
+
+    const source = await loadExportSource(sourceFile, tempDir);
+    const bundle = buildProjectionBundle(source.results, {
+      sourceFile: source.sourceFile,
+      runId: deriveExportRunId(source.sourceFile),
+      cwd: tempDir,
+      includeRawContent: true,
+      indexRecords: source.indexRecords,
+    });
+
+    expect(bundle.entries[0].artifact_refs).toMatchObject({
+      status: 'planned_export',
+      task_dir: 'case/task',
+      eval_path: 'case/task/EVAL.yaml',
+      targets_path: 'case/task/targets.yaml',
+    });
+  });
+
   it('fails duplicate projection artifacts when duplicate policy is error', async () => {
     const sourceFile = path.join(tempDir, 'runs', 'retry-run', 'index.jsonl');
     const outputDir = path.join(tempDir, 'output');

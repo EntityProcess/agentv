@@ -1061,6 +1061,7 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(indexEntry?.result_dir).toBe(repeatRowDir);
     expect(indexEntry?.summary_path).toBe(`${repeatRowDir}/summary.json`);
+    expect(indexEntry?.test_dir).toBeUndefined();
     expect(indexEntry?.task_dir).toBeUndefined();
     expect(indexEntry?.input_path).toBeUndefined();
     expect(indexEntry?.grading_path).toBeUndefined();
@@ -1939,7 +1940,7 @@ describe('writeArtifactsFromResults', () => {
     expect(alpha.result_dir).not.toBe(beta.result_dir);
   });
 
-  it('writes task bundle artifacts with local source paths when source metadata is provided', async () => {
+  it('writes test bundle artifacts with local source paths when source metadata is provided', async () => {
     const sourceRoot = path.join(testDir, 'src');
     await mkdir(sourceRoot, { recursive: true });
     const evalFile = path.join(sourceRoot, 'trace.eval.yaml');
@@ -2058,28 +2059,31 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'trace-case');
-    const taskDir = path.join(outputDir, rowDir, 'task');
-    const evalPath = path.join(taskDir, 'EVAL.yaml');
-    const targetsPath = path.join(taskDir, 'targets.yaml');
+    const testBundleDir = path.join(outputDir, rowDir, 'test');
+    const evalPath = path.join(testBundleDir, 'EVAL.yaml');
+    const targetsPath = path.join(testBundleDir, 'targets.yaml');
     const taskEval = await readFile(evalPath, 'utf8');
     const taskTargets = await readFile(targetsPath, 'utf8');
 
     expect(indexLine).toMatchObject({
       result_dir: rowDir,
-      task_dir: `${rowDir}/task`,
-      eval_path: `${rowDir}/task/EVAL.yaml`,
-      targets_path: `${rowDir}/task/targets.yaml`,
-      files_path: `${rowDir}/task/files`,
-      graders_path: `${rowDir}/task/graders`,
+      test_dir: `${rowDir}/test`,
+      eval_path: `${rowDir}/test/EVAL.yaml`,
+      targets_path: `${rowDir}/test/targets.yaml`,
+      files_path: `${rowDir}/test/files`,
+      graders_path: `${rowDir}/test/graders`,
     });
-    expect(await readFile(path.join(taskDir, 'files', 'src', 'input.txt'), 'utf8')).toBe(
+    expect(indexLine.task_dir).toBeUndefined();
+    expect(await readFile(path.join(testBundleDir, 'files', 'src', 'input.txt'), 'utf8')).toBe(
       'input fixture\n',
     );
-    expect(await readFile(path.join(taskDir, 'files', 'src', '.env'), 'utf8')).toBe('[redacted]\n');
-    expect(await readFile(path.join(taskDir, 'graders', 'src', 'grader.md'), 'utf8')).toBe(
+    expect(await readFile(path.join(testBundleDir, 'files', 'src', '.env'), 'utf8')).toBe(
+      '[redacted]\n',
+    );
+    expect(await readFile(path.join(testBundleDir, 'graders', 'src', 'grader.md'), 'utf8')).toBe(
       'grade this response\n',
     );
-    expect(await readFile(path.join(taskDir, 'graders', 'src', 'prompt.ts'), 'utf8')).toBe(
+    expect(await readFile(path.join(testBundleDir, 'graders', 'src', 'prompt.ts'), 'utf8')).toBe(
       'console.log("prompt");\n',
     );
 
@@ -2102,10 +2106,10 @@ describe('writeArtifactsFromResults', () => {
     expect(taskEval).not.toContain('literal-secret');
     expect(taskTargets).not.toContain('literal-secret');
     await expect(readdir(path.join(outputDir, rowDir, '.agentv', 'results'))).rejects.toThrow();
-    await expect(readdir(path.join(taskDir, '.agentv', 'results'))).rejects.toThrow();
+    await expect(readdir(path.join(testBundleDir, '.agentv', 'results'))).rejects.toThrow();
   });
 
-  it('writes task bundle index links for multi-test runs', async () => {
+  it('writes test bundle index links for multi-test runs', async () => {
     const evalFile = path.join(testDir, 'multi.eval.yaml');
     await mkdir(path.dirname(evalFile), { recursive: true });
     await writeFile(
@@ -2152,18 +2156,19 @@ describe('writeArtifactsFromResults', () => {
 
     const indexLines = await readIndexLines(paths.indexPath);
     const rowDirs = indexLines.map((line) => expectRowDir(line, line.test_id));
-    expect(indexLines.map((line, index) => line.task_dir)).toEqual(
-      rowDirs.map((rowDir) => `${rowDir}/task`),
+    expect(indexLines.map((line) => line.test_dir)).toEqual(
+      rowDirs.map((rowDir) => `${rowDir}/test`),
     );
-    expect(await readdir(path.join(testDir, 'multi-out', rowDirs[0] ?? '', 'task'))).toContain(
+    expect(indexLines.map((line) => line.task_dir)).toEqual([undefined, undefined]);
+    expect(await readdir(path.join(testDir, 'multi-out', rowDirs[0] ?? '', 'test'))).toContain(
       'EVAL.yaml',
     );
-    expect(await readdir(path.join(testDir, 'multi-out', rowDirs[1] ?? '', 'task'))).toContain(
+    expect(await readdir(path.join(testDir, 'multi-out', rowDirs[1] ?? '', 'test'))).toContain(
       'EVAL.yaml',
     );
   });
 
-  it('matches task bundle targets by resolved result target while preserving selected target name', async () => {
+  it('matches test bundle targets by resolved result target while preserving selected target name', async () => {
     const evalFile = path.join(testDir, 'resolved-target.eval.yaml');
     await mkdir(path.dirname(evalFile), { recursive: true });
     await writeFile(evalFile, 'tests:\n  - id: alias-case\n    input: hello\n');
@@ -2204,10 +2209,11 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'alias-case');
-    expect(indexLine.task_dir).toBe(`${rowDir}/task`);
+    expect(indexLine.test_dir).toBe(`${rowDir}/test`);
+    expect(indexLine.task_dir).toBeUndefined();
 
     const taskEval = await readFile(
-      path.join(testDir, 'resolved-target-out', rowDir, 'task', 'EVAL.yaml'),
+      path.join(testDir, 'resolved-target-out', rowDir, 'test', 'EVAL.yaml'),
       'utf8',
     );
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;

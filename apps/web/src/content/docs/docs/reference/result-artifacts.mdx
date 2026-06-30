@@ -31,7 +31,7 @@ The default local layout is:
       tags.json                 # optional mutable Dashboard tags
       <case-or-allocation>/
         summary.json            # optional per-case aggregate, especially repeats
-        task/                   # optional generated task bundle
+        test/                   # optional generated test bundle
           EVAL.yaml
           targets.yaml
           files/
@@ -81,7 +81,7 @@ query.
 | `timing.json` | Duration, token usage, cost usage, and source labels such as `provider_reported`, `token_estimated`, `aggregate`, or `unavailable`. | Cost/latency reporting and provider-accounting audits. |
 | `transcript.jsonl` | AgentV-normalized transcript/timeline rows. | Portable human review, replay, transcript-aware graders, and tool-trajectory analysis. |
 | `transcript-raw.jsonl` | Native provider or harness evidence when available. | Parser debugging, forensic review, and preserving source bytes without making provider schemas public AgentV fields. |
-| `task/` | Generated task bundle for the exact eval slice and target settings that produced a row. | Audit, external review, and rerun workflows that should not depend on a mutable source checkout. |
+| `test/` | Generated test bundle for the exact eval slice and target settings that produced a row. | Audit, external review, and rerun workflows that should not depend on a mutable source checkout. |
 | `artifact_pointers` | Offload indirection for large detached payload bytes. | Finding payloads published outside the primary metadata/control-plane branch, such as transcript bytes on `agentv/artifacts/v1`. |
 
 `summary.json` and `index.jsonl` are complementary, not redundant. A run list
@@ -127,7 +127,7 @@ Example row:
   "transcript_raw_path": "refund-eligibility/run-1/transcript-raw.jsonl",
   "output_path": "refund-eligibility/run-1/outputs/answer.md",
   "answer_path": "refund-eligibility/run-1/outputs/answer.md",
-  "task_dir": "refund-eligibility/task"
+  "test_dir": "refund-eligibility/test"
 }
 ```
 

@@ -33,7 +33,7 @@ interface SelectedTaskBundle {
   readonly testId: string;
   readonly sourceTarget: string;
   readonly resultDir: string;
-  readonly taskDir: string;
+  readonly testDir: string;
   readonly evalPath: string;
   readonly targetsPath: string;
   readonly taskTarget: string;
@@ -254,7 +254,7 @@ function forbiddenOutputRoots(
 ): readonly string[] {
   return [
     path.resolve(sourceRunDir),
-    ...selected.flatMap((bundle) => [path.resolve(bundle.resultDir), path.resolve(bundle.taskDir)]),
+    ...selected.flatMap((bundle) => [path.resolve(bundle.resultDir), path.resolve(bundle.testDir)]),
   ];
 }
 
@@ -322,40 +322,41 @@ async function loadSelectedTaskBundles(options: {
     }
 
     const recordLabel = displayRecord(record);
+    const bundleDir = record.test_dir ?? record.task_dir;
     const evalPath =
       resolveRelativeRunPath(options.sourceRunDir, record.eval_path) ??
       resolveRelativeRunPath(
         options.sourceRunDir,
-        record.task_dir && `${record.task_dir}/${TASK_EVAL_FILENAME}`,
+        bundleDir && `${bundleDir}/${TASK_EVAL_FILENAME}`,
       );
     const targetsPath =
       resolveRelativeRunPath(options.sourceRunDir, record.targets_path) ??
       resolveRelativeRunPath(
         options.sourceRunDir,
-        record.task_dir && `${record.task_dir}/${TASK_TARGETS_FILENAME}`,
+        bundleDir && `${bundleDir}/${TASK_TARGETS_FILENAME}`,
       );
-    const taskDir =
-      resolveRelativeRunPath(options.sourceRunDir, record.task_dir) ??
+    const testDir =
+      resolveRelativeRunPath(options.sourceRunDir, bundleDir) ??
       (evalPath ? path.dirname(evalPath) : undefined);
     const resultDir =
       resolveRelativeRunPath(options.sourceRunDir, record.result_dir) ??
-      (taskDir ? path.dirname(taskDir) : undefined);
+      (testDir ? path.dirname(testDir) : undefined);
 
-    if (!evalPath || !targetsPath || !taskDir || !resultDir) {
+    if (!evalPath || !targetsPath || !testDir || !resultDir) {
       throw new Error(
-        `Selected result ${recordLabel} is missing task bundle paths. Re-run requires task/EVAL.yaml and task/targets.yaml.`,
+        `Selected result ${recordLabel} is missing test bundle paths. Re-run requires test/EVAL.yaml and test/targets.yaml.`,
       );
     }
 
-    await ensureFile(evalPath, `Task eval for ${recordLabel}`);
-    await ensureFile(targetsPath, `Task targets for ${recordLabel}`);
+    await ensureFile(evalPath, `Test eval for ${recordLabel}`);
+    await ensureFile(targetsPath, `Test targets for ${recordLabel}`);
     const taskTarget = await readTaskTarget(evalPath, sourceTarget);
     selected.push({
       record,
       testId,
       sourceTarget,
       resultDir,
-      taskDir,
+      testDir,
       evalPath,
       targetsPath,
       taskTarget,
@@ -364,7 +365,7 @@ async function loadSelectedTaskBundles(options: {
 
   if (selected.length === 0) {
     throw new Error(
-      'No captured task bundles matched the provided --test-id/--source-target filters.',
+      'No captured test bundles matched the provided --test-id/--source-target filters.',
     );
   }
   return selected;
@@ -384,7 +385,7 @@ function buildSourceMetadataByEvalFile(
           sourceRunDir: path.resolve(sourceRunDir),
           sourceIndexPath: path.resolve(indexPath),
           sourceResultDir: path.resolve(bundle.resultDir),
-          sourceTaskDir: path.resolve(bundle.taskDir),
+          sourceTestDir: path.resolve(bundle.testDir),
           sourceTestId: bundle.testId,
           sourceTarget: bundle.sourceTarget,
           sourceTimestamp: bundle.record.timestamp,
@@ -396,12 +397,12 @@ function buildSourceMetadataByEvalFile(
 
 export const runsRerunCommand = command({
   name: 'rerun',
-  description: 'Rerun captured task bundles with local target environment',
+  description: 'Rerun captured test bundles with local target environment',
   args: {
     runDir: positional({
       type: string,
       displayName: 'run-dir',
-      description: 'Run workspace directory or run manifest containing task bundles',
+      description: 'Run workspace directory or run manifest containing test bundles',
     }),
     testId: multioption({
       type: array(string),
@@ -490,11 +491,11 @@ export const runsRerunCommand = command({
         targetNamesByFile.set(bundle.targetsPath, names);
       }
       for (const [targetsPath, names] of targetNamesByFile.entries()) {
-        await validateTargetFile(targetsPath, [...names], 'Task bundle targets');
+        await validateTargetFile(targetsPath, [...names], 'Test bundle targets');
       }
     }
 
-    console.log(`Rerunning ${selected.length} captured task bundle(s) from: ${sourceRunDir}`);
+    console.log(`Rerunning ${selected.length} captured test bundle(s) from: ${sourceRunDir}`);
     console.log(`Rerun output directory: ${outputDir}`);
 
     const result = await runEvalCommand({

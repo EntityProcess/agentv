@@ -883,6 +883,7 @@ function resultArtifactTreeRootPaths(
 ): string[] {
   return [
     ...catalog.filter((entry) => entry.storage === 'local').map((entry) => entry.displayPath),
+    record.test_dir,
     record.task_dir,
     record.files_path,
     record.graders_path,
@@ -1212,6 +1213,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
       ...(record.aggregation && { aggregation: record.aggregation }),
       ...(record.eval_path && { eval_path: record.eval_path }),
       ...(record.result_dir && { result_dir: record.result_dir }),
+      ...(record.test_dir && { test_dir: record.test_dir }),
       ...(record.summary_path && { summary_path: record.summary_path }),
       ...(record.grading_path && { grading_path: record.grading_path }),
       ...(record.timing_path && { timing_path: record.timing_path }),

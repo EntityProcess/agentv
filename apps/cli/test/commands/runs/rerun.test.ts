@@ -38,15 +38,17 @@ async function writeTaskBundle(options: {
   readonly sourceRunDir: string;
   readonly testId: string;
   readonly targetsYaml: string;
+  readonly legacyTaskDir?: boolean;
 }): Promise<Record<string, unknown>> {
   const artifactDir = path.join(options.sourceRunDir, options.testId);
-  const taskDir = path.join(artifactDir, 'task');
+  const bundleDirname = options.legacyTaskDir ? 'task' : 'test';
+  const bundleDir = path.join(artifactDir, bundleDirname);
   const outputsDir = path.join(artifactDir, 'outputs');
-  await mkdir(taskDir, { recursive: true });
+  await mkdir(bundleDir, { recursive: true });
   await mkdir(outputsDir, { recursive: true });
 
   await writeFile(
-    path.join(taskDir, 'EVAL.yaml'),
+    path.join(bundleDir, 'EVAL.yaml'),
     `execution:
   target: captured
 tests:
@@ -58,10 +60,16 @@ tests:
 `,
     'utf8',
   );
-  await writeFile(path.join(taskDir, 'targets.yaml'), options.targetsYaml, 'utf8');
+  await writeFile(path.join(bundleDir, 'targets.yaml'), options.targetsYaml, 'utf8');
   await writeFile(path.join(artifactDir, 'grading.json'), '{"assertions":[]}\n', 'utf8');
   await writeFile(path.join(artifactDir, 'timing.json'), '{"duration_ms":1}\n', 'utf8');
   await writeFile(path.join(outputsDir, 'answer.md'), '@[assistant]:\nCaptured answer\n', 'utf8');
+
+  const bundlePaths = {
+    [`${options.legacyTaskDir ? 'task' : 'test'}_dir`]: `${options.testId}/${bundleDirname}`,
+    eval_path: `${options.testId}/${bundleDirname}/EVAL.yaml`,
+    targets_path: `${options.testId}/${bundleDirname}/targets.yaml`,
+  };
 
   return {
     timestamp: '2024-01-01T00:00:00.000Z',
@@ -73,13 +81,14 @@ tests:
     timing_path: `${options.testId}/timing.json`,
     output_path: `${options.testId}/outputs/answer.md`,
     answer_path: `${options.testId}/outputs/answer.md`,
-    task_dir: `${options.testId}/task`,
-    eval_path: `${options.testId}/task/EVAL.yaml`,
-    targets_path: `${options.testId}/task/targets.yaml`,
+    ...bundlePaths,
   };
 }
 
-async function createBundleFixture(targetsYaml = DEFAULT_TARGETS): Promise<BundleFixture> {
+async function createBundleFixture(
+  targetsYaml = DEFAULT_TARGETS,
+  options?: { readonly legacyTaskDir?: boolean },
+): Promise<BundleFixture> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-rerun-'));
   const cwd = path.join(baseDir, 'workspace');
   const sourceRunDir = path.join(baseDir, 'source-run');
@@ -88,8 +97,18 @@ async function createBundleFixture(targetsYaml = DEFAULT_TARGETS): Promise<Bundl
   await mkdir(sourceRunDir, { recursive: true });
 
   const records = [
-    await writeTaskBundle({ sourceRunDir, testId: 'case-alpha', targetsYaml }),
-    await writeTaskBundle({ sourceRunDir, testId: 'case-beta', targetsYaml }),
+    await writeTaskBundle({
+      sourceRunDir,
+      testId: 'case-alpha',
+      targetsYaml,
+      legacyTaskDir: options?.legacyTaskDir,
+    }),
+    await writeTaskBundle({
+      sourceRunDir,
+      testId: 'case-beta',
+      targetsYaml,
+      legacyTaskDir: options?.legacyTaskDir,
+    }),
   ];
   await writeFile(
     path.join(sourceRunDir, 'index.jsonl'),
@@ -197,7 +216,7 @@ describe('agentv runs rerun', () => {
     return created;
   }
 
-  it('reruns captured task bundles into an explicit output directory with source metadata', async () => {
+  it('reruns captured test bundles into an explicit output directory with source metadata', async () => {
     const created = await fixture();
 
     const result = await runCli(created, [
@@ -210,13 +229,14 @@ describe('agentv runs rerun', () => {
     ]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Rerunning 2 captured task bundle(s)');
+    expect(result.stdout).toContain('Rerunning 2 captured test bundle(s)');
     const { indexPath, rows } = await readOutputBundle(created.outputDir);
     expect(rows.map((row) => row.test_id)).toEqual(['case-alpha', 'case-beta']);
     expect(rows.every((row) => row.target === 'captured')).toBe(true);
     expect(rows[0].metadata).toMatchObject({
       rerun_source: {
         mode: 'rerun',
+        source_test_dir: path.join(created.sourceRunDir, 'case-alpha', 'test'),
         source_test_id: 'case-alpha',
         source_target: 'captured',
       },
@@ -226,6 +246,29 @@ describe('agentv runs rerun', () => {
     const answer = await readFile(answerPath, 'utf8');
     expect(answer).toContain('Alpha answer');
     expect(answer).not.toContain('Captured answer');
+  }, 30_000);
+
+  it('reruns legacy task_dir bundles for backward compatibility', async () => {
+    const created = await createBundleFixture(DEFAULT_TARGETS, { legacyTaskDir: true });
+
+    const result = await runCli(created, [
+      'runs',
+      'rerun',
+      created.sourceRunDir,
+      '--test-id',
+      'case-alpha',
+      '--output',
+      created.outputDir,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    const { rows } = await readOutputBundle(created.outputDir);
+    expect(rows.map((row) => row.test_id)).toEqual(['case-alpha']);
+    expect(rows[0].metadata).toMatchObject({
+      rerun_source: {
+        source_test_dir: path.join(created.sourceRunDir, 'case-alpha', 'task'),
+      },
+    });
   }, 30_000);
 
   it('fails clearly for missing env and accepts an explicit env file', async () => {
@@ -269,7 +312,7 @@ describe('agentv runs rerun', () => {
 
   it('fails loudly when selected bundle artifacts are missing', async () => {
     const created = await fixture();
-    await rm(path.join(created.sourceRunDir, 'case-beta', 'task', 'targets.yaml'));
+    await rm(path.join(created.sourceRunDir, 'case-beta', 'test', 'targets.yaml'));
 
     const result = await runCli(created, [
       'runs',
@@ -282,7 +325,7 @@ describe('agentv runs rerun', () => {
     ]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Task targets for case-beta@captured not found');
+    expect(result.stderr).toContain('Test targets for case-beta@captured not found');
   }, 30_000);
 
   it('reruns a selected test subset from index.jsonl', async () => {
@@ -303,29 +346,29 @@ describe('agentv runs rerun', () => {
     expect(rows.map((row) => row.test_id)).toEqual(['case-alpha']);
   }, 30_000);
 
-  it('chooses a default output directory outside the source task folder', async () => {
+  it('chooses a default output directory outside the source test bundle folder', async () => {
     const created = await fixture();
-    const taskDir = path.join(created.sourceRunDir, 'case-alpha', 'task');
+    const testBundleDir = path.join(created.sourceRunDir, 'case-alpha', 'test');
 
     const result = await runCli(
       created,
       ['runs', 'rerun', created.sourceRunDir, '--test-id', 'case-alpha'],
-      { cwd: taskDir },
+      { cwd: testBundleDir },
     );
 
     expect(result.exitCode).toBe(0);
     const outputDir = extractRerunOutputDir(result.stdout);
-    expect(path.relative(taskDir, outputDir).startsWith('..')).toBe(true);
+    expect(path.relative(testBundleDir, outputDir).startsWith('..')).toBe(true);
     const { rows } = await readOutputBundle(outputDir);
     expect(rows.map((row) => row.test_id)).toEqual(['case-alpha']);
   }, 30_000);
 
-  it('rejects explicit output nested under a source task folder', async () => {
+  it('rejects explicit output nested under a source test bundle folder', async () => {
     const created = await fixture();
     const nestedOutput = path.join(
       created.sourceRunDir,
       'case-alpha',
-      'task',
+      'test',
       '.agentv',
       'results',
     );

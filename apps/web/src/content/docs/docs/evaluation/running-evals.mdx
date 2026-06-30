@@ -118,9 +118,9 @@ agentv eval evals/my-eval.yaml --output ./my-results
 cat ./my-results/index.jsonl
 ```
 
-### Generated Task Bundles
+### Generated Test Bundles
 
-Each result can also include a generated task bundle inside its per-test result
+Each result can also include a generated test bundle inside its per-test result
 directory. The bundle captures the eval slice and target settings that produced
 that row, so reviewers and rerun tooling can inspect the exact run-local source
 instead of relying on a mutable checkout.
@@ -141,7 +141,7 @@ my-results/
       transcript.jsonl
       transcript-raw.jsonl
       outputs/answer.md
-    task/
+    test/
       EVAL.yaml
       targets.yaml
       files/      # copied input files when the case references them
@@ -149,7 +149,7 @@ my-results/
 ```
 
 The `index.jsonl` row links to these generated paths with snake_case fields such
-as `result_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
+as `result_dir`, `test_dir`, `eval_path`, `targets_path`, `files_path`, and
 `graders_path`. Treat those paths as relative to the run directory. When you need
 a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
 share the generated run directory and its `index.jsonl` manifest. Source-side
@@ -165,7 +165,7 @@ for a result row. `suite` and `name` are display metadata only; do not use them
 to infer storage paths or pick a Dashboard detail row.
 
 If the source eval uses the `PROMPT.md` fallback instead of inline `input`,
-AgentV records the generated task bundle metadata when source artifacts are
+AgentV records the generated test bundle metadata when source artifacts are
 available. It no longer emits a generated prompt sidecar for result rows.
 
 ### Manual or External-Agent Attempts

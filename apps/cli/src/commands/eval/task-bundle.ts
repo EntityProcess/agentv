@@ -15,7 +15,7 @@ import { stringify as stringifyYaml } from 'yaml';
 
 import { toSnakeCaseDeep } from '../../utils/case-conversion.js';
 
-const TASK_DIRNAME = 'task';
+const TEST_BUNDLE_DIRNAME = 'test';
 const TASK_EVAL_FILENAME = 'EVAL.yaml';
 const TASK_TARGETS_FILENAME = 'targets.yaml';
 const TASK_FILES_DIRNAME = 'files';
@@ -62,7 +62,7 @@ export interface MaterializeTaskBundleOptions {
 }
 
 export interface MaterializedTaskBundlePaths {
-  readonly taskDir: string;
+  readonly testDir: string;
   readonly evalPath: string;
   readonly targetsPath: string;
   readonly filesPath?: string;
@@ -950,14 +950,14 @@ export async function materializeTaskBundle(
     return undefined;
   }
 
-  const taskDir = path.join(options.outputDir, TASK_DIRNAME);
-  await mkdir(taskDir, { recursive: true });
+  const testDir = path.join(options.outputDir, TEST_BUNDLE_DIRNAME);
+  await mkdir(testDir, { recursive: true });
 
-  const copiedReferences = await copyReferences(options.test.source.references, taskDir, options);
+  const copiedReferences = await copyReferences(options.test.source.references, testDir, options);
   const rewrites = buildPathRewrites(copiedReferences);
   const evalCase = buildEvalCase(options.test, rewrites);
-  const evalPath = path.join(taskDir, TASK_EVAL_FILENAME);
-  const targetsPath = path.join(taskDir, TASK_TARGETS_FILENAME);
+  const evalPath = path.join(testDir, TASK_EVAL_FILENAME);
+  const targetsPath = path.join(testDir, TASK_TARGETS_FILENAME);
 
   await writeYamlFile(evalPath, {
     execution: { target: options.targetName },
@@ -966,14 +966,14 @@ export async function materializeTaskBundle(
   await writeYamlFile(targetsPath, { targets: targetDefinitions });
 
   return {
-    taskDir,
+    testDir,
     evalPath,
     targetsPath,
     ...(hasCopiedBucket(copiedReferences, 'files')
-      ? { filesPath: path.join(taskDir, TASK_FILES_DIRNAME) }
+      ? { filesPath: path.join(testDir, TASK_FILES_DIRNAME) }
       : {}),
     ...(hasCopiedBucket(copiedReferences, 'graders')
-      ? { gradersPath: path.join(taskDir, TASK_GRADERS_DIRNAME) }
+      ? { gradersPath: path.join(testDir, TASK_GRADERS_DIRNAME) }
       : {}),
   };
 }
@@ -982,7 +982,7 @@ export async function materializeTaskBundle(
  * Materialize a whole eval suite as a portable directory.
  *
  * This reuses the same source snapshots, dependency copying, path rewriting,
- * target slicing, and secret redaction used by per-result task bundles. The
+ * target slicing, and secret redaction used by per-result test bundles. The
  * output eval is intentionally explicit: inherited suite defaults are written
  * onto each bundled test case so the bundle can run without the source tree.
  */

@@ -18,7 +18,7 @@ describe('materializeTaskBundle', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('writes a self-contained task bundle without executing a provider', async () => {
+  it('writes a self-contained test bundle without executing a provider', async () => {
     const evalFile = path.join(tempDir, 'evals', 'demo.eval.yaml');
     const fixturePath = path.join(tempDir, 'fixtures', 'input.txt');
     const promptPath = path.join(tempDir, 'graders', 'prompt.md');
@@ -104,15 +104,16 @@ describe('materializeTaskBundle', () => {
     });
 
     expect(paths).toBeDefined();
-    const taskDir = paths?.taskDir ?? '';
-    expect(await readdir(taskDir)).toContain('EVAL.yaml');
-    expect(await readFile(path.join(taskDir, 'files', 'fixtures', 'input.txt'), 'utf8')).toBe(
+    const testBundleDir = paths?.testDir ?? '';
+    expect(path.basename(testBundleDir)).toBe('test');
+    expect(await readdir(testBundleDir)).toContain('EVAL.yaml');
+    expect(await readFile(path.join(testBundleDir, 'files', 'fixtures', 'input.txt'), 'utf8')).toBe(
       'fixture text\n',
     );
-    expect(await readFile(path.join(taskDir, 'graders', 'graders', 'prompt.md'), 'utf8')).toBe(
-      'grade carefully\n',
-    );
-    expect(await readFile(path.join(taskDir, 'graders', 'graders', 'check.ts'), 'utf8')).toBe(
+    expect(
+      await readFile(path.join(testBundleDir, 'graders', 'graders', 'prompt.md'), 'utf8'),
+    ).toBe('grade carefully\n');
+    expect(await readFile(path.join(testBundleDir, 'graders', 'graders', 'check.ts'), 'utf8')).toBe(
       'console.log("ok");\n',
     );
 
@@ -133,6 +134,6 @@ describe('materializeTaskBundle', () => {
     expect(taskEval).not.toContain('literal-secret');
     expect(taskTargets).not.toContain('literal-secret');
     await expect(readdir(path.join(tempDir, 'out', '.agentv', 'results'))).rejects.toThrow();
-    await expect(readdir(path.join(taskDir, '.agentv', 'results'))).rejects.toThrow();
+    await expect(readdir(path.join(testBundleDir, '.agentv', 'results'))).rejects.toThrow();
   });
 });

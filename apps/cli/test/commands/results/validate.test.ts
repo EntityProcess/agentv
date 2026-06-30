@@ -118,4 +118,67 @@ describe('results validate', () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('accepts new test_dir and legacy task_dir bundle metadata', () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-validate-test-'));
+
+    try {
+      const runDir = path.join(
+        tempDir,
+        '.agentv',
+        'results',
+        'with-bundles',
+        '2026-03-27T12-42-24-429Z',
+      );
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        `${[
+          JSON.stringify({
+            timestamp: '2026-03-27T12:42:24.429Z',
+            test_id: 'test-new',
+            score: 1,
+            target: 'gpt-4o',
+            scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
+            execution_status: 'ok',
+            summary_path: 'test-new/summary.json',
+            test_dir: 'test-new/test',
+            eval_path: 'test-new/test/EVAL.yaml',
+            targets_path: 'test-new/test/targets.yaml',
+          }),
+          JSON.stringify({
+            timestamp: '2026-03-27T12:42:24.429Z',
+            test_id: 'test-legacy',
+            score: 1,
+            target: 'gpt-4o',
+            scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
+            execution_status: 'ok',
+            summary_path: 'test-legacy/summary.json',
+            task_dir: 'test-legacy/task',
+            eval_path: 'test-legacy/task/EVAL.yaml',
+            targets_path: 'test-legacy/task/targets.yaml',
+          }),
+        ].join('\n')}\n`,
+      );
+      for (const testId of ['test-new', 'test-legacy']) {
+        mkdirSync(path.join(runDir, testId), { recursive: true });
+        writeFileSync(
+          path.join(runDir, testId, 'summary.json'),
+          `${JSON.stringify({
+            test_id: testId,
+            score: 1,
+            target: 'gpt-4o',
+            execution_status: 'ok',
+          })}\n`,
+        );
+      }
+      writeFileSync(path.join(runDir, 'summary.json'), '{}\n');
+
+      const { diagnostics } = validateRunDirectory(runDir);
+
+      expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

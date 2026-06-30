@@ -41,6 +41,7 @@ const RESULT_ROW_ALIASES = {
   summaryPath: 'summary_path',
   targetsPath: 'targets_path',
   taskDir: 'task_dir',
+  testDir: 'test_dir',
   testId: 'test_id',
   timingPath: 'timing_path',
   tokenUsage: 'token_usage',
