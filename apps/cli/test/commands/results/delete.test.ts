@@ -24,7 +24,7 @@ describe('results delete', () => {
   });
 
   function seedRun(runId: string): string {
-    const runDir = path.join(tempDir, '.agentv', 'results', ...runId.split('::'));
+    const runDir = path.join(tempDir, '.agentv', 'results', runId);
     mkdirSync(runDir, { recursive: true });
     writeFileSync(
       path.join(runDir, 'index.jsonl'),
@@ -41,16 +41,16 @@ describe('results delete', () => {
   }
 
   it('deletes a local run workspace by run ID', () => {
-    const runDir = seedRun('demo::2026-06-01T10-00-00-000Z');
+    const runDir = seedRun('2026-06-01T10-00-00-000Z');
 
-    const deleted = deleteLocalRun(tempDir, 'demo::2026-06-01T10-00-00-000Z');
+    const deleted = deleteLocalRun(tempDir, '2026-06-01T10-00-00-000Z');
 
-    expect(deleted.runId).toBe('demo::2026-06-01T10-00-00-000Z');
+    expect(deleted.runId).toBe('2026-06-01T10-00-00-000Z');
     expect(existsSync(runDir)).toBe(false);
   });
 
   it('resolves and deletes by workspace path', () => {
-    const runDir = seedRun('default::2026-06-01T10-00-00-000Z');
+    const runDir = seedRun('2026-06-01T10-00-00-000Z');
 
     const target = resolveDeleteRunTarget(tempDir, runDir);
     expect(target.runDir).toBe(runDir);
@@ -60,7 +60,7 @@ describe('results delete', () => {
   });
 
   it('rejects remote IDs and paths outside the local runs directory', () => {
-    seedRun('default::2026-06-01T10-00-00-000Z');
+    seedRun('2026-06-01T10-00-00-000Z');
     const outsideDir = path.join(tempDir, 'outside-run');
     mkdirSync(outsideDir, { recursive: true });
     writeFileSync(path.join(outsideDir, 'index.jsonl'), toJsonl({ score: 1 }), 'utf8');
