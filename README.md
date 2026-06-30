@@ -1,36 +1,8 @@
 # AgentV
 
-**Evaluate AI targets against real repos from the terminal. No server. No signup.**
+Test AI targets on real repo tasks and measure what actually works.
 
-```bash
-npm install -g agentv
-agentv init
-agentv eval evals/example.yaml
-```
-
-That's it. Results in seconds, not minutes.
-
-## What it does
-
-AgentV runs evaluation cases against configured targets and scores them with deterministic code graders + customizable LLM graders. Everything lives in Git — YAML eval files, markdown judge prompts, JSONL results.
-
-```yaml
-# evals/math.yaml
-description: Math problem solving
-tests:
-  - id: addition
-    input: What is 15 + 27?
-    expected_output: "42"
-    assertions:
-      - type: contains
-        value: "42"
-```
-
-```bash
-agentv eval evals/math.yaml
-```
-
-## Why AgentV?
+## Why?
 
 - **Local-first** — runs on your machine, no cloud accounts or API keys for eval infrastructure
 - **Repo-backed workspaces** — reuse real repos, setup scripts, and existing harnesses instead of rebuilding synthetic tasks
@@ -42,23 +14,28 @@ agentv eval evals/math.yaml
 
 ## Core Concepts
 
-- **Suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
-- **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, deterministic checks, and LLM grading prompts.
-- **Target** is the system under test: an agent, model/provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper.
-- **Experiment** names comparison intent: target/model, variant, repeats, gates, timeout/runtime policy, and result grouping.
+- **Imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
+- **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
+- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Use `model` when you need to override the target's default model for a run.
+- **Policy** controls how AgentV runs and gates the eval: run count, thresholds, timeouts, and budgets.
+- **Experiment** is created automatically from the eval definition. The top-level `name` gives the experiment namespace, `target` identifies the system under test, and AgentV groups concrete runs under that resolved identity.
 - **Run** is one concrete execution that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ```mermaid
 flowchart LR
-  corpus["Suite / imports / tests<br/>task corpus"]
+  corpus["Imports / tests<br/>task corpus"]
   context["Workspace / fixtures / graders<br/>task-owned context"]
-  experiment["Experiment<br/>target + variant + runtime policy"]
+  target["Target<br/>system under test"]
+  policy["Policy<br/>runtime + gates"]
+  experiment["Experiment<br/>auto-created grouping"]
   run["Run<br/>concrete execution"]
   artifacts["Run artifacts<br/>summary.json + index.jsonl + sidecars"]
   readers["Dashboard / compare / trend<br/>derived readers"]
 
   corpus --> run
   context --> run
+  target --> experiment
+  policy --> experiment
   experiment --> run
   run --> artifacts
   artifacts --> readers
@@ -76,11 +53,20 @@ agentv init
 
 **3. Create an eval** in `evals/`:
 ```yaml
+name: backend-with-skills
 description: Code generation quality
+target: copilot-sdk
+model: claude-sonnet-4.6
 
-experiment:
-  target: copilot
+workspace:
+  isolation: per_case
+
+policy:
+  runs: 3
+  early_exit: false
+  timeout_seconds: 600
   threshold: 0.8
+  budget_usd: 5
 
 tests:
   - id: fizzbuzz
@@ -88,9 +74,7 @@ tests:
     assertions:
       - type: contains
         value: "fizz"
-      - type: rubrics
-        criteria:
-          - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
+      - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: code-grader
         command: ["python3", "./validators/check_syntax.py"]
       - type: llm-grader
@@ -104,30 +88,30 @@ agentv eval evals/my-eval.yaml
 
 **5. Compare two runs** (pass two `index.jsonl` manifests — e.g. before and after a change):
 ```bash
-agentv compare .agentv/results/<experiment>/<before-timestamp>/default/index.jsonl .agentv/results/<experiment>/<after-timestamp>/default/index.jsonl
+agentv compare .agentv/results/backend-without-skills/<timestamp>/copilot-sdk--claude-sonnet-4.6/index.jsonl .agentv/results/backend-with-skills/<timestamp>/copilot-sdk--claude-sonnet-4.6/index.jsonl
 ```
 
 ## Results
 
-Each run writes a timestamped bundle under `.agentv/results/<experiment>/<timestamp>/<run-id>/`. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
+Each run writes a timestamped invocation directory under `.agentv/results/<experiment>/<timestamp>/`. In this example, the top-level eval `name` creates the `backend-with-skills` experiment namespace, `target: copilot-sdk` selects the system under test, and `model: claude-sonnet-4.6` overrides that target's default model. The resolved target identity is still `copilot-sdk--claude-sonnet-4.6` so CI baselines can distinguish model changes. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
 
 ```bash
-agentv eval evals/my-eval.yaml --output ./run   # writes ./run/default/index.jsonl
-cat ./run/default/index.jsonl                    # JSONL results for scripts/CI
+agentv eval evals/my-eval.yaml
+cat .agentv/results/backend-with-skills/<timestamp>/copilot-sdk--claude-sonnet-4.6/index.jsonl
 ```
 
 Run bundle layout:
 
 ```
 .agentv/results/
-└── my-eval/                          # <experiment> — comparison/run grouping
+└── backend-with-skills/              # <experiment> — comparison/run grouping
     └── 2026-06-30T08-30-00-000Z/     # <timestamp> — one run
-        └── default/                  # <run-id>
+        └── copilot-sdk--claude-sonnet-4.6/ # <target> — resolved system under test
             ├── index.jsonl           # flat per-test results (scripts/CI, `agentv compare`)
             ├── summary.json          # run rollup: pass rate, counts, cost
-            └── fizzbuzz--a1b2c3d4/   # <case-allocation>
+            └── fizzbuzz--a1b2c3d4/   # <result_dir> for one test case
                 ├── summary.json      # per-test rollup across runs
-                ├── task/             # frozen inputs, for reproducibility
+                ├── test/             # generated test bundle: frozen inputs for reproducibility
                 │   ├── EVAL.yaml     #   resolved eval spec
                 │   ├── targets.yaml  #   resolved target config
                 │   └── graders/      #   grader files used
@@ -149,7 +133,7 @@ Use `evaluate()` when your application owns the run:
 import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
-  target: { name: 'copilot', provider: 'copilot' },
+  task: async (input) => runMyAppTarget(input),
   threshold: 0.8,
   tests: [
     {
@@ -177,10 +161,18 @@ Use `defineEval()` when you want AgentV to run the TypeScript eval file:
 import { defineEval } from '@agentv/sdk';
 
 export default defineEval({
+  name: 'backend-with-skills',
   description: 'Code generation quality',
-  experiment: {
-    target: 'copilot',
+  target: 'copilot-sdk',
+  model: 'claude-sonnet-4.6',
+  policy: {
+    runs: 3,
+    earlyExit: false,
     threshold: 0.8,
+    budgetUsd: 5,
+  },
+  workspace: {
+    isolation: 'per_case',
   },
   tests: [
     {

@@ -143,6 +143,24 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts explicit rubrics criteria string shorthand', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          assertions: [
+            {
+              type: 'rubrics',
+              criteria: ['Must be polite', 'Must be accurate'],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('accepts flatter imports with optional inline tests', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
