@@ -40,7 +40,7 @@ agentv eval evals/math.yaml
 - **CI/CD native** — exit codes, JSONL output, threshold flags for pipeline gating
 - **Any target** — run against agents, model providers, gateways, replay targets, CLI wrappers, transcript providers, and future app or service wrappers
 
-## Core vocabulary
+## Core Concepts
 
 - **Suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, deterministic checks, and LLM grading prompts.
