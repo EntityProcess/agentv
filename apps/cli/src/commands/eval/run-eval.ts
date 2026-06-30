@@ -1008,15 +1008,6 @@ function applyVerboseOverride(selection: TargetSelection, cliVerbose: boolean): 
   };
 }
 
-function safeRunPathSegment(value: string | undefined, fallback: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return fallback;
-  }
-  const segment = trimmed.replace(/[/\\:*?"<>|]/g, '_');
-  return !segment || segment === '.' || segment === '..' ? fallback : segment;
-}
-
 function targetVariantForSelection(selection: TargetSelection): string | undefined {
   const target = selection.resolvedTarget;
   if (target.kind === 'replay') {
@@ -1025,64 +1016,37 @@ function targetVariantForSelection(selection: TargetSelection): string | undefin
   return undefined;
 }
 
-function resultBundleKey(result: Pick<EvaluationResult, 'target' | 'variant'>): string {
-  return JSON.stringify({
-    target: result.target ?? 'unknown',
-    variant: result.variant ?? null,
-  });
-}
-
-function resultBundleDir(
-  invocationDir: string,
-  result: Pick<EvaluationResult, 'target' | 'variant'>,
-): string {
-  const targetDir = safeRunPathSegment(result.target, 'unknown-target');
-  const variantDir = result.variant ? safeRunPathSegment(result.variant, 'variant') : undefined;
-  return variantDir
-    ? path.join(invocationDir, targetDir, variantDir)
-    : path.join(invocationDir, targetDir);
-}
-
-class BundleOutputWriter implements OutputWriter {
-  private readonly writers = new Map<
-    string,
-    { readonly dir: string; readonly indexPath: string; readonly writer: OutputWriter }
-  >();
+class RunOutputWriter implements OutputWriter {
+  private readonly indexPath: string;
+  private writer: OutputWriter | undefined;
 
   constructor(
     private readonly invocationDir: string,
     private readonly appendMode: boolean,
-  ) {}
+  ) {
+    this.indexPath = path.join(invocationDir, RESULT_INDEX_FILENAME);
+  }
 
   async append(result: EvaluationResult): Promise<void> {
-    const writer = await this.writerForResult(result);
+    const writer = await this.writerForRun();
     await writer.append(result);
   }
 
   async close(): Promise<void> {
-    await Promise.all([...this.writers.values()].map((entry) => entry.writer.close()));
+    await this.writer?.close();
   }
 
-  bundleDirs(): readonly string[] {
-    return [...this.writers.values()].map((entry) => entry.dir);
+  indexPaths(): readonly string[] {
+    return this.writer ? [this.indexPath] : [];
   }
 
-  bundleIndexPaths(): readonly string[] {
-    return [...this.writers.values()].map((entry) => entry.indexPath);
-  }
-
-  private async writerForResult(result: EvaluationResult): Promise<OutputWriter> {
-    const key = resultBundleKey(result);
-    const existing = this.writers.get(key);
-    if (existing) {
-      return existing.writer;
+  private async writerForRun(): Promise<OutputWriter> {
+    if (this.writer) {
+      return this.writer;
     }
-    const dir = resultBundleDir(this.invocationDir, result);
-    mkdirSync(dir, { recursive: true });
-    const indexPath = path.join(dir, RESULT_INDEX_FILENAME);
-    const writer = await createOutputWriter(indexPath, { append: this.appendMode });
-    this.writers.set(key, { dir, indexPath, writer });
-    return writer;
+    mkdirSync(this.invocationDir, { recursive: true });
+    this.writer = await createOutputWriter(this.indexPath, { append: this.appendMode });
+    return this.writer;
   }
 }
 
@@ -1797,8 +1761,8 @@ export async function runEvalCommand(
     console.log(`Repository root: ${repoRoot}`);
   }
 
-  // Resolve artifact directory. The CLI run dir is an invocation root; each
-  // target/variant writes its own bundle index below it.
+  // Resolve artifact directory. The CLI run dir is the run bundle root; target,
+  // model, and variant are metadata fields, not path dimensions.
   // Precedence: --output > config output.dir > default
   const explicitDir = options.outputDir;
   let runDir: string;
@@ -1997,9 +1961,8 @@ export async function runEvalCommand(
     throw new Error('--threshold must be between 0 and 1');
   }
 
-  // Build the output writer. Each target/variant gets a separate bundle index
-  // below the invocation directory.
-  const outputWriter = new BundleOutputWriter(runDir, isResumeAppend);
+  // Build the output writer for the single run-root manifest.
+  const outputWriter = new RunOutputWriter(runDir, isResumeAppend);
 
   // Detect matrix mode: multiple targets for any file
   const isMatrixMode = Array.from(fileMetadata.values()).some((meta) => meta.selections.length > 1);
@@ -2008,10 +1971,6 @@ export async function runEvalCommand(
   // When resuming, subtract tests that will be skipped
   let totalEvalCount = 0;
   let resumeSkippedCount = 0;
-  const plannedBundleCounts = new Map<
-    string,
-    { readonly target: string; readonly variant?: string; count: number }
-  >();
   for (const meta of fileMetadata.values()) {
     for (const test of meta.testCases) {
       for (const { selection } of meta.selections) {
@@ -2022,13 +1981,6 @@ export async function runEvalCommand(
           resumeSkippedCount++;
         } else {
           totalEvalCount++;
-          const bundleKey = resultBundleKey({ target, variant });
-          const existing = plannedBundleCounts.get(bundleKey);
-          if (existing) {
-            existing.count += 1;
-          } else {
-            plannedBundleCounts.set(bundleKey, { target, variant, count: 1 });
-          }
         }
       }
     }
@@ -2150,7 +2102,7 @@ export async function runEvalCommand(
     );
   }
 
-  // Write a stub summary.json in each planned bundle before dispatching tests,
+  // Write a stub summary.json in the run bundle before dispatching tests,
   // carrying the planned execution count so an interrupted run can still
   // surface as resumable in Dashboard. The end-of-run write preserves this
   // value via readPlannedTestCount inside aggregateRunDir /
@@ -2158,15 +2110,13 @@ export async function runEvalCommand(
   // Skip on resume — we want to preserve the *original* planned count.
   if (!isResumeAppend && totalEvalCount > 0) {
     const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
-    for (const bundle of plannedBundleCounts.values()) {
-      await writeInitialRunSummaryArtifact(resultBundleDir(runDir, bundle), {
-        evalFile,
-        plannedTestCount: bundle.count,
-        experiment: normalizeExperimentName(options.experiment),
-        experimentMetadata: runExperimentMetadata,
-        runtimeSource: runtimeSourceMetadata,
-      });
-    }
+    await writeInitialRunSummaryArtifact(runDir, {
+      evalFile,
+      plannedTestCount: totalEvalCount,
+      experiment: normalizeExperimentName(options.experiment),
+      experimentMetadata: runExperimentMetadata,
+      runtimeSource: runtimeSourceMetadata,
+    });
   }
 
   // Periodic WIP checkpoint loop: push partial results to a unique non-default
@@ -2421,77 +2371,60 @@ export async function runEvalCommand(
       console.log(formatMatrixSummary(summaryResults));
     }
 
-    // Write artifacts to target/variant bundle directories (always, not
-    // conditional on flags). The invocation root is only a container.
+    // Write artifacts to the run bundle root (always, not conditional on flags).
+    // Per-result artifact directories are allocated from row identity and
+    // exposed through index.jsonl fields.
     if (allResults.length > 0) {
       const evalFile = activeTestFiles.length === 1 ? activeTestFiles[0] : '';
       const sourceTests = activeSourceTests;
       const taskBundleTargets = buildTaskBundleTargetSelections(activeTestFiles, fileMetadata);
-      const resultsByBundle = new Map<string, EvaluationResult[]>();
-      for (const result of allResults) {
-        const key = resultBundleKey(result);
-        const existing = resultsByBundle.get(key);
-        if (existing) {
-          existing.push(result);
-        } else {
-          resultsByBundle.set(key, [result]);
-        }
-      }
       if (isResumeAppend) {
         // Resume mode: write per-test artifacts for newly-run tests, then
-        // aggregate each bundle from its full row manifest (old + new results
-        // with deduplication).
+        // aggregate the run from its full row manifest (old + new results with
+        // deduplication).
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
-        for (const bundleResults of resultsByBundle.values()) {
-          const bundleDir = resultBundleDir(runDir, bundleResults[0]);
-          await writePerTestArtifacts(bundleResults, bundleDir, {
+        await writePerTestArtifacts(allResults, runDir, {
+          experiment: normalizeExperimentName(options.experiment),
+          resultGroup: resultGroupName,
+          cwd,
+          repoRoot,
+          sourceTests,
+          taskBundleTargets,
+          runtimeSource: runtimeSourceMetadata,
+        });
+        const { summaryPath } = await aggregateRunDir(runDir, {
+          evalFile,
+          experiment: normalizeExperimentName(options.experiment),
+          experimentMetadata: runExperimentMetadata,
+          runtimeSource: runtimeSourceMetadata,
+        });
+        const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
+        console.log(`Artifact bundle updated: ${runDir}`);
+        console.log(`  Run manifest: ${indexPath}`);
+        console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
+        console.log(`  Summary: ${summaryPath}`);
+      } else {
+        const { testArtifactDir, summaryPath, indexPath } = await writeArtifactsFromResults(
+          allResults,
+          runDir,
+          {
+            evalFile,
             experiment: normalizeExperimentName(options.experiment),
+            experimentMetadata: runExperimentMetadata,
             resultGroup: resultGroupName,
             cwd,
             repoRoot,
             sourceTests,
             taskBundleTargets,
             runtimeSource: runtimeSourceMetadata,
-          });
-          const { summaryPath } = await aggregateRunDir(bundleDir, {
-            evalFile,
-            experiment: normalizeExperimentName(options.experiment),
-            experimentMetadata: runExperimentMetadata,
-            runtimeSource: runtimeSourceMetadata,
-          });
-          const indexPath = path.join(bundleDir, RESULT_INDEX_FILENAME);
-          console.log(`Artifact bundle updated: ${bundleDir}`);
-          console.log(`  Run manifest: ${indexPath}`);
-          console.log(
-            `  Per-test artifacts: ${bundleDir} (${bundleResults.length} new test directories)`,
-          );
-          console.log(`  Summary: ${summaryPath}`);
-        }
-      } else {
-        for (const bundleResults of resultsByBundle.values()) {
-          const bundleDir = resultBundleDir(runDir, bundleResults[0]);
-          const { testArtifactDir, summaryPath, indexPath } = await writeArtifactsFromResults(
-            bundleResults,
-            bundleDir,
-            {
-              evalFile,
-              experiment: normalizeExperimentName(options.experiment),
-              experimentMetadata: runExperimentMetadata,
-              resultGroup: resultGroupName,
-              cwd,
-              repoRoot,
-              sourceTests,
-              taskBundleTargets,
-              runtimeSource: runtimeSourceMetadata,
-            },
-          );
-          console.log(`Artifact bundle written to: ${bundleDir}`);
-          console.log(`  Run manifest: ${indexPath}`);
-          console.log(
-            `  Per-test artifacts: ${testArtifactDir} (${bundleResults.length} test directories)`,
-          );
-          console.log(`  Summary: ${summaryPath}`);
-        }
+          },
+        );
+        console.log(`Artifact bundle written to: ${runDir}`);
+        console.log(`  Run manifest: ${indexPath}`);
+        console.log(
+          `  Per-test artifacts: ${testArtifactDir} (${allResults.length} test directories)`,
+        );
+        console.log(`  Summary: ${summaryPath}`);
       }
     }
 
@@ -2517,7 +2450,7 @@ export async function runEvalCommand(
     }
 
     if (allResults.length > 0) {
-      const writtenIndexes = outputWriter.bundleIndexPaths();
+      const writtenIndexes = outputWriter.indexPaths();
       outputPath = writtenIndexes[0] ?? outputPath;
       console.log(`\nResults written to: ${outputPath}`);
       console.log(`\nResults written under: ${runDir}`);

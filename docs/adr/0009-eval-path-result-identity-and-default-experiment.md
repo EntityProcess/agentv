@@ -11,6 +11,10 @@ Supersedes: result naming and storage-routing portions of
 bundle names or per-case artifact paths from eval names, suite names, or wrapper
 composition.
 
+Superseded in part by [ADR 0012](0012-finalize-run-artifact-layout.md), which
+removes the target/variant folder fan-out below the timestamp and keeps
+`.agentv/results/<experiment>/<timestamp>/` as the run bundle.
+
 ## Context
 
 AgentV needs one simple result identity contract that works for direct eval

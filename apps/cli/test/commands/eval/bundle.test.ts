@@ -166,7 +166,7 @@ tests: ../data/cases.yaml
 
     expect(run.exitCode).toBe(0);
     expect(run.stdout).toContain('RESULT: PASS');
-    await expectFileExists(path.join(bundleDir, 'run', 'inherited', 'index.jsonl'));
+    await expectFileExists(path.join(bundleDir, 'run', 'index.jsonl'));
   }, 60_000);
 
   it('reports unbundleable workspace references with their eval location', async () => {

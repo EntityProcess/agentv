@@ -6,6 +6,10 @@ Date: 2026-06-26
 
 Accepted
 
+Superseded in part by [ADR 0012](0012-finalize-run-artifact-layout.md) for the
+physical run artifact layout. Target and variant are metadata dimensions, not
+required folders below the timestamp bundle.
+
 Supersedes: the 2026-06-23 proposal in this file to separate experiment files
 from eval definitions.
 
