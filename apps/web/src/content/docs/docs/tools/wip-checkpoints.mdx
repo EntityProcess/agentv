@@ -85,7 +85,7 @@ git push origin --delete agentv/wip/<hostname>/<run-dir-basename>
 
 - The first remote checkpoint happens on the periodic interval, so a process that dies immediately after startup may only have the local `summary.json` stub.
 - The WIP branch is force-pushed and keeps one snapshot commit. Do not treat it as an audit log.
-- Checkpoint contents can include prompts, outputs, grader evidence, traces, and generated task bundles. Protect the results repo like any other eval artifact store.
+- Checkpoint contents can include prompts, outputs, grader evidence, traces, and generated test bundles. Protect the results repo like any other eval artifact store.
 - Authentication and branch permissions are the same as normal results auto-push. If git or GitHub authentication is missing, AgentV warns and keeps evaluating locally.
 - WIP worktrees are based on the configured storage branch. Missing storage branches are initialized automatically; missing remotes or authentication still prevent WIP pushes until Git credentials are available.
 - Failed or interrupted runs intentionally leave WIP branches behind. Periodically delete old `agentv/wip/...` branches once recovered or obsolete.

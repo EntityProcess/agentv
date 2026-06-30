@@ -465,6 +465,7 @@ export interface IndexArtifactEntry {
   readonly runtime_source?: RunRuntimeSourceMetadata;
   readonly raw_provider_log_path?: string;
   readonly input_path?: string;
+  readonly test_dir?: string;
   readonly task_dir?: string;
   readonly eval_path?: string;
   readonly targets_path?: string;
@@ -485,6 +486,7 @@ export type ResultIndexArtifact = IndexArtifactEntry;
 export type AdditionalResultIndexFields = Partial<
   Pick<
     IndexArtifactEntry,
+    | 'test_dir'
     | 'task_dir'
     | 'eval_path'
     | 'targets_path'
@@ -762,7 +764,7 @@ function toIndexRerunSource(value: unknown): Record<string, unknown> | undefined
     source_run_dir: value.sourceRunDir,
     source_index_path: value.sourceIndexPath,
     source_result_dir: value.sourceResultDir,
-    source_task_dir: value.sourceTaskDir,
+    source_test_dir: value.sourceTestDir ?? value.sourceTaskDir,
     source_test_id: value.sourceTestId,
     source_target: value.sourceTarget,
     source_timestamp: value.sourceTimestamp,

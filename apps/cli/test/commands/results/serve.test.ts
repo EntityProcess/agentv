@@ -2751,7 +2751,7 @@ describe('serve app', () => {
       expect(data.source_label).toBe(filename);
     });
 
-    it('loads historical runs without task bundle metadata', async () => {
+    it('loads historical runs without test bundle metadata', async () => {
       const runId = writeLocalRunArtifact(
         tempDir,
         'historical',
@@ -2766,7 +2766,31 @@ describe('serve app', () => {
         results: Array<Record<string, unknown>>;
       };
       expect(data.results[0]).not.toHaveProperty('task_dir');
+      expect(data.results[0]).not.toHaveProperty('test_dir');
       expect(data.results[0]).not.toHaveProperty('source_traceability');
+    });
+
+    it('loads generated test bundle metadata from manifest rows', async () => {
+      const runId = writeLocalRunArtifact(tempDir, 'generated-bundle', '2026-03-25T12-00-01-000Z', {
+        ...RESULT_A,
+        result_dir: 'demo/test-greeting',
+        test_dir: 'demo/test-greeting/test',
+        eval_path: 'demo/test-greeting/test/EVAL.yaml',
+        targets_path: 'demo/test-greeting/test/targets.yaml',
+      });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        results: Array<Record<string, unknown>>;
+      };
+      expect(data.results[0]).toMatchObject({
+        result_dir: 'demo/test-greeting',
+        test_dir: 'demo/test-greeting/test',
+        eval_path: 'demo/test-greeting/test/EVAL.yaml',
+      });
+      expect(data.results[0]).not.toHaveProperty('task_dir');
     });
   });
 

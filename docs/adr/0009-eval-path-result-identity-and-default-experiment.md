@@ -102,7 +102,7 @@ they must not drive visible storage hierarchy, semantic routing, Dashboard
 detail selection, rerun lookup, import identity, or artifact discovery.
 
 `index.jsonl` is authoritative for all bundle-relative artifact paths. Per-row
-directories are exposed with `result_dir`. Sidecar paths such as `task_dir`,
+directories are exposed with `result_dir`. Sidecar paths such as `test_dir`,
 `summary_path`, `grading_path`, `metrics_path`, `transcript_path`,
 `targets_path`, `files_path`, and `graders_path` are explicit manifest fields.
 Consumers must use these fields instead of reconstructing paths from

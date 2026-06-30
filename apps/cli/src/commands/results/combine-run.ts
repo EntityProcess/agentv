@@ -377,6 +377,7 @@ const MANIFEST_PATH_FIELDS = [
   'transcript_raw_path',
   'metrics_path',
   'raw_provider_log_path',
+  'test_dir',
   'task_dir',
   'eval_path',
   'targets_path',

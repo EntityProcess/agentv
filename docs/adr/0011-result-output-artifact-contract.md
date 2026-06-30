@@ -52,7 +52,7 @@ An AgentV result output is a run-centric bundle with this root contract:
   tags.json                 # optional mutable overlay
   <case-or-allocation>/
     summary.json            # optional case aggregate, especially repeats
-    task/                   # optional generated task bundle
+    test/                   # optional generated test bundle
     run-1/
       result.json
       grading.json
@@ -82,7 +82,7 @@ aggregate summaries.
 ordinary per-case sidecars through explicit fields such as `result_dir`,
 `summary_path`, `grading_path`, `metrics_path`, `timing_path`,
 `transcript_path`, `transcript_raw_path`, `answer_path`, `output_path`,
-`task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` when
+`test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` when
 those artifacts exist.
 
 `artifact_pointers` remain an offload indirection for large detached payload
@@ -154,7 +154,7 @@ This aligns with Margin Evals' manifest-first and run-centric lessons:
 
 AgentV does not copy Margin Evals' exact layout. AgentV keeps its own
 `summary.json` plus `index.jsonl` split, AgentV transcript sidecars, repeat-run
-attempt folders, generated task bundles, Git-backed result branch model, and
+attempt folders, generated test bundles, Git-backed result branch model, and
 optional detached `artifact_pointers`.
 
 ## Consequences

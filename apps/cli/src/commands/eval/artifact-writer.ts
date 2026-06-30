@@ -74,13 +74,13 @@ function buildTaskBundleIndexFields(
   taskBundle: MaterializedTaskBundlePaths | undefined,
 ): Pick<
   IndexArtifactEntry,
-  'task_dir' | 'eval_path' | 'targets_path' | 'files_path' | 'graders_path'
+  'test_dir' | 'eval_path' | 'targets_path' | 'files_path' | 'graders_path'
 > {
   if (!taskBundle) {
     return {};
   }
   return {
-    task_dir: toRelativeArtifactPath(outputDir, taskBundle.taskDir),
+    test_dir: toRelativeArtifactPath(outputDir, taskBundle.testDir),
     eval_path: toRelativeArtifactPath(outputDir, taskBundle.evalPath),
     targets_path: toRelativeArtifactPath(outputDir, taskBundle.targetsPath),
     ...(taskBundle.filesPath
@@ -123,14 +123,14 @@ export function buildResultIndexArtifact(
   const artifactSubdir = (buildCoreResultIndexArtifact(result).result_dir ?? '').trim();
   const extraIndexFields = taskBundle
     ? {
-        task_dir: path.posix.join(artifactSubdir, 'task'),
-        eval_path: path.posix.join(artifactSubdir, 'task', 'EVAL.yaml'),
-        targets_path: path.posix.join(artifactSubdir, 'task', 'targets.yaml'),
+        test_dir: path.posix.join(artifactSubdir, 'test'),
+        eval_path: path.posix.join(artifactSubdir, 'test', 'EVAL.yaml'),
+        targets_path: path.posix.join(artifactSubdir, 'test', 'targets.yaml'),
         ...(taskBundle.filesPath
-          ? { files_path: path.posix.join(artifactSubdir, 'task', 'files') }
+          ? { files_path: path.posix.join(artifactSubdir, 'test', 'files') }
           : {}),
         ...(taskBundle.gradersPath
-          ? { graders_path: path.posix.join(artifactSubdir, 'task', 'graders') }
+          ? { graders_path: path.posix.join(artifactSubdir, 'test', 'graders') }
           : {}),
       }
     : undefined;
