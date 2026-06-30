@@ -7,7 +7,6 @@ const suite = {
   tags: ['sdk', 'typescript', 'yaml'],
   execution: {
     targets: ['mock-target'],
-    workers: 2,
     skipDefaults: true,
     budgetUsd: 2,
     threshold: 0.75,
@@ -49,7 +48,6 @@ export default Object.defineProperties(suite, {
       tags: suite.tags,
       execution: {
         targets: ['mock-target'],
-        workers: 2,
         skip_defaults: true,
         budget_usd: 2,
         threshold: 0.75,

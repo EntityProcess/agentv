@@ -26,7 +26,6 @@ import {
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractThreshold,
-  extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
 import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
@@ -84,7 +83,6 @@ export {
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractThreshold,
-  extractWorkersFromSuite,
   loadConfig,
 } from './loaders/config-loader.js';
 export type { AgentVConfig, CacheConfig, ExecutionDefaults } from './loaders/config-loader.js';
@@ -111,7 +109,6 @@ type SuiteImportStackEntry = {
 };
 
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
-  'workers',
   'assertions',
   'evaluators',
   'skip_defaults',
@@ -331,8 +328,6 @@ export type EvalSuiteResult = {
   readonly targets?: readonly string[];
   /** Suite-level target refs with hooks from execution.targets (object form) */
   readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
-  /** Suite-level workers from execution.workers */
-  readonly workers?: number;
   /** Suite-level cache config from execution.cache */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
   /** Suite-level metadata (name, description, version, etc.) */
@@ -464,6 +459,7 @@ async function loadTestsFromParsedYamlValue(
   if (!isJsonObject(interpolated)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
+  rejectAuthoredWorkers(interpolated);
 
   const suite = interpolated as RawTestSuite;
   const suiteNameFromFile = asString(suite.name)?.trim();
@@ -849,6 +845,7 @@ async function loadTestsFromParsedYamlValue(
 }
 
 function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): EvalSuiteResult {
+  rejectAuthoredWorkers(parsed);
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
@@ -858,7 +855,6 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
     tests,
     targets: extractTargetsFromSuite(parsed),
     targetRefs: extractTargetRefsFromSuite(parsed),
-    workers: extractWorkersFromSuite(parsed),
     cacheConfig: extractCacheConfig(parsed),
     budgetUsd: extractBudgetUsd(parsed),
     ...(metadata !== undefined && { metadata }),
@@ -866,6 +862,56 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
     ...(threshold !== undefined && { threshold }),
     ...(experimentConfig !== undefined && { experimentConfig }),
   };
+}
+
+function rejectAuthoredWorkers(parsed: JsonObject): void {
+  const locations: string[] = [];
+  if (parsed.workers !== undefined) {
+    locations.push('workers');
+  }
+  collectWorkersLocations(parsed.execution, 'execution', locations);
+  collectWorkersLocations(parsed.experiment, 'experiment', locations);
+  if (Array.isArray(parsed.tests)) {
+    parsed.tests.forEach((entry, index) => {
+      if (!isJsonObject(entry)) {
+        return;
+      }
+      collectWorkersLocations(entry.execution, `tests[${index}].execution`, locations);
+    });
+  }
+
+  if (locations.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `${locations[0]} has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+  );
+}
+
+function collectWorkersLocations(raw: unknown, location: string, locations: string[]): void {
+  if (!isJsonObject(raw)) {
+    return;
+  }
+  if (raw.workers !== undefined) {
+    locations.push(`${location}.workers`);
+  }
+  collectTargetWorkersLocations(raw.targets, `${location}.targets`, locations);
+}
+
+function collectTargetWorkersLocations(
+  rawTargets: unknown,
+  location: string,
+  locations: string[],
+): void {
+  if (!Array.isArray(rawTargets)) {
+    return;
+  }
+  rawTargets.forEach((target, index) => {
+    if (isJsonObject(target) && target.workers !== undefined) {
+      locations.push(`${location}[${index}].workers`);
+    }
+  });
 }
 
 type IncludeEntryType = 'suite' | 'tests';

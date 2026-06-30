@@ -11,6 +11,9 @@ top-level `target` for the system under test, and top-level `policy` for
 runtime and gating controls such as run count, timeout, budgets, and thresholds.
 AgentV does not have a separate `experiment.yaml` file, top-level `run_group`,
 or schema-significant `experiments/` directory.
+Concurrency is intentionally outside eval YAML. Use `agentv eval --workers N`
+or project config defaults such as `agentv.config.*` / `.agentv/config.yaml`
+`execution.workers` for operator-side parallelism.
 
 ```yaml
 name: support-regression
@@ -37,7 +40,8 @@ tests:
 `model`, and runtime controls to top-level `policy` with `runs`,
 `timeout_seconds`, `threshold`, and `budget_usd`.
 `execution:` is accepted only as a legacy top-level runtime alias for existing
-eval files and target matrices.
+eval files and target matrices. It does not accept `workers`; use `--workers`
+or project config for concurrency.
 
 ## Layout Conventions
 

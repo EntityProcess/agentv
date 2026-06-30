@@ -1,10 +1,10 @@
 /**
  * Zod schema for eval YAML file format.
- * Used to generate eval-schema.json for AI agent reference.
+ * Used to generate eval.schema.json for AI agent reference.
  *
  * IMPORTANT: This schema describes the YAML input format, not the parsed runtime types.
  * When adding new eval features, update this schema AND run `bun run generate:schema`
- * to regenerate eval-schema.json. The sync test will fail if they diverge.
+ * to regenerate eval.schema.json. The sync test will fail if they diverge.
  */
 import { z } from 'zod';
 
@@ -360,7 +360,7 @@ const FailOnErrorSchema = z.boolean();
 const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
-  workers: z.number().int().min(1).max(50).optional(),
+  workers: z.never().optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),

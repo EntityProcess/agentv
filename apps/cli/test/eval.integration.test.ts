@@ -616,8 +616,6 @@ describe('agentv eval CLI', () => {
           'name: native-exp',
           'target: codex-target',
           'model: gpt-5-codex',
-          'execution:',
-          '  workers: 4',
           'policy:',
           '  timeout_seconds: 12',
           '  threshold: 0.8',
@@ -639,7 +637,7 @@ describe('agentv eval CLI', () => {
         'utf8',
       );
 
-      const { stdout, exitCode } = await runCli(fixture, ['eval', wrapperPath]);
+      const { stdout, exitCode } = await runCli(fixture, ['eval', wrapperPath, '--workers', '4']);
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
@@ -669,7 +667,6 @@ describe('agentv eval CLI', () => {
         model: 'gpt-5-codex',
         runs: 2,
         timeout_seconds: 12,
-        workers: 4,
       });
       expect(
         (benchmark.metadata?.experiment_config as Record<string, unknown>).fingerprint,
@@ -677,7 +674,7 @@ describe('agentv eval CLI', () => {
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
         kind: 'wrapper_eval',
-        config_source: 'inline_experiment',
+        config_source: 'mixed',
         experiment_namespace: 'native-exp',
         experiment_namespace_source: 'eval_metadata',
         eval_files: ['native-exp.eval.yaml'],
@@ -689,7 +686,7 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
-  it('keeps inline runtime policy isolated across multiple eval files', async () => {
+  it('keeps non-concurrency runtime policy isolated across multiple eval files', async () => {
     const fixture = await createFixture();
     try {
       const firstPath = path.join(fixture.suiteDir, 'first.eval.yaml');
@@ -699,8 +696,6 @@ describe('agentv eval CLI', () => {
         [
           'name: first',
           'target: cli-target',
-          'execution:',
-          '  workers: 1',
           'policy:',
           '  timeout_seconds: 11',
           '  budget_usd: 0.11',
@@ -717,8 +712,6 @@ describe('agentv eval CLI', () => {
         [
           'name: second',
           'target: file-target',
-          'execution:',
-          '  workers: 2',
           'policy:',
           '  timeout_seconds: 22',
           '  budget_usd: 0.22',
@@ -731,7 +724,13 @@ describe('agentv eval CLI', () => {
         'utf8',
       );
 
-      const { stdout, exitCode } = await runCli(fixture, ['eval', firstPath, secondPath]);
+      const { stdout, exitCode } = await runCli(fixture, [
+        'eval',
+        firstPath,
+        secondPath,
+        '--workers',
+        '2',
+      ]);
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
@@ -743,7 +742,7 @@ describe('agentv eval CLI', () => {
       expect(calls[0]).toMatchObject({
         target: 'cli-target',
         agentTimeoutMs: 11_000,
-        maxConcurrency: 1,
+        maxConcurrency: 2,
         budgetUsd: 0.11,
         runBudgetCapUsd: 0.11,
         evalCaseIds: ['first-case'],

@@ -17,7 +17,6 @@ describe('inline experiment config', () => {
       runs: 3,
       early_exit: false,
       timeout_seconds: 900,
-      workers: 4,
       threshold: 0.8,
       budget_usd: 1.25,
     });
@@ -32,7 +31,6 @@ describe('inline experiment config', () => {
       runs: 3,
       earlyExit: false,
       timeoutSeconds: 900,
-      workers: 4,
       budgetUsd: 1.25,
     });
     expect(config.fingerprint).toMatch(/^[a-f0-9]{64}$/);
@@ -93,6 +91,9 @@ describe('inline experiment config', () => {
     expect(() =>
       normalizeExperimentConfig({ workspace: { repos: [{ repo: 'acme/support-app' }] } }),
     ).toThrow(/Experiment workspace has been removed from eval YAML/);
+    expect(() => normalizeExperimentConfig({ workers: 3 })).toThrow(
+      /Experiment workers has been removed from eval YAML/,
+    );
   });
 
   it('builds safe snake_case artifact metadata without agent options', () => {
@@ -103,7 +104,6 @@ describe('inline experiment config', () => {
       repeat: { count: 2, strategy: 'mean', cost_limit_usd: 0.5 },
       early_exit: true,
       timeout_seconds: 120,
-      workers: 3,
     });
 
     const metadata = buildExperimentArtifactMetadata(config);
@@ -118,7 +118,6 @@ describe('inline experiment config', () => {
       },
       early_exit: true,
       timeout_seconds: 120,
-      workers: 3,
     });
     expect(metadata).not.toHaveProperty('agent_options');
     expect(metadata).not.toHaveProperty('setup');

@@ -425,7 +425,7 @@ export async function materializeEvalConfig(
     return {
       testFilePath,
       tests,
-      workers: config.workers ?? suite.workers,
+      workers: config.workers,
       cache: config.cache ?? suite.cacheConfig?.enabled,
       cachePath: config.cachePath ?? suite.cacheConfig?.cachePath,
       budgetUsd: config.budgetUsd ?? suite.budgetUsd,

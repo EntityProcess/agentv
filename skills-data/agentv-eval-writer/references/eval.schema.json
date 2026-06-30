@@ -3232,9 +3232,7 @@
                         "type": "object",
                         "properties": {
                           "workers": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50
+                            "not": {}
                           },
                           "assertions": {
                             "type": "array",
@@ -9862,9 +9860,7 @@
                         "type": "object",
                         "properties": {
                           "workers": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50
+                            "not": {}
                           },
                           "assertions": {
                             "type": "array",
@@ -14071,9 +14067,7 @@
               "minItems": 1
             },
             "workers": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 50
+              "not": {}
             },
             "assertions": {
               "type": "array",

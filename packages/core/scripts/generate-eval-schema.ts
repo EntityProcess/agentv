@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawn } from 'node:child_process';
 /**
  * Generates AgentV JSON schemas from Zod schemas.
  * Run: bun run generate:schema (from packages/core)
@@ -8,6 +9,24 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { EvalFileSchema } from '../src/evaluation/validation/eval-file.schema.js';
+
+async function formatWithBiome(filePath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, ['x', 'biome', 'format', '--write', filePath], {
+      stdio: 'inherit',
+    });
+
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Biome exited with code ${code}`));
+    });
+  });
+}
 
 async function writeSchema(options: {
   readonly schema: Parameters<typeof zodToJsonSchema>[0];
@@ -36,6 +55,7 @@ async function writeSchema(options: {
   );
 
   await writeFile(outputPath, `${JSON.stringify(schema, null, 2)}\n`);
+  await formatWithBiome(outputPath);
   console.log(`Generated: ${outputPath}`);
 }
 
@@ -44,5 +64,5 @@ await writeSchema({
   name: 'EvalFile',
   title: 'AgentV Eval File',
   description: 'Schema for AgentV evaluation YAML files (.eval.yaml)',
-  outputFile: 'eval-schema.json',
+  outputFile: 'eval.schema.json',
 });

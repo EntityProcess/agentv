@@ -837,6 +837,22 @@ describe('parseExecutionDefaults', () => {
     expect(result?.verbose).toBe(true);
   });
 
+  it('parses workers as an operator-side execution default', () => {
+    const result = parseExecutionDefaults({ workers: 4 }, '/test/config.yaml');
+    expect(result?.workers).toBe(4);
+  });
+
+  it('ignores invalid workers defaults', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = parseExecutionDefaults({ workers: 0 }, '/test/config.yaml');
+      expect(result).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workers'));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it('parses keep_workspaces boolean', () => {
     const result = parseExecutionDefaults({ keep_workspaces: true }, '/test/config.yaml');
     expect(result?.keep_workspaces).toBe(true);

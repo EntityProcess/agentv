@@ -100,7 +100,6 @@ function definitionsWithEvalTargetRefs(
 function buildBundleExecution(options: {
   readonly targetNames: readonly string[];
   readonly targetRefs?: readonly EvalTargetRef[];
-  readonly workers?: number;
   readonly cache?: boolean;
   readonly cachePath?: string;
   readonly budgetUsd?: number;
@@ -121,9 +120,6 @@ function buildBundleExecution(options: {
           targets: options.targetNames.map((name) => serializeTargetRef(name)),
         };
 
-  if (options.workers !== undefined) {
-    execution.workers = options.workers;
-  }
   if (options.cache !== undefined) {
     execution.cache = options.cache;
   }
@@ -224,7 +220,6 @@ export const evalBundleCommand = command({
       execution: buildBundleExecution({
         targetNames,
         targetRefs: suite.targetRefs,
-        workers: suite.workers,
         cache: suite.cacheConfig?.enabled,
         cachePath: suite.cacheConfig?.cachePath,
         budgetUsd: suite.budgetUsd,

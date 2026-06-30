@@ -56,7 +56,6 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests[0].suite).toBe('default-export-suite');
     expect(suite.tests[0].category).toBe('sdk');
     expect(suite.metadata?.tags).toEqual(['sdk', 'typescript']);
-    expect(suite.workers).toBe(2);
     expect(suite.cacheConfig?.enabled).toBe(false);
     expect(suite.cacheConfig?.cachePath).toBe('.agentv/ts-eval-cache');
     expect(suite.budgetUsd).toBe(1.5);
@@ -79,7 +78,6 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests[0].workspace?.hooks?.before_each?.command).toEqual(['echo', 'case-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.timeout_ms).toBe(1_000);
     expect(suite.targets).toEqual(['mock-target']);
-    expect(suite.workers).toBe(2);
     expect(suite.budgetUsd).toBe(2);
     expect(suite.threshold).toBe(0.75);
     expect(suite.metadata?.tags).toEqual(['sdk', 'typescript', 'yaml']);

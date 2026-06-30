@@ -29,7 +29,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
 | `workspace.hooks` | Yes | Runs lifecycle commands with workspace and case context on stdin. |
 | `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
-| `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, workers, and default grader behavior. |
+| `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
 | `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |

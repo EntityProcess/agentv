@@ -4,9 +4,7 @@ description: Lightweight release gate for npm latest promotion.
 workspace:
   template: ../workspace-template
 
-execution:
-  target: github-models-contract
-  workers: 1
+target: github-models-contract
 
 tests:
   - id: json-contract

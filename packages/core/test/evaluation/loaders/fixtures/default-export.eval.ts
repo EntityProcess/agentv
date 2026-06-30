@@ -12,7 +12,6 @@ const config: EvalConfig = {
       assertions: [{ type: 'contains', value: 'hello' }],
     },
   ],
-  workers: 2,
   cache: false,
   cachePath: '.agentv/ts-eval-cache',
   budgetUsd: 1.5,
