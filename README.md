@@ -19,7 +19,7 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Use `model` when you need to override the target's default model for a run.
 - **Experiment** is the named condition being measured over that corpus, such as `backend-with-skills` or `backend-without-skills`.
-- **Policy** controls how AgentV executes and gates the eval: runs, early exit, thresholds, timeouts, and budgets. It is not the experiment identity.
+- **Policy** controls how AgentV executes and gates the eval: runs, thresholds, timeouts, and budgets. It is not the experiment identity.
 - **Run** is one concrete execution of an experiment against a target/model that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ```mermaid
@@ -57,7 +57,7 @@ agentv init
 
 **3. Create an eval** in `evals/`:
 ```yaml
-experiment: backend-with-skills
+name: backend-with-skills
 description: Code generation quality
 target: copilot-sdk
 model: claude-sonnet-4.6
@@ -67,7 +67,6 @@ workspace:
 
 policy:
   runs: 3
-  early_exit: false
   timeout_seconds: 600
   threshold: 0.8
   budget_usd: 5
@@ -97,7 +96,7 @@ agentv compare .agentv/results/backend-without-skills/<timestamp>/copilot-sdk--c
 
 ## Results
 
-Each run writes a timestamped invocation directory under `.agentv/results/<experiment>/<timestamp>/`. In this example, `experiment: backend-with-skills` names the condition being measured, `target: copilot-sdk` selects the system under test, and `model: claude-sonnet-4.6` overrides that target's default model. The resolved target identity is still `copilot-sdk--claude-sonnet-4.6` so CI baselines can distinguish model changes. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
+Each run writes a timestamped invocation directory under `.agentv/results/<experiment>/<timestamp>/`. In this example, `name: backend-with-skills` names the condition being measured, `target: copilot-sdk` selects the system under test, and `model: claude-sonnet-4.6` overrides that target's default model. The resolved target identity is still `copilot-sdk--claude-sonnet-4.6` so CI baselines can distinguish model changes. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
 
 ```bash
 agentv eval evals/my-eval.yaml
@@ -163,13 +162,13 @@ Use `defineEval()` when you want AgentV to run the TypeScript eval file:
 import { defineEval } from '@agentv/sdk';
 
 export default defineEval({
-  experiment: 'backend-with-skills',
+  name: 'backend-with-skills',
   description: 'Code generation quality',
   target: 'copilot-sdk',
   model: 'claude-sonnet-4.6',
   policy: {
     runs: 3,
-    earlyExit: false,
+    timeoutSeconds: 600,
     threshold: 0.8,
     budgetUsd: 5,
   },
