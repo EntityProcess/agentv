@@ -1,0 +1,9 @@
+window 0 in this tmux session is out of context, polease spawn worker to continue where it left off
+
+---
+
+also we have a number of open PRs are any of them stale or ready to merge.
+
+---
+
+seems like experiment is no longer valid after our latest changes to eval policy config
