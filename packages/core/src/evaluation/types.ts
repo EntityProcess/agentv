@@ -1084,7 +1084,7 @@ export interface TrialResult {
   /** Machine-readable failure reason code */
   readonly failureReasonCode?: string;
   /**
-   * Full per-attempt result used by artifact writers to materialize Vercel-style
+   * Full per-attempt result used by artifact writers to materialize AgentV
    * run-N folders. This is intentionally omitted from wire trial summaries.
    */
   readonly result?: EvaluationResult;

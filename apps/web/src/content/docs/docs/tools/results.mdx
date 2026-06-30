@@ -132,8 +132,8 @@ Every case uses aggregate `summary.json`, then stores attempt details under
 `grading.json`, `metrics.json`, `timing.json`, `transcript.jsonl`,
 `transcript-raw.jsonl`, `outputs/answer.md`, and `outputs/file_changes.diff`
 when workspace changes were captured. The `result.json` file carries
-`grading_path`, `metrics_path`, transcript, output, and `file_changes_path`
-paths.
+AgentV `execution_status` and `verdict` fields plus `grading_path`,
+`metrics_path`, transcript, output, and `file_changes_path` paths.
 
 `transcript-raw.jsonl` preserves native provider or harness transcript bytes
 when they are available, while `transcript.jsonl` is the normalized
@@ -152,12 +152,12 @@ labels such as `provider_reported`, `token_estimated`, `aggregate`, or
 `unavailable`.
 
 The `metrics` section aligns with Claude Agent Skills `metrics.json`
-while adding AgentV/Vercel-style detail:
+while adding AgentV executor detail:
 
 | Field group | Purpose |
 |-------------|---------|
 | `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created`, `files_deleted` | Agent Skills-compatible executor metrics |
-| `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV/Vercel-style behavior summary when source data includes it |
+| `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV behavior summary when source data includes it |
 
 Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 

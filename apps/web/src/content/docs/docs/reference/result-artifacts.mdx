@@ -82,7 +82,7 @@ query.
 | --- | --- | --- |
 | `summary.json` | Aggregate run metadata and rollups: run id, experiment metadata, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
 | `index.jsonl` | Canonical row index: one row per result, attempt, or case-level aggregate, with identity fields, filter metadata, scores, status, and explicit run-relative paths to sidecars. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
-| `result.json` | Compact per-attempt manifest for one attempt directory. | Loading one attempt without scanning the whole run index. |
+| `result.json` | Compact per-attempt manifest for one attempt directory, including AgentV `execution_status` and `verdict`. | Loading one attempt without scanning the whole run index. |
 | `grading.json` | Grader outputs, assertions, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
 | `metrics.json` | Derived executor behavior summary, such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, metric-style graders, adapter projections, and lightweight analysis. |
 | `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and code graders still receive the same full diff through `file_changes`. |
