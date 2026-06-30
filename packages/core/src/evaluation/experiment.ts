@@ -21,13 +21,14 @@ export type ExperimentTargetRef =
 export type ExperimentRepeatWire = {
   readonly count?: number;
   readonly strategy?: TrialStrategy;
+  readonly early_exit?: boolean;
   readonly cost_limit_usd?: number;
-  readonly costLimitUsd?: number;
 };
 
 export type ExperimentRepeat = {
   readonly count: number;
   readonly strategy: TrialStrategy;
+  readonly earlyExit?: boolean;
   readonly costLimitUsd?: number;
 };
 
@@ -39,8 +40,6 @@ export type ExperimentConfigWire = {
   readonly model?: string;
   readonly agent_options?: Record<string, unknown>;
   readonly repeat?: ExperimentRepeatWire;
-  readonly runs?: number;
-  readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
@@ -55,8 +54,6 @@ export type ExperimentConfig = {
   readonly model?: string;
   readonly agentOptions?: Record<string, unknown>;
   readonly repeat?: ExperimentRepeat;
-  readonly runs?: number;
-  readonly earlyExit?: boolean;
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
@@ -73,17 +70,16 @@ export type ExperimentArtifactMetadata = {
   readonly repeat?: {
     readonly count: number;
     readonly strategy: TrialStrategy;
+    readonly early_exit?: boolean;
     readonly cost_limit_usd?: number;
   };
-  readonly runs?: number;
-  readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
 };
 
 const VALID_REPEAT_STRATEGIES: ReadonlySet<string> = new Set([
-  'pass_at_k',
+  'pass_any',
   'pass_all',
   'mean',
   'confidence_interval',
@@ -98,6 +94,13 @@ const RUN_OVERRIDE_FIELDS: ReadonlySet<string> = new Set([
   'budgetUsd',
 ]);
 
+const REPEAT_FIELDS: ReadonlySet<string> = new Set([
+  'count',
+  'strategy',
+  'early_exit',
+  'cost_limit_usd',
+]);
+
 export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig {
   if (!isRecord(rawConfig)) {
     throw new Error('Experiment config must be an object.');
@@ -110,12 +113,8 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
   const model = readOptionalString(rawConfig.model, 'model');
   const agentOptions = readOptionalRecord(rawConfig.agent_options ?? rawConfig.agentOptions);
   rejectExperimentLifecycleCommands(rawConfig);
+  rejectLegacyTopLevelRepeatFields(rawConfig);
   const repeat = readRepeat(rawConfig.repeat);
-  const runs = readOptionalPositiveInteger(rawConfig.runs, 'runs');
-  if (repeat !== undefined && runs !== undefined) {
-    throw new Error('Experiment repeat and runs cannot both be set. Use repeat for AgentV config.');
-  }
-  const earlyExit = readOptionalBoolean(rawConfig.early_exit ?? rawConfig.earlyExit, 'early_exit');
   const timeoutSeconds = readOptionalPositiveNumber(
     rawConfig.timeout_seconds ?? rawConfig.timeoutSeconds,
     'timeout_seconds',
@@ -136,8 +135,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     ...(model !== undefined && { model }),
     ...(agentOptions !== undefined && { agentOptions }),
     ...(repeat !== undefined && { repeat }),
-    ...(runs !== undefined && { runs }),
-    ...(earlyExit !== undefined && { earlyExit }),
     ...(timeoutSeconds !== undefined && { timeoutSeconds }),
     ...(threshold !== undefined && { threshold }),
     ...(budgetUsd !== undefined && { budgetUsd }),
@@ -205,13 +202,14 @@ export function buildExperimentArtifactMetadata(
       repeat: {
         count: config.repeat.count,
         strategy: config.repeat.strategy,
+        ...(config.repeat.earlyExit !== undefined && {
+          early_exit: config.repeat.earlyExit,
+        }),
         ...(config.repeat.costLimitUsd !== undefined && {
           cost_limit_usd: config.repeat.costLimitUsd,
         }),
       },
     }),
-    ...(config.runs !== undefined && { runs: config.runs }),
-    ...(config.earlyExit !== undefined && { early_exit: config.earlyExit }),
     ...(config.timeoutSeconds !== undefined && { timeout_seconds: config.timeoutSeconds }),
     ...(config.threshold !== undefined && { threshold: config.threshold }),
     ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
@@ -225,16 +223,22 @@ function readRepeat(raw: unknown): ExperimentRepeat | undefined {
   if (!isRecord(raw)) {
     throw new Error('Experiment repeat must be an object.');
   }
+  for (const key of Object.keys(raw)) {
+    if (!REPEAT_FIELDS.has(key)) {
+      throw new Error(
+        `Experiment repeat.${key} is not supported. Use count, strategy, early_exit, and cost_limit_usd.`,
+      );
+    }
+  }
   const count = readRequiredPositiveInteger(raw.count, 'repeat.count');
   const strategy = readOptionalRepeatStrategy(raw.strategy);
-  const costLimitUsd = readOptionalNonNegativeNumber(
-    raw.cost_limit_usd ?? raw.costLimitUsd,
-    'repeat.cost_limit_usd',
-  );
+  const earlyExit = readOptionalBoolean(raw.early_exit, 'repeat.early_exit');
+  const costLimitUsd = readOptionalNonNegativeNumber(raw.cost_limit_usd, 'repeat.cost_limit_usd');
 
   return {
     count,
-    strategy: strategy ?? 'pass_at_k',
+    strategy: strategy ?? 'pass_any',
+    ...(earlyExit !== undefined && { earlyExit }),
     ...(costLimitUsd !== undefined && { costLimitUsd }),
   };
 }
@@ -309,10 +313,23 @@ function readOptionalRepeatStrategy(raw: unknown): TrialStrategy | undefined {
   }
   if (typeof raw !== 'string' || !VALID_REPEAT_STRATEGIES.has(raw)) {
     throw new Error(
-      "Experiment repeat.strategy must be one of 'pass_at_k', 'mean', or 'confidence_interval'.",
+      "Experiment repeat.strategy must be one of 'pass_any', 'pass_all', 'mean', or 'confidence_interval'. 'pass_at_k' has been removed; use 'pass_any' instead.",
     );
   }
   return raw as TrialStrategy;
+}
+
+function rejectLegacyTopLevelRepeatFields(rawConfig: Record<string, unknown>): void {
+  if (rawConfig.runs !== undefined) {
+    throw new Error(
+      "Experiment top-level 'runs' has been removed. Use repeat.count and repeat.strategy instead.",
+    );
+  }
+  if (rawConfig.early_exit !== undefined || rawConfig.earlyExit !== undefined) {
+    throw new Error(
+      "Experiment top-level 'early_exit' has been removed. Use repeat.early_exit instead.",
+    );
+  }
 }
 
 function readOptionalPositiveInteger(raw: unknown, location: string): number | undefined {

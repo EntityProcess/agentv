@@ -2360,11 +2360,20 @@ async function runEvalCaseWithTrials(
       break;
     }
 
-    // pass_at_k early exit: short-circuit after first passing trial
+    // pass_any early exit: short-circuit after first passing trial when enabled.
     if (
-      trialsConfig.strategy === 'pass_at_k' &&
-      trialsConfig.earlyExit !== false &&
+      trialsConfig.strategy === 'pass_any' &&
+      trialsConfig.earlyExit === true &&
       trialVerdict === 'pass'
+    ) {
+      break;
+    }
+
+    // pass_all early exit: short-circuit after first failing trial when enabled.
+    if (
+      trialsConfig.strategy === 'pass_all' &&
+      trialsConfig.earlyExit === true &&
+      trialVerdict === 'fail'
     ) {
       break;
     }

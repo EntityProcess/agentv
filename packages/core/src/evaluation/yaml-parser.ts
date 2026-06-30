@@ -181,6 +181,7 @@ type RawTestSuite = JsonObject & {
   readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
   readonly policy?: JsonValue;
+  readonly repeat?: JsonValue;
   readonly runs?: JsonValue;
   readonly early_exit?: JsonValue;
   readonly timeout_seconds?: JsonValue;
@@ -1440,7 +1441,7 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.policy !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put runs, early_exit, timeout_seconds, threshold, and budget_usd at the top level.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, threshold, and budget_usd at the top level.`,
     );
   }
   if (suite.execution !== undefined) {
@@ -1451,6 +1452,16 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   if (suite.model !== undefined) {
     throw new Error(
       `Invalid eval runtime config in ${evalFilePath}: top-level 'model' is not part of eval YAML. Put model inside the target object.`,
+    );
+  }
+  if (suite.runs !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'runs' has been removed. Use repeat.count instead.`,
+    );
+  }
+  if (suite.early_exit !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'early_exit' has been removed. Use repeat.early_exit instead.`,
     );
   }
   return undefined;
@@ -1464,8 +1475,7 @@ function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | 
   const runtimeConfig: JsonObject = {
     ...(experimentName !== undefined ? { name: experimentName } : {}),
     ...(targetSpec !== undefined ? { target: targetSpec.name } : {}),
-    ...(suite.runs !== undefined ? { runs: suite.runs } : {}),
-    ...(suite.early_exit !== undefined ? { early_exit: suite.early_exit } : {}),
+    ...(suite.repeat !== undefined ? { repeat: suite.repeat } : {}),
     ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),
     ...(suite.budget_usd !== undefined ? { budget_usd: suite.budget_usd } : {}),
     ...(suite.threshold !== undefined ? { threshold: suite.threshold } : {}),

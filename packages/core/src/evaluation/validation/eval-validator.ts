@@ -68,6 +68,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'policy',
   'experiment',
   'execution',
+  'repeat',
   'runs',
   'early_exit',
   'timeout_seconds',
@@ -86,7 +87,8 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
 const KNOWN_INCLUDE_FIELDS = new Set(['include', 'type', 'select', 'run']);
 const KNOWN_IMPORT_FIELDS = new Set(['path', 'select', 'run']);
 const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
-const KNOWN_REPEAT_STRATEGIES = new Set(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']);
+const KNOWN_REPEAT_FIELDS = new Set(['count', 'strategy', 'early_exit', 'cost_limit_usd']);
+const KNOWN_REPEAT_STRATEGIES = new Set(['pass_any', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'assertions',
   'evaluators',
@@ -111,12 +113,14 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
     'policy',
-    "Top-level 'policy' is not part of eval YAML. Put runs, early_exit, timeout_seconds, threshold, and budget_usd at the top level.",
+    "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, threshold, and budget_usd at the top level.",
   ],
   [
     'execution',
     "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.",
   ],
+  ['runs', "Top-level 'runs' has been removed. Use repeat.count instead."],
+  ['early_exit', "Top-level 'early_exit' has been removed. Use repeat.early_exit instead."],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
@@ -328,6 +332,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
+  validateRepeatOverride(parsed.repeat, 'repeat', absolutePath, errors);
   await validateImportsField(parsed.imports, absolutePath, errors);
 
   const cases: JsonValue | undefined = parsed.tests;
@@ -874,8 +879,7 @@ async function validateCompositionDiagnostics(
 const WRAPPER_RUNTIME_CONTROL_FIELDS = [
   'experiment',
   'target',
-  'runs',
-  'early_exit',
+  'repeat',
   'timeout_seconds',
   'budget_usd',
   'threshold',
@@ -1064,6 +1068,18 @@ function validateRepeatOverride(
     return;
   }
 
+  for (const key of Object.keys(repeat)) {
+    if (!KNOWN_REPEAT_FIELDS.has(key)) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message:
+          'Invalid repeat field. Supported fields: count, strategy, early_exit, cost_limit_usd.',
+      });
+    }
+  }
+
   if (typeof repeat.count !== 'number' || !Number.isInteger(repeat.count) || repeat.count < 1) {
     errors.push({
       severity: 'error',
@@ -1082,7 +1098,17 @@ function validateRepeatOverride(
       filePath,
       location: `${location}.strategy`,
       message:
-        "Invalid 'strategy' field (must be pass_at_k, pass_all, mean, or confidence_interval)",
+        "Invalid 'strategy' field (must be pass_any, pass_all, mean, or confidence_interval; use pass_any instead of removed pass_at_k)",
+    });
+  }
+
+  const earlyExit = repeat.early_exit;
+  if (earlyExit !== undefined && typeof earlyExit !== 'boolean') {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.early_exit`,
+      message: "Invalid 'early_exit' field (must be a boolean)",
     });
   }
 

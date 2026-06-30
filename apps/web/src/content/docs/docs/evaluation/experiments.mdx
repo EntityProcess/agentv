@@ -8,7 +8,7 @@ sidebar:
 AgentV eval files are the runnable authoring artifact. Use top-level
 `description` for display metadata, `experiment` as the run/result grouping
 label, `target` for the system under test, and flat top-level run controls such
-as `runs`, `timeout_seconds`, `budget_usd`, and `threshold`.
+as `repeat`, `timeout_seconds`, `budget_usd`, and `threshold`.
 Concurrency is outside eval YAML. Use `agentv eval --workers N` or project
 config defaults such as `agentv.config.*` / `.agentv/config.yaml`
 `execution.workers` for operator-side parallelism.
@@ -21,7 +21,9 @@ target:
   extends: codex-gpt5
   model: gpt-5.1
   reasoning_effort: high
-runs: 4
+repeat:
+  count: 4
+  strategy: pass_any
 timeout_seconds: 720
 budget_usd: 2.00
 
@@ -151,7 +153,9 @@ test.run > import run > parent top-level run controls
 ```yaml
 target: agent
 threshold: 0.8
-runs: 3
+repeat:
+  count: 3
+  strategy: pass_any
 
 imports:
   suites:
@@ -177,10 +181,10 @@ tests:
       budget_usd: 0.50
 ```
 
-Scoped `run:` supports `threshold`, `timeout_seconds`, and `budget_usd` for
-public eval authoring. Candidate-changing fields stay parent-level. Workspace
-mutation belongs in `workspace.hooks`, and provider-specific setup belongs in
-target configuration.
+Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and
+`budget_usd` for public eval authoring. Candidate-changing fields stay
+parent-level. Workspace mutation belongs in `workspace.hooks`, and
+provider-specific setup belongs in target configuration.
 
 ## Lifecycle Ownership
 
@@ -194,7 +198,7 @@ target-specific runner state.
 | Configure an agent runner or provider variant | `target` object or `targets.yaml` |
 | Choose the target | top-level `target` |
 | Override the target's default model | `target.model` |
-| Configure run count, budget, timeout, threshold | top-level `runs`, `budget_usd`, `timeout_seconds`, `threshold` |
+| Configure repeat policy, budget, timeout, threshold | top-level `repeat`, `budget_usd`, `timeout_seconds`, `threshold` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml
@@ -208,7 +212,9 @@ target:
   hooks:
     before_each:
       command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
-runs: 3
+repeat:
+  count: 3
+  strategy: pass_any
 ```
 
 Existing local workspace paths are machine-local bindings: pass
@@ -219,16 +225,21 @@ top-level or case-level `workspace`.
 
 ## Repeat Runs
 
-Use top-level `runs` when you want AgentV to try each case more than once:
+Use top-level `repeat` when you want AgentV to try each case more than once:
 
 ```yaml
-runs: 3
+repeat:
+  count: 3
+  strategy: pass_any
+  early_exit: false
 ```
 
-The current repeated-attempt aggregation treats the case as successful when any
-attempt succeeds. AgentV does not expose this as `pass@k`; in ML and
-code-generation evaluation, pass@k is a statistical metric with different
-semantics.
+`repeat.strategy` controls verdict aggregation. `pass_any` treats the case as
+successful when any completed attempt passes; `pass_all` requires every
+completed attempt to pass. `mean` and `confidence_interval` aggregate scores
+where supported today. `repeat.early_exit` is only a scheduling and cost
+optimization: `pass_any` may stop at the first pass, and `pass_all` may stop at
+the first fail. Leave it unset or `false` when you want complete variance data.
 
 ## Result Layout
 

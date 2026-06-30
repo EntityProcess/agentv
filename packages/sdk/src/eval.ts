@@ -144,9 +144,12 @@ export interface EvalTargetConfig {
 
 export interface EvalTrials {
   readonly count: number;
-  readonly strategy?: 'pass_at_k' | 'mean' | 'confidence_interval';
+  readonly strategy?: 'pass_any' | 'pass_all' | 'mean' | 'confidence_interval';
+  readonly earlyExit?: boolean;
   readonly costLimitUsd?: number;
 }
+
+export type EvalRepeat = EvalTrials;
 
 export interface EvalExecution {
   readonly target?: string;
@@ -209,8 +212,7 @@ export interface EvalDefinition {
   readonly tests: readonly EvalTest[] | string;
   readonly experiment?: string;
   readonly target?: string | EvalTargetConfig;
-  readonly runs?: number;
-  readonly earlyExit?: boolean;
+  readonly repeat?: EvalRepeat;
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
@@ -275,10 +277,10 @@ function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
   ) {
     throw new Error("defineEval() expects top-level 'experiment' to be a string label.");
   }
-  for (const field of ['model', 'policy', 'execution']) {
+  for (const field of ['model', 'policy', 'execution', 'runs', 'earlyExit']) {
     if (Object.prototype.hasOwnProperty.call(rawDefinition, field)) {
       throw new Error(
-        `defineEval() does not accept top-level '${field}'. Put target overrides in target and run controls at the top level.`,
+        `defineEval() does not accept top-level '${field}'. Put target overrides in target and repeat controls under repeat.`,
       );
     }
   }

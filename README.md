@@ -19,7 +19,7 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by name from `targets.yaml` or with an eval-local target object.
 - **Experiment** is the run/result grouping label being measured over that corpus, such as `backend-with-skills` or `backend-without-skills`.
-- **Run controls** configure repeats, exits, timeouts, budgets, thresholds, and completion hooks with top-level fields such as `runs`, `early_exit`, `timeout_seconds`, `budget_usd`, `threshold`, and `on_run_complete`.
+- **Run controls** configure repeats, timeouts, budgets, thresholds, and completion hooks with fields such as `repeat`, `timeout_seconds`, `budget_usd`, `threshold`, and `on_run_complete`.
 - **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ```mermaid
@@ -60,8 +60,10 @@ agentv init
 description: Code generation quality
 experiment: backend-with-skills
 target: copilot-sdk
-runs: 3
-early_exit: false
+repeat:
+  count: 3
+  strategy: pass_any
+  early_exit: false
 timeout_seconds: 600
 threshold: 0.8
 budget_usd: 5
@@ -91,7 +93,9 @@ target:
   extends: codex-gpt5
   model: gpt-5.1
   reasoning_effort: high
-runs: 2
+repeat:
+  count: 2
+  strategy: pass_any
 timeout_seconds: 900
 threshold: 0.85
 
@@ -186,8 +190,11 @@ export default defineEval({
     extends: 'copilot-sdk',
     model: 'claude-sonnet-4.6',
   },
-  runs: 3,
-  earlyExit: false,
+  repeat: {
+    count: 3,
+    strategy: 'pass_any',
+    earlyExit: false,
+  },
   timeoutSeconds: 600,
   threshold: 0.8,
   budgetUsd: 5,

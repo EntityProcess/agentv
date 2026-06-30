@@ -178,7 +178,7 @@ describe('buildGradingArtifact', () => {
         },
       ],
       aggregation: {
-        strategy: 'pass_at_k',
+        strategy: 'pass_any',
         passedAttempts: 1,
         totalAttempts: 2,
       },
@@ -203,7 +203,7 @@ describe('buildGradingArtifact', () => {
       },
     ]);
     expect(grading.aggregation).toEqual({
-      strategy: 'pass_at_k',
+      strategy: 'pass_any',
       passed_attempts: 1,
       total_attempts: 2,
     });

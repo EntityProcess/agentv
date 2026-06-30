@@ -64,6 +64,17 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects removed top-level runs and early_exit controls', () => {
+    const result = EvalFileSchema.safeParse({
+      target: 'codex',
+      runs: 2,
+      early_exit: true,
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('accepts workspace env preflight requirements', () => {
     const result = EvalFileSchema.safeParse({
       workspace: {
@@ -78,7 +89,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts top-level target object and flat runtime controls with include selection entries', () => {
+  it('accepts top-level target object and repeat runtime controls with include selection entries', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       description: 'Wrapper eval',
@@ -89,8 +100,11 @@ describe('EvalFileSchema input shorthand', () => {
         reasoning_effort: 'high',
       },
       threshold: 0.8,
-      runs: 2,
-      early_exit: true,
+      repeat: {
+        count: 2,
+        strategy: 'pass_any',
+        early_exit: true,
+      },
       timeout_seconds: 300,
       budget_usd: 2,
       tests: [
@@ -107,7 +121,7 @@ describe('EvalFileSchema input shorthand', () => {
           },
           run: {
             threshold: 1,
-            repeat: { count: 2, strategy: 'pass_all' },
+            repeat: { count: 2, strategy: 'pass_all', early_exit: true },
             timeout_seconds: 120,
             budget_usd: 2,
           },

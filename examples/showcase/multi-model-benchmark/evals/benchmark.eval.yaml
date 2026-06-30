@@ -3,7 +3,7 @@
 # Demonstrates multi-model × multi-metric × variability workflow:
 #   - Compare multiple models by running the same eval with different CLI targets
 #   - Weighted graders: accuracy (3×), completeness (2×), clarity (1×)
-#   - Policy runs: 2 attempts to measure variability
+#   - Repeat policy: 2 attempts to measure variability
 #
 # Default targets use low-cost models for safe experimentation.
 # Override with: agentv eval ... --target <name>
@@ -16,7 +16,10 @@ description: Multi-model benchmark — accuracy, completeness, and clarity acros
 tags: [multi-provider]
 
 target: copilot
-runs: 2
+repeat:
+  count: 2
+  strategy: pass_any
+  early_exit: false
 budget_usd: 2.00
 
 assertions:

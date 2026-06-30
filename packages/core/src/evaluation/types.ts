@@ -1052,9 +1052,9 @@ export interface DependencyResult {
 export type EvalCase = EvalTest;
 
 /**
- * Supported trial aggregation strategies.
+ * Supported repeat aggregation strategies.
  */
-export type TrialStrategy = 'pass_at_k' | 'pass_all' | 'mean' | 'confidence_interval';
+export type TrialStrategy = 'pass_any' | 'pass_all' | 'mean' | 'confidence_interval';
 
 /**
  * Configuration for running multiple trials per eval case.
@@ -1063,7 +1063,7 @@ export interface TrialsConfig {
   readonly count: number;
   readonly strategy: TrialStrategy;
   readonly costLimitUsd?: number;
-  /** When false, pass_at_k runs all configured attempts instead of stopping at first pass. */
+  /** When true, pass_any/pass_all may stop once the verdict is determined. */
   readonly earlyExit?: boolean;
 }
 
@@ -1091,10 +1091,10 @@ export interface TrialResult {
 }
 
 /**
- * Aggregation metadata for pass_at_k strategy.
+ * Aggregation metadata for pass_any strategy.
  */
-export interface PassAtKAggregation {
-  readonly strategy: 'pass_at_k';
+export interface PassAnyAggregation {
+  readonly strategy: 'pass_any';
   readonly passedAttempts: number;
   readonly totalAttempts: number;
 }
@@ -1134,7 +1134,7 @@ export interface ConfidenceIntervalAggregation {
  * Discriminated union of trial aggregation results.
  */
 export type TrialAggregation =
-  | PassAtKAggregation
+  | PassAnyAggregation
   | PassAllAggregation
   | MeanAggregation
   | ConfidenceIntervalAggregation;

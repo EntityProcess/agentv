@@ -7,8 +7,8 @@ should apply when modernizing AgentV eval files.
 
 Do not author top-level `experiment:` in eval YAML. The whole eval file defines
 the experiment; top-level `name` is the result namespace, top-level `target`
-identifies the system under test, and top-level `policy` owns runtime/gating
-controls.
+identifies the system under test, and top-level runtime/gating controls own
+repeat behavior, timeout, threshold, and budget.
 
 Old:
 
@@ -33,12 +33,41 @@ model: claude-opus-4.8
 workspace:
   isolation: per_case
 
-policy:
-  runs: 3
-  timeout_seconds: 600
-  threshold: 0.8
-  budget_usd: 5
+repeat:
+  count: 3
+  strategy: pass_any
+  early_exit: false
+
+timeout_seconds: 600
+threshold: 0.8
+budget_usd: 5
 ```
+
+## Repeat Policy Uses `repeat`
+
+Do not author top-level `runs`, top-level `early_exit`, or
+`repeat.strategy: pass_at_k`.
+
+Old:
+
+```yaml
+runs: 3
+early_exit: true
+```
+
+New:
+
+```yaml
+repeat:
+  count: 3
+  strategy: pass_any
+  early_exit: true
+```
+
+Use `repeat.strategy: pass_any` for "pass if any completed sample passes" and
+`repeat.strategy: pass_all` for "pass only if every completed sample passes".
+`repeat.early_exit` is only a scheduling optimization; omit it or set it to
+`false` when you want every sample collected for variance analysis.
 
 ## Workspace Isolation Spelling
 
