@@ -68,7 +68,7 @@ tests:
         criteria:
           - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: code-grader
-        command: ./validators/check_syntax.py
+        command: ["python3", "./validators/check_syntax.py"]
       - type: llm-grader
         prompt: ./graders/correctness.md
 ```
@@ -83,26 +83,61 @@ agentv eval evals/my-eval.yaml
 agentv compare .agentv/results/default/<before-timestamp>/index.jsonl .agentv/results/default/<after-timestamp>/index.jsonl
 ```
 
-## Output formats
+## Results
+
+Each run writes a timestamped bundle under `.agentv/results/<experiment>/<timestamp>/`. The flat `index.jsonl` manifest is the portable surface used by scripts, CI, and `agentv compare`:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./run   # writes ./run/index.jsonl
-cat ./run/index.jsonl                         # JSONL results for scripts/CI
+cat ./run/index.jsonl                            # JSONL results for scripts/CI
+```
+
+Run bundle layout:
+
+```
+.agentv/results/
+└── default/                          # <experiment> — the eval name
+    └── 2026-06-30T08-30-00-000Z/     # <timestamp> — one run
+        ├── index.jsonl               # flat per-test results (scripts/CI, `agentv compare`)
+        ├── summary.json              # run rollup: pass rate, counts, cost
+        └── fizzbuzz/                 # <test-id>
+            ├── summary.json          # per-test rollup across runs
+            ├── task/                 # frozen inputs, for reproducibility
+            │   ├── EVAL.yaml         #   resolved eval spec
+            │   ├── targets.yaml      #   resolved target config
+            │   └── graders/          #   grader files used
+            └── run-1/                # one attempt (run-N for repeats/trials)
+                ├── result.json       # attempt result + score
+                ├── grading.json      # per-assertion grading detail
+                ├── metrics.json      # tokens, cost, tool calls
+                ├── timing.json       # durations
+                ├── transcript.jsonl       # parsed agent transcript
+                ├── transcript-raw.jsonl   # raw agent output (debugging)
+                └── outputs/          # captured stdout and grader outputs
 ```
 
 ## TypeScript SDK
 
-Use AgentV programmatically:
+Use AgentV programmatically. The inline definition mirrors the YAML eval above — same test, same `assertions` (targets come from `.agentv/targets.yaml`):
 
 ```typescript
 import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
+  threshold: 0.8,
   tests: [
     {
-      id: 'greeting',
-      input: 'Say hello',
-      assertions: [{ type: 'contains', value: 'Hello' }],
+      id: 'fizzbuzz',
+      input: 'Write FizzBuzz in Python',
+      assertions: [
+        { type: 'contains', value: 'fizz' },
+        {
+          type: 'rubrics',
+          criteria: ['Implements correct FizzBuzz logic for multiples of 3, 5, and 15'],
+        },
+        { type: 'code-grader', command: ['python3', './validators/check_syntax.py'] },
+        { type: 'llm-grader', prompt: './graders/correctness.md' },
+      ],
     },
   ],
 });
