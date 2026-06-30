@@ -119,12 +119,13 @@ Run bundle layout:
 
 ## TypeScript SDK
 
-Use AgentV programmatically. The inline definition mirrors the YAML eval above — same test, same `assertions` (targets come from `.agentv/targets.yaml`):
+Use `evaluate()` when your application owns the run:
 
 ```typescript
 import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
+  target: { name: 'copilot', provider: 'copilot' },
   threshold: 0.8,
   tests: [
     {
@@ -144,6 +145,35 @@ const { results, summary } = await evaluate({
 });
 
 console.log(`${summary.passed}/${summary.total} passed`);
+```
+
+Use `defineEval()` when you want AgentV to run the TypeScript eval file:
+
+```typescript
+import { defineEval } from '@agentv/sdk';
+
+export default defineEval({
+  description: 'Code generation quality',
+  experiment: {
+    target: 'copilot',
+    threshold: 0.8,
+  },
+  tests: [
+    {
+      id: 'fizzbuzz',
+      input: 'Write FizzBuzz in Python',
+      assertions: [
+        { type: 'contains', value: 'fizz' },
+        {
+          type: 'rubrics',
+          criteria: ['Implements correct FizzBuzz logic for multiples of 3, 5, and 15'],
+        },
+        { type: 'code-grader', command: ['python3', './validators/check_syntax.py'] },
+        { type: 'llm-grader', prompt: './graders/correctness.md' },
+      ],
+    },
+  ],
+});
 ```
 
 ## Documentation
