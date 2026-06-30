@@ -130,8 +130,10 @@ token/cost usage.
 Every case uses aggregate `summary.json`, then stores attempt details under
 `run-N/`. Each `run-N/` contains a compact per-attempt manifest `result.json`,
 `grading.json`, `metrics.json`, `timing.json`, `transcript.jsonl`,
-`transcript-raw.jsonl`, and `outputs/answer.md`. The `result.json` file carries
-`grading_path`, `metrics_path`, transcript, and output paths.
+`transcript-raw.jsonl`, `outputs/answer.md`, and `outputs/file_changes.diff`
+when workspace changes were captured. The `result.json` file carries
+`grading_path`, `metrics_path`, transcript, output, and `file_changes_path`
+paths.
 
 `transcript-raw.jsonl` preserves native provider or harness transcript bytes
 when they are available, while `transcript.jsonl` is the normalized
@@ -141,10 +143,10 @@ systems can be linked through safe `external_trace` metadata when available.
 `summary.json` remains the run-level aggregate summary. `index.jsonl` is the
 canonical row index for the run: one row per result, attempt, or case, carrying
 lightweight explicit paths such as `transcript_path`, `transcript_raw_path`,
-and `metrics_path` plus artifact pointers only when detached payload publishing
-needs them. Dashboard search indexes, SQLite indexes, and other read models are
-derived projections over these run artifacts, not replacements for
-`index.jsonl`.
+`file_changes_path`, and `metrics_path` plus artifact pointers only when
+detached payload publishing needs them. Dashboard search indexes, SQLite
+indexes, and other read models are derived projections over these run artifacts,
+not replacements for `index.jsonl`.
 Duration, token, and cost usage remains in `timing.json`, including source
 labels such as `provider_reported`, `token_estimated`, `aggregate`, or
 `unavailable`.
@@ -154,7 +156,7 @@ while adding AgentV/Vercel-style detail:
 
 | Field group | Purpose |
 |-------------|---------|
-| `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created` | Agent Skills-compatible executor metrics |
+| `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created`, `files_deleted` | Agent Skills-compatible executor metrics |
 | `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV/Vercel-style behavior summary when source data includes it |
 
 Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:

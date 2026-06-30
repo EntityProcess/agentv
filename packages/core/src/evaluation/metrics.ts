@@ -152,6 +152,7 @@ export const MetricsWireSchema = z
     files_read: z.array(FileReferenceWireSchema),
     files_modified: z.array(FileReferenceWireSchema),
     files_created: z.array(z.string()),
+    files_deleted: z.array(z.string()).default([]),
     web_fetches: z.array(WebFetchWireSchema),
     errors: z.array(ExecutionErrorWireSchema),
     errors_encountered: z.number().int().nonnegative(),
@@ -184,6 +185,7 @@ export const MetricsArtifactWireSchema = z
         transcript_path: z.string().optional(),
         grading_path: z.string().optional(),
         timing_path: z.string().optional(),
+        file_changes_path: z.string().optional(),
       })
       .strict(),
     metrics: MetricsWireSchema,
@@ -515,11 +517,14 @@ function parseModifiedPathsFromDiff(fileChanges: string | undefined): string[] {
     return [];
   }
   const paths = new Set<string>();
-  for (const line of fileChanges.split('\n')) {
-    if (!line.startsWith('+++ b/')) {
+  const lines = fileChanges.split('\n');
+  for (let index = 0; index < lines.length - 1; index++) {
+    const oldLine = lines[index];
+    const newLine = lines[index + 1];
+    if (!oldLine.startsWith('--- a/') || !newLine?.startsWith('+++ b/')) {
       continue;
     }
-    const filePath = line.slice('+++ b/'.length).trim();
+    const filePath = newLine.slice('+++ b/'.length).trim();
     if (filePath && filePath !== '/dev/null') {
       paths.add(filePath);
     }
@@ -587,6 +592,26 @@ function buildFilesCreated(result: EvaluationResult, calls: readonly ToolCallRef
       continue;
     }
     for (const filePath of collectStringValuesByKey(call.toolCall.input, FILE_READ_KEY_SET)) {
+      paths.add(filePath);
+    }
+  }
+  return [...paths];
+}
+
+function parseDeletedPathsFromDiff(fileChanges: string | undefined): string[] {
+  if (!fileChanges) {
+    return [];
+  }
+  const paths = new Set<string>();
+  const lines = fileChanges.split('\n');
+  for (let index = 0; index < lines.length - 1; index++) {
+    const oldLine = lines[index];
+    const newLine = lines[index + 1];
+    if (!oldLine.startsWith('--- a/') || newLine !== '+++ /dev/null') {
+      continue;
+    }
+    const filePath = oldLine.slice('--- a/'.length).trim();
+    if (filePath) {
       paths.add(filePath);
     }
   }
@@ -831,6 +856,7 @@ function buildMetrics(result: EvaluationResult) {
     files_read: buildFileReads(calls),
     files_modified: buildFileModifications(result, calls),
     files_created: buildFilesCreated(result, calls),
+    files_deleted: parseDeletedPathsFromDiff(result.fileChanges),
     web_fetches: buildWebFetches(calls),
     errors,
     errors_encountered: errors.length,
@@ -854,6 +880,7 @@ export function buildMetricsArtifact(
     transcriptPath?: string;
     gradingPath?: string;
     timingPath?: string;
+    fileChangesPath?: string;
     generatedAt?: string;
   } = {},
 ): MetricsArtifactWire {
@@ -876,6 +903,7 @@ export function buildMetricsArtifact(
         transcript_path: options.transcriptPath,
         grading_path: options.gradingPath,
         timing_path: options.timingPath,
+        file_changes_path: options.fileChangesPath,
       }),
       metrics: buildMetrics(result),
     }),

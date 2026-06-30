@@ -4,6 +4,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
+  CANONICAL_FILE_CHANGES_ARTIFACT_PATH,
   CANONICAL_METRICS_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
   type EvalTest,
@@ -290,6 +291,10 @@ describe('buildGradingArtifact', () => {
       '@@ -1 +1 @@',
       '-old',
       '+new',
+      '--- a/deleted.ts',
+      '+++ /dev/null',
+      '@@ -1 +0,0 @@',
+      '-gone',
     ].join('\n');
 
     const result = makeResult({ fileChanges: diff });
@@ -298,6 +303,9 @@ describe('buildGradingArtifact', () => {
     expect(grading.workspace_changes).toBeDefined();
     expect(grading.workspace_changes?.files_created).toBe(1);
     expect(grading.workspace_changes?.files_modified).toBe(1);
+    expect(grading.workspace_changes?.files_deleted).toBe(1);
+    expect(grading.workspace_changes?.deleted_file_paths).toEqual(['deleted.ts']);
+    expect(grading.workspace_changes).not.toHaveProperty('diff_summary');
   });
 
   it('includes conversation when conversationId present', () => {
@@ -764,6 +772,17 @@ describe('parseJsonlResults', () => {
     })}\n`;
 
     expect(() => parseJsonlResults(content)).toThrow(/Use "artifact_pointers"/);
+  });
+
+  it('rejects camelCase file changes path rows for the new wire field', () => {
+    const content = `${JSON.stringify({
+      test_id: 'file-changes-row',
+      target: 'codex',
+      score: 1,
+      fileChangesPath: 'file-changes-row/run-1/outputs/file_changes.diff',
+    })}\n`;
+
+    expect(() => parseJsonlResults(content)).toThrow(/Use "file_changes_path"/);
   });
 
   it('does not treat parsed raw provider log pointers as fresh source artifacts', () => {
@@ -1398,6 +1417,10 @@ describe('writeArtifactsFromResults', () => {
       '+++ b/src/new.ts',
       '@@ -0,0 +1 @@',
       '+created',
+      '--- a/src/gone.ts',
+      '+++ /dev/null',
+      '@@ -1 +0,0 @@',
+      '-deleted',
     ].join('\n');
     const results = [
       makeResult({
@@ -1433,6 +1456,21 @@ describe('writeArtifactsFromResults', () => {
     const rowDir = expectRowDir(indexLine, 'summary-case');
 
     expect(indexLine?.metrics_path).toBe(`${rowDir}/run-1/metrics.json`);
+    expect(indexLine?.file_changes_path).toBe(
+      `${rowDir}/run-1/${CANONICAL_FILE_CHANGES_ARTIFACT_PATH}`,
+    );
+    await expect(
+      readFile(
+        runArtifactPath(testDir, indexLine, 'run-1', 'outputs', 'file_changes.diff'),
+        'utf8',
+      ),
+    ).resolves.toBe(fileChanges);
+
+    const runResult = JSON.parse(
+      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'result.json'), 'utf8'),
+    );
+    expect(runResult.file_changes_path).toBe('./outputs/file_changes.diff');
+    expect(runResult.output_paths.file_changes).toBe('./outputs/file_changes.diff');
 
     const summary = MetricsArtifactWireSchema.parse(
       JSON.parse(
@@ -1451,6 +1489,7 @@ describe('writeArtifactsFromResults', () => {
       transcript_path: 'transcript.jsonl',
       grading_path: 'grading.json',
       timing_path: 'timing.json',
+      file_changes_path: CANONICAL_FILE_CHANGES_ARTIFACT_PATH,
     });
     expect(summary.source_artifacts).not.toHaveProperty('trace_path');
     await expect(
@@ -1504,6 +1543,7 @@ describe('writeArtifactsFromResults', () => {
       source: 'file_changes',
     });
     expect(summary.metrics.files_created).toEqual(['src/new.ts']);
+    expect(summary.metrics.files_deleted).toEqual(['src/gone.ts']);
     expect(summary.metrics.web_fetches).toEqual([
       {
         url: 'https://example.com/spec',

@@ -61,6 +61,8 @@ An AgentV result output is a run-centric bundle with this root contract:
       transcript.jsonl
       transcript-raw.jsonl
       outputs/
+        answer.md             # when target output exists
+        file_changes.diff     # when workspace file changes exist
 ```
 
 `summary.json` and `index.jsonl` are complementary:
@@ -82,8 +84,8 @@ aggregate summaries.
 ordinary per-case sidecars through explicit fields such as `result_dir`,
 `summary_path`, `grading_path`, `metrics_path`, `timing_path`,
 `transcript_path`, `transcript_raw_path`, `answer_path`, `output_path`,
-`test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` when
-those artifacts exist.
+`file_changes_path`, `test_dir`, `eval_path`, `targets_path`, `files_path`, and
+`graders_path` when those artifacts exist.
 
 `artifact_pointers` remain an offload indirection for large detached payload
 bytes. They are not the discovery path for ordinary sidecars that live in the

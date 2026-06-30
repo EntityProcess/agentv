@@ -53,6 +53,7 @@ const RESULT_ROW_ALIASES = {
 
 const NEW_SNAKE_CASE_ONLY_FIELDS = {
   artifactPointers: 'artifact_pointers',
+  fileChangesPath: 'file_changes_path',
 } as const;
 
 const TRACE_SUMMARY_ALIASES = {

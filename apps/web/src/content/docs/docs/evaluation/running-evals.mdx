@@ -141,6 +141,7 @@ my-results/
       transcript.jsonl
       transcript-raw.jsonl
       outputs/answer.md
+      outputs/file_changes.diff  # when workspace changes are captured
     test/
       EVAL.yaml
       targets.yaml
@@ -149,13 +150,13 @@ my-results/
 ```
 
 The `index.jsonl` row links to these generated paths with snake_case fields such
-as `result_dir`, `test_dir`, `eval_path`, `targets_path`, `files_path`, and
-`graders_path`. Treat those paths as relative to the run directory. When you need
-a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
-share the generated run directory and its `index.jsonl` manifest. Source-side
-case directories are still useful for organizing bulky prompts, fixtures, or
-tests while authoring an eval, but they are optional input organization rather
-than a separate artifact schema.
+as `result_dir`, `test_dir`, `eval_path`, `targets_path`, `files_path`,
+`file_changes_path`, and `graders_path`. Treat those paths as relative to the
+run directory. When you need a portable artifact for audit, review, Dashboard
+inspection, or rerun workflows, share the generated run directory and its
+`index.jsonl` manifest. Source-side case directories are still useful for
+organizing bulky prompts, fixtures, or tests while authoring an eval, but they
+are optional input organization rather than a separate artifact schema.
 
 For the full root layout, per-attempt sidecars, pointer rules, and integration
 guidance, use the [Result Artifact Contract](/docs/reference/result-artifacts/).
