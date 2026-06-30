@@ -16,7 +16,7 @@ description: Functional grading with workspace_path — deploy-and-test pattern
 workspace:
   template: ../workspace-template
 
-execution:
+experiment:
   target: mock_agent
 
 tests:

@@ -8,7 +8,7 @@
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare
 
-execution:
+experiment:
   target: llm
 
 tests:

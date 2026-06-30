@@ -13,8 +13,8 @@
  *   All user-configurable score thresholds use 0-1 scale.
  *   The only 0-10 values in YAML are `score_ranges` which define LLM integer output band labels.
  *
- * Default threshold is 0.8. Override via CLI `--threshold`, suite `execution.threshold`,
- * or per-test `execution.threshold`. All verdict derivation flows through scoreToVerdict().
+ * Default threshold is 0.8. Override via CLI `--threshold`, suite `experiment.threshold`,
+ * or per-test `experiment.threshold`. All verdict derivation flows through scoreToVerdict().
  */
 
 import type { EvaluationVerdict } from '../types.js';

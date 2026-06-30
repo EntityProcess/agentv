@@ -4,7 +4,7 @@
 
 description: Multi-turn conversation evaluation with per-turn score breakdown
 
-execution:
+experiment:
   target: llm
 
 tests:

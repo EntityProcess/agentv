@@ -25,7 +25,7 @@ description: Verify file_changes captures generated artifacts (CSV) under worksp
 workspace:
   template: ../workspace-template
 
-execution:
+experiment:
   target: mock_csv_agent
 
 tests:

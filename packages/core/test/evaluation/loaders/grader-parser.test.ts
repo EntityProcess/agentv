@@ -931,7 +931,7 @@ describe('parseGraders - token-usage', () => {
 
   it('inherits suite-level execution.evaluators when case has execution object without evaluators', async () => {
     const rawEvalCase = {
-      execution: {
+      experiment: {
         constraints: {
           max_total_tokens: 123,
         },
@@ -1151,7 +1151,7 @@ describe('parseGraders - execution-metrics', () => {
 describe('parseGraders - default evaluators merge', () => {
   it('appends root evaluators after case-level evaluators', async () => {
     const rawEvalCase = {
-      execution: {
+      experiment: {
         evaluators: [{ name: 'case-eval', type: 'latency', threshold: 3000 }],
       },
     };
@@ -1182,7 +1182,7 @@ describe('parseGraders - default evaluators merge', () => {
 
   it('skips root evaluators when skip_defaults is true', async () => {
     const rawEvalCase = {
-      execution: {
+      experiment: {
         skip_defaults: true,
         evaluators: [{ name: 'case-eval', type: 'latency', threshold: 3000 }],
       },
@@ -1224,7 +1224,7 @@ describe('parseGraders - default evaluators merge', () => {
 
   it('returns undefined when skip_defaults and no case evaluators', async () => {
     const rawEvalCase = {
-      execution: { skip_defaults: true },
+      experiment: { skip_defaults: true },
     };
 
     const globalExecution = {
@@ -1237,7 +1237,7 @@ describe('parseGraders - default evaluators merge', () => {
 
   it('backward compat: case with execution object but no evaluators inherits root', async () => {
     const rawEvalCase = {
-      execution: {
+      experiment: {
         constraints: { max_total_tokens: 123 },
       },
     };
@@ -1311,7 +1311,7 @@ describe('parseGraders - assert field', () => {
     const evaluators = await parseGraders(
       {
         assertions: [{ type: 'contains', value: 'DENIED' }],
-        execution: {
+        experiment: {
           evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
         },
       },
@@ -1355,7 +1355,7 @@ describe('parseGraders - assert field', () => {
     const evaluators = await parseGraders(
       {
         assertions: [{ type: 'contains', value: 'DENIED' }],
-        execution: { skip_defaults: true },
+        experiment: { skip_defaults: true },
       },
       { assertions: [{ name: 'latency-check', type: 'latency', threshold: 5000 }] },
       [tempDir],
@@ -1368,7 +1368,7 @@ describe('parseGraders - assert field', () => {
   it('falls back to execution.evaluators when assert is not present', async () => {
     const evaluators = await parseGraders(
       {
-        execution: {
+        experiment: {
           evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
         },
       },
@@ -1463,7 +1463,7 @@ assertions:
     const evaluators = await parseGraders(
       {
         assertions: [{ type: 'contains', value: 'case-only' }],
-        execution: { skip_defaults: true },
+        experiment: { skip_defaults: true },
       },
       {
         assertions: [{ include: './shared/local.yaml' }],

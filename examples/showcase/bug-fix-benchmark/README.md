@@ -68,7 +68,7 @@ base. The eval file uses **target-level hooks** to create per-variant configurat
 
 ```yaml
 # In evals/bug-fixes.eval.yaml
-execution:
+experiment:
   targets:
     - name: claude-baseline
       use_target: claude

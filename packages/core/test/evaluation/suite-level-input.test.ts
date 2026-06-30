@@ -159,7 +159,7 @@ tests:
   - id: without-defaults
     criteria: "Skips suite input"
     input: "Query B"
-    execution:
+    experiment:
       skip_defaults: true
 `,
     );

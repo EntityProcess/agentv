@@ -3,7 +3,7 @@
 description: Minimal demo showing how to invoke a CLI target with file attachments
 
 # Use the CLI target defined in .agentv/targets.yaml
-execution:
+experiment:
   target: local_cli
 
 tags: [agent]

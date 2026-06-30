@@ -118,8 +118,8 @@ tests:
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
-| `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
-| `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
+| `assertions` | Suite-level graders appended to each test unless `experiment.skip_defaults: true` is set on the test |
+| `input` | Suite-level input messages prepended to each test's input unless `experiment.skip_defaults: true` is set on the test |
 
 `workspace` is what the agent can inspect or modify through tools, not prompt
 input. Put instructions in `input`; put repos, templates, and lifecycle setup in
@@ -169,7 +169,7 @@ category paths.
 
 ### Suite-level Assertions
 
-The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `execution.skip_defaults: true`.
+The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `experiment.skip_defaults: true`.
 For semantic or agent-behavior checks, prefer plain assertion strings first;
 AgentV treats them as rubric criteria. Use deterministic assertions or code
 graders when the expected output is exact or requires programmatic inspection.
@@ -212,7 +212,7 @@ Resolution rules:
 - `include: name` resolves to `.agentv/templates/{name}.yaml` with the closest matching directory winning
 - Relative paths resolve from the eval file location, so `include: ./shared/format.yaml` works as expected
 - Nested includes are allowed up to depth 3 to keep cycles and runaway recursion bounded
-- Suite-level includes follow the same merge behavior as other suite-level assertions and still respect `execution.skip_defaults: true`
+- Suite-level includes follow the same merge behavior as other suite-level assertions and still respect `experiment.skip_defaults: true`
 
 ### Suite-level Input
 
@@ -263,7 +263,7 @@ input:
         value: ./system-prompt.md
 ```
 
-To opt out for a specific test, set `execution.skip_defaults: true` (same flag that skips suite-level `assertions`).
+To opt out for a specific test, set `experiment.skip_defaults: true` (same flag that skips suite-level `assertions`).
 
 ### Suite-level Input Files
 
@@ -286,7 +286,7 @@ tests:
 
 Each test's effective input becomes a single user message with `[file blocks..., text block]`.
 
-Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `execution.skip_defaults: true` on the test.
+Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `experiment.skip_defaults: true` on the test.
 
 ### PROMPT.md Fallback
 
@@ -482,7 +482,7 @@ For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each lin
 
 ### Sidecar Metadata
 
-An optional YAML sidecar file provides metadata and execution config. Place it alongside the JSONL file with the same base name:
+An optional YAML sidecar file provides metadata and experiment runtime config. Place it alongside the JSONL file with the same base name:
 
 `dataset.jsonl` + `dataset.eval.yaml`:
 

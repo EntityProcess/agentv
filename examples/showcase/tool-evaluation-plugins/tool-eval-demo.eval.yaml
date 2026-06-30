@@ -10,7 +10,7 @@
 description: Showcase of tool evaluation plugin patterns
 
 # Use mock_agent target (configure in .agentv/targets.yaml)
-execution:
+experiment:
   target: mock_agent
 
 tests:

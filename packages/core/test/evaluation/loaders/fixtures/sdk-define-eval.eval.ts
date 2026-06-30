@@ -5,7 +5,7 @@ const suite = {
   name: 'sdk-define-eval-suite',
   description: 'YAML-aligned TypeScript suite authored with @agentv/sdk',
   tags: ['sdk', 'typescript', 'yaml'],
-  execution: {
+  experiment: {
     targets: ['mock-target'],
     workers: 2,
     skipDefaults: true,
@@ -47,7 +47,7 @@ export default Object.defineProperties(suite, {
       name: suite.name,
       description: suite.description,
       tags: suite.tags,
-      execution: {
+      experiment: {
         targets: ['mock-target'],
         workers: 2,
         skip_defaults: true,

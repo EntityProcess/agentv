@@ -1,5 +1,5 @@
 description: Offline grader benchmark — setup A (same dataset, three low-cost graders, majority vote)
-execution:
+experiment:
   target: fixture_replay
 
 tests:

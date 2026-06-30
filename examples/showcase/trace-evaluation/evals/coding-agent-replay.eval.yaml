@@ -1,6 +1,6 @@
 description: Replay-first coding-agent trace evaluation showcase
 
-execution:
+experiment:
   target: replay_coding_agent
 
 tests:

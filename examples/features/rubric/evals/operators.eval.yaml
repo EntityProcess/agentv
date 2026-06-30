@@ -4,7 +4,7 @@
 name: rubric-operators
 description: "Focused example showing correctness and contradiction rubric operators"
 
-execution:
+experiment:
   target: llm
 
 tests:

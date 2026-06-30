@@ -13,7 +13,7 @@ A minimal eval with a single question and expected answer:
 
 ```yaml
 description: Basic arithmetic evaluation
-execution:
+experiment:
   target: default
 
 tests:
@@ -31,7 +31,7 @@ Use multipart content to attach files alongside text prompts:
 
 ````yaml
 description: Code review with guidelines
-execution:
+experiment:
   target: azure-base
 
 tests:
@@ -75,7 +75,7 @@ Combine a code grader and an LLM grader on the same test:
 
 ```yaml
 description: JSON generation with validation
-execution:
+experiment:
   target: default
 
 tests:
@@ -114,7 +114,7 @@ preprocessors:
   - type: xlsx
     command: ["bun", "run", "../scripts/preprocessors/xlsx-to-csv.ts"]
 
-execution:
+experiment:
   target: file_output
 
 tests:
@@ -129,11 +129,11 @@ See [`examples/features/preprocessors/`](../../../../examples/features/preproces
 
 ## Tool Trajectory
 
-Validate that an agent uses specific tools during execution:
+Validate that an agent uses specific tools during experiment:
 
 ```yaml
 description: Tool usage validation
-execution:
+experiment:
   target: mock_agent
 
 tests:
@@ -168,7 +168,7 @@ Benchmark a five-model grader panel against a human-labeled export, then compare
 
 ```yaml
 description: Offline grader benchmark
-execution:
+experiment:
   target: fixture_replay
 
 tests:
@@ -203,7 +203,7 @@ Evaluate pre-existing trace files without running an agent:
 
 ```yaml
 description: Static trace evaluation
-execution:
+experiment:
   target: static_trace
 
 tests:
@@ -225,7 +225,7 @@ Test multi-turn interactions where intermediate messages set context:
 
 ````yaml
 description: Multi-turn debugging session with clarifying questions
-execution:
+experiment:
   target: default
 
 tests:
@@ -286,7 +286,7 @@ Evaluate external batch runners that process all tests in one invocation:
 
 ```yaml
 description: Batch CLI demo (AML screening)
-execution:
+experiment:
   target: batch_cli
 
 tests:
@@ -359,7 +359,7 @@ tests:
 
 ### Batch CLI Pattern Notes
 
-- `execution.target: batch_cli` -- configure CLI provider with `provider_batching: true`
+- `experiment.target: batch_cli` -- configure CLI provider with `provider_batching: true`
 - The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
 - Put structured data in `user.content` as objects for the runner to extract
 - Use `expected_output` with object fields for structured expected output
@@ -391,7 +391,7 @@ tests: ./cases.yaml
 - id: currency-only
   criteria: Provides direct answer about currency
   input: What currency does Thailand use?
-  execution:
+  experiment:
     skip_defaults: true   # no suite-level input
 ```
 

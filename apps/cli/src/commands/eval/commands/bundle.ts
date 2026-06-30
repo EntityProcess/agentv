@@ -97,7 +97,7 @@ function definitionsWithEvalTargetRefs(
   return result;
 }
 
-function buildBundleExecution(options: {
+function buildBundleExperiment(options: {
   readonly targetNames: readonly string[];
   readonly targetRefs?: readonly EvalTargetRef[];
   readonly workers?: number;
@@ -114,7 +114,7 @@ function buildBundleExecution(options: {
   const singleTargetRef = options.targetNames[0]
     ? targetRefsByName.get(options.targetNames[0])
     : undefined;
-  const execution: Record<string, unknown> =
+  const experiment: Record<string, unknown> =
     options.targetNames.length === 1 && !singleTargetRef?.hooks && !singleTargetRef?.use_target
       ? { target: options.targetNames[0] }
       : {
@@ -122,21 +122,21 @@ function buildBundleExecution(options: {
         };
 
   if (options.workers !== undefined) {
-    execution.workers = options.workers;
+    experiment.workers = options.workers;
   }
   if (options.cache !== undefined) {
-    execution.cache = options.cache;
+    experiment.cache = options.cache;
   }
   if (options.cachePath !== undefined) {
-    execution.cache_path = options.cachePath;
+    experiment.cache_path = options.cachePath;
   }
   if (options.budgetUsd !== undefined) {
-    execution.budget_usd = options.budgetUsd;
+    experiment.budget_usd = options.budgetUsd;
   }
   if (options.threshold !== undefined) {
-    execution.threshold = options.threshold;
+    experiment.threshold = options.threshold;
   }
-  return execution;
+  return experiment;
 }
 
 export const evalBundleCommand = command({
@@ -221,7 +221,7 @@ export const evalBundleCommand = command({
       outputDir: args.out,
       cwd,
       repoRoot,
-      execution: buildBundleExecution({
+      experiment: buildBundleExperiment({
         targetNames,
         targetRefs: suite.targetRefs,
         workers: suite.workers,

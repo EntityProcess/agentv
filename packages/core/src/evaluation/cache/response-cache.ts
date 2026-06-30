@@ -48,7 +48,7 @@ export class ResponseCache implements EvaluationCache {
  * Precedence:
  *   1. --no-cache CLI flag → always disabled
  *   2. --cache CLI flag → enabled
- *   3. execution.cache YAML → enabled/disabled for that eval file
+ *   3. experiment.cache YAML → enabled/disabled for that eval file
  *   4. agentv.config.ts cache.enabled → project default
  *   5. Default → disabled (safe for variability testing)
  */

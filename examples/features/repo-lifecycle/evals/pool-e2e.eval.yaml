@@ -8,7 +8,7 @@ workspace:
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
 
-execution:
+experiment:
   workers: 2
 
 tags: [agent]

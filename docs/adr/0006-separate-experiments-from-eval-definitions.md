@@ -97,10 +97,21 @@ tests:
     type: tests
 ```
 
-`experiment:` is canonical for new eval YAML. `execution:` remains a legacy
-alias only for already-existing eval files. Docs, examples, schema snapshots,
-and new fixtures should use `experiment:`. New surfaces should not teach
-`execution:` except when documenting compatibility for old eval files.
+`experiment:` is the only accepted spelling for eval runtime policy. The earlier
+plan to keep `execution:` as a legacy alias is superseded by the 2026-06-30
+amendment below.
+
+### 2026-06-30 amendment: remove `execution:` fully
+
+The product decision changed from soft canonicalization to hard convergence:
+`execution:` is fully removed from eval YAML, imported eval suites, per-test
+runtime overrides, and SDK eval authoring types. Existing eval files that used
+`execution:` must migrate the block to `experiment:`. This is intentionally
+breaking so AgentV has one runtime spelling before the surface spreads further.
+
+This amendment does not affect `defineConfig().execution` or `.agentv/config`
+runtime defaults. Those are separate run-level configuration surfaces and remain
+canonical.
 
 The old experiment runtime fields are ported into the parent eval file:
 
@@ -354,17 +365,15 @@ group.
 
 The WTG database migration eval
 `evals/cargowise/database/data-transformation-pr50857-e2e.eval.yaml` has
-suite-level `execution`, `workspace`, `input`, and `assertions`.
+suite-level `experiment`, `workspace`, `input`, and `assertions`.
 
 When a wrapper eval imports it with `type: suite`, AgentV must preserve its
 shared `workspace`, `input`, and `assertions` because those fields are part of
-the task contract. Its `execution` block is the legacy spelling for child
-runtime configuration. Under this decision, child `experiment`/legacy
-`execution` blocks are ignored in wrapper composition; scoped threshold,
-repeat, timeout, and budget overrides must be authored on the parent
-`tests[].run` include entry or on child tests themselves, while
-candidate-changing fields must be supplied by the parent wrapper eval's
-`experiment:`.
+the task contract. Under this decision, child `experiment` blocks are ignored in
+wrapper composition; scoped threshold, repeat, timeout, and budget overrides
+must be authored on the parent `tests[].run` include entry or on child tests
+themselves, while candidate-changing fields must be supplied by the parent
+wrapper eval's `experiment:`.
 
 This is the motivating distinction:
 
@@ -436,9 +445,8 @@ Negative:
 
 - A parent eval that imports suites now carries both task composition and
   runtime policy in one file, so docs must explain the boundary clearly.
-- Existing `execution:` examples need to migrate to `experiment:` over time,
-  while the loader keeps `execution:` as a legacy alias for already-existing
-  evals.
+- Existing eval files using `execution:` must migrate to `experiment:`; the
+  loader no longer accepts `execution:` as an eval runtime alias.
 - Explicit task-context override syntax is deferred, so authors who need
   overrides must create a new suite or wait for a focused override design.
 - Wrapper evals need diagnostics so authors understand that parent workspace is

@@ -16,7 +16,7 @@
 
 tags: [agent]
 
-execution:
+experiment:
   target: copilot-log
 
 workspace:

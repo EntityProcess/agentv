@@ -5,7 +5,7 @@
 name: nlp-metrics
 description: NLP text-quality metrics using code_grader graders
 
-execution:
+experiment:
   target: llm
 
 tests:

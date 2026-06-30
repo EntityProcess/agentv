@@ -470,7 +470,7 @@ export async function prepareSharedWorkspaceSetup(
         'If the agent under test makes file edits, concurrent runs may corrupt each other.',
         'To limit concurrency, add this to your eval YAML:',
         '',
-        '  execution:',
+        '  experiment:',
         '    workers: 1',
         '',
         'Or pass --workers 1 on the command line.',

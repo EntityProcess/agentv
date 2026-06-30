@@ -15,7 +15,7 @@ workspace:
       timeout_ms: 5000
       cwd: .
 
-execution:
+experiment:
   target: mock_agent
 
 tests:

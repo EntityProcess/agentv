@@ -29,7 +29,7 @@
 
 description: Demonstrates input_files shorthand for attaching files to test inputs
 
-execution:
+experiment:
   target: llm
 
 tests:

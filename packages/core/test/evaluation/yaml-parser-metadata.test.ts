@@ -112,7 +112,7 @@ tests:
     const { filePath, dir } = createTempYaml(`
 name: matrix-eval
 description: Eval with targets
-execution:
+experiment:
   targets:
     - copilot
     - claude

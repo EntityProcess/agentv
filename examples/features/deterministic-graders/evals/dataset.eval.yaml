@@ -5,7 +5,7 @@
 name: deterministic-graders
 description: Built-in deterministic assertions — contains, regex, JSON validation, equals
 
-execution:
+experiment:
   target: llm
 
 tests:

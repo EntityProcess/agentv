@@ -2,7 +2,7 @@ name: weighted-graders-examples
 
 # This example demonstrates per-grader weights for top-level aggregation
 
-execution:
+experiment:
   target: llm
 
 tests:

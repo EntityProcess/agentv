@@ -7,7 +7,7 @@
 
 description: Sample eval with Langfuse trace export
 
-execution:
+experiment:
   target: default
 
 tests:

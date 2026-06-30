@@ -77,7 +77,7 @@ write_eval_yaml(
     "evals/dataset.eval.yaml",
     EvalDefinition(
         name="python-helper",
-        execution={"target": "local_cli"},
+        experiment={"target": "local_cli"},
         tests="./dataset.jsonl",
     ),
 )

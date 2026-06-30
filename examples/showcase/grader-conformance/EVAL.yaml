@@ -9,7 +9,7 @@
 
 description: Keyword-matching grader used for conformance testing demo
 
-execution:
+experiment:
   target: llm
 
 tests:

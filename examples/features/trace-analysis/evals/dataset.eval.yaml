@@ -5,7 +5,7 @@
 name: trace-analysis-demo
 description: Demo eval for generating execution traces to analyze
 
-execution:
+experiment:
   target: llm
 
 tests:

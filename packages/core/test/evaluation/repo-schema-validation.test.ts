@@ -208,7 +208,7 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects test execution workspace blocks', () => {
+  it('rejects removed test execution workspace blocks', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       tests: [

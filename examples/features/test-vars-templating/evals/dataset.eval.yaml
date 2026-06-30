@@ -8,7 +8,7 @@
 
 description: Demonstrates tests[].vars templating in eval fields
 
-execution:
+experiment:
   target: llm
 
 input:

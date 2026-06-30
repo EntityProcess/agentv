@@ -377,10 +377,10 @@ The interactive wizard (`agentv eval` with no arguments) remembers the last run 
 
 ### Execution Error Tolerance
 
-Control whether the eval run halts on execution errors using `execution.fail_on_error` in the eval YAML:
+Control whether the eval run halts on execution errors using `experiment.fail_on_error` in the eval YAML:
 
 ```yaml
-execution:
+experiment:
   fail_on_error: false    # never halt on errors (default)
   # fail_on_error: true   # halt on first execution error
 ```
@@ -405,7 +405,7 @@ agentv eval evals/ --threshold 0.8
 **YAML config:**
 
 ```yaml
-execution:
+experiment:
   threshold: 0.8
 ```
 
@@ -625,7 +625,7 @@ agentv eval evals/dataset.eval.yaml --cache-path .agentv/response-cache
 Eval YAML can enable the same cache per suite:
 
 ```yaml
-execution:
+experiment:
   cache: true
   cache_path: .agentv/response-cache
 ```
@@ -643,7 +643,7 @@ export default defineConfig({
 });
 ```
 
-`--no-cache` disables response caching regardless of CLI, eval YAML, or TypeScript config. Cache path precedence is `--cache-path` > eval YAML `execution.cache_path` > TypeScript config `cache.path` > `.agentv/cache`.
+`--no-cache` disables response caching regardless of CLI, eval YAML, or TypeScript config. Cache path precedence is `--cache-path` > eval YAML `experiment.cache_path` > TypeScript config `cache.path` > `.agentv/cache`.
 
 Response cache and replay are separate concepts. The response cache is an iteration aid for repeated live provider calls. Transcript or fixture replay is target substitution from curated artifacts, and graders still run fresh against the replayed output.
 

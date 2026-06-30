@@ -76,7 +76,7 @@ workspace:
       command: ["bun", "../scripts/hook.ts", "workspace_before_all"]
     before_each:
       command: ["bun", "../scripts/hook.ts", "workspace_before_each"]
-execution:
+experiment:
   targets:
     - name: codex
       hooks:

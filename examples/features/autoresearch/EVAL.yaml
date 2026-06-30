@@ -4,7 +4,7 @@ description: |
   and reasoning quality. Used as an autoresearch demo — the prompt artifact starts
   weak and the optimization loop iteratively improves it.
 
-execution:
+experiment:
   target: llm
 
 defaults:

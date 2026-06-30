@@ -5,7 +5,7 @@
 
 description: Code graders with eval assert CLI integration
 
-execution:
+experiment:
   target: llm
 
 tests:

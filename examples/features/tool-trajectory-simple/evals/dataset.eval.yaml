@@ -34,7 +34,7 @@ name: tool-trajectory-simple
 description: Tool trajectory grader examples for agent execution validation
 
 # Use mock_agent CLI target that returns trace data
-execution:
+experiment:
   target: mock_agent
 
 tests:

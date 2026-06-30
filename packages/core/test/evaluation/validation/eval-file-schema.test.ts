@@ -50,13 +50,10 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects eval-level execution.trials because run counts belong on experiments', () => {
+  it('rejects eval-level execution because experiment is the only runtime block', () => {
     const result = EvalFileSchema.safeParse({
       execution: {
-        trials: {
-          count: 2,
-          strategy: 'pass_at_k',
-        },
+        target: 'codex',
       },
       tests: [baseTest],
     });
@@ -157,7 +154,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects eval files that set both experiment and legacy execution', () => {
+  it('rejects eval files that set removed execution alongside experiment', () => {
     const result = EvalFileSchema.safeParse({
       experiment: { target: 'codex' },
       execution: { target: 'claude' },
@@ -183,23 +180,17 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects test cases that set both experiment and legacy execution', () => {
+  it('rejects test cases that use removed execution', () => {
     const result = EvalFileSchema.safeParse({
       tests: [
         {
           ...baseTest,
-          experiment: { threshold: 0.7 },
           execution: { threshold: 0.8 },
         },
       ],
     });
 
     expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(collectIssueMessages(result.error.issues)).toContain(
-        "Use either per-test 'experiment' or legacy 'execution', not both.",
-      );
-    }
   });
 
   it('rejects experiment lifecycle commands', () => {
@@ -247,7 +238,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
     if (result.success) throw new Error('Expected test-level execution.targets to be rejected');
     expect(collectIssueMessages(result.error.issues)).toContain(
-      "Unrecognized key(s) in object: 'targets'",
+      "'execution' has been removed. Use 'experiment' instead.",
     );
   });
 
@@ -266,7 +257,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
     if (result.success) throw new Error('Expected test-level execution.target to be rejected');
     expect(collectIssueMessages(result.error.issues)).toContain(
-      "Unrecognized key(s) in object: 'target'",
+      "'execution' has been removed. Use 'experiment' instead.",
     );
   });
 });

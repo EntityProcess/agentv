@@ -15,5 +15,5 @@
   input:
     - role: user
       content: What currency does Thailand use?
-  execution:
+  experiment:
     skip_defaults: true

@@ -152,7 +152,7 @@ import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'hello-suite',
-  execution: {
+  experiment: {
     targets: ['mock-sdk'],
   },
   tests: [

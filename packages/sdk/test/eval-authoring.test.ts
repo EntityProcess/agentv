@@ -197,45 +197,4 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(yaml).not.toContain('expectedOutput');
     expect(yaml).not.toContain('inputFiles');
   });
-
-  it('keeps execution as a deprecated YAML alias for back compatibility', () => {
-    const suite = defineEval({
-      name: 'legacy-execution-suite',
-      execution: {
-        targets: ['legacy-target'],
-        budgetUsd: 0.5,
-      },
-      tests: [
-        {
-          id: 'legacy-test',
-          input: 'Say hello',
-          execution: {
-            threshold: 0.6,
-            failOnError: true,
-          },
-        },
-      ],
-    });
-
-    const lowered = toEvalYamlObject(suite);
-
-    expect(suite.execution?.budgetUsd).toBe(0.5);
-    expect(lowered).toEqual({
-      name: 'legacy-execution-suite',
-      execution: {
-        targets: ['legacy-target'],
-        budget_usd: 0.5,
-      },
-      tests: [
-        {
-          id: 'legacy-test',
-          input: 'Say hello',
-          execution: {
-            threshold: 0.6,
-            fail_on_error: true,
-          },
-        },
-      ],
-    });
-  });
 });

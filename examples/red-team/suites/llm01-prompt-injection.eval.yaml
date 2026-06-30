@@ -18,7 +18,7 @@ governance: &gov
   risk_tier: high
   owner: security-team
 
-execution:
+experiment:
   target: llm
 
 tests:

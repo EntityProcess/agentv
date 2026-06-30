@@ -12,7 +12,7 @@
 description: Static trace file evaluation demo - Product Research Agent
 
 # Use static_trace target that reads from a file
-execution:
+experiment:
   target: static_trace
 
 tests:

@@ -29,7 +29,7 @@ assertions:
     target:
       max_calls: 15
 
-execution:
+experiment:
   target: llm
 
 tests:

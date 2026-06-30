@@ -13,7 +13,7 @@ description: Verify file_changes diffs are accessible to LLM grader (rubrics, bu
 workspace:
   template: ../workspace-template
 
-execution:
+experiment:
   target: mock_agent
 
 tests:

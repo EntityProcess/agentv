@@ -30,7 +30,7 @@ class EvalTest:
     expected_output: Any | None = None
     criteria: str | None = None
     assertions: list[Any] | None = None
-    execution: Mapping[str, Any] | None = None
+    experiment: Mapping[str, Any] | None = None
     metadata: Mapping[str, Any] | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
 
@@ -44,8 +44,8 @@ class EvalTest:
             wire["expected_output"] = _wire_value(self.expected_output)
         if self.assertions is not None:
             wire["assertions"] = _wire_value(self.assertions)
-        if self.execution is not None:
-            wire["execution"] = _wire_value(self.execution)
+        if self.experiment is not None:
+            wire["experiment"] = _wire_value(self.experiment)
         if self.metadata is not None:
             wire["metadata"] = _wire_value(self.metadata)
         wire.update(_wire_value(self.extra))
@@ -58,7 +58,7 @@ class JsonlCase:
     input: Any
     expected_output: Any | None = None
     criteria: str | None = None
-    execution: Mapping[str, Any] | None = None
+    experiment: Mapping[str, Any] | None = None
     metadata: Mapping[str, Any] | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
 
@@ -68,8 +68,8 @@ class JsonlCase:
             wire["criteria"] = self.criteria
         if self.expected_output is not None:
             wire["expected_output"] = _wire_value(self.expected_output)
-        if self.execution is not None:
-            wire["execution"] = _wire_value(self.execution)
+        if self.experiment is not None:
+            wire["experiment"] = _wire_value(self.experiment)
         if self.metadata is not None:
             wire["metadata"] = _wire_value(self.metadata)
         wire.update(_wire_value(self.extra))
@@ -80,7 +80,7 @@ class JsonlCase:
 class EvalDefinition:
     description: str | None = None
     name: str | None = None
-    execution: Mapping[str, Any] | None = None
+    experiment: Mapping[str, Any] | None = None
     tags: list[str] | None = None
     tests: list[EvalTest] | str | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
@@ -91,8 +91,8 @@ class EvalDefinition:
             wire["description"] = self.description
         if self.name is not None:
             wire["name"] = self.name
-        if self.execution is not None:
-            wire["execution"] = _wire_value(self.execution)
+        if self.experiment is not None:
+            wire["experiment"] = _wire_value(self.experiment)
         if self.tags is not None:
             wire["tags"] = list(self.tags)
         if self.tests is not None:

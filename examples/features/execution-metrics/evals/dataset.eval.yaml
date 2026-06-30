@@ -19,7 +19,7 @@ name: execution-metrics
 description: Demonstrates the built-in execution_metrics grader
 
 # Mock agent that returns realistic execution metrics
-execution:
+experiment:
   target: mock_metrics_agent
 
 tests:

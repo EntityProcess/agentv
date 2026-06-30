@@ -1,7 +1,7 @@
 name: code-grader-contract
 description: Release gate verifying the code-grader stdin payload contract.
 
-execution:
+experiment:
   target: github-models-contract
   workers: 1
 

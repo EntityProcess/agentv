@@ -53,7 +53,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(suite.workers).toBe(2);
   });
 
-  it('accepts top-level execution as a legacy runtime alias but rejects both blocks', async () => {
+  it('rejects top-level execution because experiment is the only runtime block', async () => {
     const legacyPath = path.join(tempDir, 'legacy.eval.yaml');
     await writeFile(
       legacyPath,
@@ -68,9 +68,9 @@ describe('eval.yaml inline experiment and tests imports', () => {
       ].join('\n'),
     );
 
-    const legacy = await loadTestSuite(legacyPath, tempDir);
-    expect(legacy.experimentConfig?.target).toBe('mock');
-    expect(legacy.targets).toBeUndefined();
+    await expect(loadTestSuite(legacyPath, tempDir)).rejects.toThrow(
+      /'execution' has been removed\. Use 'experiment' instead/,
+    );
 
     const conflictPath = path.join(tempDir, 'conflict.eval.yaml');
     await writeFile(
@@ -88,7 +88,9 @@ describe('eval.yaml inline experiment and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(conflictPath, tempDir)).rejects.toThrow(/experiment.*execution/);
+    await expect(loadTestSuite(conflictPath, tempDir)).rejects.toThrow(
+      /'execution' has been removed\. Use 'experiment' instead/,
+    );
   });
 
   it('rejects per-test execution workspace blocks', async () => {
@@ -109,7 +111,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
 
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
-      /execution\.workspace has been removed from eval YAML/,
+      /'execution' has been removed\. Use 'experiment' instead/,
     );
   });
 
@@ -135,7 +137,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     expect(suite.tests[0]?.run?.threshold).toBe(0.42);
   });
 
-  it('rejects test cases that define both experiment and execution runtime blocks', async () => {
+  it('rejects test cases that use removed execution runtime blocks', async () => {
     const evalPath = path.join(tempDir, 'test-runtime-conflict.eval.yaml');
     await writeFile(
       evalPath,
@@ -144,18 +146,18 @@ describe('eval.yaml inline experiment and tests imports', () => {
         '  - id: one',
         '    input: hello',
         '    criteria: ok',
-        '    experiment:',
-        '      threshold: 0.42',
         '    execution:',
         '      threshold: 0.7',
         '',
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/experiment.*execution/);
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
+      /'execution' has been removed\. Use 'experiment' instead/,
+    );
   });
 
-  it('rejects unsupported per-test execution target blocks', async () => {
+  it('rejects unsupported per-test experiment target blocks', async () => {
     const evalPath = path.join(tempDir, 'test-execution-target.eval.yaml');
     await writeFile(
       evalPath,
@@ -164,14 +166,14 @@ describe('eval.yaml inline experiment and tests imports', () => {
         '  - id: one',
         '    input: hello',
         '    criteria: ok',
-        '    execution:',
+        '    experiment:',
         '      target: codex',
         '',
       ].join('\n'),
     );
 
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
-      "test 'one'.execution.target is not supported.",
+      "test 'one'.experiment.target is not supported.",
     );
   });
 
@@ -600,7 +602,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
   });
 
-  it('rejects legacy execution workspace when importing eval suites with type: suite', async () => {
+  it('rejects removed execution workspace when importing eval suites with type: suite', async () => {
     await writeFile(
       path.join(tempDir, 'child.eval.yaml'),
       [
@@ -628,7 +630,7 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
 
     await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(
-      /Experiment workspace has been removed from eval YAML/,
+      /'execution' has been removed\. Use 'experiment' instead/,
     );
   });
 

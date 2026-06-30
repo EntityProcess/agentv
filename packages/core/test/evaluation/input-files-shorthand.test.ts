@@ -239,7 +239,7 @@ tests:
   - id: no-suite-files
     criteria: "Skips suite files"
     input: "Plain question."
-    execution:
+    experiment:
       skip_defaults: true
 `,
     );

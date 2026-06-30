@@ -47,7 +47,7 @@ async function writeTaskBundle(options: {
 
   await writeFile(
     path.join(taskDir, 'EVAL.yaml'),
-    `execution:
+    `experiment:
   target: captured
 tests:
   - id: ${options.testId}

@@ -12,7 +12,7 @@
 
 description: Demonstrates ${{ VAR }} interpolation in eval fields
 
-execution:
+experiment:
   target: llm
 
 tests:

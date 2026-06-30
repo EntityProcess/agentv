@@ -2,7 +2,7 @@ description: |-
   Comprehensive Evaluation Suite for 'Three Levels of Listening'.
   TIER 1: Basic capability (Explicit Content & Emotion).
   TIER 2: Advanced capability (Implicit Process, Somatization, & Resistance).
-execution:
+experiment:
   target: gemini-llm
 
 assertions:

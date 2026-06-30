@@ -65,7 +65,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'tests',
   'target',
   'experiment',
-  'execution',
   'assertions',
   'evaluators',
   'preprocessors',
@@ -94,6 +93,11 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'workspace',
 ]);
 
+/** Removed top-level fields with migration hints. */
+const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
+  ['execution', "'execution' has been removed. Use 'experiment' instead."],
+]);
+
 /**
  * Deprecated top-level fields with migration hints.
  * These are still processed by yaml-parser but authors should migrate.
@@ -116,7 +120,7 @@ const KNOWN_TEST_FIELDS = new Set([
   'assertions',
   'evaluators',
   'rubrics',
-  'execution',
+  'experiment',
   'run',
   'workspace',
   'metadata',
@@ -129,6 +133,11 @@ const KNOWN_TEST_FIELDS = new Set([
   'aggregation',
   'on_turn_failure',
   'window_size',
+]);
+
+/** Removed test-level fields with migration hints. */
+const REMOVED_TEST_FIELDS = new Map<string, string>([
+  ['execution', "'execution' has been removed. Use 'experiment' instead."],
 ]);
 
 /**
@@ -263,19 +272,18 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
 
-  if (parsed.experiment !== undefined && parsed.execution !== undefined) {
-    errors.push({
-      severity: 'error',
-      filePath: absolutePath,
-      location: 'experiment',
-      message: "Use either top-level 'experiment' or legacy 'execution', not both.",
-    });
-  }
-
   // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
+    const removedMessage = REMOVED_TOP_LEVEL_FIELDS.get(key);
     const deprecationMessage = DEPRECATED_TOP_LEVEL_FIELDS.get(key);
-    if (deprecationMessage) {
+    if (removedMessage) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: key,
+        message: removedMessage,
+      });
+    } else if (deprecationMessage) {
       errors.push({
         severity: 'warning',
         filePath: absolutePath,
@@ -370,8 +378,16 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     // Warn on deprecated or unknown test-level fields
     for (const key of Object.keys(evalCase)) {
+      const removedMessage = REMOVED_TEST_FIELDS.get(key);
       const deprecationMessage = DEPRECATED_TEST_FIELDS.get(key);
-      if (deprecationMessage) {
+      if (removedMessage) {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.${key}`,
+          message: removedMessage,
+        });
+      } else if (deprecationMessage) {
         errors.push({
           severity: 'warning',
           filePath: absolutePath,
@@ -412,14 +428,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     // input field (string/object shorthand or message array). When omitted,
     // AgentV accepts Vercel-style PROMPT.md fallback beside EVAL.yaml or in input_files.
-    const caseExecution = isObject(evalCase.execution) ? evalCase.execution : undefined;
+    const caseExecution = isObject(evalCase.experiment) ? evalCase.experiment : undefined;
     if (caseExecution) {
       validateTestExecutionFields(caseExecution, absolutePath, errors, location);
       rejectRuntimeWorkspaceConfig(
         caseExecution.workspace,
         absolutePath,
         errors,
-        `${location}.execution.workspace`,
+        `${location}.experiment.workspace`,
       );
     }
     const skipDefaults = caseExecution?.skip_defaults === true;
@@ -512,14 +528,6 @@ async function validateSuiteWorkspaceConfigs(
       'experiment.workspace',
     );
   }
-  if (isObject(parsed.execution)) {
-    rejectRuntimeWorkspaceConfig(
-      parsed.execution.workspace,
-      absolutePath,
-      errors,
-      'execution.workspace',
-    );
-  }
 }
 
 function validateTestExecutionFields(
@@ -533,8 +541,8 @@ function validateTestExecutionFields(
       errors.push({
         severity: 'error',
         filePath,
-        location: `${location}.execution.${key}`,
-        message: `Unsupported test execution field '${key}'.`,
+        location: `${location}.experiment.${key}`,
+        message: `Unsupported test experiment field '${key}'.`,
       });
     }
   }
@@ -711,7 +719,7 @@ async function validateCompositionDiagnostics(
     return;
   }
 
-  const parentHasRuntime = parsed.experiment !== undefined || parsed.execution !== undefined;
+  const parentHasRuntime = parsed.experiment !== undefined;
   const hasSuiteImport = imports.some((entry) => entry.type === 'suite');
 
   if (hasSuiteImport) {
@@ -735,12 +743,15 @@ async function validateCompositionDiagnostics(
         if (!childParsed) {
           continue;
         }
-        const runtimeField =
-          childParsed.experiment !== undefined
-            ? 'experiment'
-            : childParsed.execution !== undefined
-              ? 'legacy execution'
-              : undefined;
+        const runtimeField = childParsed.experiment !== undefined ? 'experiment' : undefined;
+        if (childParsed.execution !== undefined) {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: entry.location,
+            message: `Imported suite '${entry.path}' uses removed 'execution'. Use 'experiment' instead.`,
+          });
+        }
         if (!runtimeField) {
           continue;
         }
@@ -780,9 +791,6 @@ function parentWorkspaceLocations(parsed: JsonObject): readonly string[] {
   }
   if (isObject(parsed.experiment) && parsed.experiment.workspace !== undefined) {
     locations.push('experiment.workspace');
-  }
-  if (isObject(parsed.execution) && parsed.execution.workspace !== undefined) {
-    locations.push('execution.workspace');
   }
   return locations;
 }

@@ -138,7 +138,6 @@ export {
   type EvalAssertionConfig,
   type EvalDefinition,
   type EvalDockerWorkspace,
-  type EvalExecution,
   type EvalExperiment,
   type EvalMessage,
   type EvalMessageContent,

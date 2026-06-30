@@ -447,7 +447,6 @@ const EvalTestSchema = z
     assertions: z.array(EvaluatorSchema).optional(),
     evaluators: z.array(EvaluatorSchema).optional(),
     experiment: TestExecutionSchema.optional(),
-    execution: TestExecutionSchema.optional(),
     run: RunOverrideSchema.optional(),
     workspace: WorkspaceSchema.optional(),
     metadata: z.record(z.unknown()).optional(),
@@ -461,8 +460,15 @@ const EvalTestSchema = z
     on_turn_failure: z.enum(['continue', 'stop']).optional(),
     window_size: z.number().int().min(1).optional(),
   })
-  .refine((value) => value.experiment === undefined || value.execution === undefined, {
-    message: "Use either per-test 'experiment' or legacy 'execution', not both.",
+  .passthrough()
+  .superRefine((value, ctx) => {
+    if ('execution' in value) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['execution'],
+        message: "'execution' has been removed. Use 'experiment' instead.",
+      });
+    }
   });
 
 const SelectPatternSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
@@ -519,7 +525,7 @@ const TestsSchema = z.union([
 // Top-level eval file
 // ---------------------------------------------------------------------------
 
-export const EvalFileSchema = z
+export const EvalFileSchema: z.ZodTypeAny = z
   .object({
     $schema: z.string().optional(),
     // Metadata
@@ -546,9 +552,8 @@ export const EvalFileSchema = z
     eval_cases: TestsSchema.optional(),
     // Target
     target: z.string().optional(),
-    // Runtime. `experiment` is canonical; `execution` is a legacy top-level alias.
+    // Runtime.
     experiment: ExperimentRuntimeSchema.optional(),
-    execution: ExperimentRuntimeSchema.optional(),
     // Suite-level assertions
     assertions: z.array(EvaluatorSchema).optional(),
     // Suite-level content preprocessors shared by evaluators
@@ -556,8 +561,15 @@ export const EvalFileSchema = z
     // Workspace (inline object or path to external workspace YAML file)
     workspace: z.union([WorkspaceSchema, z.string()]).optional(),
   })
-  .refine((value) => value.experiment === undefined || value.execution === undefined, {
-    message: "Use either top-level 'experiment' or legacy 'execution', not both.",
+  .passthrough()
+  .superRefine((value, ctx) => {
+    if ('execution' in value) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['execution'],
+        message: "'execution' has been removed. Use 'experiment' instead.",
+      });
+    }
   })
   .refine(
     (value) =>

@@ -18,7 +18,7 @@ workspace:
     memory: 2g
     cpus: 1
 
-execution:
+experiment:
   target: mock_agent
   workers: 1
 

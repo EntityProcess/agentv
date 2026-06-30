@@ -54,7 +54,6 @@ function isDeprecatedJudgeType(type: string): boolean {
 export async function parseGraders(
   rawEvalCase: JsonObject & {
     readonly experiment?: JsonValue;
-    readonly execution?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
     readonly assert?: JsonValue;
@@ -64,18 +63,18 @@ export async function parseGraders(
   evalId: string,
   defaultPreprocessors?: readonly ContentPreprocessorConfig[],
 ): Promise<readonly GraderConfig[] | undefined> {
-  const execution = rawEvalCase.experiment ?? rawEvalCase.execution;
-  const executionObject = isJsonObject(execution) ? execution : undefined;
+  const experiment = rawEvalCase.experiment;
+  const experimentObject = isJsonObject(experiment) ? experiment : undefined;
 
-  // Case-level graders priority: assertions > assert > legacy execution/top-level assertion lists
+  // Case-level graders priority: assertions > assert > experiment/top-level assertion lists
   const caseEvaluators =
     rawEvalCase.assertions ??
     rawEvalCase.assert ??
-    (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assertions
+    (experimentObject ? experimentObject.evaluators : undefined) ?? // deprecated: use assertions
     rawEvalCase.evaluators; // deprecated: use assertions
 
-  // Root-level default graders: assertions > assert > legacy execution assertion list
-  const skipDefaults = executionObject?.skip_defaults === true;
+  // Root-level default graders: assertions > assert > experiment assertion list
+  const skipDefaults = experimentObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
     : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators); // deprecated: use assertions
@@ -250,7 +249,6 @@ async function expandGraderEntries(
 export async function collectAssertionTemplateSourceReferences(
   rawEvalCase: JsonObject & {
     readonly experiment?: JsonValue;
-    readonly execution?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
     readonly assert?: JsonValue;
@@ -259,14 +257,14 @@ export async function collectAssertionTemplateSourceReferences(
   searchRoots: readonly string[],
   evalId: string,
 ): Promise<readonly EvalSourceReference[]> {
-  const execution = rawEvalCase.experiment ?? rawEvalCase.execution;
-  const executionObject = isJsonObject(execution) ? execution : undefined;
+  const experiment = rawEvalCase.experiment;
+  const experimentObject = isJsonObject(experiment) ? experiment : undefined;
   const caseEvaluators =
     rawEvalCase.assertions ??
     rawEvalCase.assert ??
-    (executionObject ? executionObject.evaluators : undefined) ??
+    (experimentObject ? experimentObject.evaluators : undefined) ??
     rawEvalCase.evaluators;
-  const skipDefaults = executionObject?.skip_defaults === true;
+  const skipDefaults = experimentObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
     : (globalExecution?.assertions ?? globalExecution?.assert ?? globalExecution?.evaluators);

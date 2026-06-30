@@ -72,7 +72,7 @@ imports:
     expect(result.errors).toHaveLength(0);
   });
 
-  it('rejects unsupported test-level execution.targets', async () => {
+  it('rejects unsupported test-level experiment.targets', async () => {
     const filePath = path.join(tempDir, 'test-level-targets.yaml');
     await writeFile(
       filePath,
@@ -80,7 +80,7 @@ imports:
   - id: target-specific
     input: "Hello"
     criteria: "Greet"
-    execution:
+    experiment:
       targets: [codex]
 `,
     );
@@ -92,13 +92,13 @@ imports:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'tests[0].execution.targets' &&
-          error.message === "Unsupported test execution field 'targets'.",
+          error.location === 'tests[0].experiment.targets' &&
+          error.message === "Unsupported test experiment field 'targets'.",
       ),
     ).toBe(true);
   });
 
-  it('rejects unsupported test-level execution.target', async () => {
+  it('rejects unsupported test-level experiment.target', async () => {
     const filePath = path.join(tempDir, 'test-level-target.yaml');
     await writeFile(
       filePath,
@@ -106,7 +106,7 @@ imports:
   - id: target-specific
     input: "Hello"
     criteria: "Greet"
-    execution:
+    experiment:
       target: codex
 `,
     );
@@ -118,8 +118,8 @@ imports:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'tests[0].execution.target' &&
-          error.message === "Unsupported test execution field 'target'.",
+          error.location === 'tests[0].experiment.target' &&
+          error.message === "Unsupported test experiment field 'target'.",
       ),
     ).toBe(true);
   });
@@ -211,7 +211,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects legacy execution workspace when importing suites', async () => {
+  it('rejects removed top-level execution when importing suites', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-execution-workspace.eval.yaml'),
       `tests:
@@ -239,9 +239,8 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'execution.workspace' &&
-          error.message.includes('Parent workspace is not allowed') &&
-          error.message.includes('type: suite'),
+          error.location === 'execution' &&
+          error.message === "'execution' has been removed. Use 'experiment' instead.",
       ),
     ).toBe(true);
   });
@@ -330,7 +329,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects test execution workspace blocks', async () => {
+  it('rejects test experiment workspace blocks', async () => {
     const filePath = path.join(tempDir, 'test-execution-workspace.eval.yaml');
     await writeFile(
       filePath,
@@ -338,7 +337,7 @@ tests:
   - id: test-1
     criteria: Goal
     input: Query
-    execution:
+    experiment:
       workspace:
         mode: static
         path: /tmp/my-workspace
@@ -352,8 +351,34 @@ tests:
       result.errors.some(
         (error) =>
           error.severity === 'error' &&
-          error.location === 'tests[0].execution.workspace' &&
+          error.location === 'tests[0].experiment.workspace' &&
           error.message.includes('has been removed from eval YAML'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects removed test-level execution with a migration hint', async () => {
+    const filePath = path.join(tempDir, 'test-removed-execution.eval.yaml');
+    await writeFile(
+      filePath,
+      `tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+    execution:
+      threshold: 0.8
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'tests[0].execution' &&
+          error.message === "'execution' has been removed. Use 'experiment' instead.",
       ),
     ).toBe(true);
   });
@@ -457,7 +482,7 @@ tests:
     ).toBe(true);
   });
 
-  it('rejects eval files with both experiment and legacy execution', async () => {
+  it('rejects eval files that still use removed execution', async () => {
     const filePath = path.join(tempDir, 'runtime-conflict.yaml');
     await writeFile(
       filePath,
@@ -475,7 +500,14 @@ tests:
     const result = await validateEvalFile(filePath);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.message.includes('experiment'))).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'execution' &&
+          error.message === "'execution' has been removed. Use 'experiment' instead.",
+      ),
+    ).toBe(true);
   });
 
   it('rejects scoped run overrides that include target-changing fields', async () => {

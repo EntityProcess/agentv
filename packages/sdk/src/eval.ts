@@ -149,9 +149,6 @@ export interface EvalExperiment {
   readonly [key: string]: unknown;
 }
 
-/** @deprecated Use EvalExperiment. */
-export type EvalExecution = EvalExperiment;
-
 export interface EvalTurn {
   readonly input: EvalMessageContent;
   readonly expectedOutput?: EvalMessageContent;
@@ -167,8 +164,6 @@ export interface EvalTest {
   readonly expectedOutput?: string | Readonly<Record<string, unknown>> | readonly EvalMessage[];
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly experiment?: EvalExperiment;
-  /** @deprecated Use experiment. */
-  readonly execution?: EvalExecution;
   readonly workspace?: EvalWorkspace;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly conversationId?: string;
@@ -202,8 +197,6 @@ export interface EvalDefinition {
   readonly tests: readonly EvalTest[] | string;
   readonly target?: string;
   readonly experiment?: EvalExperiment;
-  /** @deprecated Use experiment. */
-  readonly execution?: EvalExecution;
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly preprocessors?: readonly EvalPreprocessor[];
   readonly workspace?: EvalWorkspace | string;

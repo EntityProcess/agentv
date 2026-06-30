@@ -177,7 +177,6 @@ type RawTestSuite = JsonObject & {
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
   readonly experiment?: JsonValue;
-  readonly execution?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
@@ -212,7 +211,6 @@ type RawEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly evaluator?: JsonValue;
   readonly experiment?: JsonValue;
-  readonly execution?: JsonValue;
   readonly run?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
@@ -330,13 +328,13 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
  */
 export type EvalSuiteResult = {
   readonly tests: readonly EvalTest[];
-  /** Suite-level targets from execution.targets (matrix evaluation) */
+  /** Suite-level targets from experiment.targets (matrix evaluation) */
   readonly targets?: readonly string[];
-  /** Suite-level target refs with hooks from execution.targets (object form) */
+  /** Suite-level target refs with hooks from experiment.targets (object form) */
   readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
-  /** Suite-level workers from execution.workers */
+  /** Suite-level workers from experiment.workers */
   readonly workers?: number;
-  /** Suite-level cache config from execution.cache */
+  /** Suite-level cache config from experiment.cache */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
   /** Suite-level metadata (name, description, version, etc.) */
   readonly metadata?: import('./metadata.js').EvalMetadata;
@@ -346,7 +344,7 @@ export type EvalSuiteResult = {
   readonly failOnError?: import('./types.js').FailOnError;
   /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
   readonly threshold?: number;
-  /** Top-level runtime block from `experiment:` or legacy `execution:`. */
+  /** Top-level runtime block from `experiment:`. */
   readonly experimentConfig?: ExperimentConfig;
   /** Inline target definition from a TS eval config. */
   readonly inlineTarget?: import('./providers/types.js').TargetDefinition;
@@ -535,11 +533,11 @@ async function loadTestsFromParsedYamlValue(
   const rawSuiteInput = suite.input;
   const rawSuiteInputFiles = suite.input_files;
 
-  // Extract global target from execution.target (or legacy root-level target)
+  // Extract global target from experiment.target (or legacy root-level target)
   const rawGlobalExecution = readSuiteRuntimeBlock(suite, evalFilePath);
   const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
 
-  // Build global execution context, including suite-level assertions (which is a sibling of execution)
+  // Build global experiment context, including suite-level assertions (which is a sibling of experiment)
   // Also accept legacy `assert` key with a deprecation warning
   const suiteAssertions = suite.assertions ?? suite.assert;
   if (suite.assert !== undefined && suite.assertions === undefined) {
@@ -902,7 +900,7 @@ type IncludeSelect = {
 function rejectUnsupportedTestExecutionFields(
   caseExecution: JsonObject | undefined,
   testId: string | undefined,
-  label = 'execution',
+  label = 'experiment',
 ): void {
   if (!caseExecution) return;
   for (const key of Object.keys(caseExecution)) {
@@ -1373,35 +1371,35 @@ function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
     return 'workspace';
   }
 
-  const runtime = suite.experiment ?? suite.execution;
+  const runtime = suite.experiment;
   if (isJsonObject(runtime) && runtime.workspace !== undefined) {
-    return suite.experiment !== undefined ? 'experiment.workspace' : 'execution.workspace';
+    return 'experiment.workspace';
   }
 
   return undefined;
 }
 
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
-  if (suite.experiment !== undefined && suite.execution !== undefined) {
+  if ((suite as Record<string, unknown>).execution !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: use either 'experiment' or legacy 'execution', not both.`,
+      `Invalid eval runtime config in ${evalFilePath}: 'execution' has been removed. Use 'experiment' instead.`,
     );
   }
-  const runtime = suite.experiment ?? suite.execution;
+  const runtime = suite.experiment;
   return isJsonObject(runtime) ? runtime : undefined;
 }
 
 function readTestRuntimeBlock(
   testCase: RawEvalCase,
   testId: string | undefined,
-): { runtime: JsonObject | undefined; label: 'experiment' | 'execution' } {
-  if (testCase.experiment !== undefined && testCase.execution !== undefined) {
+): { runtime: JsonObject | undefined; label: 'experiment' } {
+  if ((testCase as Record<string, unknown>).execution !== undefined) {
     throw new Error(
-      `Invalid eval runtime config for test '${testId ?? 'unknown'}': use either 'experiment' or legacy 'execution', not both.`,
+      `Invalid eval runtime config for test '${testId ?? 'unknown'}': 'execution' has been removed. Use 'experiment' instead.`,
     );
   }
-  const label = testCase.experiment !== undefined ? 'experiment' : 'execution';
-  const runtime = testCase.experiment ?? testCase.execution;
+  const label = 'experiment';
+  const runtime = testCase.experiment;
   return { runtime: isJsonObject(runtime) ? runtime : undefined, label };
 }
 

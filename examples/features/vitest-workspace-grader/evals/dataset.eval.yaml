@@ -4,7 +4,7 @@ description: Deterministic workspace grading with a Vitest verifier file.
 workspace:
   template: ../workspace-template
 
-execution:
+experiment:
   target: mock_agent
 
 tests:

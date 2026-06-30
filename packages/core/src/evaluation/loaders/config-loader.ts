@@ -259,10 +259,10 @@ function stripLocalOnlyExecutionDefaults(
 }
 
 function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | undefined {
-  if (suite.experiment !== undefined && suite.execution !== undefined) {
-    throw new Error("Use either top-level 'experiment' or legacy 'execution', not both.");
+  if (suite.execution !== undefined) {
+    throw new Error("'execution' has been removed from eval YAML. Use 'experiment' instead.");
   }
-  const runtime = suite.experiment ?? suite.execution;
+  const runtime = suite.experiment;
   if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) {
     return undefined;
   }
@@ -270,10 +270,10 @@ function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | unde
 }
 
 /**
- * Extract target name from parsed eval suite (checks execution.target then falls back to root-level target).
+ * Extract target name from parsed eval suite (checks experiment.target then falls back to root-level target).
  */
 export function extractTargetFromSuite(suite: JsonObject): string | undefined {
-  // Check experiment.target first, then legacy execution.target, then root-level target.
+  // Check experiment.target first, then legacy root-level target.
   const runtime = getSuiteRuntimeBlock(suite);
   const runtimeTarget = runtime?.target;
   if (typeof runtimeTarget === 'string' && runtimeTarget.trim().length > 0) {
@@ -329,7 +329,7 @@ export function extractTargetRefsFromSuite(
 
 /**
  * Extract target names from parsed eval suite (backward-compat wrapper).
- * Precedence: execution.targets (array) > execution.target (singular).
+ * Precedence: experiment.targets (array) > experiment.target (singular).
  * Returns undefined when no targets array is specified.
  */
 export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | undefined {
@@ -400,7 +400,7 @@ function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
 }
 
 /**
- * Extract workers count from suite-level execution block.
+ * Extract workers count from suite-level experiment block.
  */
 export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
   const runtime = getSuiteRuntimeBlock(suite);
@@ -417,7 +417,7 @@ export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
 }
 
 /**
- * Cache configuration parsed from execution block.
+ * Cache configuration parsed from experiment block.
  */
 export interface CacheConfig {
   readonly enabled: boolean;
@@ -425,31 +425,31 @@ export interface CacheConfig {
 }
 
 /**
- * Extract cache configuration from parsed eval suite's execution block.
+ * Extract cache configuration from parsed eval suite's experiment block.
  * Returns undefined when no cache config is specified.
  */
 export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
+  const experimentObj = getSuiteRuntimeBlock(suite);
+  if (!experimentObj) {
     return undefined;
   }
 
-  const cache = executionObj.cache;
+  const cache = experimentObj.cache;
 
   if (cache === undefined || cache === null) {
     return undefined;
   }
 
   if (typeof cache !== 'boolean') {
-    logWarning(`Invalid execution.cache: ${cache}. Must be a boolean. Ignoring.`);
+    logWarning(`Invalid experiment.cache: ${cache}. Must be a boolean. Ignoring.`);
     return undefined;
   }
 
-  if (executionObj.cachePath !== undefined) {
-    logWarning('Invalid execution.cachePath: use snake_case execution.cache_path in YAML.');
+  if (experimentObj.cachePath !== undefined) {
+    logWarning('Invalid experiment.cachePath: use snake_case experiment.cache_path in YAML.');
   }
 
-  const cachePath = executionObj.cache_path;
+  const cachePath = experimentObj.cache_path;
   const resolvedCachePath =
     typeof cachePath === 'string' && cachePath.trim().length > 0 ? cachePath.trim() : undefined;
 
@@ -457,23 +457,23 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
 }
 
 /**
- * Extract suite-level total budget from parsed eval suite's execution block.
+ * Extract suite-level total budget from parsed eval suite's experiment block.
  * Returns undefined when not specified.
  */
 export function extractBudgetUsd(suite: JsonObject): number | undefined {
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
+  const experimentObj = getSuiteRuntimeBlock(suite);
+  if (!experimentObj) {
     return undefined;
   }
 
   // Reject the old key with a clear error
-  if ('total_budget_usd' in executionObj || 'totalBudgetUsd' in executionObj) {
+  if ('total_budget_usd' in experimentObj || 'totalBudgetUsd' in experimentObj) {
     throw new Error(
-      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
+      'experiment.total_budget_usd has been renamed to experiment.budget_usd. Update your eval YAML.',
     );
   }
 
-  const rawBudget = executionObj.budget_usd ?? executionObj.budgetUsd;
+  const rawBudget = experimentObj.budget_usd ?? experimentObj.budgetUsd;
 
   if (rawBudget === undefined || rawBudget === null) {
     return undefined;
@@ -483,22 +483,22 @@ export function extractBudgetUsd(suite: JsonObject): number | undefined {
     return rawBudget;
   }
 
-  logWarning(`Invalid execution.budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`);
+  logWarning(`Invalid experiment.budget_usd: ${rawBudget}. Must be a positive number. Ignoring.`);
   return undefined;
 }
 
 /**
- * Extract `execution.fail_on_error` from parsed eval suite.
+ * Extract `experiment.fail_on_error` from parsed eval suite.
  * Accepts `true` or `false`.
  * Returns undefined when not specified.
  */
 export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
+  const experimentObj = getSuiteRuntimeBlock(suite);
+  if (!experimentObj) {
     return undefined;
   }
 
-  const raw = executionObj.fail_on_error ?? executionObj.failOnError;
+  const raw = experimentObj.fail_on_error ?? experimentObj.failOnError;
 
   if (raw === undefined || raw === null) {
     return undefined;
@@ -508,22 +508,22 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
     return raw;
   }
 
-  logWarning(`Invalid execution.fail_on_error: ${raw}. Must be true or false. Ignoring.`);
+  logWarning(`Invalid experiment.fail_on_error: ${raw}. Must be true or false. Ignoring.`);
   return undefined;
 }
 
 /**
- * Extract `execution.threshold` from parsed eval suite.
+ * Extract `experiment.threshold` from parsed eval suite.
  * Accepts a number in [0, 1] range.
  * Returns undefined when not specified.
  */
 export function extractThreshold(suite: JsonObject): number | undefined {
-  const executionObj = getSuiteRuntimeBlock(suite);
-  if (!executionObj) {
+  const experimentObj = getSuiteRuntimeBlock(suite);
+  if (!experimentObj) {
     return undefined;
   }
 
-  const raw = executionObj.threshold;
+  const raw = experimentObj.threshold;
 
   if (raw === undefined || raw === null) {
     return undefined;
@@ -533,7 +533,7 @@ export function extractThreshold(suite: JsonObject): number | undefined {
     return raw;
   }
 
-  logWarning(`Invalid execution.threshold: ${raw}. Must be a number between 0 and 1. Ignoring.`);
+  logWarning(`Invalid experiment.threshold: ${raw}. Must be a number between 0 and 1. Ignoring.`);
   return undefined;
 }
 

@@ -34,7 +34,7 @@ export default defineAssertion(({ output }) => {
 
 const EVAL_TEMPLATES: Record<string, (name: string) => string> = {
   default: (name: string) => `description: ${name} evaluation suite
-execution:
+experiment:
   target: default
 
 tests:
@@ -47,7 +47,7 @@ tests:
         value: "well"
 `,
   rubric: (name: string) => `description: ${name} evaluation suite
-execution:
+experiment:
   target: default
 
 tests:

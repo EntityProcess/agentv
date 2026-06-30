@@ -39,7 +39,7 @@ function matchesFilter(id: string, filter: string | readonly string[]): boolean 
 type SidecarMetadata = {
   readonly description?: string;
   readonly name?: string;
-  readonly execution?: JsonObject;
+  readonly experiment?: JsonObject;
   readonly evaluator?: JsonValue;
 };
 
@@ -54,7 +54,7 @@ type RawJsonlEvalCase = JsonObject & {
   readonly expected_outcome?: JsonValue;
   readonly input?: JsonValue;
   readonly expected_output?: JsonValue;
-  readonly execution?: JsonValue;
+  readonly experiment?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly rubrics?: JsonValue;
 };
@@ -98,11 +98,16 @@ async function loadSidecarMetadata(jsonlPath: string, verbose: boolean): Promise
       logWarning(`Invalid sidecar metadata format in ${sidecarPath}`);
       return {};
     }
+    if (parsed.execution !== undefined) {
+      throw new Error(
+        `Invalid sidecar metadata in ${sidecarPath}: 'execution' has been removed. Use 'experiment' instead.`,
+      );
+    }
 
     return {
       description: asString(parsed.description),
       name: asString(parsed.name),
-      execution: isJsonObject(parsed.execution) ? parsed.execution : undefined,
+      experiment: isJsonObject(parsed.experiment) ? parsed.experiment : undefined,
       evaluator: parsed.evaluator,
     };
   } catch (error) {
@@ -168,7 +173,7 @@ export async function loadTestsFromJsonl(
 
   // Global defaults from sidecar
   const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm-grader';
-  const globalExecution = sidecar.execution;
+  const globalExecution = sidecar.experiment;
 
   if (verbose) {
     console.log(`\n[JSONL Suite: ${evalFilePath}]`);
@@ -267,9 +272,15 @@ export async function loadTestsFromJsonl(
       .filter((part) => part.length > 0)
       .join(' ');
 
-    // Merge execution config: per-case overrides sidecar
-    const caseExecution = isJsonObject(testCaseConfig.execution)
-      ? testCaseConfig.execution
+    if ((testCaseConfig as Record<string, unknown>).execution !== undefined) {
+      throw new Error(
+        `Line ${lineNumber}: 'execution' has been removed from JSONL eval cases. Use 'experiment' instead.\n  File: ${evalFilePath}`,
+      );
+    }
+
+    // Merge experiment config: per-case overrides sidecar
+    const caseExecution = isJsonObject(testCaseConfig.experiment)
+      ? testCaseConfig.experiment
       : undefined;
     const mergedExecution = caseExecution ?? globalExecution;
 

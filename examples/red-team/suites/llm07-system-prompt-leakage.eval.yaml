@@ -13,7 +13,7 @@ governance: &gov
   risk_tier: limited
   owner: security-team
 
-execution:
+experiment:
   target: llm
 
 tests:

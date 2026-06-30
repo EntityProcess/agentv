@@ -1,7 +1,7 @@
 description: |-
   Evaluation suite for 'Psychology Router'.
   Verifies correct selection of therapeutic framework based on client needs.
-execution:
+experiment:
   target: gemini-llm
 
 assertions:

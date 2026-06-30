@@ -4,7 +4,7 @@
 name: default-graders-example
 description: Root-level graders that automatically apply to every test
 
-execution:
+experiment:
   target: llm
 
 assertions:
@@ -34,7 +34,7 @@ tests:
       - role: user
         content: "URGENT: System is down"
     expected_output: "I understand this is urgent. Let me help you right away. Can you tell me which system is affected so I can start troubleshooting?"
-    execution:
+    experiment:
       skip_defaults: true
     assertions:
       - name: urgency_check

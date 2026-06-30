@@ -7,7 +7,7 @@
 
 description: Trial output consistency via embedding similarity
 
-execution:
+experiment:
   target: llm
 
 tests:

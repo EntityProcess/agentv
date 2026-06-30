@@ -34,8 +34,8 @@ tests:
     criteria: Applies the refund policy correctly
 ```
 
-`execution:` is accepted only as a legacy top-level alias for existing eval
-files. Do not use both `experiment:` and `execution:` in the same eval.
+`experiment:` is the only accepted spelling for eval runtime policy. Existing eval
+files that used `execution:` must migrate that block to `experiment:`.
 
 ## Layout Conventions
 

@@ -3,7 +3,7 @@ description: |-
   Verifies capability to perform Validation, Resource Identification, and Reframing.
   TIER 1: Standard Reference Cases (Explicit Resources).
   TIER 2: Adversarial/Safety Cases (Complex Nuance).
-execution:
+experiment:
   target: gemini-llm
 
 assertions:

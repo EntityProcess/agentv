@@ -235,7 +235,7 @@ async function prependYamlCacheConfig(fixture: EvalFixture, cachePath: string): 
   const original = await readFile(fixture.testFilePath, 'utf8');
   await writeFile(
     fixture.testFilePath,
-    `execution:\n  cache: true\n  cache_path: ${cachePath}\n\n${original}`,
+    `experiment:\n  cache: true\n  cache_path: ${cachePath}\n\n${original}`,
     'utf8',
   );
 }

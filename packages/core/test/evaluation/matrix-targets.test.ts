@@ -15,7 +15,7 @@ function createTempYaml(content: string): { filePath: string; dir: string } {
 describe('matrix evaluation - loadTestSuite', () => {
   it('extracts suite-level targets from execution.targets', async () => {
     const { filePath, dir } = createTempYaml(`
-execution:
+experiment:
   targets:
     - copilot
     - claude
@@ -31,7 +31,7 @@ tests:
 
   it('returns undefined targets when not specified', async () => {
     const { filePath, dir } = createTempYaml(`
-execution:
+experiment:
   target: copilot
 tests:
   - id: test-1
@@ -43,9 +43,9 @@ tests:
     expect(suite.targets).toBeUndefined();
   });
 
-  it('rejects unsupported test-level execution.targets', async () => {
+  it('rejects unsupported test-level experiment.targets', async () => {
     const { filePath, dir } = createTempYaml(`
-execution:
+experiment:
   targets:
     - copilot
     - claude
@@ -56,13 +56,13 @@ tests:
   - id: copilot-only
     input: "GitHub task"
     criteria: "Reference GitHub"
-    execution:
+    experiment:
       targets:
         - copilot
 `);
 
     await expect(loadTestSuite(filePath, dir)).rejects.toThrow(
-      "test 'copilot-only'.execution.targets is not supported.",
+      "test 'copilot-only'.experiment.targets is not supported.",
     );
   });
 });

@@ -4,7 +4,7 @@
 name: rubric
 description: "Example showing rubric grader - string shorthand and type: rubrics"
 
-execution:
+experiment:
   target: llm
 
 tests:

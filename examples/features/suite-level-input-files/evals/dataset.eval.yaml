@@ -8,7 +8,7 @@
 name: suite-level-input-files-example
 description: Suite-level input + input_files shorthands
 
-execution:
+experiment:
   target: llm
 
 # Suite-level input as a plain string — prepended as a user message to every test.
@@ -16,7 +16,7 @@ execution:
 input: "Use the attached context to answer travel questions."
 
 # Suite-level input_files: file paths prepended as type:file content blocks
-# in each test's user message. Skipped when execution.skip_defaults: true.
+# in each test's user message. Skipped when experiment.skip_defaults: true.
 input_files:
   - ./system-prompt.md
 
@@ -36,5 +36,5 @@ tests:
   - id: skip-suite-defaults
     criteria: Provides a direct answer about currency exchange
     input: What currency does Thailand use?
-    execution:
+    experiment:
       skip_defaults: true

@@ -24,7 +24,7 @@
 #
 description: Field accuracy grader patterns (per-test-case scoring)
 
-execution:
+experiment:
   target: mock_extractor
 
 assertions:
