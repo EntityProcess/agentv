@@ -61,7 +61,7 @@ describe('result layout', () => {
     }
   });
 
-  it('discovers one canonical index.jsonl manifest per nested bundle', () => {
+  it('discovers one canonical index.jsonl manifest per legacy nested bundle', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-layout-test-'));
     try {
       const bundleDir = path.join(tempDir, 'default', '2026-run', 'target-a');
@@ -71,6 +71,22 @@ describe('result layout', () => {
       expect(discoverRunManifestPaths(tempDir)).toEqual([
         path.join(bundleDir, RESULT_INDEX_FILENAME),
       ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('treats the root index.jsonl as authoritative when legacy nested bundles also exist', () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-layout-test-'));
+    try {
+      const nestedBundleDir = path.join(tempDir, 'target-a');
+      mkdirSync(nestedBundleDir, { recursive: true });
+      const rootIndexPath = path.join(tempDir, RESULT_INDEX_FILENAME);
+      writeFileSync(rootIndexPath, '{"test_id":"root"}\n');
+      writeFileSync(path.join(nestedBundleDir, RESULT_INDEX_FILENAME), '{"test_id":"legacy"}\n');
+
+      expect(discoverRunManifestPaths(tempDir)).toEqual([rootIndexPath]);
+      expect(resolveRunManifestPath(tempDir)).toBe(rootIndexPath);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

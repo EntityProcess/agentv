@@ -475,11 +475,13 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 ## Transcript And Result Artifacts
 
-Each result row's `result_dir` is a case-local folder under the timestamped
-run bundle. It can include `transcript.jsonl`, `transcript-raw.jsonl`,
-`grading.json`, `timing.json`, `metrics.json`, and generated outputs under
-`outputs/`. The run root does not contain a mixed transcript artifact; use each
-index row's `transcript_path` to find the per-result transcript.
+Each result row's `result_dir` is an allocated folder under the timestamped run
+bundle, usually with a readable test-id prefix plus a short hash suffix. It can
+include `transcript.jsonl`, `transcript-raw.jsonl`, `grading.json`,
+`timing.json`, `metrics.json`, and generated outputs under `outputs/`. The run
+root does not contain target, model, or `cases/` folders, and it does not contain
+a mixed transcript artifact; use each index row's `transcript_path` to find the
+per-result transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
 entries such as `artifact_pointers.transcript` carry the storage `ref`, artifact

@@ -62,6 +62,11 @@ semantic truth from folder names. Use fields in `summary.json` and `index.jsonl`
 for experiment, target, variant, attempt, eval path, case identity, timing,
 scores, and artifact paths.
 
+The run bundle does not add target, model, variant, or `cases/` folders below
+`<run_id>`. Per-result directories are allocated from row identity, usually with
+a readable test-id or slug prefix plus a short hash suffix, and remain opaque to
+consumers.
+
 `experiment` remains the comparison and runtime-policy concept: it is how users
 label a condition such as `baseline`, `candidate`, `with_skills`, or
 `without_skills`. The folder segment is a convenient bucket for that concept,
@@ -118,16 +123,16 @@ Example row:
   "execution_status": "ok",
   "score": 0.92,
   "duration_ms": 184200,
-  "result_dir": "refund-eligibility/run-1",
-  "summary_path": "refund-eligibility/summary.json",
-  "grading_path": "refund-eligibility/run-1/grading.json",
-  "metrics_path": "refund-eligibility/run-1/metrics.json",
-  "timing_path": "refund-eligibility/run-1/timing.json",
-  "transcript_path": "refund-eligibility/run-1/transcript.jsonl",
-  "transcript_raw_path": "refund-eligibility/run-1/transcript-raw.jsonl",
-  "output_path": "refund-eligibility/run-1/outputs/answer.md",
-  "answer_path": "refund-eligibility/run-1/outputs/answer.md",
-  "test_dir": "refund-eligibility/test"
+  "result_dir": "refund-eligibility--4f9a7c2d1b6e",
+  "summary_path": "refund-eligibility--4f9a7c2d1b6e/summary.json",
+  "grading_path": "refund-eligibility--4f9a7c2d1b6e/run-1/grading.json",
+  "metrics_path": "refund-eligibility--4f9a7c2d1b6e/run-1/metrics.json",
+  "timing_path": "refund-eligibility--4f9a7c2d1b6e/run-1/timing.json",
+  "transcript_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript.jsonl",
+  "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript-raw.jsonl",
+  "output_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
+  "answer_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
+  "test_dir": "refund-eligibility--4f9a7c2d1b6e/test"
 }
 ```
 
