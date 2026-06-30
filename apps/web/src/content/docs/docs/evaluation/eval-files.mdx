@@ -58,7 +58,7 @@ Raw cases are just case data:
   expected_output: Offer a replacement or refund path.
 ```
 
-A wrapper eval stays ordinary eval YAML while choosing runtime policy:
+A wrapper eval stays ordinary eval YAML while choosing a target and run controls:
 
 ```yaml
 # experiments/refunds-codex.eval.yaml
@@ -80,7 +80,7 @@ tests:
 
 The `experiments/` directory in that example is optional and user-owned. AgentV
 does not infer behavior from the path; the wrapper runs because it is eval YAML
-with tests or imports. The wrapper owns runtime policy only. Put
+with tests or imports. The wrapper owns target selection and run controls. Put
 workspace setup in imported child suites. Parent workspace-affecting fields,
 including top-level `workspace`, are for parent-owned raw cases, including
 cases imported with `imports.tests`. Runtime workspace path overrides belong in

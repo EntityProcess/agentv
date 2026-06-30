@@ -603,11 +603,20 @@ agentv eval <file.yaml> --retry-errors .agentv/results/default/<timestamp>/index
 # Validate eval file
 agentv validate <file.yaml>
 
-# Compare results — N-way matrix from a canonical run manifest
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline <target>                   # CI regression gate
-agentv compare .agentv/results/default/<timestamp>/index.jsonl --baseline <target> --candidate <target>  # pairwise
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl
+# Compare completed runs
+agentv compare \
+  .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<candidate-timestamp>/index.jsonl
+agentv results combine \
+  .agentv/results/default/<baseline-timestamp> \
+  .agentv/results/default/<candidate-timestamp> \
+  .agentv/results/default/<third-target-timestamp> \
+  --output .agentv/results/default/combined
+agentv compare .agentv/results/default/combined/index.jsonl
+agentv compare \
+  .agentv/results/default/<baseline-timestamp>/index.jsonl \
+  .agentv/results/default/<candidate-timestamp>/index.jsonl \
+  --json
 
 # Author assertions directly in the eval file
 # Prefer simple assertions when they fit the criteria; use deterministic or LLM-based graders when needed

@@ -1,11 +1,11 @@
 # Baseline vs Candidate Comparison
 
-Demonstrates comparing canonical run manifests using the `agentv compare` command.
+Demonstrates comparing completed run manifests using the `agentv compare` command.
 
 ## What This Shows
 
-- N-way matrix comparison from a run manifest with multiple targets
 - Two-run pairwise comparison (baseline vs candidate)
+- N-way matrix analysis from combined completed runs
 - Score delta calculation and win/loss classification
 - Baseline regression detection via exit codes
 - Human-readable and JSON output formats
@@ -15,20 +15,17 @@ Demonstrates comparing canonical run manifests using the `agentv compare` comman
 ```bash
 # From repository root
 
-# N-way matrix from a canonical run manifest
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
-
-# Pairwise from the same combined run manifest
-agentv compare .agentv/results/default/<timestamp>/index.jsonl \
-  --baseline gpt-4.1 --candidate gpt-5-mini
-
-# CI regression gate: exit 1 if any target regresses vs baseline
-agentv compare .agentv/results/default/<timestamp>/index.jsonl \
-  --baseline gpt-4.1
-
-# Two-run pairwise comparison
+# Pairwise completed-run comparison
 agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl
+
+# N-way matrix from completed runs
+agentv results combine \
+  .agentv/results/default/<baseline-timestamp> \
+  .agentv/results/default/<candidate-timestamp> \
+  .agentv/results/default/<third-target-timestamp> \
+  --output .agentv/results/default/combined
+agentv compare .agentv/results/default/combined/index.jsonl
 
 # With custom threshold for win/loss classification
 agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
@@ -41,5 +38,5 @@ agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
 
 ## Key Files
 
-- canonical run workspaces under `.agentv/results/default/<timestamp>/`
+- completed run workspaces under `.agentv/results/default/<timestamp>/`
 - `evals/README.md` - Detailed usage documentation

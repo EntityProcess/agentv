@@ -335,9 +335,9 @@ export async function readTestSuiteMetadata(testFilePath: string): Promise<{
  */
 export type EvalSuiteResult = {
   readonly tests: readonly EvalTest[];
-  /** Suite-level targets from CLI/runtime-only matrix evaluation. */
+  /** Runtime target list from CLI/project config, not authored eval YAML. */
   readonly targets?: readonly string[];
-  /** Suite-level target refs with hooks from CLI/runtime-only matrix evaluation. */
+  /** Runtime target refs with hooks from CLI/project config, not authored eval YAML. */
   readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
   /** Single authored target string or eval-local overlay object. */
   readonly targetSpec?: EvalTargetSpec;
