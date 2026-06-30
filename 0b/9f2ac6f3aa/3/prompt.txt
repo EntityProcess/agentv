@@ -1,0 +1,49 @@
+in https://github.com/vercel-labs/agent-eval (also cloned locallly) it has copyFiles: 'changed',. research how agent-eval is able to detect what files are changed, and compare that approach to agentv. spawn worker to update ai-research-wiki with findings. also spawn worker to create beads for agentv and tracking issue in agentv-beads repo.
+
+---
+
+also i think we should add onRunComplete hook to the eval run. should that be under policy or somewhere else. please spawn worker to do research with vercel agent-eval and margin evals, leveraging researh already in ai-research-wiki but pelase ground with actual repo clone and deep wiki mcp
+
+---
+
+maybe we should allow experiment to accept object {  onRunComplete, editPrompt } which is from vercel-labs/agent-eval. it doesn't seem to make sense to put it in policy
+
+---
+
+but then if we distinguish between policy and experiment, then shouldn't runs be part of experiment? grill me
+
+---
+
+i think editPrompt is effectively the input field that agentv currently has in eval.yaml. anyway, maybe runs should just be top level
+
+---
+
+i thought we no longer use repeat we just use runs
+
+---
+
+perhaps we should just remove policy and move target, model, runs, early exit and everything under experiment, sorry for the back and forth
+
+---
+
+remove workers. that's not authroing concern. also we should have a bead and worker to remove workers from yaml and only allow it to be specified via cli or env var.
+
+---
+
+or specified via config.yaml
+
+---
+
+when i mean remove workers i mean the field called workers
+
+---
+
+but then we also align with convex evals (https://github.com/get-convex/convex-evals) also cloned locally, which uses experiment differently.
+
+---
+
+i'm taking over the on run complete worker, so ignore that one, continue monitoring the other workers
+
+---
+
+spawn worker to use ai-research-wiki as overall research, and specifi frameworks margin evals, vercel-labs/agent-eval, convex-evals to see whether agentv should remove the target subfolder under the experiment/timestamp folder since now we only support a single target per run. also how should we compare targets/models. how shoudl agentv do this via the dashboard and how can it plot trends effiencielty. i suspect there could be performance issues if it needs to traverse all the folders under an experiment folder and work out the target that was used for each timestamp run.
