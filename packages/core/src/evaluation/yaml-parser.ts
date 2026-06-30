@@ -26,6 +26,7 @@ import {
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractThreshold,
+  extractWorkersFromSuite,
   loadConfig,
   parseTargetHooks,
 } from './loaders/config-loader.js';
@@ -1330,10 +1331,10 @@ async function resolveIncludePaths(
 ): Promise<readonly string[]> {
   const absolutePattern = path.resolve(evalFileDir, includePath);
   if (hasGlobMagic(includePath)) {
-    const matches = await fg(absolutePattern.replaceAll('\\', '/'), {
+    const matches = (await fg(absolutePattern.replaceAll('\\', '/'), {
       onlyFiles: true,
       absolute: true,
-    });
+    })) as string[];
     return dedupeResolvedPathsByIdentity([...new Set(matches.sort())]);
   }
   return [absolutePattern];
@@ -1489,9 +1490,7 @@ function parseEvalTargetSpec(rawTarget: JsonValue | undefined): EvalTargetSpec |
 
   const rawExtends = rawTarget.extends;
   const extendsTarget =
-    typeof rawExtends === 'string' && rawExtends.trim().length > 0
-      ? rawExtends.trim()
-      : undefined;
+    typeof rawExtends === 'string' && rawExtends.trim().length > 0 ? rawExtends.trim() : undefined;
   const rawName = rawTarget.name;
   const name =
     typeof rawName === 'string' && rawName.trim().length > 0

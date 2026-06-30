@@ -261,9 +261,7 @@ function stripLocalOnlyExecutionDefaults(
 
 function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
   if (suite.experiment !== undefined && typeof suite.experiment !== 'string') {
-    throw new Error(
-      "Invalid top-level 'experiment': use a string run/result grouping label.",
-    );
+    throw new Error("Invalid top-level 'experiment': use a string run/result grouping label.");
   }
   if (suite.policy !== undefined) {
     throw new Error(

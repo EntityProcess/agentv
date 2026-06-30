@@ -822,25 +822,11 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
   it('imports child suites without authored worker controls', async () => {
     await writeFile(
       path.join(tempDir, 'child-a.eval.yaml'),
-      [
-        'name: child-a',
-        'tests:',
-        '  - id: a',
-        '    input: a',
-        '    criteria: ok',
-        '',
-      ].join('\n'),
+      ['name: child-a', 'tests:', '  - id: a', '    input: a', '    criteria: ok', ''].join('\n'),
     );
     await writeFile(
       path.join(tempDir, 'child-b.eval.yaml'),
-      [
-        'name: child-b',
-        'tests:',
-        '  - id: b',
-        '    input: b',
-        '    criteria: ok',
-        '',
-      ].join('\n'),
+      ['name: child-b', 'tests:', '  - id: b', '    input: b', '    criteria: ok', ''].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
     await writeFile(
