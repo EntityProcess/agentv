@@ -13,6 +13,12 @@ Partially superseded by
 [ADR 0009](0009-eval-path-result-identity-and-default-experiment.md) for result
 experiment bucket precedence, result row identity, and run bundle path naming.
 
+Partially superseded on 2026-06-30 by GitHub issue #1575 / Bead `av-ogpn.1`:
+top-level `experiment:` is no longer an authored eval YAML field. The eval file
+defines the experiment; top-level `name` is the result namespace, top-level
+`target` identifies the system under test, and top-level `policy` owns
+runtime/gating controls.
+
 ## Context
 
 AgentV needs a stable authoring contract for repo-native evals, run-time knobs,

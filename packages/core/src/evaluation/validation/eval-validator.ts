@@ -64,6 +64,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'imports',
   'tests',
   'target',
+  'policy',
   'experiment',
   'execution',
   'assertions',
@@ -97,6 +98,10 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['assert', "'assert' has been removed. Use 'assertions' instead."],
+  [
+    'experiment',
+    "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, budget_usd, and sandbox under top-level 'policy'.",
+  ],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
@@ -264,15 +269,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Validate metadata fields
   validateMetadata(parsed, absolutePath, errors);
-
-  if (parsed.experiment !== undefined && parsed.execution !== undefined) {
-    errors.push({
-      severity: 'error',
-      filePath: absolutePath,
-      location: 'experiment',
-      message: "Use either top-level 'experiment' or legacy 'execution', not both.",
-    });
-  }
 
   // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
@@ -526,14 +522,6 @@ async function validateSuiteWorkspaceConfigs(
   errors: ValidationError[],
 ): Promise<void> {
   await validateWorkspaceConfig(parsed.workspace, absolutePath, errors, 'workspace');
-  if (isObject(parsed.experiment)) {
-    rejectRuntimeWorkspaceConfig(
-      parsed.experiment.workspace,
-      absolutePath,
-      errors,
-      'experiment.workspace',
-    );
-  }
   if (isObject(parsed.execution)) {
     rejectRuntimeWorkspaceConfig(
       parsed.execution.workspace,
@@ -733,7 +721,8 @@ async function validateCompositionDiagnostics(
     return;
   }
 
-  const parentHasRuntime = parsed.experiment !== undefined || parsed.execution !== undefined;
+  const parentHasRuntime =
+    parsed.target !== undefined || parsed.policy !== undefined || parsed.execution !== undefined;
   const hasSuiteImport = imports.some((entry) => entry.type === 'suite');
 
   if (hasSuiteImport) {
@@ -772,8 +761,8 @@ async function validateCompositionDiagnostics(
           filePath,
           location: entry.location,
           message: parentHasRuntime
-            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for imports.suites. The parent experiment owns wrapper runtime; move runtime settings to the parent experiment or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`
-            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child experiment blocks are ignored for imports.suites. The parent experiment owns wrapper runtime, and this parent has no experiment, so no child runtime settings are applied. Add a parent experiment or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`,
+            ? `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child runtime blocks are ignored for imports.suites. The parent eval owns wrapper runtime through top-level target/policy; move runtime settings to the parent target/policy or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`
+            : `Imported suite '${resolvedSuite.displayPath}' defines ${runtimeField}, but child runtime blocks are ignored for imports.suites. The parent eval owns wrapper runtime, and this parent has no target/policy, so no child runtime settings are applied. Add parent target/policy or use import run overrides for per-case thresholds, repeats, timeouts, and budgets.`,
         });
       }
       continue;
@@ -799,9 +788,6 @@ function parentWorkspaceLocations(parsed: JsonObject): readonly string[] {
   const locations: string[] = [];
   if (parsed.workspace !== undefined) {
     locations.push('workspace');
-  }
-  if (isObject(parsed.experiment) && parsed.experiment.workspace !== undefined) {
-    locations.push('experiment.workspace');
   }
   if (isObject(parsed.execution) && parsed.execution.workspace !== undefined) {
     locations.push('execution.workspace');

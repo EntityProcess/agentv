@@ -363,7 +363,7 @@ const ExecutionSchema = z.object({
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
-  /** Removed before stable release. Run counts belong on experiment configs. */
+  /** Removed before stable release. Run counts belong under top-level policy.repeat. */
   trials: z.never().optional(),
   budget_usd: z.number().min(0).optional(),
   budgetUsd: z.number().min(0).optional(),
@@ -379,6 +379,14 @@ const ExperimentRepeatSchema = z
     strategy: z.enum(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']).optional(),
     cost_limit_usd: z.number().min(0).optional(),
     costLimitUsd: z.number().min(0).optional(),
+  })
+  .strict();
+
+const PolicyRepeatSchema = z
+  .object({
+    count: z.number().int().min(1),
+    strategy: z.enum(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']).optional(),
+    cost_limit_usd: z.number().min(0).optional(),
   })
   .strict();
 
@@ -419,6 +427,17 @@ const ExperimentRuntimeSchema = ExecutionSchema.extend({
 }).refine((value) => value.repeat === undefined || value.runs === undefined, {
   message: 'Use repeat or runs, not both.',
 });
+
+const EvalPolicySchema = z
+  .object({
+    repeat: PolicyRepeatSchema.optional(),
+    early_exit: z.boolean().optional(),
+    timeout_seconds: z.number().gt(0).optional(),
+    threshold: z.number().min(0).max(1).optional(),
+    budget_usd: z.number().gt(0).optional(),
+    sandbox: z.enum(['auto', 'docker', 'vercel']).optional(),
+  })
+  .strict();
 
 /** Per-turn assertion: string shorthand (becomes rubric) or full evaluator config */
 const TurnAssertionSchema = z.union([z.string(), EvaluatorSchema]);
@@ -541,8 +560,9 @@ export const EvalFileSchema = z
     eval_cases: TestsSchema.optional(),
     // Target
     target: z.string().optional(),
-    // Runtime. `experiment` is canonical; `execution` is a legacy top-level alias.
-    experiment: ExperimentRuntimeSchema.optional(),
+    // Runtime policy. `execution` remains a legacy top-level alias for older evals.
+    policy: EvalPolicySchema.optional(),
+    experiment: z.never().optional(),
     execution: ExperimentRuntimeSchema.optional(),
     // Suite-level assertions
     assertions: z.array(EvaluatorSchema).optional(),
@@ -550,9 +570,6 @@ export const EvalFileSchema = z
     preprocessors: z.array(PreprocessorSchema).optional(),
     // Workspace (inline object or path to external workspace YAML file)
     workspace: z.union([WorkspaceSchema, z.string()]).optional(),
-  })
-  .refine((value) => value.experiment === undefined || value.execution === undefined, {
-    message: "Use either top-level 'experiment' or legacy 'execution', not both.",
   })
   .refine(
     (value) =>

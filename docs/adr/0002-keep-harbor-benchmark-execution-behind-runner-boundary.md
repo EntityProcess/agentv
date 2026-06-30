@@ -6,6 +6,11 @@ Date: 2026-06-17
 
 Proposed
 
+Superseded for eval authoring placement on 2026-06-30 by GitHub issue #1575 /
+Bead `av-ogpn.1`: top-level `experiment:` is no longer an authored eval YAML
+field. Use top-level `target` and `policy`; keep Harbor-specific runner options
+behind adapter boundaries.
+
 ## Context
 
 AgentV now has native workspace repository acquisition for custom evals, CI

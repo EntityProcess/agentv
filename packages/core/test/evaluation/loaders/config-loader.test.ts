@@ -522,12 +522,12 @@ describe('extractTargetFromSuite', () => {
     expect(extractTargetFromSuite(suite)).toBe('legacy-target');
   });
 
-  it('prefers execution.target over root-level target', () => {
+  it('prefers top-level target over legacy execution.target', () => {
     const suite: JsonObject = {
-      target: 'legacy',
-      execution: { target: 'new' },
+      target: 'top-level',
+      execution: { target: 'legacy' },
     };
-    expect(extractTargetFromSuite(suite)).toBe('new');
+    expect(extractTargetFromSuite(suite)).toBe('top-level');
   });
 
   it('returns undefined when no target specified', () => {

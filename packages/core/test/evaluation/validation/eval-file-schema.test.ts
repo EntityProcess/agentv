@@ -50,7 +50,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects eval-level execution.trials because run counts belong on experiments', () => {
+  it('rejects eval-level execution.trials because run counts belong under policy.repeat', () => {
     const result = EvalFileSchema.safeParse({
       execution: {
         trials: {
@@ -78,14 +78,17 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts inline experiment runtime and include selection entries', () => {
+  it('accepts top-level target and policy runtime controls with include selection entries', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
-      experiment: {
-        targets: ['codex', 'claude'],
-        workers: 2,
+      target: 'codex',
+      policy: {
         threshold: 0.8,
         repeat: { count: 2, strategy: 'mean' },
+        early_exit: true,
+        timeout_seconds: 300,
+        budget_usd: 2,
+        sandbox: 'auto',
       },
       tests: [
         {
@@ -146,9 +149,8 @@ describe('EvalFileSchema input shorthand', () => {
   it('accepts import-only wrapper evals', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
-      experiment: {
-        target: 'codex',
-      },
+      target: 'codex',
+      policy: { threshold: 0.8 },
       imports: {
         suites: [{ path: './evals/**/*.eval.yaml' }],
       },
@@ -157,21 +159,33 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects eval files that set both experiment and legacy execution', () => {
+  it('rejects removed experiment authoring blocks', () => {
     const result = EvalFileSchema.safeParse({
       experiment: { target: 'codex' },
-      execution: { target: 'claude' },
       tests: [baseTest],
     });
 
     expect(result.success).toBe(false);
   });
 
-  it('rejects experiment lifecycle commands', () => {
+  it('rejects lifecycle commands under policy', () => {
     const result = EvalFileSchema.safeParse({
-      experiment: {
+      policy: {
         setup: [{ script: 'bun install' }],
         scripts: ['bun test'],
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects camelCase policy fields in YAML', () => {
+    const result = EvalFileSchema.safeParse({
+      target: 'codex',
+      policy: {
+        timeoutSeconds: 300,
+        repeat: { count: 2, costLimitUsd: 1 },
       },
       tests: [baseTest],
     });

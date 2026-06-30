@@ -1,11 +1,11 @@
 # AgentV Repeat Strategy Example
-# Demonstrates inline experiment repeat runs for handling LLM non-determinism
+# Demonstrates policy repeat runs for handling LLM non-determinism
 
 name: trials
 description: Repeat strategy example - pass@k with 2 attempts configured inline
 
-experiment:
-  target: llm
+target: llm
+policy:
   repeat:
     count: 2
     strategy: pass_at_k

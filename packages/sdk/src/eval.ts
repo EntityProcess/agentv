@@ -14,6 +14,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   conversationId: 'conversation_id',
   costLimitUsd: 'cost_limit_usd',
   dependsOn: 'depends_on',
+  earlyExit: 'early_exit',
   expectedOutput: 'expected_output',
   explorationTolerance: 'exploration_tolerance',
   failOnError: 'fail_on_error',
@@ -38,6 +39,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   skipDefaults: 'skip_defaults',
   targetExplorationRatio: 'target_exploration_ratio',
   timeoutMs: 'timeout_ms',
+  timeoutSeconds: 'timeout_seconds',
   useTarget: 'use_target',
   windowSize: 'window_size',
 } as const;
@@ -135,6 +137,21 @@ export interface EvalTrials {
   readonly costLimitUsd?: number;
 }
 
+export interface EvalRepeat {
+  readonly count: number;
+  readonly strategy?: 'pass_at_k' | 'pass_all' | 'mean' | 'confidence_interval';
+  readonly costLimitUsd?: number;
+}
+
+export interface EvalPolicy {
+  readonly repeat?: EvalRepeat;
+  readonly earlyExit?: boolean;
+  readonly timeoutSeconds?: number;
+  readonly threshold?: number;
+  readonly budgetUsd?: number;
+  readonly sandbox?: 'auto' | 'docker' | 'vercel';
+}
+
 export interface EvalExecution {
   readonly target?: string;
   readonly targets?: readonly (string | EvalTargetRef)[];
@@ -196,6 +213,7 @@ export interface EvalDefinition {
   readonly inputFiles?: readonly string[];
   readonly tests: readonly EvalTest[] | string;
   readonly target?: string;
+  readonly policy?: EvalPolicy;
   readonly execution?: EvalExecution;
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly preprocessors?: readonly EvalPreprocessor[];
@@ -225,6 +243,7 @@ function lowerEvalYamlValue(value: unknown): unknown {
 }
 
 function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & DefinedEvalSuite {
+  rejectDeprecatedExperimentField(definition);
   const branded = definition as T & Partial<DefinedEvalSuite>;
 
   if (branded[EVAL_SUITE_SYMBOL] === true) {
@@ -247,6 +266,14 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
   });
 
   return branded as T & DefinedEvalSuite;
+}
+
+function rejectDeprecatedExperimentField(definition: EvalDefinition): void {
+  if (Object.prototype.hasOwnProperty.call(definition, 'experiment')) {
+    throw new Error(
+      "defineEval() no longer accepts top-level 'experiment'. Move experiment.target to top-level 'target' and move repeat, earlyExit, timeoutSeconds, threshold, budgetUsd, and sandbox under top-level 'policy'.",
+    );
+  }
 }
 
 /**
