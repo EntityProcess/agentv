@@ -44,5 +44,5 @@ await writeSchema({
   name: 'EvalFile',
   title: 'AgentV Eval File',
   description: 'Schema for AgentV evaluation YAML files (.eval.yaml)',
-  outputFile: 'eval-schema.json',
+  outputFile: 'eval.schema.json',
 });

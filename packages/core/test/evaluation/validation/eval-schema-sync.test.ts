@@ -5,11 +5,11 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { EvalFileSchema } from '../../../src/evaluation/validation/eval-file.schema.js';
 
 describe('generated schema sync', () => {
-  it('keeps eval-schema.json synced with the Zod schema', async () => {
+  it('keeps eval.schema.json synced with the Zod schema', async () => {
     const repoRoot = path.resolve(import.meta.dirname, '../../../../..');
     const schemaPath = path.join(
       repoRoot,
-      'skills-data/agentv-eval-writer/references/eval-schema.json',
+      'skills-data/agentv-eval-writer/references/eval.schema.json',
     );
 
     // Read committed schema
