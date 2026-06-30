@@ -24,57 +24,61 @@ The default local layout is:
 
 ```text
 .agentv/results/
-  <experiment>/
-    <run_id>/
-      summary.json
-      index.jsonl
-      tags.json                 # optional mutable Dashboard tags
-      <case-or-allocation>/
-        summary.json            # optional per-case aggregate, especially repeats
-        test/                   # optional generated test bundle
-          EVAL.yaml
-          targets.yaml
-          files/
-          graders/
-        run-1/
-          result.json
-          grading.json
-          metrics.json
-          timing.json
-          transcript.jsonl
-          transcript-raw.jsonl
-          outputs/
-            answer.md
-            file_changes.diff
-        run-2/
-          result.json
-          grading.json
-          metrics.json
-          timing.json
-          transcript.jsonl
-          transcript-raw.jsonl
-          outputs/
-            answer.md
-            file_changes.diff
+  <run_id>/
+    summary.json
+    index.jsonl
+    tags.json                 # optional mutable Dashboard tags
+    <case-or-allocation>/
+      summary.json            # optional per-case aggregate, especially repeats
+      test/                   # optional generated test bundle
+        EVAL.yaml
+        targets.yaml
+        files/
+        graders/
+      run-1/
+        result.json
+        grading.json
+        metrics.json
+        timing.json
+        transcript.jsonl
+        transcript-raw.jsonl
+        outputs/
+          answer.md
+          file_changes.diff
+      run-2/
+        result.json
+        grading.json
+        metrics.json
+        timing.json
+        transcript.jsonl
+        transcript-raw.jsonl
+        outputs/
+          answer.md
+          file_changes.diff
+  .indexes/                  # reserved rebuildable/local indexes
+  .cache/                    # reserved local cache
 ```
 
-The `<experiment>` and `<run_id>` directories are storage allocation. They help
-AgentV put completed runs somewhere predictable, but readers must not infer
-semantic truth from folder names. Use fields in `summary.json` and `index.jsonl`
-for experiment, target, variant, attempt, eval path, case identity, timing,
-scores, and artifact paths.
+`<run_id>` is the only committed run-bundle path identity. It helps AgentV put
+completed runs somewhere predictable, but readers must not infer semantic truth
+from folder names. Use fields in `summary.json` and `index.jsonl` for
+experiment, target, variant, attempt, eval path, case identity, timing, scores,
+and artifact paths.
 
 The run bundle does not add target, model, variant, or `cases/` folders below
 `<run_id>`. Per-result directories are allocated from row identity, usually with
 a readable test-id or slug prefix plus a short hash suffix, and remain opaque to
 consumers.
 
-`experiment` remains the comparison and runtime-policy concept: it is how users
-label a condition such as `baseline`, `candidate`, `with_skills`, or
-`without_skills`. The folder segment is a convenient bucket for that concept,
-not an alternate schema. If a bundle is copied, combined, published, or imported
-under a different directory, its rows still carry the facts consumers should
+`experiment` is metadata: it is how users label a condition such as `baseline`,
+`candidate`, `with_skills`, or `without_skills`. It is recorded in
+`summary.json` and rows, not as a parent directory and not as a runtime-policy
+object. If a bundle is copied, combined, published, or imported under a
+different directory, its metadata still carries the facts consumers should
 query.
+
+Top-level dot-prefixed directories such as `.indexes/` and `.cache/` are
+reserved for rebuildable local state and are skipped by run discovery.
 
 ## File Roles
 
@@ -146,6 +150,13 @@ manual `prepare`/`grade` attempts, or imported provider sessions. That is why
 source metadata belong in `index.jsonl`: tools can filter dynamically without
 requiring every run to be pre-split into semantic folders.
 
+The `run-1/`, `run-2/`, and later folders under a result directory are artifact
+attempt/execution folders. Do not treat those folder names as the comparison
+dimension. Repeated stochastic samples should be represented by explicit
+metadata such as `sample_index` and `sample_count`; infrastructure retries
+should use retry metadata such as `retry_index`, `retry_count`, and
+`retry_reason` when available.
+
 ## Reader Rules
 
 Consumers should read a bundle in this order:
@@ -180,9 +191,9 @@ Run an eval and inspect the portable bundle:
 
 ```bash
 agentv eval evals/support/refunds.eval.yaml --experiment with_skills
-ls .agentv/results/with_skills/<run_id>
-cat .agentv/results/with_skills/<run_id>/summary.json
-cat .agentv/results/with_skills/<run_id>/index.jsonl
+ls .agentv/results/<run_id>
+cat .agentv/results/<run_id>/summary.json
+cat .agentv/results/<run_id>/index.jsonl
 ```
 
 Find failed rows without loading every sidecar:
@@ -190,21 +201,21 @@ Find failed rows without loading every sidecar:
 ```bash
 jq -r 'select(.execution_status != "ok" or .score < 0.5) |
   [.eval_path, .test_id, .target, .grading_path] | @tsv' \
-  .agentv/results/with_skills/<run_id>/index.jsonl
+  .agentv/results/<run_id>/index.jsonl
 ```
 
 Compare two completed runs by their row indexes:
 
 ```bash
 agentv compare \
-  .agentv/results/baseline/<run_id>/index.jsonl \
-  .agentv/results/candidate/<run_id>/index.jsonl
+  .agentv/results/<baseline-run-id>/index.jsonl \
+  .agentv/results/<candidate-run-id>/index.jsonl
 ```
 
 Generate a shareable report from the same canonical bundle:
 
 ```bash
-agentv results report .agentv/results/with_skills/<run_id>
+agentv results report .agentv/results/<run_id>
 ```
 
 ## Integration Author Examples
@@ -229,10 +240,10 @@ export async function* rows(runDir: string) {
   }
 }
 
-for await (const row of rows(".agentv/results/with_skills/2026-run")) {
+for await (const row of rows(".agentv/results/2026-run")) {
   const gradingPath = row.grading_path;
   if (typeof gradingPath === "string") {
-    console.log(path.join(".agentv/results/with_skills/2026-run", gradingPath));
+    console.log(path.join(".agentv/results/2026-run", gradingPath));
   }
 }
 ```

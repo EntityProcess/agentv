@@ -8,7 +8,7 @@ export const DEFAULT_EXPERIMENT_NAME = 'default';
 export const RESERVED_RESULTS_NAMESPACES = new Set(['export', 'metadata', 'runs']);
 
 export function isReservedResultsNamespace(value: string | undefined): boolean {
-  return value !== undefined && RESERVED_RESULTS_NAMESPACES.has(value);
+  return value !== undefined && (value.startsWith('.') || RESERVED_RESULTS_NAMESPACES.has(value));
 }
 
 export function normalizeExperimentName(experiment?: string): string {
@@ -32,8 +32,10 @@ export function createRunDirName(timestamp = new Date()): string {
 }
 
 function defaultRunPathSegments(experiment: string | undefined, runDirName: string): string[] {
-  const normalizedExperiment = normalizeExperimentName(experiment);
-  return [normalizedExperiment, runDirName];
+  if (experiment !== undefined) {
+    normalizeExperimentName(experiment);
+  }
+  return [runDirName];
 }
 
 export function buildResultsRootDir(cwd: string): string {
@@ -159,7 +161,7 @@ export function relativeRunPathFromCwd(cwd: string, runDir: string): string | un
   }
 
   const parts = relative.split(path.sep).filter(Boolean);
-  if (parts.length < 2 || isReservedResultsNamespace(parts[0])) {
+  if (parts.length !== 1 || isReservedResultsNamespace(parts[0])) {
     return undefined;
   }
 

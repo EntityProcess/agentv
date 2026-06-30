@@ -22,8 +22,8 @@ If no results repo is configured, or auto-push is disabled, `agentv eval` still 
 
 | Location | Path or ref | What it contains |
 | --- | --- | --- |
-| Local project | `.agentv/results/<experiment>/<run-id>/summary.json` | A run-start stub with `metadata.planned_test_count` and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
-| Local project | `.agentv/results/<experiment>/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
+| Local project | `.agentv/results/<run-id>/summary.json` | A run-start stub with `metadata.run_id`, `metadata.experiment`, `metadata.planned_test_count`, and the eval file path when known. This lets Dashboard recognize incomplete local runs as resumable. |
+| Local project | `.agentv/results/<run-id>/index.jsonl` | Result rows appended as test cases finish. Rows use the normal snake_case result JSONL format. |
 | Results repo remote | `agentv/wip/<hostname>/<run-dir-basename>` | A forced-updated branch containing the checkpointed run under `.agentv/results/<same-relative-run-path>/`. |
 | Results repo storage branch | Configured `results.repo.branch`; local checkout configs default to `agentv/results/v1` | The final published run after `agentv eval` completes and the normal auto-export succeeds. |
 
@@ -57,14 +57,14 @@ git switch --detach origin/agentv/wip/<hostname>/<run-dir-basename>
 # 4. Inspect the checkpointed run path.
 find .agentv/results -name summary.json
 
-# 5. Copy the run tree into the eval project, preserving experiment paths.
+# 5. Copy the run tree into the eval project, preserving run ids.
 PROJECT=/path/to/eval-project
 mkdir -p "$PROJECT/.agentv/results"
 rsync -a .agentv/results/ "$PROJECT/.agentv/results/"
 
 # 6. Resume from the recovered run directory.
 cd "$PROJECT"
-agentv eval <eval-file> --output .agentv/results/<experiment>/<run-id> --resume
+agentv eval <eval-file> --output .agentv/results/<run-id> --resume
 ```
 
 If the recovered `summary.json` contains `metadata.eval_file`, use that as `<eval-file>`.

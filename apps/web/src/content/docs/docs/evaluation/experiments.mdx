@@ -225,13 +225,10 @@ top-level or case-level `workspace`.
 
 ## Repeat Runs
 
-Use top-level `repeat` when you want AgentV to try each case more than once:
+Use top-level `runs` when you want AgentV to try each case more than once:
 
 ```yaml
-repeat:
-  count: 3
-  strategy: pass_any
-  early_exit: false
+runs: 3
 ```
 
 `repeat.strategy` controls verdict aggregation. `pass_any` treats the case as
@@ -243,13 +240,13 @@ the first fail. Leave it unset or `false` when you want complete variance data.
 
 ## Result Layout
 
-Eval runs write to the selected result bucket:
+Eval runs write to a direct run bundle:
 
 ```text
-.agentv/results/<experiment>/<timestamp>/
+.agentv/results/<run_id>/
 ```
 
-CLI `--experiment` sets the bucket explicitly. Without that flag, AgentV uses
+CLI `--experiment` sets the experiment label explicitly. Without that flag, AgentV uses
 top-level `experiment`, then top-level `name`, then the eval filename. The
 Dashboard uses "Experiment" for the comparison and result grouping concept;
 folder names are only storage allocation and must not define result semantics.

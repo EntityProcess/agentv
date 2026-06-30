@@ -401,6 +401,18 @@ describe('buildRunSummaryArtifact', () => {
     expect(benchmark.run_summary['gpt-4'].time_seconds.stddev).toBe(15);
   });
 
+  it('records run_id and experiment as run metadata', () => {
+    const benchmark = buildRunSummaryArtifact(
+      [makeResult({})],
+      'test.eval.yaml',
+      'with-skills',
+      '2026-06-30T12-00-00-000Z',
+    );
+
+    expect(benchmark.metadata.run_id).toBe('2026-06-30T12-00-00-000Z');
+    expect(benchmark.metadata.experiment).toBe('with-skills');
+  });
+
   it('includes per-grader summary', () => {
     const results = [
       makeResult({

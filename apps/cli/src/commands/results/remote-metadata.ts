@@ -5,7 +5,7 @@
  * immutable fetched payloads. Editable fields, starting with tags, live in a
  * small sidecar tree under `metadata/runs/**` inside the configured results repo
  * checkout/branch. This is a remote-results implementation detail, not part of
- * the local `.agentv/results/<experiment>/<timestamp>/` layout. It keeps local
+ * the local `.agentv/results/<run_id>/` layout. It keeps local
  * edits pushable by normal Git sync without rewriting the fetched run bundle.
  *
  * To add another mutable field: create a sibling helper that maps the remote

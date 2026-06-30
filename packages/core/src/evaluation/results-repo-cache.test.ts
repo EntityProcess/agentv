@@ -34,7 +34,7 @@ function writeRun(
   score: number,
   executionStatus = 'ok',
 ): void {
-  const runDir = path.join(repoDir, 'runs', experiment, timestamp);
+  const runDir = path.join(repoDir, 'runs', timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(
     path.join(runDir, 'index.jsonl'),
@@ -114,7 +114,7 @@ describe('git results filesystem index cache', () => {
     const runs = await listGitRunsCached(repoDir, RESULTS_REF);
     expect(runs).toHaveLength(1);
     expect(runs[0]?.run_id).toBe('2026-06-28T00-00-00-000Z');
-    expect(runs[0]?.summary_path).toBe('runs/default/2026-06-28T00-00-00-000Z/summary.json');
+    expect(runs[0]?.summary_path).toBe('runs/2026-06-28T00-00-00-000Z/summary.json');
 
     const cacheFile = resolveGitResultsIndexCacheFile({
       repoDir,
@@ -146,7 +146,7 @@ describe('git results filesystem index cache', () => {
               run_id: 'sentinel',
               experiment: 'default',
               timestamp: '2026-06-28T01-00-00-000Z',
-              manifest_path: 'runs/default/sentinel/index.jsonl',
+              manifest_path: 'runs/sentinel/index.jsonl',
               display_name: 'from cache',
               test_count: 1,
               avg_score: 0.5,
@@ -178,7 +178,7 @@ describe('git results filesystem index cache', () => {
 
     expect(secondCommit).not.toBe(firstCommit);
     const runs = await listGitRunsCached(repoDir, RESULTS_REF);
-    expect(runs.map((run) => run.run_id)).toContain('experiment-a::2026-06-28T02-00-00-000Z');
+    expect(runs.map((run) => run.run_id)).toContain('2026-06-28T02-00-00-000Z');
     expect(
       existsSync(
         resolveGitResultsIndexCacheFile({
@@ -215,9 +215,7 @@ describe('git results filesystem index cache', () => {
     git(repoDir, ['commit', '-m', 'add execution error run']);
 
     const runs = await listGitRunsCached(repoDir, RESULTS_REF);
-    const errorRun = runs.find(
-      (run) => run.run_id === 'error-experiment::2026-06-28T03-00-00-000Z',
-    );
+    const errorRun = runs.find((run) => run.run_id === '2026-06-28T03-00-00-000Z');
     expect(errorRun?.execution_error_count).toBe(1);
   });
 

@@ -1764,15 +1764,21 @@ export async function runEvalCommand(
   const explicitDir = options.outputDir;
   let runDir: string;
   let outputPath: string;
-  const runDirName = process.env.AGENTV_RUN_TIMESTAMP?.trim() || createRunDirName();
+  let runDirName = process.env.AGENTV_RUN_TIMESTAMP?.trim() || createRunDirName();
 
   if (explicitDir) {
     runDir = path.resolve(explicitDir);
     mkdirSync(runDir, { recursive: true });
     outputPath = runDir;
   } else {
-    // Default: .agentv/results/<eval-name>/<timestamp>/.
+    // Default: .agentv/results/<run_id>/.
     runDir = buildDefaultRunDirFromName(cwd, resultGroupName, runDirName);
+    let suffix = 1;
+    while (existsSync(runDir)) {
+      runDirName = `${process.env.AGENTV_RUN_TIMESTAMP?.trim() || createRunDirName()}-${suffix}`;
+      runDir = buildDefaultRunDirFromName(cwd, resultGroupName, runDirName);
+      suffix++;
+    }
     mkdirSync(runDir, { recursive: true });
     outputPath = runDir;
   }
@@ -2111,6 +2117,7 @@ export async function runEvalCommand(
       evalFile,
       plannedTestCount: totalEvalCount,
       experiment: normalizeExperimentName(options.experiment),
+      runId: path.basename(runDir),
       experimentMetadata: runExperimentMetadata,
       runtimeSource: runtimeSourceMetadata,
     });
@@ -2382,6 +2389,7 @@ export async function runEvalCommand(
         const { writePerTestArtifacts } = await import('./artifact-writer.js');
         await writePerTestArtifacts(allResults, runDir, {
           experiment: normalizeExperimentName(options.experiment),
+          runId: path.basename(runDir),
           resultGroup: resultGroupName,
           cwd,
           repoRoot,
@@ -2392,6 +2400,7 @@ export async function runEvalCommand(
         const { summaryPath } = await aggregateRunDir(runDir, {
           evalFile,
           experiment: normalizeExperimentName(options.experiment),
+          runId: path.basename(runDir),
           experimentMetadata: runExperimentMetadata,
           runtimeSource: runtimeSourceMetadata,
         });
@@ -2407,6 +2416,7 @@ export async function runEvalCommand(
           {
             evalFile,
             experiment: normalizeExperimentName(options.experiment),
+            runId: path.basename(runDir),
             experimentMetadata: runExperimentMetadata,
             resultGroup: resultGroupName,
             cwd,

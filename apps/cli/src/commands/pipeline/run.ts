@@ -74,8 +74,7 @@ export const evalRunCommand = command({
     out: option({
       type: optional(string),
       long: 'out',
-      description:
-        'Output directory for results (default: .agentv/results/<experiment>/<timestamp>)',
+      description: 'Output directory for results (default: .agentv/results/<run_id>)',
     }),
     workers: option({
       type: optional(number),

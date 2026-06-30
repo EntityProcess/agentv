@@ -31,8 +31,8 @@ const execFileAsync = promisify(execFile);
 const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
 // On-branch / results-repo-clone storage layout. The results branch (e.g.
 // agentv/results/v1) already namespaces results, so runs are stored flat at
-// runs/<experiment>/<timestamp>/ and the editable tag overlays at
-// metadata/runs/<experiment>/<timestamp>/ — no redundant `.agentv/results/` prefix.
+// runs/<run_id>/ and the editable tag overlays at metadata/runs/<run_id>/ —
+// no redundant `.agentv/results/` prefix.
 const RESULTS_REPO_RUNS_DIR = 'runs';
 const RESULTS_REPO_METADATA_DIR = 'metadata';
 // Top-level directories AgentV owns on the results branch. The auto-sync
@@ -76,7 +76,7 @@ const RESULT_INDEX_FILENAME = 'index.jsonl';
 //     our `agentv-json` driver.
 //   - `merge.agentv-json.driver` (registered once in the checkout's local git
 //     config) points at a tiny 3-way JSON set/field union script.
-// Run bundles under runs/<exp>/<ts>/** are uniquely pathed, so a 3-way merge
+// Run bundles under runs/<run_id>/** are uniquely pathed, so a 3-way merge
 // never conflicts on them and they need no attribute.
 const RESULTS_REPO_GITATTRIBUTES_FILE = '.gitattributes';
 const RESULTS_REPO_GITATTRIBUTES_CONTENT = `# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
@@ -1767,7 +1767,7 @@ async function resolveRemotePushUrl(repoDir: string, remote: string): Promise<st
   return undefined;
 }
 
-// Count the unique top-level `runs/<exp>/<ts>` run directories that the diverged
+// Count the unique top-level `runs/<run_id>` run directories that the diverged
 // local commit adds on top of the remote target tip. Best-effort: returns
 // undefined when the diff cannot be computed.
 async function countContributedRunDirs(
@@ -1798,9 +1798,9 @@ async function countContributedRunDirs(
       continue;
     }
     const segments = file.split('/');
-    // runs/<experiment>/<timestamp>/...
-    if (segments[0] === RESULTS_REPO_RUNS_DIR && segments.length >= 3) {
-      runDirs.add(`${segments[0]}/${segments[1]}/${segments[2]}`);
+    // runs/<run_id>/...
+    if (segments[0] === RESULTS_REPO_RUNS_DIR && segments.length >= 2 && segments[1]) {
+      runDirs.add(`${segments[0]}/${segments[1]}`);
     }
   }
   return runDirs.size;
@@ -3889,6 +3889,10 @@ function buildGitManifestPaths(
 
   for (const [summaryPath, summary] of summaryByPath) {
     const runDir = path.posix.dirname(summaryPath);
+    const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);
+    if (!isV2ResultsRepoRunPath(relativeRunPath)) {
+      continue;
+    }
     const manifestPath = safeGitSummaryManifestPath(runDir, summary.manifest_path);
     if (manifestPath && treePathSet.has(manifestPath)) {
       manifestByRunDir.set(runDir, manifestPath);
@@ -3900,6 +3904,10 @@ function buildGitManifestPaths(
       continue;
     }
     const runDir = path.posix.dirname(treePath);
+    const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);
+    if (!isV2ResultsRepoRunPath(relativeRunPath)) {
+      continue;
+    }
     if (!manifestByRunDir.has(runDir)) {
       manifestByRunDir.set(runDir, treePath);
     }
@@ -3908,17 +3916,14 @@ function buildGitManifestPaths(
   return [...manifestByRunDir.values()].sort();
 }
 
+function isV2ResultsRepoRunPath(relativeRunPath: string): boolean {
+  const segments = relativeRunPath.split('/').filter(Boolean);
+  return segments.length === 1 && !segments[0].startsWith('.');
+}
+
 function buildGitRunId(relativeRunPath: string): string {
   const normalized = relativeRunPath.split(path.sep).join('/');
   const segments = normalized.split('/').filter(Boolean);
-  if (segments.length >= 2) {
-    const experiment = segments.slice(0, -1).join('/');
-    const timestamp = segments.at(-1);
-    if (experiment === 'default') {
-      return timestamp ?? normalized;
-    }
-    return `${experiment}::${timestamp}`;
-  }
   return segments[0] ?? relativeRunPath;
 }
 

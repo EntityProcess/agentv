@@ -12,19 +12,23 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Evaluation Model
 
-**Eval / Eval YAML** — The only composable and runnable AgentV authoring primitive. An eval YAML file can be a reusable task suite that owns task context, a wrapper eval that imports suites and carries an inline `experiment:` block, or a sidecar around raw JSONL cases. AgentV does not have a separate runnable `experiment.yaml` artifact.
+**Eval / Eval YAML** — The only composable and runnable AgentV authoring primitive. An eval YAML file can be a reusable task suite that owns task context, a wrapper eval that imports suites and binds top-level runtime policy, or a sidecar around raw JSONL cases. AgentV does not have a separate runnable `experiment.yaml` artifact.
 
 **Task suite** — Eval YAML that owns what is being tested: prompts, datasets, input files, fixtures, `workspace`, assertions, expected references, and judge criteria. It can run directly or be imported by another eval with `tests[].include` and `type: suite`.
 
 **Raw case file** — YAML, JSONL, or directory case data imported with `tests: ./cases.yaml`, string shorthand, or `type: tests`. Raw cases are reusable data inputs; they do not carry imported suite context such as shared `workspace`, shared `input`, or shared `assertions`.
 
-**Wrapper eval** — Eval YAML whose main job is to import task suites and bind runtime policy with an inline `experiment:` block. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define parent `workspace`; imported suites own task environment.
+**Wrapper eval** — Eval YAML whose main job is to import task suites and bind top-level runtime policy such as target selection, repeat count, timeout, budget, and thresholds. Wrapper evals may live under an `experiments/` directory, but that path is an optional user-owned convention and AgentV does not infer behavior from it. A wrapper that imports suites with `type: suite` does not define parent `workspace`; imported suites own task environment.
 
-**Experiment** — The run-policy namespace for how evals are executed: target or target matrix, eval filters, repeat counts, timeouts, workers, budgets, thresholds, and related run knobs. In authored files it lives as inline `experiment:` inside eval YAML; CLI `--experiment` and `experiment.name` choose the result bucket. Lifecycle setup belongs in `workspace.hooks` or `targets[].hooks`, not in a separate experiment artifact.
+**Experiment** — A string metadata/run-grouping label such as `baseline`, `candidate`, `with_skills`, or `without_skills`. It is not a runtime-policy object and not a result path namespace. Runtime policy belongs in top-level eval fields or target objects; the experiment label is recorded in `summary.json` and `index.jsonl` for Dashboard grouping and comparison. Lifecycle setup belongs in `workspace.hooks` or `targets[].hooks`, not in a separate experiment artifact.
 
 **Workspace** — The task environment an eval prepares for the agent: repositories, templates, fixture files, and lifecycle hooks. It is not prompt input; use `input` for instructions and `workspace.repos[]` for multi-repo workspaces the agent can inspect or modify through tools.
 
-**Run manifest** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `test_dir`, `summary_path`, and `grading_path`.
+**Run bundle** — A committed local result directory at `.agentv/results/<run_id>/`. `summary.json` records run metadata such as `run_id` and `experiment`; `index.jsonl` records per-case rows.
+
+**Run manifest** — The root `summary.json` file in a run bundle. It owns aggregate run metadata and rollups such as `run_id`, `experiment`, timestamps, planned/completed counts, pass rate, score summaries, duration, tokens, and cost.
+
+**Result index** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `test_dir`, `summary_path`, and `grading_path`.
 
 **Result source identity** — The stable source identity for a result row: repo-relative `eval_path`, `test_id`, and `target`. `suite` and `name` are display metadata, not storage or routing identity.
 
@@ -32,9 +36,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Artifact sidecar** — A file beside or below a result directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
 
+**Artifact attempt folder** — A per-case `run-N/` folder under a result directory. It stores one materialized execution's sidecars and outputs. It is not the primary comparison dimension: stochastic samples and infrastructure retries should be represented with explicit sample/retry metadata rather than inferred from `run-1`, `run-2`, and so on.
+
 ## Evaluation Reliability
 
-**Repeat run** — A configured request to execute the same eval case and target more than once in the same timestamped run bundle. Repeat runs measure stochastic reliability, verifier stability, and drift; they are not the default CI path.
+**Repeat run** — A configured request to execute the same eval case and target more than once in the same run bundle. Repeat runs measure stochastic reliability, verifier stability, and drift; they are not the default CI path.
 
 **Attempt** — One concrete execution inside a repeat run. Attempts keep their own score, status, timing, trace, transcript, logs, and artifacts so aggregate results never hide individual evidence.
 

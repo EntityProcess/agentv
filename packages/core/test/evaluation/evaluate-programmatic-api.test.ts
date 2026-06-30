@@ -147,9 +147,15 @@ describe('evaluate() — programmatic API extensions', () => {
         const summaryArtifact = JSON.parse(
           await readFile(path.join(outputDir, 'summary.json'), 'utf8'),
         ) as {
-          metadata: { experiment?: string; tests_run: string[]; eval_file: string };
+          metadata: {
+            run_id?: string;
+            experiment?: string;
+            tests_run: string[];
+            eval_file: string;
+          };
           timing: { duration_ms: number };
         };
+        expect(summaryArtifact.metadata.run_id).toBe(path.basename(outputDir));
         expect(summaryArtifact.metadata.experiment).toBe('sdk-test');
         expect(summaryArtifact.metadata.tests_run).toEqual(['programmatic-artifacts']);
         expect(summaryArtifact.metadata.eval_file).toBe('');

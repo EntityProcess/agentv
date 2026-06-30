@@ -182,9 +182,7 @@ export function getRelativeRunPath(cwd: string, runDir: string): string {
     return relative;
   }
 
-  throw new Error(
-    `Run workspace must use .agentv/results/<experiment>/<timestamp>: ${path.resolve(runDir)}`,
-  );
+  throw new Error(`Run workspace must use .agentv/results/<run_id>: ${path.resolve(runDir)}`);
 }
 
 function buildCommitTitle(payload: RemoteExportPayload): string {
@@ -530,7 +528,7 @@ export async function ensureRemoteRunAvailable(
   }
 
   // On the results branch runs live flat under `runs/` (the branch namespaces
-  // results), so strip that prefix to recover <experiment>/<timestamp>.
+  // results), so strip that prefix to recover <run_id>.
   const relativeRunPath = path.posix.relative('runs', path.posix.dirname(relativeManifestPath));
   await materializeGitRun(config.path, relativeRunPath, getResultsStorageRef(config));
 }

@@ -1230,9 +1230,7 @@ function formatTimestamp(iso: string): string {
  * `encodeRemoteRunId` in `apps/cli/src/commands/results/remote.ts`, so
  * the shape is one of:
  *   - `2026-04-01T10-00-00-000Z`                   → null
- *   - `with-skills::2026-04-01T10-00-00-000Z`      → "with-skills"
  *   - `remote::2026-04-01T10-00-00-000Z`           → "remote"
- *   - `remote::with-skills::2026-04-01T10-...`     → "remote · with-skills"
  *
  * The full run id stays available via the `title` attribute on the
  * timestamp cell so keyboard / pointer users can always recover it.
