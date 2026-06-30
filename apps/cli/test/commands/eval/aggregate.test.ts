@@ -205,7 +205,7 @@ describe('aggregateRunDir', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('reads run_manifest.jsonl, deduplicates, and writes summary.json with timing rollups', async () => {
+  it('reads index.jsonl, deduplicates, and writes summary.json with timing rollups', async () => {
     writeJsonlIndex(tmpDir, [
       { testId: 'a', target: 'x', score: 0.1, executionStatus: 'execution_error' },
       { testId: 'a', target: 'x', score: 0.9, executionStatus: 'ok' },
@@ -224,12 +224,12 @@ describe('aggregateRunDir', () => {
     expect(summary.timing.total_tokens).toBeGreaterThanOrEqual(0);
   });
 
-  it('falls back to legacy index.jsonl bundles', async () => {
+  it('reads canonical index.jsonl bundles', async () => {
     writeJsonlIndex(
       tmpDir,
       [
-        { testId: 'legacy-a', target: 'x', score: 0.9, executionStatus: 'ok' },
-        { testId: 'legacy-b', target: 'x', score: 0.8, executionStatus: 'ok' },
+        { testId: 'case-a', target: 'x', score: 0.9, executionStatus: 'ok' },
+        { testId: 'case-b', target: 'x', score: 0.8, executionStatus: 'ok' },
       ],
       'index.jsonl',
     );
@@ -239,7 +239,7 @@ describe('aggregateRunDir', () => {
 
     const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
     expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
-    expect(summary.metadata.tests_run).toEqual(['legacy-a', 'legacy-b']);
+    expect(summary.metadata.tests_run).toEqual(['case-a', 'case-b']);
   });
 
   it('uses last entry for duplicates in benchmark stats', async () => {

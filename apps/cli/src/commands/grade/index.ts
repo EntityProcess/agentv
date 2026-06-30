@@ -625,7 +625,7 @@ export const gradeCommand = command({
       type: optional(string),
       long: 'output',
       short: 'o',
-      description: 'Run artifact directory (writes run_manifest.jsonl and per-test artifacts)',
+      description: 'Run artifact directory (writes index.jsonl and per-test artifacts)',
     }),
     response: option({
       type: optional(string),

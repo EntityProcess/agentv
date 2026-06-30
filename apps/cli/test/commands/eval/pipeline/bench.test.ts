@@ -76,7 +76,7 @@ describe('pipeline bench', () => {
     expect(grading.assertions.length).toBeGreaterThan(0);
     expect(grading.graders).toHaveLength(2);
 
-    const indexContent = await readFile(join(OUT_DIR, 'run_manifest.jsonl'), 'utf8');
+    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const lines = indexContent
       .trim()
       .split('\n')
@@ -90,7 +90,7 @@ describe('pipeline bench', () => {
     expect(benchmark.run_summary['test-target']).toBeDefined();
   }, 30_000);
 
-  it('propagates experiment from manifest to run_manifest.jsonl and summary.json', async () => {
+  it('propagates experiment from manifest to index.jsonl and summary.json', async () => {
     // Overwrite manifest with experiment field
     await writeFile(
       join(OUT_DIR, 'manifest.json'),
@@ -106,7 +106,7 @@ describe('pipeline bench', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
-    const indexContent = await readFile(join(OUT_DIR, 'run_manifest.jsonl'), 'utf8');
+    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
     expect(entry.experiment).toBe('without_skills');
 
@@ -118,7 +118,7 @@ describe('pipeline bench', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
-    const indexContent = await readFile(join(OUT_DIR, 'run_manifest.jsonl'), 'utf8');
+    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
     expect(entry.experiment).toBeUndefined();
 

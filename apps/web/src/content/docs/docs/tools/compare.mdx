@@ -15,12 +15,12 @@ Run two evaluations and compare them:
 agentv eval evals/my-eval.yaml --output .agentv/results/default/before
 # ... make changes to your agent ...
 agentv eval evals/my-eval.yaml --output .agentv/results/default/after
-agentv compare .agentv/results/default/before/run_manifest.jsonl .agentv/results/default/after/run_manifest.jsonl
+agentv compare .agentv/results/default/before/index.jsonl .agentv/results/default/after/index.jsonl
 ```
 
-`run_manifest.jsonl` is the canonical row-level result manifest. Existing
+`index.jsonl` is the canonical row-level result manifest. Existing
 `index.jsonl` run manifests from older AgentV runs remain readable for
-compatibility, but new runs write `run_manifest.jsonl`.
+compatibility, but new runs write `index.jsonl`.
 
 ## Options
 
@@ -32,7 +32,7 @@ compatibility, but new runs write `run_manifest.jsonl`.
 
 ## How It Works
 
-1. **Load Results** -- reads both `run_manifest.jsonl` manifests containing evaluation results
+1. **Load Results** -- reads both `index.jsonl` manifests containing evaluation results
 2. **Match by test_id** -- pairs results with matching `test_id` fields
 3. **Compute Deltas** -- calculates `delta = score2 - score1` for each pair
 4. **Compute Normalized Gain** -- calculates `g = delta / (1 - score1)` for each pair (see below)
@@ -133,7 +133,7 @@ agentv eval evals/*.yaml --target gpt-4 --output .agentv/results/default/baselin
 agentv eval evals/*.yaml --target gpt-4o --output .agentv/results/default/candidate
 
 # Compare results
-agentv compare .agentv/results/default/baseline/run_manifest.jsonl .agentv/results/default/candidate/run_manifest.jsonl
+agentv compare .agentv/results/default/baseline/index.jsonl .agentv/results/default/candidate/index.jsonl
 ```
 
 ### Prompt Optimization
@@ -148,7 +148,7 @@ agentv eval evals/*.yaml --output .agentv/results/default/before
 agentv eval evals/*.yaml --output .agentv/results/default/after
 
 # Compare with strict threshold
-agentv compare .agentv/results/default/before/run_manifest.jsonl .agentv/results/default/after/run_manifest.jsonl --threshold 0.05
+agentv compare .agentv/results/default/before/index.jsonl .agentv/results/default/after/index.jsonl --threshold 0.05
 ```
 
 ### CI Quality Gate
@@ -158,8 +158,8 @@ Fail CI if the candidate regresses:
 ```bash
 #!/bin/bash
 agentv compare \
-  .agentv/results/default/baseline/run_manifest.jsonl \
-  .agentv/results/default/candidate/run_manifest.jsonl
+  .agentv/results/default/baseline/index.jsonl \
+  .agentv/results/default/candidate/index.jsonl
 if [ $? -eq 1 ]; then
   echo "Regression detected! Candidate performs worse than baseline."
   exit 1

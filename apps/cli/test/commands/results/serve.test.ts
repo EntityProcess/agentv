@@ -381,7 +381,7 @@ function writeWtgDogfoodNoncanonicalArtifact(baseDir: string): {
 } {
   const runDir = path.join(baseDir, 'wtg-dogfood-noncanonical-run');
   mkdirSync(runDir, { recursive: true });
-  const indexPath = path.join(runDir, 'run_manifest.jsonl');
+  const indexPath = path.join(runDir, 'index.jsonl');
   writeFileSync(indexPath, toJsonl({ ...RESULT_A, test_id: 'wtg-dogfood-noncanonical' }));
   return { runDir, indexPath };
 }
@@ -444,7 +444,7 @@ describe('resolveSourceFile', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-serve-source-'));
     const runDir = localRunDir(tempDir, 'default', '2026-06-17T00-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
-    const indexPath = path.join(runDir, 'run_manifest.jsonl');
+    const indexPath = path.join(runDir, 'index.jsonl');
     writeFileSync(indexPath, toJsonl(RESULT_A));
 
     await expect(resolveSourceFile(undefined, tempDir)).resolves.toBe(indexPath);
@@ -489,7 +489,7 @@ describe('dashboard CLI source contract', () => {
     expect(result.signal).toBeNull();
     expect(result.stdout).not.toContain('Serving 1 result(s)');
     expect(result.stderr).toContain('Unsupported Dashboard source');
-    expect(result.stderr).toContain('agentv results report <run-workspace-or-run_manifest.jsonl>');
+    expect(result.stderr).toContain('agentv results report <run-workspace-or-index.jsonl>');
 
     rmSync(tempDir, { recursive: true, force: true });
   });
@@ -2778,7 +2778,7 @@ describe('serve app', () => {
     ): { runId: string; runDir: string; manifestPath: string } {
       const runDir = localRunDir(opts?.baseDir ?? tempDir, opts?.experiment ?? 'default', name);
       mkdirSync(runDir, { recursive: true });
-      const manifestPath = path.join(runDir, 'run_manifest.jsonl');
+      const manifestPath = path.join(runDir, 'index.jsonl');
       writeFileSync(
         manifestPath,
         toJsonl(
@@ -2887,7 +2887,7 @@ describe('serve app', () => {
       expect(detailRes.status).toBe(200);
       await detailRes.json();
       const records = readFileSync(
-        path.join(localRunDirFromRunId(tempDir, acceptedData.run_id), 'run_manifest.jsonl'),
+        path.join(localRunDirFromRunId(tempDir, acceptedData.run_id), 'index.jsonl'),
         'utf8',
       )
         .trim()
@@ -4394,14 +4394,12 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          retry_errors: '.agentv/results/default/r0/run_manifest.jsonl',
+          retry_errors: '.agentv/results/default/r0/index.jsonl',
         }),
       });
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain(
-        '--retry-errors .agentv/results/default/r0/run_manifest.jsonl',
-      );
+      expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
     });
 
     it('rejects resume + rerun_failed combo with 400', async () => {
@@ -4430,7 +4428,7 @@ describe('serve app', () => {
           suite_filter: 'examples/demo.eval.yaml',
           output: '.agentv/results/default/r1',
           resume: true,
-          retry_errors: '.agentv/results/default/r0/run_manifest.jsonl',
+          retry_errors: '.agentv/results/default/r0/index.jsonl',
         }),
       });
       expect(res.status).toBe(400);
@@ -4578,14 +4576,12 @@ describe('serve app', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
-          retry_errors: '.agentv/results/default/r0/run_manifest.jsonl',
+          retry_errors: '.agentv/results/default/r0/index.jsonl',
         }),
       });
       expect(res.status).toBe(200);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain(
-        '--retry-errors .agentv/results/default/r0/run_manifest.jsonl',
-      );
+      expect(data.command).toContain('--retry-errors .agentv/results/default/r0/index.jsonl');
     });
 
     it('emits --experiment for selected experiment requests', async () => {

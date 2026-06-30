@@ -6,7 +6,7 @@ import { runCli } from './index.js';
 // Forward SIGINT/SIGTERM to spawned provider subprocesses before exiting.
 // Without this, Dashboard's `child.kill('SIGTERM')` against the CLI orphans
 // any in-flight `claude`/`codex`/`pi`/`copilot` subprocess. The partial
-// `run_manifest.jsonl` is already row-by-row durable, so finished tests survive.
+// `index.jsonl` is already row-by-row durable, so finished tests survive.
 //
 // First signal: kill children, exit with the conventional 128+signal code.
 // Second signal within the same process: hard-exit so a hung child cannot

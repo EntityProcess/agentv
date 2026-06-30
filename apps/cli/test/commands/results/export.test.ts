@@ -218,7 +218,7 @@ describe('results export', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('loadExportSource resolves run workspaces to run_manifest.jsonl', async () => {
+  it('loadExportSource resolves run workspaces to index.jsonl', async () => {
     const runDir = path.join(tempDir, '2026-03-18T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });
     const sourceFile = path.join(runDir, RESULT_INDEX_FILENAME);
@@ -260,7 +260,7 @@ describe('results export', () => {
 
   it('deriveOutputDir rejects non-manifest paths', () => {
     expect(() => deriveOutputDir(tempDir, path.join(tempDir, 'results.jsonl'))).toThrow(
-      'Expected a run manifest named run_manifest.jsonl',
+      'Expected a run manifest named index.jsonl',
     );
   });
 
@@ -426,7 +426,7 @@ describe('results export', () => {
     expect(benchmark.run_summary['gpt-4o'].pass_rate).toHaveProperty('stddev');
   });
 
-  it('should create run_manifest.jsonl with per-test artifact pointers', async () => {
+  it('should create index.jsonl with per-test artifact pointers', async () => {
     const outputDir = path.join(tempDir, 'output');
     const resultWithInput = {
       ...RESULT_FULL,

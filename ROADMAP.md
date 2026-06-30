@@ -15,7 +15,7 @@ This roadmap translates [STRATEGY.md](STRATEGY.md) into the next few product pha
 
 ## Phase 1: Finish the artifact and local inspection foundation
 
-- Keep the canonical handoff surface centered on completed run bundles, `run_manifest.jsonl`, grading/timing/metrics artifacts, normalized transcripts, and optional `external_trace` link metadata.
+- Keep the canonical handoff surface centered on completed run bundles, `index.jsonl`, grading/timing/metrics artifacts, normalized transcripts, and optional `external_trace` link metadata.
 - Finish the vendor-neutral local export seams that let completed runs be re-read, compared, exported, and attached to non-Phoenix adapters without vendor-specific logic in core.
 - Keep OTLP/OpenInference mapping generic and reusable before building backend-specific upload or import paths.
 

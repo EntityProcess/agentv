@@ -11,7 +11,7 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/<experiment>/<timestamp>/run_manifest.jsonl`.
+Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`.
 AgentV picks the experiment bucket from `--experiment`, then
 `eval.yaml` `experiment.name`, then `default`. Each CLI invocation writes one
 timestamped run bundle. Each line is a JSON object with one result per test
@@ -65,7 +65,7 @@ agentv eval evals/my-eval.yaml --experiment without_skills
 ```
 
 The experiment label chooses the result bucket and is propagated to each entry
-in `run_manifest.jsonl`. CLI `--experiment` wins over `experiment.name` in the eval
+in `index.jsonl`. CLI `--experiment` wins over `experiment.name` in the eval
 file. If neither is set, AgentV writes to the `default` bucket. The eval file
 stays the same across experiments; what changes is the runtime condition.
 Dashboards can filter and compare results by experiment.
@@ -99,23 +99,23 @@ are unchanged.
 
 ### Custom Output Directory
 
-Write all artifacts (run_manifest.jsonl, summary.json, per-test grading/timing) to a specific directory:
+Write all artifacts (index.jsonl, summary.json, per-test grading/timing) to a specific directory:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./my-results
 ```
 
 `--output` is a run directory, not a file path. The canonical manifest is always
-`<output>/run_manifest.jsonl`; the aggregate summary is
+`<output>/index.jsonl`; the aggregate summary is
 `<output>/summary.json`.
 
 ### Read Results from the Run Manifest
 
-The run directory is the complete artifact boundary. Use `<output>/run_manifest.jsonl` for scripts, CI summaries, and downstream tools:
+The run directory is the complete artifact boundary. Use `<output>/index.jsonl` for scripts, CI summaries, and downstream tools:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./my-results
-cat ./my-results/run_manifest.jsonl
+cat ./my-results/index.jsonl
 ```
 
 ### Generated Task Bundles
@@ -129,7 +129,7 @@ Typical layout:
 
 ```text
 my-results/
-  run_manifest.jsonl
+  index.jsonl
   summary.json
   <test-id>/
     summary.json
@@ -148,11 +148,11 @@ my-results/
       graders/    # copied grader prompt/script files when applicable
 ```
 
-The `run_manifest.jsonl` row links to these generated paths with snake_case fields such
+The `index.jsonl` row links to these generated paths with snake_case fields such
 as `result_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
 `graders_path`. Treat those paths as relative to the run directory. When you need
 a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
-share the generated run directory and its `run_manifest.jsonl` manifest. Source-side
+share the generated run directory and its `index.jsonl` manifest. Source-side
 case directories are still useful for organizing bulky prompts, fixtures, or
 tests while authoring an eval, but they are optional input organization rather
 than a separate artifact schema.
@@ -181,12 +181,12 @@ manifest shape, and optional trace/session input with `--trace`.
 
 Export execution traces (tool calls, timing, spans) to files for debugging and analysis:
 
-By default, AgentV writes a per-run workspace with `run_manifest.jsonl` as the canonical manifest for
+By default, AgentV writes a per-run workspace with `index.jsonl` as the canonical manifest for
 result-oriented workflows. For full-fidelity span inspection, export OTLP JSON explicitly.
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv inspect stats .agentv/results/default/<timestamp>/run_manifest.jsonl
+agentv inspect stats .agentv/results/default/<timestamp>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
@@ -195,7 +195,7 @@ agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
 agentv inspect show traces/eval.otlp.json --tree
 ```
 
-`run_manifest.jsonl` contains aggregate metrics such as score, latency, cost, token usage, and summary
+`index.jsonl` contains aggregate metrics such as score, latency, cost, token usage, and summary
 trace counters. `--otel-file` writes standard OTLP JSON that can be imported into any
 OpenTelemetry-compatible backend.
 
@@ -355,7 +355,7 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 | `--rerun-failed` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
 | `--retry-errors <path>` | Anything that completed without an `execution_error` (same set as `--resume`) | Errors and missing cases | You want to point at an arbitrary prior run/manifest by path, instead of resuming the run dir you're currently writing to |
 
-`--resume` and `--rerun-failed` both append to the existing `run_manifest.jsonl`. When `--output <dir>` is given they target that directory; when omitted they default to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. This matches promptfoo's `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default" convention. `--retry-errors` takes the prior run's path directly (a directory or an `run_manifest.jsonl`).
+`--resume` and `--rerun-failed` both append to the existing `index.jsonl`. When `--output <dir>` is given they target that directory; when omitted they default to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. This matches promptfoo's `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default" convention. `--retry-errors` takes the prior run's path directly (a directory or an `index.jsonl`).
 
 ```bash
 # Resume the last run — no args needed; AgentV finds it from .agentv/cache.json
@@ -368,7 +368,7 @@ agentv eval evals/my-eval.yaml --output .agentv/results/default/<timestamp> --re
 agentv eval evals/my-eval.yaml --rerun-failed
 
 # Re-run only execution errors from any prior run by path
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp>/run_manifest.jsonl
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp>/index.jsonl
 ```
 
 After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
@@ -492,7 +492,7 @@ When automatic remote publishing sees pointers whose `ref` is
 `agentv/artifacts/v1` branch in the same results remote at
 `runs/<run-path>/<pointer.path>` and rewrites the published pointer `key` to
 that backend object key. The configured results branch is the metadata/control
-plane for `run_manifest.jsonl`, `summary.json`, tags, and pointers; it does not
+plane for `index.jsonl`, `summary.json`, tags, and pointers; it does not
 duplicate canonical transcript payload bodies when those rows name
 `agentv/artifacts/v1`. Dashboard resolves the published pointers lazily when a
 transcript view requests the payload. AgentV keeps this explicit pointer/backend

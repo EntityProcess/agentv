@@ -48,13 +48,13 @@ describe('results combine', () => {
     const runDir = path.join(tempDir, '.agentv', 'results', experiment, name);
     mkdirSync(path.join(runDir, 'demo', 'test-a'), { recursive: true });
     writeFileSync(
-      path.join(runDir, 'run_manifest.jsonl'),
+      path.join(runDir, 'index.jsonl'),
       toJsonl(...records.map((record) => ({ ...record, experiment }))),
       'utf8',
     );
     writeFileSync(
       path.join(runDir, 'summary.json'),
-      `${JSON.stringify({ manifest_path: 'run_manifest.jsonl' })}\n`,
+      `${JSON.stringify({ manifest_path: 'index.jsonl' })}\n`,
       'utf8',
     );
     writeFileSync(path.join(runDir, 'demo', 'test-a', 'grading.json'), '{"assertions":[]}\n');

@@ -37,7 +37,7 @@ function writeRun(
   const runDir = path.join(repoDir, 'runs', experiment, timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(
-    path.join(runDir, 'run_manifest.jsonl'),
+    path.join(runDir, 'index.jsonl'),
     `${JSON.stringify({
       timestamp,
       test_id: `${experiment}-case`,
@@ -51,7 +51,7 @@ function writeRun(
     path.join(runDir, 'summary.json'),
     `${JSON.stringify(
       {
-        manifest_path: 'run_manifest.jsonl',
+        manifest_path: 'index.jsonl',
         metadata: {
           display_name: `${experiment} ${timestamp}`,
           experiment,

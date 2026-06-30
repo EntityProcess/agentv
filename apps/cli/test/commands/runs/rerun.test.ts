@@ -147,8 +147,8 @@ async function readJsonLines(filePath: string): Promise<readonly Record<string, 
 
 async function discoverIndexPaths(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
-  if (entries.some((entry) => entry.isFile() && entry.name === 'run_manifest.jsonl')) {
-    return [path.join(dir, 'run_manifest.jsonl')];
+  if (entries.some((entry) => entry.isFile() && entry.name === 'index.jsonl')) {
+    return [path.join(dir, 'index.jsonl')];
   }
   if (entries.some((entry) => entry.isFile() && entry.name === 'index.jsonl')) {
     return [path.join(dir, 'index.jsonl')];

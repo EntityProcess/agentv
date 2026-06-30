@@ -58,9 +58,7 @@ export {
   type EvalSummary,
 } from './evaluation/evaluate.js';
 export {
-  LEGACY_RESULT_INDEX_FILENAME,
   RESULT_INDEX_FILENAME,
-  RESULT_MANIFEST_FILENAME,
   RUN_SUMMARY_FILENAME,
   aggregateRunDir,
   buildAggregateGradingArtifact,

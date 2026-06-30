@@ -140,7 +140,7 @@ interface NormalizedOptions {
   readonly keepWorkspaces: boolean;
   /** Removed: use --output instead */
   readonly artifacts?: string;
-  /** Removed: the run directory always uses run_manifest.jsonl */
+  /** Removed: the run directory always uses index.jsonl */
   readonly outputFormat?: string;
   readonly graderTarget?: string;
   readonly model?: string;

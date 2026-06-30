@@ -85,11 +85,6 @@ ordinary per-case sidecars through explicit fields such as `result_dir`,
 `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` when
 those artifacts exist.
 
-During the transition away from the temporary `run_manifest.jsonl` filename,
-readers may accept both `run_manifest.jsonl` and `index.jsonl` for existing
-bundles. The contract name for new examples and integration guidance is
-`index.jsonl`.
-
 `artifact_pointers` remain an offload indirection for large detached payload
 bytes. They are not the discovery path for ordinary sidecars that live in the
 run tree.

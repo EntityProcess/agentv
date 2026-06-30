@@ -66,10 +66,7 @@ const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 // never overwrites the user's git config. See createOrphanResultsBranch.
 const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
-const RESULT_MANIFEST_FILENAME = 'run_manifest.jsonl';
-const LEGACY_RESULT_INDEX_FILENAME = 'index.jsonl';
-const RESULT_INDEX_FILENAME = RESULT_MANIFEST_FILENAME;
-const RESULT_MANIFEST_FILENAMES = [RESULT_MANIFEST_FILENAME, LEGACY_RESULT_INDEX_FILENAME] as const;
+const RESULT_INDEX_FILENAME = 'index.jsonl';
 
 // Artifact-aware merge config for the AgentV-owned results checkout. These two
 // pieces let `git merge` reconcile concurrent result writes automatically so
@@ -84,7 +81,6 @@ const RESULT_MANIFEST_FILENAMES = [RESULT_MANIFEST_FILENAME, LEGACY_RESULT_INDEX
 const RESULTS_REPO_GITATTRIBUTES_FILE = '.gitattributes';
 const RESULTS_REPO_GITATTRIBUTES_CONTENT = `# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
 # Append-only run manifests: union concurrent appends (lines are orthogonal).
-run_manifest.jsonl merge=union
 index.jsonl merge=union
 # Editable run overlay (tags/feedback): 3-way JSON set/field union via the
 # agentv-json driver; a genuine scalar conflict falls through to a human merge.
@@ -3019,7 +3015,7 @@ function isDeprecatedTraceArtifactPath(relativePath: string): boolean {
 }
 
 function isResultManifestFilename(filename: string): boolean {
-  return RESULT_MANIFEST_FILENAMES.includes(filename as (typeof RESULT_MANIFEST_FILENAMES)[number]);
+  return filename === RESULT_INDEX_FILENAME;
 }
 
 function safeLocalSummaryManifestPath(
@@ -3050,11 +3046,9 @@ function resolveLocalResultManifestPath(sourceDir: string): string | undefined {
     }
   } catch {}
 
-  for (const filename of RESULT_MANIFEST_FILENAMES) {
-    const manifestPath = path.join(sourceDir, filename);
-    if (existsSync(manifestPath)) {
-      return manifestPath;
-    }
+  const manifestPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
+  if (existsSync(manifestPath)) {
+    return manifestPath;
   }
   return undefined;
 }
@@ -3901,15 +3895,13 @@ function buildGitManifestPaths(
     }
   }
 
-  for (const filename of RESULT_MANIFEST_FILENAMES) {
-    for (const treePath of treePaths) {
-      if (!treePath.endsWith(`/${filename}`)) {
-        continue;
-      }
-      const runDir = path.posix.dirname(treePath);
-      if (!manifestByRunDir.has(runDir)) {
-        manifestByRunDir.set(runDir, treePath);
-      }
+  for (const treePath of treePaths) {
+    if (!treePath.endsWith(`/${RESULT_INDEX_FILENAME}`)) {
+      continue;
+    }
+    const runDir = path.posix.dirname(treePath);
+    if (!manifestByRunDir.has(runDir)) {
+      manifestByRunDir.set(runDir, treePath);
     }
   }
 

@@ -37,7 +37,7 @@ async function createRunWorkspace(
 ): Promise<{ runDir: string; indexPath: string }> {
   const runDir = path.join(rootDir, '.agentv', 'results', 'default', runName);
   await mkdir(runDir, { recursive: true });
-  const indexPath = path.join(runDir, 'run_manifest.jsonl');
+  const indexPath = path.join(runDir, 'index.jsonl');
   await writeFile(
     indexPath,
     `${records.map((record) => JSON.stringify(record)).join('\n')}\n`,
@@ -45,7 +45,7 @@ async function createRunWorkspace(
   );
   await writeFile(
     path.join(runDir, 'summary.json'),
-    `${JSON.stringify({ manifest_path: 'run_manifest.jsonl' })}\n`,
+    `${JSON.stringify({ manifest_path: 'index.jsonl' })}\n`,
     'utf8',
   );
   return { runDir, indexPath };
@@ -244,15 +244,15 @@ describe('trend command', () => {
     );
   });
 
-  it('still accepts legacy index.jsonl run manifests explicitly', async () => {
+  it('accepts canonical index.jsonl run manifests explicitly', async () => {
     const cwd = await createTempDir();
     cleanupDirs.push(cwd);
 
     const runDir = path.join(cwd, '.agentv', 'results', 'default', '2026-03-01T10-00-00-000Z');
     await mkdir(runDir, { recursive: true });
-    const legacyManifest = path.join(runDir, 'index.jsonl');
+    const manifestPath = path.join(runDir, 'index.jsonl');
     await writeFile(
-      legacyManifest,
+      manifestPath,
       `${JSON.stringify({
         test_id: 't1',
         target: 'alpha',
@@ -262,10 +262,10 @@ describe('trend command', () => {
       'utf8',
     );
 
-    expect(resolveTrendSources(cwd, [legacyManifest])).toEqual([legacyManifest]);
+    expect(resolveTrendSources(cwd, [manifestPath])).toEqual([manifestPath]);
   });
 
-  it('discovers legacy-only run workspaces with --last', async () => {
+  it('discovers canonical run workspaces with --last', async () => {
     const cwd = await createTempDir();
     cleanupDirs.push(cwd);
 

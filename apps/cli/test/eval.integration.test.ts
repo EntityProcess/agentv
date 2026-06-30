@@ -338,7 +338,7 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(0);
-      const indexPath = path.join(outputDir, 'file-target', 'run_manifest.jsonl');
+      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
       expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).toContain(`Artifact directory: ${outputDir}`);
 
@@ -366,7 +366,7 @@ describe('agentv eval CLI', () => {
 
       const outputDir = path.join(fixture.suiteDir, 'configured-results');
       expect(exitCode).toBe(0);
-      const indexPath = path.join(outputDir, 'file-target', 'run_manifest.jsonl');
+      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
       expect(extractOutputPath(stdout)).toBe(indexPath);
       await expectFileExists(indexPath);
       await expectFileExists(path.join(outputDir, 'file-target', 'summary.json'));
@@ -410,7 +410,7 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(1);
-      const indexPath = path.join(outputDir, 'file-target', 'run_manifest.jsonl');
+      const indexPath = path.join(outputDir, 'file-target', 'index.jsonl');
       expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).not.toContain('Export files:');
 
@@ -454,14 +454,14 @@ describe('agentv eval CLI', () => {
       },
       {
         args: ['--output-format', 'html'],
-        expected: ['--output-format was removed', 'run_manifest.jsonl'],
+        expected: ['--output-format was removed', 'index.jsonl'],
       },
       {
         args: ['--output', 'results.xml'],
         expected: [
           '--output expects a run directory',
           'JUnit XML export from agentv eval has been removed',
-          '<dir>/run_manifest.jsonl',
+          '<dir>/index.jsonl',
         ],
       },
     ] as const;

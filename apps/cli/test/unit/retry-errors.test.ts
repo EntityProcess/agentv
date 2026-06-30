@@ -21,14 +21,6 @@ describe('retry-errors', () => {
 
   function createRunManifestFile(lines: object[]): string {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
-    const filePath = path.join(tmpDir, 'run_manifest.jsonl');
-    mkdirSync(tmpDir, { recursive: true });
-    writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
-    return filePath;
-  }
-
-  function createLegacyIndexFile(lines: object[]): string {
-    tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
     const filePath = path.join(tmpDir, 'index.jsonl');
     mkdirSync(tmpDir, { recursive: true });
     writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
@@ -92,7 +84,7 @@ describe('retry-errors', () => {
     expect(results[1].testId).toBe('case-3');
   });
 
-  it('supports run_manifest.jsonl manifests written by the CLI', async () => {
+  it('supports index.jsonl manifests written by the CLI', async () => {
     const filePath = createRunManifestFile([
       { test_id: 'case-1', execution_status: 'ok', score: 0.9 },
       { test_id: 'case-2', execution_status: 'execution_error', score: 0 },
@@ -115,15 +107,15 @@ describe('retry-errors', () => {
     ]);
 
     await expect(loadErrorTestIds(filePath)).rejects.toThrow(
-      'Expected a run workspace directory or run_manifest.jsonl manifest',
+      'Expected a run workspace directory or index.jsonl manifest',
     );
     await expect(loadNonErrorResults(filePath)).rejects.toThrow(
-      'Expected a run workspace directory or run_manifest.jsonl manifest',
+      'Expected a run workspace directory or index.jsonl manifest',
     );
   });
 
-  it('supports legacy index.jsonl manifests', async () => {
-    const filePath = createLegacyIndexFile([
+  it('supports canonical index.jsonl manifests with artifact paths', async () => {
+    const filePath = createRunManifestFile([
       {
         test_id: 'case-1',
         execution_status: 'ok',
@@ -195,9 +187,9 @@ describe('retry-errors', () => {
     expect(buildExclusionFilter(['!negated'])).toBe('!\\!negated');
   });
 
-  it('throws on malformed run_manifest.jsonl lines', async () => {
+  it('throws on malformed index.jsonl lines', async () => {
     tmpDir = mkdtempSync(path.join(tmpdir(), 'retry-errors-test-'));
-    const filePath = path.join(tmpDir, 'run_manifest.jsonl');
+    const filePath = path.join(tmpDir, 'index.jsonl');
     writeFileSync(
       filePath,
       [

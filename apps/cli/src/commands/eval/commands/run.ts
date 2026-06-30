@@ -52,12 +52,12 @@ export const evalRunCommand = command({
       long: 'output',
       short: 'o',
       description:
-        'Run artifact directory (writes run_manifest.jsonl, summary.json, and per-case artifacts)',
+        'Run artifact directory (writes index.jsonl, summary.json, and per-case artifacts)',
     }),
     outputFormat: option({
       type: optional(string),
       long: 'output-format',
-      description: '[Removed] Run directories always write run_manifest.jsonl',
+      description: '[Removed] Run directories always write index.jsonl',
     }),
     experiment: option({
       type: optional(string),

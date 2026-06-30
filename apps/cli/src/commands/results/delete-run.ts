@@ -12,7 +12,6 @@ import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 import {
-  LEGACY_RESULT_INDEX_FILENAME,
   RESULT_INDEX_FILENAME,
   isRunManifestPath,
   relativeRunPathFromCwd,
@@ -35,9 +34,7 @@ export interface DeleteRunResult extends DeleteRunTarget {
 function assertLocalRunManifest(cwd: string, manifestPath: string, runId: string): DeleteRunTarget {
   const resolvedManifestPath = path.resolve(manifestPath);
   if (!isRunManifestPath(resolvedManifestPath)) {
-    throw new Error(
-      `Expected a run workspace directory or ${RESULT_INDEX_FILENAME} manifest (legacy ${LEGACY_RESULT_INDEX_FILENAME} is also readable)`,
-    );
+    throw new Error(`Expected a run workspace directory or ${RESULT_INDEX_FILENAME} manifest`);
   }
 
   const runDir = path.dirname(resolvedManifestPath);

@@ -2,7 +2,7 @@
  * Canonical AgentV run artifact helpers.
  *
  * This module owns the shared run-workspace contract used by CLI and
- * programmatic evals: `run_manifest.jsonl`, run-root `summary.json`, per-case
+ * programmatic evals: `index.jsonl`, run-root `summary.json`, per-case
  * `summary.json`, `run-N/result.json`, and transcript projections. Keep wire
  * keys in snake_case here so every caller produces the same artifacts.
  */
@@ -55,11 +55,7 @@ import type {
   TrialResult,
 } from './types.js';
 
-export const RESULT_MANIFEST_FILENAME = 'run_manifest.jsonl';
-export const LEGACY_RESULT_INDEX_FILENAME = 'index.jsonl';
-// Backward-compatible export name retained for existing callers. New writes use
-// the row-level run manifest filename.
-export const RESULT_INDEX_FILENAME = RESULT_MANIFEST_FILENAME;
+export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RUN_SUMMARY_FILENAME = 'summary.json';
 
 const TIMING_SOURCE_VALUES = [
@@ -231,11 +227,9 @@ async function resolveExistingResultManifestPath(runDir: string): Promise<string
     return summaryManifestPath;
   }
 
-  for (const filename of [RESULT_MANIFEST_FILENAME, LEGACY_RESULT_INDEX_FILENAME]) {
-    const manifestPath = path.join(runDir, filename);
-    if ((await readTextIfExists(manifestPath)) !== undefined) {
-      return manifestPath;
-    }
+  const manifestPath = path.join(runDir, RESULT_INDEX_FILENAME);
+  if ((await readTextIfExists(manifestPath)) !== undefined) {
+    return manifestPath;
   }
   return undefined;
 }
@@ -1364,7 +1358,7 @@ export function buildRunSummaryArtifact(
   const timestamp = firstResult?.timestamp ?? new Date().toISOString();
 
   return {
-    manifest_path: RESULT_MANIFEST_FILENAME,
+    manifest_path: RESULT_INDEX_FILENAME,
     metadata: {
       eval_file: evalFile,
       timestamp,
@@ -1621,7 +1615,7 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
     runId: params.runId ?? path.basename(params.outputDir),
     experiment: params.experiment,
     variant: params.result.variant,
-    source: { path: RESULT_MANIFEST_FILENAME },
+    source: { path: RESULT_INDEX_FILENAME },
     capture: { content: 'full', redactionLevel: 'none', redactedFields: [] },
     artifacts: {
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
