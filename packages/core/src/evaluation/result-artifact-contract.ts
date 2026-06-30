@@ -7,7 +7,8 @@
  * AgentV-owned artifacts belong when projected to a results ref, sidecar ref,
  * or object store. Use pointers for large detached payload bytes, not as the
  * discovery path for ordinary sidecars such as `metrics.json`; normal
- * sidecars should use explicit path fields such as `metrics_path`.
+ * sidecars should use explicit path fields such as `metrics_path` and
+ * `file_changes_path`.
  *
  * Git remote publishing treats the configured results branch as the
  * metadata/control plane and stores transcript payload bytes whose
@@ -27,6 +28,7 @@ export const AGENTV_RESULTS_REFS = {
 
 export const CANONICAL_TRANSCRIPT_ARTIFACT_PATH = 'transcript.jsonl' as const;
 export const CANONICAL_METRICS_ARTIFACT_PATH = 'metrics.json' as const;
+export const CANONICAL_FILE_CHANGES_ARTIFACT_PATH = 'outputs/file_changes.diff' as const;
 
 export const TRANSCRIPT_SCHEMA_VERSION = 'agentv.transcript.v1' as const;
 export const METRICS_SCHEMA_VERSION = 'agentv.metrics.v1' as const;

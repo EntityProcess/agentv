@@ -45,6 +45,7 @@ The default local layout is:
           transcript-raw.jsonl
           outputs/
             answer.md
+            file_changes.diff
         run-2/
           result.json
           grading.json
@@ -54,6 +55,7 @@ The default local layout is:
           transcript-raw.jsonl
           outputs/
             answer.md
+            file_changes.diff
 ```
 
 The `<experiment>` and `<run_id>` directories are storage allocation. They help
@@ -83,6 +85,7 @@ query.
 | `result.json` | Compact per-attempt manifest for one attempt directory. | Loading one attempt without scanning the whole run index. |
 | `grading.json` | Grader outputs, assertions, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
 | `metrics.json` | Derived executor behavior summary, such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, metric-style graders, adapter projections, and lightweight analysis. |
+| `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and code graders still receive the same full diff through `file_changes`. |
 | `timing.json` | Duration, token usage, cost usage, and source labels such as `provider_reported`, `token_estimated`, `aggregate`, or `unavailable`. | Cost/latency reporting and provider-accounting audits. |
 | `transcript.jsonl` | AgentV-normalized transcript/timeline rows. | Portable human review, replay, transcript-aware graders, and tool-trajectory analysis. |
 | `transcript-raw.jsonl` | Native provider or harness evidence when available. | Parser debugging, forensic review, and preserving source bytes without making provider schemas public AgentV fields. |
@@ -132,6 +135,7 @@ Example row:
   "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript-raw.jsonl",
   "output_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
   "answer_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
+  "file_changes_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/file_changes.diff",
   "test_dir": "refund-eligibility--4f9a7c2d1b6e/test"
 }
 ```

@@ -134,6 +134,7 @@ describe('workspace file-changes', () => {
   });
 
   it('captureFileChanges detects added/modified/deleted files', async () => {
+    await writeFile(path.join(workspacePath, 'delete-me.txt'), 'remove this\n', 'utf8');
     const baselineCommit = await initializeBaseline(workspacePath);
 
     // Add a new file
@@ -141,6 +142,9 @@ describe('workspace file-changes', () => {
 
     // Modify existing file
     await writeFile(path.join(workspacePath, 'hello.txt'), 'modified content\n', 'utf8');
+
+    // Delete an existing file
+    await rm(path.join(workspacePath, 'delete-me.txt'));
 
     const diff = await captureFileChanges(workspacePath, baselineCommit);
 
@@ -151,6 +155,11 @@ describe('workspace file-changes', () => {
     // Should contain diff for new file
     expect(diff).toContain('new-file.txt');
     expect(diff).toContain('new content');
+
+    // Should contain diff for deleted file
+    expect(diff).toContain('delete-me.txt');
+    expect(diff).toContain('deleted file mode');
+    expect(diff).toContain('-remove this');
   });
 
   it('returns empty string when no changes', async () => {

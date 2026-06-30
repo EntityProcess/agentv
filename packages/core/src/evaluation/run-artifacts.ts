@@ -37,6 +37,7 @@ import {
 import type { Message } from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import {
+  CANONICAL_FILE_CHANGES_ARTIFACT_PATH,
   CANONICAL_METRICS_ARTIFACT_PATH,
   CANONICAL_TRANSCRIPT_ARTIFACT_PATH,
   type ResultArtifactPointersWire,
@@ -309,7 +310,8 @@ export interface GradingArtifact {
   readonly workspace_changes?: {
     readonly files_modified: number;
     readonly files_created: number;
-    readonly diff_summary: string;
+    readonly files_deleted: number;
+    readonly deleted_file_paths?: readonly string[];
   };
   readonly conversation?: {
     readonly turns: number;
@@ -462,6 +464,7 @@ export interface IndexArtifactEntry {
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
   readonly metrics_path?: string;
+  readonly file_changes_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly runtime_source?: RunRuntimeSourceMetadata;
   readonly raw_provider_log_path?: string;
@@ -512,6 +515,7 @@ export interface VercelRunResultArtifact {
   readonly model: string;
   readonly grading_path: string;
   readonly metrics_path: string;
+  readonly file_changes_path?: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
   readonly o11y: {
@@ -521,12 +525,14 @@ export interface VercelRunResultArtifact {
     readonly web_fetches: readonly unknown[];
     readonly files_read: readonly string[];
     readonly files_modified: readonly string[];
+    readonly files_deleted: readonly string[];
     readonly shell_commands: readonly unknown[];
     readonly errors: readonly unknown[];
     readonly thinking_blocks: number;
   };
   readonly output_paths?: {
     readonly answer?: string;
+    readonly file_changes?: string;
     readonly scripts?: Record<string, string>;
   };
   readonly timing?: TimingArtifact;
@@ -595,26 +601,29 @@ function parseWorkspaceChanges(
 
   let filesModified = 0;
   let filesCreated = 0;
-
-  for (const line of fileChanges.split('\n')) {
-    if (line.startsWith('--- /dev/null')) {
-      filesCreated += 1;
-    } else if (line.startsWith('--- a/')) {
-      filesModified += 1;
-    }
-  }
+  const deletedFilePaths = new Set<string>();
 
   const lines = fileChanges.split('\n');
-  const summaryLines = lines.slice(0, 20);
-  const diffSummary =
-    lines.length > 20
-      ? `${summaryLines.join('\n')}\n... (${lines.length - 20} more lines)`
-      : fileChanges;
+  for (let index = 0; index < lines.length - 1; index++) {
+    const previousLine = lines[index];
+    const nextLine = lines[index + 1];
+    if (previousLine === '--- /dev/null' && nextLine.startsWith('+++ b/')) {
+      filesCreated += 1;
+    } else if (previousLine.startsWith('--- a/') && nextLine.startsWith('+++ b/')) {
+      filesModified += 1;
+    } else if (previousLine.startsWith('--- a/') && nextLine === '+++ /dev/null') {
+      const filePath = previousLine.slice('--- a/'.length).trim();
+      if (filePath) {
+        deletedFilePaths.add(filePath);
+      }
+    }
+  }
 
   return {
     files_modified: filesModified,
     files_created: filesCreated,
-    diff_summary: diffSummary,
+    files_deleted: deletedFilePaths.size,
+    deleted_file_paths: deletedFilePaths.size > 0 ? [...deletedFilePaths] : undefined,
   };
 }
 
@@ -905,8 +914,12 @@ function buildVercelRunResultArtifact(params: {
   };
   readonly hasTranscript: boolean;
   readonly hasOutput: boolean;
+  readonly hasFileChanges: boolean;
 }): VercelRunResultArtifact {
   const metrics = params.metricsArtifact.metrics;
+  const fileChangesPath = params.hasFileChanges
+    ? `./${CANONICAL_FILE_CHANGES_ARTIFACT_PATH}`
+    : undefined;
   return dropUndefined({
     status: toVercelRunStatus(params.trial, params.result),
     duration_ms: resultDurationMs(params.result),
@@ -914,6 +927,7 @@ function buildVercelRunResultArtifact(params: {
     model: params.result.target ?? 'unknown',
     grading_path: './grading.json',
     metrics_path: `./${CANONICAL_METRICS_ARTIFACT_PATH}`,
+    file_changes_path: fileChangesPath,
     transcript_path: params.hasTranscript ? `./${CANONICAL_TRANSCRIPT_ARTIFACT_PATH}` : undefined,
     transcript_raw_path: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
     o11y: {
@@ -923,11 +937,18 @@ function buildVercelRunResultArtifact(params: {
       web_fetches: metrics.web_fetches,
       files_read: toFilePathList(metrics.files_read),
       files_modified: toFilePathList(metrics.files_modified),
+      files_deleted: Array.isArray(metrics.files_deleted) ? metrics.files_deleted : [],
       shell_commands: metrics.shell_commands,
       errors: metrics.errors,
       thinking_blocks: metrics.thinking_blocks,
     },
-    output_paths: params.hasOutput ? { answer: './outputs/answer.md' } : undefined,
+    output_paths:
+      params.hasOutput || params.hasFileChanges
+        ? dropUndefined({
+            answer: params.hasOutput ? './outputs/answer.md' : undefined,
+            file_changes: fileChangesPath,
+          })
+        : undefined,
     timing: params.metricsArtifact.timing,
   }) as unknown as VercelRunResultArtifact;
 }
@@ -980,6 +1001,9 @@ async function writeTrialRunArtifacts(params: {
   const outputsDir = path.join(runDir, 'outputs');
   const answerOutputPath =
     result.output.length > 0 ? path.join(outputsDir, 'answer.md') : undefined;
+  const fileChangesPath = result.fileChanges
+    ? path.join(runDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
+    : undefined;
   const attemptRunId = params.runId
     ? `${params.runId}:${runDirName}`
     : `${result.testId}:${result.target}:${runDirName}`;
@@ -1005,6 +1029,9 @@ async function writeTrialRunArtifacts(params: {
   if (answerOutputPath) {
     await writeFile(answerOutputPath, result.output, 'utf8');
   }
+  if (fileChangesPath && result.fileChanges) {
+    await writeFile(fileChangesPath, result.fileChanges, 'utf8');
+  }
   if (transcriptPath && transcriptRawPath) {
     await writeNormalizedTranscriptJsonl(transcriptPath, envelope);
     await writeRawTranscriptJsonl(transcriptRawPath, result, envelope);
@@ -1016,6 +1043,7 @@ async function writeTrialRunArtifacts(params: {
     transcriptArtifactPath: transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
     gradingArtifactPath: 'grading.json',
     timingArtifactPath: 'timing.json',
+    fileChangesArtifactPath: fileChangesPath ? CANONICAL_FILE_CHANGES_ARTIFACT_PATH : undefined,
     timing,
   });
 
@@ -1028,6 +1056,7 @@ async function writeTrialRunArtifacts(params: {
         metricsArtifact,
         hasTranscript,
         hasOutput: result.output.length > 0,
+        hasFileChanges: result.fileChanges !== undefined && result.fileChanges.length > 0,
       }),
       null,
       2,
@@ -1624,6 +1653,9 @@ function buildTraceEnvelopeSidecar(params: TraceEnvelopeSidecarParams): TraceEnv
       answer_path: params.result.output.length > 0 ? 'outputs/answer.md' : undefined,
       transcript_path: hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
       metrics_path: CANONICAL_METRICS_ARTIFACT_PATH,
+      file_changes_path: params.result.fileChanges
+        ? CANONICAL_FILE_CHANGES_ARTIFACT_PATH
+        : undefined,
     },
     duplicatePolicy: params.duplicatePolicy,
   });
@@ -1642,6 +1674,7 @@ export function buildIndexArtifactEntry(
     transcriptPath?: string;
     transcriptRawPath?: string;
     metricsPath?: string;
+    fileChangesPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
@@ -1699,6 +1732,9 @@ export function buildIndexArtifactEntry(
     metrics_path: options.metricsPath
       ? toRelativeArtifactPath(options.outputDir, options.metricsPath)
       : undefined,
+    file_changes_path: options.fileChangesPath
+      ? toRelativeArtifactPath(options.outputDir, options.fileChangesPath)
+      : undefined,
     raw_provider_log_path: options.rawProviderLogPath
       ? toRelativeArtifactPath(options.outputDir, options.rawProviderLogPath)
       : undefined,
@@ -1731,6 +1767,7 @@ export function buildResultIndexArtifact(
     options?.projectionIdentity,
   );
   const hasAnswer = result.output.length > 0;
+  const hasFileChanges = result.fileChanges !== undefined && result.fileChanges.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedTrialRuns(result);
   const singleRunDir = path.posix.join(artifactSubdir, trialRunDirName(0));
@@ -1768,6 +1805,10 @@ export function buildResultIndexArtifact(
       isSingleRun && hasAnswer ? path.posix.join(singleRunDir, 'outputs', 'answer.md') : undefined,
     answer_path:
       isSingleRun && hasAnswer ? path.posix.join(singleRunDir, 'outputs', 'answer.md') : undefined,
+    file_changes_path:
+      isSingleRun && hasFileChanges
+        ? path.posix.join(singleRunDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
+        : undefined,
     transcript_path:
       isSingleRun && hasTranscript
         ? path.posix.join(singleRunDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
@@ -1843,6 +1884,7 @@ function buildMetricsArtifactPayload(params: {
   readonly transcriptArtifactPath?: string;
   readonly gradingArtifactPath?: string;
   readonly timingArtifactPath?: string | null;
+  readonly fileChangesArtifactPath?: string;
   readonly timing?: TimingArtifact;
 }): ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact } {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
@@ -1852,6 +1894,7 @@ function buildMetricsArtifactPayload(params: {
     gradingPath: params.gradingArtifactPath ?? 'grading.json',
     timingPath:
       params.timingArtifactPath === null ? undefined : (params.timingArtifactPath ?? 'timing.json'),
+    fileChangesPath: params.fileChangesArtifactPath,
   });
   return params.timing ? { ...artifact, timing: params.timing } : artifact;
 }
@@ -1864,6 +1907,7 @@ async function writeMetricsArtifact(params: {
   readonly transcriptArtifactPath?: string;
   readonly gradingArtifactPath?: string;
   readonly timingArtifactPath?: string | null;
+  readonly fileChangesArtifactPath?: string;
   readonly timing?: TimingArtifact;
 }): Promise<ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact }> {
   const artifactWithTiming = buildMetricsArtifactPayload(params);
@@ -2250,6 +2294,10 @@ export async function writePerTestArtifacts(
     const singleMetricsPath = isSingleRun
       ? path.join(singleRunDir, CANONICAL_METRICS_ARTIFACT_PATH)
       : undefined;
+    const singleFileChangesPath =
+      isSingleRun && result.fileChanges
+        ? path.join(singleRunDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
+        : undefined;
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
@@ -2271,6 +2319,7 @@ export async function writePerTestArtifacts(
         answerPath: singleAnswerPath,
         transcriptPath: singleTranscriptPath,
         transcriptRawPath: singleTranscriptRawPath,
+        fileChangesPath: singleFileChangesPath,
         extraIndexFields,
         runtimeSource: options?.runtimeSource,
         projectionIdentity,
@@ -2357,6 +2406,10 @@ export async function writeArtifactsFromResults(
     const singleMetricsPath = isSingleRun
       ? path.join(singleRunDir, CANONICAL_METRICS_ARTIFACT_PATH)
       : undefined;
+    const singleFileChangesPath =
+      isSingleRun && result.fileChanges
+        ? path.join(singleRunDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
+        : undefined;
     return {
       result,
       testDir,
@@ -2369,6 +2422,7 @@ export async function writeArtifactsFromResults(
       singleGradingPath,
       singleTimingPath,
       singleMetricsPath,
+      singleFileChangesPath,
       identityId,
     };
   });
@@ -2443,6 +2497,7 @@ export async function writeArtifactsFromResults(
         answerPath: plan.singleAnswerPath,
         transcriptPath: plan.singleTranscriptPath,
         transcriptRawPath: plan.singleTranscriptRawPath,
+        fileChangesPath: plan.singleFileChangesPath,
         extraIndexFields,
         runtimeSource: options?.runtimeSource,
         projectionIdentity: plan.projectionIdentity,
