@@ -15,7 +15,7 @@
  *       id: 'capital',
  *       input: 'What is the capital of France?',
  *       expectedOutput: 'Paris',
- *       assert: [{ type: 'contains', value: 'Paris' }],
+ *       assertions: [{ type: 'contains', value: 'Paris' }],
  *     },
  *   ],
  *   target: { provider: 'mock_agent' },
@@ -34,7 +34,7 @@
  *       id: 'echo',
  *       input: 'hello',
  *       expectedOutput: 'Echo: hello',
- *       assert: [
+ *       assertions: [
  *         { type: 'contains', value: 'hello' },
  *         { type: 'equals' },
  *         ({ output }) => ({ name: 'custom', score: output.length > 0 ? 1 : 0 }),
@@ -104,7 +104,7 @@ export interface EvalTestInput {
   /** @deprecated Use `expectedOutput` instead */
   readonly expected_output?: string;
   /** Assertion graders — accepts factory functions, config objects, or inline functions */
-  readonly assert?: readonly AssertEntry[];
+  readonly assertions?: readonly AssertEntry[];
   /** Arbitrary metadata */
   readonly metadata?: Record<string, unknown>;
   /** Enable multi-turn conversation mode. Inferred automatically when turns[] is provided. */
@@ -127,12 +127,12 @@ export interface ConversationTurnInput {
   /** @deprecated Use `expectedOutput` instead */
   readonly expected_output?: string;
   /** Per-turn assertions (string criteria or grader config) */
-  readonly assert?: readonly AssertEntry[];
+  readonly assertions?: readonly AssertEntry[];
 }
 
 /**
  * Inline assertion definition for the programmatic API.
- * Matches the YAML `assert` block structure.
+ * Matches the YAML `assertions` block structure.
  */
 export interface EvalAssertionInput {
   /** Assertion type (e.g., 'contains', 'llm-grader', 'code-grader') */
@@ -154,7 +154,7 @@ export interface EvalAssertionInput {
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
   /** Nested assertions for composite type */
-  readonly assert?: readonly EvalAssertionInput[];
+  readonly assertions?: readonly EvalAssertionInput[];
   /** Rubric criteria for rubrics type */
   readonly criteria?: readonly (string | { id?: string; outcome: string; weight?: number })[];
   /** Additional properties */
@@ -178,7 +178,7 @@ export interface EvalConfig {
   /** Custom task function — mutually exclusive with target */
   readonly task?: (input: string) => string | Promise<string>;
   /** Suite-level assertions applied to all tests */
-  readonly assert?: readonly AssertEntry[];
+  readonly assertions?: readonly AssertEntry[];
   /** Optional suite metadata used by CLI discovery, tagging, and reporting. */
   readonly metadata?: EvalMetadata;
   /** Filter tests by ID pattern(s) (glob supported). Arrays use OR logic. */
@@ -276,7 +276,7 @@ export interface EvalRunArtifacts {
  *     {
  *       id: 'greeting',
  *       input: 'Say hello',
- *       assert: [{ type: 'contains', value: 'hello' }],
+ *       assertions: [{ type: 'contains', value: 'hello' }],
  *     },
  *   ],
  *   target: { provider: 'mock_agent' },
@@ -486,10 +486,37 @@ function toBeforeAllHook(beforeAll: string | readonly string[]): WorkspaceHookCo
   return { command };
 }
 
+const REMOVED_ASSERT_KEY = 'assert';
+
+function rejectRemovedAssertKey(value: unknown, location: string): void {
+  if (
+    value &&
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(value, REMOVED_ASSERT_KEY)
+  ) {
+    throw new Error(`${location}: 'assert' has been removed. Use 'assertions' instead.`);
+  }
+}
+
+function validateAssertionEntries(
+  entries: readonly AssertEntry[] | undefined,
+  location: string,
+): void {
+  entries?.forEach((entry, i) => {
+    if (typeof entry === 'function') return;
+    rejectRemovedAssertKey(entry, `${location}[${i}]`);
+    validateAssertionEntries(entry.assertions, `${location}[${i}].assertions`);
+  });
+}
+
 /**
- * Convert an array of assert entries (inline functions or config objects) to GraderConfig[].
+ * Convert an array of assertion entries (inline functions or config objects) to GraderConfig[].
  */
-function convertAssertions(entries: readonly AssertEntry[]): GraderConfig[] {
+function convertAssertions(
+  entries: readonly AssertEntry[],
+  location = 'assertions',
+): GraderConfig[] {
+  validateAssertionEntries(entries, location);
   return entries.map((entry, i) => {
     if (typeof entry === 'function') {
       const base: InlineAssertEvaluatorConfig = {
@@ -518,6 +545,7 @@ function buildInlineEvalTests(
     readonly testFilePath: string;
   },
 ): readonly EvalTest[] {
+  rejectRemovedAssertKey(config, 'evaluate config');
   const suiteWorkspace = config.beforeAll
     ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
     : undefined;
@@ -530,6 +558,7 @@ function buildInlineEvalTests(
   return (config.tests ?? [])
     .filter((test) => !options.filter || matchesFilter(test.id, options.filter))
     .map((test): EvalTest => {
+      rejectRemovedAssertKey(test, `Test '${test.id}'`);
       const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
 
       if (!isConversation && !test.input) {
@@ -551,16 +580,19 @@ function buildInlineEvalTests(
           ] as EvalTest['expected_output'])
         : [];
 
-      const allAssertions = [...(test.assert ?? []), ...(config.assert ?? [])];
-      const assertConfigs = convertAssertions(allAssertions);
+      const allAssertions = [...(test.assertions ?? []), ...(config.assertions ?? [])];
+      const assertConfigs = convertAssertions(allAssertions, `Test '${test.id}'.assertions`);
       const turns: ConversationTurn[] | undefined = test.turns?.map((turn) => {
+        rejectRemovedAssertKey(turn, `Test '${test.id}'.turns[]`);
         const turnExpected = turn.expectedOutput ?? turn.expected_output;
         return {
           input: turn.input as ConversationTurn['input'],
           ...(turnExpected !== undefined && {
             expected_output: turnExpected as ConversationTurn['expected_output'],
           }),
-          assertions: turn.assert ? convertAssertions([...turn.assert]) : undefined,
+          assertions: turn.assertions
+            ? convertAssertions([...turn.assertions], `Test '${test.id}'.turns[].assertions`)
+            : undefined,
         };
       });
 
@@ -588,14 +620,17 @@ function applyProgrammaticSuiteOverrides(
   tests: readonly EvalTest[],
   config: EvalConfig,
 ): readonly EvalTest[] {
-  if (!config.beforeAll && (!config.assert || config.assert.length === 0)) {
+  rejectRemovedAssertKey(config, 'evaluate config');
+  if (!config.beforeAll && (!config.assertions || config.assertions.length === 0)) {
     return tests;
   }
 
   const suiteWorkspace = config.beforeAll
     ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
     : undefined;
-  const suiteAssertions = config.assert ? convertAssertions(config.assert) : [];
+  const suiteAssertions = config.assertions
+    ? convertAssertions(config.assertions, 'evaluate config.assertions')
+    : [];
 
   return tests.map((test) => ({
     ...test,

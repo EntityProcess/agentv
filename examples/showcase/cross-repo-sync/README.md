@@ -18,7 +18,7 @@ When **agentv** (EntityProcess/agentv) ships a feature, the **agentevals** (agen
 
 ## Test Cases
 
-1. **eval-spec-v2-sync** — Add 4 deterministic assert types + required gates
+1. **eval-spec-v2-sync** — Add 4 deterministic assertion types + required gates
 2. **cases-to-tests-sync** — Rename `cases` → `tests` across spec docs
 3. **schema-field-rename-sync** — Rename `eval_cases` → `cases`, `expected_outcome` → `criteria`/`outcome`
 

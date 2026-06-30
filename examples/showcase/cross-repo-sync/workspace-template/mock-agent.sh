@@ -12,7 +12,7 @@ sedi() { sed -i.bak "$@" && find . -name '*.bak' -delete; }
 cd agentevals
 
 if echo "$PROMPT" | grep -qi "eval spec v2"; then
-  # Scenario 1: Add assert types and required gates
+  # Scenario 1: Add assertion types and required gates
   EVAL_FILE="docs/src/content/docs/specification/evaluators.mdx"
   FORMAT_FILE="docs/src/content/docs/specification/eval-format.mdx"
 
@@ -33,7 +33,7 @@ PATCH
     sedi 's/weight: number/weight: number\n      required: boolean/' "$FORMAT_FILE" 2>/dev/null || true
   fi
 
-  echo "Updated evaluators and eval-format for eval spec v2 assert types and required gates" > "$OUTPUT_FILE"
+  echo "Updated evaluators and eval-format for eval spec v2 assertion types and required gates" > "$OUTPUT_FILE"
 
 elif echo "$PROMPT" | grep -qi "cases.*tests"; then
   # Scenario 2: Rename cases to tests

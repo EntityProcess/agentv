@@ -20,7 +20,7 @@ const { results, summary } = await evaluate({
     {
       id: 'greeting',
       input: 'Say hello.',
-      assert: [{ type: 'contains', value: 'Hello' }],
+      assertions: [{ type: 'contains', value: 'Hello' }],
     },
 
     // Multi-turn conversation test
@@ -30,12 +30,12 @@ const { results, summary } = await evaluate({
       turns: [
         {
           input: 'Hi, my name is Alice.',
-          assert: [{ type: 'contains', value: 'Alice' }],
+          assertions: [{ type: 'contains', value: 'Alice' }],
         },
         {
           input: 'What is my name?',
           expectedOutput: 'Your name is Alice.',
-          assert: [{ type: 'contains', value: 'Alice' }],
+          assertions: [{ type: 'contains', value: 'Alice' }],
         },
       ],
       // Use weakest-link scoring: final score = lowest turn score

@@ -28,7 +28,7 @@ describe('evaluate() — programmatic API extensions', () => {
           {
             id: 'budget-test',
             input: 'hello',
-            assert: [{ type: 'contains', value: 'hello' }],
+            assertions: [{ type: 'contains', value: 'hello' }],
           },
         ],
         target: { name: 'default', provider: 'mock', response: 'hello world' },
@@ -47,12 +47,12 @@ describe('evaluate() — programmatic API extensions', () => {
           {
             id: 'quality-pass',
             input: 'ok',
-            assert: [{ type: 'contains', value: 'task ok' }],
+            assertions: [{ type: 'contains', value: 'task ok' }],
           },
           {
             id: 'provider-error',
             input: 'explode',
-            assert: [{ type: 'contains', value: 'task ok' }],
+            assertions: [{ type: 'contains', value: 'task ok' }],
           },
         ],
         task: async (input) => {
@@ -91,7 +91,7 @@ describe('evaluate() — programmatic API extensions', () => {
             {
               id: 'programmatic-cache-path',
               input: 'hello',
-              assert: [{ type: 'contains', value: 'cached' }],
+              assertions: [{ type: 'contains', value: 'cached' }],
             },
           ],
           target: { name: 'default', provider: 'mock', response: 'cached response' },
@@ -122,7 +122,7 @@ describe('evaluate() — programmatic API extensions', () => {
             {
               id: 'programmatic-artifacts',
               input: 'hello',
-              assert: [{ type: 'contains', value: 'mock' }],
+              assertions: [{ type: 'contains', value: 'mock' }],
             },
           ],
           target: { name: 'default', provider: 'mock', response: 'mock response' },
@@ -184,11 +184,11 @@ describe('evaluate() — programmatic API extensions', () => {
             turns: [
               {
                 input: 'Hello',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
               {
                 input: 'How are you?',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
             ],
           },
@@ -211,7 +211,7 @@ describe('evaluate() — programmatic API extensions', () => {
             turns: [
               {
                 input: 'First turn',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
             ],
           },
@@ -234,7 +234,7 @@ describe('evaluate() — programmatic API extensions', () => {
               {
                 input: 'Say hello',
                 expectedOutput: 'Hello!',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
             ],
           },
@@ -259,7 +259,7 @@ describe('evaluate() — programmatic API extensions', () => {
                   { role: 'system', content: 'You are helpful' },
                   { role: 'user', content: 'Hello' },
                 ],
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
             ],
           },
@@ -285,11 +285,11 @@ describe('evaluate() — programmatic API extensions', () => {
             turns: [
               {
                 input: 'Turn 1',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
               {
                 input: 'Turn 2',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
             ],
             aggregation: 'min',
@@ -316,7 +316,7 @@ describe('evaluate() — programmatic API extensions', () => {
           {
             id: 'before-all-string',
             input: 'hello',
-            assert: [{ type: 'contains', value: 'test' }],
+            assertions: [{ type: 'contains', value: 'test' }],
           },
         ],
         target: { name: 'default', provider: 'mock', response: 'test output' },
@@ -335,7 +335,7 @@ describe('evaluate() — programmatic API extensions', () => {
           {
             id: 'before-all-array',
             input: 'hello',
-            assert: [{ type: 'contains', value: 'test' }],
+            assertions: [{ type: 'contains', value: 'test' }],
           },
         ],
         target: { name: 'default', provider: 'mock', response: 'test output' },
@@ -361,11 +361,11 @@ describe('evaluate() — programmatic API extensions', () => {
               {
                 input: 'Hello',
                 expectedOutput: 'Hi there',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
               {
                 input: 'Goodbye',
-                assert: [{ type: 'contains', value: 'mock' }],
+                assertions: [{ type: 'contains', value: 'mock' }],
               },
             ],
             aggregation: 'mean',
@@ -392,7 +392,7 @@ describe('evaluate() — programmatic API extensions', () => {
           {
             id: 'standard-input',
             input: 'hello',
-            assert: [{ type: 'contains', value: 'hello' }],
+            assertions: [{ type: 'contains', value: 'hello' }],
           },
         ],
         target: { name: 'default', provider: 'mock', response: 'hello world' },
@@ -427,7 +427,7 @@ describe('evaluate() — programmatic API extensions', () => {
       expect(() =>
         evaluate({
           // biome-ignore lint/suspicious/noExplicitAny: intentionally testing invalid input
-          tests: [{ id: 'no-input', assert: [{ type: 'contains', value: 'x' }] } as any],
+          tests: [{ id: 'no-input', assertions: [{ type: 'contains', value: 'x' }] } as any],
           target: { name: 'default', provider: 'mock', response: 'hello' },
         }),
       ).toThrow("Test 'no-input': input is required for non-conversation tests");

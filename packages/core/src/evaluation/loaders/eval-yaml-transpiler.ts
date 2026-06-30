@@ -4,7 +4,7 @@
  * Converts an AgentV EVAL.yaml file into Agent Skills evals.json format
  * for consumption by the skill-creator pipeline.
  *
- * Handles both `assertions:` (current) and `assert:` (deprecated alias).
+ * Handles canonical `assertions:` entries.
  */
 
 import { readFileSync } from 'node:fs';
@@ -70,16 +70,12 @@ interface RawTestCase {
   input_files?: string[];
   expected_output?: string | RawMessage[] | unknown;
   assertions?: RawAssertEntry[];
-  /** @deprecated Use `assertions` instead */
-  assert?: RawAssertEntry[];
   [key: string]: unknown;
 }
 
 interface RawSuite {
   tests?: RawTestCase[];
   assertions?: RawAssertEntry[];
-  /** @deprecated Use `assertions` instead */
-  assert?: RawAssertEntry[];
   [key: string]: unknown;
 }
 
@@ -266,25 +262,6 @@ function extractTriggerAssertions(assertions: RawAssertEntry[]): RawAssertEntry[
   return assertions.filter((a) => a.type === 'skill-trigger');
 }
 
-/**
- * Collect all assertion entries for a test case, accepting both
- * `assertions` and deprecated `assert` key.
- */
-function resolveAssertions(rawCase: RawTestCase): RawAssertEntry[] {
-  if (Array.isArray(rawCase.assertions)) return rawCase.assertions;
-  if (Array.isArray(rawCase.assert)) return rawCase.assert;
-  return [];
-}
-
-/**
- * Collect suite-level assertions (applied to every test).
- */
-function resolveSuiteAssertions(suite: RawSuite): RawAssertEntry[] {
-  if (Array.isArray(suite.assertions)) return suite.assertions;
-  if (Array.isArray(suite.assert)) return suite.assert;
-  return [];
-}
-
 // ---------------------------------------------------------------------------
 // Input extraction
 // ---------------------------------------------------------------------------
@@ -376,7 +353,6 @@ export interface TranspileResult {
  * @param source Source identifier for error messages (e.g. file path)
  */
 export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): TranspileResult {
-  const warnings: string[] = [];
   const files = new Map<string, EvalsJsonFile>();
 
   if (typeof suite !== 'object' || suite === null) {
@@ -389,11 +365,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     throw new Error(`Invalid EVAL.yaml: missing 'tests' array in '${source}'`);
   }
 
-  if (rawSuite.assert !== undefined && rawSuite.assertions === undefined) {
-    warnings.push("'assert' is deprecated at the suite level. Use 'assertions' instead.");
-  }
-
-  const suiteAssertions = resolveSuiteAssertions(rawSuite);
+  const suiteAssertions = rawSuite.assertions ?? [];
 
   // Suite-level NL assertions (appended to every test)
   const suiteNlAssertions: string[] = suiteAssertions
@@ -415,12 +387,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
 
   for (let idx = 0; idx < tests.length; idx++) {
     const rawCase = tests[idx];
-    const caseAssertions = resolveAssertions(rawCase);
-
-    if (rawCase.assert !== undefined && rawCase.assertions === undefined) {
-      const caseId = rawCase.id ?? idx + 1;
-      warnings.push(`Test '${caseId}': 'assert' is deprecated. Use 'assertions' instead.`);
-    }
+    const caseAssertions = rawCase.assertions ?? [];
 
     // Collect NL assertions (not skill-trigger)
     const nlAssertions: string[] = [];
@@ -496,7 +463,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     // else: keep _no-skill if there are no other skills
   }
 
-  return { files, warnings };
+  return { files, warnings: [] };
 }
 
 // ---------------------------------------------------------------------------

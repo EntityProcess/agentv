@@ -207,12 +207,12 @@ export async function loadTestsFromJsonl(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
-    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assert
+    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
     const hasEvaluationSpec =
-      !!outcome || expectedMessages.length > 0 || testCaseConfig.assert !== undefined;
+      !!outcome || expectedMessages.length > 0 || testCaseConfig.assertions !== undefined;
     if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
+        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,
       );
       continue;
     }

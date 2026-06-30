@@ -181,8 +181,6 @@ type RawTestSuite = JsonObject & {
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
-  /** @deprecated Use `assertions` instead */
-  readonly assert?: JsonValue;
   readonly input?: JsonValue;
   readonly metadata?: JsonValue;
   readonly governance?: JsonValue;
@@ -215,8 +213,6 @@ type RawEvalCase = JsonObject & {
   readonly run?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
-  /** @deprecated Use `assertions` instead */
-  readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
@@ -539,11 +535,7 @@ async function loadTestsFromParsedYamlValue(
   const _globalTarget = asString(rawGlobalExecution?.target) ?? asString(suite.target);
 
   // Build global execution context, including suite-level assertions (which is a sibling of execution)
-  // Also accept legacy `assert` key with a deprecation warning
-  const suiteAssertions = suite.assertions ?? suite.assert;
-  if (suite.assert !== undefined && suite.assertions === undefined) {
-    logWarning("'assert' is deprecated at the suite level. Use 'assertions' instead.");
-  }
+  const suiteAssertions = suite.assertions;
   const globalExecution: JsonObject | undefined =
     suiteAssertions !== undefined
       ? { ...(rawGlobalExecution ?? {}), assertions: suiteAssertions }
@@ -646,7 +638,6 @@ async function loadTestsFromParsedYamlValue(
       !!outcome ||
       expectedMessages.length > 0 ||
       renderedCase.assertions !== undefined ||
-      renderedCase.assert !== undefined ||
       (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
     if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
       logError(

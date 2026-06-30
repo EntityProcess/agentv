@@ -1,5 +1,5 @@
 # AgentV Rubric Grader Example
-# Demonstrates the rubric-based evaluation feature using type: rubrics under assert
+# Demonstrates the rubric-based evaluation feature using type: rubrics under assertions
 
 name: rubric
 description: "Example showing rubric grader - string shorthand and type: rubrics"
@@ -10,7 +10,7 @@ execution:
 tests:
   # ==========================================
   # Example 1: Simple string rubrics
-  # Demonstrates: string shorthand in assert (strings default to rubrics grader)
+  # Demonstrates: string shorthand in assertions (strings default to rubrics grader)
   # ==========================================
   - id: code-explanation-simple
 

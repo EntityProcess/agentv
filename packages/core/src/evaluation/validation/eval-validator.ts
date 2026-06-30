@@ -94,15 +94,16 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'workspace',
 ]);
 
-/**
- * Deprecated top-level fields with migration hints.
- * These are still processed by yaml-parser but authors should migrate.
- */
+/** Removed top-level fields with migration hints. */
+const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
+  ['assert', "'assert' has been removed. Use 'assertions' instead."],
+]);
+
+/** Deprecated top-level fields with migration hints. */
 const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['eval_cases', "'eval_cases' is deprecated. Use 'tests' instead."],
   ['evalcases', "'evalcases' is deprecated. Use 'tests' instead."],
   ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
-  ['assert', "'assert' is deprecated. Use 'assertions' instead."],
 ]);
 
 /** Known fields at the test level. */
@@ -131,13 +132,14 @@ const KNOWN_TEST_FIELDS = new Set([
   'window_size',
 ]);
 
-/**
- * Deprecated test-level fields with migration hints.
- * These are still processed by yaml-parser but authors should migrate.
- */
+/** Removed test-level fields with migration hints. */
+const REMOVED_TEST_FIELDS = new Map<string, string>([
+  ['assert', "'assert' has been removed. Use 'assertions' instead."],
+]);
+
+/** Deprecated test-level fields with migration hints. */
 const DEPRECATED_TEST_FIELDS = new Map<string, string>([
   ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
-  ['assert', "'assert' is deprecated. Use 'assertions' instead."],
   ['expected_outcome', "'expected_outcome' is deprecated. Use 'criteria' instead."],
 ]);
 
@@ -274,6 +276,16 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   // Warn on deprecated or unknown top-level fields
   for (const key of Object.keys(parsed)) {
+    const removedMessage = REMOVED_TOP_LEVEL_FIELDS.get(key);
+    if (removedMessage) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: key,
+        message: removedMessage,
+      });
+      continue;
+    }
     const deprecationMessage = DEPRECATED_TOP_LEVEL_FIELDS.get(key);
     if (deprecationMessage) {
       errors.push({
@@ -370,6 +382,16 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
     // Warn on deprecated or unknown test-level fields
     for (const key of Object.keys(evalCase)) {
+      const removedMessage = REMOVED_TEST_FIELDS.get(key);
+      if (removedMessage) {
+        errors.push({
+          severity: 'error',
+          filePath: absolutePath,
+          location: `${location}.${key}`,
+          message: removedMessage,
+        });
+        continue;
+      }
       const deprecationMessage = DEPRECATED_TEST_FIELDS.get(key);
       if (deprecationMessage) {
         errors.push({

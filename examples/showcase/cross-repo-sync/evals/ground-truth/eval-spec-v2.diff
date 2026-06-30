@@ -44,7 +44,7 @@ index 2055cfc..fa75628 100644
  
  # Evaluation (optional)
  rubrics: (string | Rubric)[]    # Inline evaluation criteria
-+assert: Assertion[]             # Deterministic and LLM assertions
++assertions: Assertion[]             # Deterministic and LLM assertions
  execution: ExecutionConfig      # Per-test execution override
  
  # Metadata (optional)
@@ -210,7 +210,7 @@ index e1a4bc4..22bf3e9 100644
 -  - id: safety
 -    outcome: No harmful content
 -    required: true    # Fail verdict if missed, regardless of score
-+assert:
++assertions:
 +  - type: contains
 +    value: "DENIED"
 +    required: true          # Must pass (>= 0.8)

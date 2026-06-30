@@ -2433,7 +2433,7 @@ describe('deterministic assertion evaluators in orchestrator', () => {
   });
 });
 
-describe('criteria with assert runs only declared evaluators (#452)', () => {
+describe('criteria with assertions runs only declared evaluators (#452)', () => {
   const criteriaTestCase: EvalTest = {
     id: 'no-implicit-grader-1',
     suite: 'test-dataset',
@@ -2445,7 +2445,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
     criteria: 'Response should be polite',
   };
 
-  it('does NOT inject implicit llm-grader when criteria is present with assert', async () => {
+  it('does NOT inject implicit llm-grader when criteria is present with assertions', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
@@ -2502,7 +2502,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
     expect(result.score).toBeCloseTo(1.0);
   });
 
-  it('does NOT inject implicit llm-grader when expected_output is present with assert', async () => {
+  it('does NOT inject implicit llm-grader when expected_output is present with assertions', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
     });
@@ -2537,7 +2537,7 @@ describe('criteria with assert runs only declared evaluators (#452)', () => {
       graderTarget: 'grader-target',
     };
 
-    // When user explicitly adds llm-grader to assert, it runs and reads criteria
+    // When user explicitly adds llm-grader to assertions, it runs and reads criteria
     const result = await runEvalCase({
       evalCase: {
         ...criteriaTestCase,

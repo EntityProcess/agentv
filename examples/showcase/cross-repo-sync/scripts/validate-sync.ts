@@ -5,7 +5,7 @@
  * - File-level overlap: which expected files were modified
  * - Keyword matching: key terms that should appear in modifications
  *
- * Pass-through config (from assert block in YAML):
+ * Pass-through config (from assertions block in YAML):
  *   - expected_files_modified: string[] — paths that should appear in fileChanges
  *   - expected_keywords: string[] — terms that should appear in the diff
  *   - ground_truth: string — path to the ground truth diff file (from metadata)
