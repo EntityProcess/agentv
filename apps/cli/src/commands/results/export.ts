@@ -20,12 +20,18 @@
  *   - To add new per-test workspace files, add them under each test directory.
  */
 
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { command, flag, oneOf, option, optional, positional, string } from 'cmd-ts';
 
-import type { EvaluationResult, ExportDuplicatePolicy, IndexArtifactEntry } from '@agentv/core';
+import type {
+  AdditionalResultArtifactsWriter,
+  AdditionalResultIndexFields,
+  EvaluationResult,
+  ExportDuplicatePolicy,
+  IndexArtifactEntry,
+} from '@agentv/core';
 
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
 import {
@@ -51,6 +57,7 @@ export async function exportResults(
   options?: { duplicatePolicy?: ExportDuplicatePolicy },
 ): Promise<void> {
   const results = parseJsonlResults(content);
+  const sourceIndexRecords = parseIndexArtifactEntries(content);
 
   if (results.length === 0) {
     throw new Error(`No results found in ${sourceFile}`);
@@ -60,6 +67,11 @@ export async function exportResults(
     evalFile: sourceFile,
     runId: deriveExportRunId(sourceFile),
     duplicatePolicy: options?.duplicatePolicy ?? 'update',
+    additionalArtifacts: createExportBundleArtifactsWriter({
+      outputDir,
+      sourceBaseDir: path.dirname(sourceFile),
+      sourceRecordsByResult: buildSourceRecordMap(results, sourceIndexRecords),
+    }),
   });
 }
 
@@ -100,18 +112,107 @@ export function deriveExportRunId(sourceFile: string): string {
 export async function loadExportSource(
   source: string | undefined,
   cwd: string,
-): Promise<{ sourceFile: string; results: readonly EvaluationResult[] }> {
+): Promise<{
+  sourceFile: string;
+  results: readonly EvaluationResult[];
+  indexRecords?: readonly IndexArtifactEntry[];
+}> {
   const { sourceFile } = await resolveSourceFile(source, cwd);
   const { results } = await loadSharedResults(source, cwd);
-  return { sourceFile, results };
+  const indexRecords = isRunManifestPath(sourceFile)
+    ? readIndexArtifactEntries(sourceFile)
+    : undefined;
+  return { sourceFile, results, indexRecords };
 }
 
-function readIndexArtifactEntries(indexPath: string): IndexArtifactEntry[] {
-  return readFileSync(indexPath, 'utf8')
+function parseIndexArtifactEntries(content: string): IndexArtifactEntry[] {
+  return content
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => JSON.parse(line) as IndexArtifactEntry);
+}
+
+function readIndexArtifactEntries(indexPath: string): IndexArtifactEntry[] {
+  return parseIndexArtifactEntries(readFileSync(indexPath, 'utf8'));
+}
+
+function buildSourceRecordMap(
+  results: readonly EvaluationResult[],
+  sourceRecords: readonly IndexArtifactEntry[],
+): ReadonlyMap<EvaluationResult, IndexArtifactEntry> {
+  return new Map(
+    results.flatMap((result, index) => {
+      const sourceRecord = sourceRecords[index];
+      return sourceRecord ? [[result, sourceRecord] as const] : [];
+    }),
+  );
+}
+
+function isSafeRelativePath(relativePath: string | undefined): relativePath is string {
+  return (
+    typeof relativePath === 'string' &&
+    relativePath.trim().length > 0 &&
+    !path.isAbsolute(relativePath) &&
+    !relativePath.split(/[\\/]+/).includes('..')
+  );
+}
+
+function toRelativeArtifactPath(outputDir: string, filePath: string): string {
+  return path.relative(outputDir, filePath).split(path.sep).join('/');
+}
+
+function hasCopiedSubdir(testBundleDir: string, dirname: string): boolean {
+  return existsSync(path.join(testBundleDir, dirname));
+}
+
+function createExportBundleArtifactsWriter(options: {
+  readonly outputDir: string;
+  readonly sourceBaseDir: string;
+  readonly sourceRecordsByResult: ReadonlyMap<EvaluationResult, IndexArtifactEntry>;
+}): AdditionalResultArtifactsWriter | undefined {
+  if (options.sourceRecordsByResult.size === 0) {
+    return undefined;
+  }
+
+  return async ({ result, testDir }): Promise<AdditionalResultIndexFields | undefined> => {
+    const sourceRecord = options.sourceRecordsByResult.get(result);
+    const sourceBundleDir = sourceRecord?.test_dir ?? sourceRecord?.task_dir;
+    if (!isSafeRelativePath(sourceBundleDir)) {
+      return undefined;
+    }
+
+    const sourceBundlePath = path.join(options.sourceBaseDir, sourceBundleDir);
+    const testBundlePath = path.join(testDir, 'test');
+    if (existsSync(sourceBundlePath)) {
+      cpSync(sourceBundlePath, testBundlePath, { recursive: true, force: true });
+    }
+
+    return {
+      test_dir: toRelativeArtifactPath(options.outputDir, testBundlePath),
+      eval_path: toRelativeArtifactPath(options.outputDir, path.join(testBundlePath, 'EVAL.yaml')),
+      targets_path: toRelativeArtifactPath(
+        options.outputDir,
+        path.join(testBundlePath, 'targets.yaml'),
+      ),
+      ...(sourceRecord?.files_path || hasCopiedSubdir(testBundlePath, 'files')
+        ? {
+            files_path: toRelativeArtifactPath(
+              options.outputDir,
+              path.join(testBundlePath, 'files'),
+            ),
+          }
+        : {}),
+      ...(sourceRecord?.graders_path || hasCopiedSubdir(testBundlePath, 'graders')
+        ? {
+            graders_path: toRelativeArtifactPath(
+              options.outputDir,
+              path.join(testBundlePath, 'graders'),
+            ),
+          }
+        : {}),
+    };
+  };
 }
 
 export function buildProjectionBundleFromExportedIndex(options: {
@@ -197,7 +298,7 @@ export const resultsExportCommand = command({
     const shouldIncludeRawContent = includeRawContent;
 
     try {
-      const { sourceFile, results } = await loadExportSource(source, cwd);
+      const { sourceFile, results, indexRecords } = await loadExportSource(source, cwd);
 
       const outputDir = out
         ? path.isAbsolute(out)
@@ -212,6 +313,7 @@ export const resultsExportCommand = command({
           cwd,
           duplicatePolicy: policy,
           includeRawContent: shouldIncludeRawContent,
+          indexRecords,
         });
 
       if (shouldDryRun) {
@@ -223,6 +325,11 @@ export const resultsExportCommand = command({
         evalFile: sourceFile,
         runId: deriveExportRunId(sourceFile),
         duplicatePolicy: policy,
+        additionalArtifacts: createExportBundleArtifactsWriter({
+          outputDir,
+          sourceBaseDir: path.dirname(sourceFile),
+          sourceRecordsByResult: buildSourceRecordMap(results, indexRecords ?? []),
+        }),
       });
 
       const bundlePath = shouldWriteProjectionBundle

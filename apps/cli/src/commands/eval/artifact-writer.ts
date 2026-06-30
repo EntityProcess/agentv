@@ -220,6 +220,7 @@ export async function writePerTestArtifacts(
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
     taskBundleTargets?: readonly TaskBundleTargetSelection[];
+    additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<void> {
@@ -229,7 +230,7 @@ export async function writePerTestArtifacts(
     runId: options?.runId,
     duplicatePolicy: options?.duplicatePolicy,
     sourceTests: options?.sourceTests,
-    additionalArtifacts: createTaskBundleArtifactsWriter(options),
+    additionalArtifacts: options?.additionalArtifacts ?? createTaskBundleArtifactsWriter(options),
     runtimeSource: options?.runtimeSource,
   });
 }
@@ -249,6 +250,7 @@ export async function writeArtifactsFromResults(
     repoRoot?: string;
     sourceTests?: readonly EvalTest[];
     taskBundleTargets?: readonly TaskBundleTargetSelection[];
+    additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
   },
 ): Promise<{
@@ -265,7 +267,7 @@ export async function writeArtifactsFromResults(
     duplicatePolicy: options?.duplicatePolicy,
     resultGroup: options?.resultGroup,
     sourceTests: options?.sourceTests,
-    additionalArtifacts: createTaskBundleArtifactsWriter(options),
+    additionalArtifacts: options?.additionalArtifacts ?? createTaskBundleArtifactsWriter(options),
     runtimeSource: options?.runtimeSource,
   });
 }
