@@ -109,6 +109,34 @@ Negative:
 - **Use strict Zod schemas at the wire boundary.** Rejected. Strict parsing
   would drop or reject unknown additive keys and create an unintended breaking
   change for portable artifacts.
+- **Adopt a third-party case library (`camelcase-keys` / `snakecase-keys`).**
+  Rejected. (1) `camelcase-keys` is one-directional, so the snake_case wire
+  direction would require a second library (`snakecase-keys`, built on
+  `change-case`) with a different edge-case engine. (2) Those libraries have
+  different acronym/number semantics (e.g. `preserveConsecutiveUppercase`,
+  `top2` vs `top_2`), which would maximize baseline diffs rather than minimize
+  them — the opposite of the byte-compatibility goal. (3) They lack AgentV's
+  proper-noun guard, so tool names such as `Read`/`Edit` would be transformed;
+  reconstructing the guard via `exclude: [/^[A-Z]/]` on both libraries is
+  fragile. (4) `snakecase-keys ∘ camelcase-keys` is not provably identity for
+  AgentV keys, while the in-house pair is. (5) AgentV keys are its own finite
+  schema, not arbitrary user input, so the library's main value (robust handling
+  of arbitrary keys) does not apply. Revisit only if AgentV must ingest
+  arbitrary external/user kebab+snake keys or drops byte-compatibility. An
+  optional test may cross-check the in-house converter against `camelcase-keys`
+  on the known key set to document divergences, without a runtime dependency.
+
+## Future Work
+
+The strictly-better long-term boundary is an explicit per-field casing mapping
+encoded in the Zod schemas (no deep stringly-typed key walk), which also mirrors
+how the Vercel AI SDK does explicit per-provider mapping. That is a larger,
+separate effort and is intentionally out of scope for this consolidation. Note
+that kebab-case is the same conversion problem as snake_case (only the separator
+differs: `[-_]`), but the camelCase-to-kebab reverse is lossy/ambiguous and
+would need an explicit per-field rule rather than a blanket reverse — another
+reason to prefer explicit schema-level mapping if a kebab dialect is ever
+required.
 
 ## Non-Goals
 
