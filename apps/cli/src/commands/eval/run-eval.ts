@@ -387,7 +387,7 @@ function normalizeOptions(
   yamlExecution?: ExecutionDefaults,
 ): NormalizedOptions {
   const cliWorkers = normalizeOptionalNumber(rawOptions.workers);
-  const configWorkers = config?.execution?.workers;
+  const configWorkers = config?.execution?.workers ?? yamlExecution?.workers;
   const workers = cliWorkers ?? configWorkers ?? 0;
 
   const cliOutputDir = normalizeString(rawOptions.output);
@@ -759,7 +759,6 @@ function applyExperimentOptions(
     ...options,
     target: options.target,
     agentTimeoutSeconds: options.agentTimeoutSeconds ?? experiment.timeoutSeconds,
-    workers: options.workers ?? experiment.workers,
     workspaceMode: options.workspaceMode,
     workspacePath: options.workspacePath,
     budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
@@ -1110,7 +1109,6 @@ async function prepareFileMetadata(params: {
   readonly selections: readonly { selection: TargetSelection; inlineTargetLabel: string }[];
   readonly trialsConfig?: TrialsConfig;
   readonly suiteTargets?: readonly string[];
-  readonly yamlWorkers?: number;
   readonly yamlCache?: boolean;
   readonly yamlCachePath?: string;
   readonly budgetUsd?: number;
@@ -1160,7 +1158,6 @@ async function prepareFileMetadata(params: {
       selections: [],
       trialsConfig: effectiveOptions.experimentTrialsConfig,
       suiteTargets,
-      yamlWorkers: suite.workers,
       yamlCache: suite.cacheConfig?.enabled,
       yamlCachePath: suite.cacheConfig?.cachePath,
       budgetUsd: defaultBudgetUsd,
@@ -1318,7 +1315,6 @@ async function prepareFileMetadata(params: {
     selections,
     trialsConfig: effectiveOptions.experimentTrialsConfig,
     suiteTargets,
-    yamlWorkers: suite.workers,
     yamlCache: suite.cacheConfig?.enabled,
     yamlCachePath: suite.cacheConfig?.cachePath,
     budgetUsd: defaultBudgetUsd,
@@ -1360,7 +1356,6 @@ async function runSingleEvalFile(params: {
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
   readonly workersOverride?: number;
-  readonly yamlWorkers?: number;
   readonly progressReporter: ProgressReporter;
   readonly seenTestCases: Set<string>;
   readonly displayIdTracker: { getOrAssign(testCaseKey: string): number };
@@ -1388,7 +1383,6 @@ async function runSingleEvalFile(params: {
     cache,
     evaluationRunner,
     workersOverride,
-    yamlWorkers,
     progressReporter,
     seenTestCases,
     displayIdTracker,
@@ -1439,13 +1433,10 @@ async function runSingleEvalFile(params: {
   const agentTimeoutMs =
     agentTimeoutSeconds != null ? Math.max(0, agentTimeoutSeconds) * 1000 : undefined;
 
-  // Resolve workers: CLI flag > eval YAML execution.workers > target setting > default
+  // Resolve workers: CLI/config > target setting > default
   const workerPreference = workersOverride ?? options.workers;
   let resolvedWorkers =
-    workerPreference ??
-    yamlWorkers ??
-    resolvedTargetSelection.resolvedTarget.workers ??
-    DEFAULT_WORKERS;
+    workerPreference ?? resolvedTargetSelection.resolvedTarget.workers ?? DEFAULT_WORKERS;
   if (resolvedWorkers < 1 || resolvedWorkers > 50) {
     throw new Error(`Workers must be between 1 and 50, got: ${resolvedWorkers}`);
   }
@@ -1931,7 +1922,6 @@ export async function runEvalCommand(
       }[];
       readonly trialsConfig?: TrialsConfig;
       readonly suiteTargets?: readonly string[];
-      readonly yamlWorkers?: number;
       readonly yamlCache?: boolean;
       readonly yamlCachePath?: string;
       readonly budgetUsd?: number;
@@ -2301,7 +2291,6 @@ export async function runEvalCommand(
                 cache,
                 evaluationRunner,
                 workersOverride: fileOptions.workers,
-                yamlWorkers: targetPrep.yamlWorkers,
                 progressReporter,
                 seenTestCases,
                 displayIdTracker,

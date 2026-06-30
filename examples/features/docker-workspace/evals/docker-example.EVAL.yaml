@@ -10,6 +10,7 @@
 
 name: docker-workspace-example
 description: Example eval using Docker workspace for grading
+target: mock_agent
 
 workspace:
   docker:
@@ -17,10 +18,6 @@ workspace:
     timeout: 300
     memory: 2g
     cpus: 1
-
-execution:
-  target: mock_agent
-  workers: 1
 
 tests:
   - id: hello-world

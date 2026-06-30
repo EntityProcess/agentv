@@ -7,9 +7,7 @@ workspace:
       repo: EntityProcess/agentv-contract-fixture
       commit: 21a34daed7ebcfe36cbed053607622a55e5e94cb
 
-execution:
-  target: github-models-contract
-  workers: 1
+target: github-models-contract
 
 tests:
   - id: repo-materializes-previous-commit

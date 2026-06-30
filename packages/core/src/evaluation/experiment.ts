@@ -42,7 +42,6 @@ export type ExperimentConfigWire = {
   readonly runs?: number;
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
-  readonly workers?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
   readonly workspace?: never;
@@ -59,7 +58,6 @@ export type ExperimentConfig = {
   readonly runs?: number;
   readonly earlyExit?: boolean;
   readonly timeoutSeconds?: number;
-  readonly workers?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
   readonly fingerprint?: string;
@@ -80,7 +78,6 @@ export type ExperimentArtifactMetadata = {
   readonly runs?: number;
   readonly early_exit?: boolean;
   readonly timeout_seconds?: number;
-  readonly workers?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
 };
@@ -123,7 +120,7 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     rawConfig.timeout_seconds ?? rawConfig.timeoutSeconds,
     'timeout_seconds',
   );
-  const workers = readOptionalPositiveInteger(rawConfig.workers, 'workers');
+  rejectExperimentWorkers(rawConfig.workers);
   const threshold = readOptionalThreshold(rawConfig.threshold);
   const budgetUsd = readOptionalPositiveNumber(
     rawConfig.budget_usd ?? rawConfig.budgetUsd,
@@ -142,7 +139,6 @@ export function normalizeExperimentConfig(rawConfig: unknown): ExperimentConfig 
     ...(runs !== undefined && { runs }),
     ...(earlyExit !== undefined && { earlyExit }),
     ...(timeoutSeconds !== undefined && { timeoutSeconds }),
-    ...(workers !== undefined && { workers }),
     ...(threshold !== undefined && { threshold }),
     ...(budgetUsd !== undefined && { budgetUsd }),
   };
@@ -217,7 +213,6 @@ export function buildExperimentArtifactMetadata(
     ...(config.runs !== undefined && { runs: config.runs }),
     ...(config.earlyExit !== undefined && { early_exit: config.earlyExit }),
     ...(config.timeoutSeconds !== undefined && { timeout_seconds: config.timeoutSeconds }),
-    ...(config.workers !== undefined && { workers: config.workers }),
     ...(config.threshold !== undefined && { threshold: config.threshold }),
     ...(config.budgetUsd !== undefined && { budget_usd: config.budgetUsd }),
   };
@@ -376,6 +371,15 @@ function rejectExperimentWorkspace(raw: unknown): void {
   }
   throw new Error(
     'Experiment workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in top-level workspace.',
+  );
+}
+
+function rejectExperimentWorkers(raw: unknown): void {
+  if (raw === undefined) {
+    return;
+  }
+  throw new Error(
+    'Experiment workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
   );
 }
 

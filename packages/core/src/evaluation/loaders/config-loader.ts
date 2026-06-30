@@ -32,6 +32,7 @@ export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
 ];
 
 export type ExecutionDefaults = {
+  readonly workers?: number;
   readonly verbose?: boolean;
   readonly keep_workspaces?: boolean;
   readonly workspace_mode?: 'pooled' | 'temp' | 'static';
@@ -408,23 +409,6 @@ function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
 }
 
 /**
- * Extract workers count from suite-level execution block.
- */
-export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
-  const runtime = getSuiteRuntimeBlock(suite);
-  if (!runtime) {
-    return undefined;
-  }
-
-  const workers = runtime.workers;
-  if (typeof workers === 'number' && Number.isInteger(workers) && workers >= 1 && workers <= 50) {
-    return workers;
-  }
-
-  return undefined;
-}
-
-/**
  * Cache configuration parsed from execution block.
  */
 export interface CacheConfig {
@@ -577,6 +561,13 @@ export function parseExecutionDefaults(
 
   const obj = raw as Record<string, unknown>;
   const result: Record<string, unknown> = {};
+
+  const workers = obj.workers;
+  if (typeof workers === 'number' && Number.isInteger(workers) && workers >= 1 && workers <= 50) {
+    result.workers = workers;
+  } else if (workers !== undefined) {
+    logWarning(`Invalid execution.workers in ${configPath}, expected integer 1-50`);
+  }
 
   if (typeof obj.verbose === 'boolean') {
     result.verbose = obj.verbose;

@@ -358,12 +358,50 @@ tests:
     ).toBe(true);
   });
 
+  it('rejects authored workers in eval YAML', async () => {
+    const filePath = path.join(tempDir, 'authored-workers.eval.yaml');
+    await writeFile(
+      filePath,
+      `workers: 2
+execution:
+  workers: 3
+  targets:
+    - name: codex
+      workers: 4
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+    execution:
+      workers: 5
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      [
+        'workers',
+        'execution.workers',
+        'execution.targets[0].workers',
+        'tests[0].execution.workers',
+      ].every((location) =>
+        result.errors.some(
+          (error) =>
+            error.severity === 'error' &&
+            error.location === location &&
+            error.message.includes('has been removed from eval YAML'),
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it('warns that imported child legacy execution is ignored by wrapper composition', async () => {
     await writeFile(
       path.join(tempDir, 'composition-child-experiment.eval.yaml'),
       `execution:
   target: child-target
-  workers: 2
   threshold: 0.9
 tests:
   - id: child-case

@@ -1,15 +1,13 @@
 description: >-
   E2E test for workspace pooling. No pool config in YAML — pooling is
   enabled by default for shared workspaces with repos.
+  Run with --workers 2 to exercise multiple pool slots.
 
 workspace:
   repos:
     - path: ./repo
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
-
-execution:
-  workers: 2
 
 tags: [agent]
 

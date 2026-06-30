@@ -147,7 +147,6 @@ export interface EvalPolicy {
 export interface EvalExecution {
   readonly target?: string;
   readonly targets?: readonly (string | EvalTargetRef)[];
-  readonly workers?: number;
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly skipDefaults?: boolean;
   readonly cache?: boolean;

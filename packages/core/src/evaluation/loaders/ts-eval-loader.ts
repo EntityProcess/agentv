@@ -92,7 +92,6 @@ export async function loadTsEvalSuite(
 
   return {
     tests: materialized.tests,
-    ...(materialized.workers !== undefined && { workers: materialized.workers }),
     ...(materialized.cache !== undefined && {
       cacheConfig: {
         enabled: materialized.cache,

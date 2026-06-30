@@ -360,7 +360,7 @@ const FailOnErrorSchema = z.boolean();
 const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
-  workers: z.number().int().min(1).max(50).optional(),
+  workers: z.never().optional(),
   assertions: z.array(EvaluatorSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),

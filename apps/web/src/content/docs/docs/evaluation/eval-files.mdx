@@ -8,6 +8,7 @@ sidebar:
 Evaluation files define the test cases, graders, workspace lifecycle, and run policy for an evaluation run. Top-level `name` is the experiment/result namespace, top-level `target` identifies the system under test, and top-level [`policy`](/docs/evaluation/experiments/) owns thresholds, budgets, timeouts, and repeat runs. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs under `targets[].hooks`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
+Eval files describe the task, target binding, and run policy. Concurrency is an operator/run setting: pass `--workers` or set `execution.workers` in `agentv.config.*` / `.agentv/config.yaml` instead of authoring `workers` in eval YAML.
 
 ## Authoring Shapes
 

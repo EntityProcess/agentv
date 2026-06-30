@@ -70,8 +70,6 @@ fields:
 name: cargowise-sql-migration-codex
 target: agent
 model: gpt-5-codex
-execution:
-  workers: 4
 policy:
   threshold: 0.8
   runs: 3
@@ -109,7 +107,6 @@ already-existing eval files and target matrices. New surfaces should not teach
 The old experiment runtime fields are ported into the parent eval file:
 
 - target or target matrix
-- workers
 - thresholds
 - repeated run count through `policy.runs`
 - timeout
@@ -129,7 +126,8 @@ Parent-versus-child is not the main composition rule. Contract ownership is:
 | Task prompt | `input`, `input_files`, shared prompt defaults | Imported child suite |
 | Task environment | `workspace`, `workspace.repos[]`, templates, workspace hooks | Imported child suite |
 | Scoring | `assertions`, graders, expected references | Imported child suite |
-| Run policy | `experiment`, CLI target flags, workers, repeat, gates, budget | Parent wrapper eval or CLI |
+| Run policy | `experiment`, CLI target flags, repeat, gates, budget | Parent wrapper eval or CLI |
+| Run concurrency | `--workers`, project config defaults, target/provider caps | Operator or selected target |
 | Target runtime | selected target config and `targets[].hooks` | Selected target |
 
 `workspace` can influence what an agent perceives through tools, but it is not

@@ -49,7 +49,72 @@ describe('eval.yaml runtime policy and tests imports', () => {
       budgetUsd: 1.5,
     });
     expect(suite.targets).toBeUndefined();
-    expect(suite.workers).toBeUndefined();
+  });
+
+  it('rejects authored workers in eval YAML runtime blocks', async () => {
+    const cases = [
+      {
+        file: 'top-level.eval.yaml',
+        body: ['workers: 2', 'tests:', '  - id: one', '    input: hello', '    criteria: ok'],
+        message: /workers has been removed from eval YAML/,
+      },
+      {
+        file: 'execution.eval.yaml',
+        body: [
+          'execution:',
+          '  workers: 2',
+          'tests:',
+          '  - id: one',
+          '    input: hello',
+          '    criteria: ok',
+        ],
+        message: /execution\.workers has been removed from eval YAML/,
+      },
+      {
+        file: 'experiment.eval.yaml',
+        body: [
+          'experiment:',
+          '  workers: 2',
+          'tests:',
+          '  - id: one',
+          '    input: hello',
+          '    criteria: ok',
+        ],
+        message: /experiment\.workers has been removed from eval YAML/,
+      },
+      {
+        file: 'target-ref.eval.yaml',
+        body: [
+          'execution:',
+          '  targets:',
+          '    - name: codex',
+          '      workers: 2',
+          'tests:',
+          '  - id: one',
+          '    input: hello',
+          '    criteria: ok',
+        ],
+        message: /execution\.targets\[0\]\.workers has been removed from eval YAML/,
+      },
+      {
+        file: 'test-execution.eval.yaml',
+        body: [
+          'tests:',
+          '  - id: one',
+          '    input: hello',
+          '    criteria: ok',
+          '    execution:',
+          '      workers: 2',
+        ],
+        message: /tests\[0\]\.execution\.workers has been removed from eval YAML/,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const evalPath = path.join(tempDir, testCase.file);
+      await writeFile(evalPath, `${testCase.body.join('\n')}\n`);
+      await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(testCase.message);
+    }
   });
 
   it('rejects repeat strategy config under top-level policy', async () => {
@@ -471,7 +536,6 @@ describe('eval.yaml runtime policy and tests imports', () => {
         'name: child-suite',
         'execution:',
         '  target: child-target',
-        '  workers: 1',
         '  threshold: 0.2',
         '  repeat:',
         '    count: 5',
@@ -771,7 +835,7 @@ describe('eval.yaml runtime policy and tests imports', () => {
       [
         'name: child-a',
         'execution:',
-        '  workers: 2',
+        '  threshold: 0.2',
         'tests:',
         '  - id: a',
         '    input: a',
@@ -784,7 +848,7 @@ describe('eval.yaml runtime policy and tests imports', () => {
       [
         'name: child-b',
         'execution:',
-        '  workers: 4',
+        '  threshold: 0.4',
         'tests:',
         '  - id: b',
         '    input: b',

@@ -82,7 +82,6 @@ const KNOWN_IMPORT_FIELDS = new Set(['path', 'select', 'run']);
 const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
 const KNOWN_REPEAT_STRATEGIES = new Set(['pass_at_k', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
-  'workers',
   'assertions',
   'evaluators',
   'skip_defaults',
@@ -99,6 +98,10 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['assert', "'assert' has been removed. Use 'assertions' instead."],
+  [
+    'workers',
+    "'workers' has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.",
+  ],
   [
     'experiment',
     "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.",
@@ -305,6 +308,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateInputField(parsed.input, 'input', absolutePath, errors);
 
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
+  validateAuthoredWorkers(parsed, absolutePath, errors);
   await validateImportsField(parsed.imports, absolutePath, errors);
 
   const cases: JsonValue | undefined = parsed.tests;
@@ -540,6 +544,16 @@ function validateTestExecutionFields(
   location: string,
 ): void {
   for (const key of Object.keys(caseExecution)) {
+    if (key === 'workers') {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.execution.workers`,
+        message:
+          'tests[].execution.workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
+      });
+      continue;
+    }
     if (!KNOWN_TEST_EXECUTION_FIELDS.has(key)) {
       errors.push({
         severity: 'error',
@@ -549,6 +563,65 @@ function validateTestExecutionFields(
       });
     }
   }
+}
+
+function validateAuthoredWorkers(
+  parsed: JsonObject,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  rejectWorkersField(parsed.execution, 'execution', filePath, errors);
+  rejectWorkersField(parsed.experiment, 'experiment', filePath, errors);
+  if (Array.isArray(parsed.tests)) {
+    parsed.tests.forEach((entry, index) => {
+      if (!isObject(entry)) {
+        return;
+      }
+      rejectWorkersField(entry.execution, `tests[${index}].execution`, filePath, errors);
+    });
+  }
+}
+
+function rejectWorkersField(
+  raw: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (!isObject(raw)) {
+    return;
+  }
+  if (raw.workers !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.workers`,
+      message: `${location}.workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+    });
+  }
+  rejectTargetWorkers(raw.targets, `${location}.targets`, filePath, errors);
+}
+
+function rejectTargetWorkers(
+  rawTargets: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (!Array.isArray(rawTargets)) {
+    return;
+  }
+  rawTargets.forEach((target, index) => {
+    if (!isObject(target) || target.workers === undefined) {
+      return;
+    }
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}[${index}].workers`,
+      message: `${location}[${index}].workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+    });
+  });
 }
 
 function rejectRuntimeWorkspaceConfig(
