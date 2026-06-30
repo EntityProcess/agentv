@@ -1,6 +1,6 @@
 # AgentV
 
-**Evaluate AI agents against real repos from the terminal. No server. No signup.**
+**Evaluate AI targets against real repos from the terminal. No server. No signup.**
 
 ```bash
 npm install -g agentv
@@ -12,7 +12,7 @@ That's it. Results in seconds, not minutes.
 
 ## What it does
 
-AgentV runs evaluation cases against your AI agents and scores them with deterministic code graders + customizable LLM graders. Everything lives in Git — YAML eval files, markdown judge prompts, JSONL results.
+AgentV runs evaluation cases against configured targets and scores them with deterministic code graders + customizable LLM graders. Everything lives in Git — YAML eval files, markdown judge prompts, JSONL results.
 
 ```yaml
 # evals/math.yaml
@@ -38,7 +38,31 @@ agentv eval evals/math.yaml
 - **Version-controlled** — evals, judges, and results all live in Git
 - **Hybrid graders** — deterministic code checks + LLM-based subjective scoring
 - **CI/CD native** — exit codes, JSONL output, threshold flags for pipeline gating
-- **Any agent** — supports Claude, Codex, Copilot, Pi, or any CLI agent
+- **Any target** — run against agents, model providers, gateways, replay targets, CLI wrappers, transcript providers, and future app or service wrappers
+
+## Core vocabulary
+
+- **Suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
+- **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, deterministic checks, and LLM grading prompts.
+- **Target** is the system under test: an agent, model/provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper.
+- **Experiment** names comparison intent: target/model, variant, repeats, gates, timeout/runtime policy, and result grouping.
+- **Run** is one concrete execution that writes portable artifacts for readers such as Dashboard, compare, and trend.
+
+```mermaid
+flowchart LR
+  corpus["Suite / imports / tests<br/>task corpus"]
+  context["Workspace / fixtures / graders<br/>task-owned context"]
+  experiment["Experiment<br/>target + variant + runtime policy"]
+  run["Run<br/>concrete execution"]
+  artifacts["Run artifacts<br/>summary.json + index.jsonl + sidecars"]
+  readers["Dashboard / compare / trend<br/>derived readers"]
+
+  corpus --> run
+  context --> run
+  experiment --> run
+  run --> artifacts
+  artifacts --> readers
+```
 
 ## Quick start
 
@@ -48,7 +72,7 @@ npm install -g agentv
 agentv init
 ```
 
-**2. Configure targets** in `.agentv/targets.yaml` — point to your agent or LLM provider.
+**2. Configure targets** in `.agentv/targets.yaml` — point to the system under test, such as an agent, provider, gateway, replay source, or CLI wrapper.
 
 **3. Create an eval** in `evals/`:
 ```yaml
@@ -96,7 +120,7 @@ Run bundle layout:
 
 ```
 .agentv/results/
-└── my-eval/                          # <experiment> — the eval name
+└── my-eval/                          # <experiment> — comparison/run grouping
     └── 2026-06-30T08-30-00-000Z/     # <timestamp> — one run
         └── default/                  # <run-id>
             ├── index.jsonl           # flat per-test results (scripts/CI, `agentv compare`)
