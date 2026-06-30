@@ -436,29 +436,34 @@ const ConversationTurnSchema = z.object({
 
 const TestExecutionSchema = ExecutionSchema.omit({ target: true, targets: true }).strict();
 
-const EvalTestSchema = z.object({
-  id: z.string().min(1),
-  vars: JsonObjectSchema.optional(),
-  criteria: z.string().optional(),
-  input: InputSchema.optional(),
-  input_files: z.array(z.string()).optional(),
-  expected_output: ExpectedOutputSchema.optional(),
-  assertions: z.array(EvaluatorSchema).optional(),
-  evaluators: z.array(EvaluatorSchema).optional(),
-  execution: TestExecutionSchema.optional(),
-  run: RunOverrideSchema.optional(),
-  workspace: WorkspaceSchema.optional(),
-  metadata: z.record(z.unknown()).optional(),
-  conversation_id: z.string().optional(),
-  suite: z.string().optional(),
-  depends_on: z.array(z.string()).optional(),
-  on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
-  mode: z.enum(['conversation']).optional(),
-  turns: z.array(ConversationTurnSchema).min(1).optional(),
-  aggregation: z.enum(['mean', 'min', 'max']).optional(),
-  on_turn_failure: z.enum(['continue', 'stop']).optional(),
-  window_size: z.number().int().min(1).optional(),
-});
+const EvalTestSchema = z
+  .object({
+    id: z.string().min(1),
+    vars: JsonObjectSchema.optional(),
+    criteria: z.string().optional(),
+    input: InputSchema.optional(),
+    input_files: z.array(z.string()).optional(),
+    expected_output: ExpectedOutputSchema.optional(),
+    assertions: z.array(EvaluatorSchema).optional(),
+    evaluators: z.array(EvaluatorSchema).optional(),
+    experiment: TestExecutionSchema.optional(),
+    execution: TestExecutionSchema.optional(),
+    run: RunOverrideSchema.optional(),
+    workspace: WorkspaceSchema.optional(),
+    metadata: z.record(z.unknown()).optional(),
+    conversation_id: z.string().optional(),
+    suite: z.string().optional(),
+    depends_on: z.array(z.string()).optional(),
+    on_dependency_failure: z.enum(['skip', 'fail', 'run']).optional(),
+    mode: z.enum(['conversation']).optional(),
+    turns: z.array(ConversationTurnSchema).min(1).optional(),
+    aggregation: z.enum(['mean', 'min', 'max']).optional(),
+    on_turn_failure: z.enum(['continue', 'stop']).optional(),
+    window_size: z.number().int().min(1).optional(),
+  })
+  .refine((value) => value.experiment === undefined || value.execution === undefined, {
+    message: "Use either per-test 'experiment' or legacy 'execution', not both.",
+  });
 
 const SelectPatternSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
 const SelectMetadataValueSchema = z.union([

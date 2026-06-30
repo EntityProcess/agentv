@@ -4,7 +4,7 @@ export default defineEval({
   name: 'sdk-eval-authoring',
   description: 'YAML-aligned TypeScript eval authoring with @agentv/sdk',
   inputFiles: ['../fixtures/shared-context.md'],
-  execution: {
+  experiment: {
     targets: ['mock-sdk'],
   },
   workspace: {

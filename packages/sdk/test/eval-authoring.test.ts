@@ -7,7 +7,7 @@ describe('YAML-aligned eval authoring helpers', () => {
     const suite = defineEval({
       name: 'sdk-yaml-suite',
       inputFiles: ['fixtures/shared-system.md'],
-      execution: {
+      experiment: {
         targets: [
           {
             name: 'mock-target',
@@ -40,6 +40,10 @@ describe('YAML-aligned eval authoring helpers', () => {
           input: 'Say hello.',
           inputFiles: ['fixtures/prompt.md'],
           expectedOutput: 'Hello there',
+          experiment: {
+            threshold: 0.8,
+            failOnError: true,
+          },
           workspace: {
             hooks: {
               beforeEach: {
@@ -86,11 +90,11 @@ describe('YAML-aligned eval authoring helpers', () => {
 
     const lowered = toEvalYamlObject(suite);
 
-    expect(suite.execution?.skipDefaults).toBe(true);
+    expect(suite.experiment?.skipDefaults).toBe(true);
     expect(lowered).toEqual({
       name: 'sdk-yaml-suite',
       input_files: ['fixtures/shared-system.md'],
-      execution: {
+      experiment: {
         targets: [
           {
             name: 'mock-target',
@@ -123,6 +127,10 @@ describe('YAML-aligned eval authoring helpers', () => {
           input: 'Say hello.',
           input_files: ['fixtures/prompt.md'],
           expected_output: 'Hello there',
+          experiment: {
+            threshold: 0.8,
+            fail_on_error: true,
+          },
           workspace: {
             hooks: {
               before_each: {
@@ -188,5 +196,46 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(yaml).toContain('assertions:');
     expect(yaml).not.toContain('expectedOutput');
     expect(yaml).not.toContain('inputFiles');
+  });
+
+  it('keeps execution as a deprecated YAML alias for back compatibility', () => {
+    const suite = defineEval({
+      name: 'legacy-execution-suite',
+      execution: {
+        targets: ['legacy-target'],
+        budgetUsd: 0.5,
+      },
+      tests: [
+        {
+          id: 'legacy-test',
+          input: 'Say hello',
+          execution: {
+            threshold: 0.6,
+            failOnError: true,
+          },
+        },
+      ],
+    });
+
+    const lowered = toEvalYamlObject(suite);
+
+    expect(suite.execution?.budgetUsd).toBe(0.5);
+    expect(lowered).toEqual({
+      name: 'legacy-execution-suite',
+      execution: {
+        targets: ['legacy-target'],
+        budget_usd: 0.5,
+      },
+      tests: [
+        {
+          id: 'legacy-test',
+          input: 'Say hello',
+          execution: {
+            threshold: 0.6,
+            fail_on_error: true,
+          },
+        },
+      ],
+    });
   });
 });

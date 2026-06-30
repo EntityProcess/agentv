@@ -53,6 +53,7 @@ function isDeprecatedJudgeType(type: string): boolean {
  */
 export async function parseGraders(
   rawEvalCase: JsonObject & {
+    readonly experiment?: JsonValue;
     readonly execution?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
@@ -63,7 +64,7 @@ export async function parseGraders(
   evalId: string,
   defaultPreprocessors?: readonly ContentPreprocessorConfig[],
 ): Promise<readonly GraderConfig[] | undefined> {
-  const execution = rawEvalCase.execution;
+  const execution = rawEvalCase.experiment ?? rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
   // Case-level graders priority: assertions > assert > legacy execution/top-level assertion lists
@@ -248,6 +249,7 @@ async function expandGraderEntries(
 
 export async function collectAssertionTemplateSourceReferences(
   rawEvalCase: JsonObject & {
+    readonly experiment?: JsonValue;
     readonly execution?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
@@ -257,7 +259,7 @@ export async function collectAssertionTemplateSourceReferences(
   searchRoots: readonly string[],
   evalId: string,
 ): Promise<readonly EvalSourceReference[]> {
-  const execution = rawEvalCase.execution;
+  const execution = rawEvalCase.experiment ?? rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
   const caseEvaluators =
     rawEvalCase.assertions ??

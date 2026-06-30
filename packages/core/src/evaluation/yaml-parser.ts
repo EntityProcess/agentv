@@ -211,6 +211,7 @@ type RawEvalCase = JsonObject & {
   readonly input_files?: JsonValue;
   readonly expected_output?: JsonValue;
   readonly evaluator?: JsonValue;
+  readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
   readonly run?: JsonValue;
   readonly evaluators?: JsonValue;
@@ -579,12 +580,13 @@ async function loadTestsFromParsedYamlValue(
       }
     }
 
-    // Extract per-case execution config early (reused below for skip_defaults)
-    const caseExecution = isJsonObject(renderedCase.execution) ? renderedCase.execution : undefined;
-    rejectUnsupportedTestExecutionFields(caseExecution, id);
+    // Extract per-case runtime config early (reused below for skip_defaults)
+    const caseRuntime = readTestRuntimeBlock(renderedCase, id);
+    const caseExecution = caseRuntime.runtime;
+    rejectUnsupportedTestExecutionFields(caseExecution, id, caseRuntime.label);
     if (caseExecution?.workspace !== undefined) {
       throw new Error(
-        `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
+        `test '${id ?? 'unknown'}'.${caseRuntime.label}.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
       );
     }
     const skipDefaults = caseExecution?.skip_defaults === true;
@@ -900,11 +902,12 @@ type IncludeSelect = {
 function rejectUnsupportedTestExecutionFields(
   caseExecution: JsonObject | undefined,
   testId: string | undefined,
+  label = 'execution',
 ): void {
   if (!caseExecution) return;
   for (const key of Object.keys(caseExecution)) {
     if (!KNOWN_TEST_EXECUTION_FIELDS.has(key)) {
-      throw new Error(`test '${testId ?? 'unknown'}'.execution.${key} is not supported.`);
+      throw new Error(`test '${testId ?? 'unknown'}'.${label}.${key} is not supported.`);
     }
   }
 }
@@ -1386,6 +1389,20 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   const runtime = suite.experiment ?? suite.execution;
   return isJsonObject(runtime) ? runtime : undefined;
+}
+
+function readTestRuntimeBlock(
+  testCase: RawEvalCase,
+  testId: string | undefined,
+): { runtime: JsonObject | undefined; label: 'experiment' | 'execution' } {
+  if (testCase.experiment !== undefined && testCase.execution !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config for test '${testId ?? 'unknown'}': use either 'experiment' or legacy 'execution', not both.`,
+    );
+  }
+  const label = testCase.experiment !== undefined ? 'experiment' : 'execution';
+  const runtime = testCase.experiment ?? testCase.execution;
+  return { runtime: isJsonObject(runtime) ? runtime : undefined, label };
 }
 
 function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | undefined {

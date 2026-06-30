@@ -1198,6 +1198,24 @@ describe('parseGraders - default evaluators merge', () => {
     expect(evaluators?.[0]).toEqual({ name: 'case-eval', type: 'latency', threshold: 3000 });
   });
 
+  it('reads canonical experiment evaluator overrides and skip_defaults', async () => {
+    const rawEvalCase = {
+      experiment: {
+        skip_defaults: true,
+        evaluators: [{ name: 'case-eval', type: 'latency', threshold: 3000 }],
+      },
+    };
+
+    const globalExecution = {
+      evaluators: [{ name: 'root-eval', type: 'latency', threshold: 5000 }],
+    };
+
+    const evaluators = await parseGraders(rawEvalCase, globalExecution, [process.cwd()], 'test');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toEqual({ name: 'case-eval', type: 'latency', threshold: 3000 });
+  });
+
   it('returns undefined when no evaluators at any level', async () => {
     const rawEvalCase = {};
     const evaluators = await parseGraders(rawEvalCase, undefined, [process.cwd()], 'test');

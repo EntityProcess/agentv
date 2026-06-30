@@ -113,6 +113,48 @@ describe('eval.yaml inline experiment and tests imports', () => {
     );
   });
 
+  it('parses per-test experiment as the canonical runtime override', async () => {
+    const evalPath = path.join(tempDir, 'test-experiment.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '    experiment:',
+        '      threshold: 0.42',
+        '      skip_defaults: true',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.tests[0]?.threshold).toBe(0.42);
+    expect(suite.tests[0]?.run?.threshold).toBe(0.42);
+  });
+
+  it('rejects test cases that define both experiment and execution runtime blocks', async () => {
+    const evalPath = path.join(tempDir, 'test-runtime-conflict.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '    experiment:',
+        '      threshold: 0.42',
+        '    execution:',
+        '      threshold: 0.7',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/experiment.*execution/);
+  });
+
   it('rejects unsupported per-test execution target blocks', async () => {
     const evalPath = path.join(tempDir, 'test-execution-target.eval.yaml');
     await writeFile(

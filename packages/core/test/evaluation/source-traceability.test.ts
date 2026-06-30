@@ -119,4 +119,30 @@ tests:
     });
     expect(promptScriptDefinition?.definition).not.toHaveProperty('resolvedPromptScript');
   });
+
+  it('tracks assertion templates included from per-test experiment evaluators', async () => {
+    const evalFile = path.join(tempDir, 'experiment-template.eval.yaml');
+    await writeFile(
+      evalFile,
+      `tests:
+  - id: experiment-template-case
+    criteria: ok
+    input: hello
+    experiment:
+      evaluators:
+        - include: shared
+`,
+    );
+
+    const tests = await loadTests(evalFile, tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0]?.source?.references).toContainEqual(
+      expect.objectContaining({
+        kind: 'assertion_template',
+        displayPath: '.agentv/templates/shared.yaml',
+        resolvedPath: path.join(tempDir, '.agentv', 'templates', 'shared.yaml'),
+      }),
+    );
+  });
 });

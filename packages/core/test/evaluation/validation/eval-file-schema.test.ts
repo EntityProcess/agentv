@@ -167,6 +167,41 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts per-test experiment as the canonical runtime override', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          experiment: {
+            threshold: 0.7,
+            skip_defaults: true,
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects test cases that set both experiment and legacy execution', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          experiment: { threshold: 0.7 },
+          execution: { threshold: 0.8 },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(collectIssueMessages(result.error.issues)).toContain(
+        "Use either per-test 'experiment' or legacy 'execution', not both.",
+      );
+    }
+  });
+
   it('rejects experiment lifecycle commands', () => {
     const result = EvalFileSchema.safeParse({
       experiment: {

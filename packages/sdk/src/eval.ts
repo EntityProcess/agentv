@@ -135,7 +135,7 @@ export interface EvalTrials {
   readonly costLimitUsd?: number;
 }
 
-export interface EvalExecution {
+export interface EvalExperiment {
   readonly target?: string;
   readonly targets?: readonly (string | EvalTargetRef)[];
   readonly workers?: number;
@@ -148,6 +148,9 @@ export interface EvalExecution {
   readonly threshold?: number;
   readonly [key: string]: unknown;
 }
+
+/** @deprecated Use EvalExperiment. */
+export type EvalExecution = EvalExperiment;
 
 export interface EvalTurn {
   readonly input: EvalMessageContent;
@@ -163,6 +166,8 @@ export interface EvalTest {
   readonly inputFiles?: readonly string[];
   readonly expectedOutput?: string | Readonly<Record<string, unknown>> | readonly EvalMessage[];
   readonly assertions?: readonly EvalAssertionConfig[];
+  readonly experiment?: EvalExperiment;
+  /** @deprecated Use experiment. */
   readonly execution?: EvalExecution;
   readonly workspace?: EvalWorkspace;
   readonly metadata?: Readonly<Record<string, unknown>>;
@@ -196,6 +201,8 @@ export interface EvalDefinition {
   readonly inputFiles?: readonly string[];
   readonly tests: readonly EvalTest[] | string;
   readonly target?: string;
+  readonly experiment?: EvalExperiment;
+  /** @deprecated Use experiment. */
   readonly execution?: EvalExecution;
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly preprocessors?: readonly EvalPreprocessor[];

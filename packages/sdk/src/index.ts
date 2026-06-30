@@ -139,6 +139,7 @@ export {
   type EvalDefinition,
   type EvalDockerWorkspace,
   type EvalExecution,
+  type EvalExperiment,
   type EvalMessage,
   type EvalMessageContent,
   type EvalPreprocessor,
