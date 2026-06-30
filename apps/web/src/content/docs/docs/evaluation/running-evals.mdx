@@ -375,23 +375,6 @@ After any failing run, the CLI prints the exact `--rerun-failed` command for the
 
 The interactive wizard (`agentv eval` with no arguments) remembers the last run directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
 
-### Execution Error Tolerance
-
-Control whether the eval run halts on execution errors using `execution.fail_on_error` in the eval YAML:
-
-```yaml
-execution:
-  fail_on_error: false    # never halt on errors (default)
-  # fail_on_error: true   # halt on first execution error
-```
-
-| Value | Behavior |
-|-------|----------|
-| `true` | Halt immediately on first execution error |
-| `false` | Continue despite errors (default) |
-
-When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`. With concurrency > 1, a few additional tests may complete before halting takes effect.
-
 ### Suite-Level Quality Threshold
 
 Set a per-test score threshold for the eval suite. Each test case must score at or above this value to pass. If any test scores below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
@@ -405,8 +388,7 @@ agentv eval evals/ --threshold 0.8
 **YAML config:**
 
 ```yaml
-execution:
-  threshold: 0.8
+threshold: 0.8
 ```
 
 The CLI `--threshold` flag overrides the YAML value. The threshold is a number between 0 and 1 (default: 0.8). Execution errors are excluded from the count.
@@ -622,14 +604,6 @@ agentv eval evals/dataset.eval.yaml --cache
 agentv eval evals/dataset.eval.yaml --cache-path .agentv/response-cache
 ```
 
-Eval YAML can enable the same cache per suite:
-
-```yaml
-execution:
-  cache: true
-  cache_path: .agentv/response-cache
-```
-
 Project TypeScript config can set the project default:
 
 ```typescript
@@ -643,7 +617,7 @@ export default defineConfig({
 });
 ```
 
-`--no-cache` disables response caching regardless of CLI, eval YAML, or TypeScript config. Cache path precedence is `--cache-path` > eval YAML `execution.cache_path` > TypeScript config `cache.path` > `.agentv/cache`.
+`--no-cache` disables response caching regardless of CLI or TypeScript config. Cache path precedence is `--cache-path` > TypeScript config `cache.path` > `.agentv/cache`.
 
 Response cache and replay are separate concepts. The response cache is an iteration aid for repeated live provider calls. Transcript or fixture replay is target substitution from curated artifacts, and graders still run fresh against the replayed output.
 

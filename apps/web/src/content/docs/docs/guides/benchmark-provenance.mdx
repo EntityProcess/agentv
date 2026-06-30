@@ -162,8 +162,7 @@ workspace:
     before_each:
       command: ["python", "./scripts/apply-case-fixtures.py"]
 
-execution:
-  targets: [codex, claude]
+target: codex
 
 assertions:
   - name: tests-pass
@@ -202,9 +201,8 @@ adapter-owned instead of making it the AgentV workspace model.
 
 When one eval references another eval, preserve the task/runtime split:
 
-- The parent runnable eval owns top-level `target`/`policy` for the run.
-- Child legacy runtime blocks are ignored by `type: suite` composition. There is
-  no fallback to the child runtime when the parent has no `target`/`policy`.
+- The parent runnable eval owns top-level `target` and run controls.
+- Child suite imports preserve task context, while the parent owns the run.
 - Child `workspace` setup is preserved for `type: suite` imports. A parent eval
   that imports any `type: suite` entry must not define parent `workspace`.
   Parent workspace context is for parent-owned raw cases, including raw cases

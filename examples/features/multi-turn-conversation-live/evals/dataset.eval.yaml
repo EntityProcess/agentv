@@ -4,8 +4,7 @@
 
 description: Live multi-turn conversation evaluation with per-turn grading
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # Test 1: Basic context retention across turns

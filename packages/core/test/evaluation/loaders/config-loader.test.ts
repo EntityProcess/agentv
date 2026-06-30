@@ -512,314 +512,126 @@ describe('resolveResultsConfigForProject', () => {
 });
 
 describe('extractTargetFromSuite', () => {
-  it('extracts target from execution.target', () => {
-    const suite: JsonObject = { execution: { target: 'my-target' } };
-    expect(extractTargetFromSuite(suite)).toBe('my-target');
+  it('extracts string target from the top level', () => {
+    const suite: JsonObject = { target: 'codex-gpt5' };
+    expect(extractTargetFromSuite(suite)).toBe('codex-gpt5');
   });
 
-  it('falls back to root-level target', () => {
-    const suite: JsonObject = { target: 'legacy-target' };
-    expect(extractTargetFromSuite(suite)).toBe('legacy-target');
-  });
-
-  it('prefers top-level target over legacy execution.target', () => {
+  it('extracts target object name from name or extends', () => {
     const suite: JsonObject = {
-      target: 'top-level',
-      execution: { target: 'legacy' },
+      target: { extends: 'codex-gpt5', model: 'gpt-5.1' },
     };
-    expect(extractTargetFromSuite(suite)).toBe('top-level');
+    expect(extractTargetFromSuite(suite)).toBe('codex-gpt5');
   });
 
   it('returns undefined when no target specified', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractTargetFromSuite(suite)).toBeUndefined();
   });
-});
 
-describe('extractTargetsFromSuite', () => {
-  it('returns undefined when no execution block', () => {
-    const suite: JsonObject = { tests: [] };
-    expect(extractTargetsFromSuite(suite)).toBeUndefined();
-  });
-
-  it('returns undefined when no targets array in execution', () => {
-    const suite: JsonObject = { execution: { target: 'default' } };
-    expect(extractTargetsFromSuite(suite)).toBeUndefined();
-  });
-
-  it('extracts targets array from execution.targets', () => {
-    const suite: JsonObject = {
-      execution: { targets: ['copilot', 'claude'] },
-    };
-    expect(extractTargetsFromSuite(suite)).toEqual(['copilot', 'claude']);
-  });
-
-  it('filters out non-string entries', () => {
-    const suite: JsonObject = {
-      execution: { targets: ['copilot', 123, null, 'claude'] },
-    };
-    expect(extractTargetsFromSuite(suite)).toEqual(['copilot', 'claude']);
-  });
-
-  it('returns undefined for empty targets array', () => {
-    const suite: JsonObject = {
-      execution: { targets: [] },
-    };
-    expect(extractTargetsFromSuite(suite)).toBeUndefined();
-  });
-
-  it('trims whitespace from target names', () => {
-    const suite: JsonObject = {
-      execution: { targets: ['  copilot  ', 'claude  '] },
-    };
-    expect(extractTargetsFromSuite(suite)).toEqual(['copilot', 'claude']);
-  });
-
-  it('returns undefined when targets is not an array', () => {
-    const suite: JsonObject = {
-      execution: { targets: 'copilot' },
-    };
-    expect(extractTargetsFromSuite(suite)).toBeUndefined();
+  it('rejects authored top-level execution blocks', () => {
+    const suite: JsonObject = { execution: { target: 'my-target' } };
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Top-level 'execution'/);
   });
 });
 
-describe('extractTargetRefsFromSuite', () => {
-  it('returns undefined when no execution block', () => {
+describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
+  it('return undefined for authored eval YAML', () => {
     const suite: JsonObject = { tests: [] };
+    expect(extractTargetsFromSuite(suite)).toBeUndefined();
     expect(extractTargetRefsFromSuite(suite)).toBeUndefined();
   });
 
-  it('returns refs for string targets', () => {
-    const suite: JsonObject = {
-      execution: { targets: ['copilot', 'claude'] },
-    };
-    expect(extractTargetRefsFromSuite(suite)).toEqual([{ name: 'copilot' }, { name: 'claude' }]);
-  });
-
-  it('returns refs for object targets with hooks', () => {
-    const suite: JsonObject = {
-      execution: {
-        targets: [
-          { name: 'baseline' },
-          {
-            name: 'with-skills',
-            use_target: 'default',
-            hooks: {
-              before_each: { command: ['setup.sh', 'skills'] },
-            },
-          },
-        ],
-      },
-    };
-    const refs = extractTargetRefsFromSuite(suite);
-    expect(refs).toHaveLength(2);
-    expect(refs?.[0]).toEqual({ name: 'baseline' });
-    expect(refs?.[1]).toEqual({
-      name: 'with-skills',
-      use_target: 'default',
-      hooks: {
-        before_each: { command: ['setup.sh', 'skills'] },
-      },
-    });
-  });
-
-  it('handles mixed string and object targets', () => {
-    const suite: JsonObject = {
-      execution: {
-        targets: [
-          'baseline',
-          {
-            name: 'with-hooks',
-            hooks: {
-              before_each: { command: ['echo', 'hello'] },
-              after_each: { command: ['echo', 'bye'] },
-            },
-          },
-        ],
-      },
-    };
-    const refs = extractTargetRefsFromSuite(suite);
-    expect(refs).toHaveLength(2);
-    expect(refs?.[0]).toEqual({ name: 'baseline' });
-    expect(refs?.[1].hooks?.before_each?.command).toEqual(['echo', 'hello']);
-    expect(refs?.[1].hooks?.after_each?.command).toEqual(['echo', 'bye']);
-  });
-
-  it('parses string command as shell command', () => {
-    const suite: JsonObject = {
-      execution: {
-        targets: [
-          {
-            name: 'test',
-            hooks: {
-              before_each: { command: 'setup-plugins.sh superpowers' },
-            },
-          },
-        ],
-      },
-    };
-    const refs = extractTargetRefsFromSuite(suite);
-    expect(refs?.[0].hooks?.before_each?.command).toEqual([
-      'sh',
-      '-c',
-      'setup-plugins.sh superpowers',
-    ]);
-  });
-
-  it('skips invalid entries', () => {
-    const suite: JsonObject = {
-      execution: {
-        targets: ['valid', 123, null, { name: '' }, { name: 'also-valid' }],
-      },
-    };
-    const refs = extractTargetRefsFromSuite(suite);
-    expect(refs).toEqual([{ name: 'valid' }, { name: 'also-valid' }]);
-  });
-
-  it('extractTargetsFromSuite derives names from refs', () => {
-    const suite: JsonObject = {
-      execution: {
-        targets: [
-          'baseline',
-          {
-            name: 'with-hooks',
-            use_target: 'default',
-            hooks: { before_each: { command: ['ls'] } },
-          },
-        ],
-      },
-    };
-    expect(extractTargetsFromSuite(suite)).toEqual(['baseline', 'with-hooks']);
+  it('reject top-level target arrays through execution', () => {
+    const suite: JsonObject = { execution: { targets: ['copilot', 'claude'] } };
+    expect(() => extractTargetsFromSuite(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractTargetRefsFromSuite(suite)).toThrow(/Top-level 'execution'/);
   });
 });
 
 describe('extractBudgetUsd', () => {
-  it('returns undefined when no execution block', () => {
+  it('returns undefined when no budget_usd', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('returns undefined when no budget_usd in execution', () => {
-    const suite: JsonObject = { execution: { target: 'default' } };
-    expect(extractBudgetUsd(suite)).toBeUndefined();
-  });
-
-  it('parses valid budget_usd (snake_case)', () => {
-    const suite: JsonObject = { execution: { budget_usd: 10.0 } };
+  it('parses valid top-level budget_usd', () => {
+    const suite: JsonObject = { budget_usd: 10.0 };
     expect(extractBudgetUsd(suite)).toBe(10.0);
   });
 
-  it('parses valid budgetUsd (camelCase)', () => {
-    const suite: JsonObject = { execution: { budgetUsd: 5.5 } };
-    expect(extractBudgetUsd(suite)).toBe(5.5);
-  });
-
   it('returns undefined for zero budget', () => {
-    const suite: JsonObject = { execution: { budget_usd: 0 } };
+    const suite: JsonObject = { budget_usd: 0 };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
   it('returns undefined for negative budget', () => {
-    const suite: JsonObject = { execution: { budget_usd: -1 } };
+    const suite: JsonObject = { budget_usd: -1 };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
   it('returns undefined for non-number budget', () => {
-    const suite: JsonObject = { execution: { budget_usd: 'ten' } };
+    const suite: JsonObject = { budget_usd: 'ten' };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('rejects old key total_budget_usd with a clear error', () => {
-    const suite: JsonObject = { execution: { total_budget_usd: 10.0 } };
-    expect(() => extractBudgetUsd(suite)).toThrow(
-      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
-    );
-  });
-
-  it('rejects old key totalBudgetUsd with a clear error', () => {
-    const suite: JsonObject = { execution: { totalBudgetUsd: 10.0 } };
-    expect(() => extractBudgetUsd(suite)).toThrow(
-      'execution.total_budget_usd has been renamed to execution.budget_usd. Update your eval YAML.',
-    );
+  it('rejects authored execution blocks', () => {
+    const suite: JsonObject = { execution: { budget_usd: 10.0 } };
+    expect(() => extractBudgetUsd(suite)).toThrow(/Top-level 'execution'/);
   });
 });
 
 describe('extractFailOnError', () => {
-  it('returns undefined when no execution block', () => {
+  it('returns undefined for authored eval YAML', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractFailOnError(suite)).toBeUndefined();
   });
 
-  it('returns undefined when fail_on_error not set', () => {
-    const suite: JsonObject = { execution: { target: 'default' } };
-    expect(extractFailOnError(suite)).toBeUndefined();
-  });
-
-  it('returns true for fail_on_error: true', () => {
+  it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { fail_on_error: true } };
-    expect(extractFailOnError(suite)).toBe(true);
-  });
-
-  it('returns false for fail_on_error: false', () => {
-    const suite: JsonObject = { execution: { fail_on_error: false } };
-    expect(extractFailOnError(suite)).toBe(false);
-  });
-
-  it('returns undefined for numeric value', () => {
-    const suite: JsonObject = { execution: { fail_on_error: 0.3 } };
-    expect(extractFailOnError(suite)).toBeUndefined();
-  });
-
-  it('returns undefined for invalid string value', () => {
-    const suite: JsonObject = { execution: { fail_on_error: 'always' } };
-    expect(extractFailOnError(suite)).toBeUndefined();
-  });
-
-  it('supports camelCase failOnError alias', () => {
-    const suite: JsonObject = { execution: { failOnError: true } };
-    expect(extractFailOnError(suite)).toBe(true);
+    expect(() => extractFailOnError(suite)).toThrow(/Top-level 'execution'/);
   });
 });
 
 describe('extractThreshold', () => {
-  it('returns undefined when no execution block', () => {
+  it('returns undefined when no threshold', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractThreshold(suite)).toBeUndefined();
   });
 
-  it('returns undefined when threshold not set', () => {
-    const suite: JsonObject = { execution: { target: 'default' } };
-    expect(extractThreshold(suite)).toBeUndefined();
-  });
-
-  it('parses valid threshold', () => {
-    const suite: JsonObject = { execution: { threshold: 0.8 } };
+  it('parses valid top-level threshold', () => {
+    const suite: JsonObject = { threshold: 0.8 };
     expect(extractThreshold(suite)).toBe(0.8);
   });
 
   it('accepts 0 as threshold', () => {
-    const suite: JsonObject = { execution: { threshold: 0 } };
+    const suite: JsonObject = { threshold: 0 };
     expect(extractThreshold(suite)).toBe(0);
   });
 
   it('accepts 1 as threshold', () => {
-    const suite: JsonObject = { execution: { threshold: 1 } };
+    const suite: JsonObject = { threshold: 1 };
     expect(extractThreshold(suite)).toBe(1);
   });
 
   it('returns undefined for negative threshold', () => {
-    const suite: JsonObject = { execution: { threshold: -0.1 } };
+    const suite: JsonObject = { threshold: -0.1 };
     expect(extractThreshold(suite)).toBeUndefined();
   });
 
   it('returns undefined for threshold > 1', () => {
-    const suite: JsonObject = { execution: { threshold: 1.5 } };
+    const suite: JsonObject = { threshold: 1.5 };
     expect(extractThreshold(suite)).toBeUndefined();
   });
 
   it('returns undefined for non-number threshold', () => {
-    const suite: JsonObject = { execution: { threshold: 'high' } };
+    const suite: JsonObject = { threshold: 'high' };
     expect(extractThreshold(suite)).toBeUndefined();
+  });
+
+  it('rejects authored execution blocks', () => {
+    const suite: JsonObject = { execution: { threshold: 0.8 } };
+    expect(() => extractThreshold(suite)).toThrow(/Top-level 'execution'/);
   });
 });
 

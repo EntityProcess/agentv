@@ -12,8 +12,7 @@ governance: &gov
   risk_tier: limited
   owner: security-team
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: unbounded-list-request

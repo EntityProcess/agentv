@@ -1,8 +1,7 @@
 name: multi-model-benchmark
 description: Compare greeting, code generation, and summarization across three model targets
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: greeting

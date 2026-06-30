@@ -4,8 +4,7 @@
 
 description: Multi-turn conversation evaluation with per-turn score breakdown
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: support-context-retention

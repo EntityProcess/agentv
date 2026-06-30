@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {
+  type EvalTargetSpec,
   type EvalTargetRef,
   type TargetDefinition,
   loadTestSuite,
@@ -97,42 +98,48 @@ function definitionsWithEvalTargetRefs(
   return result;
 }
 
-function buildBundleExecution(options: {
+function definitionsWithEvalTargetSpec(
+  definitions: readonly TargetDefinition[],
+  targetSpec: EvalTargetSpec | undefined,
+): readonly TargetDefinition[] {
+  if (!targetSpec?.definition) {
+    return definitions;
+  }
+  if (!targetSpec.extends) {
+    return [
+      targetSpec.definition,
+      ...definitions.filter((definition) => definition.name !== targetSpec.name),
+    ];
+  }
+  const base = definitions.find((definition) => definition.name === targetSpec.extends);
+  if (!base) {
+    const available = definitions.map((definition) => definition.name).join(', ');
+    throw new Error(
+      `Target '${targetSpec.extends}' not found for eval-local target '${targetSpec.name}'. Available targets: ${available}`,
+    );
+  }
+  const effective = {
+    ...base,
+    ...targetSpec.definition,
+    name: targetSpec.name,
+  } as TargetDefinition;
+  return [effective, ...definitions.filter((definition) => definition.name !== targetSpec.name)];
+}
+
+function buildBundleRuntime(options: {
   readonly targetNames: readonly string[];
-  readonly targetRefs?: readonly EvalTargetRef[];
-  readonly cache?: boolean;
-  readonly cachePath?: string;
   readonly budgetUsd?: number;
   readonly threshold?: number;
 }): Record<string, unknown> {
-  const targetRefsByName = new Map((options.targetRefs ?? []).map((ref) => [ref.name, ref]));
-  const serializeTargetRef = (name: string) => {
-    const ref = targetRefsByName.get(name);
-    return ref?.hooks || ref?.use_target ? ref : name;
-  };
-  const singleTargetRef = options.targetNames[0]
-    ? targetRefsByName.get(options.targetNames[0])
-    : undefined;
-  const execution: Record<string, unknown> =
-    options.targetNames.length === 1 && !singleTargetRef?.hooks && !singleTargetRef?.use_target
-      ? { target: options.targetNames[0] }
-      : {
-          targets: options.targetNames.map((name) => serializeTargetRef(name)),
-        };
-
-  if (options.cache !== undefined) {
-    execution.cache = options.cache;
-  }
-  if (options.cachePath !== undefined) {
-    execution.cache_path = options.cachePath;
-  }
+  const runtime: Record<string, unknown> =
+    options.targetNames.length === 1 ? { target: options.targetNames[0] } : {};
   if (options.budgetUsd !== undefined) {
-    execution.budget_usd = options.budgetUsd;
+    runtime.budget_usd = options.budgetUsd;
   }
   if (options.threshold !== undefined) {
-    execution.threshold = options.threshold;
+    runtime.threshold = options.threshold;
   }
-  return execution;
+  return runtime;
 }
 
 export const evalBundleCommand = command({
@@ -191,13 +198,18 @@ export const evalBundleCommand = command({
         repoRoot,
         cwd,
       });
-      definitions = definitionsWithEvalTargetRefs(
-        await readTargetDefinitions(targetsFilePath),
-        suite.targetRefs,
+      definitions = definitionsWithEvalTargetSpec(
+        definitionsWithEvalTargetRefs(
+          await readTargetDefinitions(targetsFilePath),
+          suite.targetRefs,
+        ),
+        suite.targetSpec,
       );
       const suiteTarget = await readTestSuiteTarget(evalFilePath);
       targetNames = unique(
-        args.target.length > 0 ? args.target : (suite.targets ?? [suiteTarget ?? 'default']),
+        args.target.length > 0
+          ? args.target
+          : (suite.targets ?? [suite.targetSpec?.name ?? suiteTarget ?? 'default']),
       );
       for (const targetName of targetNames) {
         ensureTargetGraph(targetName, definitions, targetsFilePath);
@@ -217,11 +229,8 @@ export const evalBundleCommand = command({
       outputDir: args.out,
       cwd,
       repoRoot,
-      execution: buildBundleExecution({
+      runtime: buildBundleRuntime({
         targetNames,
-        targetRefs: suite.targetRefs,
-        cache: suite.cacheConfig?.enabled,
-        cachePath: suite.cacheConfig?.cachePath,
         budgetUsd: suite.budgetUsd,
         threshold: suite.threshold,
       }),

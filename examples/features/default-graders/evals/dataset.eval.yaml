@@ -4,8 +4,7 @@
 name: default-graders-example
 description: Root-level graders that automatically apply to every test
 
-execution:
-  target: llm
+target: llm
 
 assertions:
   - Response has a professional, helpful, and polite tone

@@ -34,6 +34,7 @@ const KNOWN_SNAKE_CASE_KEYS = {
   onTurnFailure: 'on_turn_failure',
   outputPath: 'output_path',
   requiredMinScore: 'required_min_score',
+  reasoningEffort: 'reasoning_effort',
   scoreRange: 'score_range',
   scoreRanges: 'score_ranges',
   skipDefaults: 'skip_defaults',
@@ -131,17 +132,20 @@ export interface EvalTargetRef {
   readonly hooks?: EvalWorkspaceHooks;
 }
 
+export interface EvalTargetConfig {
+  readonly extends?: string;
+  readonly name?: string;
+  readonly provider?: string;
+  readonly model?: string;
+  readonly reasoningEffort?: string;
+  readonly hooks?: EvalWorkspaceHooks;
+  readonly [key: string]: unknown;
+}
+
 export interface EvalTrials {
   readonly count: number;
   readonly strategy?: 'pass_at_k' | 'mean' | 'confidence_interval';
   readonly costLimitUsd?: number;
-}
-
-export interface EvalPolicy {
-  readonly runs?: number;
-  readonly timeoutSeconds?: number;
-  readonly threshold?: number;
-  readonly budgetUsd?: number;
 }
 
 export interface EvalExecution {
@@ -203,10 +207,13 @@ export interface EvalDefinition {
   readonly input?: string | readonly EvalMessage[];
   readonly inputFiles?: readonly string[];
   readonly tests: readonly EvalTest[] | string;
-  readonly target?: string;
-  readonly model?: string;
-  readonly policy?: EvalPolicy;
-  readonly execution?: EvalExecution;
+  readonly experiment?: string;
+  readonly target?: string | EvalTargetConfig;
+  readonly runs?: number;
+  readonly earlyExit?: boolean;
+  readonly timeoutSeconds?: number;
+  readonly threshold?: number;
+  readonly budgetUsd?: number;
   readonly assertions?: readonly EvalAssertionConfig[];
   readonly preprocessors?: readonly EvalPreprocessor[];
   readonly workspace?: EvalWorkspace | string;
@@ -235,7 +242,7 @@ function lowerEvalYamlValue(value: unknown): unknown {
 }
 
 function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & DefinedEvalSuite {
-  rejectDeprecatedExperimentField(definition);
+  validateTopLevelRuntimeFields(definition);
   const branded = definition as T & Partial<DefinedEvalSuite>;
 
   if (branded[EVAL_SUITE_SYMBOL] === true) {
@@ -260,11 +267,20 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
   return branded as T & DefinedEvalSuite;
 }
 
-function rejectDeprecatedExperimentField(definition: EvalDefinition): void {
-  if (Object.prototype.hasOwnProperty.call(definition, 'experiment')) {
-    throw new Error(
-      "defineEval() no longer accepts top-level 'experiment'. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeoutSeconds, threshold, and budgetUsd.",
-    );
+function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
+  const rawDefinition = definition as Record<string, unknown>;
+  if (
+    Object.prototype.hasOwnProperty.call(rawDefinition, 'experiment') &&
+    typeof rawDefinition.experiment !== 'string'
+  ) {
+    throw new Error("defineEval() expects top-level 'experiment' to be a string label.");
+  }
+  for (const field of ['model', 'policy', 'execution']) {
+    if (Object.prototype.hasOwnProperty.call(rawDefinition, field)) {
+      throw new Error(
+        `defineEval() does not accept top-level '${field}'. Put target overrides in target and run controls at the top level.`,
+      );
+    }
   }
 }
 

@@ -36,12 +36,11 @@ Compares four configurations on identical bug fix tasks:
 ### 1. Run the benchmark
 
 ```bash
-# All variants (defined in execution.targets in the eval file)
+# Run the baseline variant
 agentv eval evals/bug-fixes.eval.yaml --workers 3
 
-# Specific variants only
-agentv eval evals/bug-fixes.eval.yaml \
-  --target claude-baseline,claude-superpowers --workers 2
+# Override the target from the CLI
+agentv eval evals/bug-fixes.eval.yaml --target claude-baseline --workers 2
 ```
 
 ### 2. Compare results
@@ -64,24 +63,16 @@ The eval includes a real bug from the agentv repo:
 ## How Variants Work
 
 The `claude` target from the repo root `.agentv/targets.yaml` is used as the
-base. The eval file uses **target-level hooks** to create per-variant configurations:
+base. The eval file uses an eval-local target object with hooks:
 
 ```yaml
 # In evals/bug-fixes.eval.yaml
-execution:
-  targets:
-    - name: claude-baseline
-      use_target: claude
-      hooks:
-        before_each:
-          command: ["bash", "../scripts/setup-variant.sh", "baseline"]
-
-    - name: claude-superpowers
-      use_target: claude
-      hooks:
-        before_each:
-          command: ["bash", "../scripts/setup-variant.sh", "superpowers"]
-    # ...
+target:
+  name: claude-baseline
+  extends: claude
+  hooks:
+    before_each:
+      command: ["bash", "../scripts/setup-variant.sh", "baseline"]
 ```
 
 Each variant's plugin config lives in `workspaces/<variant>/.claude/settings.json`.

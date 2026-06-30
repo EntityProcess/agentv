@@ -1,4 +1,5 @@
 import {
+  type EvalTargetSpec,
   type ResolvedTarget,
   type TargetDefinition,
   listTargetNames,
@@ -98,6 +99,7 @@ export interface TargetSelectionOptions {
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
   readonly fileTargetName?: string;
+  readonly fileTargetSpec?: EvalTargetSpec;
   readonly modelOverride?: string;
   readonly env: NodeJS.ProcessEnv;
 }
@@ -125,6 +127,34 @@ function withModelOverride(
 ): TargetDefinition {
   const model = modelOverride?.trim();
   return model && model.length > 0 ? { ...target, model } : target;
+}
+
+function overlayTargetDefinition(params: {
+  readonly spec: EvalTargetSpec | undefined;
+  readonly definitions: readonly TargetDefinition[];
+  readonly env: NodeJS.ProcessEnv;
+  readonly targetsFilePath: string;
+}): TargetDefinition | undefined {
+  const { spec, definitions, env, targetsFilePath } = params;
+  if (!spec?.definition) {
+    return undefined;
+  }
+  if (spec.extends) {
+    const base = resolveUseTarget(spec.extends, definitions, env, targetsFilePath);
+    return {
+      ...base,
+      ...spec.definition,
+      name: spec.name,
+    };
+  }
+  return spec.definition;
+}
+
+function definitionsWithEffectiveTarget(
+  definitions: readonly TargetDefinition[],
+  effective: TargetDefinition,
+): readonly TargetDefinition[] {
+  return [effective, ...definitions.filter((definition) => definition.name !== effective.name)];
 }
 
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
@@ -168,24 +198,37 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   }
 
   const definitions = await readTargetDefinitions(targetsFilePath);
-  const fileTargetName = options.fileTargetName ?? (await readTestSuiteTarget(testFilePath));
+  const fileTargetSpec = options.fileTargetSpec;
+  const fileTargetName =
+    options.fileTargetName ?? fileTargetSpec?.name ?? (await readTestSuiteTarget(testFilePath));
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
+  const overlayDefinition =
+    targetChoice.source === 'test-file'
+      ? overlayTargetDefinition({ spec: fileTargetSpec, definitions, env, targetsFilePath })
+      : undefined;
   const targetDefinition = withModelOverride(
-    resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath),
+    overlayDefinition ?? resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath),
     modelOverride,
   );
+  const effectiveDefinitions =
+    overlayDefinition !== undefined
+      ? definitionsWithEffectiveTarget(definitions, targetDefinition)
+      : definitions;
 
   try {
     const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
       emitDeprecationWarnings: false,
     });
     return {
-      definitions,
+      definitions: effectiveDefinitions,
       resolvedTarget,
       targetName: targetChoice.name,
       targetSource: targetChoice.source,
       targetsFilePath,
+      ...(targetChoice.source === 'test-file' && fileTargetSpec?.hooks
+        ? { targetHooks: fileTargetSpec.hooks }
+        : {}),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

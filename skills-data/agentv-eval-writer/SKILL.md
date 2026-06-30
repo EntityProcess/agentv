@@ -19,7 +19,7 @@ Comprehensive docs: https://agentv.dev
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
-task fixtures, top-level `target`, and top-level `policy`. Use `imports.suites`
+task fixtures, top-level `target`, and top-level run controls. Use `imports.suites`
 for full child suites that preserve their workspace, shared input, assertions,
 fixtures, and graders. Use `imports.tests` for raw case rows that should run in
 the parent file's context. Inline `tests` are also parent-owned raw cases.
@@ -124,7 +124,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `version`, `author`, `tags`, `license`, `requires`, `target`, `policy`, `suite`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `runs`, `early_exit`, `timeout_seconds`, `budget_usd`, `threshold`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -135,7 +135,7 @@ tests:
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
-| `execution` | no | Per-case non-target execution overrides such as `skip_defaults` or `threshold`; target selection belongs in top-level `target`, legacy `execution.targets`, or CLI `--target` |
+| `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
@@ -565,26 +565,13 @@ Use optional `operator: correctness` for positive support checks or `operator: c
 
 See `references/rubric-grader.md` for score-range mode and scoring formula.
 
-## Execution Error Tolerance
-
-Control how the runner handles execution errors (infrastructure failures, not quality failures):
-
-```yaml
-execution:
-  fail_on_error: false    # never halt (default)
-  # fail_on_error: true   # halt on first execution error
-```
-
-When halted, remaining tests get `executionStatus: 'execution_error'` with `failureReasonCode: 'error_threshold_exceeded'`.
-
 ## Suite-Level Quality Threshold
 
-Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use `policy.runs` when each case should be attempted more than once.
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use top-level `runs` when each case should be attempted more than once.
 
 ```yaml
-policy:
-  runs: 3
-  threshold: 0.8
+runs: 3
+threshold: 0.8
 ```
 
 CLI flag `--threshold 0.8` overrides the YAML value. Must be a number between 0 and 1. Mean score is computed from quality results only (execution errors excluded).

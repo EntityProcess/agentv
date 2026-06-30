@@ -1,7 +1,7 @@
 # Multi-Model Benchmark Evaluation
 #
 # Demonstrates multi-model × multi-metric × variability workflow:
-#   - Targets matrix: runs every test against multiple models
+#   - Compare multiple models by running the same eval with different CLI targets
 #   - Weighted graders: accuracy (3×), completeness (2×), clarity (1×)
 #   - Policy runs: 2 attempts to measure variability
 #
@@ -15,14 +15,9 @@ name: multi-model-benchmark
 description: Multi-model benchmark — accuracy, completeness, and clarity across models
 tags: [multi-provider]
 
-execution:
-  targets:
-    - copilot
-    - claude
-    - gemini-llm
-policy:
-  runs: 2
-  budget_usd: 2.00
+target: copilot
+runs: 2
+budget_usd: 2.00
 
 assertions:
   - name: accuracy

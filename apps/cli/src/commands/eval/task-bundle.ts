@@ -75,7 +75,7 @@ export interface MaterializeEvalBundleOptions {
   readonly outputDir: string;
   readonly cwd?: string;
   readonly repoRoot?: string;
-  readonly execution?: Record<string, unknown>;
+  readonly runtime?: Record<string, unknown>;
   readonly now?: () => Date;
 }
 
@@ -959,7 +959,7 @@ export async function materializeTaskBundle(
   const targetsPath = path.join(testDir, TASK_TARGETS_FILENAME);
 
   await writeYamlFile(evalPath, {
-    execution: { target: options.targetName },
+    target: options.targetName,
     tests: [evalCase],
   });
   await writeYamlFile(targetsPath, { targets: targetDefinitions });
@@ -1025,12 +1025,11 @@ export async function materializeEvalBundle(
   const evalPath = path.join(evalsDir, bundledEvalFileName(options.evalFilePath));
   const targetsPath = path.join(outputDir, BUNDLE_TARGETS_FILENAME);
   const manifestPath = path.join(outputDir, BUNDLE_MANIFEST_FILENAME);
-  const execution =
-    options.execution ??
-    (targetNames.length === 1 ? { target: targetNames[0] } : { targets: targetNames });
+  const runtime =
+    options.runtime ?? (targetNames.length === 1 ? { target: targetNames[0] } : undefined);
 
   await writeYamlFile(evalPath, {
-    execution,
+    ...(runtime ?? {}),
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
   await writeYamlFile(targetsPath, {

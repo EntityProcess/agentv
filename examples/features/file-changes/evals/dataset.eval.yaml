@@ -15,8 +15,7 @@ description: Verify file_changes captures edits, creates, and deletes across mul
 workspace:
   template: ../workspace-template
 
-execution:
-  target: mock_agent
+target: mock_agent
 
 tests:
   # Case 1: verify edits and creates

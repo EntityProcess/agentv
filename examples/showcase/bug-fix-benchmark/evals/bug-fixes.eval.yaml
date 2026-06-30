@@ -1,7 +1,7 @@
 # Bug Fix Benchmark
 # SWE-bench style evaluation: Real-world bug fixing on public GitHub repositories
 #
-# Run all variants (defined in execution.targets below):
+# Run the baseline variant:
 #   agentv eval evals/bug-fixes.eval.yaml --workers 3
 #
 # Run specific variants:
@@ -22,33 +22,14 @@ workspace:
     before_each:
       reset: fast
 
-# Target-level hooks: each variant shares the base "claude" target but
-# runs a different before_each hook to install its plugin configuration.
-execution:
-  targets:
-    - name: claude-baseline
-      use_target: ${{ AGENT_TARGET }}
-      hooks:
-        before_each:
-          command: ["bash", "../scripts/setup-variant.sh", "baseline"]
-
-    - name: claude-superpowers
-      use_target: ${{ AGENT_TARGET }}
-      hooks:
-        before_each:
-          command: ["bash", "../scripts/setup-variant.sh", "superpowers"]
-
-    - name: claude-compound
-      use_target: ${{ AGENT_TARGET }}
-      hooks:
-        before_each:
-          command: ["bash", "../scripts/setup-variant.sh", "compound"]
-
-    - name: claude-agent-skills
-      use_target: ${{ AGENT_TARGET }}
-      hooks:
-        before_each:
-          command: ["bash", "../scripts/setup-variant.sh", "agent-skills"]
+# Eval-local target: shares the configured agent target and installs the
+# baseline plugin configuration before each case.
+target:
+  name: claude-baseline
+  extends: ${{ AGENT_TARGET }}
+  hooks:
+    before_each:
+      command: ["bash", "../scripts/setup-variant.sh", "baseline"]
 
 tags: [coding, bugfix, benchmark, swe-bench]
 

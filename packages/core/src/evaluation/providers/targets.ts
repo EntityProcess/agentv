@@ -617,7 +617,8 @@ const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['retryMaxDelayMs', 'retry_max_delay_ms'],
   ['retryBackoffFactor', 'retry_backoff_factor'],
   ['retryStatusCodes', 'retry_status_codes'],
-  ['modelReasoningEffort', 'model_reasoning_effort'],
+  ['reasoningEffort', 'reasoning_effort'],
+  ['modelReasoningEffort', 'reasoning_effort'],
   ['modelVerbosity', 'model_verbosity'],
   ['sandboxMode', 'sandbox_mode'],
   ['approvalPolicy', 'approval_policy'],
@@ -1318,7 +1319,7 @@ function resolveCodexConfig(
   _evalFilePath?: string,
 ): CodexResolvedConfig {
   const modelSource = target.model;
-  const modelReasoningEffortSource = target.model_reasoning_effort;
+  const modelReasoningEffortSource = target.reasoning_effort ?? target.model_reasoning_effort;
   const modelVerbositySource = target.model_verbosity;
   const baseUrlSource = target.base_url ?? target.endpoint;
   const apiKeySource = target.api_key;
@@ -1443,7 +1444,7 @@ function normalizeCodexModelReasoningEffort(
   }
 
   throw new Error(
-    `codex model_reasoning_effort must be one of: ${[...CODEX_MODEL_REASONING_EFFORT_VALUES].join(', ')}`,
+    `codex reasoning_effort must be one of: ${[...CODEX_MODEL_REASONING_EFFORT_VALUES].join(', ')}`,
   );
 }
 
@@ -1806,7 +1807,7 @@ function resolvePiCodingAgentConfig(
   const modelSource = target.model ?? target.pi_model;
   const apiKeySource = target.api_key;
   const toolsSource = target.tools ?? target.pi_tools;
-  const thinkingSource = target.thinking ?? target.pi_thinking;
+  const thinkingSource = target.reasoning_effort ?? target.thinking ?? target.pi_thinking;
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
@@ -1900,7 +1901,7 @@ function resolvePiCliConfig(
   const modelSource = target.model ?? target.pi_model;
   const apiKeySource = target.api_key;
   const toolsSource = target.tools ?? target.pi_tools;
-  const thinkingSource = target.thinking ?? target.pi_thinking;
+  const thinkingSource = target.reasoning_effort ?? target.thinking ?? target.pi_thinking;
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;

@@ -50,7 +50,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects eval-level execution.trials because run counts belong under policy.runs', () => {
+  it('rejects eval-level execution blocks', () => {
     const result = EvalFileSchema.safeParse({
       execution: {
         trials: {
@@ -78,17 +78,21 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts top-level target and policy runtime controls with include selection entries', () => {
+  it('accepts top-level target object and flat runtime controls with include selection entries', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
-      target: 'codex',
-      model: 'gpt-5-codex',
-      policy: {
-        threshold: 0.8,
-        runs: 2,
-        timeout_seconds: 300,
-        budget_usd: 2,
+      description: 'Wrapper eval',
+      experiment: 'release-gate',
+      target: {
+        extends: 'codex',
+        model: 'gpt-5.1',
+        reasoning_effort: 'high',
       },
+      threshold: 0.8,
+      runs: 2,
+      early_exit: true,
+      timeout_seconds: 300,
+      budget_usd: 2,
       tests: [
         {
           include: './evals/**/*.eval.yaml',
@@ -118,11 +122,11 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects strategy-shaped repeat policy under the public policy block', () => {
+  it('rejects authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       target: 'codex',
       policy: {
-        repeat: { count: 2, strategy: 'pass_at_k' },
+        runs: 2,
       },
       tests: [baseTest],
     });
@@ -130,13 +134,10 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects early_exit under policy because policy.runs has no public strategy controls', () => {
+  it('rejects top-level model because model belongs in target object', () => {
     const result = EvalFileSchema.safeParse({
       target: 'codex',
-      policy: {
-        runs: 2,
-        early_exit: true,
-      },
+      model: 'gpt-5.1',
       tests: [baseTest],
     });
 
@@ -192,7 +193,7 @@ describe('EvalFileSchema input shorthand', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       target: 'codex',
-      policy: { threshold: 0.8 },
+      threshold: 0.8,
       imports: {
         suites: [{ path: './evals/**/*.eval.yaml' }],
       },
@@ -210,7 +211,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects lifecycle commands under policy', () => {
+  it('rejects lifecycle commands under authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       policy: {
         setup: [{ script: 'bun install' }],
@@ -222,7 +223,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects sandbox under policy because environment binding belongs under workspace or targets', () => {
+  it('rejects sandbox under authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       target: 'codex',
       policy: {
@@ -234,7 +235,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects camelCase policy fields in YAML', () => {
+  it('rejects camelCase fields under authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       target: 'codex',
       policy: {

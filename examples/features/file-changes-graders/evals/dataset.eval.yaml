@@ -13,8 +13,7 @@ description: Verify file_changes diffs are accessible to LLM grader (rubrics, bu
 workspace:
   template: ../workspace-template
 
-execution:
-  target: mock_agent
+target: mock_agent
 
 tests:
   - id: verify-file-changes-graders

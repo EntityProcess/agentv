@@ -123,7 +123,8 @@ describe('materializeTaskBundle', () => {
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
     const [assertion] = testCase.assertions as Record<string, unknown>[];
 
-    expect(parsedEval.execution).toEqual({ target: 'selected' });
+    expect(parsedEval.target).toBe('selected');
+    expect(parsedEval.execution).toBeUndefined();
     expect(parsedEval.tests as unknown[]).toHaveLength(1);
     expect(testCase.id).toBe('direct-case');
     expect(testCase.input).toBe('file://files/fixtures/input.txt');

@@ -5,24 +5,25 @@ sidebar:
   order: 2
 ---
 
-AgentV eval files are the only runnable authoring artifact. The eval file
-defines the experiment. Use top-level `name` as the result namespace,
-top-level `target` for the system under test, and top-level `policy` for
-runtime and gating controls such as run count, timeout, budgets, and thresholds.
-AgentV does not have a separate `experiment.yaml` file, top-level `run_group`,
-or schema-significant `experiments/` directory.
-Concurrency is intentionally outside eval YAML. Use `agentv eval --workers N`
-or project config defaults such as `agentv.config.*` / `.agentv/config.yaml`
+AgentV eval files are the runnable authoring artifact. Use top-level
+`description` for display metadata, `experiment` as the run/result grouping
+label, `target` for the system under test, and flat top-level run controls such
+as `runs`, `timeout_seconds`, `budget_usd`, and `threshold`.
+Concurrency is outside eval YAML. Use `agentv eval --workers N` or project
+config defaults such as `agentv.config.*` / `.agentv/config.yaml`
 `execution.workers` for operator-side parallelism.
 
 ```yaml
 name: support-regression
-target: codex-gpt5
-model: gpt-5-codex
-policy:
-  runs: 4
-  timeout_seconds: 720
-  budget_usd: 2.00
+description: Support regression suite
+experiment: support-codex
+target:
+  extends: codex-gpt5
+  model: gpt-5.1
+  reasoning_effort: high
+runs: 4
+timeout_seconds: 720
+budget_usd: 2.00
 
 workspace:
   hooks:
@@ -34,14 +35,6 @@ tests:
     input: Can this customer get a refund?
     criteria: Applies the refund policy correctly
 ```
-
-`experiment:` was a prerelease authoring block and is rejected. Move
-`experiment.target` to top-level `target`, `experiment.model` to top-level
-`model`, and runtime controls to top-level `policy` with `runs`,
-`timeout_seconds`, `threshold`, and `budget_usd`.
-`execution:` is accepted only as a legacy top-level runtime alias for existing
-eval files and target matrices. It does not accept `workers`; use `--workers`
-or project config for concurrency.
 
 ## Layout Conventions
 
@@ -111,9 +104,9 @@ tests:
 
 `imports.suites` preserves the imported suite's task contract: metadata,
 `workspace`, shared `input`, shared `assertions`, and tests. The parent eval
-still owns the single run bundle and runtime policy. Child suite legacy runtime
-blocks are ignored when imported; use parent `target`/`policy` for run policy
-and import `run:` for scoped threshold, timeout, or budget overrides.
+still owns the single run bundle and run controls. Use parent `target` and
+top-level run controls for the overall run, and import `run:` for scoped
+threshold, timeout, or budget overrides.
 
 A parent eval that imports any `imports.suites` entry must not define top-level
 `workspace`. Imported suites own task environment. If the parent should provide
@@ -152,14 +145,13 @@ Use scoped `run:` blocks for result interpretation and scheduling policies that
 vary by include group or test case. Precedence is:
 
 ```text
-test.run > import run > parent policy
+test.run > import run > parent top-level run controls
 ```
 
 ```yaml
 target: agent
-policy:
-  threshold: 0.8
-  runs: 3
+threshold: 0.8
+runs: 3
 
 imports:
   suites:
@@ -186,23 +178,23 @@ tests:
 ```
 
 Scoped `run:` supports `threshold`, `timeout_seconds`, and `budget_usd` for
-public eval authoring. Candidate-changing fields such as `target` and `targets`
-stay parent-level. Workspace mutation belongs in
-`workspace.hooks`, and runner-specific setup belongs in `targets[].hooks`.
+public eval authoring. Candidate-changing fields stay parent-level. Workspace
+mutation belongs in `workspace.hooks`, and provider-specific setup belongs in
+target configuration.
 
 ## Lifecycle Ownership
 
-`policy:` configures evaluation policy. It does not own commands that
-prepare files, dependencies, repos, or target-specific runner state.
+Run controls do not own commands that prepare files, dependencies, repos, or
+target-specific runner state.
 
 | Need | Put it in |
 | --- | --- |
 | Install dependencies, build the repo, seed files | `workspace.hooks.before_all` |
 | Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
-| Configure an agent runner or provider variant | `targets[].hooks` |
+| Configure an agent runner or provider variant | `target` object or `targets.yaml` |
 | Choose the target | top-level `target` |
-| Override the target's default model | top-level `model` |
-| Configure run count, budget, timeout, threshold | top-level `policy` |
+| Override the target's default model | `target.model` |
+| Configure run count, budget, timeout, threshold | top-level `runs`, `budget_usd`, `timeout_seconds`, `threshold` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml
@@ -211,32 +203,26 @@ workspace:
     before_all:
       command: ["bash", "-lc", "bun install && bun run build"]
 
-targets:
-  - name: agent-with-skills
-    provider: codex
-    hooks:
-      before_each:
-        command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
-
-target: agent-with-skills
-policy:
-  runs: 3
+target:
+  extends: codex-gpt5
+  hooks:
+    before_each:
+      command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
+runs: 3
 ```
 
-`experiment.workspace` and top-level `experiment:` are not authored eval YAML
-fields. Existing local workspace paths are machine-local bindings: pass
-`--workspace-path` for a
-one-off run or put `execution.workspace_path` in `.agentv/config.local.yaml`.
+Existing local workspace paths are machine-local bindings: pass
+`--workspace-path` for a one-off run or put `execution.workspace_path` in
+`.agentv/config.local.yaml`.
 Put repos, templates, hooks, Docker config, env checks, and isolation under
 top-level or case-level `workspace`.
 
 ## Repeat Runs
 
-Use `policy.runs` when you want AgentV to try each case more than once:
+Use top-level `runs` when you want AgentV to try each case more than once:
 
 ```yaml
-policy:
-  runs: 3
+runs: 3
 ```
 
 The current repeated-attempt aggregation treats the case as successful when any
@@ -253,9 +239,9 @@ Eval runs write to the selected result bucket:
 ```
 
 CLI `--experiment` sets the bucket explicitly. Without that flag, AgentV uses
-top-level `name` from the eval file, then the eval filename. The Dashboard still
-uses "Experiment" for the comparison and result grouping concept; folder names
-are only storage allocation and must not define result semantics.
+top-level `experiment`, then top-level `name`, then the eval filename. The
+Dashboard uses "Experiment" for the comparison and result grouping concept;
+folder names are only storage allocation and must not define result semantics.
 
 Imported source suite metadata appears in `index.jsonl` rows and manifests.
 Use `index.jsonl` fields such as `eval_path`, `test_id`, `target`, and

@@ -9,37 +9,8 @@ describe('extractCacheConfig', () => {
     expect(extractCacheConfig(suite)).toBeUndefined();
   });
 
-  it('should return undefined when no cache field', () => {
+  it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { target: 'default' } };
-    expect(extractCacheConfig(suite)).toBeUndefined();
-  });
-
-  it('should parse cache: true', () => {
-    const suite: JsonObject = { execution: { cache: true } };
-    const result = extractCacheConfig(suite);
-    expect(result).toEqual({ enabled: true, cachePath: undefined });
-  });
-
-  it('should parse cache: false', () => {
-    const suite: JsonObject = { execution: { cache: false } };
-    const result = extractCacheConfig(suite);
-    expect(result).toEqual({ enabled: false, cachePath: undefined });
-  });
-
-  it('should parse cache_path', () => {
-    const suite: JsonObject = { execution: { cache: true, cache_path: '.agentv/my-cache' } };
-    const result = extractCacheConfig(suite);
-    expect(result).toEqual({ enabled: true, cachePath: '.agentv/my-cache' });
-  });
-
-  it('should ignore camelCase cachePath on the YAML wire surface', () => {
-    const suite: JsonObject = { execution: { cache: true, cachePath: 'custom/cache' } };
-    const result = extractCacheConfig(suite);
-    expect(result).toEqual({ enabled: true, cachePath: undefined });
-  });
-
-  it('should return undefined for invalid cache value', () => {
-    const suite: JsonObject = { execution: { cache: 'yes' } };
-    expect(extractCacheConfig(suite)).toBeUndefined();
+    expect(() => extractCacheConfig(suite)).toThrow(/Top-level 'execution'/);
   });
 });

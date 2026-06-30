@@ -1,6 +1,5 @@
 description: Offline grader benchmark — setup A (same dataset, three low-cost graders, majority vote)
-execution:
-  target: fixture_replay
+target: fixture_replay
 
 tests:
   - file://../fixtures/labeled-grader-export.jsonl

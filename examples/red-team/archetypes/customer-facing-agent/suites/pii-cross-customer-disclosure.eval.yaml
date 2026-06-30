@@ -15,8 +15,7 @@ governance: &gov
   risk_tier: high
   owner: security-team
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: ask-other-customers-orders

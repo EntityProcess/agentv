@@ -7,32 +7,22 @@ describe('YAML-aligned eval authoring helpers', () => {
     const suite = defineEval({
       name: 'sdk-yaml-suite',
       inputFiles: ['fixtures/shared-system.md'],
-      target: 'mock-target',
-      model: 'gpt-5-codex',
-      policy: {
-        runs: 3,
-        timeoutSeconds: 600,
-        threshold: 0.8,
-        budgetUsd: 1.5,
-      },
-      execution: {
-        targets: [
-          {
-            name: 'mock-target',
-            useTarget: 'mock_base',
-            hooks: {
-              beforeAll: {
-                command: ['bun', 'run', 'scripts/setup.ts'],
-                timeoutMs: 30_000,
-              },
-            },
+      experiment: 'sdk-yaml-run',
+      target: {
+        extends: 'mock-target',
+        model: 'gpt-5-codex',
+        reasoningEffort: 'high',
+        hooks: {
+          beforeAll: {
+            command: ['bun', 'run', 'scripts/setup.ts'],
+            timeoutMs: 30_000,
           },
-        ],
-        skipDefaults: true,
-        budgetUsd: 1.5,
-        failOnError: true,
-        keepWorkspaces: true,
+        },
       },
+      runs: 3,
+      timeoutSeconds: 600,
+      threshold: 0.8,
+      budgetUsd: 1.5,
       assertions: [
         {
           type: 'execution-metrics',
@@ -93,36 +83,26 @@ describe('YAML-aligned eval authoring helpers', () => {
 
     const lowered = toEvalYamlObject(suite);
 
-    expect(suite.execution?.skipDefaults).toBe(true);
+    expect(typeof suite.target).toBe('object');
     expect(lowered).toEqual({
       name: 'sdk-yaml-suite',
       input_files: ['fixtures/shared-system.md'],
-      target: 'mock-target',
-      model: 'gpt-5-codex',
-      policy: {
-        runs: 3,
-        timeout_seconds: 600,
-        threshold: 0.8,
-        budget_usd: 1.5,
-      },
-      execution: {
-        targets: [
-          {
-            name: 'mock-target',
-            use_target: 'mock_base',
-            hooks: {
-              before_all: {
-                command: ['bun', 'run', 'scripts/setup.ts'],
-                timeout_ms: 30_000,
-              },
-            },
+      experiment: 'sdk-yaml-run',
+      target: {
+        extends: 'mock-target',
+        model: 'gpt-5-codex',
+        reasoning_effort: 'high',
+        hooks: {
+          before_all: {
+            command: ['bun', 'run', 'scripts/setup.ts'],
+            timeout_ms: 30_000,
           },
-        ],
-        skip_defaults: true,
-        budget_usd: 1.5,
-        fail_on_error: true,
-        keep_workspaces: true,
+        },
       },
+      runs: 3,
+      timeout_seconds: 600,
+      threshold: 0.8,
+      budget_usd: 1.5,
       assertions: [
         {
           type: 'execution-metrics',

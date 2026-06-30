@@ -24,8 +24,7 @@
 #
 description: Field accuracy grader patterns (per-test-case scoring)
 
-execution:
-  target: mock_extractor
+target: mock_extractor
 
 assertions:
   # Primary grader: Correctness via field-level accuracy

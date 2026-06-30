@@ -8,8 +8,7 @@
 name: compare-demo
 description: Demo eval for generating baseline and candidate results to compare
 
-execution:
-  target: llm
+target: llm
 
 tests:
   - id: code-review-001

@@ -77,7 +77,9 @@ describe('loadTsEvalFile', () => {
     expect(suite.tests[0].workspace?.hooks?.before_all?.command).toEqual(['echo', 'suite-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.command).toEqual(['echo', 'case-setup']);
     expect(suite.tests[0].workspace?.hooks?.before_each?.timeout_ms).toBe(1_000);
-    expect(suite.targets).toEqual(['mock-target']);
+    expect(suite.targetSpec).toEqual({ name: 'mock-target' });
+    expect(suite.targets).toBeUndefined();
+    expect(suite.workers).toBeUndefined();
     expect(suite.budgetUsd).toBe(2);
     expect(suite.threshold).toBe(0.75);
     expect(suite.metadata?.tags).toEqual(['sdk', 'typescript', 'yaml']);

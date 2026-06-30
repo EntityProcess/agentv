@@ -29,8 +29,7 @@ assertions:
     target:
       max_calls: 15
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # Test case 1: Perfect recall - all statements supported by retrieval

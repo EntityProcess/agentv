@@ -40,7 +40,7 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ### Cost & Safety
 
-The eval uses **low-cost models by default** (the targets defined in `.agentv/targets.yaml` such as `gpt-5-mini`, `claude-haiku`, `gemini-flash`). With 5 tests × 3 targets × 2 repeat attempts × 3 grader calls each, expect roughly **90 LLM calls**. A `policy.budget_usd: 2.00` cap is set in the eval file.
+The eval uses a **low-cost model by default**. With 5 tests × 2 repeat attempts × 3 grader calls each, expect roughly **30 LLM calls** per target. A `budget_usd: 2.00` cap is set in the eval file.
 
 To run against a single target first:
 
@@ -91,16 +91,15 @@ Pairwise Summary:
 
 ## How It Works
 
-### 1. Targets Matrix
+### 1. Target Selection
 
-The legacy `execution.targets` array runs every test against each listed model:
+The eval file names one default target. Run the same eval with different
+`--target` values to compare models:
 
-```yaml
-execution:
-  targets:
-    - copilot       # e.g., gpt-5-mini
-    - claude        # e.g., claude-haiku
-    - gemini-llm   # e.g., gemini-flash
+```bash
+agentv eval evals/benchmark.eval.yaml --target copilot
+agentv eval evals/benchmark.eval.yaml --target claude
+agentv eval evals/benchmark.eval.yaml --target gemini-llm
 ```
 
 ### 2. Weighted Graders
@@ -119,15 +118,14 @@ assertions:
 
 Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
-### 3. Policy Repeat
+### 3. Repeat Runs
 
-Each test runs twice through the top-level policy block. The current repeated
+Each test runs twice through top-level run controls. The current repeated
 attempt aggregation treats a case as successful when any attempt succeeds.
 
 ```yaml
-policy:
-  runs: 2
-  budget_usd: 2.00
+runs: 2
+budget_usd: 2.00
 ```
 
 This surfaces non-determinism — if a model passes on run 1 but fails on run 2,
@@ -172,12 +170,7 @@ benchmark.eval.yaml
 Add a new target to `.agentv/targets.yaml`, then reference it in the eval:
 
 ```yaml
-execution:
-  targets:
-    - copilot
-    - claude
-    - gemini-llm
-    - my_new_model    # Add here
+target: my_new_model
 ```
 
 ### Adding an grader
@@ -194,17 +187,15 @@ assertions:
 
 ### Adjusting run count
 
-Increase `policy.runs` for more variability data (at proportional cost):
+Increase `runs` for more variability data (at proportional cost):
 
 ```yaml
-policy:
-  runs: 5
-  budget_usd: 5.00
+runs: 5
+budget_usd: 5.00
 ```
 
 ## See Also
 
-- [`examples/features/matrix-evaluation/`](../../features/matrix-evaluation/) — minimal targets matrix example
 - [`examples/features/weighted-graders/`](../../features/weighted-graders/) — per-grader weight patterns
 - [`examples/features/trials/`](../../features/trials/) — experiment run-count configuration
 - [`examples/features/compare/`](../../features/compare/) — baseline vs candidate comparison

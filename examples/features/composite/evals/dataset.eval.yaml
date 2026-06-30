@@ -2,8 +2,7 @@ name: composite-grader-examples
 
 # This example demonstrates the new CompositeEvaluator feature
 
-execution:
-  target: llm
+target: llm
 
 tests:
   # Example 1: Weighted Average Aggregation
