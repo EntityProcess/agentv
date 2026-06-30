@@ -104,7 +104,7 @@ wait
 
 Unit tests alone are not enough for grader changes.
 
-1. If you are in a git worktree, copy `.env` into the worktree root before claiming E2E or grader verification:
+1. If you are in a git worktree, copy the ignored `.env` from the primary/main checkout into the worktree root before claiming E2E or grader verification:
 
 ```bash
 cp /path/to/main/.env .env
@@ -113,6 +113,10 @@ cp /path/to/main/.env .env
 ```powershell
 Copy-Item D:/path/to/main/.env .env
 ```
+
+Do not use `.env.example` as a credential substitute. If the primary/main
+checkout has no `.env`, record the missing credentials as the exact live
+provider or grader blocker.
 
 2. Run a real eval with a real example file:
 
@@ -167,11 +171,15 @@ bun scripts/check-grader-scores.ts
 
 Before marking a branch ready for review:
 
-1. Preflight: if in a git worktree, ensure `.env` exists in the worktree root.
+1. Preflight: if in a git worktree, ensure `.env` exists in the worktree root by copying it from the primary/main checkout.
 
 ```bash
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
 ```
+
+The copied file is local-only and must remain uncommitted. If there is no
+primary/main `.env`, record that as a live-provider blocker before claiming
+grader dogfood is unavailable.
 
 2. Run unit tests with `bun run test`.
 3. Blocking manual red and green UAT:

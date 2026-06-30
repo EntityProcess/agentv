@@ -42,6 +42,10 @@ bd where
 
 - These setup steps are required before running builds, tests, evals, or tracker
   updates in the worktree.
+- The `.env` copy must come from the primary/main checkout and stays ignored in
+  the worktree. Do not copy `.env.example` as a credential substitute. If the
+  primary checkout has no `.env`, record the missing credentials as the exact
+  blocker for live provider/grader verification.
 - If you discover you are on a stale base or have uncoordinated dirty files, stop and fix that before changing code.
 - Whenever you `git checkout`, `gh pr checkout`, `git pull`, or otherwise switch to a ref that may have changed `package.json` or `bun.lock`, run `bun install` before building or testing.
 
@@ -101,6 +105,10 @@ cd ../agentv.worktrees/<branch-name>
 bun install
 cp "$(git worktree list --porcelain | head -1 | sed 's/worktree //')/.env" .env
 ```
+
+If the primary/main checkout does not have `.env`, stop before live eval or
+grader verification and record the missing local credentials/proxy settings as
+the blocker.
 
 After the first meaningful commit, push and open a draft PR unless the user directs a different PR lifecycle:
 
