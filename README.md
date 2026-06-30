@@ -38,7 +38,7 @@ agentv eval evals/math.yaml
 - **Version-controlled** — evals, judges, and results all live in Git
 - **Hybrid graders** — deterministic code checks + LLM-based subjective scoring
 - **CI/CD native** — exit codes, JSONL output, threshold flags for pipeline gating
-- **Any agent** — supports Claude, Codex, Copilot, VS Code, Pi, Azure OpenAI, or any CLI agent
+- **Any agent** — supports Claude, Codex, Copilot, Pi, or any CLI agent
 
 ## Quick start
 
@@ -53,13 +53,20 @@ agentv init
 **3. Create an eval** in `evals/`:
 ```yaml
 description: Code generation quality
+
+experiment:
+  target: copilot
+  threshold: 0.8
+
 tests:
   - id: fizzbuzz
-    criteria: Write a correct FizzBuzz implementation
     input: Write FizzBuzz in Python
     assertions:
       - type: contains
         value: "fizz"
+      - type: rubrics
+        criteria:
+          - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: code-grader
         command: ./validators/check_syntax.py
       - type: llm-grader
@@ -71,9 +78,9 @@ tests:
 agentv eval evals/my-eval.yaml
 ```
 
-**5. Compare results across targets:**
+**5. Compare two runs** (pass two `index.jsonl` manifests — e.g. before and after a change):
 ```bash
-agentv compare .agentv/results/default/<timestamp>/index.jsonl
+agentv compare .agentv/results/default/<before-timestamp>/index.jsonl .agentv/results/default/<after-timestamp>/index.jsonl
 ```
 
 ## Output formats
