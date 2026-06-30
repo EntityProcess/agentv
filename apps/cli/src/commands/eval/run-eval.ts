@@ -2401,9 +2401,7 @@ export async function runEvalCommand(
         const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
         console.log(`Artifact bundle updated: ${runDir}`);
         console.log(`  Run manifest: ${indexPath}`);
-        console.log(
-          `  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`,
-        );
+        console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);
         console.log(`  Summary: ${summaryPath}`);
       } else {
         const { testArtifactDir, summaryPath, indexPath } = await writeArtifactsFromResults(
