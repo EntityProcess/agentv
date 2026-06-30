@@ -27,7 +27,7 @@ String-valued `tests` and string entries inside `tests[]` are raw-case import
 shorthand for direct paths, directories, and globs. Legacy `tests[].include`
 entries still load with a migration warning, but new evals should use
 `imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
-individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
+individual tests only for `threshold`, `timeout_seconds`, and
 `budget_usd`; keep target selection at top-level `target` or CLI `--target`,
 and keep setup and workspace mutation under `workspace`.
 
@@ -579,10 +579,11 @@ When halted, remaining tests get `executionStatus: 'execution_error'` with `fail
 
 ## Suite-Level Quality Threshold
 
-Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates.
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use `policy.runs` when each case should be attempted more than once.
 
 ```yaml
 policy:
+  runs: 3
   threshold: 0.8
 ```
 
@@ -639,7 +640,7 @@ import { defineEval, graders } from '@agentv/sdk';
 export default defineEval({
   name: 'helper-suite',
   target: 'default',
-  policy: { threshold: 0.8 },
+  policy: { runs: 3, threshold: 0.8 },
   tests: [
     {
       id: 'json-answer',

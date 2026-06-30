@@ -137,15 +137,8 @@ export interface EvalTrials {
   readonly costLimitUsd?: number;
 }
 
-export interface EvalRepeat {
-  readonly count: number;
-  readonly strategy?: 'pass_at_k' | 'pass_all' | 'mean' | 'confidence_interval';
-  readonly costLimitUsd?: number;
-}
-
 export interface EvalPolicy {
-  readonly repeat?: EvalRepeat;
-  readonly earlyExit?: boolean;
+  readonly runs?: number;
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
@@ -212,6 +205,7 @@ export interface EvalDefinition {
   readonly inputFiles?: readonly string[];
   readonly tests: readonly EvalTest[] | string;
   readonly target?: string;
+  readonly model?: string;
   readonly policy?: EvalPolicy;
   readonly execution?: EvalExecution;
   readonly assertions?: readonly EvalAssertionConfig[];
@@ -270,7 +264,7 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
 function rejectDeprecatedExperimentField(definition: EvalDefinition): void {
   if (Object.prototype.hasOwnProperty.call(definition, 'experiment')) {
     throw new Error(
-      "defineEval() no longer accepts top-level 'experiment'. Move experiment.target to top-level 'target' and move repeat, earlyExit, timeoutSeconds, threshold, and budgetUsd under top-level 'policy'.",
+      "defineEval() no longer accepts top-level 'experiment'. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeoutSeconds, threshold, and budgetUsd.",
     );
   }
 }

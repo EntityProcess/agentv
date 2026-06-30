@@ -176,6 +176,7 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `tests` instead */
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly model?: JsonValue;
   readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
   readonly policy?: JsonValue;
@@ -1373,7 +1374,7 @@ function parentWorkspaceLocation(suite: RawTestSuite): string | undefined {
 function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonObject | undefined {
   if (suite.experiment !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, and budget_usd under top-level 'policy'.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'experiment' has been removed. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.`,
     );
   }
   const runtime = suite.execution;
@@ -1384,19 +1385,28 @@ function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | 
   const suite = parsed as RawTestSuite;
   const runtime = readSuiteRuntimeBlock(suite, 'eval file');
   const policy = isJsonObject(suite.policy) ? suite.policy : undefined;
-  rejectCamelCasePolicyFields(policy);
+  validatePolicyFields(policy);
   const target = asString(suite.target);
-  if (!runtime && !policy && !target) {
+  const model = asString(suite.model);
+  if (!runtime && !policy && !target && !model) {
     return undefined;
   }
   return normalizeExperimentConfig({
     ...(runtime ?? {}),
     ...(target !== undefined ? { target } : {}),
+    ...(model !== undefined ? { model } : {}),
     ...(policy ?? {}),
   });
 }
 
-function rejectCamelCasePolicyFields(policy: JsonObject | undefined): void {
+const ALLOWED_POLICY_FIELDS: ReadonlySet<string> = new Set([
+  'runs',
+  'timeout_seconds',
+  'threshold',
+  'budget_usd',
+]);
+
+function validatePolicyFields(policy: JsonObject | undefined): void {
   if (!policy) {
     return;
   }
@@ -1408,11 +1418,12 @@ function rejectCamelCasePolicyFields(policy: JsonObject | undefined): void {
       );
     }
   }
-  const repeat = policy.repeat;
-  if (isJsonObject(repeat) && repeat.costLimitUsd !== undefined) {
-    throw new Error(
-      'Invalid policy.repeat.costLimitUsd. Eval YAML uses snake_case; use policy.repeat.cost_limit_usd.',
-    );
+  for (const key of Object.keys(policy)) {
+    if (!ALLOWED_POLICY_FIELDS.has(key)) {
+      throw new Error(
+        `Invalid policy.${key}. Top-level policy supports only runs, timeout_seconds, threshold, and budget_usd. Legacy repeat strategy controls belong under execution or scoped run overrides.`,
+      );
+    }
   }
 }
 

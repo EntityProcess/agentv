@@ -98,6 +98,7 @@ export interface TargetSelectionOptions {
   readonly cliTargetName?: string;
   readonly cliTargetNames?: readonly string[];
   readonly fileTargetName?: string;
+  readonly modelOverride?: string;
   readonly env: NodeJS.ProcessEnv;
 }
 
@@ -118,8 +119,17 @@ function pickTargetName(options: {
   return { name: 'default', source: 'default' };
 }
 
+function withModelOverride(
+  target: TargetDefinition,
+  modelOverride: string | undefined,
+): TargetDefinition {
+  const model = modelOverride?.trim();
+  return model && model.length > 0 ? { ...target, model } : target;
+}
+
 export async function selectTarget(options: TargetSelectionOptions): Promise<TargetSelection> {
-  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, env } = options;
+  const { testFilePath, repoRoot, cwd, explicitTargetsPath, cliTargetName, modelOverride, env } =
+    options;
 
   const targetsFilePath = await discoverTargetsFile({
     explicitPath: explicitTargetsPath,
@@ -161,7 +171,10 @@ export async function selectTarget(options: TargetSelectionOptions): Promise<Tar
   const fileTargetName = options.fileTargetName ?? (await readTestSuiteTarget(testFilePath));
   const targetChoice = pickTargetName({ cliTargetName, fileTargetName });
 
-  const targetDefinition = resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath);
+  const targetDefinition = withModelOverride(
+    resolveUseTarget(targetChoice.name, definitions, env, targetsFilePath),
+    modelOverride,
+  );
 
   try {
     const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
@@ -191,8 +204,16 @@ export async function selectMultipleTargets(
     readonly targetSource?: 'cli' | 'test-file';
   },
 ): Promise<readonly TargetSelection[]> {
-  const { testFilePath, repoRoot, cwd, explicitTargetsPath, env, targetNames, targetRefs } =
-    options;
+  const {
+    testFilePath,
+    repoRoot,
+    cwd,
+    explicitTargetsPath,
+    env,
+    targetNames,
+    targetRefs,
+    modelOverride,
+  } = options;
 
   // Build a lookup for target hooks from eval target refs
   const hooksMap = new Map<string, import('@agentv/core').TargetHooksConfig>();
@@ -252,7 +273,10 @@ export async function selectMultipleTargets(
   const results: TargetSelection[] = [];
 
   for (const name of targetNames) {
-    const targetDefinition = resolveUseTarget(name, definitions, env, targetsFilePath);
+    const targetDefinition = withModelOverride(
+      resolveUseTarget(name, definitions, env, targetsFilePath),
+      modelOverride,
+    );
     const hooks = hooksMap.get(name);
 
     try {

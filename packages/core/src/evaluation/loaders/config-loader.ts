@@ -261,7 +261,7 @@ function stripLocalOnlyExecutionDefaults(
 function getSuiteRuntimeBlock(suite: JsonObject): Record<string, unknown> | undefined {
   if (suite.experiment !== undefined) {
     throw new Error(
-      "Top-level 'experiment' has been removed from eval YAML. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, and budget_usd under top-level 'policy'.",
+      "Top-level 'experiment' has been removed from eval YAML. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.",
     );
   }
   const runtime = suite.execution;

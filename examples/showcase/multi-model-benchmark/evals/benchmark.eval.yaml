@@ -3,7 +3,7 @@
 # Demonstrates multi-model × multi-metric × variability workflow:
 #   - Targets matrix: runs every test against multiple models
 #   - Weighted graders: accuracy (3×), completeness (2×), clarity (1×)
-#   - Policy repeat: pass@k with 2 attempts to measure variability
+#   - Policy runs: 2 attempts to measure variability
 #
 # Default targets use low-cost models for safe experimentation.
 # Override with: agentv eval ... --target <name>
@@ -21,10 +21,8 @@ execution:
     - claude
     - gemini-llm
 policy:
-  repeat:
-    count: 2
-    strategy: pass_at_k
-    cost_limit_usd: 2.00
+  runs: 2
+  budget_usd: 2.00
 
 assertions:
   - name: accuracy

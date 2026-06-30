@@ -69,13 +69,12 @@ fields:
 ```yaml
 name: cargowise-sql-migration-codex
 target: agent
+model: gpt-5-codex
 execution:
   workers: 4
 policy:
   threshold: 0.8
-  repeat:
-    count: 3
-    strategy: pass_at_k
+  runs: 3
   timeout_seconds: 900
   budget_usd: 2.00
 
@@ -84,9 +83,7 @@ tests:
     type: suite
     run:
       threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
+      timeout_seconds: 600
     select:
       test_ids:
         - pr50857-*
@@ -104,9 +101,9 @@ tests:
     type: tests
 ```
 
-`experiment:` is canonical for new eval YAML. `execution:` remains a legacy
-alias only for already-existing eval files. Docs, examples, schema snapshots,
-and new fixtures should use `experiment:`. New surfaces should not teach
+Top-level `target`, `model`, and `policy:` are canonical for new eval YAML.
+`experiment:` is rejected. `execution:` remains a legacy alias only for
+already-existing eval files and target matrices. New surfaces should not teach
 `execution:` except when documenting compatibility for old eval files.
 
 The old experiment runtime fields are ported into the parent eval file:
@@ -114,7 +111,7 @@ The old experiment runtime fields are ported into the parent eval file:
 - target or target matrix
 - workers
 - thresholds
-- repeat policy such as `count` and `pass_at_k`
+- repeated run count through `policy.runs`
 - timeout
 - budget
 - other run-time controls that do not define the task itself
@@ -295,16 +292,15 @@ child-child workspace merging.
 
 ## Runtime Overrides
 
-The parent `experiment:` block is the default runtime policy for the whole eval.
-Some evals need stricter or looser policy for a selected group of tests, such as
-`pass_at_k` for stochastic agentic tasks and `pass_all` for hard regression
-gates. AgentV supports scoped runtime overrides for scoring and scheduling
-policy without creating separate experiment files.
+The parent top-level `target`, `model`, and `policy:` fields are the default
+runtime policy for the whole eval. Some evals need stricter or looser policy for
+a selected group of tests. AgentV supports scoped runtime overrides for scoring
+and scheduling policy without creating separate experiment files.
 
 Runtime override precedence is:
 
 ```text
-test.run > tests[].run > parent experiment
+test.run > tests[].run > parent policy
 ```
 
 Group-level overrides live beside `include`, `type`, and `select`:
@@ -316,9 +312,7 @@ tests:
     select:
       tags: [agentic]
     run:
-      repeat:
-        count: 3
-        strategy: pass_at_k
+      timeout_seconds: 300
 
   - include: ./evals/regression/**/*.eval.yaml
     type: suite
@@ -326,9 +320,7 @@ tests:
       tags: [must-pass]
     run:
       threshold: 1.0
-      repeat:
-        count: 2
-        strategy: pass_all
+      budget_usd: 1.00
 ```
 
 Case-level overrides use the same `run:` key:
@@ -339,15 +331,15 @@ tests:
     input: "..."
     run:
       threshold: 1.0
-      repeat:
-        count: 1
+      timeout_seconds: 120
 ```
 
 Initial scoped override fields should focus on result interpretation and
 scheduling:
 
 - `threshold`
-- `repeat`
+- `timeout_seconds`
+- `budget_usd`
 - `timeout_seconds`
 - `budget_usd`
 

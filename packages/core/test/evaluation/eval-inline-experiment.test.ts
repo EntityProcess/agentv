@@ -24,11 +24,10 @@ describe('eval.yaml runtime policy and tests imports', () => {
       [
         'name: runtime-suite',
         'target: codex',
+        'model: gpt-5-codex',
         'policy:',
         '  threshold: 0.7',
-        '  repeat:',
-        '    count: 2',
-        '    strategy: mean',
+        '  runs: 2',
         '  timeout_seconds: 30',
         '  budget_usd: 1.5',
         'tests:',
@@ -43,13 +42,35 @@ describe('eval.yaml runtime policy and tests imports', () => {
 
     expect(suite.experimentConfig).toMatchObject({
       target: 'codex',
+      model: 'gpt-5-codex',
       threshold: 0.7,
-      repeat: { count: 2, strategy: 'mean' },
+      runs: 2,
       timeoutSeconds: 30,
       budgetUsd: 1.5,
     });
     expect(suite.targets).toBeUndefined();
     expect(suite.workers).toBeUndefined();
+  });
+
+  it('rejects repeat strategy config under top-level policy', async () => {
+    const evalPath = path.join(tempDir, 'repeat-policy.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'target: codex',
+        'policy:',
+        '  repeat:',
+        '    count: 2',
+        '    strategy: pass_at_k',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/policy\.repeat/);
   });
 
   it('accepts top-level execution as a legacy runtime alias but rejects experiment blocks', async () => {
@@ -477,9 +498,7 @@ describe('eval.yaml runtime policy and tests imports', () => {
         'target: parent-target',
         'policy:',
         '  threshold: 0.8',
-        '  repeat:',
-        '    count: 3',
-        '    strategy: pass_at_k',
+        '  runs: 3',
         '  timeout_seconds: 30',
         '  budget_usd: 1.5',
         'input: parent shared input',
@@ -498,7 +517,7 @@ describe('eval.yaml runtime policy and tests imports', () => {
 
     expect(suite.experimentConfig?.target).toBe('parent-target');
     expect(suite.experimentConfig?.threshold).toBe(0.8);
-    expect(suite.experimentConfig?.repeat).toMatchObject({ count: 3, strategy: 'pass_at_k' });
+    expect(suite.experimentConfig?.runs).toBe(3);
     expect(test.run).toBeUndefined();
     expect(test.suite).toBe('child-suite');
     expect(test.workspace?.template).toBe(path.join(tempDir, 'child-workspace'));

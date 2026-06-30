@@ -8,12 +8,9 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-yaml-suite',
       inputFiles: ['fixtures/shared-system.md'],
       target: 'mock-target',
+      model: 'gpt-5-codex',
       policy: {
-        repeat: {
-          count: 3,
-          strategy: 'pass_at_k',
-        },
-        earlyExit: true,
+        runs: 3,
         timeoutSeconds: 600,
         threshold: 0.8,
         budgetUsd: 1.5,
@@ -102,12 +99,9 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-yaml-suite',
       input_files: ['fixtures/shared-system.md'],
       target: 'mock-target',
+      model: 'gpt-5-codex',
       policy: {
-        repeat: {
-          count: 3,
-          strategy: 'pass_at_k',
-        },
-        early_exit: true,
+        runs: 3,
         timeout_seconds: 600,
         threshold: 0.8,
         budget_usd: 1.5,

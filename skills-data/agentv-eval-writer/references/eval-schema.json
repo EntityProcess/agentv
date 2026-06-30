@@ -13920,30 +13920,16 @@
         "target": {
           "type": "string"
         },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
         "policy": {
           "type": "object",
           "properties": {
-            "repeat": {
-              "type": "object",
-              "properties": {
-                "count": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "strategy": {
-                  "type": "string",
-                  "enum": ["pass_at_k", "pass_all", "mean", "confidence_interval"]
-                },
-                "cost_limit_usd": {
-                  "type": "number",
-                  "minimum": 0
-                }
-              },
-              "required": ["count"],
-              "additionalProperties": false
-            },
-            "early_exit": {
-              "type": "boolean"
+            "runs": {
+              "type": "integer",
+              "minimum": 1
             },
             "timeout_seconds": {
               "type": "number",

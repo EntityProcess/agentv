@@ -148,12 +148,12 @@ Public docs and implementation notes must not reference non-public sources. If a
 
 ## Key Technical Decisions
 
-- KTD1. The repeat config attaches to the **experiment** surface, not to `eval.yaml` `execution`, per the experiments-separation decision (epic `av-991`, recorded on `av-991.1`). This aligns with Vercel agent-eval, where `runs`/`earlyExit` are experiment-level. This epic (`av-i0l`) owns the repeat **mechanics** (schema shape, gate policies, attempt aggregation, flake classification, and the run-N artifact layout); `av-991` owns **placement** (the experiment contract the repeat block lives on). The existing `execution.trials` code path is **hard-removed** (no compatibility alias) because usage is rare; its behavior is replaced by the experiment-level repeat block. Because the experiment surface is delivered by `av-991`, the schema work in `av-i0l.1` depends on that contract landing.
-- KTD2. Keep one-run CI as the default. Repeat runs are for reliability evidence unless `repeat.gate` says they are a CI gate.
+- KTD1. Product correction on 2026-06-30 supersedes the strategy-shaped public `repeat` contract below. Public eval YAML uses top-level `policy.runs` for repeated attempts; legacy/internal strategy names are not a public authoring surface.
+- KTD2. Keep one-run CI as the default. Repeat runs are for reliability evidence unless a future explicit gate policy says they are a CI gate.
 - KTD3. Store aggregate rows in the top-level `index.jsonl`, not one row per attempt. Attempt details live in case-local `summary.json` plus `run-N/` directories so existing aggregate consumers do not inflate case counts.
 - KTD4. Single-run cases also nest the lone attempt under `run-1`, matching Vercel's durable attempt directory shape and keeping future repeat expansion append-only.
 - KTD5. Root run aggregates use `summary.json`, which supersedes the old AgentV benchmark file; no compatibility alias is written. Root `index.jsonl` is the discovery anchor for both local and git-backed remote discovery.
-- KTD6. `pass_at_k` keeps the existing AgentV/Vercel ergonomics: early exit is enabled unless explicitly disabled. Full reliability sampling requires `early_exit: false` on the experiment and should be recorded because it changes cost and statistics.
+- KTD6. The current any-success aggregation is not pass@k. Do not document it as pass@k unless AgentV implements the statistical pass@k metric or estimator.
 - KTD7. Do not inherit Vercel's implicit CI ambiguity. All policies that can make one failed plus one passed attempt count as passing must be visible in config and artifacts.
 - KTD8. Reuse current failure classification fields before adding new enums. Add aggregate classification fields only after mapping from `execution_status`, `failure_stage`, and `failure_reason_code` proves insufficient.
 - KTD9. Do not reuse `pass_rate` for attempt success frequency. AgentV uses `attempt_success_rate` for repeat-run reliability and reserves `pass_rate` for assertion or expectation pass rate.
@@ -184,47 +184,27 @@ The runner executes the configured attempts, writes attempt artifacts, computes 
 
 ## Config Contract
 
-Preferred v1 shape:
+Superseded proposal shape:
 
 ```yaml
-repeat:
-  count: 3
-  strategy: pass_at_k
-  cost_limit_usd: 5
-  seed: 1234
-  max_parallel_attempts: 1
-  timeout_ms: 300000
-  early_exit: never
-  retry:
-    max_attempts: 1
-    on:
-      - verifier_error
-      - infrastructure_error
-      - timeout
-  gate:
-    policy: attempt_success_rate_at_least
-    threshold: 0.8
+policy:
+  runs: 3
+  budget_usd: 5
 ```
 
 Field notes:
 
-- `count` is the planned reliability sample count. Missing repeat config or `count: 1` means normal single-run behavior.
-- `strategy` starts with the existing AgentV aggregation strategies: `pass_at_k`, `mean`, and `confidence_interval`.
+- `runs` is the planned attempt count. Missing `policy.runs` or `runs: 1` means normal single-run behavior.
 - `max_attempts` belongs to retry handling, not reliability sampling. For example, `count: 3` with `retry.max_attempts: 1` may write up to six physical attempts, but only the three counted attempts feed reliability stats.
-- `early_exit` should be represented by the experiment-level boolean in the native experiments branch. Future gate-aware modes such as `never`, `on_gate_satisfied`, and `on_gate_failed` remain non-goals until gate policies are implemented.
 - `seed` is best effort. Providers that support deterministic seeds receive a per-attempt seed derived from the base seed and attempt number; providers that do not support seeds record `seed_unsupported`.
-- `cost_limit_usd` composes with existing run-level budget controls and stops new attempts when the repeat budget is exhausted.
+- `budget_usd` composes with existing run-level budget controls and stops new attempts when the budget is exhausted.
 
 Migration from `execution.trials` (hard removal, no alias):
 
-`execution.trials` is removed from `eval.yaml` outright; the repeat block lives on the experiment instead. Existing semantics map as follows so any prerelease evals can be ported by hand:
+`execution.trials` is removed from `eval.yaml` outright. Existing prerelease evals should be ported to the public policy shape:
 
-- `trials.count` maps to `repeat.count`.
-- `trials.cost_limit_usd` maps to `repeat.cost_limit_usd`.
-- `trials.costLimitUsd` is accepted only as `repeat.costLimitUsd` for prerelease parity; new YAML should use `cost_limit_usd`.
-- `trials.strategy: pass_at_k` maps to `repeat.strategy: pass_at_k`.
-- `trials.strategy: mean` maps to `repeat.strategy: mean`.
-- `trials.strategy: confidence_interval` maps to `repeat.strategy: confidence_interval`.
+- `trials.count` maps to `policy.runs`.
+- `trials.cost_limit_usd` maps to `policy.budget_usd`.
 - Existing gate-policy ideas remain future work; do not overload `strategy` to imply CI policy.
 
 ---
@@ -449,12 +429,11 @@ Search behavior:
 
 Repeat runs can multiply provider spend. V1 should ship with conservative controls:
 
-- `repeat.count` and retry `max_attempts` must be bounded by validation.
+- `policy.runs` and retry `max_attempts` must be bounded by validation.
 - `max_parallel_attempts` limits per-case concurrent attempts; it composes with existing eval workers and provider-specific concurrency guidance.
 - Agent-provider targets should keep the existing "limit concurrency to 3 targets" operational guidance.
-- `repeat.cost_limit_usd` stops scheduling new attempts when exceeded and records `budget_exceeded`.
+- `policy.budget_usd` stops scheduling new attempts when exceeded and records `budget_exceeded`.
 - `timeout_ms` applies per attempt; existing top-level agent timeout remains the default if no repeat timeout is set.
-- `early_exit` must be recorded in `summary.json` when it differs from the default.
 - Cache should be disabled or scoped by attempt when repeat runs measure stochastic behavior. Existing code already disables cache for repeated attempts; keep that principle.
 - Provider seed support is best effort and must be recorded per attempt so deterministic and stochastic runs are distinguishable.
 
@@ -476,10 +455,10 @@ Repeat runs can multiply provider spend. V1 should ship with conservative contro
 
 **Test Scenarios:**
 
-- Valid `repeat.count: 3` parses into internal repeat config with no gate policy.
-- Invalid `repeat.count`, `threshold`, `max_parallel_attempts`, and retry values are rejected or warned consistently with existing config parsing.
+- Valid `policy.runs: 3` parses into internal repeat config with no gate policy.
+- Invalid `policy.runs`, `threshold`, `max_parallel_attempts`, and retry values are rejected or warned consistently with existing config parsing.
 - `all_attempts_successful`, `any_attempt_successful`, `attempt_success_rate_at_least`, and `mean_pass_rate_at_least` validate; `mean_score_at_least` validates only if included in v1.
-- Legacy eval-level `trials` input fails; the compatibility path is explicit hand migration to experiment `repeat`.
+- Legacy eval-level `trials` input fails; the compatibility path is explicit hand migration to `policy.runs`.
 - Generated experiment schema stays in sync.
 
 **Verification:** Schema tests pass and docs/examples can reference the accepted YAML shape.
@@ -581,8 +560,8 @@ Repeat runs can multiply provider spend. V1 should ship with conservative contro
 | --- | --- |
 | Hidden CI behavior diverges across commands | Route every repeat-run gate through one policy evaluator and test CLI command paths against the same cases |
 | Repeat attempts inflate run counts in trend/compare views | Keep one aggregate row per case/target in top-level `index.jsonl` |
-| Early exit biases reliability reports | Keep pass-at-k early exit compatible by default, require `early_exit: false` for full sampling, and label incomplete samples |
-| Existing `trials` behavior conflicts with the new contract | Hard-remove eval-level `execution.trials`; preserve its strategies and cost cap only through experiment `repeat` |
+| Early exit biases reliability reports | Do not describe any-success aggregation as pass@k; record incomplete samples when all attempts are not run |
+| Existing `trials` behavior conflicts with the new contract | Hard-remove eval-level `execution.trials`; migrate public authoring to `policy.runs` |
 | Attempt artifacts make rows too large | Keep only compact attempt references in `index.jsonl`; move large attempt indexes to case-local sidecars |
 | Artifact-layout migration lands concurrently | Depend on shared layout helpers and do not edit the `artifact-results-layout` branch from this worktree |
 

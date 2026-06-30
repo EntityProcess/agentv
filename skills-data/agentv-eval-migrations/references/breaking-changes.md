@@ -16,10 +16,8 @@ Old:
 name: backend-with-skills
 experiment:
   target: copilot--claude-opus-4.8
-  repeat:
-    count: 3
-    strategy: pass_at_k
-  early_exit: true
+  model: claude-opus-4.8
+  runs: 3
   timeout_seconds: 600
   threshold: 0.8
   budget_usd: 5
@@ -30,15 +28,13 @@ New:
 ```yaml
 name: backend-with-skills
 target: copilot--claude-opus-4.8
+model: claude-opus-4.8
 
 workspace:
   isolation: per_case
 
 policy:
-  repeat:
-    count: 3
-    strategy: pass_at_k
-  early_exit: true
+  runs: 3
   timeout_seconds: 600
   threshold: 0.8
   budget_usd: 5

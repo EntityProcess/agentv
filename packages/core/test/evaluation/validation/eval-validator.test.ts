@@ -42,9 +42,7 @@ describe('validateEvalFile', () => {
 target: codex
 policy:
   threshold: 0.8
-  repeat:
-    count: 2
-    strategy: pass_at_k
+  runs: 2
 tests:
   - id: local-case
     input: "Hello"

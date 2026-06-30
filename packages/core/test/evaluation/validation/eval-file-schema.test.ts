@@ -50,7 +50,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects eval-level execution.trials because run counts belong under policy.repeat', () => {
+  it('rejects eval-level execution.trials because run counts belong under policy.runs', () => {
     const result = EvalFileSchema.safeParse({
       execution: {
         trials: {
@@ -82,10 +82,10 @@ describe('EvalFileSchema input shorthand', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       target: 'codex',
+      model: 'gpt-5-codex',
       policy: {
         threshold: 0.8,
-        repeat: { count: 2, strategy: 'mean' },
-        early_exit: true,
+        runs: 2,
         timeout_seconds: 300,
         budget_usd: 2,
       },
@@ -116,6 +116,31 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects strategy-shaped repeat policy under the public policy block', () => {
+    const result = EvalFileSchema.safeParse({
+      target: 'codex',
+      policy: {
+        repeat: { count: 2, strategy: 'pass_at_k' },
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects early_exit under policy because policy.runs has no public strategy controls', () => {
+    const result = EvalFileSchema.safeParse({
+      target: 'codex',
+      policy: {
+        runs: 2,
+        early_exit: true,
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('accepts flatter imports with optional inline tests', () => {

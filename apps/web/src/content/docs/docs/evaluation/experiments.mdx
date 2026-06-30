@@ -8,20 +8,18 @@ sidebar:
 AgentV eval files are the only runnable authoring artifact. The eval file
 defines the experiment. Use top-level `name` as the result namespace,
 top-level `target` for the system under test, and top-level `policy` for
-runtime and gating controls such as timeout, budgets, thresholds, and
-repeat-run policy.
+runtime and gating controls such as run count, timeout, budgets, and thresholds.
 AgentV does not have a separate `experiment.yaml` file, top-level `run_group`,
 or schema-significant `experiments/` directory.
 
 ```yaml
 name: support-regression
 target: codex-gpt5
+model: gpt-5-codex
 policy:
+  runs: 4
   timeout_seconds: 720
-  repeat:
-    count: 4
-    strategy: pass_at_k
-    cost_limit_usd: 2.00
+  budget_usd: 2.00
 
 workspace:
   hooks:
@@ -35,8 +33,9 @@ tests:
 ```
 
 `experiment:` was a prerelease authoring block and is rejected. Move
-`experiment.target` to top-level `target`, and move `repeat`, `early_exit`,
-`timeout_seconds`, `threshold`, and `budget_usd` under `policy`.
+`experiment.target` to top-level `target`, `experiment.model` to top-level
+`model`, and runtime controls to top-level `policy` with `runs`,
+`timeout_seconds`, `threshold`, and `budget_usd`.
 `execution:` is accepted only as a legacy top-level runtime alias for existing
 eval files and target matrices.
 
@@ -97,9 +96,7 @@ imports:
           priority: high
       run:
         threshold: 1.0
-        repeat:
-          count: 2
-          strategy: pass_all
+        timeout_seconds: 300
   tests:
     - path: cases/*.cases.yaml
     - path: cases/regression.jsonl
@@ -112,7 +109,7 @@ tests:
 `workspace`, shared `input`, shared `assertions`, and tests. The parent eval
 still owns the single run bundle and runtime policy. Child suite legacy runtime
 blocks are ignored when imported; use parent `target`/`policy` for run policy
-and import `run:` for scoped threshold, repeat, timeout, or budget overrides.
+and import `run:` for scoped threshold, timeout, or budget overrides.
 
 A parent eval that imports any `imports.suites` entry must not define top-level
 `workspace`. Imported suites own task environment. If the parent should provide
@@ -158,9 +155,7 @@ test.run > import run > parent policy
 target: agent
 policy:
   threshold: 0.8
-  repeat:
-    count: 3
-    strategy: pass_at_k
+  runs: 3
 
 imports:
   suites:
@@ -168,18 +163,14 @@ imports:
       select:
         tags: [agentic]
       run:
-        repeat:
-          count: 3
-          strategy: pass_at_k
+        timeout_seconds: 300
 
     - path: ./evals/regression/**/*.eval.yaml
       select:
         tags: [must-pass]
       run:
         threshold: 1.0
-        repeat:
-          count: 2
-          strategy: pass_all
+        timeout_seconds: 300
 
 tests:
   - id: critical-case
@@ -187,13 +178,12 @@ tests:
     criteria: Must pass exactly
     run:
       threshold: 1.0
-      repeat:
-        count: 1
+      budget_usd: 0.50
 ```
 
-Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and
-`budget_usd`. Candidate-changing fields such as `target` and `targets` stay
-parent-level. Workspace mutation belongs in
+Scoped `run:` supports `threshold`, `timeout_seconds`, and `budget_usd` for
+public eval authoring. Candidate-changing fields such as `target` and `targets`
+stay parent-level. Workspace mutation belongs in
 `workspace.hooks`, and runner-specific setup belongs in `targets[].hooks`.
 
 ## Lifecycle Ownership
@@ -207,7 +197,8 @@ prepare files, dependencies, repos, or target-specific runner state.
 | Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
 | Configure an agent runner or provider variant | `targets[].hooks` |
 | Choose the target | top-level `target` |
-| Configure repeats, pass policy, budget, threshold | top-level `policy` |
+| Override the target's default model | top-level `model` |
+| Configure run count, budget, timeout, threshold | top-level `policy` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml
@@ -225,9 +216,7 @@ targets:
 
 target: agent-with-skills
 policy:
-  repeat:
-    count: 3
-    strategy: pass_at_k
+  runs: 3
 ```
 
 `experiment.workspace` and top-level `experiment:` are not authored eval YAML
@@ -239,35 +228,17 @@ top-level or case-level `workspace`.
 
 ## Repeat Runs
 
-`repeat` supports the same core strategies as repeated attempts:
+Use `policy.runs` when you want AgentV to try each case more than once:
 
 ```yaml
 policy:
-  repeat:
-    count: 3
-    strategy: mean
-    cost_limit_usd: 1.50
+  runs: 3
 ```
 
-Supported strategies:
-
-| Strategy | Behavior |
-| --- | --- |
-| `pass_at_k` | Uses the best passing attempt; early-exits by default unless `early_exit: false` is set |
-| `pass_all` | Uses the weakest attempt score, so every repeated attempt must meet the threshold |
-| `mean` | Aggregates repeated attempt scores by mean |
-| `confidence_interval` | Uses the lower bound of a 95% confidence interval as the conservative score |
-
-Set `early_exit: false` under `policy:` when you want all attempts recorded
-instead of pass-at-k early exit:
-
-```yaml
-policy:
-  repeat:
-    count: 4
-    strategy: pass_at_k
-  early_exit: false
-```
+The current repeated-attempt aggregation treats the case as successful when any
+attempt succeeds. AgentV does not expose this as `pass@k`; in ML and
+code-generation evaluation, pass@k is a statistical metric with different
+semantics.
 
 ## Result Layout
 

@@ -157,6 +157,7 @@ interface NormalizedOptions {
   readonly experimentMetadata?: ExperimentArtifactMetadata;
   readonly experimentTargets?: readonly string[];
   readonly experimentTargetRefs?: readonly EvalTargetRef[];
+  readonly targetModelOverride?: string;
   readonly experimentTrialsConfig?: TrialsConfig;
   readonly budgetUsd?: number;
   readonly cliBudgetUsd?: number;
@@ -767,6 +768,7 @@ function applyExperimentOptions(
     experimentMetadata: buildExperimentArtifactMetadata(experiment),
     experimentTargets,
     experimentTargetRefs: options.cliTargets.length === 0 ? experimentTargetRefs : undefined,
+    targetModelOverride: options.targetModelOverride ?? experiment.model,
     experimentTrialsConfig: buildExperimentTrialsConfig(experiment),
   };
 }
@@ -1265,6 +1267,7 @@ async function prepareFileMetadata(params: {
         targetNames,
         targetRefs,
         targetSource,
+        modelOverride: effectiveOptions.targetModelOverride,
       });
 
       selections = multiSelections.map((sel) => ({
@@ -1286,6 +1289,7 @@ async function prepareFileMetadata(params: {
             : effectiveOptions.target,
         fileTargetName:
           targetSource === 'test-file' && targetNames.length === 1 ? targetNames[0] : undefined,
+        modelOverride: effectiveOptions.targetModelOverride,
         env: process.env,
       });
 

@@ -64,6 +64,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'imports',
   'tests',
   'target',
+  'model',
   'policy',
   'experiment',
   'execution',
@@ -100,7 +101,7 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['assert', "'assert' has been removed. Use 'assertions' instead."],
   [
     'experiment',
-    "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target' and move repeat, early_exit, timeout_seconds, threshold, and budget_usd under top-level 'policy'.",
+    "Top-level 'experiment' has been removed. Move experiment.target to top-level 'target', experiment.model to top-level 'model', and runtime controls to top-level 'policy' with runs, timeout_seconds, threshold, and budget_usd.",
   ],
 ]);
 

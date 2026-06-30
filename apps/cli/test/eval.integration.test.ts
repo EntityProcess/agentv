@@ -38,6 +38,9 @@ targets:
     provider: mock
   - name: cli-target
     provider: mock
+  - name: codex-target
+    provider: codex
+    model: gpt-5-default
 `;
   await writeFile(targetsPath, targetsContent, 'utf8');
 
@@ -611,18 +614,15 @@ describe('agentv eval CLI', () => {
         wrapperPath,
         [
           'name: native-exp',
-          'target: cli-target',
+          'target: codex-target',
+          'model: gpt-5-codex',
           'execution:',
           '  workers: 4',
           'policy:',
           '  timeout_seconds: 12',
           '  threshold: 0.8',
           '  budget_usd: 3',
-          '  repeat:',
-          '    count: 2',
-          '    strategy: mean',
-          '    cost_limit_usd: 1.25',
-          '  early_exit: false',
+          '  runs: 2',
           'tests:',
           '  - include: sample.test.yaml',
           '    type: suite',
@@ -647,7 +647,8 @@ describe('agentv eval CLI', () => {
 
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
-        target: 'cli-target',
+        target: 'codex-target',
+        targetModel: 'gpt-5-codex',
         agentTimeoutMs: 5000,
         maxConcurrency: 4,
         evalCaseIds: ['case-alpha'],
@@ -664,13 +665,9 @@ describe('agentv eval CLI', () => {
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
-        target: 'cli-target',
-        repeat: {
-          count: 2,
-          strategy: 'mean',
-          cost_limit_usd: 1.25,
-        },
-        early_exit: false,
+        target: 'codex-target',
+        model: 'gpt-5-codex',
+        runs: 2,
         timeout_seconds: 12,
         workers: 4,
       });
