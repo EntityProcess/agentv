@@ -1,9 +1,1 @@
-we are going to adopt promptfoo eval contract. see https://github.com/EntityProcess/wtg-ai-prompts-experiment/tree/main/framework-parity/promptfoo/pr-679. though the directory structure cna be cleaner. i suggest we remove workspace field in agentv and create workspace and skills extension. agentv should support extensions using sam syntax as promptfoo (cloned locally). if you need to research promptfoo refer to local clone or deepwiki mcp. draft plan.
-
----
-
-we want promptfoo compatbility but want to structure the example better so its more reusable.
-
----
-
-i think we can remove workspace from agentv core and use extensions which are more generalized
+create draft PR with the plan so i can rview
