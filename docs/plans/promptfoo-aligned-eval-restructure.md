@@ -304,19 +304,28 @@ Borrow vercel's judge model, which is stronger than a prompt-stuffed rubric:
 - **Judge pinning** knob: `grader_target` = `{ agent?, model }` with self-grade default. AgentV already has `grader_target`; formalize the `{model}`-required pinning for apples-to-apples comparison.
 - **Gap to fix vs vercel:** they capture no token/cost — AgentV already does; keep it.
 
-### 5.3 `grading.json` contract — the main risk of the `llm-rubric` change (owner-flagged)
-The `llm-grader`→`llm-rubric` **rename** is straightforward. The real risk is that the new judge's verdict maps cleanly onto AgentV's existing `grading.json` shape without breaking it. Good news: **the triple already exists.** `grading.json` = `EvaluationScore` (`packages/core/src/evaluation/graders/types.ts`):
+### 5.3 `grading.json` contract — reconciled with agentskills (owner-flagged main risk)
+The output contract originates from agentskills' [evaluating-skills](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx). Its `grading.json` is:
+```json
+{ "assertion_results": [ { "text": "…", "passed": true, "evidence": "…" } ],
+  "summary": { "passed": 3, "failed": 1, "total": 4, "pass_rate": 0.75 } }
 ```
-score: number (0-1)
-verdict: EvaluationVerdict            # pass/fail
-assertions: [{ text, passed, evidence? }]   # per-criterion pass + evidence
+i.e. **per-assertion `passed` (boolean) + `evidence`, and a top-level `summary` of counts. There is NO overall `verdict` in agentskills.**
+
+AgentV's current `grading.json` = `EvaluationScore` (`graders/types.ts`) is a **superset**:
+```
+score: number (0-1)                          # fractional (weighted / rubric) — AgentV addition over agentskills' binary
+verdict: 'pass' | 'fail' | 'skip'            # AgentV addition (NOT in agentskills)
+assertions: [{ text, passed, evidence? }]    # ≡ agentskills assertion_results — exact match
 + scores? (child graders), details?, graderRawRequest?, tokenUsage?, graderTarget?
 ```
-So vercel's `{pass, score, reason}` maps as: `pass`→`verdict` + per-criterion `passed`; `score`→`score`; `reason`→ per-criterion **`evidence`**.
-- **Risk 1 — one-blob reason vs per-criterion evidence.** The judge must emit **one `AssertionEntry` per rubric criterion** with its own `passed`+`evidence`, not a single lumped `reason`. A multi-criteria `llm-rubric` (or bare-string batch, §2.k) → N entries; single criterion → 1 entry. The judge prompt/output parser must produce per-criterion verdicts.
-- **Risk 2 — where `evidence` lives.** `packages/sdk/src/schemas.ts` currently comments that "evidence lives in the canonical Trace under messages/events." **Owner decision: keep `pass`/`score`/`evidence` in `grading.json`** (per-assertion `evidence`), with the full transcript still in the trace. `grading.json` stays the self-contained verdict record; don't force graders to reconstruct evidence from the trace.
-- **Risk 3 — score↔verdict consistency.** Define the derivation once (e.g. `verdict = score >= threshold`), and how weighted multi-criteria scores roll up (existing `weight`/`min_score`), so `score`, `verdict`, and per-assertion `passed` never disagree in `grading.json`.
-- **Net:** no new grading contract — reuse `EvaluationScore`; the work is the verdict→`assertions[]` mapping + a golden `grading.json` test proving score/verdict/evidence stay consistent when the default prompt flips.
+
+- **Per-assertion: no change.** `{ text, passed, evidence }` already matches agentskills exactly. (Nit: align array key `assertions` → **`assertion_results`** and add the agentskills **`summary`** counts, since agentskills is the source and we're pre-production.)
+- **Overall result: keep a STRING, not a boolean (owner Q resolved).** A boolean `passed` can't express **`skip`** (not-run / dependency-skipped) and doesn't pair with a fractional **`score`**. So keep `verdict: 'pass'|'fail'|'skip'` + `score: number`. `verdict` was an AgentV addition, kept deliberately for the skip state + fractional scoring — this is a "keep AgentV, better semantics" call, not an agentskills field.
+- **`llm-rubric` mapping (the actual risk):** the judge's `{pass, score, reason}` maps as `pass`→per-criterion `passed` (+ rolls up to `verdict`), `score`→`score`, `reason`→ per-criterion **`evidence`**. The judge must emit **one `assertion_result` per rubric criterion** (multi-criteria `llm-rubric` / bare-string batch §2.k → N entries), not one lumped reason.
+- **Keep `evidence` in `grading.json`.** An SDK comment (`packages/sdk/src/schemas.ts`) nudges evidence toward the trace; override — `grading.json` stays the self-contained verdict record (transcript still in the trace).
+- **Consistency:** define `verdict`/`score`/`passed` derivation once (e.g. `verdict = score >= threshold`; `skip` orthogonal; weighted roll-up via `weight`/`min_score`) + a golden `grading.json` test so they never disagree when the default judge prompt flips.
+- **Net:** the `llm-grader`→`llm-rubric` rename is trivial; the real work is the verdict→`assertion_results[]` mapping + the naming alignment (`assertion_results`/`summary`), on the existing `EvaluationScore` — no new contract.
 
 ---
 
@@ -359,13 +368,14 @@ The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.
 
 ## 9. Reconciliation with PR #1592 (extensions/workspace slice)
 
-PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.md`) is an implementation-ready plan for the **extensions + workspace-removal** slice. It is well-structured and **largely consistent** with this plan — treat it as the **first implementation slice** of §2.l/§4, not a competing design. Confirmed-aligned: promptfoo `file://path:function` extension refs + four hook names (U2); hook-name selects phase; remove core `workspace`, hard (KTD5, AE4); typed extension outputs instead of env-var side channels (KTD3); JS/TS in-process first, Python via code-grader subprocess discipline (KTD4); canonical AgentV run bundle preserved (R8); snake_case docs (U7); adds a **skills extension** (U5) — a good addition this plan didn't cover.
+PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.md`) is an implementation-ready plan for the **extensions + workspace-removal** slice. It is well-structured and **largely consistent** with this plan — treat it as the **first implementation slice** of §2.l/§4, not a competing design. Confirmed-aligned: promptfoo `file://path:function` extension refs + four hook names (U2); hook-name selects phase; remove core `workspace`, hard (KTD5, AE4); typed extension outputs instead of env-var side channels (KTD3); JS/TS in-process first, Python via code-grader subprocess discipline (KTD4); canonical AgentV run bundle preserved (R8); snake_case docs (U7); adds a skills extension (U5) — a good addition this plan didn't cover, **renamed to `agent_rules`** (see amendment 5 below).
 
 **Amendments needed to align #1592 with the decisions above:**
 
 1. **Workspace spec location — the main divergence.** #1592 routes workspace config through dedicated `extensions/workspace.config.yaml` files (extension-owned config). This plan's §2.b/§2.l decision (owner: "workspace is part of the dataset") puts the per-case spec in **`vars.workspace`** (dataset data), consumed by the extension. Reconcile: **global/shared config in a config file is fine; the per-case spec should be expressible as `vars.workspace`** so it rides the dataset (and `beforeEach` reads it from test context). Amend #1592 U2/U4 to consume `vars.workspace`, not only a config file.
-2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:skills`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
+2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:agent_rules`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
+5. **Rename `skills` → `agent_rules` (owner).** The staging extension isn't skills-only — it stages **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename the built-in to **`agentv:agent_rules`** (snake_case wire, per §2.f), the package to `packages/extensions/agent-rules`, and the returned provider context from `skill_paths` to `agent_rules_paths` (or a typed map covering skills/hooks/agents). `skills` survives only as one *kind* of agent rule, not the extension name.
 3. **Isolation model.** #1592 treats `isolation: per_case` as extension config returned by the workspace extension. This plan derives shared-vs-per-case from **which hook** (`beforeAll` vs `beforeEach`) and uses a **reset-based workspace pool** (§4). Reconcile the two: hook selects shared/per-case; pool+reset is the mechanism; `isolation` config, if kept, must not contradict the hook.
 4. **Sequencing vs the wider restructure.** #1592 cites ADR-0013 as authority and proposes ADR-0014. This plan *reverses* parts of ADR-0013 (`assert`, grader names, `input` removal — §2.c/§2.b). #1592 doesn't touch those, so no direct conflict, but ADR-0014 should note the broader superseding ADR is coming so it doesn't re-entrench `input`/`assertions`.
 
-**Verdict:** reasonable and mergeable as the extensions/workspace slice. **Amended (2026-07-02)** — an "Amendments (agreed)" section was added to the #1592 doc capturing A1–A5: hook-derived isolation + reset-based workspace pool (drop the `isolation` config knob), per-case spec in `vars.workspace`, built-in auto-registered `agentv:workspace`/`agentv:skills` scheme alongside `file://`, grading contract unchanged (`EvaluationScore`), and ADR-0014 sequencing note. No rewrite required.
+**Verdict:** reasonable and mergeable as the extensions/workspace slice. **Amended (2026-07-02)** — an "Amendments (agreed)" section was added to the #1592 doc capturing A1–A6: hook-derived isolation + reset-based workspace pool (drop the `isolation` config knob), per-case spec in `vars.workspace`, built-in auto-registered `agentv:workspace`/`agentv:agent_rules` scheme alongside `file://`, grading contract unchanged (`EvaluationScore`), ADR-0014 sequencing note, and **rename `skills`→`agent_rules`** (stages skills + hooks + agents + rules). No rewrite required.
