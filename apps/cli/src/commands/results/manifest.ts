@@ -333,7 +333,7 @@ export interface LightweightResultRecord {
  * non-string values. Returns undefined when the map is absent or empty so the
  * lightweight record stays sparse for old runs that never wrote a tags map.
  */
-function normalizeTagMap(value: unknown): Record<string, string> | undefined {
+export function normalizeTagMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }

@@ -97,6 +97,7 @@ import {
   type ResultManifestRecord,
   loadLightweightResults,
   loadManifestResults,
+  normalizeTagMap,
   parseResultManifest,
 } from './manifest.js';
 import {
@@ -1593,24 +1594,6 @@ interface RunSummaryMetadataForDashboard {
   readonly runtimeSource?: RunRuntimeSourceMetadata;
 }
 
-/**
- * Coerce a summary.json `metadata.tags` value into a `Record<string,string>`,
- * dropping non-string values. Returns undefined for absent/empty maps so old
- * runs (no tags map) stay sparse.
- */
-function normalizeSummaryTagMap(value: unknown): Record<string, string> | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return undefined;
-  }
-  const entries: [string, string][] = [];
-  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof raw === 'string') {
-      entries.push([key, raw]);
-    }
-  }
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-}
-
 function readRunSummaryMetadataForDashboard(manifestPath: string): RunSummaryMetadataForDashboard {
   try {
     const summaryPath = path.join(path.dirname(manifestPath), 'summary.json');
@@ -1627,7 +1610,7 @@ function readRunSummaryMetadataForDashboard(manifestPath: string): RunSummaryMet
       };
     };
     const planned = parsed.metadata?.planned_test_count;
-    const tags = normalizeSummaryTagMap(parsed.metadata?.tags);
+    const tags = normalizeTagMap(parsed.metadata?.tags);
     return {
       ...(typeof parsed.metadata?.eval_file === 'string' &&
         parsed.metadata.eval_file.trim() && { evalFile: parsed.metadata.eval_file.trim() }),
@@ -2262,6 +2245,28 @@ function resolveTagGroupValue(
 }
 
 /**
+ * Resolve the single run-level `{experiment, tags}` pair a run contributes,
+ * mirroring exactly the resolution `handleRuns` uses to build each `RunMeta`
+ * (`experiment` and `run_tags`). Because promptfoo tags are run-level (every row
+ * of a run carries the same map), grouping and the run-list detail filter must
+ * both key off this one source so a run lands in exactly one group per key and
+ * the group card's `run_count` matches the detail view's filtered runs.
+ */
+function resolveRunLevelTagFields(
+  meta: SourcedResultFileMeta,
+  records: readonly { readonly experiment?: string; readonly tags?: Record<string, string> }[],
+  summaryMetadata: RunSummaryMetadataForDashboard,
+): { experiment?: string; tags?: Record<string, string> } {
+  const inferredExperiment = meta.experiment ?? inferExperimentFromRunId(meta.raw_filename);
+  const experiment = records[0]?.experiment ?? inferredExperiment;
+  const tags = records[0]?.tags ?? summaryMetadata.tags;
+  return {
+    ...(experiment !== undefined && { experiment }),
+    ...(tags !== undefined && { tags }),
+  };
+}
+
+/**
  * Generalized `GET /api/tags`. Without `?key=` it enumerates the available tag
  * keys (union of every row's `tags` map keys plus the synthetic `experiment`
  * key, sorted). With `?key=<k>` it groups runs by that key's values and returns
@@ -2274,17 +2279,19 @@ async function handleTags(c: C, { searchDir, agentvDir, projectId }: DataContext
   const rawKey = c.req.query('key');
   const key = rawKey?.trim() ? rawKey.trim() : undefined;
 
-  // Key enumeration mode: walk every row, union tag keys, always include
-  // `experiment`. Returned sorted for a stable dropdown.
+  // Key enumeration mode: union each run's tag keys, always include
+  // `experiment`. Read the run-level `metadata.tags` from each run's
+  // `summary.json` (cheap) rather than parsing every run's full JSONL — promptfoo
+  // tags are run-level, so the summary map carries the same keys. Returned sorted
+  // for a stable dropdown.
   if (!key) {
     const keys = new Set<string>([EXPERIMENT_TAG_KEY]);
     for (const m of metas) {
       try {
-        const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
-        for (const r of records) {
-          for (const tagKey of Object.keys(r.tags ?? {})) {
-            keys.add(tagKey);
-          }
+        await ensureRunReadable(searchDir, m, projectId);
+        const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
+        for (const tagKey of Object.keys(summaryMetadata.tags ?? {})) {
+          keys.add(tagKey);
         }
       } catch {
         // skip runs that fail to load
@@ -2293,6 +2300,35 @@ async function handleTags(c: C, { searchDir, agentvDir, projectId }: DataContext
     return c.json({ keys: [...keys].sort() });
   }
 
+  const groups = await aggregateTagGroups(metas, key, { searchDir, projectId, pass_threshold });
+  return c.json({ key, groups });
+}
+
+/**
+ * Group runs by a tag key's values and return per-value summaries. Grouping is
+ * per-run: each run resolves exactly ONE group value from its run-level
+ * `{experiment, tags}` (via {@link resolveRunLevelTagFields}), matching the
+ * `RunMeta` the run-list detail filter keys off, so `run_count` per group equals
+ * the detail view's filtered run count. Per-row metrics (targets, evals, pass
+ * rate, last run) are then accumulated into that one group.
+ */
+async function aggregateTagGroups(
+  metas: readonly SourcedResultFileMeta[],
+  key: string,
+  opts: { searchDir: string; projectId?: string; pass_threshold: number },
+): Promise<
+  Array<{
+    name: string;
+    run_count: number;
+    target_count: number;
+    eval_count: number;
+    quality_count: number;
+    passed_count: number;
+    execution_error_count: number;
+    pass_rate: number;
+    last_run: string | null;
+  }>
+> {
   const groupMap = new Map<
     string,
     {
@@ -2308,38 +2344,42 @@ async function handleTags(c: C, { searchDir, agentvDir, projectId }: DataContext
 
   for (const m of metas) {
     try {
-      const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
+      const records = await loadLightweightResultsForMeta(opts.searchDir, m, opts.projectId);
+      const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
+      const value = resolveTagGroupValue(
+        resolveRunLevelTagFields(m, records, summaryMetadata),
+        key,
+      );
+      const entry = groupMap.get(value) ?? {
+        targets: new Set<string>(),
+        runFilenames: new Set<string>(),
+        evalCount: 0,
+        qualityCount: 0,
+        passedCount: 0,
+        executionErrorCount: 0,
+        lastTimestamp: '',
+      };
+      entry.runFilenames.add(m.filename);
       for (const r of records) {
-        const value = resolveTagGroupValue(r, key);
-        const entry = groupMap.get(value) ?? {
-          targets: new Set<string>(),
-          runFilenames: new Set<string>(),
-          evalCount: 0,
-          qualityCount: 0,
-          passedCount: 0,
-          executionErrorCount: 0,
-          lastTimestamp: '',
-        };
-        entry.runFilenames.add(m.filename);
         if (r.target) entry.targets.add(r.target);
         entry.evalCount++;
         if (isExecutionErrorResult(r)) {
           entry.executionErrorCount++;
         } else {
           entry.qualityCount++;
-          if (r.score >= pass_threshold) entry.passedCount++;
+          if (r.score >= opts.pass_threshold) entry.passedCount++;
         }
         if (r.timestamp && r.timestamp > entry.lastTimestamp) {
           entry.lastTimestamp = r.timestamp;
         }
-        groupMap.set(value, entry);
       }
+      groupMap.set(value, entry);
     } catch {
       // skip runs that fail to load
     }
   }
 
-  const groups = [...groupMap.entries()].map(([name, entry]) => ({
+  return [...groupMap.entries()].map(([name, entry]) => ({
     name,
     run_count: entry.runFilenames.size,
     target_count: entry.targets.size,
@@ -2350,8 +2390,6 @@ async function handleTags(c: C, { searchDir, agentvDir, projectId }: DataContext
     pass_rate: entry.qualityCount > 0 ? entry.passedCount / entry.qualityCount : 0,
     last_run: entry.lastTimestamp || null,
   }));
-
-  return c.json({ key, groups });
 }
 
 /**
@@ -2362,64 +2400,11 @@ async function handleTags(c: C, { searchDir, agentvDir, projectId }: DataContext
 async function handleExperiments(c: C, ctx: DataContext) {
   const { runs: metas } = await listMergedResultFiles(ctx.searchDir, undefined, ctx.projectId);
   const { threshold: pass_threshold } = loadStudioConfig(ctx.agentvDir);
-  const experimentMap = new Map<
-    string,
-    {
-      targets: Set<string>;
-      runFilenames: Set<string>;
-      evalCount: number;
-      qualityCount: number;
-      passedCount: number;
-      executionErrorCount: number;
-      lastTimestamp: string;
-    }
-  >();
-
-  for (const m of metas) {
-    try {
-      const records = await loadLightweightResultsForMeta(ctx.searchDir, m, ctx.projectId);
-      for (const r of records) {
-        const experiment = resolveTagGroupValue(r, EXPERIMENT_TAG_KEY);
-        const entry = experimentMap.get(experiment) ?? {
-          targets: new Set<string>(),
-          runFilenames: new Set<string>(),
-          evalCount: 0,
-          qualityCount: 0,
-          passedCount: 0,
-          executionErrorCount: 0,
-          lastTimestamp: '',
-        };
-        entry.runFilenames.add(m.filename);
-        if (r.target) entry.targets.add(r.target);
-        entry.evalCount++;
-        if (isExecutionErrorResult(r)) {
-          entry.executionErrorCount++;
-        } else {
-          entry.qualityCount++;
-          if (r.score >= pass_threshold) entry.passedCount++;
-        }
-        if (r.timestamp && r.timestamp > entry.lastTimestamp) {
-          entry.lastTimestamp = r.timestamp;
-        }
-        experimentMap.set(experiment, entry);
-      }
-    } catch {
-      // skip runs that fail to load
-    }
-  }
-
-  const experiments = [...experimentMap.entries()].map(([name, entry]) => ({
-    name,
-    run_count: entry.runFilenames.size,
-    target_count: entry.targets.size,
-    eval_count: entry.evalCount,
-    quality_count: entry.qualityCount,
-    passed_count: entry.passedCount,
-    execution_error_count: entry.executionErrorCount,
-    pass_rate: entry.qualityCount > 0 ? entry.passedCount / entry.qualityCount : 0,
-    last_run: entry.lastTimestamp || null,
-  }));
-
+  const experiments = await aggregateTagGroups(metas, EXPERIMENT_TAG_KEY, {
+    searchDir: ctx.searchDir,
+    projectId: ctx.projectId,
+    pass_threshold,
+  });
   return c.json({ experiments });
 }
 
@@ -2485,7 +2470,10 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
       let runStartedAt = m.timestamp;
 
       for (const r of records) {
-        const experiment = r.experiment ?? 'default';
+        // Resolve experiment with the same lockstep tags.experiment fallback the
+        // Tags tab uses (`resolveTagGroupValue` on the reserved key), so a run
+        // never appears under a different experiment name across tabs.
+        const experiment = resolveTagGroupValue(r, EXPERIMENT_TAG_KEY);
         const target = r.target ?? 'default';
         experimentsSet.add(experiment);
         targetsSet.add(target);

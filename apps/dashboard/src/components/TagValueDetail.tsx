@@ -3,9 +3,11 @@
  *
  * Generalizes the old experiment detail: given a tag `key` and `value`, it
  * shows the matching group summary and every run whose promptfoo `run_tags`
- * map resolves to that value for the key. For the reserved `experiment` key we
- * honour the lockstep fallback (`run.experiment ?? run.run_tags?.experiment`)
- * so old runs without a tags map still resolve.
+ * map resolves to that value for the key. Value resolution uses the shared
+ * `runTagValue` helper (`~/lib/tag-grouping`), which mirrors the server's
+ * grouping rule exactly — including the reserved-`experiment` lockstep fallback
+ * and the `(no <key>)` bucket for runs missing the key — so the filtered run
+ * count here matches the group card's run_count.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -17,7 +19,8 @@ import {
   tagGroupsOptions,
 } from '~/lib/api';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
-import type { RunMeta } from '~/lib/types';
+import { runTagValue } from '~/lib/tag-grouping';
+import { tagKeyLabel } from '~/lib/tag-key-label';
 
 import { RunList } from './RunList';
 
@@ -25,20 +28,6 @@ interface TagValueDetailProps {
   tagKey: string;
   tagValue: string;
   projectId?: string;
-}
-
-/** Title-case a tag key for display (e.g. `team` → `Team`). */
-function keyLabel(key: string): string {
-  if (!key) return 'Tag';
-  return key.charAt(0).toUpperCase() + key.slice(1);
-}
-
-/** Resolve the value a run contributes for the selected key, with the reserved-`experiment` fallback. */
-function runTagValue(run: RunMeta, key: string): string {
-  if (key === 'experiment') {
-    return run.experiment ?? run.run_tags?.experiment ?? 'default';
-  }
-  return run.run_tags?.[key] ?? '';
 }
 
 export function TagValueDetail({ tagKey, tagValue, projectId }: TagValueDetailProps) {
@@ -77,7 +66,7 @@ export function TagValueDetail({ tagKey, tagValue, projectId }: TagValueDetailPr
     <div className="space-y-6">
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-          {keyLabel(tagKey)}
+          {tagKeyLabel(tagKey)}
         </p>
         <h1 className="text-2xl font-semibold text-white">{tagValue}</h1>
         <p className="mt-1 text-sm text-gray-400">
@@ -110,7 +99,7 @@ export function TagValueDetail({ tagKey, tagValue, projectId }: TagValueDetailPr
           emptyMessage={
             <div>
               <p className="text-lg text-gray-400">
-                No evaluation runs found for {keyLabel(tagKey)} <code>{tagValue}</code>.
+                No evaluation runs found for {tagKeyLabel(tagKey)} <code>{tagValue}</code>.
               </p>
               <p className="mt-2 text-sm text-gray-500">
                 Runs will appear here once this value has execution results.

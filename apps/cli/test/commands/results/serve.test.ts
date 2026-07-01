@@ -1798,6 +1798,10 @@ describe('serve app', () => {
   describe('GET /api/tags', () => {
     // Seed a local run whose JSONL rows carry a promptfoo-shaped `tags` map so
     // the Tags-tab grouping endpoint has arbitrary keys to enumerate/group on.
+    // Real runs write the same run-level tags map into both `index.jsonl` rows
+    // and `summary.json` `metadata.tags` in lockstep (see run-artifacts.ts), and
+    // key enumeration reads the cheap summary source — so mirror the row tags
+    // into summary.json here to match production.
     function createLocalTaggedRun(
       baseDir: string,
       timestamp: string,
@@ -1806,6 +1810,21 @@ describe('serve app', () => {
       const runDir = localRunDirFromRunId(baseDir, timestamp);
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(record));
+      const tags = record.tags as Record<string, string> | undefined;
+      writeFileSync(
+        path.join(runDir, 'summary.json'),
+        JSON.stringify(
+          {
+            metadata: {
+              run_id: timestamp,
+              ...(typeof record.experiment === 'string' && { experiment: record.experiment }),
+              ...(tags && { tags }),
+            },
+          },
+          null,
+          2,
+        ),
+      );
     }
 
     it('enumerates available tag keys (union of row keys plus synthetic experiment)', async () => {
