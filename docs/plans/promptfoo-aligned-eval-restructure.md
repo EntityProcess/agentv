@@ -331,6 +331,28 @@ assertions: [{ text, passed, evidence? }]    # ≡ agentskills assertion_results
 
 ## 6. Output artifacts & analytics
 
+### 6.0 Canonical output format — reviewed across all four frameworks (owner Q)
+The subagents reviewed every reference's output format. Verdict: **split artifacts + a top-level aggregate is the canonical, cleanest, most expressive shape — NOT one giant `results.json`.**
+
+| Framework | Shape | Aggregate |
+|---|---|---|
+| **promptfoo** | consolidated: SQLite DB + one export file (`EvaluateSummaryV3`) | in the single file |
+| **margin-lab** | **split**: per-instance `instances/<id>/result.json` + trajectory + logs | top-level `results.json` (`Summary`) |
+| **vercel-agent-eval** | **split**: per-run `result.json` + `transcript.json` + `transcript-raw.jsonl` + `outputs/` (transcript by path, summary inlined) | per-eval `summary.json` |
+| **agentskills** | **split**: per-case `grading.json` + `timing.json` | `benchmark.json` (counts) |
+| **AgentV today** | **split**: `run-N/{grading.json, timing.json}`, transcript by path, `outputs/answer.md`, `file_changes` | run-root `summary.json` + `index.jsonl` |
+
+**Decision (owner): best-of-each hybrid — split bundle, queryable-on-the-filesystem, no DB.** Each part comes from the framework that does it best:
+
+- **Aggregate + queryability ← margin-lab (owner's pick).** The top-level **`summary.json` is a rich, self-contained, `jq`-queryable `Summary`** in margin-lab's shape — `run_id`, `status` breakdown, per-case **pass@k** (`pass_count`/`pass_rate`), per-instance summaries, `usage`, infra-failure taxonomy. You can query the whole run from one file with no database (margin-lab's key strength). Plus **`index.jsonl`** (one row per case) for streaming/line-wise queries (`jq`/`grep` per line) that scale better than a single fat file. AgentV's current top-level `summary.json` must be *widened* to margin's `Summary` richness so it's genuinely queryable, not just a manifest.
+- **Transcript + tool calls + metrics ← vercel (owner's pick).** Two-layer transcript (raw + normalized), canonical **`tool_name` enum**, and a precomputed **`transcript_summary`** (tool_calls, files_read/modified, shell_commands, web_fetches, thinking) — **inlined into each result row** so `tool-trajectory`/`execution-metrics`/pass@k read metrics cheaply without parsing the transcript. Transcript itself referenced **by path** (§5.1). This is where AgentV's trajectory/metrics graders get their signal.
+- **Per-assertion grading ← agentskills.** `grading.json` = `assertion_results[{text, passed, evidence}]` + `summary` counts, plus AgentV's `verdict`/`score` superset (§5.3).
+- **Consolidated interop ← promptfoo (strong contender, kept as export).** Optional `EvaluateSummaryV3` single-file export + promptfoo-shaped `named_scores`/`derived_metrics`, for tool interop — not the canonical store.
+
+So: **split detail** (per-case/per-attempt dirs, transcript by path) + a **margin-style queryable aggregate** (`summary.json`) + **row-per-case `index.jsonl`** + **vercel transcript/metrics** + **agentskills grading** + **promptfoo export**. No DB; the filesystem is the query surface.
+
+- **Don't over-split.** Keep the agentskills-aligned split (`grading.json`, `timing.json`), transcript-by-path, and the inlined `transcript_summary`; don't add more sidecars. Remove deprecated/duplicate artifact paths (see §10, e.g. `isDeprecatedTraceArtifactPath`).
+
 - **Keep** `.agentv/results/<run_id>/` bundle (ADR-0011/0012). Reconcile field names with margin-lab's `results.json` `Summary` where useful.
 - **Analytics = one pure function** (margin-lab's `runresults.Build`): given instances+results, produce a deterministic `Summary` with per-case **pass@k** (`pass_count`/`pass_rate` over samples), `status` breakdown, `usage` aggregation, and infra-failure taxonomy. AgentV currently lacks pass@k/variance — this fills it.
 - Add promptfoo-shaped **`named_scores`** + **`derived_metrics`** to per-result rows (feeds Dashboard Tags/metrics tabs).
@@ -368,14 +390,47 @@ The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.
 
 ## 9. Reconciliation with PR #1592 (extensions/workspace slice)
 
-PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.md`) is an implementation-ready plan for the **extensions + workspace-removal** slice. It is well-structured and **largely consistent** with this plan — treat it as the **first implementation slice** of §2.l/§4, not a competing design. Confirmed-aligned: promptfoo `file://path:function` extension refs + four hook names (U2); hook-name selects phase; remove core `workspace`, hard (KTD5, AE4); typed extension outputs instead of env-var side channels (KTD3); JS/TS in-process first, Python via code-grader subprocess discipline (KTD4); canonical AgentV run bundle preserved (R8); snake_case docs (U7); adds a skills extension (U5) — a good addition this plan didn't cover, **renamed to `agent_rules`** (see amendment 5 below).
+PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.md`) is an implementation-ready plan for the **extensions + workspace-removal** slice. It is well-structured and **largely consistent** with this plan — treat it as the **first implementation slice** of §2.l/§4, not a competing design. Confirmed-aligned: promptfoo `file://path:function` extension refs + four hook names (U2); hook-name selects phase; remove core `workspace`, hard (KTD5, AE4); typed extension outputs instead of env-var side channels (KTD3); JS/TS in-process first, Python via code-grader subprocess discipline (KTD4); canonical AgentV run bundle preserved (R8); snake_case docs (U7); adds a skills extension (U5) — a good addition this plan didn't cover, **renamed to `agent-rules`** (see amendment 5 below).
 
 **Amendments needed to align #1592 with the decisions above:**
 
 1. **Workspace spec location — the main divergence.** #1592 routes workspace config through dedicated `extensions/workspace.config.yaml` files (extension-owned config). This plan's §2.b/§2.l decision (owner: "workspace is part of the dataset") puts the per-case spec in **`vars.workspace`** (dataset data), consumed by the extension. Reconcile: **global/shared config in a config file is fine; the per-case spec should be expressible as `vars.workspace`** so it rides the dataset (and `beforeEach` reads it from test context). Amend #1592 U2/U4 to consume `vars.workspace`, not only a config file.
-2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:agent_rules`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
-5. **Rename `skills` → `agent_rules` (owner).** The staging extension isn't skills-only — it stages **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename the built-in to **`agentv:agent_rules`** (snake_case wire, per §2.f), the package to `packages/extensions/agent-rules`, and the returned provider context from `skill_paths` to `agent_rules_paths` (or a typed map covering skills/hooks/agents). `skills` survives only as one *kind* of agent rule, not the extension name.
+2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:agent-rules`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
+5. **Rename `skills` → `agent-rules` (owner).** The staging extension isn't skills-only — it stages **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename the built-in to **`agentv:agent-rules`** (kebab — identifier token, like grader types `llm-rubric`/`tool-trajectory`; NOT snake_case), the package to `packages/extensions/agent-rules`, and the provider context field from `skill_paths` to `agent_rules_paths` (snake_case — this IS a data field). `skills` survives only as one *kind* of agent rule, not the extension name.
+   - **Naming convention (general):** identifier/reference tokens are **kebab-case** (`agentv:agent-rules`, `llm-rubric`, `is-json`, `assert-set`); data fields/keys are **snake_case** (`agent_rules_paths`, `vars.workspace`, `max_budget_usd`); npm packages are kebab.
 3. **Isolation model.** #1592 treats `isolation: per_case` as extension config returned by the workspace extension. This plan derives shared-vs-per-case from **which hook** (`beforeAll` vs `beforeEach`) and uses a **reset-based workspace pool** (§4). Reconcile the two: hook selects shared/per-case; pool+reset is the mechanism; `isolation` config, if kept, must not contradict the hook.
 4. **Sequencing vs the wider restructure.** #1592 cites ADR-0013 as authority and proposes ADR-0014. This plan *reverses* parts of ADR-0013 (`assert`, grader names, `input` removal — §2.c/§2.b). #1592 doesn't touch those, so no direct conflict, but ADR-0014 should note the broader superseding ADR is coming so it doesn't re-entrench `input`/`assertions`.
 
-**Verdict:** reasonable and mergeable as the extensions/workspace slice. **Amended (2026-07-02)** — an "Amendments (agreed)" section was added to the #1592 doc capturing A1–A6: hook-derived isolation + reset-based workspace pool (drop the `isolation` config knob), per-case spec in `vars.workspace`, built-in auto-registered `agentv:workspace`/`agentv:agent_rules` scheme alongside `file://`, grading contract unchanged (`EvaluationScore`), ADR-0014 sequencing note, and **rename `skills`→`agent_rules`** (stages skills + hooks + agents + rules). No rewrite required.
+**Verdict:** reasonable and mergeable as the extensions/workspace slice. **Amended (2026-07-02)** — an "Amendments (agreed)" section was added to the #1592 doc capturing A1–A6: hook-derived isolation + reset-based workspace pool (drop the `isolation` config knob), per-case spec in `vars.workspace`, built-in auto-registered `agentv:workspace`/`agentv:agent-rules` scheme alongside `file://`, grading contract unchanged (`EvaluationScore`), ADR-0014 sequencing note, and **rename `skills`→`agent-rules`** (stages skills + hooks + agents + rules). No rewrite required.
+
+---
+
+## 10. Simplification / dead-code cleanup (hard deprecation — no back-compat)
+
+Since this is a major version with nothing in production, **remove** the accumulated `@deprecated` aliases and legacy shims rather than carry them. Verified inventory (grep across `packages/core/src`, `packages/sdk/src`, `apps/cli/src`), grouped by how to handle it.
+
+**A. Pure deprecated aliases / shims — delete now (safe, self-contained, not entangled with the restructure):**
+- `script` alias for `command` in workspace hooks/scripts — `types.ts:218/258/375/401`, `workspace/script-executor.ts:66-69` (runtime warning), `validation/workspace-path-validator.ts:112`. Keep only `command`.
+- `judge_target` → `grader_target` — `providers/types.ts:373`. Remove alias.
+- Legacy grader-provider fields — `graders/llm-grader.ts:95/102` (`resolveGraderProvider`, `graderTargetProvider`), `registry/grader-registry.ts:22/34` (`graderProvider`, `llmGrader`).
+- Legacy rubric gating — `types.ts:480/489-490`, `graders/llm-grader.ts:1316-1325` (0-10 `required_min_score`, `required: true`→`min_score:1.0`). Keep only `min_score` (0-1).
+- `EvalCase` → `EvalTest` alias — `types.ts:1053`. (Ties to `eval_cases`→`tests` removal.)
+- `@deprecated Use expectedOutput` — `evaluate.ts:104/127`.
+- `@deprecated Use Message` — `providers/types.ts:255`.
+- `DEFAULT_SEMANTIC_*`/threshold alias — `graders/scoring.ts:26`.
+- `results_by_project` — `validation/config-validator.ts:108` (already a deprecation error; drop the field entirely).
+- Deprecated trace artifact paths — `results-repo.ts:3013/3214` (`isDeprecatedTraceArtifactPath`), `trace.ts:951` legacy persistence path.
+- Backward-compat home/config alias — `paths.ts:20`.
+- Unsupported-field rejection messages that no longer need to exist post-major — `targets-validator.ts:299/308` (`api_format`, `log_format`).
+- **Provider-kind alias sprawl** — `providers/types.ts:110-121`: `azure-openai`, `google`, `google-gemini`, `codex-cli`, `copilot`, `copilot_sdk`, `pi`, `claude-code`, `cc-mirror`, plus `bedrock`/`vertex` ("legacy/future support", currently dead). Keep one canonical name per provider; drop the rest (or keep a *small* documented set). `bedrock`/`vertex` are dead scaffolding → remove until actually implemented.
+
+**B. Removed by the restructure itself (don't double-handle — fold into the relevant phase):**
+- `assertions`/`composite`/`eval_cases`/`experiment`(top-level)/`tests[].input`/`workspace`/`on_run_complete`/`preprocessors`/`${{ ENV }}`/`budget_usd`(top-level, `config-loader.ts:468`)/scalar `threshold`(`config-loader.ts:502`) — all removed as part of §2/§2.l; the `z.never()` rejection stubs (`runs`/`early_exit`/`policy`/`execution`/`model`/`trials`/`workers`) can drop once the new schema lands.
+- The **two conflicting ADR-0013 files** (`0013-stabilize-eval-authoring-contract.md` vs `0013-experiment-is-metadata-expressed-as-tags-experiment.md`) — resolve into the single superseding ADR; don't leave both.
+- Schema/runtime drift: `eval-file.schema.ts` `experiment`/`tags` lag the runtime `metadata.ts` tag-map union — the new schema removes the drift.
+
+**C. Duplicate types to consolidate (judgment, not blind delete):**
+- `EvaluationScore` vs `ChildGraderResult` (`graders/types.ts`) are near-identical (`score`/`verdict`/`assertions`/`graderRawRequest`/`scores`/`details`/`tokenUsage`). Consider one recursive type.
+- `orchestrator.ts:495` "legacy workspace pooling toggle" (`workspaceMode`) — reconcile with §4's reset-based pool (one pooling model, not two).
+
+**Sequencing:** land **group A** as its own small, tested, dogfooded cleanup PR *now* (independent of the schema work — pure removal of dead aliases, shrinks the surface the restructure must touch). Handle **group B** inside the restructure phases (they need the new schema first). Do **group C** as targeted refactors with tests. Every deletion needs a green test run + a live dogfood per `.agents/verification.md` before merge.
