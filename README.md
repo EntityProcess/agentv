@@ -80,6 +80,10 @@ default_test:
 
 workspace:
   isolation: per_case
+  repos:
+    - path: ./fixture
+      repo: EntityProcess/agentv-contract-fixture
+      commit: 21a34daed7ebcfe36cbed053607622a55e5e94cb
 
 tests:
   - id: fizzbuzz
@@ -211,6 +215,13 @@ export default defineEval({
   threshold: 0.8,
   workspace: {
     isolation: 'per_case',
+    repos: [
+      {
+        path: './fixture',
+        repo: 'EntityProcess/agentv-contract-fixture',
+        commit: '21a34daed7ebcfe36cbed053607622a55e5e94cb',
+      },
+    ],
   },
   tests: [
     {

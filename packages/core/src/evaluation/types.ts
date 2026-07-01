@@ -248,6 +248,8 @@ export type RepoConfig = {
   readonly ancestor?: number;
   /** Optional sparse-checkout paths. */
   readonly sparse?: readonly string[];
+  /** Optional project-configured repo resolver name. */
+  readonly resolver?: string;
 };
 
 export type WorkspaceHookConfig = {

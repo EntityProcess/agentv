@@ -43,12 +43,21 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
   const baseCommit = readString(obj, 'base_commit');
   const ancestor = typeof obj.ancestor === 'number' ? obj.ancestor : undefined;
   const sparse = readStringArray(obj, 'sparse');
+  const resolver = readString(obj, 'resolver');
 
   if (commit !== undefined && baseCommit !== undefined && commit !== baseCommit) {
     throw new Error('workspace.repos[].commit and workspace.repos[].base_commit must match.');
   }
 
-  if (!repoPath && !repo && !commit && !baseCommit && ancestor === undefined && !sparse) {
+  if (
+    !repoPath &&
+    !repo &&
+    !commit &&
+    !baseCommit &&
+    ancestor === undefined &&
+    !sparse &&
+    !resolver
+  ) {
     return undefined;
   }
 
@@ -59,5 +68,6 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
     ...(baseCommit !== undefined && { base_commit: baseCommit }),
     ...(ancestor !== undefined && { ancestor }),
     ...(sparse !== undefined && { sparse }),
+    ...(resolver !== undefined && { resolver }),
   };
 }

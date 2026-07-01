@@ -165,12 +165,13 @@ workspace:
   isolation: shared           # shared (default) | per_case
 ```
 
-`repo` declares the repository identity. Acquisition is harness-owned: AgentV first looks for matching registered projects and configured mirrors, then uses its git cache, then falls back to remote clone. See [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition) for the resolver order and `git_cache.mirrors` config.
+`repo` declares the repository identity. Acquisition is harness-owned: AgentV first applies configured `repo_resolvers`, then uses the built-in git path of registered projects, configured mirrors, AgentV's git cache, and remote clone. See [Workspace Architecture](/docs/guides/workspace-architecture/#acquisition-resolver) for the resolver order, command resolver protocol, and `git_cache.mirrors` config.
 
 | Field | Description |
 |-------|-------------|
 | `repos[].path` | Directory within the workspace to clone into |
 | `repos[].repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
+| `repos[].resolver` | Optional configured `repo_resolvers[].name` override |
 | `repos[].commit` | Branch, tag, or SHA to check out (default: `HEAD`) |
 | `repos[].base_commit` | Alias for `commit`, useful for SWE-bench-style datasets |
 | `repos[].ancestor` | Walk N commits back from the checked-out ref (e.g., `1` for parent) |
@@ -181,7 +182,7 @@ workspace:
 
 `isolation: per_case` is the spelling for fresh workspace state per test case.
 
-**Pooling:** shared workspaces with `repos` use pool slots by default. Use `--workspace-mode temp` or `execution.workspace_mode: temp` in `config.local.yaml` to disable pooling for a local run.
+**Workspace mode:** shared workspaces with `repos` use fresh temp workspaces by default. Use `--workspace-mode pooled` or `execution.workspace_mode: pooled` in local config only when you explicitly want pool-slot reuse.
 
 **Existing local workspaces:** do not commit local paths in eval YAML. Use `--workspace-path /path/to/workspace` for a one-off run, or put `execution.workspace_path` in `.agentv/config.local.yaml`.
 

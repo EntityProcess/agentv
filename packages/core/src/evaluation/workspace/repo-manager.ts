@@ -11,6 +11,13 @@ import type { RepoConfig } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import { getRepoCheckoutRef } from './repo-checkout.js';
 import { normalizeRepoIdentity, resolveRepoCloneUrl } from './repo-identity.js';
+import {
+  type RepoResolverConfig,
+  parseRepoResolversFromConfig,
+  runRepoResolverCommand,
+  selectRepoResolver,
+  validateRepoResolvers,
+} from './repo-resolver.js';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
@@ -35,7 +42,12 @@ interface RepoManagerOptions {
 }
 
 interface AcquisitionSource {
-  readonly kind: 'configured-mirror' | 'registered-project' | 'mirror-cache' | 'remote';
+  readonly kind:
+    | 'configured-mirror'
+    | 'registered-project'
+    | 'mirror-cache'
+    | 'remote'
+    | 'repo-resolver';
   readonly sourceUrl: string;
   readonly originUrl: string;
 }
@@ -249,12 +261,28 @@ export class RepoManager {
     });
   }
 
-  private loadConfiguredMirrorsFrom(filePath: string): Record<string, string> {
+  private readConfigObjectFrom(
+    filePath: string,
+    options: { throwOnError?: boolean } = {},
+  ): Record<string, unknown> | undefined {
     if (!existsSync(filePath)) return {};
     try {
       const parsed = parseYamlValue(readFileSync(filePath, 'utf-8')) as unknown;
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-      const config = parsed as Record<string, unknown>;
+      return parsed as Record<string, unknown>;
+    } catch (error) {
+      if (options.throwOnError) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Could not read AgentV config at ${filePath}: ${message}`);
+      }
+      return {};
+    }
+  }
+
+  private loadConfiguredMirrorsFrom(filePath: string): Record<string, string> {
+    try {
+      const config = this.readConfigObjectFrom(filePath);
+      if (!config) return {};
       const gitCache = config.git_cache;
       if (!gitCache || typeof gitCache !== 'object' || Array.isArray(gitCache)) return {};
       const mirrors = (gitCache as Record<string, unknown>).mirrors;
@@ -327,6 +355,33 @@ export class RepoManager {
       projectMirrors,
       projectOverrideMirrors,
     ]);
+  }
+
+  private loadRepoResolversFrom(filePath: string, cwd?: string): readonly RepoResolverConfig[] {
+    const config = this.readConfigObjectFrom(filePath, { throwOnError: true });
+    if (!config) return [];
+    return parseRepoResolversFromConfig(config, filePath, cwd);
+  }
+
+  private loadRepoResolvers(): readonly RepoResolverConfig[] {
+    const globalResolvers = this.loadRepoResolversFrom(configPath(), getAgentvConfigDir());
+    const projectAgentvDir = this.findProjectAgentvDir();
+    if (!projectAgentvDir) {
+      validateRepoResolvers(globalResolvers);
+      return globalResolvers;
+    }
+
+    const projectRoot = path.dirname(projectAgentvDir);
+    const resolvers = [
+      ...globalResolvers,
+      ...this.loadRepoResolversFrom(path.join(projectAgentvDir, 'config.yaml'), projectRoot),
+      ...this.loadRepoResolversFrom(
+        path.join(projectAgentvDir, 'config.override.yaml'),
+        projectRoot,
+      ),
+    ];
+    validateRepoResolvers(resolvers);
+    return resolvers;
   }
 
   private findConfiguredMirror(repoIdentity: string): string | undefined {
@@ -578,6 +633,64 @@ export class RepoManager {
     }
   }
 
+  private async resolveConfiguredRepoResolver(
+    repo: RepoConfig,
+    workspacePath: string,
+  ): Promise<AcquisitionSource | undefined> {
+    const resolvers = this.loadRepoResolvers();
+    if (resolvers.length === 0) {
+      if (repo.resolver) {
+        throw new Error(`workspace.repos[].resolver '${repo.resolver}' is not configured.`);
+      }
+      return undefined;
+    }
+
+    const originUrl = resolveRepoCloneUrl(repo.repo ?? '');
+    const selection = selectRepoResolver(repo, resolvers);
+    if (!selection) return undefined;
+
+    const result = await runRepoResolverCommand(
+      selection.resolver,
+      repo,
+      workspacePath,
+      this.timeoutMs,
+    );
+    if (result.handled) {
+      return {
+        kind: 'repo-resolver',
+        sourceUrl: result.source.path,
+        originUrl: result.source.origin ?? originUrl,
+      };
+    }
+
+    if (selection.kind === 'explicit') {
+      throw new Error(
+        `Repo resolver '${selection.resolver.name}' was selected by workspace.repos[].resolver but returned handled:false.`,
+      );
+    }
+
+    if (selection.kind === 'pattern') {
+      const defaultResolver = resolvers.find((resolver) => resolver.name === 'default');
+      if (defaultResolver) {
+        const defaultResult = await runRepoResolverCommand(
+          defaultResolver,
+          repo,
+          workspacePath,
+          this.timeoutMs,
+        );
+        if (defaultResult.handled) {
+          return {
+            kind: 'repo-resolver',
+            sourceUrl: defaultResult.source.path,
+            originUrl: defaultResult.source.origin ?? originUrl,
+          };
+        }
+      }
+    }
+
+    return undefined;
+  }
+
   private assertNoUserOwnedAlternates(targetDir: string, acquisition: AcquisitionSource): void {
     const alternatesPath = path.join(targetDir, '.git', 'objects', 'info', 'alternates');
     if (!existsSync(alternatesPath)) return;
@@ -589,7 +702,10 @@ export class RepoManager {
     }
   }
 
-  private async resolveAcquisition(repo: RepoConfig): Promise<AcquisitionSource> {
+  private async resolveAcquisition(
+    repo: RepoConfig,
+    workspacePath: string,
+  ): Promise<AcquisitionSource> {
     const declaredRepo = repo.repo;
     if (!declaredRepo) {
       throw new Error(`repo is required for workspace repo at path ${repo.path ?? '(none)'}`);
@@ -597,6 +713,10 @@ export class RepoManager {
 
     const originUrl = resolveRepoCloneUrl(declaredRepo);
     const repoIdentity = normalizeRepoIdentity(declaredRepo);
+    const configuredResolver = await this.resolveConfiguredRepoResolver(repo, workspacePath);
+    if (configuredResolver) {
+      return configuredResolver;
+    }
 
     const registeredProject = await this.findRegisteredProject(repoIdentity);
     if (registeredProject) {
@@ -647,7 +767,7 @@ export class RepoManager {
     }
 
     const targetDir = path.join(workspacePath, repo.path);
-    const acquisition = await this.resolveAcquisition(repo);
+    const acquisition = await this.resolveAcquisition(repo, workspacePath);
     const startedAt = Date.now();
 
     if (this.verbose) {

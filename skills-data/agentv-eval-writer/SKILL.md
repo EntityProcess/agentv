@@ -373,13 +373,14 @@ metadata without a matching workspace repo pin is not an operational checkout.
 
 ### Repository Lifecycle
 
-Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from registered projects, `git_cache.mirrors`, its mirror cache, then remote clone. `git_cache.mirrors` may be defined in `$AGENTV_HOME/config.yaml`, the project's committed `.agentv/config.yaml`, or a gitignored `.agentv/config.override.yaml` (highest precedence) — use the override for machine-specific local clone paths without editing tracked or user-global config. For shared repo workspaces, pooling is the default:
+Materialize repos into the eval workspace automatically. Repo entries declare identity and checkout pins only; AgentV resolves acquisition from configured `repo_resolvers`, then registered projects, `git_cache.mirrors`, its mirror cache, and remote clone. `repo_resolvers` and `git_cache.mirrors` may be defined in `$AGENTV_HOME/config.yaml`, the project's committed `.agentv/config.yaml`, or a gitignored `.agentv/config.override.yaml` (highest precedence) — use the override for machine-specific local bindings without editing tracked or user-global config. Shared repo workspaces use fresh temp materialization by default:
 
 ```yaml
 workspace:
   repos:
     - path: ./repo
       repo: https://github.com/org/repo.git
+      resolver: org_snapshots  # optional repo_resolvers[].name override
       commit: main
       ancestor: 1       # parent commit
   hooks:
@@ -389,13 +390,14 @@ workspace:
 ```
 
 - `repo`: full clone URL or GitHub `org/name` shorthand
+- `resolver`: optional configured repo resolver name; omit for pattern/default/built-in selection
 - `commit`: branch, tag, or SHA to check out
 - `base_commit`: alias for `commit` for SWE-bench-style datasets
 - `ancestor`: walk N commits back from the checked-out ref
 - `sparse`: sparse checkout paths array
 - Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
 - Do not author `workspace.mode`, `workspace.path`, `experiment.workspace`, or `execution.workspace` in eval YAML
-- Shared repo workspaces are pooled by default; use `--workspace-mode temp` or `.agentv/config.local.yaml` with `execution.workspace_mode: temp` for a local fresh-clone run
+- Shared repo workspaces use fresh temp materialization by default; use `--workspace-mode pooled` or local `execution.workspace_mode: pooled` only when pool-slot reuse is intentional
 - Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
 - Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)

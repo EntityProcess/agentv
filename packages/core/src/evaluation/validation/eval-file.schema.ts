@@ -284,6 +284,7 @@ const RepoSchema = z
     base_commit: z.string().min(1).optional(),
     ancestor: z.number().int().min(0).optional(),
     sparse: z.array(z.string()).optional(),
+    resolver: z.string().min(1).optional(),
   })
   .strict()
   .refine((repo) => !repo.commit || !repo.base_commit || repo.commit === repo.base_commit, {

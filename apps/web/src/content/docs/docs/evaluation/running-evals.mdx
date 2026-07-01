@@ -313,7 +313,7 @@ This matches the standard model used by eval frameworks (promptfoo, deepeval, Op
 Use runtime workspace flags and finish policies instead of multiple conflicting booleans:
 
 ```bash
-# Mode: pooled | temp | static
+# Mode: temp (default) | pooled | static
 agentv eval evals/my-eval.yaml --workspace-mode pooled
 
 # Existing local workspace path for this run
@@ -339,7 +339,8 @@ workspace:
 ```
 
 Notes:
-- Pooling is default for shared workspaces with repos.
+- Temp workspace materialization is the default for shared workspaces with repos.
+- Pooled mode is an explicit machine-local optimization.
 - `--workspace-path` uses an existing machine-local directory as-is and implies static runtime mode.
 - Runtime static mode is incompatible with `isolation: per_case`.
 - `hooks.enabled: false` skips all lifecycle hooks (setup, teardown, reset).

@@ -64,6 +64,64 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts repo_resolvers field without warnings', async () => {
+    const filePath = path.join(tempDir, 'config-repo-resolvers.yaml');
+    await writeFile(
+      filePath,
+      `repo_resolvers:
+  - name: org_snapshots
+    repos:
+      - https://github.com/example/*
+    command:
+      - bun
+      - scripts/repo-resolver.ts
+    config:
+      release_tag: snapshot/v1
+  - name: default
+    command:
+      - bun
+      - scripts/default-repo-resolver.ts
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('errors on invalid repo_resolvers config', async () => {
+    const filePath = path.join(tempDir, 'config-invalid-repo-resolvers.yaml');
+    await writeFile(
+      filePath,
+      `repo_resolvers:
+  - name: duplicate
+    command: []
+  - name: duplicate
+    command:
+      - bun
+  - name: default
+    repos:
+      - https://github.com/example/*
+    command:
+      - bun
+    config: []
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: 'error', location: 'repo_resolvers[0].command' }),
+        expect.objectContaining({ severity: 'error', location: 'repo_resolvers[1].name' }),
+        expect.objectContaining({ severity: 'error', location: 'repo_resolvers[2].repos' }),
+        expect.objectContaining({ severity: 'error', location: 'repo_resolvers[2].config' }),
+      ]),
+    );
+  });
+
   it('accepts dashboard field without warnings', async () => {
     const filePath = path.join(tempDir, 'config-dashboard.yaml');
     await writeFile(
