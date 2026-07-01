@@ -59,7 +59,6 @@ repeat:
   count: 3
   strategy: pass_any
   early_exit: false
-timeout_seconds: 600
 budget_usd: 5
 gate:
   min_case_pass_rate: 0.95
