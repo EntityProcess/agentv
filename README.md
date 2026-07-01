@@ -208,9 +208,7 @@ export default defineEval({
     strategy: 'pass_any',
     earlyExit: false,
   },
-  timeoutSeconds: 600,
   threshold: 0.8,
-  budgetUsd: 5,
   workspace: {
     isolation: 'per_case',
   },

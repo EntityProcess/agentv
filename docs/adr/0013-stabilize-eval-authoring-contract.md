@@ -60,7 +60,6 @@ evaluate_options:
     count: 3
     strategy: pass_any
     early_exit: false
-  budget_usd: 5
 default_test:
   threshold: 0.8
 gate:
@@ -103,10 +102,14 @@ transcript providers, or future service wrappers.
 `evaluate_options` is the preferred home for runner-level execution controls.
 This follows promptfoo's separation between test definitions and evaluation
 runner options while keeping AgentV's field names in snake_case. The v1 preferred
-surface is intentionally small: `repeat`, `budget_usd`, and optional timeout
-fields when a suite needs a finite cap. Omitted timeout fields mean unlimited by
-default. Concurrency remains an operator/project/target setting, not authored
-eval YAML.
+surface is intentionally small: `repeat` and optional timeout fields when a suite
+needs a finite cap. Omitted timeout fields mean unlimited by default. Concurrency
+remains an operator/project/target setting, not authored eval YAML.
+
+Budgets belong with the target/provider runtime configuration, such as
+`max_budget_usd` in `targets.yaml`, because cost limits are provider-specific
+execution policy rather than suite authoring metadata. Do not teach new eval YAML
+examples with top-level `budget_usd` or `evaluate_options.budget_usd`.
 
 `default_test` is the preferred home for inherited per-test defaults. The first
 default worth standardizing is `threshold`, because it is a per-test score cutoff
@@ -162,8 +165,10 @@ explicit compatibility decision for existing shipped fields:
 - `test_id` remains the preferred flattened result/API/gate identity field.
 - `--test-id` remains the preferred CLI filter for selecting authored test
   cases.
-- Top-level `repeat`, `budget_usd`, and timeout fields should remain readable
-  during migration, with `evaluate_options` preferred in new docs.
+- Top-level `repeat` and timeout fields should remain readable during migration,
+  with `evaluate_options` preferred in new docs.
+- Top-level `budget_usd` should remain readable during migration, but new docs
+  should put provider/target budgets in `targets.yaml` as `max_budget_usd`.
 - Top-level `threshold` should remain readable during migration, with
   `default_test.threshold` preferred in new docs.
 - Existing result tags and Dashboard tag mutation are out of scope for eval YAML
