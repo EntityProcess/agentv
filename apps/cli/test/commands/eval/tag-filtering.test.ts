@@ -5,6 +5,7 @@ import {
   resolveEffectiveTags,
   resolveExperimentNamespace,
   splitCliTags,
+  syncTagsExperiment,
 } from '../../../src/commands/eval/run-eval.js';
 
 describe('matchesTagFilters', () => {
@@ -183,5 +184,40 @@ describe('resolveExperimentNamespace', () => {
         resultGroupName: 'multi-eval',
       }),
     ).toEqual({ experiment: 'tag-exp', source: 'tags' });
+  });
+});
+
+describe('syncTagsExperiment', () => {
+  it('returns undefined when there is no tags map', () => {
+    expect(
+      syncTagsExperiment(undefined, { experimentIsIntentional: true, normalizedExperiment: 'x' }),
+    ).toBeUndefined();
+  });
+
+  it('does not inject a default experiment when only non-experiment tags are set', () => {
+    expect(
+      syncTagsExperiment(
+        { team: 'core' },
+        { experimentIsIntentional: false, normalizedExperiment: 'my-suite' },
+      ),
+    ).toEqual({ team: 'core' });
+  });
+
+  it('syncs the experiment key when it was authored in the tags map', () => {
+    expect(
+      syncTagsExperiment(
+        { experiment: 'baseline', team: 'core' },
+        { experimentIsIntentional: false, normalizedExperiment: 'baseline' },
+      ),
+    ).toEqual({ experiment: 'baseline', team: 'core' });
+  });
+
+  it('syncs the experiment key to a --experiment override alongside other tags', () => {
+    expect(
+      syncTagsExperiment(
+        { team: 'core' },
+        { experimentIsIntentional: true, normalizedExperiment: 'cli-wins' },
+      ),
+    ).toEqual({ team: 'core', experiment: 'cli-wins' });
   });
 });

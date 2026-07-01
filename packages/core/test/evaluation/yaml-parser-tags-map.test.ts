@@ -87,6 +87,19 @@ tests:
     expect(suite.tests[0].metadata?.tags).toBeUndefined();
   });
 
+  it('rejects a malformed scalar tags value loudly rather than dropping it', async () => {
+    const { filePath, dir } = createTempYaml(`
+name: scalar-tags
+tags: not-a-list
+tests:
+  - id: test-1
+    input: "Hi"
+    criteria: "Greet"
+`);
+
+    await expect(loadTestSuite(filePath, dir)).rejects.toThrow(/Invalid .*tags/);
+  });
+
   it('lets top-level tags override metadata-block tags on key collisions', async () => {
     const { filePath, dir } = createTempYaml(`
 name: collision-eval

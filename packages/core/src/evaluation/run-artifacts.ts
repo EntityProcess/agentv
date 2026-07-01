@@ -276,7 +276,7 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
 /**
  * Coerce an unknown value into a `Record<string,string>`, dropping non-string
  * entries. Returns undefined when the value is not a plain object or has no
- * string entries. Shared by summary reads and tag-map resolution.
+ * string entries. Used when reading a prior run summary's `tags` on resume.
  */
 export function normalizeStringRecord(value: unknown): Record<string, string> | undefined {
   if (!isRecord(value)) {

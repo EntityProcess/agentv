@@ -200,6 +200,7 @@ function parseConfigObject(
     );
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
+    const tags = parseTagsConfig((parsed as Record<string, unknown>).tags, configPath);
 
     return {
       required_version: requiredVersion as string | undefined,
@@ -207,6 +208,7 @@ function parseConfigObject(
       execution: executionDefaults,
       results,
       ...(hooks && { hooks }),
+      ...(tags && { tags }),
     };
   } catch (error) {
     logWarning(`Could not parse AgentV config at ${configPath}: ${(error as Error).message}`);
@@ -681,6 +683,34 @@ export function parseHooksConfig(raw: unknown, configPath: string): HooksConfig 
   }
 
   return undefined;
+}
+
+/**
+ * Parse the optional project-config `tags` map (promptfoo-shaped
+ * `Record<string,string>`). Non-string entries are dropped with a warning; a
+ * non-object value is rejected. Returns undefined when no valid entry remains.
+ */
+export function parseTagsConfig(
+  raw: unknown,
+  configPath: string,
+): Record<string, string> | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    logWarning(`Invalid tags in ${configPath}, expected a key=value map of strings`);
+    return undefined;
+  }
+
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string') {
+      out[key] = value;
+    } else {
+      logWarning(`Ignoring non-string tag "${key}" in ${configPath}`);
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function logWarning(message: string): void {

@@ -394,6 +394,27 @@ export function resolveEffectiveTags(layers: {
 }
 
 /**
+ * Keep an emitted tags map's `experiment` key in lockstep with the resolved
+ * experiment namespace so a row's `experiment` field and `tags.experiment` never
+ * disagree — but only when an experiment was intentionally set (`--experiment`,
+ * i.e. `experimentIsIntentional`, or an authored `tags.experiment`). A tags map
+ * that carries no experiment (e.g. only `--tag team=core`) must not gain an
+ * eval-default experiment key, and no tags map means nothing to emit.
+ */
+export function syncTagsExperiment(
+  resolvedTags: Record<string, string> | undefined,
+  options: { experimentIsIntentional: boolean; normalizedExperiment: string },
+): Record<string, string> | undefined {
+  if (!resolvedTags) {
+    return undefined;
+  }
+  if (!options.experimentIsIntentional && resolvedTags.experiment === undefined) {
+    return resolvedTags;
+  }
+  return { ...resolvedTags, experiment: options.normalizedExperiment };
+}
+
+/**
  * Resolve the experiment namespace and its provenance for a run.
  *
  * Precedence: `--experiment` (CLI) > `tags.experiment` (resolved tags map) >
@@ -1726,22 +1747,26 @@ export async function runEvalCommand(
       suiteName: primarySuite?.metadata?.name,
       resultGroupName,
     });
+  // Normalize once so the row `experiment` field, AGENTV_EXPERIMENT, and the
+  // emitted tags map all agree (and any invalid-name error surfaces in one place).
+  const normalizedExperiment = normalizeExperimentName(resolvedExperimentNamespace);
   options = {
     ...options,
     experiment: resolvedExperimentNamespace,
   };
-  // When a tags map is emitted, keep its `experiment` key in lockstep with the
-  // resolved namespace so the row's `experiment` field and `tags.experiment`
-  // never disagree (e.g. a `--experiment` override still reflects in the map).
-  // A run with no authored tags emits no map — the namespace lives only in the
-  // `experiment` field, preserving the minimal default-run shape.
-  const emittedTags = resolvedTags
-    ? { ...resolvedTags, experiment: normalizeExperimentName(resolvedExperimentNamespace) }
-    : undefined;
+  // Keep the emitted tags map's `experiment` key in lockstep with the resolved
+  // namespace ONLY when an experiment was intentionally set — via `--experiment`
+  // or an authored `tags.experiment`. A run whose tags map carries no experiment
+  // (e.g. only `--tag team=core`) must not gain an eval-default experiment key,
+  // and a run with no tags at all emits no map.
+  const emittedTags = syncTagsExperiment(resolvedTags, {
+    experimentIsIntentional: resolvedExperiment.name !== undefined,
+    normalizedExperiment,
+  });
   const hasCliRuntimeConfig = hasCliRuntimeSource(input.rawOptions);
 
   if (!process.env.AGENTV_EXPERIMENT) {
-    process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
+    process.env.AGENTV_EXPERIMENT = normalizedExperiment;
   }
 
   // Validate --grader-target / --model combinations
