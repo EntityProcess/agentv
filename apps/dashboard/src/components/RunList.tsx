@@ -77,7 +77,6 @@ interface RunListItemView {
   passing: boolean;
   passedCount: number;
   failedCount: number;
-  metadataDirty: boolean;
   experimentNamespace: string;
   runtimeSourceLabel?: string;
   runtimeSourceTitle?: string;
@@ -113,7 +112,6 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
   const passing = qualityCount > 0 ? run.pass_rate >= passThreshold : errors === 0;
   const passedCount = Math.round(run.pass_rate * qualityCount);
   const failedCount = qualityCount - passedCount;
-  const metadataDirty = run.metadata_dirty === true;
   const experimentNamespace = experimentNamespaceLabel(run);
   const runtimeSourceLabel = run.runtime_source
     ? runtimeSourceSummary(run.runtime_source)
@@ -133,7 +131,6 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
     passing,
     passedCount,
     failedCount,
-    metadataDirty,
     experimentNamespace,
     runtimeSourceLabel,
     runtimeSourceTitle: runtimeSourceTooltip,
@@ -219,7 +216,7 @@ export function RunList({
     if (projectId) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'tags'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
       ]);
@@ -227,7 +224,7 @@ export function RunList({
     }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['runs'] }),
-      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+      queryClient.invalidateQueries({ queryKey: ['tags'] }),
       queryClient.invalidateQueries({ queryKey: ['compare'] }),
       queryClient.invalidateQueries({ queryKey: ['targets'] }),
     ]);
@@ -437,7 +434,6 @@ export function RunList({
             qualityCount,
             passedCount,
             failedCount,
-            metadataDirty,
             experimentNamespace,
             runtimeSourceLabel,
             runtimeSourceTitle,
@@ -487,7 +483,6 @@ export function RunList({
                   />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <RemoteIndicator onRemote={run.on_remote === true} branch={remoteBranch} />
-                    {metadataDirty ? <PendingSyncBadge /> : null}
                     <span className="text-xs text-gray-500" title={ts.full}>
                       {ts.date}
                     </span>
@@ -556,7 +551,6 @@ export function RunList({
                 qualityCount,
                 passedCount,
                 failedCount,
-                metadataDirty,
                 experimentNamespace,
                 runtimeSourceLabel,
                 runtimeSourceTitle,
@@ -620,7 +614,6 @@ export function RunList({
                           title={display.title}
                           className="block min-w-0 truncate font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         />
-                        {metadataDirty ? <PendingSyncBadge /> : null}
                       </div>
                     </div>
                   </td>
@@ -768,17 +761,6 @@ function CloudOutlineIcon() {
     >
       <path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 9a3.5 3.5 0 0 1 1 6.86" />
     </svg>
-  );
-}
-
-function PendingSyncBadge() {
-  return (
-    <span
-      className="shrink-0 rounded-md border border-yellow-900/60 bg-yellow-950/20 px-1.5 py-0.5 text-xs text-yellow-300"
-      title="Use Sync Metadata to push this metadata to the results repo."
-    >
-      Pending sync
-    </span>
   );
 }
 

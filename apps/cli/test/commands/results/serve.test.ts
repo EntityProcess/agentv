@@ -16,7 +16,6 @@ import { fileURLToPath } from 'node:url';
 
 import { AGENTV_RESULTS_ARTIFACTS_REF, addProject, saveProjectRegistry } from '@agentv/core';
 
-import { createTagRevision } from '../../../src/commands/results/run-state.js';
 import {
   createApp,
   loadResults,
@@ -323,21 +322,6 @@ function writeDirtyRemoteRunArtifact(
     ),
   );
   return timestamp;
-}
-
-function writeRemoteTagMetadataOverlay(
-  repoDir: string,
-  experiment: string,
-  timestamp: string,
-  tags: readonly string[],
-): string {
-  const metadataPath = path.join(repoDir, 'metadata', 'runs', timestamp, 'tags.json');
-  mkdirSync(path.dirname(metadataPath), { recursive: true });
-  writeFileSync(
-    metadataPath,
-    `${JSON.stringify({ tags, updated_at: '2026-06-06T12:00:00.000Z' }, null, 2)}\n`,
-  );
-  return metadataPath;
 }
 
 function writeLocalRunArtifact(
@@ -1042,7 +1026,7 @@ describe('serve app', () => {
       });
     });
 
-    it('tags local runs with source metadata', async () => {
+    it('annotates local runs with source metadata', async () => {
       const runsDir = localResultsExperimentDir(tempDir);
       mkdirSync(runsDir, { recursive: true });
       const filename = '2026-03-25T10-00-00-000Z';
@@ -1059,8 +1043,6 @@ describe('serve app', () => {
           filename: string;
           source: string;
           on_remote: boolean;
-          final_state: { lifecycle: string; tags: string[] };
-          tag_revision: string;
         }>;
       };
       expect(data.runs).toHaveLength(1);
@@ -1069,12 +1051,7 @@ describe('serve app', () => {
         filename,
         source: 'local',
         on_remote: false,
-        final_state: {
-          lifecycle: 'active',
-          tags: [],
-        },
       });
-      expect(data.runs[0].tag_revision).toStartWith('sha256:');
     });
 
     it('exposes experiment namespace and runtime source metadata for run list cards', async () => {
@@ -1192,185 +1169,6 @@ describe('serve app', () => {
       const serialized = JSON.stringify(detailData);
       expect(serialized).not.toContain('artifact-secret');
       expect(serialized).not.toContain('token=');
-    });
-
-    it('exposes materialized final state and tag revision for local run tags', async () => {
-      const runsDir = localResultsExperimentDir(tempDir);
-      mkdirSync(runsDir, { recursive: true });
-      const filename = '2026-03-25T10-00-00-000Z';
-      const runDir = path.join(runsDir, filename);
-      mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-      const updatedAt = '2026-06-21T10:15:00.000Z';
-      const tagRevision = createTagRevision(['accepted'], updatedAt);
-      writeFileSync(
-        path.join(runDir, 'tags.json'),
-        `${JSON.stringify(
-          {
-            tags: ['accepted'],
-            updated_at: updatedAt,
-            tag_revision: tagRevision,
-          },
-          null,
-          2,
-        )}\n`,
-      );
-
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      const listRes = await app.request('/api/runs');
-      expect(listRes.status).toBe(200);
-      const listData = (await listRes.json()) as {
-        runs: Array<{
-          tags: string[];
-          final_state: { lifecycle: string; tags: string[] };
-          tag_revision: string;
-        }>;
-      };
-      expect(listData.runs[0]).toMatchObject({
-        tags: ['accepted'],
-        final_state: {
-          lifecycle: 'active',
-          tags: ['accepted'],
-        },
-        tag_revision: tagRevision,
-      });
-
-      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
-      expect(detailRes.status).toBe(200);
-      const detailData = (await detailRes.json()) as {
-        tags: string[];
-        final_state: { lifecycle: string; tags: string[] };
-        tag_revision: string;
-      };
-      expect(detailData).toMatchObject({
-        tags: ['accepted'],
-        final_state: {
-          lifecycle: 'active',
-          tags: ['accepted'],
-        },
-        tag_revision: tagRevision,
-      });
-    });
-
-    it('preserves a local tag clear state after DELETE /tags', async () => {
-      const runsDir = localResultsExperimentDir(tempDir);
-      mkdirSync(runsDir, { recursive: true });
-      const filename = '2026-03-25T10-30-00-000Z';
-      const runDir = path.join(runsDir, filename);
-      mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-      const updatedAt = '2026-06-21T10:15:00.000Z';
-      const tagRevision = createTagRevision(['accepted'], updatedAt);
-      writeFileSync(
-        path.join(runDir, 'tags.json'),
-        `${JSON.stringify(
-          {
-            tags: ['accepted'],
-            updated_at: updatedAt,
-            tag_revision: tagRevision,
-          },
-          null,
-          2,
-        )}\n`,
-      );
-
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      const deleteRes = await app.request(`/api/runs/${encodeURIComponent(filename)}/tags`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expected_tag_revision: tagRevision }),
-      });
-      expect(deleteRes.status).toBe(200);
-      const deleteData = (await deleteRes.json()) as {
-        ok: boolean;
-        tags: string[];
-        final_state: { lifecycle: string; tags: string[] };
-        tag_revision: string;
-        updated_at: string;
-      };
-      expect(deleteData.ok).toBe(true);
-      expect(deleteData.tags).toEqual([]);
-      expect(deleteData.final_state).toEqual({
-        lifecycle: 'active',
-        tags: [],
-      });
-      expect(deleteData.tag_revision).toStartWith('sha256:');
-      expect(deleteData.tag_revision).not.toBe(tagRevision);
-
-      const tagFile = JSON.parse(readFileSync(path.join(runDir, 'tags.json'), 'utf8')) as {
-        tags: string[];
-        tag_revision: string;
-      };
-      expect(tagFile.tags).toEqual([]);
-      expect(tagFile.tag_revision).toBe(deleteData.tag_revision);
-
-      const reloadedApp = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const detailRes = await reloadedApp.request(`/api/runs/${encodeURIComponent(filename)}`);
-      expect(detailRes.status).toBe(200);
-      const detailData = (await detailRes.json()) as {
-        tags: string[];
-        final_state: { lifecycle: string; tags: string[] };
-        tag_revision: string;
-      };
-      expect(detailData).toMatchObject({
-        tags: [],
-        final_state: {
-          lifecycle: 'active',
-          tags: [],
-        },
-        tag_revision: deleteData.tag_revision,
-      });
-    });
-
-    it('rejects stale local tag writes with refresh-required details', async () => {
-      const runsDir = localResultsExperimentDir(tempDir);
-      mkdirSync(runsDir, { recursive: true });
-      const filename = '2026-03-25T10-45-00-000Z';
-      const runDir = path.join(runsDir, filename);
-      mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-      const updatedAt = '2026-06-21T10:15:00.000Z';
-      const tagRevision = createTagRevision(['accepted'], updatedAt);
-      writeFileSync(
-        path.join(runDir, 'tags.json'),
-        `${JSON.stringify(
-          {
-            tags: ['accepted'],
-            updated_at: updatedAt,
-            tag_revision: tagRevision,
-          },
-          null,
-          2,
-        )}\n`,
-      );
-
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      const staleRes = await app.request(`/api/runs/${encodeURIComponent(filename)}/tags`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: ['stale'], expected_tag_revision: 'sha256:stale' }),
-      });
-      expect(staleRes.status).toBe(409);
-      const staleData = (await staleRes.json()) as {
-        error: string;
-        expected_tag_revision: string;
-        current_tag_revision: string;
-      };
-      expect(staleData).toEqual({
-        error: 'Run tags changed. Refresh the run and try again.',
-        expected_tag_revision: 'sha256:stale',
-        current_tag_revision: tagRevision,
-      });
-
-      const tagFile = JSON.parse(readFileSync(path.join(runDir, 'tags.json'), 'utf8')) as {
-        tags: string[];
-        tag_revision: string;
-      };
-      expect(tagFile.tags).toEqual(['accepted']);
-      expect(tagFile.tag_revision).toBe(tagRevision);
     });
 
     it('computes pass_rate using the configured dashboard threshold', async () => {
@@ -1797,63 +1595,6 @@ describe('serve app', () => {
       });
     }, 15000);
 
-    it('edits synced local run tags through the remote metadata overlay', async () => {
-      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
-      const experiment = 'green-uat';
-      const timestamp = '2026-03-26T10-45-00-000Z';
-      const runId = writeRemoteRunArtifact(cloneDir, experiment, timestamp, RESULT_A);
-      writeLocalRunArtifact(tempDir, experiment, timestamp, RESULT_A);
-
-      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
-
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const putRes = await app.request(`/api/runs/${encodeURIComponent(runId)}/tags`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: ['needs-review'] }),
-      });
-
-      expect(putRes.status).toBe(200);
-      const putData = (await putRes.json()) as {
-        tags: string[];
-        remote_tags: string[];
-        pending_tags: string[];
-        metadata_dirty: boolean;
-      };
-      expect(putData).toMatchObject({
-        tags: ['needs-review'],
-        remote_tags: [],
-        pending_tags: ['needs-review'],
-        metadata_dirty: true,
-      });
-
-      const localTagsPath = path.join(tempDir, '.agentv', 'results', timestamp, 'tags.json');
-      const overlayTagsPath = path.join(cloneDir, 'metadata', 'runs', timestamp, 'tags.json');
-      expect(existsSync(localTagsPath)).toBe(false);
-      expect(existsSync(overlayTagsPath)).toBe(true);
-
-      const listRes = await app.request('/api/runs');
-      expect(listRes.status).toBe(200);
-      const listData = (await listRes.json()) as {
-        runs: Array<{
-          filename: string;
-          source: string;
-          on_remote: boolean;
-          tags: string[];
-          pending_tags: string[];
-          metadata_dirty: boolean;
-        }>;
-      };
-      expect(listData.runs[0]).toMatchObject({
-        filename: runId,
-        source: 'local',
-        on_remote: true,
-        tags: ['needs-review'],
-        pending_tags: ['needs-review'],
-        metadata_dirty: true,
-      });
-    }, 15000);
-
     it('computes git-native remote run list totals from materialized index rows', async () => {
       const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
       const secondPass = {
@@ -1945,121 +1686,6 @@ describe('serve app', () => {
       expect(detailRes.status).toBe(200);
       expect(existsSync(runManifestPath)).toBe(true);
     }, 15000);
-
-    it('edits remote run tags through metadata overlay and reloads effective tags', async () => {
-      const { remoteDir, cloneDir } = initializeRemoteRepo(tempDir);
-      const runId = writeRemoteRunArtifact(
-        cloneDir,
-        'green-uat',
-        '2026-03-26T12-00-00-000Z',
-        RESULT_A,
-      );
-
-      writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
-
-      const filename = `remote::${runId}`;
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const putRes = await app.request(`/api/runs/${encodeURIComponent(filename)}/tags`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: ['pending-review', 'shared'] }),
-      });
-
-      expect(putRes.status).toBe(200);
-      const putData = (await putRes.json()) as {
-        tags: string[];
-        remote_tags: string[];
-        pending_tags: string[];
-        metadata_dirty: boolean;
-      };
-      expect(putData).toMatchObject({
-        tags: ['pending-review', 'shared'],
-        remote_tags: [],
-        pending_tags: ['pending-review', 'shared'],
-        metadata_dirty: true,
-      });
-
-      const artifactTagsPath = path.join(cloneDir, 'runs', '2026-03-26T12-00-00-000Z', 'tags.json');
-      const overlayTagsPath = path.join(
-        cloneDir,
-        'metadata',
-        'runs',
-        '2026-03-26T12-00-00-000Z',
-        'tags.json',
-      );
-      expect(existsSync(artifactTagsPath)).toBe(false);
-      expect(existsSync(overlayTagsPath)).toBe(true);
-
-      const listRes = await app.request('/api/runs');
-      expect(listRes.status).toBe(200);
-      const listData = (await listRes.json()) as {
-        runs: Array<{
-          filename: string;
-          tags: string[];
-          pending_tags: string[];
-          metadata_dirty: boolean;
-        }>;
-      };
-      expect(listData.runs[0]).toMatchObject({
-        filename,
-        tags: ['pending-review', 'shared'],
-        pending_tags: ['pending-review', 'shared'],
-        metadata_dirty: true,
-      });
-
-      const detailRes = await app.request(`/api/runs/${encodeURIComponent(filename)}`);
-      expect(detailRes.status).toBe(200);
-      const detailData = (await detailRes.json()) as {
-        tags: string[];
-        pending_tags: string[];
-        metadata_dirty: boolean;
-      };
-      expect(detailData).toMatchObject({
-        tags: ['pending-review', 'shared'],
-        pending_tags: ['pending-review', 'shared'],
-        metadata_dirty: true,
-      });
-
-      const reloadedApp = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const reloadedRes = await reloadedApp.request('/api/runs');
-      expect(reloadedRes.status).toBe(200);
-      const reloadedData = (await reloadedRes.json()) as {
-        runs: Array<{ tags: string[]; pending_tags: string[]; metadata_dirty: boolean }>;
-      };
-      expect(reloadedData.runs[0]).toMatchObject({
-        tags: ['pending-review', 'shared'],
-        pending_tags: ['pending-review', 'shared'],
-        metadata_dirty: true,
-      });
-    }, 15000);
-
-    it('rejects remote tag edits when the configured results path is not writable', async () => {
-      const plainResultsDir = path.join(tempDir, 'plain-results');
-      const timestamp = '2026-03-26T13-00-00-000Z';
-      const runDir = localRunDir(plainResultsDir, 'default', timestamp);
-      mkdirSync(runDir, { recursive: true });
-      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(RESULT_A));
-
-      writeResultsConfig(tempDir, {
-        remote: `file://${path.join(tempDir, 'missing.git')}`,
-        path: plainResultsDir,
-      });
-
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-      const res = await app.request(
-        `/api/runs/${encodeURIComponent(`remote::${timestamp}`)}/tags`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tags: ['blocked'] }),
-        },
-      );
-
-      expect(res.status).toBe(409);
-      const data = (await res.json()) as { error: string };
-      expect(data.error).toContain('not a writable git checkout');
-      expect(existsSync(path.join(runDir, 'tags.json'))).toBe(false);
-    });
 
     it('loads a local run detail without cloning or fetching the configured results repo', async () => {
       const remoteDir = path.join(tempDir, 'results-remote.git');
@@ -2166,6 +1792,118 @@ describe('serve app', () => {
           process.env.AGENTV_HOME = previousHome;
         }
       }
+    });
+  });
+
+  describe('GET /api/tags', () => {
+    // Seed a local run whose JSONL rows carry a promptfoo-shaped `tags` map so
+    // the Tags-tab grouping endpoint has arbitrary keys to enumerate/group on.
+    // Real runs write the same run-level tags map into both `index.jsonl` rows
+    // and `summary.json` `metadata.tags` in lockstep (see run-artifacts.ts), and
+    // key enumeration reads the cheap summary source — so mirror the row tags
+    // into summary.json here to match production.
+    function createLocalTaggedRun(
+      baseDir: string,
+      timestamp: string,
+      record: Record<string, unknown>,
+    ) {
+      const runDir = localRunDirFromRunId(baseDir, timestamp);
+      mkdirSync(runDir, { recursive: true });
+      writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(record));
+      const tags = record.tags as Record<string, string> | undefined;
+      writeFileSync(
+        path.join(runDir, 'summary.json'),
+        JSON.stringify(
+          {
+            metadata: {
+              run_id: timestamp,
+              ...(typeof record.experiment === 'string' && { experiment: record.experiment }),
+              ...(tags && { tags }),
+            },
+          },
+          null,
+          2,
+        ),
+      );
+    }
+
+    it('enumerates available tag keys (union of row keys plus synthetic experiment)', async () => {
+      createLocalTaggedRun(tempDir, '2026-05-01T10-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'v2',
+        tags: { experiment: 'v2', team: 'core', env: 'ci' },
+      });
+      createLocalTaggedRun(tempDir, '2026-05-01T11-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'v1',
+        tags: { experiment: 'v1', region: 'us' },
+      });
+      // Legacy run with no tags map — contributes only the experiment key.
+      createLocalTaggedRun(tempDir, '2026-05-01T12-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'legacy',
+      });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/tags');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as { keys: string[] };
+      expect(data.keys).toEqual(['env', 'experiment', 'region', 'team']);
+    });
+
+    it('groups runs by a selected arbitrary key with a (no <key>) bucket', async () => {
+      createLocalTaggedRun(tempDir, '2026-05-02T10-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'v2',
+        tags: { experiment: 'v2', team: 'core' },
+      });
+      createLocalTaggedRun(tempDir, '2026-05-02T11-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'v1',
+        tags: { experiment: 'v1', team: 'core' },
+      });
+      // Run missing the `team` key lands in the `(no team)` bucket.
+      createLocalTaggedRun(tempDir, '2026-05-02T12-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'v1',
+        tags: { experiment: 'v1' },
+      });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/tags?key=team');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        key: string;
+        groups: Array<{ name: string; run_count: number }>;
+      };
+      expect(data.key).toBe('team');
+      const byName = Object.fromEntries(data.groups.map((g) => [g.name, g.run_count]));
+      expect(byName.core).toBe(2);
+      expect(byName['(no team)']).toBe(1);
+    });
+
+    it('resolves the experiment key via the top-level fallback for old runs', async () => {
+      // Old run: top-level `experiment`, no tags map.
+      createLocalTaggedRun(tempDir, '2026-05-03T10-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'baseline',
+      });
+      // Newer run: experiment lives in the tags map.
+      createLocalTaggedRun(tempDir, '2026-05-03T11-00-00-000Z', {
+        ...RESULT_A,
+        experiment: 'candidate',
+        tags: { experiment: 'candidate', team: 'core' },
+      });
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request('/api/tags?key=experiment');
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        key: string;
+        groups: Array<{ name: string }>;
+      };
+      expect(data.key).toBe('experiment');
+      expect(data.groups.map((g) => g.name).sort()).toEqual(['baseline', 'candidate']);
     });
   });
 
@@ -2357,7 +2095,7 @@ describe('serve app', () => {
       }
     }, 15000);
 
-    it('commits and pushes dirty remote tag metadata through project sync', async () => {
+    it('commits and pushes dirty remote run artifacts through project sync', async () => {
       const previousHome = process.env.AGENTV_HOME;
       const homeDir = path.join(tempDir, 'agentv-home-project-sync-push');
       process.env.AGENTV_HOME = homeDir;
@@ -2383,11 +2121,7 @@ describe('serve app', () => {
           ],
         });
         const runTimestamp = '2026-03-26T12-00-00-000Z';
-        writeRemoteRunArtifact(cloneDir, 'project-sync-push', runTimestamp, RESULT_A);
-        writeRemoteTagMetadataOverlay(cloneDir, 'project-sync-push', runTimestamp, [
-          'pending-review',
-          'shared',
-        ]);
+        writeDirtyRemoteRunArtifact(cloneDir, 'project-sync-push', runTimestamp, RESULT_A);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
         const res = await app.request('/api/projects/project-sync-push/remote/sync', {
@@ -2412,7 +2146,7 @@ describe('serve app', () => {
           run_count: 1,
         });
         expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
-          `metadata/runs/${runTimestamp}/tags.json`,
+          `runs/${runTimestamp}/index.jsonl`,
         );
       } finally {
         if (previousHome === undefined) {
@@ -2508,16 +2242,19 @@ describe('serve app', () => {
         });
 
         const runTimestamp = '2026-03-26T13-00-00-000Z';
-        const relativeMetadataPath = path.posix.join('metadata', 'runs', runTimestamp, 'tags.json');
-        writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['base']);
-        git('git add metadata && git commit --quiet -m "seed tag metadata"', seedDir);
+        const relativeRunPath = path.posix.join('runs', runTimestamp, 'index.jsonl');
+        const seedRunPath = path.join(seedDir, relativeRunPath);
+        const cloneRunPath = path.join(cloneDir, relativeRunPath);
+        mkdirSync(path.dirname(seedRunPath), { recursive: true });
+        writeFileSync(seedRunPath, `${JSON.stringify({ ...RESULT_A, score: 0.5 })}\n`);
+        git('git add runs && git commit --quiet -m "seed run artifact"', seedDir);
         git('git push --quiet origin main', seedDir);
         git('git pull --ff-only --quiet', cloneDir);
 
-        writeRemoteTagMetadataOverlay(cloneDir, 'project-sync-conflict', runTimestamp, ['local']);
-        git('git add metadata && git commit --quiet -m "local tag metadata"', cloneDir);
-        writeRemoteTagMetadataOverlay(seedDir, 'project-sync-conflict', runTimestamp, ['remote']);
-        git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
+        writeFileSync(cloneRunPath, `${JSON.stringify({ ...RESULT_A, score: 0.75 })}\n`);
+        git('git add runs && git commit --quiet -m "local run edit"', cloneDir);
+        writeFileSync(seedRunPath, `${JSON.stringify({ ...RESULT_A, score: 0.25 })}\n`);
+        git('git add runs && git commit --quiet -m "remote run edit"', seedDir);
         git('git push --quiet origin main', seedDir);
         git('git fetch --quiet origin --prune', cloneDir);
         git('git merge origin/main || true', cloneDir);
@@ -2546,9 +2283,9 @@ describe('serve app', () => {
           commit_created: false,
         });
         expect(data.block_reason).toContain('unresolved git conflicts');
-        expect(data.conflicted_paths).toContain(relativeMetadataPath);
+        expect(data.conflicted_paths).toContain(relativeRunPath);
         expect(data.git_status).toContain('UU');
-        expect(readFileSync(path.join(cloneDir, relativeMetadataPath), 'utf8')).toContain(
+        expect(readFileSync(path.join(cloneDir, relativeRunPath), 'utf8')).toContain(
           '<<<<<<< HEAD',
         );
       } finally {
@@ -2745,7 +2482,7 @@ describe('serve app', () => {
     function seedRun(
       name: string,
       records: object[] = [RESULT_A],
-      opts?: { experiment?: string; tags?: string[]; baseDir?: string },
+      opts?: { experiment?: string; baseDir?: string },
     ): { runId: string; runDir: string; manifestPath: string } {
       const runDir = localRunDir(opts?.baseDir ?? tempDir, opts?.experiment ?? 'default', name);
       mkdirSync(runDir, { recursive: true });
@@ -2756,12 +2493,6 @@ describe('serve app', () => {
           ...records.map((record) => ({ ...record, experiment: opts?.experiment ?? 'default' })),
         ),
       );
-      if (opts?.tags) {
-        writeFileSync(
-          path.join(runDir, 'tags.json'),
-          `${JSON.stringify({ tags: opts.tags, updated_at: '2026-04-10T00:00:00.000Z' }, null, 2)}\n`,
-        );
-      }
       return {
         runId: name,
         runDir,
@@ -2769,13 +2500,9 @@ describe('serve app', () => {
       };
     }
 
-    it('combines two local finished runs into a new run workspace with unioned tags', async () => {
-      const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A], {
-        tags: ['baseline', 'shared'],
-      });
-      const second = seedRun('2026-06-01T11-00-00-000Z', [RESULT_B], {
-        tags: ['shared', 'candidate'],
-      });
+    it('combines two local finished runs into a new run workspace', async () => {
+      const first = seedRun('2026-06-01T10-00-00-000Z', [RESULT_A]);
+      const second = seedRun('2026-06-01T11-00-00-000Z', [RESULT_B]);
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
 
       const res = await app.request('/api/runs/combine', {
@@ -2805,10 +2532,6 @@ describe('serve app', () => {
       expect(detail.results.map((r) => r.testId).sort()).toEqual(['test-greeting', 'test-math']);
 
       const combinedDir = localRunDirFromRunId(tempDir, data.run_id);
-      const tags = JSON.parse(readFileSync(path.join(combinedDir, 'tags.json'), 'utf8')) as {
-        tags: string[];
-      };
-      expect(tags.tags.sort()).toEqual(['baseline', 'candidate', 'shared']);
       const benchmark = JSON.parse(
         readFileSync(path.join(combinedDir, 'summary.json'), 'utf8'),
       ) as {
@@ -3069,7 +2792,6 @@ describe('serve app', () => {
       const runDir = localRunDir(opts?.baseDir ?? tempDir, opts?.experiment ?? 'default', name);
       mkdirSync(runDir, { recursive: true });
       writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
-      writeFileSync(path.join(runDir, 'tags.json'), '{"tags":["stale"]}\n');
       return {
         runId: name,
         runDir,
@@ -4054,13 +3776,12 @@ describe('serve app', () => {
     });
   });
 
-  // ── GET /api/compare (tag filter) ───────────────────────────────────
+  // ── GET /api/compare ─────────────────────────────────────────────────
 
   describe('GET /api/compare', () => {
     function seedCompareFixture() {
-      // Four runs, each in its own run workspace, with the tags documented
-      // below. This setup exercises the OR filter semantics used by
-      // `/api/compare?tags=`.
+      // Four runs, each in its own run workspace, spanning two experiments and
+      // two targets. This exercises the aggregated matrix and per-run views.
       const runsDir = localResultsExperimentDir(tempDir);
       mkdirSync(runsDir, { recursive: true });
 
@@ -4070,7 +3791,6 @@ describe('serve app', () => {
         target: string;
         category: string;
         score: number;
-        tags?: string[];
       }> = [
         {
           name: '2026-04-01T10-00-00-000Z',
@@ -4078,7 +3798,6 @@ describe('serve app', () => {
           target: 'gpt-4o',
           category: 'baseline',
           score: 1.0,
-          tags: ['baseline'],
         },
         {
           name: '2026-04-02T10-00-00-000Z',
@@ -4086,7 +3805,6 @@ describe('serve app', () => {
           target: 'claude',
           category: 'baseline',
           score: 0.9,
-          tags: ['baseline'],
         },
         {
           name: '2026-04-03T10-00-00-000Z',
@@ -4094,10 +3812,8 @@ describe('serve app', () => {
           target: 'gpt-4o',
           category: 'prompting',
           score: 0.85,
-          tags: ['v2-prompt'],
         },
         {
-          // Intentionally untagged — should never match any tag filter.
           name: '2026-04-04T10-00-00-000Z',
           experiment: 'exp-b',
           target: 'claude',
@@ -4120,12 +3836,6 @@ describe('serve app', () => {
             score: run.score,
           }),
         );
-        if (run.tags && run.tags.length > 0) {
-          writeFileSync(
-            path.join(runDir, 'tags.json'),
-            `${JSON.stringify({ tags: run.tags, updated_at: '2026-04-10T00:00:00.000Z' }, null, 2)}\n`,
-          );
-        }
       }
     }
 
@@ -4142,7 +3852,6 @@ describe('serve app', () => {
         run_id: string;
         experiment: string;
         target: string;
-        tags?: string[];
         tests?: Array<{ test_id: string; category?: string }>;
       }>;
     };
@@ -4173,67 +3882,6 @@ describe('serve app', () => {
       const run = data.runs?.find((r) => r.experiment === 'exp-b' && r.target === 'gpt-4o');
       expect(cell?.tests?.[0]?.category).toBe('prompting');
       expect(run?.tests?.[0]?.category).toBe('prompting');
-    });
-
-    it('filters to a single tag', async () => {
-      seedCompareFixture();
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      const res = await app.request('/api/compare?tags=baseline');
-      expect(res.status).toBe(200);
-      const data = (await res.json()) as CompareJson;
-
-      expect(data.runs).toHaveLength(2);
-      for (const run of data.runs ?? []) {
-        expect(run.tags ?? []).toContain('baseline');
-      }
-      // Only exp-a is represented; targets narrow to the two used by exp-a runs.
-      expect(data.experiments).toEqual(['exp-a']);
-      expect(data.targets.sort()).toEqual(['claude', 'gpt-4o']);
-      expect(data.cells).toHaveLength(2);
-    });
-
-    it('applies OR semantics across multiple tags', async () => {
-      seedCompareFixture();
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      const res = await app.request('/api/compare?tags=baseline,v2-prompt');
-      expect(res.status).toBe(200);
-      const data = (await res.json()) as CompareJson;
-
-      // Three tagged runs; the untagged run is excluded.
-      expect(data.runs).toHaveLength(3);
-      expect(data.experiments.sort()).toEqual(['exp-a', 'exp-b']);
-      // (exp-a, gpt-4o), (exp-a, claude), (exp-b, gpt-4o) — the (exp-b, claude)
-      // cell is missing because the only contributing run was untagged.
-      expect(data.cells).toHaveLength(3);
-      const cellKeys = (data.cells ?? []).map((c) => `${c.experiment}::${c.target}`).sort();
-      expect(cellKeys).toEqual(['exp-a::claude', 'exp-a::gpt-4o', 'exp-b::gpt-4o']);
-    });
-
-    it('returns empty payload when no runs match the filter', async () => {
-      seedCompareFixture();
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      const res = await app.request('/api/compare?tags=nonexistent');
-      expect(res.status).toBe(200);
-      const data = (await res.json()) as CompareJson;
-
-      expect(data.runs).toEqual([]);
-      expect(data.cells).toEqual([]);
-      expect(data.experiments).toEqual([]);
-      expect(data.targets).toEqual([]);
-    });
-
-    it('ignores whitespace and empty segments in the tags query', async () => {
-      seedCompareFixture();
-      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
-
-      // ` , baseline , ` should parse to just ['baseline'].
-      const res = await app.request('/api/compare?tags=%20,%20baseline%20,%20');
-      expect(res.status).toBe(200);
-      const data = (await res.json()) as CompareJson;
-      expect(data.runs).toHaveLength(2);
     });
   });
 
@@ -4312,7 +3960,7 @@ describe('serve app', () => {
       expect(data.command).toContain('--output .agentv/results/r1');
     });
 
-    it('builds a selected experiment output path and writes initial tags beside the new run', async () => {
+    it('builds a selected experiment output path for the new run', async () => {
       const app = makeAppForRun();
       const res = await app.request('/api/eval/run', {
         method: 'POST',
@@ -4320,7 +3968,6 @@ describe('serve app', () => {
         body: JSON.stringify({
           suite_filter: 'examples/demo.eval.yaml',
           experiment: 'smoke',
-          tags: [' baseline ', 'baseline', 'prompt-v2'],
         }),
       });
 
@@ -4330,13 +3977,6 @@ describe('serve app', () => {
       expect(data.command).toContain(path.join('.agentv', 'results'));
       const outputDir = data.command.match(/--output ([^\s]+)/)?.[1];
       expect(outputDir).toBeString();
-
-      const tagFile = JSON.parse(
-        readFileSync(path.join(outputDir as string, 'tags.json'), 'utf8'),
-      ) as {
-        tags: string[];
-      };
-      expect(tagFile.tags).toEqual(['baseline', 'prompt-v2']);
     });
 
     it('builds --retry-errors <path> from the request', async () => {
@@ -4384,23 +4024,6 @@ describe('serve app', () => {
         }),
       });
       expect(res.status).toBe(400);
-    });
-
-    it('rejects initial tags when resuming an existing run', async () => {
-      const app = makeAppForRun();
-      const res = await app.request('/api/eval/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          suite_filter: 'examples/demo.eval.yaml',
-          output: '.agentv/results/r1',
-          resume: true,
-          tags: ['baseline'],
-        }),
-      });
-      expect(res.status).toBe(400);
-      const data = (await res.json()) as { error: string };
-      expect(data.error).toContain('creating a new run');
     });
 
     it('returns 403 in read-only mode for unscoped /api/eval/run', async () => {
@@ -4566,7 +4189,7 @@ describe('serve app', () => {
       expect(data.command).not.toContain('--dry-run');
     });
 
-    it('rejects invalid experiment and tag values', async () => {
+    it('rejects invalid experiment values', async () => {
       const app = createApp([], tempDir, undefined, undefined, { studioDir });
       const badExperiment = await app.request('/api/eval/preview', {
         method: 'POST',
@@ -4577,16 +4200,6 @@ describe('serve app', () => {
         }),
       });
       expect(badExperiment.status).toBe(400);
-
-      const badTag = await app.request('/api/eval/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          suite_filter: 'examples/demo.eval.yaml',
-          tags: ['good', 'bad\nvalue'],
-        }),
-      });
-      expect(badTag.status).toBe(400);
     });
   });
 

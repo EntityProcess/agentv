@@ -6,7 +6,6 @@ interface BuildRunEvalRequestOptions {
   testIds: string[];
   target: string;
   experiment: string;
-  tags: string[];
   thresholdInput: string;
   studioThreshold?: number;
   workers: string;
@@ -40,7 +39,6 @@ export function buildRunEvalRequest({
   testIds,
   target,
   experiment,
-  tags,
   thresholdInput,
   studioThreshold,
   workers,
@@ -51,7 +49,6 @@ export function buildRunEvalRequest({
   if (testIds.length > 0) req.test_ids = testIds;
   if (target) req.target = target;
   if (experiment.trim()) req.experiment = experiment.trim();
-  if (tags.length > 0) req.tags = tags;
 
   const resolvedThreshold = getDefaultThresholdInputValue(thresholdInput, studioThreshold);
   if (resolvedThreshold) req.threshold = Number.parseFloat(resolvedThreshold);

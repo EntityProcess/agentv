@@ -35,7 +35,6 @@ import {
   normalizeExperimentName,
 } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
-import { normalizeTags, writeRunTags } from './run-tags.js';
 
 // ── In-memory run tracker ────────────────────────────────────────────────
 
@@ -146,7 +145,6 @@ interface RunEvalRequest {
   test_ids?: string[];
   target?: string;
   experiment?: string;
-  tags?: string[];
   threshold?: number;
   workers?: number;
   /** Resume an interrupted run: skip already-completed tests and append results to `output`. */
@@ -176,24 +174,12 @@ function validateResumeOptions(req: RunEvalRequest): string | undefined {
   return undefined;
 }
 
-function parseInitialTags(value: unknown): string[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) {
-    throw new Error('tags must be an array of strings');
-  }
-  return normalizeTags(value);
-}
-
-function normalizeRunMetadata(req: RunEvalRequest): { experiment: string; tags: string[] } {
+function normalizeRunMetadata(req: RunEvalRequest): { experiment: string } {
   const experiment = normalizeExperimentName(req.experiment);
-  const tags = parseInitialTags(req.tags);
   if ((req.resume || req.rerun_failed) && req.experiment?.trim()) {
     throw new Error('experiment cannot be changed when resuming an existing run');
   }
-  if ((req.resume || req.rerun_failed) && tags.length > 0) {
-    throw new Error('initial tags can only be set when creating a new run');
-  }
-  return { experiment, tags };
+  return { experiment };
 }
 
 function buildCliArgs(req: RunEvalRequest, experiment?: string): string[] {
@@ -331,12 +317,6 @@ function openConsoleLogStream(outputDir: string): WriteStream | undefined {
   }
 }
 
-function writeInitialRunTags(outputDir: string, tags: readonly string[]): void {
-  if (tags.length === 0) return;
-  mkdirSync(outputDir, { recursive: true });
-  writeRunTags(path.join(outputDir, RESULT_INDEX_FILENAME), tags);
-}
-
 // ── Route registration ───────────────────────────────────────────────────
 
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
@@ -400,7 +380,7 @@ export function registerEvalRoutes(
       return c.json({ error: resumeError }, 400);
     }
 
-    let metadata: { experiment: string; tags: string[] };
+    let metadata: { experiment: string };
     try {
       metadata = normalizeRunMetadata(body);
     } catch (err) {
@@ -440,7 +420,6 @@ export function registerEvalRoutes(
     activeRuns.set(runId, run);
 
     try {
-      writeInitialRunTags(outputDir, metadata.tags);
       const child = spawn(cliPaths.binPath, [...cliPaths.args, ...args], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -576,7 +555,7 @@ export function registerEvalRoutes(
       return c.json({ error: 'Invalid JSON body' }, 400);
     }
 
-    let metadata: { experiment: string; tags: string[] };
+    let metadata: { experiment: string };
     try {
       metadata = normalizeRunMetadata(body);
     } catch (err) {
@@ -636,7 +615,7 @@ export function registerEvalRoutes(
       return c.json({ error: resumeError }, 400);
     }
 
-    let metadata: { experiment: string; tags: string[] };
+    let metadata: { experiment: string };
     try {
       metadata = normalizeRunMetadata(body);
     } catch (err) {
@@ -671,7 +650,6 @@ export function registerEvalRoutes(
     activeRuns.set(runId, run);
 
     try {
-      writeInitialRunTags(outputDir, metadata.tags);
       const child = spawn(cliPaths.binPath, [...cliPaths.args, ...args], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -775,7 +753,7 @@ export function registerEvalRoutes(
     } catch {
       return c.json({ error: 'Invalid JSON body' }, 400);
     }
-    let metadata: { experiment: string; tags: string[] };
+    let metadata: { experiment: string };
     try {
       metadata = normalizeRunMetadata(body);
     } catch (err) {

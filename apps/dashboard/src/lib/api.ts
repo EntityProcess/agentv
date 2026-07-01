@@ -25,7 +25,6 @@ import type {
   EvalRunResponse,
   EvalRunStatus,
   EvalTargetsResponse,
-  ExperimentsResponse,
   FeedbackData,
   FileContentResponse,
   FileTreeResponse,
@@ -39,9 +38,10 @@ import type {
   RunDetailResponse,
   RunEvalRequest,
   RunListResponse,
-  RunTagsResponse,
   StudioConfigResponse,
   SuitesResponse,
+  TagGroupsResponse,
+  TagKeysResponse,
   TargetsResponse,
   TranscriptArtifactResponse,
 } from './types';
@@ -198,10 +198,42 @@ export function feedbackOptions(projectId?: string) {
   });
 }
 
-export const experimentsOptions = queryOptions({
-  queryKey: ['experiments'],
-  queryFn: () => fetchJson<ExperimentsResponse>('/api/experiments'),
+/** Default tag key for the Tags-tab group-by selector. */
+export const DEFAULT_TAG_KEY = 'experiment';
+
+/** `GET /api/tags` — available tag keys for the group-by selector. */
+export const tagKeysOptions = queryOptions({
+  queryKey: ['tags', 'keys'],
+  queryFn: () => fetchJson<TagKeysResponse>('/api/tags'),
 });
+
+/** `GET /api/tags?key=<k>` — per-value summaries for the selected tag key. */
+export function tagGroupsOptions(key: string) {
+  return queryOptions({
+    queryKey: ['tags', 'groups', key],
+    queryFn: () => fetchJson<TagGroupsResponse>(`/api/tags?key=${encodeURIComponent(key)}`),
+    enabled: !!key,
+  });
+}
+
+export function projectTagKeysOptions(projectId: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'tags', 'keys'],
+    queryFn: () => fetchJson<TagKeysResponse>(`${projectApiBase(projectId)}/tags`),
+    enabled: !!projectId,
+  });
+}
+
+export function projectTagGroupsOptions(projectId: string, key: string) {
+  return queryOptions({
+    queryKey: ['projects', projectId, 'tags', 'groups', key],
+    queryFn: () =>
+      fetchJson<TagGroupsResponse>(
+        `${projectApiBase(projectId)}/tags?key=${encodeURIComponent(key)}`,
+      ),
+    enabled: !!projectId && !!key,
+  });
+}
 
 export function compareOptionsWithBaseline(baseline?: string) {
   return queryOptions({
@@ -326,10 +358,6 @@ export function useIndex() {
 
 export function useFeedback(projectId?: string) {
   return useQuery(feedbackOptions(projectId));
-}
-
-export function useExperiments() {
-  return useQuery(experimentsOptions);
 }
 
 export function useCompare() {
@@ -631,14 +659,6 @@ export function projectEvalTranscriptOptions(
   });
 }
 
-export function projectExperimentsOptions(projectId: string) {
-  return queryOptions({
-    queryKey: ['projects', projectId, 'experiments'],
-    queryFn: () => fetchJson<ExperimentsResponse>(`${projectApiBase(projectId)}/experiments`),
-    enabled: !!projectId,
-  });
-}
-
 export function projectCompareOptions(projectId: string, baseline?: string) {
   const base = `${projectApiBase(projectId)}/compare`;
   if (baseline) {
@@ -761,61 +781,6 @@ export async function deleteRunApi(runId: string, projectId?: string): Promise<v
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error((err as { error?: string }).error ?? `Failed to delete run: ${res.status}`);
-  }
-}
-
-// ── Run tag mutations ────────────────────────────────────────────────────
-
-/**
- * Replace the tags on a run. Tags are stored as a sidecar `tags.json` file
- * next to the run's manifest and surface as chips in the compare views.
- * Pass the row's `tag_revision` to reject stale browser edits.
- */
-export async function saveRunTagsApi(
-  runId: string,
-  tags: string[],
-  projectId?: string,
-  expectedTagRevision?: string,
-): Promise<RunTagsResponse> {
-  const url = projectId
-    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`
-    : `/api/runs/${encodeURIComponent(runId)}/tags`;
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      tags,
-      ...(expectedTagRevision ? { expected_tag_revision: expectedTagRevision } : {}),
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? `Failed to save tags: ${res.status}`);
-  }
-  return res.json() as Promise<RunTagsResponse>;
-}
-
-/** Clear the tags for a run, rejecting stale browser edits when a revision is provided. */
-export async function deleteRunTagsApi(
-  runId: string,
-  projectId?: string,
-  expectedTagRevision?: string,
-): Promise<void> {
-  const url = projectId
-    ? `${projectApiBase(projectId)}/runs/${encodeURIComponent(runId)}/tags`
-    : `/api/runs/${encodeURIComponent(runId)}/tags`;
-  const res = await fetch(url, {
-    method: 'DELETE',
-    ...(expectedTagRevision
-      ? {
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expected_tag_revision: expectedTagRevision }),
-        }
-      : {}),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? `Failed to delete tags: ${res.status}`);
   }
 }
 

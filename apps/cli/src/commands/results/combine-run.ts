@@ -56,7 +56,6 @@ export interface CombineRunSource {
   readonly displayName: string;
   readonly manifestPath: string;
   readonly experiment: string;
-  readonly tags?: readonly string[];
 }
 
 export interface DuplicateConflict {
@@ -111,7 +110,6 @@ export interface CombineRunResult {
   readonly duplicateConflicts: readonly DuplicateConflict[];
   readonly testCount: number;
   readonly targetCount: number;
-  readonly tags: readonly string[];
 }
 
 function parseJsonlLine(line: string): ResultManifestRecord {
@@ -538,7 +536,6 @@ export function buildCombineRunSources(
   options?: {
     ids?: readonly string[];
     displayNames?: readonly string[];
-    tags?: readonly string[][];
   },
 ): CombineRunSource[] {
   return sourcePaths.map((sourcePath, index) => {
@@ -561,7 +558,6 @@ export function buildCombineRunSources(
       displayName: options?.displayNames?.[index] ?? path.basename(runDir),
       manifestPath,
       experiment: normalizeExperimentName(experiment),
-      tags: options?.tags?.[index],
     };
   });
 }
@@ -632,7 +628,6 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
   const summaryPath = path.join(runDir, 'summary.json');
   writeJson(summaryPath, summaryWithMetadata);
 
-  const tags = [...new Set(loadedSources.flatMap((source) => source.tags ?? []))].sort();
   return {
     runDir,
     runId: toRunId(options.cwd, runDir),
@@ -644,6 +639,5 @@ export function combineRunSources(options: CombineRunOptions): CombineRunResult 
     duplicateConflicts: conflicts,
     testCount: rows.length,
     targetCount: new Set(results.map((result) => result.target ?? 'unknown')).size,
-    tags,
   };
 }

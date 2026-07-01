@@ -63,8 +63,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
   const [testIds, setTestIds] = useState<string[]>(prefill?.testIds ?? []);
   const [target, setTarget] = useState(prefill?.target ?? '');
   const [experiment, setExperiment] = useState(DEFAULT_EXPERIMENT);
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
   const [threshold, setThreshold] = useState('');
   const [thresholdEdited, setThresholdEdited] = useState(false);
   const [workers, setWorkers] = useState('');
@@ -107,8 +105,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
       setTestIds(prefill?.testIds ?? []);
       setTarget(prefill?.target ?? '');
       setExperiment(DEFAULT_EXPERIMENT);
-      setTagInput('');
-      setTags([]);
       setTestIdInput('');
       setThreshold('');
       setThresholdEdited(false);
@@ -131,28 +127,16 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
 
   // Build request body from form state
   const buildRequest = useCallback((): RunEvalRequest => {
-    const effectiveTags = mergeUniqueTags(tags, parseTagsInput(tagInput));
     return buildRunEvalRequest({
       suiteFilter,
       testIds,
       target,
       experiment,
-      tags: effectiveTags,
       thresholdInput: threshold,
       studioThreshold: studioConfig?.threshold,
       workers,
     });
-  }, [
-    experiment,
-    studioConfig?.threshold,
-    suiteFilter,
-    tagInput,
-    tags,
-    target,
-    testIds,
-    threshold,
-    workers,
-  ]);
+  }, [experiment, studioConfig?.threshold, suiteFilter, target, testIds, threshold, workers]);
 
   // Update CLI preview when form changes
   useEffect(() => {
@@ -177,18 +161,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
 
   function removeTestId(id: string) {
     setTestIds(testIds.filter((t) => t !== id));
-  }
-
-  function addTagsFromInput() {
-    const nextTags = parseTagsInput(tagInput);
-    if (nextTags.length > 0) {
-      setTags(mergeUniqueTags(tags, nextTags));
-    }
-    setTagInput('');
-  }
-
-  function removeTag(tag: string) {
-    setTags(tags.filter((t) => t !== tag));
   }
 
   // Launch
@@ -344,77 +316,22 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
 
         {/* Run metadata */}
         <div className="rounded-md border border-gray-800 bg-gray-950/40 p-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-            <div>
-              <label
-                htmlFor="experiment-input"
-                className="mb-1 block text-xs font-medium text-gray-400"
-              >
-                Experiment
-              </label>
-              <input
-                id="experiment-input"
-                type="text"
-                value={experiment}
-                onChange={(e) => setExperiment(e.target.value)}
-                placeholder={DEFAULT_EXPERIMENT}
-                className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label htmlFor="tags-input" className="mb-1 block text-xs font-medium text-gray-400">
-                Tags
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="tags-input"
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ',') {
-                      e.preventDefault();
-                      addTagsFromInput();
-                    }
-                  }}
-                  onBlur={addTagsFromInput}
-                  placeholder="baseline, prompt-v2"
-                  className="min-w-0 flex-1 rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={addTagsFromInput}
-                  disabled={!tagInput.trim()}
-                  className="rounded-md bg-gray-700 px-3 py-1.5 text-sm text-white hover:bg-gray-600 disabled:opacity-50"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
+          <div>
+            <label
+              htmlFor="experiment-input"
+              className="mb-1 block text-xs font-medium text-gray-400"
+            >
+              Experiment
+            </label>
+            <input
+              id="experiment-input"
+              type="text"
+              value={experiment}
+              onChange={(e) => setExperiment(e.target.value)}
+              placeholder={DEFAULT_EXPERIMENT}
+              className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-cyan-600 focus:outline-none"
+            />
           </div>
-          {tags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="text-cyan-400 hover:text-white"
-                    aria-label={`Remove tag ${tag}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="mt-2 text-xs text-gray-500">
-            Saved with the new run only; existing runs stay unchanged.
-          </p>
         </div>
 
         {/* Advanced options */}
@@ -505,24 +422,6 @@ export function RunEvalModal({ open, onClose, projectId, prefill }: RunEvalModal
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────
-
-function parseTagsInput(value: string): string[] {
-  return value
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
-}
-
-function mergeUniqueTags(existing: string[], incoming: string[]): string[] {
-  const seen = new Set(existing);
-  const merged = [...existing];
-  for (const tag of incoming) {
-    if (seen.has(tag)) continue;
-    seen.add(tag);
-    merged.push(tag);
-  }
-  return merged;
-}
 
 function ModalShell({
   children,

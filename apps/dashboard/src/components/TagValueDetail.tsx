@@ -1,36 +1,44 @@
 /**
- * Shared experiment detail view for both single-project and project-scoped routes.
+ * Tag-value detail view for both single-project and project-scoped routes.
  *
- * Reads experiment summary and run list from the matching API surface so the UI
- * stays on the same data source in both single and multi-project modes.
+ * Generalizes the old experiment detail: given a tag `key` and `value`, it
+ * shows the matching group summary and every run whose promptfoo `run_tags`
+ * map resolves to that value for the key. Value resolution uses the shared
+ * `runTagValue` helper (`~/lib/tag-grouping`), which mirrors the server's
+ * grouping rule exactly — including the reserved-`experiment` lockstep fallback
+ * and the `(no <key>)` bucket for runs missing the key — so the filtered run
+ * count here matches the group card's run_count.
  */
 
 import { useQuery } from '@tanstack/react-query';
 
 import {
-  experimentsOptions,
-  projectExperimentsOptions,
   projectRunListOptions,
+  projectTagGroupsOptions,
   runListOptions,
+  tagGroupsOptions,
 } from '~/lib/api';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
+import { runTagValue } from '~/lib/tag-grouping';
+import { tagKeyLabel } from '~/lib/tag-key-label';
 
 import { RunList } from './RunList';
 
-interface ExperimentDetailProps {
-  experimentName: string;
+interface TagValueDetailProps {
+  tagKey: string;
+  tagValue: string;
   projectId?: string;
 }
 
-export function ExperimentDetail({ experimentName, projectId }: ExperimentDetailProps) {
-  const { data: experimentsData, isLoading: expLoading } = useQuery(
-    projectId ? projectExperimentsOptions(projectId) : experimentsOptions,
+export function TagValueDetail({ tagKey, tagValue, projectId }: TagValueDetailProps) {
+  const { data: groupsData, isLoading: groupsLoading } = useQuery(
+    projectId ? projectTagGroupsOptions(projectId, tagKey) : tagGroupsOptions(tagKey),
   );
   const { data: runListData, isLoading: runsLoading } = useQuery(
     projectId ? projectRunListOptions(projectId) : runListOptions,
   );
 
-  const isLoading = expLoading || runsLoading;
+  const isLoading = groupsLoading || runsLoading;
 
   if (isLoading) {
     return (
@@ -45,29 +53,32 @@ export function ExperimentDetail({ experimentName, projectId }: ExperimentDetail
     );
   }
 
-  const experiment = experimentsData?.experiments?.find((entry) => entry.name === experimentName);
+  const group = groupsData?.groups?.find((entry) => entry.name === tagValue);
   const runs = dedupeSyncedRuns(
-    (runListData?.runs ?? []).filter((run) => (run.experiment ?? 'default') === experimentName),
+    (runListData?.runs ?? []).filter((run) => runTagValue(run, tagKey) === tagValue),
   );
 
-  const passRate = experiment?.pass_rate ?? 0;
+  const passRate = group?.pass_rate ?? 0;
   const runCount = runs.length;
-  const targetCount = experiment?.target_count ?? 0;
+  const targetCount = group?.target_count ?? 0;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">{experimentName}</h1>
+        <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+          {tagKeyLabel(tagKey)}
+        </p>
+        <h1 className="text-2xl font-semibold text-white">{tagValue}</h1>
         <p className="mt-1 text-sm text-gray-400">
           {runCount} run{runCount !== 1 ? 's' : ''} &middot; {targetCount} target
           {targetCount !== 1 ? 's' : ''}
-          {experiment?.last_run && (
-            <span className="ml-2">&middot; Last run: {formatTimestamp(experiment.last_run)}</span>
+          {group?.last_run && (
+            <span className="ml-2">&middot; Last run: {formatTimestamp(group.last_run)}</span>
           )}
         </p>
       </div>
 
-      {experiment && (
+      {group && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Runs" value={String(runCount)} />
           <StatCard label="Targets" value={String(targetCount)} />
@@ -76,7 +87,7 @@ export function ExperimentDetail({ experimentName, projectId }: ExperimentDetail
             value={`${Math.round(passRate * 100)}%`}
             accent="text-cyan-400"
           />
-          <StatCard label="Last Run" value={formatTimestamp(experiment.last_run)} />
+          <StatCard label="Last Run" value={formatTimestamp(group.last_run)} />
         </div>
       )}
 
@@ -87,9 +98,11 @@ export function ExperimentDetail({ experimentName, projectId }: ExperimentDetail
           projectId={projectId}
           emptyMessage={
             <div>
-              <p className="text-lg text-gray-400">No evaluation runs found for this experiment.</p>
+              <p className="text-lg text-gray-400">
+                No evaluation runs found for {tagKeyLabel(tagKey)} <code>{tagValue}</code>.
+              </p>
               <p className="mt-2 text-sm text-gray-500">
-                Runs will appear here once this experiment has execution results.
+                Runs will appear here once this value has execution results.
               </p>
             </div>
           }

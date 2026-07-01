@@ -6,7 +6,7 @@
  * - At run detail: shows nearby runs as local review context
  * - At eval detail: shows evals in the current run with pass/fail indicators
  * - At suite/category detail: shows the filtered review context
- * - At experiment detail: shows nearby experiments
+ * - At tag-value detail: shows sibling values for the selected tag key
  *
  * Responsive behavior is handled by SidebarShell:
  * - md+ (≥768px): always-visible fixed left panel
@@ -22,10 +22,10 @@ import {
   DEFAULT_APP_NAME,
   isPassing,
   projectCategorySuitesOptions,
-  projectExperimentsOptions,
+  projectTagGroupsOptions,
+  tagGroupsOptions,
   useCategorySuites,
   useEvalRuns,
-  useExperiments,
   useProjectList,
   useProjectRunDetail,
   useProjectRunList,
@@ -41,6 +41,7 @@ import {
 import { shouldShowEvalSourceLabels } from '~/lib/run-detail-context';
 import { formatRunDisplay } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
+import { tagKeyLabel } from '~/lib/tag-key-label';
 import type { EvalResult } from '~/lib/types';
 
 import { BrandName } from './BrandName';
@@ -141,11 +142,11 @@ function useCurrentEvalIdentitySearch() {
   };
 }
 
-type ProjectTabId = 'runs' | 'experiments' | 'analytics' | 'targets';
+type ProjectTabId = 'runs' | 'tags' | 'analytics' | 'targets';
 
 const projectNavItems: { id: ProjectTabId; label: string; description: string }[] = [
   { id: 'runs', label: 'Recent Runs', description: 'Run review' },
-  { id: 'experiments', label: 'Experiments', description: 'Grouped runs' },
+  { id: 'tags', label: 'Tags', description: 'Grouped runs' },
   { id: 'analytics', label: 'Analytics', description: 'Compare scores' },
   { id: 'targets', label: 'Targets', description: 'Target results' },
 ];
@@ -224,8 +225,8 @@ export function Sidebar() {
     to: '/projects/$projectId/runs/$runId',
     fuzzy: true,
   });
-  const projectExperimentMatch = matchRoute({
-    to: '/projects/$projectId/experiments/$experimentName',
+  const projectTagValueMatch = matchRoute({
+    to: '/projects/$projectId/tags/$key/$value',
     fuzzy: true,
   });
   const projectCategoryMatch = matchRoute({
@@ -293,15 +294,16 @@ export function Sidebar() {
   }
 
   if (
-    projectExperimentMatch &&
-    typeof projectExperimentMatch === 'object' &&
-    'projectId' in projectExperimentMatch
+    projectTagValueMatch &&
+    typeof projectTagValueMatch === 'object' &&
+    'projectId' in projectTagValueMatch
   ) {
-    const { projectId, experimentName } = projectExperimentMatch as {
+    const { projectId, key, value } = projectTagValueMatch as {
       projectId: string;
-      experimentName: string;
+      key: string;
+      value: string;
     };
-    return <ProjectExperimentSidebar projectId={projectId} currentExperiment={experimentName} />;
+    return <ProjectTagValueSidebar projectId={projectId} tagKey={key} currentValue={value} />;
   }
 
   // Project home (runs/experiments/targets)
@@ -321,8 +323,8 @@ export function Sidebar() {
     to: '/runs/$runId/suite/$suite',
     fuzzy: true,
   });
-  const experimentMatch = matchRoute({
-    to: '/experiments/$experimentName',
+  const tagValueMatch = matchRoute({
+    to: '/tags/$key/$value',
     fuzzy: true,
   });
 
@@ -341,13 +343,9 @@ export function Sidebar() {
     return <EvalSidebar runId={runId} currentEvalId={evalId} />;
   }
 
-  if (
-    experimentMatch &&
-    typeof experimentMatch === 'object' &&
-    'experimentName' in experimentMatch
-  ) {
-    const { experimentName } = experimentMatch as { experimentName: string };
-    return <ExperimentSidebar currentExperiment={experimentName} />;
+  if (tagValueMatch && typeof tagValueMatch === 'object' && 'key' in tagValueMatch) {
+    const { key, value } = tagValueMatch as { key: string; value: string };
+    return <TagValueSidebar tagKey={key} currentValue={value} />;
   }
 
   if (runMatch && typeof runMatch === 'object' && 'runId' in runMatch) {
@@ -801,15 +799,17 @@ function ProjectCategorySidebar({
   );
 }
 
-function ProjectExperimentSidebar({
+function ProjectTagValueSidebar({
   projectId,
-  currentExperiment,
+  tagKey,
+  currentValue,
 }: {
   projectId: string;
-  currentExperiment: string;
+  tagKey: string;
+  currentValue: string;
 }) {
-  const { data } = useQuery(projectExperimentsOptions(projectId));
-  const experiments = data?.experiments ?? [];
+  const { data } = useQuery(projectTagGroupsOptions(projectId, tagKey));
+  const groups = data?.groups ?? [];
 
   return (
     <SidebarShell>
@@ -819,33 +819,33 @@ function ProjectExperimentSidebar({
         <Link
           to="/projects/$projectId"
           params={{ projectId }}
-          search={{ tab: 'experiments' } as Record<string, string>}
+          search={{ tab: 'tags', key: tagKey } as Record<string, string>}
           className="text-xs text-gray-400 hover:text-cyan-400"
         >
-          &larr; All experiments
+          &larr; All {tagKeyLabel(tagKey)} values
         </Link>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-          Experiments
+          {tagKeyLabel(tagKey)}
         </div>
 
-        {experiments.map((exp) => {
-          const isActive = exp.name === currentExperiment;
+        {groups.map((group) => {
+          const isActive = group.name === currentValue;
 
           return (
             <Link
-              key={exp.name}
-              to="/projects/$projectId/experiments/$experimentName"
-              params={{ projectId, experimentName: exp.name }}
+              key={group.name}
+              to="/projects/$projectId/tags/$key/$value"
+              params={{ projectId, key: tagKey, value: group.name }}
               className={`mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {exp.name}
+              {group.name}
             </Link>
           );
         })}
@@ -854,45 +854,45 @@ function ProjectExperimentSidebar({
   );
 }
 
-function ExperimentSidebar({ currentExperiment }: { currentExperiment: string }) {
-  const { data } = useExperiments();
-  const experiments = data?.experiments ?? [];
+function TagValueSidebar({ tagKey, currentValue }: { tagKey: string; currentValue: string }) {
+  const { data } = useQuery(tagGroupsOptions(tagKey));
+  const groups = data?.groups ?? [];
 
   return (
     <SidebarShell>
       <BrandHeader />
 
-      {/* Back to experiments tab */}
+      {/* Back to tags tab */}
       <div className="border-b border-gray-800 px-4 py-2">
         <Link
           to="/"
-          search={{ tab: 'experiments' } as Record<string, string>}
+          search={{ tab: 'tags', key: tagKey } as Record<string, string>}
           className="text-xs text-gray-400 hover:text-cyan-400"
         >
-          &larr; All experiments
+          &larr; All {tagKeyLabel(tagKey)} values
         </Link>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-gray-500">
-          Experiments
+          {tagKeyLabel(tagKey)}
         </div>
 
-        {experiments.map((exp) => {
-          const isActive = exp.name === currentExperiment;
+        {groups.map((group) => {
+          const isActive = group.name === currentValue;
 
           return (
             <Link
-              key={exp.name}
-              to="/experiments/$experimentName"
-              params={{ experimentName: exp.name }}
+              key={group.name}
+              to="/tags/$key/$value"
+              params={{ key: tagKey, value: group.name }}
               className={`mb-0.5 block truncate rounded-md px-2 py-1.5 text-sm transition-colors ${
                 isActive
                   ? 'bg-gray-800 text-cyan-400'
                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
               }`}
             >
-              {exp.name}
+              {group.name}
             </Link>
           );
         })}

@@ -7,10 +7,9 @@
  * fields and renders the following charts:
  *
  *   1. Normalized gain bar chart (horizontal bars, g per task × target)
- *   2. Domain/tag heatmap (pass rate by tag × target)
- *   3. Negative delta table (tasks where non-baseline scored worse)
- *   4. Filterable score distribution histogram (experiment/category/time)
- *   5. Trend-over-time line chart (mean score per target over time)
+ *   2. Negative delta table (tasks where non-baseline scored worse)
+ *   3. Filterable score distribution histogram (experiment/category/time)
+ *   4. Trend-over-time line chart (mean score per target over time)
  *
  * All charts use recharts styled with Tailwind-matching colors to
  * respect the Dashboard dark theme (gray-950 canvas, cyan accents,
@@ -144,20 +143,15 @@ export function AnalyticsCharts({ data, projectId }: AnalyticsChartsProps) {
             <NormalizedGainChart data={baselineData} baseline={baseline} />
           )}
 
-          {/* 2. Tag heatmap */}
-          {data.runs && data.runs.length > 0 && targets.length > 1 && (
-            <TagHeatmap runs={data.runs} targets={targets} />
-          )}
-
-          {/* 3. Negative delta table */}
+          {/* 2. Negative delta table */}
           {baseline && baselineData && (
             <NegativeDeltaTable data={baselineData} baseline={baseline} />
           )}
 
-          {/* 4. Score distribution histogram */}
+          {/* 3. Score distribution histogram */}
           <ScoreDistribution data={data} />
 
-          {/* 5. Trend over time */}
+          {/* 4. Trend over time */}
           {trendData.length > 1 && targets.length > 0 && (
             <TrendOverTime data={trendData} targets={targets} />
           )}
@@ -301,98 +295,7 @@ function NormalizedGainChart({ data, baseline }: { data: CompareResponse; baseli
   );
 }
 
-// ── 2. Tag heatmap ─────────────────────────────────────────────────────
-
-function TagHeatmap({ runs, targets }: { runs: CompareRunEntry[]; targets: string[] }) {
-  const { tags, grid } = useMemo(() => {
-    // Collect all tags and compute pass rate per (tag, target)
-    const tagTargetMap = new Map<string, Map<string, { passed: number; total: number }>>();
-    for (const run of runs) {
-      for (const tag of run.tags ?? []) {
-        let targetMap = tagTargetMap.get(tag);
-        if (!targetMap) {
-          targetMap = new Map();
-          tagTargetMap.set(tag, targetMap);
-        }
-        let entry = targetMap.get(run.target);
-        if (!entry) {
-          entry = { passed: 0, total: 0 };
-          targetMap.set(run.target, entry);
-        }
-        entry.passed += run.passed_count;
-        entry.total += run.eval_count;
-      }
-    }
-    const allTags = [...tagTargetMap.keys()].sort();
-    const gridData = allTags.map((tag) => {
-      const row: Record<string, number | string> = { tag };
-      const targetMap = tagTargetMap.get(tag);
-      if (!targetMap) return row;
-      for (const target of targets) {
-        const entry = targetMap.get(target);
-        row[target] = entry && entry.total > 0 ? entry.passed / entry.total : -1;
-      }
-      return row;
-    });
-    return { tags: allTags, grid: gridData };
-  }, [runs, targets]);
-
-  if (tags.length === 0) return null;
-
-  return (
-    <ChartSection title="Pass Rate by Tag × Target">
-      <div className="overflow-x-auto rounded-lg border border-gray-800">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-800 bg-gray-900/50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-gray-400">Tag</th>
-              {targets.map((t) => (
-                <th key={t} className="px-4 py-3 font-medium text-gray-400">
-                  {t}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800/50">
-            {grid.map((row) => (
-              <tr key={row.tag as string} className="transition-colors hover:bg-gray-900/30">
-                <td className="px-4 py-3 font-medium text-gray-200">{row.tag as string}</td>
-                {targets.map((target) => {
-                  const val = row[target] as number;
-                  if (val < 0) {
-                    return (
-                      <td key={target} className="px-4 py-3 text-center text-gray-600">
-                        —
-                      </td>
-                    );
-                  }
-                  const pct = Math.round(val * 100);
-                  const colorClass =
-                    val >= 0.8
-                      ? 'bg-emerald-400/20 text-emerald-400'
-                      : val >= 0.5
-                        ? 'bg-yellow-400/20 text-yellow-400'
-                        : 'bg-red-400/20 text-red-400';
-                  return (
-                    <td key={target} className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded px-2 py-0.5 text-xs tabular-nums font-medium ${colorClass}`}
-                      >
-                        {pct}%
-                      </span>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </ChartSection>
-  );
-}
-
-// ── 3. Negative delta table ────────────────────────────────────────────
+// ── 2. Negative delta table ────────────────────────────────────────────
 
 function NegativeDeltaTable({ data, baseline }: { data: CompareResponse; baseline: string }) {
   const negatives = useMemo(() => {
@@ -444,7 +347,7 @@ function NegativeDeltaTable({ data, baseline }: { data: CompareResponse; baselin
   );
 }
 
-// ── 4. Score distribution histogram ────────────────────────────────────
+// ── 3. Score distribution histogram ────────────────────────────────────
 
 const DEFAULT_DISTRIBUTION_FILTERS: ScoreDistributionFilters = {
   experiment: ALL_DISTRIBUTION_FILTER_VALUE,
@@ -651,7 +554,7 @@ function scoreDistributionEmptyMessage(
   return 'No scores match the selected distribution filters.';
 }
 
-// ── 5. Trend over time ─────────────────────────────────────────────────
+// ── 4. Trend over time ─────────────────────────────────────────────────
 
 interface TrendPoint {
   date: string;

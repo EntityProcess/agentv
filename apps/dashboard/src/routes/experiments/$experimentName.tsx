@@ -1,16 +1,16 @@
 /**
- * Experiment detail route for single-project mode.
+ * Legacy experiment detail route. Kept for one release so bookmarked
+ * `/experiments/<name>` links survive; redirects to the generalized
+ * `/tags/experiment/<name>` view.
  */
 
-import { createFileRoute } from '@tanstack/react-router';
-
-import { ExperimentDetail } from '~/components/ExperimentDetail';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/experiments/$experimentName')({
-  component: ExperimentDetailPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/tags/$key/$value',
+      params: { key: 'experiment', value: params.experimentName },
+    });
+  },
 });
-
-function ExperimentDetailPage() {
-  const { experimentName } = Route.useParams();
-  return <ExperimentDetail experimentName={experimentName} />;
-}
