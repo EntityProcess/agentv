@@ -223,7 +223,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 ### 2.h Output store: bundle vs promptfoo SQLite
 - **promptfoo:** SQLite `~/.promptfoo/promptfoo.db` + optional `output_path` file.
 - **AgentV today:** `.agentv/results/<run_id>/` bundle (ADR-0011/0012) + Dashboard.
-- **D — keep AgentV bundle (better semantics + product boundary):** aligns with margin-lab's on-disk `results.json` + per-instance dirs and the Phoenix boundary. Support promptfoo `output_path` (json/jsonl/csv/yaml) as an *export* view; optionally emit a promptfoo-compatible `EvaluateSummaryV3` for interop. Do not adopt the SQLite DB.
+- **D — keep AgentV bundle as the single source of truth (better semantics + product boundary):** aligns with margin-lab's on-disk `results.json` + per-instance dirs and the Phoenix boundary. Do not adopt the SQLite DB, and do **not** maintain a consolidated single-file export (§6.0, YAGNI). promptfoo `output_path` (json/jsonl/csv/yaml) can be produced *on demand* from the bundle if a user asks, but is not a first-class artifact.
 
 ### 2.j `threshold` (per-test) + `gate` (release policy)
 - **promptfoo:** scalar per-test/`default_test` `threshold` only; no release gate.
@@ -347,9 +347,9 @@ The subagents reviewed every reference's output format. Verdict: **split artifac
 - **Aggregate + queryability ← margin-lab (owner's pick).** The top-level **`summary.json` is a rich, self-contained, `jq`-queryable `Summary`** in margin-lab's shape — `run_id`, `status` breakdown, per-case **pass@k** (`pass_count`/`pass_rate`), per-instance summaries, `usage`, infra-failure taxonomy. You can query the whole run from one file with no database (margin-lab's key strength). Plus **`index.jsonl`** (one row per case) for streaming/line-wise queries (`jq`/`grep` per line) that scale better than a single fat file. AgentV's current top-level `summary.json` must be *widened* to margin's `Summary` richness so it's genuinely queryable, not just a manifest.
 - **Transcript + tool calls + metrics ← vercel (owner's pick).** Two-layer transcript (raw + normalized), canonical **`tool_name` enum**, and a precomputed **`transcript_summary`** (tool_calls, files_read/modified, shell_commands, web_fetches, thinking) — **inlined into each result row** so `tool-trajectory`/`execution-metrics`/pass@k read metrics cheaply without parsing the transcript. Transcript itself referenced **by path** (§5.1). This is where AgentV's trajectory/metrics graders get their signal.
 - **Per-assertion grading ← agentskills.** `grading.json` = `assertion_results[{text, passed, evidence}]` + `summary` counts, plus AgentV's `verdict`/`score` superset (§5.3).
-- **Consolidated interop ← promptfoo (strong contender, kept as export).** Optional `EvaluateSummaryV3` single-file export + promptfoo-shaped `named_scores`/`derived_metrics`, for tool interop — not the canonical store.
+- **No maintained consolidated single-file export (owner: YAGNI).** Since the split bundle is the source of truth, we do **not** ship or maintain a promptfoo `EvaluateSummaryV3` file. If some external tool ever needs it, it can be **generated on demand** from the bundle — but it's not a first-class artifact. (We still adopt promptfoo-shaped `named_scores`/`derived_metrics` *inside* the split rows, because those feed the Dashboard — that's not a consolidated file.)
 
-So: **split detail** (per-case/per-attempt dirs, transcript by path) + a **margin-style queryable aggregate** (`summary.json`) + **row-per-case `index.jsonl`** + **vercel transcript/metrics** + **agentskills grading** + **promptfoo export**. No DB; the filesystem is the query surface.
+So: **split detail** (per-case/per-attempt dirs, transcript by path) + a **margin-style queryable aggregate** (`summary.json`) + **row-per-case `index.jsonl`** + **vercel transcript/metrics** + **agentskills grading**. No DB, no maintained consolidated file; the filesystem is the query surface.
 
 - **Don't over-split.** Keep the agentskills-aligned split (`grading.json`, `timing.json`), transcript-by-path, and the inlined `transcript_summary`; don't add more sidecars. Remove deprecated/duplicate artifact paths (see §10, e.g. `isDeprecatedTraceArtifactPath`).
 
@@ -368,6 +368,7 @@ Current drift (verified): the per-case index file is `index.jsonl` (`RESULT_INDE
 ```
 Decisions:
 - **`index.jsonl` stays JSONL** (append-as-you-go for live progress + `--rerun-failed`; streamable; line-queryable). NOT `index.json` (would force whole-file rewrites, not streamable).
+- **Filename considered:** `index.jsonl` (kept) vs `rows.jsonl` vs `manifest.jsonl`. `manifest.jsonl` **rejected** — "manifest" is reserved for the frozen `bundle.json`, and margin uses `manifest.json` for run metadata (reusing it re-creates the drift we're fixing). `index` is precise (each line is a *pointer* into per-case detail — the queryable entry point). `rows.jsonl` is the only acceptable fallback if the singular-file `index.jsonl` vs plural-folder cross-run `.indexes/` overlap is deemed confusing.
 - **Rename the reference `manifest_path` → `index_path`** (+ `resolveExistingResultIndexPath`) so file and field agree. Reserve **"manifest"/`bundle.json`** for the frozen-config file only.
 - **`summary.json`** = the queryable aggregate (do not call it a manifest).
 - Move machine files (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`) into per-run **`.internal/`**; keep the run root clean (`summary.json` + per-case dirs). Cross-run `.indexes/`/`.cache/` at the results root are a separate scope and stay.
@@ -376,7 +377,7 @@ Decisions:
 - **Analytics = one pure function** (margin-lab's `runresults.Build`): given instances+results, produce a deterministic `Summary` with per-case **pass@k** (`pass_count`/`pass_rate` over samples), `status` breakdown, `usage` aggregation, and infra-failure taxonomy. AgentV currently lacks pass@k/variance — this fills it.
 - Add promptfoo-shaped **`named_scores`** + **`derived_metrics`** to per-result rows (feeds Dashboard Tags/metrics tabs).
 - Reference transcripts **by relative path** in the result row (vercel), never inline the full transcript.
-- Optional promptfoo-compatible `EvaluateSummaryV3` export for interop.
+- **No maintained consolidated export** — the split bundle is the single source of truth; a promptfoo-shaped single file can be generated on demand if ever needed, but is not shipped (§6.0).
 
 ---
 
