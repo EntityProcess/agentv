@@ -404,6 +404,12 @@ const RunOverrideSchema = z
   })
   .strict();
 
+const DefaultTestSchema = z
+  .object({
+    threshold: z.number().min(0).max(1).optional(),
+  })
+  .strict();
+
 /** Per-turn assertion: string shorthand (becomes rubric) or full evaluator config */
 const TurnAssertionSchema = z.union([z.string(), EvaluatorSchema]);
 
@@ -534,6 +540,7 @@ export const EvalFileSchema = z
     timeout_seconds: z.number().gt(0).optional(),
     budget_usd: z.number().gt(0).optional(),
     threshold: z.number().min(0).max(1).optional(),
+    default_test: DefaultTestSchema.optional(),
     on_run_complete: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
     policy: z.never().optional(),
     execution: z.never().optional(),

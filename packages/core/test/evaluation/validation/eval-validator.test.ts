@@ -76,6 +76,54 @@ imports:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('validates default_test.threshold', async () => {
+    const filePath = path.join(tempDir, 'default-test-threshold.yaml');
+    await writeFile(
+      filePath,
+      `default_test:
+  threshold: 0.6
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects invalid default_test threshold values and unsupported default fields', async () => {
+    const filePath = path.join(tempDir, 'invalid-default-test-threshold.yaml');
+    await writeFile(
+      filePath,
+      `default_test:
+  threshold: 1.2
+  assertions: []
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) => error.severity === 'error' && error.location === 'default_test.threshold',
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) => error.severity === 'error' && error.location === 'default_test.assertions',
+      ),
+    ).toBe(true);
+  });
+
   it('rejects removed top-level runs and early_exit with migration guidance', async () => {
     const filePath = path.join(tempDir, 'removed-repeat-fields.yaml');
     await writeFile(

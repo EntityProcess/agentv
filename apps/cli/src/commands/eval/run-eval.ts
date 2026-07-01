@@ -1107,6 +1107,7 @@ async function prepareFileMetadata(params: {
     effectiveOptions.cliBudgetUsd === undefined
       ? (effectiveOptions.budgetUsd ?? suite.budgetUsd)
       : suite.budgetUsd;
+  const suiteDefaultThreshold = suite.defaultTest?.threshold ?? suite.threshold;
 
   if (testCases.length === 0) {
     return {
@@ -1120,7 +1121,7 @@ async function prepareFileMetadata(params: {
       yamlCachePath: suite.cacheConfig?.cachePath,
       budgetUsd: defaultBudgetUsd,
       failOnError: suite.failOnError,
-      threshold: suite.threshold,
+      threshold: suiteDefaultThreshold,
       tags: suite.metadata?.tags,
       providerFactory: suite.providerFactory,
     };
@@ -1280,7 +1281,7 @@ async function prepareFileMetadata(params: {
     yamlCachePath: suite.cacheConfig?.cachePath,
     budgetUsd: defaultBudgetUsd,
     failOnError: suite.failOnError,
-    threshold: suite.threshold,
+    threshold: suiteDefaultThreshold,
     tags: suite.metadata?.tags,
     providerFactory: suite.providerFactory,
   };
@@ -2076,9 +2077,10 @@ export async function runEvalCommand(
   });
   const hasPerFileRuntimeThresholds =
     options.cliThreshold === undefined &&
-    activeTestFiles.some(
-      (activeTestFile) => fileMetadata.get(activeTestFile)?.options.threshold !== undefined,
-    );
+    activeTestFiles.some((activeTestFile) => {
+      const metadata = fileMetadata.get(activeTestFile);
+      return metadata?.options.threshold !== undefined || metadata?.threshold !== undefined;
+    });
 
   // --transcript: create a shared TranscriptProvider and validate entry count
   let transcriptProviderFactory:
@@ -2228,7 +2230,7 @@ export async function runEvalCommand(
               tests: filteredTestCases,
               options: fileOptions,
               defaultTrialsConfig: fileOptions.transcript ? undefined : targetPrep.trialsConfig,
-              defaultThreshold: fileOptions.threshold ?? targetPrep.threshold,
+              defaultThreshold: targetPrep.threshold ?? fileOptions.threshold,
               defaultTimeoutSeconds: fileOptions.agentTimeoutSeconds,
               defaultBudgetUsd: targetPrep.budgetUsd,
             });
