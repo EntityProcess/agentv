@@ -101,25 +101,14 @@ import {
 } from './manifest.js';
 import {
   type SourcedResultFileMeta,
-  clearRemoteRunTags,
   confirmRemoteResultsMerge,
   ensureRemoteRunAvailable,
   findRunById,
   getRemoteResultsStatus,
   listMergedResultFiles,
   loadNormalizedResultsConfig,
-  readRemoteRunTagState,
-  setRemoteRunTags,
   syncRemoteResults,
 } from './remote.js';
-import {
-  type RunFinalState,
-  type RunReadStateFields,
-  TagRevisionConflictError,
-  assertExpectedTagRevision,
-  materializeRunState,
-} from './run-state.js';
-import { readRunTags, writeRunTags } from './run-tags.js';
 import { type StudioConfig, loadStudioConfig, saveStudioConfig } from './studio-config.js';
 
 // ── Source resolution ────────────────────────────────────────────────────
@@ -1239,15 +1228,6 @@ interface DataContext {
   projectId?: string;
 }
 
-interface RunTagFields {
-  readonly tags?: string[];
-  readonly remote_tags?: string[];
-  readonly pending_tags?: string[];
-  readonly metadata_dirty?: boolean;
-  readonly final_state: RunFinalState;
-  readonly tag_revision: string;
-}
-
 // biome-ignore lint/suspicious/noExplicitAny: Hono Context generic varies by route
 type C = Context<any, any, any>;
 
@@ -1261,143 +1241,6 @@ function inferExperimentFromRunId(runId: string): string | undefined {
     return undefined;
   }
   return experiment;
-}
-
-async function readRunTagFields(
-  searchDir: string,
-  meta: SourcedResultFileMeta,
-  projectId?: string,
-): Promise<RunTagFields> {
-  if (meta.on_remote) {
-    const state = await readRemoteRunTagState(searchDir, meta, projectId);
-    if (state) {
-      return {
-        tags: state.tags,
-        remote_tags: state.remoteTags,
-        metadata_dirty: state.dirty,
-        ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
-        ...materializeRunState({
-          tags: state.tags,
-          tagRevision: state.tagRevision,
-          updatedAt: state.updatedAt,
-        }),
-      };
-    }
-  }
-
-  if (meta.source === 'local') {
-    const tagsEntry = readRunTags(meta.path);
-    const runState = materializeRunState({
-      tags: tagsEntry?.tags ?? [],
-      tagRevision: tagsEntry?.tag_revision,
-      updatedAt: tagsEntry?.updated_at || undefined,
-    });
-    return {
-      ...(tagsEntry ? { tags: tagsEntry.tags } : {}),
-      ...runState,
-    };
-  }
-
-  const state = await readRemoteRunTagState(searchDir, meta, projectId);
-  if (!state) {
-    return {
-      tags: [],
-      remote_tags: [],
-      metadata_dirty: false,
-      ...materializeRunState({ tags: [] }),
-    };
-  }
-
-  return {
-    tags: state.tags,
-    remote_tags: state.remoteTags,
-    metadata_dirty: state.dirty,
-    ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
-    ...materializeRunState({
-      tags: state.tags,
-      tagRevision: state.tagRevision,
-      updatedAt: state.updatedAt,
-    }),
-  };
-}
-
-function remoteTagMutationResponse(state: {
-  readonly tags: string[];
-  readonly remoteTags: string[];
-  readonly pendingTags?: string[];
-  readonly dirty: boolean;
-  readonly updatedAt?: string;
-  readonly tagRevision: string;
-}) {
-  return {
-    tags: state.tags,
-    remote_tags: state.remoteTags,
-    metadata_dirty: state.dirty,
-    ...(state.dirty && { pending_tags: state.pendingTags ?? state.tags }),
-    ...materializeRunState({
-      tags: state.tags,
-      tagRevision: state.tagRevision,
-      updatedAt: state.updatedAt,
-    }),
-    updated_at: state.updatedAt ?? new Date().toISOString(),
-  };
-}
-
-function localTagMutationResponse(input: {
-  readonly tags: readonly string[];
-  readonly updatedAt?: string;
-  readonly tagRevision?: string;
-}): RunReadStateFields {
-  return materializeRunState({
-    tags: input.tags,
-    tagRevision: input.tagRevision,
-    updatedAt: input.updatedAt,
-  });
-}
-
-function remoteMetadataErrorStatus(error: unknown): 400 | 409 {
-  if (error instanceof TagRevisionConflictError) {
-    return 409;
-  }
-  const message = error instanceof Error ? error.message : String(error);
-  if (
-    message.includes('not configured') ||
-    message.includes('not a writable git checkout') ||
-    message.includes('outside the results repo runs directory')
-  ) {
-    return 409;
-  }
-  return 400;
-}
-
-function tagMutationErrorBody(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (error instanceof TagRevisionConflictError) {
-    return {
-      error: message,
-      expected_tag_revision: error.expectedRevision,
-      current_tag_revision: error.currentRevision,
-    };
-  }
-  return { error: message };
-}
-
-function expectedTagRevisionFromRecord(record: Record<string, unknown>): string | undefined {
-  const raw = record.expected_tag_revision ?? record.tag_revision ?? record.etag;
-  if (raw === undefined) return undefined;
-  if (typeof raw !== 'string') {
-    throw new Error('expected_tag_revision must be a string');
-  }
-  return raw;
-}
-
-function currentLocalTagRevision(manifestPath: string): string {
-  const tagsEntry = readRunTags(manifestPath);
-  return materializeRunState({
-    tags: tagsEntry?.tags ?? [],
-    tagRevision: tagsEntry?.tag_revision,
-    updatedAt: tagsEntry?.updated_at || undefined,
-  }).tag_revision;
 }
 
 async function ensureRunReadable(
@@ -1619,7 +1462,6 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       // or running so the RunList can render a spinner instead of the
       // pass/fail dot derived from a 0% pass rate.
       const liveStatus = getActiveRunStatus(m.path);
-      const tagFields = await readRunTagFields(searchDir, m, projectId);
       return {
         filename: m.filename,
         display_name: m.displayName,
@@ -1636,7 +1478,6 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         ...(experiment && { experiment }),
         ...(runTags && { run_tags: runTags }),
         ...(runtimeSource && { runtime_source: runtimeSource }),
-        ...tagFields,
         ...(liveStatus && { status: liveStatus }),
       };
     }),
@@ -1687,7 +1528,6 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const resumeMeta =
       meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path, summaryMetadata) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
-    const tagFields = await readRunTagFields(searchDir, meta, projectId);
     const baseDir = path.dirname(meta.path);
     return c.json({
       results: attachExternalTraceFields(
@@ -1697,7 +1537,6 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
       source: meta.source,
       source_label: meta.displayName,
       ...(runtimeSource && { runtime_source: runtimeSource }),
-      ...tagFields,
       ...(liveStatus && { status: liveStatus }),
       ...resumeMeta,
     });
@@ -2392,10 +2231,69 @@ async function handleEvalTranscript(c: C, { searchDir, projectId }: DataContext)
   }
 }
 
-async function handleExperiments(c: C, { searchDir, agentvDir, projectId }: DataContext) {
+/**
+ * The reserved tag key that also feeds the run-level experiment namespace. Runs
+ * written before the promptfoo `tags` map shipped carry only a top-level
+ * `experiment`, so grouping on this key falls back to
+ * `record.experiment ?? record.tags?.experiment ?? 'default'`.
+ */
+const EXPERIMENT_TAG_KEY = 'experiment';
+
+/** Bucket label for runs whose rows do not carry the selected tag key. */
+function noKeyBucketLabel(key: string): string {
+  return `(no ${key})`;
+}
+
+/**
+ * Resolve the grouping value a record contributes for a given tag key. For the
+ * reserved `experiment` key we honour the lockstep fallback so old runs (no tags
+ * map) still resolve; for any other key we read `record.tags?.[key]` and place
+ * records missing the key in a `(no <key>)` bucket.
+ */
+function resolveTagGroupValue(
+  record: { readonly experiment?: string; readonly tags?: Record<string, string> },
+  key: string,
+): string {
+  if (key === EXPERIMENT_TAG_KEY) {
+    return record.experiment ?? record.tags?.experiment ?? 'default';
+  }
+  const value = record.tags?.[key];
+  return value === undefined || value === '' ? noKeyBucketLabel(key) : value;
+}
+
+/**
+ * Generalized `GET /api/tags`. Without `?key=` it enumerates the available tag
+ * keys (union of every row's `tags` map keys plus the synthetic `experiment`
+ * key, sorted). With `?key=<k>` it groups runs by that key's values and returns
+ * per-value summaries (the shape the old `/api/experiments` returned, with
+ * `name` = the tag value).
+ */
+async function handleTags(c: C, { searchDir, agentvDir, projectId }: DataContext) {
   const { runs: metas } = await listMergedResultFiles(searchDir, undefined, projectId);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
-  const experimentMap = new Map<
+  const rawKey = c.req.query('key');
+  const key = rawKey?.trim() ? rawKey.trim() : undefined;
+
+  // Key enumeration mode: walk every row, union tag keys, always include
+  // `experiment`. Returned sorted for a stable dropdown.
+  if (!key) {
+    const keys = new Set<string>([EXPERIMENT_TAG_KEY]);
+    for (const m of metas) {
+      try {
+        const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
+        for (const r of records) {
+          for (const tagKey of Object.keys(r.tags ?? {})) {
+            keys.add(tagKey);
+          }
+        }
+      } catch {
+        // skip runs that fail to load
+      }
+    }
+    return c.json({ keys: [...keys].sort() });
+  }
+
+  const groupMap = new Map<
     string,
     {
       targets: Set<string>;
@@ -2412,7 +2310,76 @@ async function handleExperiments(c: C, { searchDir, agentvDir, projectId }: Data
     try {
       const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
       for (const r of records) {
-        const experiment = r.experiment ?? 'default';
+        const value = resolveTagGroupValue(r, key);
+        const entry = groupMap.get(value) ?? {
+          targets: new Set<string>(),
+          runFilenames: new Set<string>(),
+          evalCount: 0,
+          qualityCount: 0,
+          passedCount: 0,
+          executionErrorCount: 0,
+          lastTimestamp: '',
+        };
+        entry.runFilenames.add(m.filename);
+        if (r.target) entry.targets.add(r.target);
+        entry.evalCount++;
+        if (isExecutionErrorResult(r)) {
+          entry.executionErrorCount++;
+        } else {
+          entry.qualityCount++;
+          if (r.score >= pass_threshold) entry.passedCount++;
+        }
+        if (r.timestamp && r.timestamp > entry.lastTimestamp) {
+          entry.lastTimestamp = r.timestamp;
+        }
+        groupMap.set(value, entry);
+      }
+    } catch {
+      // skip runs that fail to load
+    }
+  }
+
+  const groups = [...groupMap.entries()].map(([name, entry]) => ({
+    name,
+    run_count: entry.runFilenames.size,
+    target_count: entry.targets.size,
+    eval_count: entry.evalCount,
+    quality_count: entry.qualityCount,
+    passed_count: entry.passedCount,
+    execution_error_count: entry.executionErrorCount,
+    pass_rate: entry.qualityCount > 0 ? entry.passedCount / entry.qualityCount : 0,
+    last_run: entry.lastTimestamp || null,
+  }));
+
+  return c.json({ key, groups });
+}
+
+/**
+ * Backward-compatible `GET /api/experiments` alias. Serves the legacy
+ * `{ experiments: ExperimentSummary[] }` shape by grouping on the `experiment`
+ * key, so existing clients keep working during the Tags-tab migration.
+ */
+async function handleExperiments(c: C, ctx: DataContext) {
+  const { runs: metas } = await listMergedResultFiles(ctx.searchDir, undefined, ctx.projectId);
+  const { threshold: pass_threshold } = loadStudioConfig(ctx.agentvDir);
+  const experimentMap = new Map<
+    string,
+    {
+      targets: Set<string>;
+      runFilenames: Set<string>;
+      evalCount: number;
+      qualityCount: number;
+      passedCount: number;
+      executionErrorCount: number;
+      lastTimestamp: string;
+    }
+  >();
+
+  for (const m of metas) {
+    try {
+      const records = await loadLightweightResultsForMeta(ctx.searchDir, m, ctx.projectId);
+      for (const r of records) {
+        const experiment = resolveTagGroupValue(r, EXPERIMENT_TAG_KEY);
         const entry = experimentMap.get(experiment) ?? {
           targets: new Set<string>(),
           runFilenames: new Set<string>(),
@@ -2460,19 +2427,6 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
   const { runs: metas } = await listMergedResultFiles(searchDir, undefined, projectId);
   const { threshold: pass_threshold } = loadStudioConfig(agentvDir);
 
-  // Optional tag filter: `?tags=baseline,v2-prompt` keeps only runs that
-  // carry at least one of the given tags (OR semantics). Empty / missing
-  // param is a no-op. Filtering is applied before aggregation so it
-  // propagates through `cells[]`, `runs[]`, `experiments[]`, and
-  // `targets[]` uniformly.
-  const tagsParam = c.req.query('tags') ?? '';
-  const filterTags = new Set(
-    tagsParam
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean),
-  );
-
   type CompareTestEntry = {
     test_id: string;
     category?: string;
@@ -2503,12 +2457,6 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
     started_at: string;
     experiment: string;
     target: string;
-    tags?: string[];
-    remote_tags?: string[];
-    pending_tags?: string[];
-    metadata_dirty?: boolean;
-    final_state: RunFinalState;
-    tag_revision: string;
     source: 'local' | 'remote';
     eval_count: number;
     quality_count: number;
@@ -2525,14 +2473,6 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
 
   for (const m of metas) {
     try {
-      // Read tags before any heavy work so the `?tags=` filter can skip
-      // non-matching runs without loading their JSONL records.
-      const tagFields = await readRunTagFields(searchDir, m, projectId);
-      if (filterTags.size > 0) {
-        const runTags = tagFields.tags ?? [];
-        if (!runTags.some((t) => filterTags.has(t))) continue;
-      }
-
       const records = await loadLightweightResultsForMeta(searchDir, m, projectId);
       const runTestMap = new Map<string, CompareTestEntry>();
       let runEvalCount = 0;
@@ -2609,7 +2549,6 @@ async function handleCompare(c: C, { searchDir, agentvDir, projectId }: DataCont
         started_at: runStartedAt,
         experiment: runExperiment,
         target: runTarget,
-        ...tagFields,
         source: m.source,
         eval_count: runEvalCount,
         quality_count: runQualityCount,
@@ -2932,105 +2871,6 @@ function directoryBrowseResultToWire(result: DirectoryBrowseResult) {
   };
 }
 
-async function handleRunTagsPut(c: C, { searchDir, projectId }: DataContext) {
-  const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename, projectId);
-  if (!meta) return c.json({ error: 'Run not found' }, 404);
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'Invalid JSON' }, 400);
-  }
-  if (!body || typeof body !== 'object') {
-    return c.json({ error: 'Invalid payload' }, 400);
-  }
-  const tags = (body as Record<string, unknown>).tags;
-  if (!Array.isArray(tags)) {
-    return c.json({ error: 'Missing tags array' }, 400);
-  }
-  let expectedTagRevision: string | undefined;
-  try {
-    expectedTagRevision = expectedTagRevisionFromRecord(body as Record<string, unknown>);
-  } catch (err) {
-    return c.json({ error: (err as Error).message }, 400);
-  }
-  try {
-    if (meta.on_remote) {
-      const state = await setRemoteRunTags(
-        searchDir,
-        meta,
-        tags as string[],
-        projectId,
-        expectedTagRevision,
-      );
-      return c.json(remoteTagMutationResponse(state));
-    }
-
-    assertExpectedTagRevision(expectedTagRevision, currentLocalTagRevision(meta.path));
-    const entry = writeRunTags(meta.path, tags as string[]);
-    const responseState = localTagMutationResponse({
-      tags: entry?.tags ?? [],
-      updatedAt: entry?.updated_at,
-      tagRevision: entry?.tag_revision,
-    });
-    return c.json({
-      tags: entry?.tags ?? [],
-      ...responseState,
-      updated_at: entry?.updated_at ?? new Date().toISOString(),
-    });
-  } catch (err) {
-    return c.json(tagMutationErrorBody(err), remoteMetadataErrorStatus(err));
-  }
-}
-
-async function handleRunTagsDelete(c: C, { searchDir, projectId }: DataContext) {
-  const filename = c.req.param('filename') ?? '';
-  const meta = await findRunById(searchDir, filename, projectId);
-  if (!meta) return c.json({ error: 'Run not found' }, 404);
-  let expectedTagRevision: string | undefined;
-  try {
-    const text = await c.req.text();
-    if (text.trim().length > 0) {
-      const body = JSON.parse(text) as unknown;
-      if (!body || typeof body !== 'object') {
-        return c.json({ error: 'Invalid payload' }, 400);
-      }
-      expectedTagRevision = expectedTagRevisionFromRecord(body as Record<string, unknown>);
-    }
-  } catch (err) {
-    return c.json(
-      { error: err instanceof SyntaxError ? 'Invalid JSON' : (err as Error).message },
-      400,
-    );
-  }
-  try {
-    if (meta.on_remote) {
-      const state = await clearRemoteRunTags(searchDir, meta, projectId, expectedTagRevision);
-      return c.json({
-        ok: true,
-        ...remoteTagMutationResponse(state),
-      });
-    }
-
-    assertExpectedTagRevision(expectedTagRevision, currentLocalTagRevision(meta.path));
-    const entry = writeRunTags(meta.path, []);
-    const responseState = localTagMutationResponse({
-      tags: entry.tags,
-      updatedAt: entry.updated_at,
-      tagRevision: entry.tag_revision,
-    });
-    return c.json({
-      ok: true,
-      tags: entry.tags,
-      ...responseState,
-      updated_at: entry.updated_at,
-    });
-  } catch (err) {
-    return c.json(tagMutationErrorBody(err), remoteMetadataErrorStatus(err));
-  }
-}
-
 async function handleRunDelete(c: C, { searchDir, projectId }: DataContext) {
   const filename = c.req.param('filename') ?? '';
   const meta = await findRunById(searchDir, filename, projectId);
@@ -3131,7 +2971,6 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
       {
         ids: runIds,
         displayNames: metas.map((meta) => meta.displayName),
-        tags: metas.map((meta) => readRunTags(meta.path)?.tags ?? []),
       },
     );
     const combined = combineRunSources({
@@ -3141,8 +2980,6 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
       displayName,
       duplicatePolicy: duplicatePolicy as Exclude<CombineDuplicatePolicy, 'prompt'>,
     });
-    const tagEntry =
-      combined.tags.length > 0 ? writeRunTags(combined.manifestPath, combined.tags) : undefined;
     return c.json(
       {
         ok: true,
@@ -3151,7 +2988,6 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
         experiment: combined.experiment,
         combined_from_run_ids: combined.combinedFromRunIds,
         duplicate_conflicts: combined.duplicateConflicts,
-        ...(tagEntry && { tags: tagEntry.tags }),
       },
       201,
     );
@@ -3369,12 +3205,6 @@ export function createApp(
       target?: string;
       experiment?: string;
       runtime_source?: RunRuntimeSourceMetadata;
-      tags?: string[];
-      remote_tags?: string[];
-      pending_tags?: string[];
-      metadata_dirty?: boolean;
-      final_state: RunFinalState;
-      tag_revision: string;
       source: 'local' | 'remote';
       project_id: string;
     }> = [];
@@ -3413,7 +3243,6 @@ export function createApp(
           } catch {
             // ignore enrichment errors
           }
-          const tagFields = await readRunTagFields(p.path, m, p.id);
           allRuns.push({
             filename: m.filename,
             display_name: m.displayName,
@@ -3428,7 +3257,6 @@ export function createApp(
             ...(target && { target }),
             ...(experiment && { experiment }),
             ...(runtimeSource && { runtime_source: runtimeSource }),
-            ...tagFields,
             project_id: p.id,
           });
         }
@@ -3475,18 +3303,6 @@ export function createApp(
     }
     return handleRunsCombine(c, defaultCtx);
   });
-  app.put('/api/runs/:filename/tags', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return handleRunTagsPut(c, defaultCtx);
-  });
-  app.delete('/api/runs/:filename/tags', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return handleRunTagsDelete(c, defaultCtx);
-  });
   app.delete('/api/runs/:filename', (c) => {
     if (readOnly) {
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
@@ -3509,6 +3325,7 @@ export function createApp(
   );
   app.get('/api/runs/:filename/evals/:evalId/files', (c) => handleEvalFiles(c, defaultCtx));
   app.get('/api/runs/:filename/evals/:evalId/files/*', (c) => handleEvalFileContent(c, defaultCtx));
+  app.get('/api/tags', (c) => handleTags(c, defaultCtx));
   app.get('/api/experiments', (c) => handleExperiments(c, defaultCtx));
   app.get('/api/compare', (c) => handleCompare(c, defaultCtx));
   app.get('/api/targets', (c) => handleTargets(c, defaultCtx));
@@ -3602,18 +3419,6 @@ export function createApp(
     }
     return withProject(c, handleRunsCombine);
   });
-  app.put('/api/projects/:projectId/runs/:filename/tags', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return withProject(c, handleRunTagsPut);
-  });
-  app.delete('/api/projects/:projectId/runs/:filename/tags', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return withProject(c, handleRunTagsDelete);
-  });
   app.delete('/api/projects/:projectId/runs/:filename', (c) => {
     if (readOnly) {
       return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
@@ -3644,6 +3449,7 @@ export function createApp(
   app.get('/api/projects/:projectId/runs/:filename/evals/:evalId/files/*', (c) =>
     withProject(c, handleEvalFileContent),
   );
+  app.get('/api/projects/:projectId/tags', (c) => withProject(c, handleTags));
   app.get('/api/projects/:projectId/experiments', (c) => withProject(c, handleExperiments));
   app.get('/api/projects/:projectId/compare', (c) => withProject(c, handleCompare));
   app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
