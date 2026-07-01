@@ -28,7 +28,8 @@ shorthand for direct paths, directories, and globs. Legacy `tests[].include`
 entries still load with a migration warning, but new evals should use
 `imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
 individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
-`budget_usd`; keep target selection at top-level `target` or CLI `--target`,
+legacy `budget_usd`; keep target selection at top-level `target` or CLI `--target`,
+put suite budget caps under `evaluate_options.budget_usd`,
 and keep setup and workspace mutation under `workspace`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
@@ -124,7 +125,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `repeat`, `timeout_seconds`, `budget_usd`, `threshold`, `suite`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `repeat`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 

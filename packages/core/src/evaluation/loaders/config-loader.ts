@@ -265,7 +265,7 @@ function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
   }
   if (suite.policy !== undefined) {
     throw new Error(
-      "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, threshold, and budget_usd at the top level.",
+      "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.",
     );
   }
   if (suite.execution !== undefined) {
@@ -290,6 +290,32 @@ function getSuiteTopLevelNumber(
     return raw;
   }
   logWarning(`Invalid ${label}: ${raw}. Ignoring.`);
+  return undefined;
+}
+
+function getSuiteEvaluateOptionsNumber(
+  suite: JsonObject,
+  field: string,
+  validate: (value: number) => boolean,
+  label: string,
+): number | undefined {
+  rejectAuthoredRuntimeContainers(suite);
+  const rawOptions = suite.evaluate_options;
+  if (rawOptions === undefined || rawOptions === null) {
+    return undefined;
+  }
+  if (!isJsonObject(rawOptions)) {
+    logWarning('Invalid evaluate_options: expected object. Ignoring.');
+    return undefined;
+  }
+  const raw = rawOptions[field];
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw === 'number' && validate(raw)) {
+    return raw;
+  }
+  logWarning(`Invalid evaluate_options.${label}: ${raw}. Ignoring.`);
   return undefined;
 }
 
@@ -421,10 +447,23 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
 }
 
 /**
- * Extract suite-level total budget from top-level eval YAML.
+ * Extract suite-level total budget from eval YAML.
+ *
+ * Preferred authoring uses evaluate_options.budget_usd. Legacy top-level
+ * budget_usd remains accepted for compatibility, but the nested option wins
+ * when both are present.
  * Returns undefined when not specified.
  */
 export function extractBudgetUsd(suite: JsonObject): number | undefined {
+  const evaluateOptionsBudgetUsd = getSuiteEvaluateOptionsNumber(
+    suite,
+    'budget_usd',
+    (value) => value > 0,
+    'budget_usd. Must be a positive number',
+  );
+  if (evaluateOptionsBudgetUsd !== undefined) {
+    return evaluateOptionsBudgetUsd;
+  }
   return getSuiteTopLevelNumber(
     suite,
     'budget_usd',

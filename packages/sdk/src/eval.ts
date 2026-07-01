@@ -243,6 +243,29 @@ function lowerEvalYamlValue(value: unknown): unknown {
   return value;
 }
 
+function lowerEvalDefinition(definition: unknown): Record<string, unknown> {
+  const lowered = lowerEvalYamlValue(definition) as Record<string, unknown>;
+  const { budget_usd: budgetUsd, ...loweredWithoutBudget } = lowered;
+  if (budgetUsd === undefined) {
+    return lowered;
+  }
+
+  const evaluateOptions =
+    lowered.evaluate_options &&
+    typeof lowered.evaluate_options === 'object' &&
+    !Array.isArray(lowered.evaluate_options)
+      ? { ...(lowered.evaluate_options as Record<string, unknown>) }
+      : {};
+
+  if (evaluateOptions.budget_usd === undefined) {
+    evaluateOptions.budget_usd = budgetUsd;
+  }
+  return {
+    ...loweredWithoutBudget,
+    evaluate_options: evaluateOptions,
+  };
+}
+
 function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & DefinedEvalSuite {
   validateTopLevelRuntimeFields(definition);
   const branded = definition as T & Partial<DefinedEvalSuite>;
@@ -314,7 +337,7 @@ export function evalSuite<T extends EvalDefinition>(definition: T): T & DefinedE
 export function toEvalYamlObject<T extends EvalDefinition | DefinedEvalSuite>(
   definition: T,
 ): LowerEvalYamlValue<T> {
-  return lowerEvalYamlValue(definition) as LowerEvalYamlValue<T>;
+  return lowerEvalDefinition(definition) as LowerEvalYamlValue<T>;
 }
 
 /**

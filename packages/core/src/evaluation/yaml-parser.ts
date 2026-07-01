@@ -187,6 +187,7 @@ type RawTestSuite = JsonObject & {
   readonly runs?: JsonValue;
   readonly early_exit?: JsonValue;
   readonly timeout_seconds?: JsonValue;
+  readonly evaluate_options?: JsonValue;
   readonly budget_usd?: JsonValue;
   readonly threshold?: JsonValue;
   readonly default_test?: JsonValue;
@@ -1454,7 +1455,7 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.policy !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, threshold, and budget_usd at the top level.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.`,
     );
   }
   if (suite.execution !== undefined) {
@@ -1485,12 +1486,13 @@ function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | 
   readSuiteRuntimeBlock(suite, 'eval file');
   const targetSpec = parseEvalTargetSpec(suite.target);
   const experimentName = asString(suite.experiment);
+  const budgetUsd = extractBudgetUsd(parsed);
   const runtimeConfig: JsonObject = {
     ...(experimentName !== undefined ? { name: experimentName } : {}),
     ...(targetSpec !== undefined ? { target: targetSpec.name } : {}),
     ...(suite.repeat !== undefined ? { repeat: suite.repeat } : {}),
     ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),
-    ...(suite.budget_usd !== undefined ? { budget_usd: suite.budget_usd } : {}),
+    ...(budgetUsd !== undefined ? { budget_usd: budgetUsd } : {}),
     ...(suite.threshold !== undefined ? { threshold: suite.threshold } : {}),
   };
   if (Object.keys(runtimeConfig).length === 0) {

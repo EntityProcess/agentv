@@ -573,6 +573,39 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('lets --budget-usd override evaluate_options.budget_usd', async () => {
+    const fixture = await createFixture();
+    try {
+      const evalPath = path.join(fixture.suiteDir, 'budget-options.eval.yaml');
+      await writeFile(
+        evalPath,
+        [
+          'description: Budget options integration test',
+          'target: file-target',
+          'evaluate_options:',
+          '  budget_usd: 1.25',
+          'tests:',
+          '  - id: case-alpha',
+          '    criteria: System responds with alpha',
+          '    input: alpha',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      await runCli(fixture, ['eval', evalPath, '--budget-usd', '0.5']);
+
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        budgetUsd: null,
+        hasRunBudgetTracker: true,
+        runBudgetCapUsd: 0.5,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('runs eval-local target config with suite test selection and run knobs', async () => {
     const fixture = await createFixture();
     try {

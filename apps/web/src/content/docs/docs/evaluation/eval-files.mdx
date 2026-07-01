@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. Top-level `experiment` is the run/result grouping label, top-level `target` identifies the system under test, and fields such as `repeat`, `threshold`, `timeout_seconds`, and `budget_usd` control repeated attempts and gates. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. Top-level `experiment` is the run/result grouping label, top-level `target` identifies the system under test, and fields such as `repeat`, `threshold`, `timeout_seconds`, and `evaluate_options.budget_usd` control repeated attempts and gates. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 Eval files describe the task, target binding, and run controls. Concurrency is an operator/run setting: pass `--workers` or set `execution.workers` in `agentv.config.*` / `.agentv/config.yaml` instead of authoring `workers` in eval YAML.
@@ -25,7 +25,7 @@ experiment format.
   suite context applies because raw cases do not carry their own suite context.
 - A **wrapper eval** is eval YAML that imports one or more suites with
   `imports.suites` and binds run controls with top-level `target`, `repeat`,
-  `threshold`, `timeout_seconds`, and `budget_usd`.
+  `threshold`, `timeout_seconds`, and `evaluate_options`.
   Wrapper evals can live anywhere in the repo. A wrapper that imports suites
   with `imports.suites` must not define parent `workspace`; imported suites own
   task environment. Machine-local existing workspace paths belong in CLI flags
@@ -119,7 +119,7 @@ tests:
 | `experiment` | Optional run/result grouping label |
 | `repeat` | Optional repeat policy with `count`, `strategy`, and `early_exit` |
 | `timeout_seconds` | Optional per-case timeout |
-| `budget_usd` | Optional suite budget |
+| `evaluate_options` | Optional evaluation runtime options such as `budget_usd` |
 | `threshold` | Optional suite quality threshold |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |

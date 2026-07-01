@@ -40,7 +40,8 @@ repeat:
 
 timeout_seconds: 600
 threshold: 0.8
-budget_usd: 5
+evaluate_options:
+  budget_usd: 5
 ```
 
 ## Repeat Policy Uses `repeat`

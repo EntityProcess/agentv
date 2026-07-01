@@ -411,6 +411,12 @@ const DefaultTestSchema = z
   })
   .strict();
 
+const EvaluateOptionsSchema = z
+  .object({
+    budget_usd: z.number().gt(0).optional(),
+  })
+  .strict();
+
 /** Per-turn assertion: string shorthand (becomes rubric) or full evaluator config */
 const TurnAssertionSchema = z.union([z.string(), EvaluatorSchema]);
 
@@ -539,6 +545,7 @@ export const EvalFileSchema = z
     runs: z.never().optional(),
     early_exit: z.never().optional(),
     timeout_seconds: z.number().gt(0).optional(),
+    evaluate_options: EvaluateOptionsSchema.optional(),
     budget_usd: z.number().gt(0).optional(),
     threshold: z.number().min(0).max(1).optional(),
     default_test: DefaultTestSchema.optional(),

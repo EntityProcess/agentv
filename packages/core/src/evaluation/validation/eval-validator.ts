@@ -72,6 +72,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'runs',
   'early_exit',
   'timeout_seconds',
+  'evaluate_options',
   'budget_usd',
   'threshold',
   'default_test',
@@ -114,7 +115,7 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
     'policy',
-    "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, threshold, and budget_usd at the top level.",
+    "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.",
   ],
   [
     'execution',
@@ -333,6 +334,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
+  validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateRepeatOverride(parsed.repeat, 'repeat', absolutePath, errors);
   validateDefaultTest(parsed.default_test, absolutePath, errors);
   await validateImportsField(parsed.imports, absolutePath, errors);
@@ -883,6 +885,7 @@ const WRAPPER_RUNTIME_CONTROL_FIELDS = [
   'target',
   'repeat',
   'timeout_seconds',
+  'evaluate_options',
   'budget_usd',
   'threshold',
   'default_test',
@@ -1091,6 +1094,47 @@ function validateDefaultTest(
       filePath,
       location: 'default_test.threshold',
       message: "Invalid 'default_test.threshold' field (must be a number between 0 and 1)",
+    });
+  }
+}
+
+function validateEvaluateOptions(
+  evaluateOptions: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (evaluateOptions === undefined) {
+    return;
+  }
+  if (!isObject(evaluateOptions)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'evaluate_options' field (must be an object)",
+    });
+    return;
+  }
+
+  for (const key of Object.keys(evaluateOptions)) {
+    if (key !== 'budget_usd') {
+      errors.push({
+        severity: 'warning',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Unknown evaluate_options field '${key}'. This field will be ignored.`,
+      });
+    }
+  }
+
+  const budgetUsd = evaluateOptions.budget_usd;
+  if (budgetUsd !== undefined && (typeof budgetUsd !== 'number' || budgetUsd <= 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.budget_usd`,
+      message: "Invalid 'budget_usd' field (must be a positive number)",
     });
   }
 }

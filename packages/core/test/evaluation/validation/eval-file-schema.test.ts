@@ -106,7 +106,9 @@ describe('EvalFileSchema input shorthand', () => {
         early_exit: true,
       },
       timeout_seconds: 300,
-      budget_usd: 2,
+      evaluate_options: {
+        budget_usd: 2,
+      },
       tests: [
         {
           include: './evals/**/*.eval.yaml',

@@ -41,6 +41,8 @@ describe('validateEvalFile', () => {
       `name: wrapper
 target: codex
 threshold: 0.8
+evaluate_options:
+  budget_usd: 2
 repeat:
   count: 2
   strategy: pass_any

@@ -555,7 +555,17 @@ describe('extractBudgetUsd', () => {
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('parses valid top-level budget_usd', () => {
+  it('parses valid evaluate_options.budget_usd', () => {
+    const suite: JsonObject = { evaluate_options: { budget_usd: 10.0 } };
+    expect(extractBudgetUsd(suite)).toBe(10.0);
+  });
+
+  it('prefers evaluate_options.budget_usd over legacy top-level budget_usd', () => {
+    const suite: JsonObject = { evaluate_options: { budget_usd: 2.5 }, budget_usd: 10.0 };
+    expect(extractBudgetUsd(suite)).toBe(2.5);
+  });
+
+  it('parses legacy top-level budget_usd', () => {
     const suite: JsonObject = { budget_usd: 10.0 };
     expect(extractBudgetUsd(suite)).toBe(10.0);
   });

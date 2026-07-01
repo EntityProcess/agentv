@@ -20,5 +20,6 @@ repeat:
   count: 2
   strategy: pass_any
   early_exit: false
-budget_usd: 1.00
+evaluate_options:
+  budget_usd: 1.00
 ```
