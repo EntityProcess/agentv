@@ -150,6 +150,8 @@ function formatNamespaceSourceLabel(
   switch (source) {
     case 'cli':
       return 'CLI namespace';
+    case 'tags':
+      return 'Tags namespace';
     case 'eval_metadata':
       return 'Eval metadata namespace';
     case 'eval_filename':

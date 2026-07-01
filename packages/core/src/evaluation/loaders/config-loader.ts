@@ -71,6 +71,12 @@ export type AgentVConfig = {
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
+  /**
+   * Promptfoo-shaped tags map applied to every run. Merged between eval `tags`
+   * and CLI `--tag key=value` (precedence CLI > project config > eval). The
+   * reserved key `experiment` participates in experiment-namespace resolution.
+   */
+  readonly tags?: Record<string, string>;
 };
 
 /**

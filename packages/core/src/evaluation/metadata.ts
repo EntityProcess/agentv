@@ -32,7 +32,10 @@ export function parseMetadata(suite: JsonObject): EvalMetadata | undefined {
     description: suite.description,
     version: suite.version,
     author: suite.author,
-    tags: suite.tags,
+    // `tags` may be authored as a promptfoo-shaped `Record<string,string>` map
+    // (carried separately as run metadata via EvalSuiteResult.tags). Only the
+    // list form drives selection metadata here; the map form is ignored.
+    tags: Array.isArray(suite.tags) ? suite.tags : undefined,
     license: suite.license,
     requires: suite.requires,
   });

@@ -348,6 +348,14 @@ export type EvalSuiteResult = {
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
   /** Suite-level metadata (name, description, version, etc.) */
   readonly metadata?: import('./metadata.js').EvalMetadata;
+  /**
+   * Promptfoo-shaped suite tags map (`Record<string,string>`) when `tags:` is
+   * authored as a map rather than a selection list. The reserved key
+   * `experiment` feeds the experiment namespace; the full map is carried as run
+   * metadata. Absent when `tags:` is a string/list (that form drives selection
+   * via `metadata.tags`).
+   */
+  readonly tags?: Record<string, string>;
   /** Suite-level total cost budget in USD */
   readonly budgetUsd?: number;
   /** Execution error tolerance from project/CLI runtime surfaces. */
@@ -869,6 +877,7 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
   const experimentConfig = normalizeSuiteExperimentConfig(parsed);
+  const tags = extractSuiteTagMap(parsed);
 
   return {
     tests,
@@ -882,7 +891,37 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
     ...(experimentConfig !== undefined && { experimentConfig }),
+    ...(tags !== undefined && { tags }),
   };
+}
+
+/**
+ * Extract the promptfoo-shaped suite tags map when `tags:` (or `metadata.tags:`)
+ * is authored as a `Record<string,string>`. The list/string form is a selection
+ * construct and is intentionally ignored here (it flows through `metadata.tags`).
+ * Top-level `tags:` wins over `metadata.tags` on key collisions.
+ */
+function extractSuiteTagMap(suite: JsonObject): Record<string, string> | undefined {
+  const metadata = (suite as RawTestSuite).metadata;
+  const metadataTags = isJsonObject(metadata) ? metadata.tags : undefined;
+  const merged: Record<string, string> = {
+    ...tagMapEntries(metadataTags),
+    ...tagMapEntries((suite as RawTestSuite).tags),
+  };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+function tagMapEntries(value: unknown): Record<string, string> {
+  if (!isJsonObject(value)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') {
+      out[key] = entry;
+    }
+  }
+  return out;
 }
 
 function rejectAuthoredWorkers(parsed: JsonObject): void {
@@ -2149,12 +2188,19 @@ function asString(value: unknown): string | undefined {
  * `metadata.governance:` so existing governance evals keep their precedence.
  */
 function extractSuiteMetadataPayload(suite: RawTestSuite): Record<string, unknown> | undefined {
-  const payload = isJsonObject(suite.metadata)
-    ? ({ ...(suite.metadata as Record<string, unknown>) } as Record<string, unknown>)
+  const rawMetadata = isJsonObject(suite.metadata)
+    ? (suite.metadata as Record<string, unknown>)
     : {};
+  // `tags` is handled explicitly: the list form is inherited as per-case
+  // selection metadata, while the map form (promptfoo-shaped) is carried on the
+  // suite via EvalSuiteResult.tags and is intentionally dropped here so it does
+  // not pollute per-case selection tags.
+  const payload: Record<string, unknown> = Object.fromEntries(
+    Object.entries(rawMetadata).filter(([key]) => key !== 'tags'),
+  );
 
   const suiteTags = readMetadataTags(suite.tags);
-  const metadataTags = readMetadataTags(payload.tags);
+  const metadataTags = readMetadataTags(rawMetadata.tags);
   if (suiteTags.length > 0 || metadataTags.length > 0) {
     payload.tags = dedupeMetadataArray([...suiteTags, ...metadataTags]);
   }

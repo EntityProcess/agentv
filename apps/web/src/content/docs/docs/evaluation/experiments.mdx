@@ -246,10 +246,36 @@ Eval runs write to a direct run bundle:
 .agentv/results/<run_id>/
 ```
 
-CLI `--experiment` sets the experiment label explicitly. Without that flag, AgentV uses
-top-level `experiment`, then top-level `name`, then the eval filename. The
-Dashboard uses "Experiment" for the comparison and result grouping concept;
-folder names are only storage allocation and must not define result semantics.
+CLI `--experiment` sets the experiment label explicitly. Without that flag, AgentV
+uses a reserved `tags.experiment` key (see below), then top-level `experiment`,
+then top-level `name`, then the eval filename. The precedence is
+`--experiment` > `tags.experiment` > default. The Dashboard uses "Experiment" for
+the comparison and result grouping concept; folder names are only storage
+allocation and must not define result semantics.
+
+### Tags as run metadata (`tags.experiment`)
+
+Suite-level `tags` accepts either the existing selection form (a string or list of
+strings that drives `select.tags` / `--tag name` filtering) **or** a
+promptfoo-shaped map:
+
+```yaml
+tags:
+  experiment: baseline-v2
+  team: compliance
+```
+
+The map form is run metadata, not selection. The reserved `experiment` key feeds
+the experiment namespace, and the full map is emitted to
+`summary.json.metadata.tags` and every `index.jsonl` row so the Dashboard can group
+trend/compare views by `tags.experiment`.
+
+Set or override map tags from the CLI with a repeatable `--tag key=value` flag
+(`--tag experiment=baseline-v2 --tag team=compliance`); bare `--tag name` keeps its
+existing file-selection meaning. Tags merge with precedence
+**CLI `--tag key=value` > project config `tags` > eval `tags`**. `--experiment`
+still wins over `tags.experiment` for the namespace, and an explicit
+`--tag experiment=` clears the label back to the default.
 
 Imported source suite metadata appears in `index.jsonl` rows and manifests.
 Use `index.jsonl` fields such as `eval_path`, `test_id`, `target`, and

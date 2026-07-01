@@ -75,6 +75,7 @@ export type RunRuntimeConfigSource = 'defaults' | 'inline_experiment' | 'cli_fla
 
 export type ExperimentNamespaceSource =
   | 'cli'
+  | 'tags'
   | 'eval_metadata'
   | 'eval_filename'
   | 'multi_eval'
@@ -164,6 +165,7 @@ export async function aggregateRunDir(
     plannedTestCount?: number;
     experimentMetadata?: ExperimentArtifactMetadata;
     runtimeSource?: RunRuntimeSourceMetadata;
+    tags?: Record<string, string>;
   },
 ): Promise<{ summaryPath: string; testCount: number; targetCount: number }> {
   const indexPath =
@@ -175,6 +177,7 @@ export async function aggregateRunDir(
   const previousMetadata = await readRunSummaryMetadata(path.join(runDir, RUN_SUMMARY_FILENAME));
   const plannedTestCount = options?.plannedTestCount ?? previousMetadata.plannedTestCount;
   const runtimeSource = options?.runtimeSource ?? previousMetadata.runtimeSource;
+  const tags = options?.tags ?? previousMetadata.tags;
 
   const summary = buildRunSummaryArtifact(
     results,
@@ -184,6 +187,7 @@ export async function aggregateRunDir(
     plannedTestCount,
     options?.experimentMetadata,
     runtimeSource,
+    tags,
   );
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
@@ -241,6 +245,7 @@ async function resolveExistingResultManifestPath(runDir: string): Promise<string
 async function readRunSummaryMetadata(summaryPath: string): Promise<{
   plannedTestCount?: number;
   runtimeSource?: RunRuntimeSourceMetadata;
+  tags?: Record<string, string>;
 }> {
   try {
     const raw = await readFile(summaryPath, 'utf8');
@@ -248,6 +253,7 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
       metadata?: {
         planned_test_count?: number;
         runtime_source?: RunRuntimeSourceMetadata;
+        tags?: unknown;
       };
     };
     const value = parsed.metadata?.planned_test_count;
@@ -256,13 +262,33 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
     const runtimeSource = isRunRuntimeSourceMetadata(parsed.metadata?.runtime_source)
       ? parsed.metadata.runtime_source
       : undefined;
+    const tags = normalizeStringRecord(parsed.metadata?.tags);
     return {
       ...(plannedTestCount !== undefined && { plannedTestCount }),
       ...(runtimeSource !== undefined && { runtimeSource }),
+      ...(tags !== undefined && { tags }),
     };
   } catch {
     return {};
   }
+}
+
+/**
+ * Coerce an unknown value into a `Record<string,string>`, dropping non-string
+ * entries. Returns undefined when the value is not a plain object or has no
+ * string entries. Shared by summary reads and tag-map resolution.
+ */
+export function normalizeStringRecord(value: unknown): Record<string, string> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') {
+      out[key] = entry;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function isRunRuntimeSourceMetadata(value: unknown): value is RunRuntimeSourceMetadata {
@@ -281,6 +307,7 @@ function isRunRuntimeSourceMetadata(value: unknown): value is RunRuntimeSourceMe
       candidate.config_source === 'mixed') &&
     typeof candidate.experiment_namespace === 'string' &&
     (candidate.experiment_namespace_source === 'cli' ||
+      candidate.experiment_namespace_source === 'tags' ||
       candidate.experiment_namespace_source === 'eval_metadata' ||
       candidate.experiment_namespace_source === 'eval_filename' ||
       candidate.experiment_namespace_source === 'multi_eval' ||
@@ -404,6 +431,12 @@ export interface RunSummaryArtifact {
     readonly experiment_config?: ExperimentArtifactMetadata;
     readonly runtime_source?: RunRuntimeSourceMetadata;
     readonly planned_test_count?: number;
+    /**
+     * Resolved promptfoo-shaped suite tags map (`Record<string,string>`), merged
+     * CLI > project config > eval `tags`. The reserved key `experiment` feeds the
+     * experiment namespace. Absent when no map-form tags were resolved.
+     */
+    readonly tags?: Record<string, string>;
   };
   readonly run_summary: Record<
     string,
@@ -442,6 +475,8 @@ export interface IndexArtifactEntry {
   readonly category?: string;
   readonly conversation_id?: string;
   readonly experiment?: string;
+  /** Resolved promptfoo-shaped suite tags map for this run (grouping/compare). */
+  readonly tags?: Record<string, string>;
   readonly score: number;
   readonly target: string;
   readonly variant?: string;
@@ -1297,6 +1332,7 @@ export function buildRunSummaryArtifact(
   plannedTestCount?: number,
   experimentMetadata?: ExperimentArtifactMetadata,
   runtimeSource?: RunRuntimeSourceMetadata,
+  tags?: Record<string, string>,
 ): RunSummaryArtifact {
   const targetSet = new Set<string>();
   const variantSet = new Set<string>();
@@ -1398,6 +1434,7 @@ export function buildRunSummaryArtifact(
       experiment_config: experimentMetadata,
       runtime_source: runtimeSource,
       planned_test_count: plannedTestCount,
+      tags: tags && Object.keys(tags).length > 0 ? tags : undefined,
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
@@ -1415,6 +1452,7 @@ export async function writeInitialRunSummaryArtifact(
     runId?: string;
     experimentMetadata?: ExperimentArtifactMetadata;
     runtimeSource?: RunRuntimeSourceMetadata;
+    tags?: Record<string, string>;
   },
 ): Promise<void> {
   await mkdir(runDir, { recursive: true });
@@ -1426,6 +1464,7 @@ export async function writeInitialRunSummaryArtifact(
     options.plannedTestCount,
     options.experimentMetadata,
     options.runtimeSource,
+    options.tags,
   );
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
   await writeFile(summaryPath, `${JSON.stringify(stub, null, 2)}\n`, 'utf8');
@@ -2226,10 +2265,13 @@ export async function writePerTestArtifacts(
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
+    tags?: Record<string, string>;
   },
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
   const duplicatePolicy = options?.duplicatePolicy ?? 'update';
+  const resolvedTags =
+    options?.tags && Object.keys(options.tags).length > 0 ? options.tags : undefined;
   const testByTestId = buildSourceTestLookup(options?.sourceTests);
   const indexRecords: ResultIndexArtifact[] = [];
 
@@ -2325,6 +2367,7 @@ export async function writePerTestArtifacts(
         duplicatePolicy,
       }),
       experiment: options?.experiment,
+      ...(resolvedTags ? { tags: resolvedTags } : {}),
     });
   }
 
@@ -2345,6 +2388,7 @@ export async function writeArtifactsFromResults(
     sourceTests?: readonly EvalTest[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
+    tags?: Record<string, string>;
   },
 ): Promise<{
   testArtifactDir: string;
@@ -2356,6 +2400,8 @@ export async function writeArtifactsFromResults(
   const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
   await mkdir(outputDir, { recursive: true });
   const duplicatePolicy = options?.duplicatePolicy ?? 'update';
+  const resolvedTags =
+    options?.tags && Object.keys(options.tags).length > 0 ? options.tags : undefined;
   const existingRecords = await readExistingIndexRecords(outputDir);
   const existingByIdentity = existingRecordsByProjectionIdentity(existingRecords);
   const indexRecords: unknown[] = [];
@@ -2503,6 +2549,7 @@ export async function writeArtifactsFromResults(
         duplicatePolicy,
       }),
       experiment: options?.experiment,
+      ...(resolvedTags ? { tags: resolvedTags } : {}),
     };
     if (duplicatePolicy === 'update' && emittedIdentityIds.has(identityId)) {
       const existingIndex = indexRecords.findIndex(
@@ -2520,6 +2567,7 @@ export async function writeArtifactsFromResults(
   const previousMetadata = await readRunSummaryMetadata(summaryPath);
   const plannedTestCount = options?.plannedTestCount ?? previousMetadata.plannedTestCount;
   const runtimeSource = options?.runtimeSource ?? previousMetadata.runtimeSource;
+  const summaryTags = resolvedTags ?? previousMetadata.tags;
   const summary = buildRunSummaryArtifact(
     results,
     options?.evalFile,
@@ -2528,6 +2576,7 @@ export async function writeArtifactsFromResults(
     plannedTestCount,
     options?.experimentMetadata,
     runtimeSource,
+    summaryTags,
   );
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 

@@ -122,6 +122,7 @@ Example row:
   "timestamp": "2026-06-30T08:15:00.000Z",
   "run_id": "2026-06-30T08-15-00-000Z",
   "experiment": "with_skills",
+  "tags": { "experiment": "with_skills", "team": "support" },
   "eval_path": "evals/support/refunds.eval.yaml",
   "test_id": "refund-eligibility",
   "target": "codex-gpt5",
@@ -149,6 +150,12 @@ manual `prepare`/`grade` attempts, or imported provider sessions. That is why
 `experiment`, `eval_path`, `test_id`, `target`, `variant`, `attempt`, and
 source metadata belong in `index.jsonl`: tools can filter dynamically without
 requiring every run to be pre-split into semantic folders.
+
+When a run resolves a promptfoo-shaped tags map (from suite `tags`, project
+config `tags`, or `--tag key=value`), the resolved map is emitted as `tags` on
+each row and as `summary.json.metadata.tags`. Its reserved `experiment` key
+matches the row `experiment` field, so trend/compare views can group by
+`tags.experiment`.
 
 The `run-1/`, `run-2/`, and later folders under a result directory are artifact
 attempt/execution folders. Do not treat those folder names as the comparison
