@@ -14255,6 +14255,17 @@
           "minimum": 0,
           "maximum": 1
         },
+        "default_test": {
+          "type": "object",
+          "properties": {
+            "threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
         "on_run_complete": {
           "anyOf": [
             {

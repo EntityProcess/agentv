@@ -136,6 +136,36 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts default_test.threshold as the preferred inherited test threshold', () => {
+    const result = EvalFileSchema.safeParse({
+      default_test: {
+        threshold: 0.6,
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid default_test values', () => {
+    const invalidThreshold = EvalFileSchema.safeParse({
+      default_test: {
+        threshold: 1.2,
+      },
+      tests: [baseTest],
+    });
+    const unknownDefault = EvalFileSchema.safeParse({
+      default_test: {
+        threshold: 0.6,
+        assertions: [],
+      },
+      tests: [baseTest],
+    });
+
+    expect(invalidThreshold.success).toBe(false);
+    expect(unknownDefault.success).toBe(false);
+  });
+
   it('rejects authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       target: 'codex',

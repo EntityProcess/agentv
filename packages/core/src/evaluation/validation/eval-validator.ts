@@ -74,6 +74,7 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'timeout_seconds',
   'budget_usd',
   'threshold',
+  'default_test',
   'on_run_complete',
   'assertions',
   'evaluators',
@@ -333,6 +334,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
   validateRepeatOverride(parsed.repeat, 'repeat', absolutePath, errors);
+  validateDefaultTest(parsed.default_test, absolutePath, errors);
   await validateImportsField(parsed.imports, absolutePath, errors);
 
   const cases: JsonValue | undefined = parsed.tests;
@@ -883,6 +885,7 @@ const WRAPPER_RUNTIME_CONTROL_FIELDS = [
   'timeout_seconds',
   'budget_usd',
   'threshold',
+  'default_test',
   'on_run_complete',
 ] as const;
 
@@ -1047,6 +1050,49 @@ function validateRunOverride(
   }
 
   validateRepeatOverride(run.repeat, `${location}.repeat`, filePath, errors);
+}
+
+function validateDefaultTest(
+  defaultTest: JsonValue | undefined,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (defaultTest === undefined) {
+    return;
+  }
+  if (!isObject(defaultTest)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test',
+      message: "Invalid 'default_test' field (must be an object)",
+    });
+    return;
+  }
+
+  for (const key of Object.keys(defaultTest)) {
+    if (key !== 'threshold') {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `default_test.${key}`,
+        message: 'Invalid default_test field. Supported fields: threshold.',
+      });
+    }
+  }
+
+  const threshold = defaultTest.threshold;
+  if (
+    threshold !== undefined &&
+    (typeof threshold !== 'number' || threshold < 0 || threshold > 1)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test.threshold',
+      message: "Invalid 'default_test.threshold' field (must be a number between 0 and 1)",
+    });
+  }
 }
 
 function validateRepeatOverride(

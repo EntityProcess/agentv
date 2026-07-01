@@ -444,7 +444,7 @@ export function extractFailOnError(suite: JsonObject): FailOnError | undefined {
 }
 
 /**
- * Extract top-level suite quality threshold.
+ * Extract the legacy top-level suite quality threshold.
  * Accepts a number in [0, 1] range.
  * Returns undefined when not specified.
  */
@@ -455,6 +455,34 @@ export function extractThreshold(suite: JsonObject): number | undefined {
     (value) => value >= 0 && value <= 1,
     'threshold. Must be a number between 0 and 1',
   );
+}
+
+/**
+ * Extract the preferred inherited per-test default threshold.
+ * Accepts default_test.threshold as a number in [0, 1] range.
+ * Returns undefined when not specified.
+ */
+export function extractDefaultTestThreshold(suite: JsonObject): number | undefined {
+  rejectAuthoredRuntimeContainers(suite);
+  const rawDefaultTest = suite.default_test;
+  if (rawDefaultTest === undefined || rawDefaultTest === null) {
+    return undefined;
+  }
+  if (!isJsonObject(rawDefaultTest)) {
+    logWarning(`Invalid default_test: ${rawDefaultTest}. Ignoring.`);
+    return undefined;
+  }
+  const rawThreshold = rawDefaultTest.threshold;
+  if (rawThreshold === undefined || rawThreshold === null) {
+    return undefined;
+  }
+  if (typeof rawThreshold === 'number' && rawThreshold >= 0 && rawThreshold <= 1) {
+    return rawThreshold;
+  }
+  logWarning(
+    `Invalid default_test.threshold. Must be a number between 0 and 1: ${rawThreshold}. Ignoring.`,
+  );
+  return undefined;
 }
 
 export function parseExecutionDefaults(

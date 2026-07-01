@@ -21,6 +21,7 @@ import {
 import {
   extractBudgetUsd,
   extractCacheConfig,
+  extractDefaultTestThreshold,
   extractFailOnError,
   extractTargetFromSuite,
   extractTargetRefsFromSuite,
@@ -82,6 +83,7 @@ export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builde
 export {
   DEFAULT_EVAL_PATTERNS,
   extractCacheConfig,
+  extractDefaultTestThreshold,
   extractFailOnError,
   extractTargetFromSuite,
   extractTargetRefsFromSuite,
@@ -187,6 +189,7 @@ type RawTestSuite = JsonObject & {
   readonly timeout_seconds?: JsonValue;
   readonly budget_usd?: JsonValue;
   readonly threshold?: JsonValue;
+  readonly default_test?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
@@ -354,12 +357,18 @@ export type EvalSuiteResult = {
   readonly failOnError?: import('./types.js').FailOnError;
   /** Suite-level quality threshold (0-1) — suite fails if mean score is below */
   readonly threshold?: number;
+  /** Preferred inherited per-test defaults from default_test. */
+  readonly defaultTest?: EvalDefaultTestDefaults;
   /** Internal normalized run controls derived from flat eval YAML. */
   readonly experimentConfig?: ExperimentConfig;
   /** Inline target definition from a TS eval config. */
   readonly inlineTarget?: import('./providers/types.js').TargetDefinition;
   /** Custom provider factory from a TS eval config task(). */
   readonly providerFactory?: import('./providers/provider-registry.js').ProviderFactoryFn;
+};
+
+export type EvalDefaultTestDefaults = {
+  readonly threshold?: number;
 };
 
 export type EvalTargetSpec = {
@@ -868,6 +877,9 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
   const metadata = parseMetadata(parsed);
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
+  const defaultTestThreshold = extractDefaultTestThreshold(parsed);
+  const defaultTest =
+    defaultTestThreshold !== undefined ? { threshold: defaultTestThreshold } : undefined;
   const experimentConfig = normalizeSuiteExperimentConfig(parsed);
 
   return {
@@ -881,6 +893,7 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
     ...(metadata !== undefined && { metadata }),
     ...(failOnError !== undefined && { failOnError }),
     ...(threshold !== undefined && { threshold }),
+    ...(defaultTest !== undefined && { defaultTest }),
     ...(experimentConfig !== undefined && { experimentConfig }),
   };
 }

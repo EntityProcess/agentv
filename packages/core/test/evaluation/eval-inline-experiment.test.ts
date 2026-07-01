@@ -65,6 +65,31 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.targets).toBeUndefined();
   });
 
+  it('parses default_test.threshold separately from legacy top-level threshold', async () => {
+    const evalPath = path.join(tempDir, 'default-test-threshold.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: threshold-suite',
+        'target: codex',
+        'threshold: 0.9',
+        'default_test:',
+        '  threshold: 0.6',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.defaultTest).toEqual({ threshold: 0.6 });
+    expect(suite.threshold).toBe(0.9);
+    expect(suite.experimentConfig?.threshold).toBe(0.9);
+  });
+
   it('rejects authored workers in eval YAML runtime blocks', async () => {
     const cases = [
       {

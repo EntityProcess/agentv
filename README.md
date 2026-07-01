@@ -19,7 +19,7 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by name from `targets.yaml` or with an eval-local target object.
 - **Experiment** is the run/result grouping label being measured over that corpus, such as `backend-with-skills` or `backend-without-skills`.
-- **Run controls** configure repeats, timeouts, budgets, thresholds, and completion hooks with fields such as `repeat`, `timeout_seconds`, `budget_usd`, `threshold`, and `on_run_complete`.
+- **Per-test defaults / run controls** configure inherited score cutoffs, repeats, timeouts, budgets, and completion hooks with fields such as `default_test.threshold`, `repeat`, `timeout_seconds`, `budget_usd`, and `on_run_complete`.
 - **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ```mermaid
@@ -65,7 +65,8 @@ repeat:
   strategy: pass_any
   early_exit: false
 timeout_seconds: 600
-threshold: 0.8
+default_test:
+  threshold: 0.8
 budget_usd: 5
 
 workspace:
@@ -97,7 +98,8 @@ repeat:
   count: 2
   strategy: pass_any
 timeout_seconds: 900
-threshold: 0.85
+default_test:
+  threshold: 0.85
 
 tests:
   - id: fizzbuzz
@@ -105,6 +107,8 @@ tests:
 ```
 
 `target: codex-gpt5` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `codex-gpt5`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed.
+
+Use `default_test.threshold` for the inherited per-test pass cutoff. Existing eval files with a top-level `threshold` still load during migration, and `--threshold` on the CLI still overrides YAML thresholds for a run.
 
 **4. Run it:**
 ```bash

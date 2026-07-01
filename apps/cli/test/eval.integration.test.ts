@@ -684,6 +684,101 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('resolves default_test threshold below CLI and per-test run overrides but above legacy threshold', async () => {
+    const fixture = await createFixture();
+    try {
+      const evalPath = path.join(fixture.suiteDir, 'default-threshold.eval.yaml');
+      await writeFile(
+        evalPath,
+        [
+          'name: default-threshold',
+          'target: file-target',
+          'threshold: 0.9',
+          'default_test:',
+          '  threshold: 0.6',
+          'tests:',
+          '  - id: default-case',
+          '    input: default',
+          '    criteria: ok',
+          '  - id: strict-case',
+          '    input: strict',
+          '    criteria: ok',
+          '    run:',
+          '      threshold: 1.0',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const firstRun = await runCli(fixture, ['eval', evalPath]);
+      expect(firstRun.exitCode).toBe(0);
+      const firstDiagnostics = await readDiagnostics(fixture);
+      expect(firstDiagnostics.calls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ evalCaseIds: ['default-case'], threshold: 0.6 }),
+          expect.objectContaining({ evalCaseIds: ['strict-case'], threshold: 1 }),
+        ]),
+      );
+
+      await rm(fixture.diagnosticsPath, { force: true });
+
+      const cliRun = await runCli(fixture, ['eval', evalPath, '--threshold', '0.4']);
+      expect(cliRun.exitCode).toBe(0);
+      const cliDiagnostics = await readDiagnostics(fixture);
+      expect(cliDiagnostics).toMatchObject({
+        evalCaseIds: ['default-case', 'strict-case'],
+        threshold: 0.4,
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('summarizes multi-file default_test thresholds from per-result execution status', async () => {
+    const fixture = await createFixture();
+    try {
+      const firstPath = path.join(fixture.suiteDir, 'first-default-threshold.eval.yaml');
+      const secondPath = path.join(fixture.suiteDir, 'second-default-threshold.eval.yaml');
+      await writeFile(
+        firstPath,
+        [
+          'name: first-default-threshold',
+          'target: file-target',
+          'default_test:',
+          '  threshold: 0.6',
+          'tests:',
+          '  - id: first-default-case',
+          '    input: first',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      await writeFile(
+        secondPath,
+        [
+          'name: second-default-threshold',
+          'target: file-target',
+          'default_test:',
+          '  threshold: 0.7',
+          'tests:',
+          '  - id: second-default-case',
+          '    input: second',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { stdout, exitCode } = await runCli(fixture, ['eval', firstPath, secondPath]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain('scored >= configured threshold(s)');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('keeps non-concurrency run controls isolated across multiple eval files', async () => {
     const fixture = await createFixture();
     try {
