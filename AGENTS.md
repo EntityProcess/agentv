@@ -1,6 +1,6 @@
 # AgentV Agent Guide
 
-This file is the root index for repo-facing agent instructions. Read the linked `.agents/*.md` guide for the kind of work you are doing, and read [STRATEGY.md](STRATEGY.md) plus [ROADMAP.md](ROADMAP.md) before making product-boundary calls.
+This file is the root index for repo-facing agent instructions. It carries baseline rules that always apply plus a [Routing](#routing) table that maps your change to the deeper `.agents/*.md` guide you must read **before** starting that work. The rules in this file are a summary; each linked guide is authoritative for its area, so a matching Routing trigger means "read the guide," not "the summary is enough." Read [STRATEGY.md](STRATEGY.md) plus [ROADMAP.md](ROADMAP.md) before making product-boundary calls.
 
 ## Product Direction
 
@@ -33,6 +33,8 @@ Design guardrails:
 Read the full rationale and examples in [.agents/product-boundary.md](.agents/product-boundary.md).
 
 ## Always-Read Rules
+
+These baseline rules apply to every repo change. They summarize the most common cases; when your change matches a [Routing](#routing) trigger, the linked guide is authoritative and required reading before you start — do not treat these bullets as a substitute for it.
 
 - Start every repo change with `git fetch origin` and `git status --short --branch`.
 - Use `bun` for package and script operations.
@@ -69,19 +71,15 @@ Read the full rationale and examples in [.agents/product-boundary.md](.agents/pr
 
 ## Routing
 
-Read the relevant guide before specialized work:
+Reading the guide that matches your change is **required, not optional** — read it before you start the work, not after review. This file only summarizes; the guide is the contract. If your change matches more than one trigger, read each matching guide.
 
-- [.agents/product-boundary.md](.agents/product-boundary.md): full goals, design principles, AI-first guidance, and how to decide core vs plugin vs docs.
-- [.agents/workflow.md](.agents/workflow.md): tracker handling, worktrees, planning, execution, git workflow, PR flow, and documentation update expectations.
-- [.agents/verification.md](.agents/verification.md): CI gates, CLI and browser E2E, grader verification, concurrency limits, and the completion checklist.
-- [.agents/conventions.md](.agents/conventions.md): TypeScript and Bun conventions, subprocess rules, naming contracts, wire formats, grader type rules, and Python script usage.
-- [.agents/publish.md](.agents/publish.md): versioning, publish workflow, contract gates, and published package surfaces.
+| If your change… | Read first (required) |
+| --- | --- |
+| touches TypeScript in `packages/**` or `apps/**`, wire-format keys, naming (`project`/`benchmark`, snake_case vs camelCase), grader types, `artifact_pointers`, or subprocess handling | [.agents/conventions.md](.agents/conventions.md) |
+| runs or changes eval execution, experiments, repeat runs, providers, graders, or run artifacts — or needs CLI, Dashboard, docs-site, or browser/screenshot UAT | [.agents/verification.md](.agents/verification.md) |
+| involves worktrees, the operator tracker, planning, branches/commits/PR flow, build/artifact reuse, or which docs/examples to update | [.agents/workflow.md](.agents/workflow.md) |
+| changes a published package surface (`@agentv/core`, `@agentv/sdk`, `agentv`) — exported types, CLI flags, versioning, or npm publishing | [.agents/publish.md](.agents/publish.md) |
+| proposes a feature, changes a core abstraction, or decides core vs plugin vs docs | [.agents/product-boundary.md](.agents/product-boundary.md) (start with [STRATEGY.md](STRATEGY.md) + [ROADMAP.md](ROADMAP.md)) |
+| bootstraps or recovers Beads in a worktree | [docs/runbooks/beads-worktree-recovery.md](docs/runbooks/beads-worktree-recovery.md) |
 
-Common entry points:
-
-- Product or architecture decisions: start with [STRATEGY.md](STRATEGY.md), [ROADMAP.md](ROADMAP.md), and [.agents/product-boundary.md](.agents/product-boundary.md).
-- Tracker, worktree, or PR flow questions: read [.agents/workflow.md](.agents/workflow.md).
-- Beads bootstrap or recovery questions: read [docs/runbooks/beads-worktree-recovery.md](docs/runbooks/beads-worktree-recovery.md).
-- Dashboard, docs, CLI UX, or grader verification work: read [.agents/verification.md](.agents/verification.md).
-- Wire-format, naming, or grader-type changes: read [.agents/conventions.md](.agents/conventions.md).
-- Version bumps or npm publishing: read [.agents/publish.md](.agents/publish.md).
+Before marking any branch ready for review, run the completion checklist in [.agents/verification.md](.agents/verification.md) — including live dogfood for eval/provider/grader/artifact changes and publishing browser/screenshot UAT evidence to an `agentv-private` branch. Skipping the start-of-work read does not waive these completion gates.
