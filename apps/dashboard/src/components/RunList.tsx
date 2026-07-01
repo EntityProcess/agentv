@@ -216,7 +216,6 @@ export function RunList({
     if (projectId) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'tags'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
@@ -225,7 +224,6 @@ export function RunList({
     }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['runs'] }),
-      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
       queryClient.invalidateQueries({ queryKey: ['tags'] }),
       queryClient.invalidateQueries({ queryKey: ['compare'] }),
       queryClient.invalidateQueries({ queryKey: ['targets'] }),

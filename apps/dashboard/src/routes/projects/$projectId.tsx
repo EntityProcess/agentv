@@ -177,7 +177,6 @@ function ProjectRunsTab({
       setSyncFeedback(feedback);
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'tags'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
@@ -202,7 +201,6 @@ function ProjectRunsTab({
       setSyncFeedback(buildProjectSyncFeedback(result));
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'tags'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),

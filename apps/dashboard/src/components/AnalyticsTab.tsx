@@ -43,14 +43,7 @@ type ViewMode = 'aggregated' | 'per-run';
 
 // ── Top-level container ─────────────────────────────────────────────────
 
-export function AnalyticsTab({
-  data,
-  isLoading,
-  isError,
-  error,
-  projectId,
-  readOnly,
-}: AnalyticsTabProps) {
+export function AnalyticsTab({ data, isLoading, isError, error, projectId }: AnalyticsTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
 
   const runsCount = data?.runs?.length ?? 0;
@@ -68,9 +61,7 @@ export function AnalyticsTab({
       {!isLoading && !isError && underlyingHasData && data && (
         <>
           {mode === 'aggregated' && <AggregatedView data={data} projectId={projectId} />}
-          {mode === 'per-run' && (
-            <PerRunView data={data} projectId={projectId} readOnly={readOnly ?? false} />
-          )}
+          {mode === 'per-run' && <PerRunView data={data} />}
         </>
       )}
     </div>
@@ -328,7 +319,7 @@ function TestBreakdown({ tests }: { tests: CompareTestResult[] }) {
 
 // ── Per-run view ────────────────────────────────────────────────────────
 
-function PerRunView({ data }: { data: CompareResponse; projectId?: string; readOnly?: boolean }) {
+function PerRunView({ data }: { data: CompareResponse }) {
   const runs = data.runs ?? [];
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showingCompare, setShowingCompare] = useState(false);

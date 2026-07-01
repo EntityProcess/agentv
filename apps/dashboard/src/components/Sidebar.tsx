@@ -41,6 +41,7 @@ import {
 import { shouldShowEvalSourceLabels } from '~/lib/run-detail-context';
 import { formatRunDisplay } from '~/lib/run-label';
 import { useSidebarContext } from '~/lib/sidebar-context';
+import { tagKeyLabel } from '~/lib/tag-key-label';
 import type { EvalResult } from '~/lib/types';
 
 import { BrandName } from './BrandName';
@@ -796,11 +797,6 @@ function ProjectCategorySidebar({
       </nav>
     </SidebarShell>
   );
-}
-
-function tagKeyLabel(key: string): string {
-  if (!key) return 'Tag';
-  return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 function ProjectTagValueSidebar({

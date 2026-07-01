@@ -25,7 +25,6 @@ import type {
   EvalRunResponse,
   EvalRunStatus,
   EvalTargetsResponse,
-  ExperimentsResponse,
   FeedbackData,
   FileContentResponse,
   FileTreeResponse,
@@ -199,11 +198,6 @@ export function feedbackOptions(projectId?: string) {
   });
 }
 
-export const experimentsOptions = queryOptions({
-  queryKey: ['experiments'],
-  queryFn: () => fetchJson<ExperimentsResponse>('/api/experiments'),
-});
-
 /** Default tag key for the Tags-tab group-by selector. */
 export const DEFAULT_TAG_KEY = 'experiment';
 
@@ -364,10 +358,6 @@ export function useIndex() {
 
 export function useFeedback(projectId?: string) {
   return useQuery(feedbackOptions(projectId));
-}
-
-export function useExperiments() {
-  return useQuery(experimentsOptions);
 }
 
 export function useCompare() {
@@ -666,14 +656,6 @@ export function projectEvalTranscriptOptions(
     queryFn: () =>
       fetchJson<TranscriptArtifactResponse>(withQueryParams(base, evalArtifactParams(resultDir))),
     enabled: !!projectId && !!runId && !!evalId,
-  });
-}
-
-export function projectExperimentsOptions(projectId: string) {
-  return queryOptions({
-    queryKey: ['projects', projectId, 'experiments'],
-    queryFn: () => fetchJson<ExperimentsResponse>(`${projectApiBase(projectId)}/experiments`),
-    enabled: !!projectId,
   });
 }
 

@@ -259,7 +259,6 @@ function SingleProjectHome() {
       setSyncFeedback(buildProjectSyncFeedback(result));
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['tags'] }),
         queryClient.invalidateQueries({ queryKey: ['compare'] }),
         queryClient.invalidateQueries({ queryKey: ['targets'] }),
@@ -293,7 +292,6 @@ function SingleProjectHome() {
       setSyncFeedback(buildProjectSyncFeedback(result));
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['runs'] }),
-        queryClient.invalidateQueries({ queryKey: ['experiments'] }),
         queryClient.invalidateQueries({ queryKey: ['tags'] }),
         queryClient.invalidateQueries({ queryKey: ['compare'] }),
         queryClient.invalidateQueries({ queryKey: ['targets'] }),
