@@ -1,5 +1,5 @@
 /**
- * Project home route: tabbed view (Runs, Experiments, Analytics, Targets) scoped to a project.
+ * Project home route: tabbed view (Runs, Tags, Analytics, Targets) scoped to a project.
  *
  * Mirrors the single-project home page but fetches from project-scoped API endpoints.
  */
@@ -9,12 +9,13 @@ import { useEffect, useState } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
-import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { RunSourceToolbar } from '~/components/RunSourceToolbar';
+import { TagsTab } from '~/components/TagsTab';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
+  DEFAULT_TAG_KEY,
   confirmRemoteResultsMergeApi,
   projectCompareOptions,
   remoteStatusOptions,
@@ -31,11 +32,11 @@ import {
 } from '~/lib/project-sync-status';
 import { dedupeSyncedRuns } from '~/lib/run-dedupe';
 
-type TabId = 'runs' | 'experiments' | 'analytics' | 'targets';
+type TabId = 'runs' | 'tags' | 'analytics' | 'targets';
 
 const tabs: { id: TabId; label: string; title: string }[] = [
   { id: 'runs', label: '🏃 Recent Runs', title: 'Recent Runs' },
-  { id: 'experiments', label: '🧪 Experiments', title: 'Experiments' },
+  { id: 'tags', label: '🏷️ Tags', title: 'Tags' },
   { id: 'analytics', label: '📊 Analytics', title: 'Analytics' },
   { id: 'targets', label: '🤖 Targets', title: 'Targets' },
 ];
@@ -49,6 +50,7 @@ function ProjectHomePage() {
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
+  const tagKey = searchParams.key?.trim() ? searchParams.key : DEFAULT_TAG_KEY;
   const navigate = useNavigate();
   const [showRunEval, setShowRunEval] = useState(false);
   const { data: config } = useStudioConfig(projectId);
@@ -84,7 +86,10 @@ function ProjectHomePage() {
                 navigate({
                   to: '/projects/$projectId',
                   params: { projectId },
-                  search: { tab: t.id } as Record<string, string>,
+                  search: (t.id === 'tags' ? { tab: t.id, key: tagKey } : { tab: t.id }) as Record<
+                    string,
+                    string
+                  >,
                 })
               }
               className={`shrink-0 px-4 py-2 text-sm font-medium transition-colors ${
@@ -102,7 +107,19 @@ function ProjectHomePage() {
       {activeTab === 'runs' && (
         <ProjectRunsTab projectId={projectId} projectName={projectName} readOnly={isReadOnly} />
       )}
-      {activeTab === 'experiments' && <ExperimentsTab projectId={projectId} />}
+      {activeTab === 'tags' && (
+        <TagsTab
+          projectId={projectId}
+          tagKey={tagKey}
+          onTagKeyChange={(key) =>
+            navigate({
+              to: '/projects/$projectId',
+              params: { projectId },
+              search: { tab: 'tags', key } as Record<string, string>,
+            })
+          }
+        />
+      )}
       {activeTab === 'analytics' && (
         <ProjectAnalyticsTab projectId={projectId} readOnly={isReadOnly} />
       )}
@@ -161,6 +178,7 @@ function ProjectRunsTab({
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'tags'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),
@@ -185,6 +203,7 @@ function ProjectRunsTab({
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'tags'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] }),
         queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', projectId] }),

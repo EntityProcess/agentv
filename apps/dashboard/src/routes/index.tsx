@@ -12,13 +12,14 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AddProjectModal } from '~/components/AddProjectModal';
 import { AnalyticsTab } from '~/components/AnalyticsTab';
-import { ExperimentsTab } from '~/components/ExperimentsTab';
 import { ProjectCard } from '~/components/ProjectCard';
 import { RunEvalModal } from '~/components/RunEvalModal';
 import { RunList } from '~/components/RunList';
 import { RunSourceToolbar } from '~/components/RunSourceToolbar';
+import { TagsTab } from '~/components/TagsTab';
 import { TargetsTab } from '~/components/TargetsTab';
 import {
+  DEFAULT_TAG_KEY,
   confirmRemoteResultsMergeApi,
   remoteStatusOptions,
   removeProjectApi,
@@ -47,7 +48,7 @@ type TabId = StudioTabId;
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'runs', label: '🏃 Recent Runs' },
-  { id: 'experiments', label: '🧪 Experiments' },
+  { id: 'tags', label: '🏷️ Tags' },
   { id: 'analytics', label: '📊 Analytics' },
   { id: 'targets', label: '🤖 Targets' },
 ];
@@ -188,7 +189,7 @@ function ProjectsDashboard() {
         <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-8 text-center">
           <p className="text-lg text-gray-300">No projects registered yet.</p>
           <p className="mt-2 text-sm text-gray-500">
-            Add a project path to start browsing runs, experiments, analytics, and targets.
+            Add a project path to start browsing runs, tags, analytics, and targets.
           </p>
         </div>
       ) : (
@@ -225,6 +226,7 @@ function SingleProjectHome() {
   const routerState = useRouterState();
   const searchParams = routerState.location.search as Record<string, string>;
   const tab = searchParams.tab as TabId | undefined;
+  const tagKey = searchParams.key?.trim() ? searchParams.key : DEFAULT_TAG_KEY;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -258,6 +260,7 @@ function SingleProjectHome() {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['runs'] }),
         queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['tags'] }),
         queryClient.invalidateQueries({ queryKey: ['compare'] }),
         queryClient.invalidateQueries({ queryKey: ['targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
@@ -291,6 +294,7 @@ function SingleProjectHome() {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: ['runs'] }),
         queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+        queryClient.invalidateQueries({ queryKey: ['tags'] }),
         queryClient.invalidateQueries({ queryKey: ['compare'] }),
         queryClient.invalidateQueries({ queryKey: ['targets'] }),
         queryClient.invalidateQueries({ queryKey: ['remote-status', ''] }),
@@ -332,7 +336,15 @@ function SingleProjectHome() {
             <button
               type="button"
               key={t.id}
-              onClick={() => navigate({ to: '/', search: { tab: t.id } as Record<string, string> })}
+              onClick={() =>
+                navigate({
+                  to: '/',
+                  search: (t.id === 'tags' ? { tab: t.id, key: tagKey } : { tab: t.id }) as Record<
+                    string,
+                    string
+                  >,
+                })
+              }
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === t.id
                   ? 'border-b-2 border-cyan-400 text-cyan-400'
@@ -365,7 +377,14 @@ function SingleProjectHome() {
           readOnly={isReadOnly}
         />
       )}
-      {activeTab === 'experiments' && <ExperimentsTab />}
+      {activeTab === 'tags' && (
+        <TagsTab
+          tagKey={tagKey}
+          onTagKeyChange={(key) =>
+            navigate({ to: '/', search: { tab: 'tags', key } as Record<string, string> })
+          }
+        />
+      )}
       {activeTab === 'analytics' && <AnalyticsTabContent readOnly={isReadOnly} />}
       {activeTab === 'targets' && <TargetsTab />}
 

@@ -10,11 +10,11 @@ import { Link, useMatches } from '@tanstack/react-router';
 import {
   categoryPath,
   evalPath,
-  experimentPath,
   jobPath,
   projectHomePath,
   runPath,
   suitePath,
+  tagValuePath,
 } from '~/lib/navigation';
 import { useSidebarContext } from '~/lib/sidebar-context';
 
@@ -102,10 +102,10 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
         label: params.evalId ?? 'Eval',
         to: evalPath(params.runId, params.evalId ?? 'Eval', params.projectId),
       });
-    } else if (routeId.includes('/projects/$projectId_/experiments/$experimentName')) {
+    } else if (routeId.includes('/projects/$projectId_/tags/$key/$value')) {
       segments.push({
-        label: params.experimentName ?? 'Experiment',
-        to: experimentPath(params.experimentName ?? 'Experiment', params.projectId),
+        label: params.value ?? 'Tag',
+        to: tagValuePath(params.key ?? 'experiment', params.value ?? 'Tag', params.projectId),
       });
     } else if (routeId.includes('/runs/$runId/category/$category')) {
       if (!segments.some((s) => s.label === formatBreadcrumbRunLabel(params.runId))) {
@@ -151,10 +151,10 @@ function deriveSegments(matches: ReturnType<typeof useMatches>): BreadcrumbSegme
         label: params.evalId ?? 'Eval',
         to: evalPath(params.runId, params.evalId ?? 'Eval'),
       });
-    } else if (routeId.includes('/experiments/$experimentName')) {
+    } else if (routeId.includes('/tags/$key/$value')) {
       segments.push({
-        label: params.experimentName ?? 'Experiment',
-        to: experimentPath(params.experimentName ?? 'Experiment'),
+        label: params.value ?? 'Tag',
+        to: tagValuePath(params.key ?? 'experiment', params.value ?? 'Tag'),
       });
     } else if (routeId === '/settings') {
       segments.push({ label: 'Settings', to: '/settings' });

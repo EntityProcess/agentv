@@ -4,8 +4,7 @@
  * Two modes:
  *   1. Aggregated (default)  — `(experiment, target)` matrix, one cell per pair.
  *   2. Per run               — individual runs are first-class; users select
- *                              2+ runs to render a side-by-side comparison,
- *                              and may attach retroactive tags to any run.
+ *                              2+ runs to render a side-by-side comparison.
  *
  * Styling matches the rest of AgentV Dashboard: dark gray surfaces
  * (`bg-gray-900` / `border-gray-800`), cyan accents for interactive elements,
@@ -14,8 +13,6 @@
  *
  * Backend contract:
  *   - `GET /api/compare`                → { cells, runs? }
- *   - `PUT /api/runs/:runId/tags`       → replaces sidecar tags.json
- *   - `DELETE /api/runs/:runId/tags`    → records an empty tag state
  *
  * To extend with a new mode: add a value to `ViewMode`, a button in the mode
  * toggle, and a new body component in the content switch. Hooks in any new
@@ -23,10 +20,8 @@
  * hook order does not change across renders.
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { deleteRunTagsApi, saveRunTagsApi } from '~/lib/api';
 import { aggregateQualityCount, executionErrorCount } from '~/lib/result-summary';
 import type { CompareCell, CompareResponse, CompareRunEntry, CompareTestResult } from '~/lib/types';
 
@@ -40,7 +35,7 @@ interface AnalyticsTabProps {
   error?: Error | null;
   /** Project scope. Undefined for the unscoped (root) compare view. */
   projectId?: string;
-  /** Read-only mode disables tag editing. */
+  /** Read-only mode. Reserved for surfaces that disable mutating actions. */
   readOnly?: boolean;
 }
 
@@ -57,108 +52,9 @@ export function AnalyticsTab({
   readOnly,
 }: AnalyticsTabProps) {
   const [mode, setMode] = useState<ViewMode>('aggregated');
-  const [filterTags, setFilterTags] = useState<string[]>([]);
 
-  // Chip list is derived from the UNFILTERED response so chips stay visible
-  // even when the active filter would otherwise hide the runs that supplied
-  // them. Sorted alphabetically for stable UI.
-  const { allTags, tagCounts } = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const run of data?.runs ?? []) {
-      for (const tag of run.tags ?? []) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return { allTags: [...counts.keys()].sort(), tagCounts: counts };
-  }, [data?.runs]);
-
-  // When a filter is active, re-aggregate cells/runs client-side from the
-  // filtered subset of runs. This avoids a network round-trip on every chip
-  // click and keeps the backend responsible only for the initial fetch.
-  // Safe because the server already exposes per-run totals; we sum them per
-  // (experiment, target) bucket, weighting averages by quality_count so
-  // execution errors do not depress quality scores.
-  const filteredData = useMemo<CompareResponse | undefined>(() => {
-    if (!data) return data;
-    if (filterTags.length === 0) return data;
-    const filterSet = new Set(filterTags);
-    const filteredRuns = (data.runs ?? []).filter((r) =>
-      (r.tags ?? []).some((t) => filterSet.has(t)),
-    );
-
-    type CellAccum = {
-      experiment: string;
-      target: string;
-      eval_count: number;
-      quality_count: number;
-      passed_count: number;
-      execution_error_count: number;
-      score_sum: number;
-      tests: CompareTestResult[];
-    };
-    const cellMap = new Map<string, CellAccum>();
-    const experimentsSet = new Set<string>();
-    const targetsSet = new Set<string>();
-
-    for (const run of filteredRuns) {
-      experimentsSet.add(run.experiment);
-      targetsSet.add(run.target);
-      const key = `${run.experiment}::${run.target}`;
-      const entry = cellMap.get(key) ?? {
-        experiment: run.experiment,
-        target: run.target,
-        eval_count: 0,
-        quality_count: 0,
-        passed_count: 0,
-        execution_error_count: 0,
-        score_sum: 0,
-        tests: [],
-      };
-      const runQualityCount = aggregateQualityCount(run);
-      entry.eval_count += run.eval_count;
-      entry.quality_count += runQualityCount;
-      entry.passed_count += run.passed_count;
-      entry.execution_error_count += executionErrorCount(run);
-      entry.score_sum += run.avg_score * runQualityCount;
-      for (const t of run.tests) entry.tests.push(t);
-      cellMap.set(key, entry);
-    }
-
-    const cells: CompareCell[] = [...cellMap.values()].map((e) => {
-      // Dedupe tests by test_id, last-wins (same pattern as the server).
-      const dedup = new Map<string, CompareTestResult>();
-      for (const t of e.tests) dedup.set(t.test_id, t);
-      return {
-        experiment: e.experiment,
-        target: e.target,
-        eval_count: e.eval_count,
-        quality_count: e.quality_count,
-        passed_count: e.passed_count,
-        execution_error_count: e.execution_error_count,
-        pass_rate: e.quality_count > 0 ? e.passed_count / e.quality_count : 0,
-        avg_score: e.quality_count > 0 ? e.score_sum / e.quality_count : 0,
-        tests: [...dedup.values()].slice(-100),
-      };
-    });
-
-    return {
-      ...data,
-      experiments: [...experimentsSet].sort(),
-      targets: [...targetsSet].sort(),
-      cells,
-      runs: filteredRuns,
-    };
-  }, [data, filterTags]);
-
-  const toggleFilterTag = (tag: string) => {
-    setFilterTags((prev) => (prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]));
-  };
-  const clearFilterTags = () => setFilterTags([]);
-
-  const runsCount = filteredData?.runs?.length ?? 0;
+  const runsCount = data?.runs?.length ?? 0;
   const underlyingHasData = data && data.cells.length > 0;
-  const filterYieldsNoRuns =
-    filterTags.length > 0 && filteredData && (filteredData.runs?.length ?? 0) === 0;
 
   return (
     <div className="space-y-4">
@@ -169,107 +65,14 @@ export function AnalyticsTab({
         <ErrorPanel message={`Failed to load comparison data: ${error.message}`} />
       )}
       {!isLoading && !isError && !underlyingHasData && <EmptyState />}
-      {!isLoading && !isError && underlyingHasData && (
+      {!isLoading && !isError && underlyingHasData && data && (
         <>
-          {allTags.length > 0 && (
-            <TagFilterBar
-              allTags={allTags}
-              tagCounts={tagCounts}
-              selected={filterTags}
-              onToggle={toggleFilterTag}
-              onClear={clearFilterTags}
-            />
-          )}
-          {filterYieldsNoRuns ? (
-            <Notice
-              headline={`No runs match ${filterTags.map((t) => `\`${t}\``).join(' + ')}`}
-              body="Clear the filter or pick a different tag combination."
-              action={{ label: 'Clear filter', onClick: clearFilterTags }}
-            />
-          ) : (
-            filteredData && (
-              <>
-                {mode === 'aggregated' && (
-                  <AggregatedView data={filteredData} projectId={projectId} />
-                )}
-                {mode === 'per-run' && (
-                  <PerRunView
-                    data={filteredData}
-                    projectId={projectId}
-                    readOnly={readOnly ?? false}
-                  />
-                )}
-              </>
-            )
+          {mode === 'aggregated' && <AggregatedView data={data} projectId={projectId} />}
+          {mode === 'per-run' && (
+            <PerRunView data={data} projectId={projectId} readOnly={readOnly ?? false} />
           )}
         </>
       )}
-    </div>
-  );
-}
-
-// ── Tag filter bar ──────────────────────────────────────────────────────
-
-function TagFilterBar({
-  allTags,
-  tagCounts,
-  selected,
-  onToggle,
-  onClear,
-}: {
-  allTags: string[];
-  tagCounts: Map<string, number>;
-  selected: string[];
-  onToggle: (tag: string) => void;
-  onClear: () => void;
-}) {
-  const selectedSet = new Set(selected);
-  const anySelected = selected.length > 0;
-  return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900/40 px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
-          Filter by tag
-        </span>
-        {allTags.map((tag) => {
-          const isActive = selectedSet.has(tag);
-          const count = tagCounts.get(tag) ?? 0;
-          return (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => onToggle(tag)}
-              aria-pressed={isActive}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors ${
-                isActive
-                  ? 'border-cyan-900/60 bg-cyan-950/30 text-cyan-300 hover:border-cyan-800/80'
-                  : 'border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-200'
-              }`}
-            >
-              <span>{tag}</span>
-              <span
-                className={`rounded px-1 text-[0.65rem] tabular-nums ${
-                  isActive ? 'bg-cyan-900/50 text-cyan-200' : 'bg-gray-800 text-gray-500'
-                }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-        {anySelected && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="ml-1 text-xs text-gray-500 underline-offset-2 transition-colors hover:text-gray-300 hover:underline"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      <p className="mt-2 text-xs text-gray-500">
-        Showing runs with <span className="text-gray-400">any</span> selected tag.
-      </p>
     </div>
   );
 }
@@ -525,19 +328,10 @@ function TestBreakdown({ tests }: { tests: CompareTestResult[] }) {
 
 // ── Per-run view ────────────────────────────────────────────────────────
 
-function PerRunView({
-  data,
-  projectId,
-  readOnly,
-}: {
-  data: CompareResponse;
-  projectId?: string;
-  readOnly: boolean;
-}) {
+function PerRunView({ data }: { data: CompareResponse; projectId?: string; readOnly?: boolean }) {
   const runs = data.runs ?? [];
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showingCompare, setShowingCompare] = useState(false);
-  const [editingRunId, setEditingRunId] = useState<string | null>(null);
 
   const toggleSelect = (runId: string) => {
     setSelected((prev) => {
@@ -575,7 +369,6 @@ function PerRunView({
             <tr>
               <th className="w-10 px-3 py-3" aria-label="Select" />
               <th className="px-4 py-3 font-medium text-gray-400">Timestamp</th>
-              <th className="px-4 py-3 font-medium text-gray-400">Tags</th>
               <th className="px-4 py-3 font-medium text-gray-400">Experiment</th>
               <th className="px-4 py-3 font-medium text-gray-400">Target</th>
               <th className="px-4 py-3 text-right font-medium text-gray-400">Tests</th>
@@ -590,11 +383,6 @@ function PerRunView({
                 run={run}
                 checked={selected.has(run.run_id)}
                 onToggle={() => toggleSelect(run.run_id)}
-                editing={editingRunId === run.run_id}
-                onStartEdit={() => setEditingRunId(run.run_id)}
-                onEndEdit={() => setEditingRunId(null)}
-                projectId={projectId}
-                readOnly={readOnly}
               />
             ))}
           </tbody>
@@ -639,331 +427,48 @@ function PerRunRow({
   run,
   checked,
   onToggle,
-  editing,
-  onStartEdit,
-  onEndEdit,
-  projectId,
-  readOnly,
 }: {
   run: CompareRunEntry;
   checked: boolean;
   onToggle: () => void;
-  editing: boolean;
-  onStartEdit: () => void;
-  onEndEdit: () => void;
-  projectId?: string;
-  readOnly: boolean;
 }) {
   const avgPct = Math.round(run.avg_score * 100);
   const qualityCount = aggregateQualityCount(run);
   const errors = executionErrorCount(run);
-  const canEdit = !readOnly;
-  const tagsBtnRef = useRef<HTMLButtonElement>(null);
-  const tags = run.tags ?? [];
-  const metadataDirty = run.metadata_dirty === true;
-  const runLabel = tags[0] ?? run.run_id;
   const subLabel = runSubLabel(run.run_id);
-  const tagsButtonClass =
-    tags.length > 0
-      ? 'inline-flex flex-wrap items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-gray-800/60'
-      : metadataDirty
-        ? 'rounded-md border border-yellow-900/60 bg-yellow-950/20 px-2 py-0.5 text-xs text-yellow-300 transition-colors hover:border-yellow-700'
-        : 'rounded-md border border-dashed border-gray-700 px-2 py-0.5 text-xs text-gray-500 transition-colors hover:border-cyan-800 hover:text-cyan-400';
-
-  // Restore focus to the tags trigger button once the inline editor closes,
-  // so keyboard users don't lose their place in the table.
-  const wasEditing = useRef(editing);
-  useEffect(() => {
-    if (wasEditing.current && !editing) {
-      tagsBtnRef.current?.focus();
-    }
-    wasEditing.current = editing;
-  }, [editing]);
 
   return (
-    <>
-      <tr
-        className={`transition-colors ${
-          checked ? 'bg-cyan-950/20 hover:bg-cyan-950/30' : 'hover:bg-gray-900/30'
-        }`}
-      >
-        <td className="px-3 py-3 align-middle">
-          <input
-            type="checkbox"
-            className="h-4 w-4 cursor-pointer rounded border-gray-700 bg-gray-900 text-cyan-500 accent-cyan-500 focus:ring-cyan-500"
-            checked={checked}
-            onChange={onToggle}
-            aria-label={`Select run ${runLabel}`}
-          />
-        </td>
-        <td className="px-4 py-3 align-middle" title={run.run_id}>
-          <div className="font-medium text-gray-200 tabular-nums">
-            {formatTimestamp(run.started_at)}
-          </div>
-          {subLabel && <div className="text-xs text-gray-500">{subLabel}</div>}
-        </td>
-        <td className="px-4 py-3 align-middle">
-          {canEdit ? (
-            <button
-              ref={tagsBtnRef}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartEdit();
-              }}
-              className={tagsButtonClass}
-              aria-label={tags.length > 0 ? 'Edit tags' : 'Add tags'}
-            >
-              {tags.length > 0 ? (
-                <TagChips tags={tags} dirty={metadataDirty} />
-              ) : metadataDirty ? (
-                <>Pending clear</>
-              ) : (
-                <>+ tags</>
-              )}
-            </button>
-          ) : tags.length > 0 ? (
-            <TagChips tags={tags} dirty={metadataDirty} />
-          ) : (
-            <span className={metadataDirty ? 'text-yellow-400' : 'text-gray-600'}>
-              {metadataDirty ? 'Pending clear' : '—'}
-            </span>
-          )}
-        </td>
-        <td className="px-4 py-3 align-middle text-gray-300">{run.experiment}</td>
-        <td className="px-4 py-3 align-middle text-gray-300">{run.target}</td>
-        <td className="px-4 py-3 align-middle text-right tabular-nums text-gray-400">
-          <div>{qualityCount}</div>
-          {errors > 0 && <div className="text-xs text-amber-400">{errors} errors</div>}
-        </td>
-        <td className="px-4 py-3 align-middle">
-          <PassRatePill rate={run.pass_rate} />
-        </td>
-        <td className="px-4 py-3 align-middle text-right tabular-nums text-gray-400">{avgPct}%</td>
-      </tr>
-      {editing && (
-        <tr className="bg-gray-950/80">
-          <td colSpan={8} className="px-4 py-3">
-            <TagsEditor
-              runId={run.run_id}
-              currentTags={tags}
-              tagRevision={run.tag_revision}
-              source={run.source}
-              projectId={projectId}
-              onClose={onEndEdit}
-            />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-function TagChips({ tags, dirty }: { tags: string[]; dirty: boolean }) {
-  return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      {tags.map((t) => (
-        <span
-          key={t}
-          className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
-        >
-          {t}
-        </span>
-      ))}
-      {dirty ? (
-        <span className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-2 py-0.5 text-xs font-medium text-yellow-300">
-          Pending sync
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-/**
- * Inline chip-based tag editor.
- *
- * Local state: a `string[]` staged edit of the run's tags. Chips show the
- * current staged tags; an input at the end accepts new tags (commit with
- * Enter or comma, delete the last chip with Backspace on an empty input).
- * Save persists the whole array; Cancel / Escape discards.
- *
- * The backend's `writeRunTags` handles deduplication, length limits, and
- * control-character rejection, so we only lightly normalize in the UI
- * (trim + skip duplicates already in the staged array).
- */
-function TagsEditor({
-  runId,
-  currentTags,
-  tagRevision,
-  source,
-  projectId,
-  onClose,
-}: {
-  runId: string;
-  currentTags: string[];
-  tagRevision?: string;
-  source: 'local' | 'remote';
-  projectId?: string;
-  onClose: () => void;
-}) {
-  const [tags, setTags] = useState<string[]>(currentTags);
-  const [input, setInput] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const qc = useQueryClient();
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const saveMut = useMutation({
-    mutationFn: () => saveRunTagsApi(runId, tags, projectId, tagRevision),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compare'] });
-      qc.invalidateQueries({ queryKey: ['runs'] });
-      qc.invalidateQueries({ queryKey: ['remote-status', projectId ?? ''] });
-      if (projectId) {
-        qc.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] });
-        qc.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] });
-      }
-      onClose();
-    },
-    onError: (e: Error) => setErr(e.message),
-  });
-
-  const clearMut = useMutation({
-    mutationFn: () => deleteRunTagsApi(runId, projectId, tagRevision),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compare'] });
-      qc.invalidateQueries({ queryKey: ['runs'] });
-      qc.invalidateQueries({ queryKey: ['remote-status', projectId ?? ''] });
-      if (projectId) {
-        qc.invalidateQueries({ queryKey: ['projects', projectId, 'compare'] });
-        qc.invalidateQueries({ queryKey: ['projects', projectId, 'runs'] });
-      }
-      onClose();
-    },
-    onError: (e: Error) => setErr(e.message),
-  });
-
-  const busy = saveMut.isPending || clearMut.isPending;
-  const hasChanges =
-    tags.length !== currentTags.length || tags.some((t, i) => t !== currentTags[i]);
-
-  const commitInput = () => {
-    const trimmed = input.trim();
-    if (trimmed === '') return;
-    if (tags.includes(trimmed)) {
-      setInput('');
-      return;
-    }
-    setTags([...tags, trimmed]);
-    setInput('');
-    setErr(null);
-  };
-
-  const removeTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
-  };
-
-  return (
-    <div className="space-y-2 rounded-md border border-gray-800 bg-gray-900/60 p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-gray-400">Tag run</span>
-        <span className="text-xs text-gray-500">
-          Multi-valued. Enter or comma adds; Backspace removes the last chip.
-        </span>
-      </div>
-      {source === 'remote' ? (
-        <div className="rounded-md border border-yellow-900/60 bg-yellow-950/20 px-3 py-2 text-xs text-yellow-300">
-          Remote tag edits are saved as local metadata. Use Sync Metadata to push them to the
-          results repo.
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500">
-        {tags.map((t) => (
-          <span
-            key={t}
-            className="inline-flex items-center gap-1 rounded-md border border-cyan-900/60 bg-cyan-950/30 px-2 py-0.5 text-xs font-medium text-cyan-300"
-          >
-            {t}
-            <button
-              type="button"
-              onClick={() => removeTag(t)}
-              disabled={busy}
-              className="text-cyan-500 transition-colors hover:text-cyan-200 disabled:opacity-50"
-              aria-label={`Remove tag ${t}`}
-            >
-              ×
-            </button>
-          </span>
-        ))}
+    <tr
+      className={`transition-colors ${
+        checked ? 'bg-cyan-950/20 hover:bg-cyan-950/30' : 'hover:bg-gray-900/30'
+      }`}
+    >
+      <td className="px-3 py-3 align-middle">
         <input
-          ref={inputRef}
-          type="text"
-          className="flex-1 min-w-[140px] bg-transparent text-sm text-gray-100 placeholder:text-gray-600 focus:outline-none disabled:opacity-50"
-          placeholder={tags.length === 0 ? 'e.g. baseline, v2-prompt, slow' : 'Add tag…'}
-          value={input}
-          onChange={(e) => {
-            setErr(null);
-            setInput(e.target.value);
-          }}
-          maxLength={60}
-          disabled={busy}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-              e.preventDefault();
-              commitInput();
-            } else if (e.key === 'Backspace' && input === '' && tags.length > 0) {
-              e.preventDefault();
-              setTags(tags.slice(0, -1));
-            } else if (e.key === 'Escape') {
-              onClose();
-            }
-          }}
-          onBlur={commitInput}
+          type="checkbox"
+          className="h-4 w-4 cursor-pointer rounded border-gray-700 bg-gray-900 text-cyan-500 accent-cyan-500 focus:ring-cyan-500"
+          checked={checked}
+          onChange={onToggle}
+          aria-label={`Select run ${run.run_id}`}
         />
-      </div>
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={busy}
-          className="rounded-md px-3 py-1.5 text-sm text-gray-400 transition-colors hover:text-gray-200 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        {currentTags.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              if (busy) return;
-              clearMut.mutate();
-            }}
-            disabled={busy}
-            className="rounded-md border border-red-900/60 px-3 py-1.5 text-sm text-red-400 transition-colors hover:border-red-800 hover:bg-red-950/30 hover:text-red-300 disabled:opacity-50"
-          >
-            Clear all
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={!hasChanges || busy}
-          onClick={() => {
-            if (busy || !hasChanges) return;
-            saveMut.mutate();
-          }}
-          className="rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-medium text-gray-950 transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500"
-        >
-          {saveMut.isPending ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-      {err && (
-        <div className="rounded-md border border-red-900/60 bg-red-950/30 px-3 py-1.5 text-xs text-red-400">
-          {err}
+      </td>
+      <td className="px-4 py-3 align-middle" title={run.run_id}>
+        <div className="font-medium text-gray-200 tabular-nums">
+          {formatTimestamp(run.started_at)}
         </div>
-      )}
-    </div>
+        {subLabel && <div className="text-xs text-gray-500">{subLabel}</div>}
+      </td>
+      <td className="px-4 py-3 align-middle text-gray-300">{run.experiment}</td>
+      <td className="px-4 py-3 align-middle text-gray-300">{run.target}</td>
+      <td className="px-4 py-3 align-middle text-right tabular-nums text-gray-400">
+        <div>{qualityCount}</div>
+        {errors > 0 && <div className="text-xs text-amber-400">{errors} errors</div>}
+      </td>
+      <td className="px-4 py-3 align-middle">
+        <PassRatePill rate={run.pass_rate} />
+      </td>
+      <td className="px-4 py-3 align-middle text-right tabular-nums text-gray-400">{avgPct}%</td>
+    </tr>
   );
 }
 
@@ -1090,24 +595,11 @@ function PerRunCompareView({
 }
 
 function RunColumnHeader({ run }: { run: CompareRunEntry }) {
-  const tags = run.tags ?? [];
   return (
     <div className="min-w-[140px] space-y-1">
       <div className="text-sm font-medium text-gray-200 tabular-nums" title={run.run_id}>
         {formatTimestamp(run.started_at)}
       </div>
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {tags.map((t) => (
-            <span
-              key={t}
-              className="rounded-md border border-cyan-900/60 bg-cyan-950/30 px-1.5 py-0.5 text-[0.7rem] font-medium text-cyan-300"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
       <div className="text-xs text-gray-500">
         {run.experiment} · {run.target}
       </div>
@@ -1154,28 +646,11 @@ function EmptyState() {
   );
 }
 
-function Notice({
-  headline,
-  body,
-  action,
-}: {
-  headline: string;
-  body: string;
-  action?: { label: string; onClick: () => void };
-}) {
+function Notice({ headline, body }: { headline: string; body: string }) {
   return (
     <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
       <p className="text-lg text-gray-300">{headline}</p>
       <p className="mt-2 text-sm text-gray-500">{body}</p>
-      {action && (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="mt-4 inline-flex items-center rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-medium text-gray-950 transition-colors hover:bg-cyan-400"
-        >
-          {action.label}
-        </button>
-      )}
     </div>
   );
 }

@@ -1,16 +1,20 @@
 /**
- * Project-scoped experiment detail route.
+ * Legacy project-scoped experiment detail route. Kept for one release so
+ * bookmarked `/projects/<projectId>/experiments/<name>` links survive;
+ * redirects to the generalized `/tags/experiment/<name>` view.
  */
 
-import { createFileRoute } from '@tanstack/react-router';
-
-import { ExperimentDetail } from '~/components/ExperimentDetail';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/projects/$projectId_/experiments/$experimentName')({
-  component: ProjectExperimentDetailPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/projects/$projectId/tags/$key/$value',
+      params: {
+        projectId: params.projectId,
+        key: 'experiment',
+        value: params.experimentName,
+      },
+    });
+  },
 });
-
-function ProjectExperimentDetailPage() {
-  const { projectId, experimentName } = Route.useParams();
-  return <ExperimentDetail experimentName={experimentName} projectId={projectId} />;
-}

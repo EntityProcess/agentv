@@ -6,7 +6,6 @@ import {
   evalResultIdentityKey,
   evalResultPath,
   evalResultSearchParams,
-  experimentPath,
   initialProjectRedirectStorageKey,
   jobPath,
   matchesEvalResultIdentity,
@@ -15,6 +14,7 @@ import {
   runPath,
   runsHomePath,
   suitePath,
+  tagValuePath,
 } from './navigation';
 
 describe('resolveInitialProjectRedirect', () => {
@@ -78,8 +78,11 @@ describe('route path helpers', () => {
     expect(suitePath('run::1', 'evals/smoke.eval.yaml', 'demo project')).toBe(
       '/projects/demo%20project/runs/run%3A%3A1/suite/evals%2Fsmoke.eval.yaml',
     );
-    expect(experimentPath('prod-baseline', 'demo project')).toBe(
-      '/projects/demo%20project/experiments/prod-baseline',
+    expect(tagValuePath('experiment', 'prod-baseline', 'demo project')).toBe(
+      '/projects/demo%20project/tags/experiment/prod-baseline',
+    );
+    expect(tagValuePath('team', 'core team', 'demo project')).toBe(
+      '/projects/demo%20project/tags/team/core%20team',
     );
     expect(runsHomePath('wtg-ai-prompts')).toBe('/projects/wtg-ai-prompts?tab=runs');
   });

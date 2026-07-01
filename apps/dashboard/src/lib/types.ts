@@ -49,18 +49,6 @@ export interface RunMeta {
    */
   on_remote?: boolean;
   project_id?: string;
-  /** Optional user-assigned tags from the run's sidecar tags.json. */
-  tags?: string[];
-  /** Tags currently present in the remote results repo before local metadata overlays. */
-  remote_tags?: string[];
-  /** Locally edited tags waiting to sync back to the remote results repo. */
-  pending_tags?: string[];
-  /** True when local editable metadata differs from the fetched remote metadata. */
-  metadata_dirty?: boolean;
-  /** Materialized final run state from the result bundle and tag sidecar. */
-  final_state?: RunFinalState;
-  /** Optimistic-concurrency token for mutable tag state. */
-  tag_revision?: string;
   /**
    * Live execution status. Only present for Dashboard-launched runs that are
    * still being tracked in-memory — used to render a spinner in RunList
@@ -68,11 +56,6 @@ export interface RunMeta {
    * results have been written yet.
    */
   status?: 'starting' | 'running' | 'finished' | 'failed';
-}
-
-export interface RunFinalState {
-  lifecycle: 'active' | 'hidden' | 'deleted';
-  tags: string[];
 }
 
 export interface RunListResponse {
@@ -274,8 +257,6 @@ export interface RunDetailResponse {
   source: 'local' | 'remote';
   source_label?: string;
   runtime_source?: RunRuntimeSource;
-  final_state?: RunFinalState;
-  tag_revision?: string;
   /** Live execution status when this run is still tracked in-memory by Dashboard. */
   status?: 'starting' | 'running' | 'finished' | 'failed';
   /** Path to the run workspace directory (relative to cwd when inside, otherwise absolute). Local runs only. */
@@ -376,6 +357,34 @@ export interface ExperimentsResponse {
   experiments: ExperimentSummary[];
 }
 
+/**
+ * Per-value summary for a selected tag key, as returned by
+ * `GET /api/tags?key=<k>`. `name` is the tag value (e.g. a team, env, or
+ * experiment name); the remaining fields mirror {@link ExperimentSummary}.
+ */
+export interface TagGroupSummary {
+  name: string;
+  run_count: number;
+  target_count: number;
+  eval_count: number;
+  quality_count?: number;
+  passed_count: number;
+  execution_error_count?: number;
+  pass_rate: number;
+  last_run: string | null;
+}
+
+/** `GET /api/tags` — the available tag keys for the group-by selector. */
+export interface TagKeysResponse {
+  keys: string[];
+}
+
+/** `GET /api/tags?key=<k>` — per-value summaries for the selected tag key. */
+export interface TagGroupsResponse {
+  key: string;
+  groups: TagGroupSummary[];
+}
+
 export interface CompareTestResult {
   test_id: string;
   /** Optional per-test category from the source eval result, when available. */
@@ -414,12 +423,6 @@ export interface CompareRunEntry {
   started_at: string;
   experiment: string;
   target: string;
-  tags?: string[];
-  remote_tags?: string[];
-  pending_tags?: string[];
-  metadata_dirty?: boolean;
-  final_state?: RunFinalState;
-  tag_revision?: string;
   source: 'local' | 'remote';
   eval_count: number;
   quality_count?: number;
@@ -436,16 +439,6 @@ export interface CompareResponse {
   cells: CompareCell[];
   /** Per-run entries, sorted newest first. */
   runs?: CompareRunEntry[];
-}
-
-export interface RunTagsResponse {
-  tags: string[];
-  remote_tags?: string[];
-  pending_tags?: string[];
-  metadata_dirty?: boolean;
-  final_state?: RunFinalState;
-  tag_revision: string;
-  updated_at: string;
 }
 
 export interface CombineDuplicateConflict {
@@ -466,7 +459,6 @@ export interface CombineRunsResponse {
   experiment: string;
   combined_from_run_ids: string[];
   duplicate_conflicts?: CombineDuplicateConflict[];
-  tags?: string[];
 }
 
 export interface TargetSummary {
@@ -676,7 +668,6 @@ export interface RunEvalRequest {
   test_ids?: string[];
   target?: string;
   experiment?: string;
-  tags?: string[];
   threshold?: number;
   workers?: number;
   /** Resume an interrupted run: skip already-completed tests and append to `output`. */

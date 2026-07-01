@@ -5,7 +5,7 @@
  * breadcrumbs, and regression tests all agree on the canonical URLs.
  */
 
-export type StudioTabId = 'runs' | 'experiments' | 'analytics' | 'targets';
+export type StudioTabId = 'runs' | 'tags' | 'analytics' | 'targets';
 
 export interface IndexRouteDecision {
   kind: 'dashboard' | 'single-project-home' | 'redirect';
@@ -85,10 +85,13 @@ export function matchesEvalResultIdentity(
   );
 }
 
-export function experimentPath(experimentName: string, projectId?: string): string {
-  return projectId
-    ? `/projects/${encodeURIComponent(projectId)}/experiments/${encodeURIComponent(experimentName)}`
-    : `/experiments/${encodeURIComponent(experimentName)}`;
+/**
+ * Path to a tag-value detail view (`/tags/<key>/<value>`), the generalization
+ * of the old experiment detail route. Group-by key defaults to `experiment`.
+ */
+export function tagValuePath(key: string, value: string, projectId?: string): string {
+  const suffix = `tags/${encodeURIComponent(key)}/${encodeURIComponent(value)}`;
+  return projectId ? `/projects/${encodeURIComponent(projectId)}/${suffix}` : `/${suffix}`;
 }
 
 export function jobPath(runId: string, projectId?: string): string {
@@ -113,8 +116,8 @@ export function runsHomePath(projectId?: string): string {
   return projectId ? projectHomePath(projectId, 'runs') : '/?tab=runs';
 }
 
-export function experimentsHomePath(projectId?: string): string {
-  return projectId ? projectHomePath(projectId, 'experiments') : '/?tab=experiments';
+export function tagsHomePath(projectId?: string): string {
+  return projectId ? projectHomePath(projectId, 'tags') : '/?tab=tags';
 }
 
 export function resolveInitialProjectRedirect(
