@@ -9,10 +9,10 @@ AgentV eval files are the runnable authoring artifact. Use top-level
 `description` for display metadata, `experiment` as the run/result grouping
 label, `target` for the system under test, and flat top-level run controls such
 as `repeat`, `timeout_seconds`, and `threshold`. Use `evaluate_options` for
-evaluation runtime options such as `budget_usd`.
-Concurrency is outside eval YAML. Use `agentv eval --workers N` or project
-config defaults such as `agentv.config.*` / `.agentv/config.yaml`
-`execution.workers` for operator-side parallelism.
+evaluation runtime options such as `budget_usd` and `max_concurrency`.
+Use `agentv eval --workers N` or project config defaults such as
+`agentv.config.*` / `.agentv/config.yaml` `execution.workers` for operator-side
+overrides.
 
 ```yaml
 name: support-regression
@@ -28,6 +28,7 @@ repeat:
 timeout_seconds: 720
 evaluate_options:
   budget_usd: 2.00
+  max_concurrency: 3
 
 workspace:
   hooks:
@@ -185,7 +186,8 @@ tests:
 
 Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and legacy
 per-case `budget_usd` overrides. Parent suite budgets should use
-`evaluate_options.budget_usd` for public eval authoring. Candidate-changing fields stay
+`evaluate_options.budget_usd` for public eval authoring. Use
+`evaluate_options.max_concurrency` for authored concurrency. Candidate-changing fields stay
 parent-level. Workspace mutation belongs in `workspace.hooks`, and
 provider-specific setup belongs in target configuration.
 
@@ -201,7 +203,7 @@ target-specific runner state.
 | Configure an agent runner or provider variant | `target` object or `targets.yaml` |
 | Choose the target | top-level `target` |
 | Override the target's default model | `target.model` |
-| Configure repeat policy, budget, timeout, threshold | top-level `repeat`, `evaluate_options.budget_usd`, `timeout_seconds`, `threshold` |
+| Configure repeat policy, budget, concurrency, timeout, threshold | top-level `repeat`, `evaluate_options.budget_usd`, `evaluate_options.max_concurrency`, `timeout_seconds`, `threshold` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml

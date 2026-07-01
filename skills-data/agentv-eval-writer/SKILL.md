@@ -29,7 +29,8 @@ entries still load with a migration warning, but new evals should use
 `imports.suites` or `imports.tests`. Use scoped `run:` on import entries or
 individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
 legacy `budget_usd`; keep target selection at top-level `target` or CLI `--target`,
-put suite budget caps under `evaluate_options.budget_usd`,
+put suite budget caps under `evaluate_options.budget_usd`, authored concurrency
+under `evaluate_options.max_concurrency`,
 and keep setup and workspace mutation under `workspace`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
@@ -750,6 +751,7 @@ Programmatic API notes:
 
 - Inline programmatic tests use `assert`, not `assertions`.
 - Use camelCase in TypeScript (`expectedOutput`, `beforeAll`, `budgetUsd`).
+- In YAML, use `evaluate_options.max_concurrency` for authored eval concurrency; reserve `workers` for project/target runtime config.
 - When bridging from Python, generate canonical YAML/JSONL or call the CLI; there is no separate first-party Python authoring SDK.
 
 Supports inline tests or file-based usage via `specFile`.

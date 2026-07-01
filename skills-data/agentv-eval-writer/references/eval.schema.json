@@ -14260,6 +14260,11 @@
               "type": "number",
               "exclusiveMinimum": true,
               "minimum": 0
+            },
+            "max_concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
             }
           },
           "additionalProperties": false

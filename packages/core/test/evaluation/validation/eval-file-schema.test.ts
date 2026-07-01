@@ -108,6 +108,7 @@ describe('EvalFileSchema input shorthand', () => {
       timeout_seconds: 300,
       evaluate_options: {
         budget_usd: 2,
+        max_concurrency: 3,
       },
       tests: [
         {
@@ -136,6 +137,18 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid evaluate_options.max_concurrency', () => {
+    const result = EvalFileSchema.safeParse({
+      target: 'codex',
+      evaluate_options: {
+        max_concurrency: 0,
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it('accepts default_test.threshold as the preferred inherited test threshold', () => {

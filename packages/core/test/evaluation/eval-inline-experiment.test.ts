@@ -117,6 +117,28 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     });
   });
 
+  it('parses evaluate_options.max_concurrency as suite workers', async () => {
+    const evalPath = path.join(tempDir, 'evaluate-options-concurrency.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: evaluate-options-concurrency-suite',
+        'target: codex',
+        'evaluate_options:',
+        '  max_concurrency: 2',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.workers).toBe(2);
+  });
+
   it('rejects authored workers in eval YAML runtime blocks', async () => {
     const cases = [
       {

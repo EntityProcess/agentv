@@ -10,6 +10,7 @@ import {
   extractTargetRefsFromSuite,
   extractTargetsFromSuite,
   extractThreshold,
+  extractWorkersFromSuite,
   loadConfig,
   parseExecutionDefaults,
   parseResultsConfig,
@@ -588,6 +589,28 @@ describe('extractBudgetUsd', () => {
   it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { budget_usd: 10.0 } };
     expect(() => extractBudgetUsd(suite)).toThrow(/Top-level 'execution'/);
+  });
+});
+
+describe('extractWorkersFromSuite', () => {
+  it('returns undefined when no max_concurrency', () => {
+    const suite: JsonObject = { tests: [] };
+    expect(extractWorkersFromSuite(suite)).toBeUndefined();
+  });
+
+  it('parses valid evaluate_options.max_concurrency', () => {
+    const suite: JsonObject = { evaluate_options: { max_concurrency: 5 } };
+    expect(extractWorkersFromSuite(suite)).toBe(5);
+  });
+
+  it('returns undefined for invalid max_concurrency', () => {
+    const suite: JsonObject = { evaluate_options: { max_concurrency: 0 } };
+    expect(extractWorkersFromSuite(suite)).toBeUndefined();
+  });
+
+  it('rejects authored execution blocks', () => {
+    const suite: JsonObject = { execution: { workers: 5 } };
+    expect(() => extractWorkersFromSuite(suite)).toThrow(/Top-level 'execution'/);
   });
 });
 

@@ -110,7 +110,7 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['assert', "'assert' has been removed. Use 'assertions' instead."],
   [
     'workers',
-    "'workers' has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.",
+    "'workers' has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.",
   ],
   ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
@@ -119,7 +119,7 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ],
   [
     'execution',
-    "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.",
+    "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.",
   ],
   ['runs', "Top-level 'runs' has been removed. Use repeat.count instead."],
   ['early_exit', "Top-level 'early_exit' has been removed. Use repeat.early_exit instead."],
@@ -578,7 +578,7 @@ function validateTestExecutionFields(
         filePath,
         location: `${location}.execution.workers`,
         message:
-          'tests[].execution.workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
+          'tests[].execution.workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
       });
       continue;
     }
@@ -624,7 +624,7 @@ function rejectWorkersField(
       severity: 'error',
       filePath,
       location: `${location}.workers`,
-      message: `${location}.workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+      message: `${location}.workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
     });
   }
   rejectTargetWorkers(raw.targets, `${location}.targets`, filePath, errors);
@@ -647,7 +647,7 @@ function rejectTargetWorkers(
       severity: 'error',
       filePath,
       location: `${location}[${index}].workers`,
-      message: `${location}[${index}].workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+      message: `${location}[${index}].workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
     });
   });
 }
@@ -1118,7 +1118,7 @@ function validateEvaluateOptions(
   }
 
   for (const key of Object.keys(evaluateOptions)) {
-    if (key !== 'budget_usd') {
+    if (key !== 'budget_usd' && key !== 'max_concurrency') {
       errors.push({
         severity: 'warning',
         filePath,
@@ -1135,6 +1135,22 @@ function validateEvaluateOptions(
       filePath,
       location: `${location}.budget_usd`,
       message: "Invalid 'budget_usd' field (must be a positive number)",
+    });
+  }
+
+  const maxConcurrency = evaluateOptions.max_concurrency;
+  if (
+    maxConcurrency !== undefined &&
+    (typeof maxConcurrency !== 'number' ||
+      !Number.isInteger(maxConcurrency) ||
+      maxConcurrency < 1 ||
+      maxConcurrency > 50)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.max_concurrency`,
+      message: "Invalid 'max_concurrency' field (must be an integer between 1 and 50)",
     });
   }
 }

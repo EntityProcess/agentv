@@ -414,6 +414,7 @@ const DefaultTestSchema = z
 const EvaluateOptionsSchema = z
   .object({
     budget_usd: z.number().gt(0).optional(),
+    max_concurrency: z.number().int().min(1).max(50).optional(),
   })
   .strict();
 

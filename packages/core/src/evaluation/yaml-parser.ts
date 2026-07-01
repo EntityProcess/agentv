@@ -346,7 +346,7 @@ export type EvalSuiteResult = {
   readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
   /** Single authored target string or eval-local overlay object. */
   readonly targetSpec?: EvalTargetSpec;
-  /** Suite-level workers from project config or CLI, not authored eval YAML. */
+  /** Suite-level concurrency from evaluate_options.max_concurrency. */
   readonly workers?: number;
   /** Suite-level cache config from project/CLI runtime surfaces. */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
@@ -920,7 +920,7 @@ function rejectAuthoredWorkers(parsed: JsonObject): void {
   }
 
   throw new Error(
-    `${locations[0]} has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+    `${locations[0]} has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
   );
 }
 
@@ -1460,7 +1460,7 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.execution !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.`,
     );
   }
   if (suite.model !== undefined) {

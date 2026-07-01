@@ -270,7 +270,7 @@ function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
   }
   if (suite.execution !== undefined) {
     throw new Error(
-      "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.",
+      "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.",
     );
   }
 }
@@ -422,11 +422,19 @@ export function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
 }
 
 /**
- * Eval YAML does not own concurrency.
+ * Extract suite-level max concurrency from eval YAML.
+ *
+ * Preferred authoring uses evaluate_options.max_concurrency, matching the
+ * lowest-common-denominator naming used by other eval runners. Internal
+ * TypeScript continues to pass this as workers/maxConcurrency at runtime.
  */
 export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
-  rejectAuthoredRuntimeContainers(suite);
-  return undefined;
+  return getSuiteEvaluateOptionsNumber(
+    suite,
+    'max_concurrency',
+    (value) => Number.isInteger(value) && value >= 1 && value <= 50,
+    'max_concurrency. Must be an integer between 1 and 50',
+  );
 }
 
 /**

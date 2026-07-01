@@ -898,6 +898,39 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('uses evaluate_options.max_concurrency as the eval-authored concurrency limit', async () => {
+    const fixture = await createFixture();
+    try {
+      const evalPath = path.join(fixture.suiteDir, 'max-concurrency.eval.yaml');
+      await writeFile(
+        evalPath,
+        [
+          'name: max-concurrency',
+          'target: file-target',
+          'evaluate_options:',
+          '  max_concurrency: 2',
+          'tests:',
+          '  - id: first-case',
+          '    input: first',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { exitCode } = await runCli(fixture, ['eval', evalPath]);
+
+      expect(exitCode).toBe(0);
+      const diagnostics = await readDiagnostics(fixture);
+      expect(diagnostics).toMatchObject({
+        maxConcurrency: 2,
+        evalCaseIds: ['first-case'],
+      });
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('records CLI-named experiment namespace separately from default runtime config', async () => {
     const fixture = await createFixture();
     try {
