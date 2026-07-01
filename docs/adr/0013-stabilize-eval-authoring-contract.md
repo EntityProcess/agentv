@@ -55,13 +55,16 @@ The preferred eval authoring contract is:
 name: code-generation-quality
 experiment: with-skills
 target: copilot-sdk
-repeat:
-  count: 3
-  strategy: pass_any
-  early_exit: false
-budget_usd: 5
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: false
+  budget_usd: 5
+default_test:
+  threshold: 0.8
 gate:
-  min_case_pass_rate: 0.95
+  min_test_pass_rate: 0.95
   max_execution_errors: 0
 tests:
   - id: fizzbuzz
@@ -97,6 +100,20 @@ comparison semantics.
 targets can be agents, model providers, gateways, replay targets, CLI wrappers,
 transcript providers, or future service wrappers.
 
+`evaluate_options` is the preferred home for runner-level execution controls.
+This follows promptfoo's separation between test definitions and evaluation
+runner options while keeping AgentV's field names in snake_case. The v1 preferred
+surface is intentionally small: `repeat`, `budget_usd`, and optional timeout
+fields when a suite needs a finite cap. Omitted timeout fields mean unlimited by
+default. Concurrency remains an operator/project/target setting, not authored
+eval YAML.
+
+`default_test` is the preferred home for inherited per-test defaults. The first
+default worth standardizing is `threshold`, because it is a per-test score cutoff
+used to classify individual results, not a suite-level release gate. Additional
+defaults such as inherited assertions may be added only when implementation work
+defines clear merge and override rules.
+
 `tests` remains the preferred authored collection name, and each authored test
 case uses `id`. AgentV may use "case" or "test case" in prose when describing an
 individual row, but the wire contract remains `tests[]` because that matches the
@@ -110,11 +127,11 @@ payloads, gate command input, and other result rows. CLI filters continue to use
 
 `gate` replaces scalar `threshold` in the preferred schema. Gate is a top-level
 suite/run policy that evaluates the completed run. It is not an assertion and
-not a per-case inline field. The v1 built-in surface is intentionally small:
+not a per-test inline field. The v1 built-in surface is intentionally small:
 
 ```yaml
 gate:
-  min_case_pass_rate: 0.95
+  min_test_pass_rate: 0.95
   max_execution_errors: 0
   command: ["bun", "./gates/case-policy.ts"]
   timeout_ms: 60000
@@ -145,8 +162,10 @@ explicit compatibility decision for existing shipped fields:
 - `test_id` remains the preferred flattened result/API/gate identity field.
 - `--test-id` remains the preferred CLI filter for selecting authored test
   cases.
-- `threshold` should be removed from examples and preferred schema docs, then
-  either hard-corrected or deprecated based on release evidence.
+- Top-level `repeat`, `budget_usd`, and timeout fields should remain readable
+  during migration, with `evaluate_options` preferred in new docs.
+- Top-level `threshold` should remain readable during migration, with
+  `default_test.threshold` preferred in new docs.
 - Existing result tags and Dashboard tag mutation are out of scope for eval YAML
   removal. They remain a result-annotation feature unless a separate ADR removes
   them.
