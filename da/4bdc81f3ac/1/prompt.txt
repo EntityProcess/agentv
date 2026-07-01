@@ -1,0 +1,5 @@
+Can you review our beads that are currently open and let me know if any of them are stale and it should be closed
+
+---
+
+Can you spawn workers to confirm from the code base and PR's merged whether the beads can be closed

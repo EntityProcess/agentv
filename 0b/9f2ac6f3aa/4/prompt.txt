@@ -1,0 +1,63 @@
+currently the home .agentv/config.yaml is stil lusing old config shape. do you think the reuslts repo should allow specifying results repo remote and repo path? won't that lead to side effects such as changing an existing repo's remote?
+
+---
+
+so what happens if i define both simulteanously
+
+---
+
+we should remoe the flat remote field if that's deprecated do you agree. also we should show warning if both repo remote and repo path is defined
+
+---
+
+we did research in beads dolt in ai-research-wiki. maybe ask deepwiki about https://github.com/gastownhall/beads what is the config structure of beads. how does beads do remote name. does it allow configuring that
+
+---
+
+but results is nearly always a repo so it makes flat sufficient
+
+---
+
+would this work.
+
+projects:
+    repo: org/frontend
+    path: ~/frontend
+    branch: main
+    results:
+        repo: org/frontend
+        path: ~/frontend
+        branch: agentv/results/v1
+        auto_push: true
+
+---
+
+i meant change the schema to be more simple
+
+---
+
+it seems you were stuck, should be simple change
+
+---
+
+Use the skill tool to invoke the "worktree" skill, then follow the skill's instructions to help with: I think name is redundant, just rely on ID. we display the id instead. fix that in new worktree.
+
+---
+
+yes please proceed with removing name.
+
+---
+
+have we created a PR to merge this if not then do it
+
+---
+
+let's remove the workmax sessions then
+
+---
+
+yes. also for branches with no active worker check if they got merged already and should be discarded. they look stale.
+
+---
+
+you can close that its been superseeded and clean it up

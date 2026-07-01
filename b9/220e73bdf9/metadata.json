@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "b9220e73bdf9",
+  "strategy": "manual-commit",
+  "branch": "fix/copilot-sdk-azure-target",
+  "checkpoints_count": 44,
+  "files_touched": [
+    ".agentv/targets.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b9/220e73bdf9/0/metadata.json",
+      "transcript": "/b9/220e73bdf9/0/full.jsonl",
+      "content_hash": "/b9/220e73bdf9/0/content_hash.txt",
+      "prompt": "/b9/220e73bdf9/0/prompt.txt"
+    },
+    {
+      "metadata": "/b9/220e73bdf9/1/metadata.json",
+      "transcript": "/b9/220e73bdf9/1/full.jsonl",
+      "content_hash": "/b9/220e73bdf9/1/content_hash.txt",
+      "prompt": "/b9/220e73bdf9/1/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5374582,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 130123392,
+    "output_tokens": 344306,
+    "api_call_count": 1077
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-06-26T22:25:34.52133945Z",
+    "agent_lines": 3,
+    "agent_removed": 4,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 7,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

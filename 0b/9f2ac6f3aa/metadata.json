@@ -1,0 +1,71 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "0b9f2ac6f3aa",
+  "strategy": "manual-commit",
+  "branch": "preserve/main-showcase-uncommitted-before-file-changes-merge",
+  "checkpoints_count": 96,
+  "files_touched": [
+    "examples/showcase/cross-repo-sync/evals/dataset.eval.yaml",
+    "examples/showcase/cross-repo-sync/scripts/run-ts.sh",
+    "examples/showcase/cross-repo-sync/scripts/validate-sync.ts",
+    "examples/showcase/cross-repo-sync/workspace-template/mock-agent.sh",
+    "examples/showcase/export-screening/evals/validate_risk_output.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0b/9f2ac6f3aa/0/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/0/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/0/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/0/prompt.txt"
+    },
+    {
+      "metadata": "/0b/9f2ac6f3aa/1/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/1/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/1/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/1/prompt.txt"
+    },
+    {
+      "metadata": "/0b/9f2ac6f3aa/2/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/2/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/2/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/2/prompt.txt"
+    },
+    {
+      "metadata": "/0b/9f2ac6f3aa/3/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/3/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/3/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/3/prompt.txt"
+    },
+    {
+      "metadata": "/0b/9f2ac6f3aa/4/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/4/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/4/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/4/prompt.txt"
+    },
+    {
+      "metadata": "/0b/9f2ac6f3aa/5/metadata.json",
+      "transcript": "/0b/9f2ac6f3aa/5/full.jsonl",
+      "content_hash": "/0b/9f2ac6f3aa/5/content_hash.txt",
+      "prompt": "/0b/9f2ac6f3aa/5/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 73043345,
+    "cache_creation_tokens": 641125,
+    "cache_read_tokens": 152354601,
+    "output_tokens": 708283,
+    "api_call_count": 1973
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-06-30T13:34:42.636663485Z",
+    "agent_lines": 16,
+    "agent_removed": 5,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 16,
+    "total_lines_changed": 21,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
