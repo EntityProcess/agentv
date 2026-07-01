@@ -12,10 +12,10 @@ Sources analyzed (all cloned locally, read-only):
 
 **Goal — AgentV's eval contract is a strict SUPERSET of promptfoo.** Adopt promptfoo's `promptfooconfig.yaml` authoring surface verbatim (field names + semantics), then layer AgentV's repo/agent value-adds on top. The success property is:
 
-> **Any promptfoo config, mechanically snake_cased, is a valid AgentV eval that runs with equivalent semantics.** AgentV additionally accepts more (bare-string asserts, `workspace`, `gate`, agentic judges, multi-turn, …).
+> **Any promptfoo config, mechanically snake_cased, is a valid AgentV eval that runs with equivalent semantics.** AgentV additionally accepts more (bare-string asserts, repo/fixture materialization via a built-in extension, `gate`, agentic judges, multi-turn, …) — all through promptfoo-native surfaces (`vars`, `extensions`), not new top-level concepts.
 
 Two consequences of "superset":
-- **Compatibility is one-way, and that is the design** — promptfoo ⊆ AgentV. AgentV extensions that promptfoo rejects (bare-string asserts, `workspace`, etc.) are the superset, not a defect.
+- **Compatibility is one-way, and that is the design** — promptfoo ⊆ AgentV. AgentV extensions that promptfoo rejects (bare-string asserts, the built-in `agentv:workspace` extension, etc.) are the superset, not a defect.
 - **snake_case caveat.** The superset is over *snake_cased* promptfoo. A literal camelCase promptfoo file needs a mechanical camel→snake transform to run (we ship that transform / importer). This is the one deliberate wire divergence.
 
 Borrow runner/analytics from margin-lab and transcripts/agentic-graders from vercel-agent-eval.
@@ -47,7 +47,7 @@ This is the format we are cloning. Field names are promptfoo's, mechanically sna
 | `output_path` (`outputPath`) | *(map to fixed bundle)* | AgentV writes `.agentv/results/` — keep bundle, accept `output_path` as an extra export sink |
 | `env` | `env` | provider env overrides |
 | `nunjucks_filters` (`nunjucksFilters`) | `nunjucks_filters` | depends on templating decision (2.f) |
-| `extensions` | *(map to `on_run_complete` / hooks)* | AgentV already has richer hooks; alias |
+| `extensions` | `extensions` | **canonical lifecycle surface** (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`). `on_run_complete`, `preprocessors`, `workspace.hooks` are REMOVED and fold into this (see 2.l) |
 | `metadata` | `metadata` | exists |
 | `evaluate_options` (`evaluateOptions`) | `evaluate_options` | widen (see 1.6) |
 | `sharing`, `redteam`, `tracing` | — | out of scope / Phoenix boundary |
@@ -218,7 +218,30 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 - **D — keep both:** adopt promptfoo `threshold` (same concept, per-test score cutoff) **and** keep AgentV `gate` (better semantics for release gating; no promptfoo equivalent). Different levels, both stay.
 
 ### 2.i AgentV-only fields promptfoo lacks (preserve, don't lose)
-`workspace` (`template`/`repos`/`hooks`/`docker`/`isolation`/`env`), `gate` (executable release policy), `imports`/`include`/`select`, `preprocessors`, multi-turn (`mode: conversation`/`turns`/`aggregation`), `depends_on`/`on_dependency_failure`, `conversation_id`, `on_run_complete`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3).
+`gate` (executable release policy), `imports`/`include`/`select`, multi-turn (`mode: conversation`/`turns`/`aggregation`), `depends_on`/`on_dependency_failure`, `conversation_id`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3). (Workspace, `on_run_complete`, `preprocessors` are handled by 2.l, not kept as-is.)
+
+### 2.l Workspace is dataset + a built-in extension; NO new top-level concept; `on_run_complete` removed
+- **Principle (owner decision):** don't invent a top-level `workspace:` block, and don't keep AgentV-specific lifecycle keys. Align maximally with promptfoo. Both reference frameworks agree workspace **is part of the dataset** — vercel: a case *is* a fixture dir; margin-lab: a case *is* a Docker image + tests.
+- **D — one lifecycle surface: promptfoo `extensions`.** `beforeAll`/`afterAll`/`beforeEach`/`afterEach`. **Remove** `on_run_complete` (= `afterAll`), `preprocessors`, and `workspace.hooks` — they collapse into `extensions` (hard, major version).
+- **D — workspace spec = dataset data (`vars`), not a schema block.** The repo/fixture spec rides as a `var` (per-test or `default_test`, `file://`-loadable). This is literally what your promptfoo parity example does (`workspace.yaml` + `vars`). No new concept; matches vercel (fixture=case) and margin (image=case).
+- **D — ship a built-in, auto-registered, overridable extension `agentv:workspace`.** It does what the parity example hand-rolls (git materialization + mirror cache à la margin's image cache; optional docker isolation; per-case fixture copy à la vercel) — but in the box. It **validates** the `vars.workspace` shape (recovers the safety a schema block would give) and writes the materialized path back into `vars`/context so the target picks up `cwd` (cleaner than promptfoo's `PROMPTFOO_*` env side-channel).
+- **D — isolation = the hook name in the extension reference (verified promptfoo mechanism).** promptfoo (`src/evaluatorHelpers.ts:633`) has `EXTENSION_HOOK_NAMES = {beforeAll, beforeEach, afterEach, afterAll}`: if the function named after the last `:` is exactly a hook name, it runs **only** at that phase; any other name = generic handler run at all phases. So:
+  - `extensions: [agentv:workspace:beforeAll]` → **shared** workspace (materialize once for the run).
+  - `extensions: [agentv:workspace:beforeEach]` → **per-case** workspace (context carries the test's `vars.workspace`).
+  Isolation is expressed by *which hook you reference* — no `isolation:` enum needed. Registering both (or a generic `agentv:workspace`) makes the built-in dispatch across phases (beforeAll = shared base + mirror cache; beforeEach = clone/copy per case; afterEach = reset/clean).
+- **Shape:**
+  ```yaml
+  targets: file://targets/reviewer.yaml
+  extensions:
+    - agentv:workspace:beforeAll        # shared; use :beforeEach for per-case
+  default_test:
+    vars:
+      workspace:                        # dataset data, not a top-level block
+        repos:
+          - { path: ./CargoWise, repo: https://…/CargoWise.git, commit: 953adb9 }
+  tests: file://cases.yaml              # a row may override vars.workspace (per-case fixture)
+  ```
+- **Import mapping:** a promptfoo `extensions: [file://mat.ts:beforeAll]` that materializes a dir maps 1:1 onto AgentV `extensions` (same hook semantics); the dir it builds becomes `vars.workspace` consumed by `agentv:workspace`.
 
 ---
 
@@ -226,12 +249,14 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 
 These have no promptfoo equivalent and are AgentV's differentiation. Keep them, document them as extensions layered above the promptfoo-compatible core:
 
-- **Repo/workspace materialization**: `workspace.repos[]` (commit/base_commit/sparse/ancestor), `template`, `isolation`, `docker`, `env.required_commands`, `hooks.{before,after}_{all,each}` with `reset` modes.
+- **Repo/fixture materialization — via dataset `vars` + the built-in `agentv:workspace` extension, NOT a top-level `workspace:` block** (see 2.l). The materialization capability (git repos at pinned commits + mirror cache, docker isolation, per-case fixture copy) is preserved; only the *authoring surface* changes — it rides promptfoo's `vars` + `extensions`.
 - **Executable `gate`** release policy (`min_test_pass_rate`, `max_execution_errors`, command receiving run JSON).
 - **Agent target providers**: CLI/SDK/codex/copilot/claude/replay/transcript, `use_target` indirection, `fallback_targets`, `grader_target`.
 - **Code-grader SDK** (`@agentv/sdk`): `define_assertion`/`define_code_grader`/`define_workspace_grader`/`define_vitest_workspace_grader`.
-- **Multi-turn conversations**, `depends_on` DAG, `imports`/`select` suite composition, `preprocessors`.
+- **Multi-turn conversations**, `depends_on` DAG, `imports`/`select` suite composition.
 - **Trajectory / execution-metrics / field-accuracy** graders.
+
+Removed (folded into promptfoo `extensions`, see 2.l): top-level `workspace:` block, `workspace.hooks`, `on_run_complete`, `preprocessors`.
 
 ---
 
