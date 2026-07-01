@@ -353,6 +353,25 @@ So: **split detail** (per-case/per-attempt dirs, transcript by path) + a **margi
 
 - **Don't over-split.** Keep the agentskills-aligned split (`grading.json`, `timing.json`), transcript-by-path, and the inlined `transcript_summary`; don't add more sidecars. Remove deprecated/duplicate artifact paths (see §10, e.g. `isDeprecatedTraceArtifactPath`).
 
+### 6.0.1 Bundle layout & naming — resolve the index/manifest drift (ADR-0012 refinement)
+Current drift (verified): the per-case index file is `index.jsonl` (`RESULT_INDEX_FILENAME`) but `summary.json` references it as **`manifest_path`** and the resolver is `resolveExistingResultManifestPath()` — "index" and "manifest" name the *same* file. Fix by giving three distinct roles distinct names, and adopt margin-lab's `internal/` folder (dot-prefixed to match AgentV's "dot = skip discovery" convention):
+
+```
+.agentv/results/<run_id>/
+  summary.json          # run-level queryable aggregate (margin `results.json` role) — root, human-facing
+  <test-id>/…           # per-case detail dirs (the discoverable children)
+  .internal/            # machine-coordination (margin's internal/ + AgentV dot-prefix skip)
+    index.jsonl         # row-per-case pointer table (moved off the root)
+    progress.json       # live progress
+    events.jsonl        # state/event stream
+    bundle.json         # frozen resolved config (optional; the "manifest")
+```
+Decisions:
+- **`index.jsonl` stays JSONL** (append-as-you-go for live progress + `--rerun-failed`; streamable; line-queryable). NOT `index.json` (would force whole-file rewrites, not streamable).
+- **Rename the reference `manifest_path` → `index_path`** (+ `resolveExistingResultIndexPath`) so file and field agree. Reserve **"manifest"/`bundle.json`** for the frozen-config file only.
+- **`summary.json`** = the queryable aggregate (do not call it a manifest).
+- Move machine files (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`) into per-run **`.internal/`**; keep the run root clean (`summary.json` + per-case dirs). Cross-run `.indexes/`/`.cache/` at the results root are a separate scope and stay.
+
 - **Keep** `.agentv/results/<run_id>/` bundle (ADR-0011/0012). Reconcile field names with margin-lab's `results.json` `Summary` where useful.
 - **Analytics = one pure function** (margin-lab's `runresults.Build`): given instances+results, produce a deterministic `Summary` with per-case **pass@k** (`pass_count`/`pass_rate` over samples), `status` breakdown, `usage` aggregation, and infra-failure taxonomy. AgentV currently lacks pass@k/variance — this fills it.
 - Add promptfoo-shaped **`named_scores`** + **`derived_metrics`** to per-result rows (feeds Dashboard Tags/metrics tabs).
