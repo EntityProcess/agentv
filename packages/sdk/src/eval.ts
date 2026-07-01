@@ -204,12 +204,23 @@ export interface EvalDefinition {
   readonly category?: string;
   readonly version?: string;
   readonly author?: string;
-  readonly tags?: readonly string[];
+  /**
+   * Suite tags. Either the selection list form (`string[]`, drives
+   * `select.tags` / `--tag name` filtering) or the promptfoo-shaped
+   * `Record<string,string>` map. In the map form the reserved `experiment` key
+   * labels the run/experiment (grouped by the Dashboard), matching
+   * `tags.experiment` in YAML evals.
+   */
+  readonly tags?: readonly string[] | Readonly<Record<string, string>>;
   readonly license?: string;
   readonly requires?: EvalRequires;
   readonly input?: string | readonly EvalMessage[];
   readonly inputFiles?: readonly string[];
   readonly tests: readonly EvalTest[] | string;
+  /**
+   * @deprecated A top-level `experiment` label no longer sets the run's
+   * experiment namespace. Use `tags: { experiment: '<name>' }` instead.
+   */
   readonly experiment?: string;
   readonly target?: string | EvalTargetConfig;
   readonly repeat?: EvalRepeat;

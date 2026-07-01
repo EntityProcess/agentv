@@ -194,6 +194,30 @@ describe('YAML-aligned eval authoring helpers', () => {
     expect(yaml).not.toContain('inputFiles');
   });
 
+  it('preserves a promptfoo-shaped tags map (tags.experiment) without mangling keys', () => {
+    const suite = defineEval({
+      name: 'sdk-tags-map',
+      tags: { experiment: 'sdk-baseline', team: 'compliance' },
+      target: 'mock-target',
+      tests: [{ id: 'hello', input: 'Say hello', assertions: [{ type: 'contains', value: 'hi' }] }],
+    });
+
+    const lowered = toEvalYamlObject(suite);
+    expect(lowered.tags).toEqual({ experiment: 'sdk-baseline', team: 'compliance' });
+  });
+
+  it('keeps the list form of tags for selection', () => {
+    const suite = defineEval({
+      name: 'sdk-tags-list',
+      tags: ['smoke', 'regression'],
+      target: 'mock-target',
+      tests: [{ id: 'hello', input: 'Say hello', assertions: [{ type: 'contains', value: 'hi' }] }],
+    });
+
+    const lowered = toEvalYamlObject(suite);
+    expect(lowered.tags).toEqual(['smoke', 'regression']);
+  });
+
   it('rejects removed experiment authoring blocks', () => {
     expect(() =>
       defineEval({
