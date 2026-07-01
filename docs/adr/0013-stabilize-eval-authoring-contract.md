@@ -1,4 +1,4 @@
-# 13. Stabilize eval authoring around experiment, cases, and gate
+# 13. Stabilize eval authoring around experiment, tests, and gate
 
 Date: 2026-07-01
 
@@ -27,13 +27,17 @@ Recent same-week proposals tried a few competing names:
 
 - removing top-level `experiment` in favor of `policy` or derived labels;
 - adding or preserving top-level `tags` as another grouping primitive;
-- keeping `tests` / `test_id` as the public case vocabulary;
+- renaming `tests` / `test_id` to `cases` / `case_id`;
 - keeping scalar `threshold` as the CI gate.
 
 Those proposals made the contract less direct. Public peer systems also support
 keeping `experiment` as the grouping concept: Vercel `agent-eval` names
 experiment config files and result groups as experiments, while Convex Evals
-stores and aggregates runs by experiment. In contrast, `tags` is usually a
+stores and aggregates runs by experiment. Promptfoo also keeps the authored
+collection as `tests` while describing each item as a test case; AgentV's test
+objects have richer workspace and harness semantics, but the suite-file ->
+`tests[]` -> test-case hierarchy is still close enough that renaming the public
+field would create more churn than clarity. In contrast, `tags` is usually a
 many-valued classification or annotation mechanism, not the single condition
 being compared. Agentskills' skill-eval examples call `with_skill` and
 `without_skill` configurations, which is useful language for that project but
@@ -49,7 +53,7 @@ The preferred eval authoring contract is:
 
 ```yaml
 name: code-generation-quality
-experiment: backend-with-skills
+experiment: with-skills
 target: copilot-sdk
 repeat:
   count: 3
@@ -60,7 +64,7 @@ budget_usd: 5
 gate:
   min_case_pass_rate: 0.95
   max_execution_errors: 0
-cases:
+tests:
   - id: fizzbuzz
     input: Write FizzBuzz in Python
     assertions:
@@ -80,7 +84,9 @@ not to the display name.
 `experiment` remains the optional top-level string run/result grouping label.
 It names the condition being measured, such as `baseline`, `candidate`,
 `with-skills`, or `without-skills`. It is not a runtime-policy object, not a
-separate artifact type, and not a storage path namespace.
+separate artifact type, and not a storage path namespace. It should not repeat
+the suite name, category, target, provider, or model; those are separate
+dimensions in run metadata.
 
 Top-level `description` is not part of the preferred eval authoring contract.
 Existing files that contain it may be read as legacy display metadata, but it
@@ -92,19 +98,16 @@ comparison semantics.
 targets can be agents, model providers, gateways, replay targets, CLI wrappers,
 transcript providers, or future service wrappers.
 
-`cases` is the preferred authored collection name, and each authored case uses
-`id`. Inside `cases[]`, `case_id` is redundant because the object is already
-case-scoped.
+`tests` remains the preferred authored collection name, and each authored test
+case uses `id`. AgentV may use "case" or "test case" in prose when describing an
+individual row, but the wire contract remains `tests[]` because that matches the
+existing AgentV surface and the common suite-file -> tests -> test-case hierarchy
+in peer declarative eval tools.
 
-`case_id` is the preferred flattened identity field where a record is not
-already scoped to one case, including `index.jsonl`, Dashboard/API payloads,
-gate command input, and other result rows. CLI filters use `--case-id` for the
-same reason: the flag sits beside other dimensions such as eval path, target,
-run, and project.
-
-`tests` and `test_id` are legacy compatibility names only. If an eval file uses
-both `cases` and `tests`, validation should reject the file with an explicit
-conflict instead of merging them.
+`test_id` remains the preferred flattened identity field where a record is not
+already scoped to one test case, including `index.jsonl`, Dashboard/API
+payloads, gate command input, and other result rows. CLI filters continue to use
+`--test-id`.
 
 `gate` replaces scalar `threshold` in the preferred schema. Gate is a top-level
 suite/run policy that evaluates the completed run. It is not an assertion and
@@ -138,14 +141,11 @@ be confused with eval YAML schema.
 This ADR defines the preferred contract. Implementation work must still make an
 explicit compatibility decision for existing shipped fields:
 
-- `tests` should remain readable as the legacy authored collection name during
-  the case-vocabulary migration, with `cases` preferred in new docs.
-- `tests[].id` remains readable for legacy authored cases; new authored cases
-  should use `cases[].id`.
-- `test_id` should remain readable for legacy flattened result rows, with
-  `case_id` preferred in new artifact/API/gate rows.
-- `--test-id` should remain a deprecated alias for `--case-id` until the CLI
-  compatibility window is closed.
+- `tests` remains the preferred authored collection name.
+- `tests[].id` remains the preferred authored test-case identifier.
+- `test_id` remains the preferred flattened result/API/gate identity field.
+- `--test-id` remains the preferred CLI filter for selecting authored test
+  cases.
 - `threshold` should be removed from examples and preferred schema docs, then
   either hard-corrected or deprecated based on release evidence.
 - Existing result tags and Dashboard tag mutation are out of scope for eval YAML
@@ -165,7 +165,7 @@ Positive:
 
 Negative:
 
-- Older ADRs and examples that mention `policy`, top-level `tags`, `tests`, or
+- Older ADRs and examples that mention `policy`, top-level `tags`, `cases`, or
   scalar `threshold` need cleanup or explicit supersession notes.
 - Implementations need compatibility readers until current users and run
   artifacts have migrated.
