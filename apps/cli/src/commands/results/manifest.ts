@@ -28,6 +28,8 @@ export interface ResultManifestRecord {
   readonly suite?: string;
   readonly category?: string;
   readonly experiment?: string;
+  /** promptfoo-shaped tag map (`Record<string,string>`), e.g. `{experiment, team, env}`. */
+  readonly tags?: Record<string, string>;
   readonly target?: string;
   readonly variant?: string;
   readonly score: number;
@@ -315,6 +317,8 @@ export interface LightweightResultRecord {
   readonly target?: string;
   readonly variant?: string;
   readonly experiment?: string;
+  /** promptfoo-shaped tag map from the JSONL row's `tags` field. */
+  readonly tags?: Record<string, string>;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
   readonly executionStatus?: string;
@@ -322,6 +326,24 @@ export interface LightweightResultRecord {
   readonly costUsd?: number;
   readonly timestamp?: string;
   readonly runtimeSource?: RunRuntimeSourceMetadata;
+}
+
+/**
+ * Coerce a raw JSONL `tags` value into a `Record<string,string>`, dropping
+ * non-string values. Returns undefined when the map is absent or empty so the
+ * lightweight record stays sparse for old runs that never wrote a tags map.
+ */
+function normalizeTagMap(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const entries: [string, string][] = [];
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw === 'string') {
+      entries.push([key, raw]);
+    }
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 export function loadLightweightResults(sourceFile: string): LightweightResultRecord[] {
@@ -335,6 +357,7 @@ export function loadLightweightResults(sourceFile: string): LightweightResultRec
     target: record.target,
     variant: record.variant,
     experiment: record.experiment,
+    tags: normalizeTagMap(record.tags),
     score: record.score,
     scores: record.scores,
     executionStatus: record.execution_status,

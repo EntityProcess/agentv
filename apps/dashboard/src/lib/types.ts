@@ -32,6 +32,13 @@ export interface RunMeta {
   size_bytes: number;
   target?: string;
   experiment?: string;
+  /**
+   * promptfoo-shaped tag map (`Record<string,string>`) resolved for this run,
+   * e.g. `{experiment: "v2", team: "core", env: "ci"}`. Lets the client group
+   * and filter runs by an arbitrary tag key. Distinct from the legacy manual
+   * per-run label chips (now removed).
+   */
+  run_tags?: Record<string, string>;
   runtime_source?: RunRuntimeSource;
   source: 'local' | 'remote';
   /**

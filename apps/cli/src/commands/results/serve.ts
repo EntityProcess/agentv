@@ -1573,6 +1573,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
       let target = m.target;
       let experiment = m.experiment ?? inferExperimentFromRunId(m.raw_filename);
       const summaryMetadata = readRunSummaryMetadataForDashboard(m.path);
+      let runTags: Record<string, string> | undefined = summaryMetadata.tags;
       let runtimeSource: RunRuntimeSourceMetadata | undefined = summaryMetadata.runtimeSource;
       let timestamp = m.timestamp;
       let testCount = m.testCount;
@@ -1587,6 +1588,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
           const qualitySummary = summarizeQualityResults(records, passThreshold);
           target = records[0].target;
           experiment = records[0].experiment ?? experiment;
+          runTags = records[0].tags ?? runTags;
           timestamp =
             hasUsableTimestamp(timestamp) || !records[0].timestamp
               ? timestamp
@@ -1632,6 +1634,7 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
         on_remote: m.on_remote,
         ...(target && { target }),
         ...(experiment && { experiment }),
+        ...(runTags && { run_tags: runTags }),
         ...(runtimeSource && { runtime_source: runtimeSource }),
         ...tagFields,
         ...(liveStatus && { status: liveStatus }),
@@ -1746,8 +1749,27 @@ function attachExternalTraceFields<T extends Record<string, unknown>>(
 interface RunSummaryMetadataForDashboard {
   readonly evalFile?: string;
   readonly experiment?: string;
+  readonly tags?: Record<string, string>;
   readonly plannedTestCount?: number;
   readonly runtimeSource?: RunRuntimeSourceMetadata;
+}
+
+/**
+ * Coerce a summary.json `metadata.tags` value into a `Record<string,string>`,
+ * dropping non-string values. Returns undefined for absent/empty maps so old
+ * runs (no tags map) stay sparse.
+ */
+function normalizeSummaryTagMap(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const entries: [string, string][] = [];
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw === 'string') {
+      entries.push([key, raw]);
+    }
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 function readRunSummaryMetadataForDashboard(manifestPath: string): RunSummaryMetadataForDashboard {
@@ -1760,16 +1782,19 @@ function readRunSummaryMetadataForDashboard(manifestPath: string): RunSummaryMet
       metadata?: {
         eval_file?: string;
         experiment?: string;
+        tags?: Record<string, unknown>;
         planned_test_count?: number;
         runtime_source?: RunRuntimeSourceMetadata;
       };
     };
     const planned = parsed.metadata?.planned_test_count;
+    const tags = normalizeSummaryTagMap(parsed.metadata?.tags);
     return {
       ...(typeof parsed.metadata?.eval_file === 'string' &&
         parsed.metadata.eval_file.trim() && { evalFile: parsed.metadata.eval_file.trim() }),
       ...(typeof parsed.metadata?.experiment === 'string' &&
         parsed.metadata.experiment.trim() && { experiment: parsed.metadata.experiment.trim() }),
+      ...(tags && { tags }),
       ...(typeof planned === 'number' &&
         Number.isFinite(planned) &&
         planned > 0 && { plannedTestCount: planned }),
