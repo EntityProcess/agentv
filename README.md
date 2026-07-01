@@ -18,8 +18,9 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by name from `targets.yaml` or with an eval-local target object.
-- **Experiment** is the run/result grouping label being measured over that corpus, such as `backend-with-skills` or `backend-without-skills`.
-- **Per-test defaults / run controls** configure inherited score cutoffs, repeats, timeouts, budgets, and completion hooks with fields such as `default_test.threshold`, `repeat`, `timeout_seconds`, `budget_usd`, and `on_run_complete`.
+- **Experiment** is the run/result grouping label being measured over that corpus, such as `with-skills` or `without-skills`. Keep suite/category and target/model names out of this label.
+- **Evaluate options** configure runner-level behavior such as repeat policy and optional timeouts under `evaluate_options`.
+- **Default test** configures inherited per-test defaults such as score `threshold`.
 - **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ```mermaid
@@ -53,21 +54,29 @@ npm install -g agentv
 agentv init
 ```
 
-**2. Configure targets** in `.agentv/targets.yaml` — point to the system under test, such as an agent, provider, gateway, replay source, or CLI wrapper.
+**2. Configure targets** in `.agentv/targets.yaml` — point to the system under test, such as an agent, provider, gateway, replay source, or CLI wrapper. Provider-specific budgets belong here:
+
+```yaml
+targets:
+  - name: copilot-sdk
+    provider: anthropic
+    model: claude-sonnet-4.6
+    max_budget_usd: 0.50
+```
 
 **3. Create an eval** in `evals/`:
 ```yaml
 description: Code generation quality
-experiment: backend-with-skills
+experiment: with-skills
 target: copilot-sdk
-repeat:
-  count: 3
-  strategy: pass_any
-  early_exit: false
-timeout_seconds: 600
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: false
+
 default_test:
   threshold: 0.8
-budget_usd: 5
 
 workspace:
   isolation: per_case
@@ -88,16 +97,16 @@ tests:
 The target can be an eval-local object when this eval needs target settings of its own:
 
 ```yaml
-description: Code generation quality with GPT-5 target settings
-experiment: backend-with-skills-gpt5
+description: Code generation quality with Copilot target settings
+experiment: with-skills
 target:
-  extends: codex-gpt5
-  model: gpt-5.1
-  reasoning_effort: high
-repeat:
-  count: 2
-  strategy: pass_any
-timeout_seconds: 900
+  extends: copilot-sdk
+  model: claude-sonnet-4.6
+evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+
 default_test:
   threshold: 0.85
 
@@ -106,7 +115,7 @@ tests:
     input: Write FizzBuzz in Python
 ```
 
-`target: codex-gpt5` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `codex-gpt5`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed.
+`target: copilot-sdk` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The experiment label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
 Use `default_test.threshold` for the inherited per-test pass cutoff. Existing eval files with a top-level `threshold` still load during migration, and `--threshold` on the CLI still overrides YAML thresholds for a run.
 
@@ -122,7 +131,7 @@ agentv compare .agentv/results/<baseline-run-id>/index.jsonl .agentv/results/<ca
 
 ## Results
 
-Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `experiment: backend-with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
+Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `experiment: with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
 
 ```bash
 agentv eval evals/my-eval.yaml
@@ -162,7 +171,7 @@ Use `evaluate()` when your application owns the run:
 import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
-  experiment: 'backend-with-skills',
+  experiment: 'with-skills',
   task: async (input) => runMyAppTarget(input),
   threshold: 0.8,
   tests: [
@@ -189,7 +198,7 @@ import { defineEval } from '@agentv/sdk';
 
 export default defineEval({
   description: 'Code generation quality',
-  experiment: 'backend-with-skills',
+  experiment: 'with-skills',
   target: {
     extends: 'copilot-sdk',
     model: 'claude-sonnet-4.6',
@@ -199,9 +208,7 @@ export default defineEval({
     strategy: 'pass_any',
     earlyExit: false,
   },
-  timeoutSeconds: 600,
   threshold: 0.8,
-  budgetUsd: 5,
   workspace: {
     isolation: 'per_case',
   },

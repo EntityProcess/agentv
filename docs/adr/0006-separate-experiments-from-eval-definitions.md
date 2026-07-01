@@ -17,11 +17,12 @@ Partially superseded by
 [ADR 0009](0009-eval-path-result-identity-and-default-experiment.md) for result
 experiment bucket precedence, result row identity, and run bundle path naming.
 
-Partially superseded on 2026-06-30 by GitHub issue #1575 / Bead `av-ogpn.1`:
-top-level `experiment:` is no longer an authored eval YAML field. The eval file
-defines the experiment; top-level `name` is the result namespace, top-level
-`target` identifies the system under test, and top-level `policy` owns
-runtime/gating controls.
+Superseded for the current eval authoring contract by
+[ADR 0013](0013-stabilize-eval-authoring-contract.md): top-level
+`experiment:` remains the optional string run/result grouping label, top-level
+authoring `tags` are removed from the preferred contract, `cases` / `case_id`
+replace `tests` / `test_id` as preferred vocabulary, and top-level `gate`
+replaces scalar `threshold`.
 
 ## Context
 

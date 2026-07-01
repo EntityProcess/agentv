@@ -6,10 +6,12 @@ Date: 2026-06-17
 
 Proposed
 
-Superseded for eval authoring placement on 2026-06-30 by GitHub issue #1575 /
-Bead `av-ogpn.1`: top-level `experiment:` is no longer an authored eval YAML
-field. Use top-level `target` and `policy`; keep Harbor-specific runner options
-behind adapter boundaries.
+Superseded for the current eval authoring contract by
+[ADR 0013](0013-stabilize-eval-authoring-contract.md): top-level
+`experiment:` remains the optional string run/result grouping label, runtime
+policy stays in explicit top-level fields such as `target`, `repeat`,
+`timeout_seconds`, `budget_usd`, and `gate`, and Harbor-specific execution
+still belongs behind adapter boundaries.
 
 ## Context
 
