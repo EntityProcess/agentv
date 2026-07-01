@@ -12,6 +12,8 @@
  * tables, so right-side metrics remain reachable instead of being clipped.
  */
 
+import { useEffect } from 'react';
+
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
@@ -23,6 +25,7 @@ import {
   tagKeysOptions,
 } from '~/lib/api';
 import { aggregateQualityCount, executionErrorCount } from '~/lib/result-summary';
+import { tagKeyLabel } from '~/lib/tag-key-label';
 import type { TagGroupSummary } from '~/lib/types';
 
 import { PassRatePill } from './PassRatePill';
@@ -35,21 +38,35 @@ interface TagsTabProps {
   onTagKeyChange: (key: string) => void;
 }
 
-/** Title-case a tag key for the table header (e.g. `team` → `Team`). */
-function keyLabel(key: string): string {
-  if (!key) return 'Tag';
-  return key.charAt(0).toUpperCase() + key.slice(1);
-}
-
 export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
   const { data: keysData } = useQuery(
     projectId ? projectTagKeysOptions(projectId) : tagKeysOptions,
   );
-  const { data, isLoading } = useQuery(
-    projectId ? projectTagGroupsOptions(projectId, tagKey) : tagGroupsOptions(tagKey),
-  );
 
   const keys = keysData?.keys ?? [DEFAULT_TAG_KEY];
+
+  // A `?key=` from the URL can name a key that isn't present in the fetched
+  // list (e.g. a bookmarked link after the key was removed). Falling back keeps
+  // the `<select>` on a real option and the table populated instead of showing
+  // "No values found". Prefer `experiment` when available, else the first key.
+  const keyIsKnown = keys.includes(tagKey);
+  const effectiveKey = keyIsKnown
+    ? tagKey
+    : keys.includes(DEFAULT_TAG_KEY)
+      ? DEFAULT_TAG_KEY
+      : (keys[0] ?? DEFAULT_TAG_KEY);
+
+  // Reflect the fallback back into the URL/parent state once the keys arrive.
+  useEffect(() => {
+    if (keysData && !keyIsKnown && effectiveKey !== tagKey) {
+      onTagKeyChange(effectiveKey);
+    }
+  }, [keysData, keyIsKnown, effectiveKey, tagKey, onTagKeyChange]);
+
+  const { data, isLoading } = useQuery(
+    projectId ? projectTagGroupsOptions(projectId, effectiveKey) : tagGroupsOptions(effectiveKey),
+  );
+
   const groups = data?.groups ?? [];
 
   return (
@@ -63,13 +80,13 @@ export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
         </label>
         <select
           id="tag-key-select"
-          value={tagKey}
+          value={effectiveKey}
           onChange={(e) => onTagKeyChange(e.target.value)}
           className="rounded-md border border-gray-700 bg-gray-900 px-2 py-1 text-sm text-gray-200 focus:border-cyan-700 focus:outline-none"
         >
           {keys.map((key) => (
             <option key={key} value={key}>
-              {keyLabel(key)}
+              {tagKeyLabel(key)}
             </option>
           ))}
         </select>
@@ -79,9 +96,9 @@ export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
         <LoadingSkeleton />
       ) : groups.length === 0 ? (
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-lg text-gray-400">No values found for tag `{tagKey}`</p>
+          <p className="text-lg text-gray-400">No values found for tag `{effectiveKey}`</p>
           <p className="mt-2 text-sm text-gray-500">
-            Values will appear here once evaluations are run with a <code>{tagKey}</code> tag.
+            Values will appear here once evaluations are run with a <code>{effectiveKey}</code> tag.
           </p>
         </div>
       ) : (
@@ -89,7 +106,7 @@ export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
           <table className="min-w-[760px] w-full whitespace-nowrap text-left text-sm">
             <thead className="border-b border-gray-800 bg-gray-900/50">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-400">{keyLabel(tagKey)}</th>
+                <th className="px-4 py-3 font-medium text-gray-400">{tagKeyLabel(effectiveKey)}</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Runs</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Targets</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-400">Evals</th>
@@ -108,7 +125,7 @@ export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
                       {projectId ? (
                         <Link
                           to="/projects/$projectId/tags/$key/$value"
-                          params={{ projectId, key: tagKey, value: group.name }}
+                          params={{ projectId, key: effectiveKey, value: group.name }}
                           className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         >
                           {group.name}
@@ -116,7 +133,7 @@ export function TagsTab({ projectId, tagKey, onTagKeyChange }: TagsTabProps) {
                       ) : (
                         <Link
                           to="/tags/$key/$value"
-                          params={{ key: tagKey, value: group.name }}
+                          params={{ key: effectiveKey, value: group.name }}
                           className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
                         >
                           {group.name}
