@@ -131,7 +131,7 @@ promptfoo renders `{{var}}` via **nunjucks** into prompt `raw`, `assert.value`, 
 
 **Governing principle (owner decision).** Where a feature is functionally equivalent and semantically the same, **use promptfoo's name/shape** (e.g. `assert`, not `assertions`; `metric`, not `name`). **Keep AgentV's form only where its semantics are genuinely better** — e.g. AgentV's executable `gate` over promptfoo's scalar `threshold`, and AgentV's `repeat: { count, strategy, early_exit }` block over promptfoo's `repeat: <int>`.
 
-**Deprecation policy: HARD (owner decision).** This ships as a **major version**. Renamed/replaced keys are *removed*, not aliased — no back-compat shims, no soft-deprecation window. `assertions` → removed (use `assert`); `composite` → removed (use `assert-set`); grader `name`-as-metric → removed (use `metric`); `eval_cases` → removed. A one-shot codemod migrates existing eval files; the parser hard-errors on removed keys with a message pointing at the new name.
+**Deprecation policy: HARD (owner decision).** This ships as a **major version**. Renamed/replaced keys are *removed*, not aliased — no back-compat shims, no soft-deprecation window. `assertions` → removed (use `assert`); `composite` → removed (use `assert-set`); grader `name`-as-metric → removed (use `metric`); `eval_cases` → removed; `tests[].input` / suite `input` → removed (use `prompts`+`vars`, §2.b); `workspace`/`on_run_complete`/`preprocessors` → removed (use `extensions`, §2.l); `${{ ENV }}` → removed (use `${ENV}`, §2.f). A one-shot codemod migrates existing eval files; the parser hard-errors on removed keys with a message pointing at the new name. **Owner note: the churn is acceptable because all of this was introduced recently and is not yet in production** — no external users to migrate, so a clean break beats carrying aliases.
 
 Applying that principle, the decisions are below (D = decided, ▸ = still a judgment call, tracked in §8).
 
@@ -146,11 +146,15 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 - **D — superset mapping.** AgentV **accepts** top-level `providers` (promptfoo compat) and maps each entry onto a `targets` entry; canonical AgentV key is `targets`. A `targets` entry may be a registry name (string) or an inline promptfoo-shaped target object. `use_target`/`fallback_targets`/`max_budget_usd` stay as extensions.
 - **Note vs 1.3:** §1.3 said "promote `providers`/`targets`"; the refinement is that **`targets` is canonical and `provider` is demoted to the backend field**, not a top-level synonym.
 
-### 2.b Top-level `prompts` vs per-test `input` — ARCHITECTURAL
-- **promptfoo:** prompt templates are top-level and shared; test rows carry only `vars`.
-- **AgentV today:** each `tests[].input` is a full message array; no shared prompt list; `input` also supports file/image content items.
-- **Conflict:** two different mental models of "what varies." Not functionally equivalent — additive, not a rename.
-- **D — add promptfoo `prompts`, keep AgentV `input`:** Add top-level `prompts` (promptfoo semantics) for prompt/model benchmarking. Keep `tests[].input` as an AgentV extension (better semantics for repo/agent tasks where each test has its own conversation/attachments). Document both paths.
+### 2.b Top-level `prompts` vs per-test `input` — SIMPLIFY by collapsing `input`
+- **promptfoo:** prompt templates are top-level and shared; test rows carry only `vars`. A prompt can be a string OR a chat array `[{role, content}]`, both with `{{var}}`.
+- **AgentV today:** each `tests[].input` is a full message array; no shared prompt list. This is a *second* way to express "the messages sent to the target," parallel to promptfoo's `prompts`.
+- **D — collapse `input` into `prompts` + `vars` (owner: "agentv can be simplified"):** there should be ONE way to express what's sent to the target. A promptfoo chat-array prompt already covers everything `input` did (multi-turn, roles, `{{var}}`). So:
+  - Shared/benchmark case → top-level `prompts` (string or chat array) × `tests[].vars`.
+  - "Each test is unique" (agent tasks) → a passthrough prompt (e.g. `"{{task}}"`) + `vars: { task: … }`, or a per-test prompt override. No bespoke `input` field.
+  - `input_files`/attachments (file/image content) survive as a **prompt-content** convenience (part of the prompt/vars), not a separate top-level concept.
+  - **Removes a concept** (hard, major version): `tests[].input` and suite-level `input` go away; codemod rewrites `input:` message arrays into a per-test prompt.
+- **Concurrency/workspace model (owner):** workers either **share one workspace** or draw from a **workspace pool**, where a checked-out workspace is **reset to original** between uses (git clean / snapshot restore). This is the reset-based pool, not container-per-instance — see §4.
 
 ### 2.c `assert` vs `assertions`, and grader type names — NAMING (reverses ADR-0013)
 - **promptfoo:** key is `assert`; types are `llm-rubric`, `javascript`, `python`, `assert-set`, `model-graded-*`.
@@ -172,6 +176,8 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
   max_steps: <int>                             # optional → agentic (AgentV)
   ```
   One promptfoo-named type; AgentV's better semantics (multi-criteria single call, structured `rubric_item` operators, agentic judge) survive as optional fields.
+  - **Name — RESOLVED (owner Q): `llm-rubric`** (promptfoo's canonical name), not `llm-grader`. It takes a criterion/rubric and returns a verdict — "rubric" fits, and the naming principle prefers promptfoo. `llm-grader` is removed as a type name.
+  - **Default grading behavior change — approved by owner; here's what changes** when the default `llm-rubric` prompt adopts vercel's judge (§5.2): (1) **skeptical stance by default** ("strict judge; when in doubt, fail") → borderline outputs fail more often, so existing suites may show *lower* pass rates; (2) **evidence-by-path** → for agent/workspace tasks the judge reads the transcript/environment from files instead of a stuffed prompt, enabling tool-using investigation and better judgments on large outputs; (3) fixed `{pass, score, reason}` verdict contract. **Opt-out:** authoring an explicit `prompt` overrides the default skeptical prompt, preserving prior behavior. Implementation must diff the exact current `llm-grader-prompt.ts` wording to quantify the shift before flipping the default.
 
 ### 2.k `assert` short-form (bare strings → rubric) — how to handle it
 - **AgentV today** (`grader-parser.ts:394`): bare strings in the `assertions` array are collected and unwrapped into **one** `rubrics` grader (`criteria: [strings]`, `weight = N`), evaluated in a single LLM call at equal weight. promptfoo has no bare-string form — every `assert` entry is an object, and multiple criteria are multiple `llm-rubric` asserts (one call each).
@@ -186,11 +192,12 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 ### 2.d Test `id` required vs optional
 - **promptfoo:** `id`/`description` optional.
 - **AgentV today:** `tests[].id` required; it's the flattened `test_id` result identity and `--test-id` CLI filter (ADR-0013).
-- **Conflict:** promptfoo files won't have `id`; but the console log and Dashboard still need something to show and something stable to filter/compare on.
-- **D — split the two jobs `id` does today:**
-  - **Stable identity — `test_id`** (artifact dirs, `--test-id`, run-to-run Dashboard comparison). Required in the *result* contract; **derived** when not authored: slug of `description` if present, else short content hash of `(vars + prompt + assert)` → `test-<hash8>`. Deterministic across runs (editing a case yields a new id — correct, it's a different case). Always also carry ordinal **`test_index`**.
-  - **Display label** (console + Dashboard render). Precedence, matching promptfoo's own UI: authored `id` → `description` → rendered `vars` (e.g. `language=French, input="Hello…"`) → `Test #<index>`.
-  - Result: a promptfoo file with no `id` shows `language=French` in the log, groups cleanly in the Dashboard, and filters via the derived `test_id`. Authoring `id` sets both display and identity (AgentV's current behavior, still available).
+- **Fact:** promptfoo has **no durable per-test id** — internally it keys on `testIdx` (ordinal) and shows `description`. Run-to-run comparison is fragile (breaks on reorder/edit).
+- **D — layer identity into three distinct roles (owner's governance point):** don't overload one field.
+  - **Content identity — `test_id`** = short content hash of `(prompt + vars + assert)`. Answers "did the content change?"; drives artifact dirs, dedup, drift detection. Changes when you edit the case — correct for *content*.
+  - **Governance/trend identity — an author-set `tag`/`metadata` key** (e.g. `metadata.case_id` or `tags.case`). Durable across BOTH reorder AND edits — the human declares "this is the same logical test." **This is what the Dashboard keys trend-lines/comparison on** (best practice: stable identity lives in governance metadata, not derived content). Falls back to `test_id`/ordinal when absent.
+  - **Display label** — precedence `description` → `vars` (e.g. `language=French`) → `Test #<index>`.
+  - So: content-hash = "is it the same bytes," metadata/tag = "is it the same logical test," description/vars = "what a human reads." A promptfoo file with none still renders + filters; governance stability is opt-in via a tag/metadata key.
 
 ### 2.e Named metrics: `metric` vs grader `name`
 - **promptfoo:** `assert[].metric` (nunjucks-templated) names a score; `derived_metrics` computes over them; `assert-set` groups.
@@ -205,6 +212,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
   - **`{{ var }}`** — nunjucks, **eval-time** template vars, for `prompts`/`vars`/`assert.value`/`assert.metric`, + array-var row expansion + `nunjucks_filters` (promptfoo parity).
   - **`${ENV}`** — shell/Docker/k8s style, **config-time** env interpolation (target configs, etc.), **replacing `${{ ENV }}`** (hard change per §deprecation). Support `${ENV:-default}` like docker-compose.
   - Because `{{ }}` and `${ }` never overlap, the earlier `{{ }}`-vs-`${{ }}` collision is gone. Codemod rewrites `${{ X }}` → `${X}`.
+  - **Confirmed (owner Q): nunjucks meets AgentV's inline-mixing requirement.** nunjucks interpolates within arbitrary text, so `run hello --option1 {{ myvar }}` works for a test var, and `run hello --option1 ${MYVAR}` for an env var. Mixing text + values inline is nunjucks' primary mode — no gap. (Only sigil choice depends on var vs env.)
 
 ### 2.g `repeat` block vs `samples_per_case` vs promptfoo `repeat:int`
 - **promptfoo:** `evaluate_options.repeat` = integer (naive re-run).
@@ -265,17 +273,19 @@ Removed (folded into promptfoo `extensions`, see 2.l): top-level `workspace:` bl
 
 ---
 
-## 4. Runner & execution model — borrow margin-lab
+## 4. Runner & execution model — borrow margin-lab's *ideas*, stay laptop-first
 
-Adopt margin-lab's scheduling shape (it's the cleanest of the three for repeats + variance + resumability):
+**Owner decision: laptop-first, no persistent store.** Borrow margin-lab's *concepts* (instance expansion, pass@k, infra-only retry) but NOT its DB-backed lease/heartbeat/reaper scheduler — that machinery exists for margin's Postgres/distributed target and would violate AgentV's "zero-infra local to CI" guardrail.
 
-- **Instance = unit of scheduling.** Expand `(prompt × provider × test × sample)` into flat **instances** at compile time. `samples_per_case`/`repeat.count` → `instance_key = "<test_id>#<sample_index>"` (margin-lab's `BuildInstanceKey`). This subsumes AgentV's current repeat handling and gives pass@k for free.
-- **Lease-based worker pool** (`engine.Pool` shape): N workers claim pending instances via a store with lease + heartbeat + reaper, instead of a fixed goroutine fan-out. Benefits: crash-safe, resumable, and works identically for a future distributed store. `max_concurrency` → worker count.
-- **Retry = infra-only.** Test failures are valid graded outcomes; only infra failures requeue (`retry_count`). Run is `completed` unless `infra_failed > 0`. Adopt this state machine (`domain.NextRunState`).
+- **Instance = unit of work.** Expand `(prompt × target × test × sample)` into flat **instances** at compile time. `samples_per_case`/`repeat.count` → `instance_key = "<test_id>#<sample_index>"` (margin-lab's `BuildInstanceKey`). Subsumes AgentV's current repeat handling and gives pass@k for free.
+- **Simple in-process worker pool**, `max_concurrency` = worker count. No lease/heartbeat/store.
+- **Resumability via the run-index JSON, not a store (owner):** each instance's status is tracked in `index.jsonl` as it completes. "Rerun failed" = read the run index, filter failed/errored `test_id`s, re-run just those into the same/new bundle (`--rerun-failed <run_id>`). Cheap, laptop-native, no DB.
+- **Workspace concurrency = shared or reset-based pool (owner, ties to §2.b/§2.l):** workers either share one workspace, or draw from a **pool of workspaces reset to original between uses** (git clean / snapshot restore). This is the isolation mechanism — reset-based pooling, not container-per-instance. The `agentv:workspace` extension owns checkout/reset; `beforeAll` = shared, `beforeEach` = per-case draw-from-pool+reset.
+- **Retry = infra-only.** Test failures are valid graded outcomes; only infra failures requeue (`retry_count`). Adopt margin's `domain.NextRunState` state machine (run `completed` unless `infra_failed > 0`).
 - **Per-instance hard timeout** covering setup+agent+grade (`instance_timeout_seconds`).
-- **Caveat:** margin-lab's `fail_fast` is declared-but-inert — if we want fail-fast, we implement it (don't copy the dead field).
+- **Caveat:** margin-lab's `fail_fast` is declared-but-inert — if we want fail-fast, implement it (don't copy the dead field).
 
-margin-lab's agent-server HTTP protocol is more than AgentV needs (AgentV already has CLI/SDK providers); borrow the *scheduling + state machine*, not the in-container HTTP host.
+Borrow the *instance model + state machine + analytics*, not the store or the in-container agent-server HTTP host (AgentV already has CLI/SDK providers).
 
 ---
 
@@ -323,10 +333,25 @@ Each phase is a reviewable PR; §2 decisions gate phase 1.
 
 ## 8. Remaining judgment calls
 
-The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.k, including the old §8.1 and the shorthand. The superset goal also *tightens* what "parity" means: the schema must **accept and validate every promptfoo key/type** (else promptfoo ⊄ AgentV), even where implementation is phased. That reframes the leftovers:
+The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.l. Note the owner scoped the superset pragmatically: it holds over the **implemented** promptfoo surface; unimplemented exotic assertion types and `redteam` are an honest documented gap, not silently accepted (items 1–2). The remaining calls, now all resolved:
 
-1. **Assertion parity scope — reframed by superset.** The schema must *accept* the full promptfoo assertion type list (so any promptfoo config parses). Open question is only *implementation* order: which exotic graders (`context-*`, `moderation`, `guardrails`, `answer-relevance`, `classifier`, `g-eval`, `perplexity`, embeddings-backed `similar`) ship as working vs. accepted-but-`not_implemented` stubs at v-major. (Leaning: `similar` + string/js/py/rubric/latency/cost working at launch; rest accepted-and-stubbed, `log()`-warned, filled on demand.)
-2. **Redteam — the one strict-superset tension.** promptfoo's `redteam:` block is part of its contract, so strict superset implies accepting it. But it's a large subsystem. Options: (a) **accept-and-ignore** the `redteam` key at schema level (parses, no-op + warning) to preserve superset parsing, defer execution; (b) exclude it entirely and declare redteam an explicit non-superset carve-out. (Leaning: (a) — accept the key so promptfoo files parse, defer behavior.)
+1. **Assertion parity scope — RESOLVED (owner).** Launch-real set: string ops, `javascript`, `python`, `llm-rubric`, `latency`, `cost`, token/execution metrics, `tool-trajectory`, `field-accuracy`, **and `similar`** (requires a configured embeddings provider — new provider config surface). **Do NOT stub the rest** — `context-*`, `moderation`, `guardrails`, `answer-relevance`, `classifier`, `g-eval`, `perplexity` are **future scope** (unimplemented, not silently accepted). Consequence: the schema does NOT accept every promptfoo type; superset holds over the *implemented* surface, and unimplemented types are an honest documented gap (handled by the general unknown-type policy, next item).
+2. **Redteam — RESOLVED (owner): treat like any other unrecognized field.** No special-casing. `redteam:` follows AgentV's general unknown-field policy. NB: the eval-file schema is `.strict()` today (unknown top-level keys are rejected), so a promptfoo `redteam` config errors like a typo unless/until that policy is loosened. Documented superset caveat: **superset excludes redteam** (and other unimplemented exotic types).
 3. **`code-grader` vs `javascript`/`python` — RESOLVED (§2.c):** distinct execution paths — `javascript` in-process, `python` subprocess, `code-grader` the subprocess power tool. Not desugared.
 
-Everything else is decided; phase 1 (schema + superseding ADR + codemod + camel→snake importer) can start once the two remaining are confirmed.
+**All §8 items are now resolved.** Phase 1 (schema + superseding ADR + codemod + camel→snake importer) can start. The extensions/workspace slice already has an implementation-ready plan in **PR #1592** (see §9).
+
+---
+
+## 9. Reconciliation with PR #1592 (extensions/workspace slice)
+
+PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.md`) is an implementation-ready plan for the **extensions + workspace-removal** slice. It is well-structured and **largely consistent** with this plan — treat it as the **first implementation slice** of §2.l/§4, not a competing design. Confirmed-aligned: promptfoo `file://path:function` extension refs + four hook names (U2); hook-name selects phase; remove core `workspace`, hard (KTD5, AE4); typed extension outputs instead of env-var side channels (KTD3); JS/TS in-process first, Python via code-grader subprocess discipline (KTD4); canonical AgentV run bundle preserved (R8); snake_case docs (U7); adds a **skills extension** (U5) — a good addition this plan didn't cover.
+
+**Amendments needed to align #1592 with the decisions above:**
+
+1. **Workspace spec location — the main divergence.** #1592 routes workspace config through dedicated `extensions/workspace.config.yaml` files (extension-owned config). This plan's §2.b/§2.l decision (owner: "workspace is part of the dataset") puts the per-case spec in **`vars.workspace`** (dataset data), consumed by the extension. Reconcile: **global/shared config in a config file is fine; the per-case spec should be expressible as `vars.workspace`** so it rides the dataset (and `beforeEach` reads it from test context). Amend #1592 U2/U4 to consume `vars.workspace`, not only a config file.
+2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:skills`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
+3. **Isolation model.** #1592 treats `isolation: per_case` as extension config returned by the workspace extension. This plan derives shared-vs-per-case from **which hook** (`beforeAll` vs `beforeEach`) and uses a **reset-based workspace pool** (§4). Reconcile the two: hook selects shared/per-case; pool+reset is the mechanism; `isolation` config, if kept, must not contradict the hook.
+4. **Sequencing vs the wider restructure.** #1592 cites ADR-0013 as authority and proposes ADR-0014. This plan *reverses* parts of ADR-0013 (`assert`, grader names, `input` removal — §2.c/§2.b). #1592 doesn't touch those, so no direct conflict, but ADR-0014 should note the broader superseding ADR is coming so it doesn't re-entrench `input`/`assertions`.
+
+**Verdict:** reasonable and mergeable as the extensions/workspace slice **after** the four amendments above (chiefly #1: `vars.workspace`, and #2: built-in `agentv:` scheme). No rewrite required.
