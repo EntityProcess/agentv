@@ -5668,6 +5668,10 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "resolver": {
+                                  "type": "string",
+                                  "minLength": 1
                                 }
                               },
                               "additionalProperties": false
@@ -12294,6 +12298,10 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "resolver": {
+                                  "type": "string",
+                                  "minLength": 1
                                 }
                               },
                               "additionalProperties": false
@@ -14245,6 +14253,22 @@
           "exclusiveMinimum": true,
           "minimum": 0
         },
+        "evaluate_options": {
+          "type": "object",
+          "properties": {
+            "budget_usd": {
+              "type": "number",
+              "exclusiveMinimum": true,
+              "minimum": 0
+            },
+            "max_concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          "additionalProperties": false
+        },
         "budget_usd": {
           "type": "number",
           "exclusiveMinimum": true,
@@ -15510,6 +15534,10 @@
                         "items": {
                           "type": "string"
                         }
+                      },
+                      "resolver": {
+                        "type": "string",
+                        "minLength": 1
                       }
                     },
                     "additionalProperties": false

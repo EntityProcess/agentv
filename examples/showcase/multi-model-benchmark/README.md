@@ -46,7 +46,7 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ### Cost & Safety
 
-The eval uses a **low-cost model by default**. For each target, 5 tests × 2 repeat attempts × 3 grader calls is roughly **30 LLM calls**. A `budget_usd: 2.00` cap is set in the eval file.
+The eval uses a **low-cost model by default**. For each target, 5 tests × 2 repeat attempts × 3 grader calls is roughly **30 LLM calls**. An `evaluate_options.budget_usd: 2.00` cap is set in the eval file.
 
 To run against a single target first:
 
@@ -139,7 +139,8 @@ repeat:
   count: 2
   strategy: pass_any
   early_exit: false
-budget_usd: 2.00
+evaluate_options:
+  budget_usd: 2.00
 ```
 
 This surfaces non-determinism — if a model passes on run 1 but fails on run 2,
@@ -210,7 +211,8 @@ repeat:
   count: 5
   strategy: pass_any
   early_exit: false
-budget_usd: 5.00
+evaluate_options:
+  budget_usd: 5.00
 ```
 
 ## See Also

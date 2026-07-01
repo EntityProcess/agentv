@@ -19,7 +19,7 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by name from `targets.yaml` or with an eval-local target object.
 - **Experiment** is the run/result grouping label being measured over that corpus, such as `with-skills` or `without-skills`. Keep suite/category and target/model names out of this label.
-- **Evaluate options** configure runner-level behavior such as repeat policy and optional timeouts under `evaluate_options`.
+- **Evaluate options** configure runner-level behavior such as repeat policy, optional timeouts, and `max_concurrency` under `evaluate_options`.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
 - **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
@@ -74,12 +74,17 @@ evaluate_options:
     count: 3
     strategy: pass_any
     early_exit: false
+  max_concurrency: 3
 
 default_test:
   threshold: 0.8
 
 workspace:
   isolation: per_case
+  repos:
+    - path: ./fixture
+      repo: EntityProcess/agentv-contract-fixture
+      commit: 21a34daed7ebcfe36cbed053607622a55e5e94cb
 
 tests:
   - id: fizzbuzz
@@ -211,6 +216,13 @@ export default defineEval({
   threshold: 0.8,
   workspace: {
     isolation: 'per_case',
+    repos: [
+      {
+        path: './fixture',
+        repo: 'EntityProcess/agentv-contract-fixture',
+        commit: '21a34daed7ebcfe36cbed053607622a55e5e94cb',
+      },
+    ],
   },
   tests: [
     {

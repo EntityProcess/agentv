@@ -396,7 +396,7 @@ function rejectExperimentWorkers(raw: unknown): void {
     return;
   }
   throw new Error(
-    'Experiment workers has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
+    'Experiment workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
   );
 }
 

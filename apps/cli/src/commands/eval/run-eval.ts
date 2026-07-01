@@ -1093,7 +1093,11 @@ async function prepareFileMetadata(params: {
     filter: suiteFilter ?? options.filter,
     category,
   });
-  const effectiveOptions = applyExperimentOptions(options, suite.experimentConfig);
+  const experimentOptions = applyExperimentOptions(options, suite.experimentConfig);
+  const effectiveOptions =
+    experimentOptions.workers === undefined && suite.workers !== undefined
+      ? { ...experimentOptions, workers: suite.workers }
+      : experimentOptions;
   const testCases =
     suiteFilter && effectiveOptions.filter
       ? suite.tests.filter((testCase) =>
@@ -1106,7 +1110,7 @@ async function prepareFileMetadata(params: {
   const defaultBudgetUsd =
     effectiveOptions.cliBudgetUsd === undefined
       ? (effectiveOptions.budgetUsd ?? suite.budgetUsd)
-      : suite.budgetUsd;
+      : undefined;
   const suiteDefaultThreshold = suite.defaultTest?.threshold ?? suite.threshold;
 
   if (testCases.length === 0) {

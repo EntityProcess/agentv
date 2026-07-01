@@ -7,6 +7,7 @@ import {
   readFileSync,
   readdirSync,
   statSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -81,6 +82,75 @@ function writeMirrorConfig(configFilePath: string, mirrors: Record<string, strin
       ...Object.entries(mirrors).map(
         ([repo, localPath]) => `    ${JSON.stringify(repo)}: ${JSON.stringify(localPath)}`,
       ),
+      '',
+    ].join('\n'),
+  );
+}
+
+interface ResolverConfigFixture {
+  readonly name: string;
+  readonly command: readonly string[];
+  readonly repos?: readonly string[];
+  readonly config?: Record<string, unknown>;
+}
+
+function writeResolverScript(scriptPath: string): void {
+  mkdirSync(path.dirname(scriptPath), { recursive: true });
+  writeFileSync(
+    scriptPath,
+    [
+      "import { appendFileSync } from 'node:fs';",
+      'const input = await new Response(Bun.stdin.stream()).text();',
+      'const request = JSON.parse(input);',
+      'if (request.config.request_log) {',
+      '  appendFileSync(request.config.request_log, `${JSON.stringify(request)}\\n`);',
+      '}',
+      'if (request.config.handled === false) {',
+      '  process.stdout.write(JSON.stringify({ handled: false }));',
+      '} else {',
+      '  process.stdout.write(JSON.stringify({',
+      '    handled: true,',
+      '    source: {',
+      "      type: 'git',",
+      '      path: request.config.source_path,',
+      '      origin: request.config.origin,',
+      '    },',
+      '  }));',
+      '}',
+      '',
+    ].join('\n'),
+  );
+}
+
+function writeRepoResolversConfig(
+  configFilePath: string,
+  resolvers: readonly ResolverConfigFixture[],
+): void {
+  mkdirSync(path.dirname(configFilePath), { recursive: true });
+  if (resolvers.length === 0) {
+    writeFileSync(configFilePath, 'repo_resolvers: []\n');
+    return;
+  }
+  writeFileSync(
+    configFilePath,
+    [
+      'repo_resolvers:',
+      ...resolvers.flatMap((resolver) => [
+        `  - name: ${JSON.stringify(resolver.name)}`,
+        '    command:',
+        ...resolver.command.map((entry) => `      - ${JSON.stringify(entry)}`),
+        ...(resolver.repos
+          ? ['    repos:', ...resolver.repos.map((entry) => `      - ${JSON.stringify(entry)}`)]
+          : []),
+        ...(resolver.config
+          ? [
+              '    config:',
+              ...Object.entries(resolver.config).map(
+                ([key, value]) => `      ${key}: ${JSON.stringify(value)}`,
+              ),
+            ]
+          : []),
+      ]),
       '',
     ].join('\n'),
   );
@@ -288,6 +358,312 @@ describe('RepoManager', () => {
         findConfiguredMirrorFor(projectManager, 'https://github.com/example/outer.git'),
       ).toBeUndefined();
     });
+  });
+
+  describe('repo resolvers', () => {
+    it('uses the first matching non-default resolver before built-in git acquisition', async () => {
+      const sourceRepo = path.join(tmpDir, 'resolver-source');
+      createTestRepo(sourceRepo, { 'resolved.txt': 'from resolver' });
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'github_org',
+          repos: ['https://github.com/example/*'],
+          command: ['bun', scriptPath],
+          config: { source_path: sourceRepo },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await projectManager.materialize(
+        {
+          path: './resolved',
+          repo: 'https://github.com/example/unreachable.git',
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'resolved');
+      expect(readFileSync(path.join(targetDir, 'resolved.txt'), 'utf-8')).toBe('from resolver');
+      expect(gitExec('git remote get-url origin', targetDir)).toBe(
+        'https://github.com/example/unreachable.git',
+      );
+    }, 30_000);
+
+    it('uses an explicit workspace repo resolver even when the resolver has no repos pattern', async () => {
+      const sourceRepo = path.join(tmpDir, 'explicit-source');
+      createTestRepo(sourceRepo, { 'explicit.txt': 'selected explicitly' });
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-explicit');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'inline_only',
+          command: ['bun', scriptPath],
+          config: { source_path: sourceRepo },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await projectManager.materialize(
+        {
+          path: './explicit',
+          repo: 'https://github.com/other/repo.git',
+          resolver: 'inline_only',
+        },
+        workspaceDir,
+      );
+
+      expect(readFileSync(path.join(workspaceDir, 'explicit', 'explicit.txt'), 'utf-8')).toBe(
+        'selected explicitly',
+      );
+    }, 30_000);
+
+    it('sends the stable stdin protocol and clones from resolver stdout git source', async () => {
+      const sourceRepo = path.join(tmpDir, 'protocol-source');
+      const firstCommit = createTestRepo(sourceRepo, { 'src/main.ts': 'first' });
+      writeFileSync(path.join(sourceRepo, 'src', 'extra.ts'), 'second');
+      execSync('git add -A && git commit -m "second"', { cwd: sourceRepo, ...EXEC_OPTS });
+      const secondCommit = gitExec('git rev-parse HEAD', sourceRepo);
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      const requestLog = path.join(tmpDir, 'resolver-requests.jsonl');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-protocol');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'protocol',
+          repos: ['github.com/example/protocol'],
+          command: ['bun', scriptPath],
+          config: {
+            source_path: sourceRepo,
+            request_log: requestLog,
+            custom_value: 'kept',
+          },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await projectManager.materialize(
+        {
+          path: './protocol',
+          repo: 'https://github.com/example/protocol.git',
+          commit: secondCommit,
+          ancestor: 1,
+          sparse: ['src'],
+        },
+        workspaceDir,
+      );
+
+      const request = JSON.parse(readFileSync(requestLog, 'utf-8').trim());
+      expect(request).toMatchObject({
+        version: 1,
+        repo: 'https://github.com/example/protocol.git',
+        commit: secondCommit,
+        path: './protocol',
+        sparse: ['src'],
+        ancestor: 1,
+        workspace_path: workspaceDir,
+        config: expect.objectContaining({ custom_value: 'kept' }),
+      });
+      expect(request.cache_dir).toContain(path.join('cache', 'repo-resolvers', 'protocol-'));
+      expect(existsSync(request.cache_dir)).toBe(true);
+
+      const targetDir = path.join(workspaceDir, 'protocol');
+      expect(gitExec('git rev-parse HEAD', targetDir)).toBe(firstCommit);
+      expect(existsSync(path.join(targetDir, 'src', 'main.ts'))).toBe(true);
+    }, 30_000);
+
+    it('continues from handled:false pattern resolvers to the default resolver', async () => {
+      const defaultSource = path.join(tmpDir, 'default-source');
+      createTestRepo(defaultSource, { 'default.txt': 'from default' });
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-default');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'pattern',
+          repos: ['https://github.com/example/*'],
+          command: ['bun', scriptPath],
+          config: { handled: false },
+        },
+        {
+          name: 'default',
+          command: ['bun', scriptPath],
+          config: { source_path: defaultSource },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await projectManager.materialize(
+        {
+          path: './defaulted',
+          repo: 'https://github.com/example/defaulted.git',
+        },
+        workspaceDir,
+      );
+
+      expect(readFileSync(path.join(workspaceDir, 'defaulted', 'default.txt'), 'utf-8')).toBe(
+        'from default',
+      );
+    }, 30_000);
+
+    it('falls back to built-in git acquisition when the default resolver returns handled:false', async () => {
+      const sourceRepo = path.join(tmpDir, 'builtin-source');
+      createTestRepo(sourceRepo, { 'builtin.txt': 'from built-in' });
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-built-in');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'default',
+          command: ['bun', scriptPath],
+          config: { handled: false },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await projectManager.materialize(
+        {
+          path: './builtin',
+          repo: `file://${sourceRepo}`,
+        },
+        workspaceDir,
+      );
+
+      expect(readFileSync(path.join(workspaceDir, 'builtin', 'builtin.txt'), 'utf-8')).toBe(
+        'from built-in',
+      );
+    }, 30_000);
+
+    it('fails when an explicitly selected resolver returns handled:false', async () => {
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-explicit-false');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'explicit_false',
+          command: ['bun', scriptPath],
+          config: { handled: false },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await expect(
+        projectManager.materialize(
+          {
+            path: './explicit-false',
+            repo: 'https://github.com/example/explicit-false.git',
+            resolver: 'explicit_false',
+          },
+          workspaceDir,
+        ),
+      ).rejects.toThrow(
+        "Repo resolver 'explicit_false' was selected by workspace.repos[].resolver but returned handled:false.",
+      );
+    }, 30_000);
+
+    it('fails clearly when inline resolver names are unknown', async () => {
+      const projectDir = path.join(tmpDir, 'project-missing-resolver');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), []);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await expect(
+        projectManager.materialize(
+          {
+            path: './missing',
+            repo: 'https://github.com/example/missing.git',
+            resolver: 'missing',
+          },
+          workspaceDir,
+        ),
+      ).rejects.toThrow("workspace.repos[].resolver 'missing' is not configured.");
+    }, 30_000);
+
+    it('rejects duplicate resolver names and repos on the default resolver', async () => {
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-invalid-resolvers');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        { name: 'duplicate', command: ['bun', scriptPath] },
+        { name: 'duplicate', command: ['bun', scriptPath] },
+      ]);
+      const duplicateManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await expect(
+        duplicateManager.materialize(
+          { path: './duplicate', repo: 'https://github.com/example/duplicate.git' },
+          workspaceDir,
+        ),
+      ).rejects.toThrow("Duplicate repo resolver name 'duplicate'.");
+
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'default',
+          repos: ['https://github.com/example/*'],
+          command: ['bun', scriptPath],
+        },
+      ]);
+      const defaultReposManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await expect(
+        defaultReposManager.materialize(
+          { path: './default', repo: 'https://github.com/example/default.git' },
+          workspaceDir,
+        ),
+      ).rejects.toThrow("Repo resolver named 'default' must not declare repos.");
+    }, 30_000);
   });
 
   describe('materialize', () => {
@@ -685,6 +1061,33 @@ describe('RepoManager', () => {
 
       const targetDir = path.join(workspaceDir, 'my-repo');
       expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
+      expect(gitExec('git rev-parse --is-bare-repository', cachePath)).toBe('true');
+    }, 30_000);
+
+    it('removes stale mirror-cache lock directories before cloning', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'hello.txt': 'hello world' });
+      const remoteDir = path.join(tmpDir, 'remote.git');
+      execSync(`git clone --bare "${repoDir}" "${remoteDir}"`, { env: cleanGitEnv() });
+      const repo = `file://${remoteDir}`;
+      const cachePath = cachePathFor(repo);
+      const lockPath = `${cachePath}.lock`;
+      mkdirSync(lockPath, { recursive: true });
+      const staleTime = new Date(Date.now() - 10_000);
+      utimesSync(lockPath, staleTime, staleTime);
+
+      const timeoutManager = new RepoManager(false, { progress: false, timeoutMs: 5_000 });
+      await timeoutManager.materialize(
+        {
+          path: './my-repo',
+          repo,
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'my-repo');
+      expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
+      expect(existsSync(lockPath)).toBe(false);
       expect(gitExec('git rev-parse --is-bare-repository', cachePath)).toBe('true');
     }, 30_000);
 

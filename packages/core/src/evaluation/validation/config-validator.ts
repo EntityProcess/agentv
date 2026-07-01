@@ -75,6 +75,7 @@ export async function validateConfigFile(
     }
 
     validateResultsConfig(errors, filePath, config.results, 'results');
+    validateRepoResolversConfig(errors, filePath, config.repo_resolvers);
 
     const projects = config.projects;
     if (projects !== undefined) {
@@ -114,6 +115,7 @@ export async function validateConfigFile(
       'required_version',
       'execution',
       'results',
+      'repo_resolvers',
       'projects',
       'results_by_project',
       'dashboard',
@@ -142,6 +144,107 @@ export async function validateConfigFile(
       message: `Failed to parse config file: ${(error as Error).message}`,
     });
     return { valid: false, filePath, fileType: 'config', errors };
+  }
+}
+
+function validateRepoResolversConfig(
+  errors: ValidationError[],
+  filePath: string,
+  rawResolvers: unknown,
+): void {
+  if (rawResolvers === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(rawResolvers)) {
+    addError(errors, filePath, 'repo_resolvers', "Field 'repo_resolvers' must be an array");
+    return;
+  }
+
+  const seenNames = new Set<string>();
+  let defaultCount = 0;
+
+  rawResolvers.forEach((resolver, index) => {
+    const location = `repo_resolvers[${index}]`;
+    if (!isPlainObject(resolver)) {
+      addError(errors, filePath, location, `Field '${location}' must be an object`);
+      return;
+    }
+
+    const name = resolver.name;
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      addError(
+        errors,
+        filePath,
+        `${location}.name`,
+        `Field '${location}.name' must be a non-empty string`,
+      );
+    } else {
+      const trimmedName = name.trim();
+      if (seenNames.has(trimmedName)) {
+        addError(
+          errors,
+          filePath,
+          `${location}.name`,
+          `Duplicate repo resolver name '${trimmedName}'`,
+        );
+      }
+      seenNames.add(trimmedName);
+
+      if (trimmedName === 'default') {
+        defaultCount += 1;
+        if (resolver.repos !== undefined) {
+          addError(
+            errors,
+            filePath,
+            `${location}.repos`,
+            "Repo resolver named 'default' must not declare repos",
+          );
+        }
+      }
+    }
+
+    const command = resolver.command;
+    if (
+      !Array.isArray(command) ||
+      !command.every((entry) => typeof entry === 'string') ||
+      command.length === 0
+    ) {
+      addError(
+        errors,
+        filePath,
+        `${location}.command`,
+        `Field '${location}.command' must be a non-empty string array`,
+      );
+    }
+
+    const repos = resolver.repos;
+    if (
+      repos !== undefined &&
+      (!Array.isArray(repos) ||
+        repos.length === 0 ||
+        !repos.every((entry) => typeof entry === 'string' && entry.trim().length > 0))
+    ) {
+      addError(
+        errors,
+        filePath,
+        `${location}.repos`,
+        `Field '${location}.repos' must be a non-empty string array when set`,
+      );
+    }
+
+    if (resolver.config !== undefined && !isPlainObject(resolver.config)) {
+      addError(
+        errors,
+        filePath,
+        `${location}.config`,
+        `Field '${location}.config' must be an object when set`,
+      );
+    }
+  });
+
+  if (defaultCount > 1) {
+    addError(errors, filePath, 'repo_resolvers', "Duplicate repo resolver named 'default'");
   }
 }
 

@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -11,6 +11,13 @@ import type { RepoConfig } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import { getRepoCheckoutRef } from './repo-checkout.js';
 import { normalizeRepoIdentity, resolveRepoCloneUrl } from './repo-identity.js';
+import {
+  type RepoResolverConfig,
+  parseRepoResolversFromConfig,
+  runRepoResolverCommand,
+  selectRepoResolver,
+  validateRepoResolvers,
+} from './repo-resolver.js';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
@@ -35,9 +42,19 @@ interface RepoManagerOptions {
 }
 
 interface AcquisitionSource {
-  readonly kind: 'configured-mirror' | 'registered-project' | 'mirror-cache' | 'remote';
+  readonly kind:
+    | 'configured-mirror'
+    | 'registered-project'
+    | 'mirror-cache'
+    | 'remote'
+    | 'repo-resolver';
   readonly sourceUrl: string;
   readonly originUrl: string;
+}
+
+interface MirrorCacheLockMetadata {
+  readonly pid: number;
+  readonly createdAt: string;
 }
 
 /** Environment vars to force non-interactive git, stripped of hook-injected vars. */
@@ -244,12 +261,28 @@ export class RepoManager {
     });
   }
 
-  private loadConfiguredMirrorsFrom(filePath: string): Record<string, string> {
+  private readConfigObjectFrom(
+    filePath: string,
+    options: { throwOnError?: boolean } = {},
+  ): Record<string, unknown> | undefined {
     if (!existsSync(filePath)) return {};
     try {
       const parsed = parseYamlValue(readFileSync(filePath, 'utf-8')) as unknown;
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-      const config = parsed as Record<string, unknown>;
+      return parsed as Record<string, unknown>;
+    } catch (error) {
+      if (options.throwOnError) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Could not read AgentV config at ${filePath}: ${message}`);
+      }
+      return {};
+    }
+  }
+
+  private loadConfiguredMirrorsFrom(filePath: string): Record<string, string> {
+    try {
+      const config = this.readConfigObjectFrom(filePath);
+      if (!config) return {};
       const gitCache = config.git_cache;
       if (!gitCache || typeof gitCache !== 'object' || Array.isArray(gitCache)) return {};
       const mirrors = (gitCache as Record<string, unknown>).mirrors;
@@ -324,6 +357,33 @@ export class RepoManager {
     ]);
   }
 
+  private loadRepoResolversFrom(filePath: string, cwd?: string): readonly RepoResolverConfig[] {
+    const config = this.readConfigObjectFrom(filePath, { throwOnError: true });
+    if (!config) return [];
+    return parseRepoResolversFromConfig(config, filePath, cwd);
+  }
+
+  private loadRepoResolvers(): readonly RepoResolverConfig[] {
+    const globalResolvers = this.loadRepoResolversFrom(configPath(), getAgentvConfigDir());
+    const projectAgentvDir = this.findProjectAgentvDir();
+    if (!projectAgentvDir) {
+      validateRepoResolvers(globalResolvers);
+      return globalResolvers;
+    }
+
+    const projectRoot = path.dirname(projectAgentvDir);
+    const resolvers = [
+      ...globalResolvers,
+      ...this.loadRepoResolversFrom(path.join(projectAgentvDir, 'config.yaml'), projectRoot),
+      ...this.loadRepoResolversFrom(
+        path.join(projectAgentvDir, 'config.override.yaml'),
+        projectRoot,
+      ),
+    ];
+    validateRepoResolvers(resolvers);
+    return resolvers;
+  }
+
   private findConfiguredMirror(repoIdentity: string): string | undefined {
     const mirrors = this.loadConfiguredMirrors();
     for (const [repo, localPath] of Object.entries(mirrors)) {
@@ -365,14 +425,24 @@ export class RepoManager {
   private async withMirrorCacheLock<T>(mirrorPath: string, action: () => Promise<T>): Promise<T> {
     const lockPath = `${mirrorPath}.lock`;
     const startedAt = Date.now();
+    let lastLockHeartbeatAt = 0;
 
     while (true) {
       try {
         await mkdir(lockPath);
+        await this.writeMirrorCacheLockMetadata(lockPath);
         break;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code !== 'EEXIST') throw error;
+        if (await this.removeStaleMirrorCacheLock(lockPath)) {
+          continue;
+        }
+        if (this.progress && Date.now() - lastLockHeartbeatAt >= this.heartbeatMs) {
+          lastLockHeartbeatAt = Date.now();
+          const elapsed = formatDuration(Date.now() - startedAt);
+          console.error(`[repo] waiting for git cache lock ${lockPath} after ${elapsed}`);
+        }
         if (Date.now() - startedAt > this.timeoutMs) {
           throw new Error(`Timed out waiting for git cache lock: ${lockPath}`);
         }
@@ -385,6 +455,63 @@ export class RepoManager {
     } finally {
       await rm(lockPath, { recursive: true, force: true });
     }
+  }
+
+  private async writeMirrorCacheLockMetadata(lockPath: string): Promise<void> {
+    const metadata: MirrorCacheLockMetadata = {
+      pid: process.pid,
+      createdAt: new Date().toISOString(),
+    };
+    await writeFile(path.join(lockPath, 'owner.json'), JSON.stringify(metadata, null, 2));
+  }
+
+  private readMirrorCacheLockMetadata(lockPath: string): MirrorCacheLockMetadata | undefined {
+    const metadataPath = path.join(lockPath, 'owner.json');
+    if (!existsSync(metadataPath)) return undefined;
+    try {
+      const parsed = JSON.parse(readFileSync(metadataPath, 'utf-8')) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+      const metadata = parsed as Record<string, unknown>;
+      if (typeof metadata.pid !== 'number' || typeof metadata.createdAt !== 'string') {
+        return undefined;
+      }
+      return { pid: metadata.pid, createdAt: metadata.createdAt };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private isProcessAlive(pid: number): boolean {
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'EPERM';
+    }
+  }
+
+  private async isStaleMirrorCacheLock(lockPath: string): Promise<boolean> {
+    const metadata = this.readMirrorCacheLockMetadata(lockPath);
+    if (metadata) {
+      return !this.isProcessAlive(metadata.pid);
+    }
+
+    try {
+      const lockStat = await stat(lockPath);
+      return Date.now() - lockStat.mtimeMs > this.timeoutMs;
+    } catch {
+      return false;
+    }
+  }
+
+  private async removeStaleMirrorCacheLock(lockPath: string): Promise<boolean> {
+    if (!(await this.isStaleMirrorCacheLock(lockPath))) {
+      return false;
+    }
+    console.warn(`[repo] removing stale git cache lock: ${lockPath}`);
+    await rm(lockPath, { recursive: true, force: true });
+    return true;
   }
 
   private async isValidBareRepo(repoPath: string): Promise<boolean> {
@@ -506,6 +633,64 @@ export class RepoManager {
     }
   }
 
+  private async resolveConfiguredRepoResolver(
+    repo: RepoConfig,
+    workspacePath: string,
+  ): Promise<AcquisitionSource | undefined> {
+    const resolvers = this.loadRepoResolvers();
+    if (resolvers.length === 0) {
+      if (repo.resolver) {
+        throw new Error(`workspace.repos[].resolver '${repo.resolver}' is not configured.`);
+      }
+      return undefined;
+    }
+
+    const originUrl = resolveRepoCloneUrl(repo.repo ?? '');
+    const selection = selectRepoResolver(repo, resolvers);
+    if (!selection) return undefined;
+
+    const result = await runRepoResolverCommand(
+      selection.resolver,
+      repo,
+      workspacePath,
+      this.timeoutMs,
+    );
+    if (result.handled) {
+      return {
+        kind: 'repo-resolver',
+        sourceUrl: result.source.path,
+        originUrl: result.source.origin ?? originUrl,
+      };
+    }
+
+    if (selection.kind === 'explicit') {
+      throw new Error(
+        `Repo resolver '${selection.resolver.name}' was selected by workspace.repos[].resolver but returned handled:false.`,
+      );
+    }
+
+    if (selection.kind === 'pattern') {
+      const defaultResolver = resolvers.find((resolver) => resolver.name === 'default');
+      if (defaultResolver) {
+        const defaultResult = await runRepoResolverCommand(
+          defaultResolver,
+          repo,
+          workspacePath,
+          this.timeoutMs,
+        );
+        if (defaultResult.handled) {
+          return {
+            kind: 'repo-resolver',
+            sourceUrl: defaultResult.source.path,
+            originUrl: defaultResult.source.origin ?? originUrl,
+          };
+        }
+      }
+    }
+
+    return undefined;
+  }
+
   private assertNoUserOwnedAlternates(targetDir: string, acquisition: AcquisitionSource): void {
     const alternatesPath = path.join(targetDir, '.git', 'objects', 'info', 'alternates');
     if (!existsSync(alternatesPath)) return;
@@ -517,7 +702,10 @@ export class RepoManager {
     }
   }
 
-  private async resolveAcquisition(repo: RepoConfig): Promise<AcquisitionSource> {
+  private async resolveAcquisition(
+    repo: RepoConfig,
+    workspacePath: string,
+  ): Promise<AcquisitionSource> {
     const declaredRepo = repo.repo;
     if (!declaredRepo) {
       throw new Error(`repo is required for workspace repo at path ${repo.path ?? '(none)'}`);
@@ -525,6 +713,10 @@ export class RepoManager {
 
     const originUrl = resolveRepoCloneUrl(declaredRepo);
     const repoIdentity = normalizeRepoIdentity(declaredRepo);
+    const configuredResolver = await this.resolveConfiguredRepoResolver(repo, workspacePath);
+    if (configuredResolver) {
+      return configuredResolver;
+    }
 
     const registeredProject = await this.findRegisteredProject(repoIdentity);
     if (registeredProject) {
@@ -575,7 +767,7 @@ export class RepoManager {
     }
 
     const targetDir = path.join(workspacePath, repo.path);
-    const acquisition = await this.resolveAcquisition(repo);
+    const acquisition = await this.resolveAcquisition(repo, workspacePath);
     const startedAt = Date.now();
 
     if (this.verbose) {

@@ -306,6 +306,7 @@ workspace:
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
+      resolver: custom
       commit: main
       ancestor: 1
       sparse:
@@ -322,6 +323,7 @@ tests:
     expect(workspace?.repos).toHaveLength(1);
     expect(workspace?.repos?.[0].path).toBe('./repo-a');
     expect(workspace?.repos?.[0].repo).toBe('https://github.com/org/repo.git');
+    expect(workspace?.repos?.[0].resolver).toBe('custom');
     expect(workspace?.repos?.[0].commit).toBe('main');
     expect(workspace?.repos?.[0].ancestor).toBe(1);
     expect(workspace?.repos?.[0].sparse).toEqual(['src/**']);

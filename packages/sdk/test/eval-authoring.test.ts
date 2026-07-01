@@ -110,7 +110,9 @@ describe('YAML-aligned eval authoring helpers', () => {
       },
       timeout_seconds: 600,
       threshold: 0.8,
-      budget_usd: 1.5,
+      evaluate_options: {
+        budget_usd: 1.5,
+      },
       assertions: [
         {
           type: 'execution-metrics',

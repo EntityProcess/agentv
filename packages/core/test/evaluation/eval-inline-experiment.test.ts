@@ -90,6 +90,55 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig?.threshold).toBe(0.9);
   });
 
+  it('parses evaluate_options.budget_usd and prefers it over legacy top-level budget_usd', async () => {
+    const evalPath = path.join(tempDir, 'evaluate-options-budget.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: evaluate-options-budget-suite',
+        'target: codex',
+        'budget_usd: 99',
+        'evaluate_options:',
+        '  budget_usd: 2.5',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.budgetUsd).toBe(2.5);
+    expect(suite.experimentConfig).toMatchObject({
+      target: 'codex',
+      budgetUsd: 2.5,
+    });
+  });
+
+  it('parses evaluate_options.max_concurrency as suite workers', async () => {
+    const evalPath = path.join(tempDir, 'evaluate-options-concurrency.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: evaluate-options-concurrency-suite',
+        'target: codex',
+        'evaluate_options:',
+        '  max_concurrency: 2',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.workers).toBe(2);
+  });
+
   it('rejects authored workers in eval YAML runtime blocks', async () => {
     const cases = [
       {

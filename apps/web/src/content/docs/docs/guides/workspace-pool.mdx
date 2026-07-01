@@ -7,7 +7,11 @@ sidebar:
 
 Workspace pooling keeps materialized workspaces on disk between eval runs. Instead of cloning repos and checking out files every time, pooled workspaces reset in-place — typically reducing setup from minutes to seconds for large repositories.
 
-**Pooling is enabled by default** for shared workspaces that define `repos`. No extra flags needed.
+Pooling is an explicit machine-local runtime mode. The default repo workspace mode is `temp`, which materializes a fresh workspace for each run.
+
+```bash
+agentv eval evals/my-eval.yaml --workspace-mode pooled
+```
 
 ## How it works
 
@@ -31,24 +35,22 @@ On subsequent runs:
 
 **Keep templates small.** Template files are re-copied into every slot on every run. Use them for lightweight setup — agent skills, configuration files, prompt templates — not large assets. Heavy dependencies belong in repos (pooled and reused) or should be installed by `before_all` hooks (cached across reuse cycles with `fast` reset).
 
-The first run materializes from scratch. Every subsequent run reuses the pool — skipping clone and checkout entirely.
+The first pooled run materializes from scratch. Subsequent pooled runs reuse the pool — skipping clone and checkout entirely.
 
-## Disabling pooling
+## Enabling pooling
 
-Pooling is on by default. To disable it:
-
-### CLI mode
+Use pooled mode only as a local runtime override:
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace-mode temp
+agentv eval evals/my-eval.yaml --workspace-mode pooled
 ```
 
-### Local config
+Or set it in local config:
 
 ```yaml
 # .agentv/config.local.yaml
 execution:
-  workspace_mode: temp
+  workspace_mode: pooled
 ```
 
 `workspace_mode` is a machine-local runtime override. Do not commit it in eval YAML.
@@ -202,14 +204,15 @@ CLI flags `--retain-on-success` / `--retain-on-failure` control temporary eval-r
 
 | Mode | Setup cost | Persistent | Build artifacts preserved | Concurrent workers |
 |------|-----------|-----------|--------------------------|-------------------|
-| **Pooled** (default) | First run only; reset on reuse | Yes | Yes (`.gitignore`d files) | Yes (slot per worker) |
-| **Temp** (`--workspace-mode temp`) | Full clone + checkout every run | No | No | Sequential only |
+| **Temp** (default) | Full clone + checkout every run | No | No | Sequential only |
+| **Pooled** (`--workspace-mode pooled`) | First run only; reset on reuse | Yes | Yes (`.gitignore`d files) | Yes (slot per worker) |
 | **Existing path** (`--workspace-path` / `execution.workspace_path`) | Uses the supplied directory as-is | Yes | User-managed | Sequential only |
 
-## When to disable pooling
+## When to opt into pooling
 
-**Pooling is typically the right default.** Consider disabling it when:
-- You need guaranteed clean-slate isolation between runs
-- You're debugging workspace setup issues and want fresh clones each time
-- You use `--workspace-path` with a pre-existing local directory (pooling is automatically skipped)
-- You need `isolation: per_case` (each test gets its own workspace copy; pooling is automatically skipped)
+Consider pooled mode when:
+- Large repo materialization dominates run time
+- You want local cache reuse across repeated development runs
+- You understand that ignored build artifacts may survive fast pool resets
+
+Prefer the default temp mode when you need clean-slate isolation, are debugging workspace setup, use `--workspace-path`, or run with `isolation: per_case`.

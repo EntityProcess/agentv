@@ -1,9 +1,9 @@
 /**
  * Tracks cumulative cost across all eval files in a single CLI run.
  *
- * The per-suite budget (`execution.budget_usd` in YAML) is enforced by the orchestrator
- * and caps spend within one eval file. This tracker provides a **run-level** cap that
- * spans all files in a single `agentv run` invocation.
+ * The per-suite budget (`evaluate_options.budget_usd` in YAML) is enforced by the
+ * orchestrator and caps spend within one eval file. This tracker provides a **run-level**
+ * cap that spans all files in a single `agentv run` invocation.
  *
  * Usage:
  * 1. Instantiate with the cap from `--budget-usd`.

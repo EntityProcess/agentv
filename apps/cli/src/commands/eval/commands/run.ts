@@ -122,7 +122,7 @@ export const evalRunCommand = command({
     workspaceMode: option({
       type: optional(string),
       long: 'workspace-mode',
-      description: "Workspace mode: 'pooled', 'temp', or 'static'",
+      description: "Workspace mode: 'temp' (default), 'pooled', or 'static'",
     }),
     workspacePath: option({
       type: optional(string),

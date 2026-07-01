@@ -10,9 +10,9 @@ fixtures, repositories, and lifecycle hooks. Targets run inside that substrate.
 When `workspace.repos` is present, the eval declares repository identity and
 checkout pins; AgentV decides how to acquire the bytes.
 
-[Workspace pooling](/docs/guides/workspace-pool/) is enabled by default for
-shared repo workspaces, so the first run pays materialization cost and later
-runs reset existing pool slots in place.
+By default, repo workspaces are materialized into fresh temp workspaces. A
+machine-local pooled mode remains available for runs that explicitly opt into
+slot reuse.
 
 ## Eval setup lifecycle
 
@@ -23,7 +23,7 @@ eval start
   |
   v
 +---------------------------+
-| 1. Pool / workspace setup |  Acquire pool slot or create temp workspace
+| 1. Workspace setup        |  Create temp workspace or acquire explicit pool slot
 +---------------------------+
   |
   v
@@ -57,7 +57,7 @@ eval start
 +---------------------------+
 ```
 
-With workspace pooling (the default), steps 2-3 only happen on the first run. Subsequent runs reset the pool slot in-place, skipping clone and checkout entirely.
+With `--workspace-mode pooled`, steps 2-3 only happen on the first run. Subsequent runs reset the pool slot in-place, skipping clone and checkout entirely. The default repo workspace mode is `temp`, which materializes a fresh workspace for each run.
 
 ## Repo provenance vs acquisition
 
@@ -83,6 +83,7 @@ Supported repo fields:
 | `base_commit` | Alias for `commit`, useful for SWE-bench-style datasets |
 | `sparse` | Optional sparse-checkout paths |
 | `ancestor` | Walk N parents back after resolving `commit` / `base_commit` |
+| `resolver` | Optional `repo_resolvers[].name` override from AgentV config |
 
 `commit` is the canonical AgentV checkout pin. `base_commit` exists only as a
 SWE-Bench-friendly alias for the same value; when both fields are present they
@@ -97,8 +98,8 @@ while each harness uses the fastest safe local source available.
 ## Native workspace boundary
 
 Use native AgentV workspaces when AgentV owns the run lifecycle: custom internal
-suites, CI gates, target comparisons, pooled workspaces, local setup hooks,
-Docker workspaces, and generic repository acquisition. In that path,
+suites, CI gates, target comparisons, local setup hooks, Docker workspaces, and
+generic repository acquisition. In that path,
 `workspace.repos` declares the repos and checkout pins while AgentV materializes
 the workspace, runs targets and graders, and writes AgentV run bundles.
 
@@ -118,17 +119,63 @@ For each materialized repo, AgentV resolves acquisition in this order:
 
 | Order | Source | How it is used |
 |-------|--------|----------------|
-| 1 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV clones from that local checkout with `--reference <path> --dissociate`, then resets `origin` to the declared repo URL. |
-| 2 | Configured mirror | A path listed under `git_cache.mirrors` in `$AGENTV_HOME/config.yaml`. AgentV uses the same `--reference <path> --dissociate` flow. |
-| 3 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
-| 4 | Remote clone | The normalized clone URL from the eval's `repo` field. |
+| 1 | Explicit resolver | `workspace.repos[].resolver` names a configured command resolver. If it returns `handled:false`, AgentV fails clearly instead of guessing. |
+| 2 | Pattern resolver | The first non-`default` `repo_resolvers[]` entry whose `repos` pattern matches the repo URL or identity. If it returns `handled:false`, AgentV continues to the default resolver. |
+| 3 | Default resolver | The resolver named `default`, if configured. It must not declare `repos`; it is the unconditional project default. If it returns `handled:false`, AgentV continues to the built-in git resolver. |
+| 4 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV seeds its mirror cache from that local checkout, then clones the cache into the workspace and resets `origin` to the declared repo URL. |
+| 5 | Configured mirror | A path listed under `git_cache.mirrors`. AgentV seeds its mirror cache from that checkout or bare mirror, then clones the cache into the workspace. |
+| 6 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
+| 7 | Remote clone | The normalized clone URL from the eval's `repo` field. |
 
-`--dissociate` copies the objects needed by the workspace clone and removes the
-long-lived alternates dependency on the user-owned checkout or mirror. That
-keeps preserved workspaces and pool slots from breaking later if a local
-checkout is moved, deleted, or garbage-collected. Local checkouts and mirrors
-still provide clone speed, but the resulting workspace has its own required Git
-objects and full reachable history for pinned commits and `ancestor` checks.
+Workspace clones are independent from user-owned checkouts, configured mirrors,
+and resolver source directories. AgentV does not leave Git alternates pointing
+back to those sources, so preserved workspaces and pool slots keep working if a
+local checkout is moved, deleted, or garbage-collected.
+
+### Command repo resolvers
+
+Use `repo_resolvers` when repo bytes come from a project-specific source that
+AgentV core should not understand, such as an internal snapshot bundle. Put that
+logic in a resolver script and return a local git source for AgentV to clone and
+check out normally:
+
+```yaml
+# .agentv/config.yaml
+repo_resolvers:
+  - name: org_snapshots
+    repos:
+      - https://github.com/example/*
+    command:
+      - bun
+      - scripts/eval-config/repo-resolver.ts
+    config:
+      release_tag: snapshot/v1.1.0
+
+  - name: default
+    command:
+      - bun
+      - scripts/eval-config/default-repo-resolver.ts
+```
+
+AgentV sends JSON on stdin with `version`, `repo`, `commit`, `path`, `sparse`,
+`ancestor`, `cache_dir`, `workspace_path`, and the resolver `config`. The
+resolver writes JSON on stdout:
+
+```json
+{
+  "handled": true,
+  "source": {
+    "type": "git",
+    "path": "/tmp/source.git",
+    "origin": "https://github.com/example/repo.git"
+  }
+}
+```
+
+Only `source.type: "git"` is supported. Resolver scripts should prepare or
+locate source directories independently from the final workspace; AgentV still
+materializes the repo into every shared, per-case, or explicitly pooled
+workspace it creates.
 
 ### Configured mirrors
 
@@ -269,7 +316,7 @@ workspace clone from user-owned storage.
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| Clone progress runs for minutes on first run | Large repo acquired from remote | Register a matching local project or configure `git_cache.mirrors`; subsequent pooled runs skip clone. |
+| Clone progress runs for minutes | Large repo acquired from remote | Register a matching local project or configure `git_cache.mirrors`; optionally use `--workspace-mode pooled` for repeated local runs. |
 | Heartbeat ends with a clone/fetch timeout | Remote network or missing local cache | Use the timeout guidance in the error: local checkout, configured mirror, or network fix. |
 | Stuck at checkout for 2+ minutes | Large repo file materialization after objects are present | Expected for 100k+ files; use Dev Drive on Windows. Subsequent runs use pool. |
 | `Filename too long` during checkout | Missing `core.longpaths` | `git config --global core.longpaths true` |
@@ -278,12 +325,12 @@ workspace clone from user-owned storage.
 
 ## Workspace pooling
 
-Workspace pooling is **enabled by default** for shared workspaces with repos. The first run materializes from scratch. Subsequent runs reset the existing workspace in-place (`git reset --hard` + `git clean -fd`) — typically reducing setup from minutes to seconds.
+Workspace pooling is an explicit machine-local optimization for shared workspaces with repos. The first pooled run materializes from scratch. Subsequent pooled runs reset the existing workspace in-place (`git reset --hard` + `git clean -fd`) — typically reducing setup from minutes to seconds.
 
-To disable pooling for a run:
+To opt into pooling for a run:
 
 ```bash
-agentv eval evals/my-eval.yaml --no-pool
+agentv eval evals/my-eval.yaml --workspace-mode pooled
 ```
 
 See the [Workspace Pool](/docs/guides/workspace-pool/) guide for details on pool configuration, clean modes, concurrency, and drift detection.

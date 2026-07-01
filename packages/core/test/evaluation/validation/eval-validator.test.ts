@@ -41,6 +41,9 @@ describe('validateEvalFile', () => {
       `name: wrapper
 target: codex
 threshold: 0.8
+evaluate_options:
+  budget_usd: 2
+  max_concurrency: 3
 repeat:
   count: 2
   strategy: pass_any
@@ -74,6 +77,31 @@ imports:
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects invalid evaluate_options.max_concurrency', async () => {
+    const filePath = path.join(tempDir, 'invalid-max-concurrency.yaml');
+    await writeFile(
+      filePath,
+      `target: codex
+evaluate_options:
+  max_concurrency: 0
+tests:
+  - id: local-case
+    input: "Hello"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.location === 'evaluate_options.max_concurrency' &&
+          error.message.includes('integer between 1 and 50'),
+      ),
+    ).toBe(true);
   });
 
   it('validates default_test.threshold', async () => {

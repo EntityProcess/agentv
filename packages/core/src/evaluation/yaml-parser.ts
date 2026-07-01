@@ -187,6 +187,7 @@ type RawTestSuite = JsonObject & {
   readonly runs?: JsonValue;
   readonly early_exit?: JsonValue;
   readonly timeout_seconds?: JsonValue;
+  readonly evaluate_options?: JsonValue;
   readonly budget_usd?: JsonValue;
   readonly threshold?: JsonValue;
   readonly default_test?: JsonValue;
@@ -345,7 +346,7 @@ export type EvalSuiteResult = {
   readonly targetRefs?: readonly import('./types.js').EvalTargetRef[];
   /** Single authored target string or eval-local overlay object. */
   readonly targetSpec?: EvalTargetSpec;
-  /** Suite-level workers from project config or CLI, not authored eval YAML. */
+  /** Suite-level concurrency from evaluate_options.max_concurrency. */
   readonly workers?: number;
   /** Suite-level cache config from project/CLI runtime surfaces. */
   readonly cacheConfig?: import('./loaders/config-loader.js').CacheConfig;
@@ -919,7 +920,7 @@ function rejectAuthoredWorkers(parsed: JsonObject): void {
   }
 
   throw new Error(
-    `${locations[0]} has been removed from eval YAML. Set concurrency with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+    `${locations[0]} has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
   );
 }
 
@@ -1454,12 +1455,12 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.policy !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, threshold, and budget_usd at the top level.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.`,
     );
   }
   if (suite.execution !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level; configure concurrency with CLI flags or project config.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.`,
     );
   }
   if (suite.model !== undefined) {
@@ -1485,12 +1486,13 @@ function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | 
   readSuiteRuntimeBlock(suite, 'eval file');
   const targetSpec = parseEvalTargetSpec(suite.target);
   const experimentName = asString(suite.experiment);
+  const budgetUsd = extractBudgetUsd(parsed);
   const runtimeConfig: JsonObject = {
     ...(experimentName !== undefined ? { name: experimentName } : {}),
     ...(targetSpec !== undefined ? { target: targetSpec.name } : {}),
     ...(suite.repeat !== undefined ? { repeat: suite.repeat } : {}),
     ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),
-    ...(suite.budget_usd !== undefined ? { budget_usd: suite.budget_usd } : {}),
+    ...(budgetUsd !== undefined ? { budget_usd: budgetUsd } : {}),
     ...(suite.threshold !== undefined ? { threshold: suite.threshold } : {}),
   };
   if (Object.keys(runtimeConfig).length === 0) {
@@ -2019,7 +2021,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('pool' in obj) {
     throw new Error(
-      'workspace.pool has been removed from eval YAML. Shared repo workspaces are pooled by default; use --workspace-mode or config.local.yaml execution.workspace_mode for machine-local runtime overrides.',
+      'workspace.pool has been removed from eval YAML. Shared repo workspaces use fresh temp materialization by default; use --workspace-mode pooled or config.local.yaml execution.workspace_mode for machine-local pooled reuse.',
     );
   }
   if ('static' in obj) {

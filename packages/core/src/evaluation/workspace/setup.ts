@@ -422,9 +422,7 @@ export async function prepareSharedWorkspaceSetup(
   if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
     throw new Error('--workspace-path requires --workspace-mode static when both are provided');
   }
-  let configuredMode: WorkspaceSetupMode = cliWorkspacePath
-    ? 'static'
-    : (workspaceMode ?? 'pooled');
+  let configuredMode: WorkspaceSetupMode = cliWorkspacePath ? 'static' : (workspaceMode ?? 'temp');
   const configuredStaticPath = cliWorkspacePath;
 
   if (configuredMode === 'static' && !configuredStaticPath) {

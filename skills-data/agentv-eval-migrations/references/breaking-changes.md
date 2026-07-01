@@ -40,7 +40,8 @@ repeat:
 
 timeout_seconds: 600
 threshold: 0.8
-budget_usd: 5
+evaluate_options:
+  budget_usd: 5
 ```
 
 ## Repeat Policy Uses `repeat`
@@ -161,9 +162,9 @@ execution:
   workspace_path: /path/to/local/workspace
 ```
 
-Shared repo workspaces are pooled by default. Use
-`--workspace-mode temp` or `execution.workspace_mode: temp` in local config to
-force fresh temporary materialization for a local run. Use
+Shared repo workspaces use fresh temp materialization by default. Use
+`--workspace-mode pooled` or `execution.workspace_mode: pooled` in local config
+only when pool-slot reuse is intentional. Use
 `--workspace-path` or `execution.workspace_path` when an existing directory
 should be used as-is.
 
