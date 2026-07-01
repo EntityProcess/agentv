@@ -6,7 +6,7 @@ sidebar:
 ---
 
 AgentV eval files are the runnable authoring artifact. Use top-level
-`description` for display metadata, `experiment` as the run/result grouping
+`description` for display metadata, `tags.experiment` as the run/result grouping
 label, `target` for the system under test, and flat top-level run controls such
 as `repeat`, `timeout_seconds`, and `threshold`. Use `evaluate_options` for
 evaluation runtime options such as `budget_usd` and `max_concurrency`.
@@ -17,7 +17,8 @@ overrides.
 ```yaml
 name: support-regression
 description: Support regression suite
-experiment: support-codex
+tags:
+  experiment: support-codex
 target:
   extends: codex-gpt5
   model: gpt-5.1
@@ -252,11 +253,11 @@ Eval runs write to a direct run bundle:
 ```
 
 CLI `--experiment` sets the experiment label explicitly. Without that flag, AgentV
-uses a reserved `tags.experiment` key (see below), then top-level `experiment`,
-then top-level `name`, then the eval filename. The precedence is
-`--experiment` > `tags.experiment` > default. The Dashboard uses "Experiment" for
-the comparison and result grouping concept; folder names are only storage
-allocation and must not define result semantics.
+uses the reserved `tags.experiment` key (see below), then the suite `name`, then
+the eval filename. The precedence is `--experiment` > `tags.experiment` > default.
+There is no top-level `experiment` field — a run is labeled with `tags.experiment`.
+The Dashboard uses "Experiment" for the comparison and result grouping concept;
+folder names are only storage allocation and must not define result semantics.
 
 ### Tags as run metadata (`tags.experiment`)
 

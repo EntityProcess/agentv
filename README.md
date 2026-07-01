@@ -61,13 +61,13 @@ targets:
   - name: copilot-sdk
     provider: anthropic
     model: claude-sonnet-4.6
-    max_budget_usd: 0.50
 ```
 
 **3. Create an eval** in `evals/`:
 ```yaml
 description: Code generation quality
-experiment: with-skills
+tags:
+  experiment: with-skills
 target: copilot-sdk
 evaluate_options:
   repeat:
@@ -103,7 +103,8 @@ The target can be an eval-local object when this eval needs target settings of i
 
 ```yaml
 description: Code generation quality with Copilot target settings
-experiment: with-skills
+tags:
+  experiment: with-skills
 target:
   extends: copilot-sdk
   model: claude-sonnet-4.6
@@ -120,7 +121,7 @@ tests:
     input: Write FizzBuzz in Python
 ```
 
-`target: copilot-sdk` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The experiment label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
+`target: copilot-sdk` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
 Use `default_test.threshold` for the inherited per-test pass cutoff. Existing eval files with a top-level `threshold` still load during migration, and `--threshold` on the CLI still overrides YAML thresholds for a run.
 
@@ -136,7 +137,7 @@ agentv compare .agentv/results/<baseline-run-id>/index.jsonl .agentv/results/<ca
 
 ## Results
 
-Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `experiment: with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
+Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `tags.experiment: with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
 
 ```bash
 agentv eval evals/my-eval.yaml
@@ -203,7 +204,7 @@ import { defineEval } from '@agentv/sdk';
 
 export default defineEval({
   description: 'Code generation quality',
-  experiment: 'with-skills',
+  tags: { experiment: 'with-skills' },
   target: {
     extends: 'copilot-sdk',
     model: 'claude-sonnet-4.6',
