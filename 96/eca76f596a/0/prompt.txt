@@ -1,0 +1,13 @@
+do we have anything outstanding in this branch, if not lets delete it and checkout main
+
+---
+
+ask deepwiki mcp whether promptfoo controls concurrent workers and how it defines it
+
+---
+
+we should call ours max_concurrency as well to be consistent.
+
+---
+
+this was done in the dashboard branch or the main branch? did we push to pr
