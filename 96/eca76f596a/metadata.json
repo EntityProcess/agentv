@@ -7,25 +7,34 @@
   "files_touched": [
     "README.md",
     "apps/cli/src/commands/eval/run-eval.ts",
+    "apps/cli/test/eval.integration.test.ts",
+    "apps/web/src/content/docs/docs/evaluation/eval-files.mdx",
+    "apps/web/src/content/docs/docs/evaluation/experiments.mdx",
+    "packages/core/src/evaluation/experiment.ts",
+    "packages/core/src/evaluation/loaders/config-loader.ts",
     "packages/core/src/evaluation/validation/eval-file.schema.ts",
     "packages/core/src/evaluation/validation/eval-validator.ts",
+    "packages/core/src/evaluation/yaml-parser.ts",
     "packages/core/test/evaluation/eval-inline-experiment.test.ts",
+    "packages/core/test/evaluation/loaders/config-loader.test.ts",
     "packages/core/test/evaluation/validation/eval-file-schema.test.ts",
-    "packages/core/test/evaluation/validation/eval-validator.test.ts"
+    "packages/core/test/evaluation/validation/eval-validator.test.ts",
+    "skills-data/agentv-eval-writer/SKILL.md",
+    "skills-data/agentv-eval-writer/references/eval.schema.json"
   ],
   "sessions": [
     {
       "metadata": "/96/eca76f596a/0/metadata.json",
       "transcript": "/96/eca76f596a/0/full.jsonl",
       "content_hash": "/96/eca76f596a/0/content_hash.txt",
-      "prompt": ""
+      "prompt": "/96/eca76f596a/0/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 94727,
+    "input_tokens": 380971,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 7682816,
-    "output_tokens": 13776,
-    "api_call_count": 42
+    "cache_read_tokens": 4092544,
+    "output_tokens": 22923,
+    "api_call_count": 55
   }
 }
