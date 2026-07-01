@@ -158,7 +158,12 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 - **Conflict:** direct naming collision; functionally equivalent → principle says promptfoo wins.
 - **D — `assert` is canonical; `assertions` REMOVED** (hard). Reverses ADR-0013; needs a superseding ADR.
 - **D — adopt promptfoo type names where equivalent:** `javascript`/`python`, `assert-set` (over `composite`, removed), the string ops (`contains`/`equals`/`regex`/`is-json`/`icontains`/`contains-all`/`contains-any`/`starts-with`), `similar`, `latency`, `cost`, `webhook`.
-- **D — keep AgentV grader types that have better/extra semantics** as first-class extension types (no promptfoo equivalent, or strictly richer): `code-grader` (workspace/target-aware superset of `javascript`/`python`), `tool-trajectory`, `execution-metrics`, `field-accuracy`, `include`.
+- **D — keep AgentV grader types that have better/extra semantics** as first-class extension types (no promptfoo equivalent, or strictly richer): `code-grader` (workspace/`cwd`-aware, arbitrary-language subprocess power tool), `tool-trajectory`, `execution-metrics`, `field-accuracy`, `include`.
+- **D — execution model (verified against promptfoo; corrects the old §8.3):** promptfoo runs `javascript` **in-process** (`new Function` for inline, dynamic `import()` for `file://`) and shells out **only** for `python` (`PythonShell` subprocess). AgentV matches this:
+  - **`javascript` → in-process** — live `output`/`context` objects by reference, ~zero overhead. On Bun this is *easier* than Node (Bun `import()`s `.ts` directly, no transpile step).
+  - **`python` → subprocess** — unavoidable cross-runtime; JSON args in/out.
+  - **`code-grader` → stays the subprocess power tool** for workspace-`cwd` graders (build/test commands), arbitrary languages, and isolation-sensitive cases.
+  - **Do NOT desugar `javascript`→`code-grader`** — that would throw away in-process speed. Boundary: *light/pure → in-process `javascript`; heavy/workspace/multi-language → subprocess `code-grader`.* Same trust model both ways (author code is trusted, as in promptfoo).
 - **D — consolidate the three LLM-judge types into one `llm-rubric`** (was §8.1). `rubrics` (multi-criteria, one judge call, operators/`score_ranges`) and `llm-grader` (agentic: `target`, `max_steps`, `preprocessors`) are **removed as type names** and folded into `llm-rubric` as optional fields:
   ```yaml
   type: llm-rubric
@@ -322,6 +327,6 @@ The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.
 
 1. **Assertion parity scope — reframed by superset.** The schema must *accept* the full promptfoo assertion type list (so any promptfoo config parses). Open question is only *implementation* order: which exotic graders (`context-*`, `moderation`, `guardrails`, `answer-relevance`, `classifier`, `g-eval`, `perplexity`, embeddings-backed `similar`) ship as working vs. accepted-but-`not_implemented` stubs at v-major. (Leaning: `similar` + string/js/py/rubric/latency/cost working at launch; rest accepted-and-stubbed, `log()`-warned, filled on demand.)
 2. **Redteam — the one strict-superset tension.** promptfoo's `redteam:` block is part of its contract, so strict superset implies accepting it. But it's a large subsystem. Options: (a) **accept-and-ignore** the `redteam` key at schema level (parses, no-op + warning) to preserve superset parsing, defer execution; (b) exclude it entirely and declare redteam an explicit non-superset carve-out. (Leaning: (a) — accept the key so promptfoo files parse, defer behavior.)
-3. **`code-grader` vs `javascript`/`python`** — accept promptfoo `javascript`/`python` (required for superset) as sugar desugaring to `code-grader`, or as distinct simpler types? Either satisfies superset. (Leaning: desugar.)
+3. **`code-grader` vs `javascript`/`python` — RESOLVED (§2.c):** distinct execution paths — `javascript` in-process, `python` subprocess, `code-grader` the subprocess power tool. Not desugared.
 
-Everything else is decided; phase 1 (schema + superseding ADR + codemod + camel→snake importer) can start once these three are confirmed.
+Everything else is decided; phase 1 (schema + superseding ADR + codemod + camel→snake importer) can start once the two remaining are confirmed.
