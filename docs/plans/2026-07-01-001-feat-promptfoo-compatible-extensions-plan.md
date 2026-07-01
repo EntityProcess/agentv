@@ -10,6 +10,18 @@ type: feat
 
 # feat: Add Promptfoo-compatible extensions
 
+## Amendments (agreed — override the sections below where they conflict)
+
+This plan is the **extensions/workspace implementation slice** of the wider promptfoo-superset restructure (`docs/plans/promptfoo-aligned-eval-restructure.md`, PR #1594). The following owner-agreed decisions override the original text:
+
+- **A1. Isolation is hook-derived, not a config field.** Remove the `isolation: per_case` config knob (KTD2/U4/AE). Shared-vs-per-case is selected by **which hook** the workspace extension is registered on: `beforeAll` = shared workspace, `beforeEach` = per-case. The mechanism is a **reset-based workspace pool** (workers share a workspace, or draw from a pool that is reset to original — git clean / snapshot — between uses), not container-per-instance.
+- **A2. Per-case workspace spec lives in dataset `vars.workspace`** (not only in an `extensions/workspace.config.yaml`). Workspace "is part of the dataset": the `beforeEach` extension reads `vars.workspace` from the test context; shared/global config in a config file is still allowed for run-wide defaults. Amend U2/U4 to consume `vars.workspace`.
+- **A3. Ship a built-in, auto-registered `agentv:workspace` / `agentv:skills` scheme** alongside `file://`. The common case needs no copied script: `extensions: [agentv:workspace:beforeAll]`. `file://path:function` remains for custom extensions. (Original text's `file://`-only model becomes the *custom* path, not the only path.)
+- **A4. Grading contract unchanged: reuse `EvaluationScore`.** Extensions never own `grading.json`; the `pass`/`score`/`evidence` triple stays in the existing `EvaluationScore` (`score` + `verdict` + `assertions[{text,passed,evidence}]`).
+- **A5. ADR sequencing.** The proposed ADR 0014 must note that a broader superseding ADR (reversing parts of ADR-0013: `assert`, grader-type names, removal of `tests[].input`) is incoming, so 0014 does not re-entrench `input`/`assertions`.
+
+The rest of the plan (Promptfoo `file://path:function` refs, four hook names, hard-remove core `workspace`, typed outputs instead of env-var side channels, JS-in-process/Python-subprocess, canonical run bundle, skills extension) stands as written.
+
 ## Goal Capsule
 
 - **Objective:** Adopt a Promptfoo-compatible eval authoring contract for extension hooks, remove `workspace` as an AgentV core primitive, and make the PR 679 parity example reusable through generalized workspace and skills extensions.
