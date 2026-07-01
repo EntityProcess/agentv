@@ -7,6 +7,7 @@ import {
   readFileSync,
   readdirSync,
   statSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -685,6 +686,33 @@ describe('RepoManager', () => {
 
       const targetDir = path.join(workspaceDir, 'my-repo');
       expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
+      expect(gitExec('git rev-parse --is-bare-repository', cachePath)).toBe('true');
+    }, 30_000);
+
+    it('removes stale mirror-cache lock directories before cloning', async () => {
+      const repoDir = path.join(tmpDir, 'source-repo');
+      createTestRepo(repoDir, { 'hello.txt': 'hello world' });
+      const remoteDir = path.join(tmpDir, 'remote.git');
+      execSync(`git clone --bare "${repoDir}" "${remoteDir}"`, { env: cleanGitEnv() });
+      const repo = `file://${remoteDir}`;
+      const cachePath = cachePathFor(repo);
+      const lockPath = `${cachePath}.lock`;
+      mkdirSync(lockPath, { recursive: true });
+      const staleTime = new Date(Date.now() - 10_000);
+      utimesSync(lockPath, staleTime, staleTime);
+
+      const timeoutManager = new RepoManager(false, { progress: false, timeoutMs: 5_000 });
+      await timeoutManager.materialize(
+        {
+          path: './my-repo',
+          repo,
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'my-repo');
+      expect(existsSync(path.join(targetDir, 'hello.txt'))).toBe(true);
+      expect(existsSync(lockPath)).toBe(false);
       expect(gitExec('git rev-parse --is-bare-repository', cachePath)).toBe('true');
     }, 30_000);
 

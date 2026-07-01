@@ -492,7 +492,7 @@ export interface RunEvaluationOptions {
   readonly runBudgetTracker?: RunBudgetTracker;
   /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
-  /** Workspace pooling: true (default) enables pool, false disables, undefined defaults to true */
+  /** Legacy workspace pooling toggle. Explicit workspaceMode=pooled opts in to pooled reuse. */
   readonly poolWorkspaces?: boolean;
   /** Maximum number of pool slots on disk (default: 10, max: 50) */
   readonly poolMaxSlots?: number;

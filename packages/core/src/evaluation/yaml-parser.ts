@@ -2019,7 +2019,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('pool' in obj) {
     throw new Error(
-      'workspace.pool has been removed from eval YAML. Shared repo workspaces are pooled by default; use --workspace-mode or config.local.yaml execution.workspace_mode for machine-local runtime overrides.',
+      'workspace.pool has been removed from eval YAML. Shared repo workspaces use fresh temp materialization by default; use --workspace-mode pooled or config.local.yaml execution.workspace_mode for machine-local pooled reuse.',
     );
   }
   if ('static' in obj) {

@@ -121,7 +121,6 @@ describe('prepareSharedWorkspaceSetup', () => {
       question: 'test',
       criteria: 'ok',
       workspace: {
-        mode: 'pooled',
         hooks: { after_each: { reset: 'fast' } },
         repos,
       },
@@ -131,6 +130,7 @@ describe('prepareSharedWorkspaceSetup', () => {
       evalRunId: 'test-pooled-repo-reset',
       evalCases: [evalCase],
       evalDir: tmpDir,
+      workspaceMode: 'pooled',
       workers: 1,
     });
 
@@ -148,6 +148,41 @@ describe('prepareSharedWorkspaceSetup', () => {
 
     expect(readFileSync(path.join(repoDir, 'tracked.txt'), 'utf8')).toBe('clean\n');
     expect(existsSync(path.join(repoDir, 'stale.txt'))).toBe(false);
+  }, 30_000);
+
+  it('uses fresh temp materialization for shared repo workspaces by default', async () => {
+    const sourceRepo = path.join(tmpDir, 'source-repo');
+    const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
+    const evalCase = testCase('case-1', {
+      repos: [
+        {
+          path: './repo-a',
+          repo: `file://${sourceRepo}`,
+          commit: cleanCommit,
+        },
+      ],
+    });
+
+    setup = await prepareSharedWorkspaceSetup({
+      evalRunId: 'test-default-temp-repo',
+      evalCases: [evalCase],
+      evalDir: tmpDir,
+      workers: 1,
+    });
+
+    expect(setup.configuredMode).toBe('temp');
+    expect(setup.poolManager).toBeUndefined();
+    expect(setup.poolSlots).toHaveLength(0);
+    expect(setup.sharedWorkspacePath).toBeDefined();
+    if (!setup.sharedWorkspacePath) {
+      throw new Error('Expected temp setup to include a workspace path');
+    }
+
+    const repoDir = path.join(setup.sharedWorkspacePath, 'repo-a');
+    expect(
+      execSync('git rev-parse HEAD', { cwd: repoDir, env: cleanGitEnv() }).toString().trim(),
+    ).toBe(cleanCommit);
+    expect(readFileSync(path.join(repoDir, 'tracked.txt'), 'utf8')).toBe('clean\n');
   }, 30_000);
 
   it('uses CLI workspacePath as an existing static workspace without materializing repos', async () => {

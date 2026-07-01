@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -38,6 +38,11 @@ interface AcquisitionSource {
   readonly kind: 'configured-mirror' | 'registered-project' | 'mirror-cache' | 'remote';
   readonly sourceUrl: string;
   readonly originUrl: string;
+}
+
+interface MirrorCacheLockMetadata {
+  readonly pid: number;
+  readonly createdAt: string;
 }
 
 /** Environment vars to force non-interactive git, stripped of hook-injected vars. */
@@ -365,14 +370,24 @@ export class RepoManager {
   private async withMirrorCacheLock<T>(mirrorPath: string, action: () => Promise<T>): Promise<T> {
     const lockPath = `${mirrorPath}.lock`;
     const startedAt = Date.now();
+    let lastLockHeartbeatAt = 0;
 
     while (true) {
       try {
         await mkdir(lockPath);
+        await this.writeMirrorCacheLockMetadata(lockPath);
         break;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code !== 'EEXIST') throw error;
+        if (await this.removeStaleMirrorCacheLock(lockPath)) {
+          continue;
+        }
+        if (this.progress && Date.now() - lastLockHeartbeatAt >= this.heartbeatMs) {
+          lastLockHeartbeatAt = Date.now();
+          const elapsed = formatDuration(Date.now() - startedAt);
+          console.error(`[repo] waiting for git cache lock ${lockPath} after ${elapsed}`);
+        }
         if (Date.now() - startedAt > this.timeoutMs) {
           throw new Error(`Timed out waiting for git cache lock: ${lockPath}`);
         }
@@ -385,6 +400,63 @@ export class RepoManager {
     } finally {
       await rm(lockPath, { recursive: true, force: true });
     }
+  }
+
+  private async writeMirrorCacheLockMetadata(lockPath: string): Promise<void> {
+    const metadata: MirrorCacheLockMetadata = {
+      pid: process.pid,
+      createdAt: new Date().toISOString(),
+    };
+    await writeFile(path.join(lockPath, 'owner.json'), JSON.stringify(metadata, null, 2));
+  }
+
+  private readMirrorCacheLockMetadata(lockPath: string): MirrorCacheLockMetadata | undefined {
+    const metadataPath = path.join(lockPath, 'owner.json');
+    if (!existsSync(metadataPath)) return undefined;
+    try {
+      const parsed = JSON.parse(readFileSync(metadataPath, 'utf-8')) as unknown;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+      const metadata = parsed as Record<string, unknown>;
+      if (typeof metadata.pid !== 'number' || typeof metadata.createdAt !== 'string') {
+        return undefined;
+      }
+      return { pid: metadata.pid, createdAt: metadata.createdAt };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private isProcessAlive(pid: number): boolean {
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'EPERM';
+    }
+  }
+
+  private async isStaleMirrorCacheLock(lockPath: string): Promise<boolean> {
+    const metadata = this.readMirrorCacheLockMetadata(lockPath);
+    if (metadata) {
+      return !this.isProcessAlive(metadata.pid);
+    }
+
+    try {
+      const lockStat = await stat(lockPath);
+      return Date.now() - lockStat.mtimeMs > this.timeoutMs;
+    } catch {
+      return false;
+    }
+  }
+
+  private async removeStaleMirrorCacheLock(lockPath: string): Promise<boolean> {
+    if (!(await this.isStaleMirrorCacheLock(lockPath))) {
+      return false;
+    }
+    console.warn(`[repo] removing stale git cache lock: ${lockPath}`);
+    await rm(lockPath, { recursive: true, force: true });
+    return true;
   }
 
   private async isValidBareRepo(repoPath: string): Promise<boolean> {

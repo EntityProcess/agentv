@@ -1,7 +1,7 @@
 description: >-
-  E2E test for workspace pooling. No pool config in YAML — pooling is
-  enabled by default for shared workspaces with repos.
-  Run with --workers 2 to exercise multiple pool slots.
+  E2E test for workspace pooling. Run with --workspace-mode pooled
+  --workers 2 to exercise multiple pool slots. Normal shared repo
+  workspaces use fresh temp materialization by default.
 
 workspace:
   repos:
