@@ -14,6 +14,7 @@ import {
   loadConfig,
   parseExecutionDefaults,
   parseResultsConfig,
+  parseTagsConfig,
   resolveResultsConfigForProject,
 } from '../../../src/evaluation/loaders/config-loader.js';
 import type { JsonObject } from '../../../src/evaluation/types.js';
@@ -58,6 +59,26 @@ describe('loadConfig', () => {
         expect(config?.eval_patterns).toEqual(['**/*.global.eval.yaml']);
         expect(config?.execution).toEqual({ verbose: true });
       });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('propagates a project-config tags map through loadConfig', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-tags-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        'tags:\n  experiment: staging\n  team: core\n',
+      );
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+      expect(config?.tags).toEqual({ experiment: 'staging', team: 'core' });
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -319,6 +340,33 @@ describe('loadConfig', () => {
       warnSpy.mockRestore();
       rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('parseTagsConfig', () => {
+  it('parses a valid string map', () => {
+    expect(
+      parseTagsConfig({ experiment: 'staging', team: 'core' }, '/tmp/.agentv/config.yaml'),
+    ).toEqual({
+      experiment: 'staging',
+      team: 'core',
+    });
+  });
+
+  it('drops non-string entries and keeps the rest', () => {
+    expect(
+      parseTagsConfig({ experiment: 'staging', count: 3 }, '/tmp/.agentv/config.yaml'),
+    ).toEqual({ experiment: 'staging' });
+  });
+
+  it('returns undefined for a non-object value', () => {
+    expect(parseTagsConfig('nope', '/tmp/.agentv/config.yaml')).toBeUndefined();
+    expect(parseTagsConfig(['a', 'b'], '/tmp/.agentv/config.yaml')).toBeUndefined();
+  });
+
+  it('returns undefined when nothing valid remains', () => {
+    expect(parseTagsConfig({ count: 3 }, '/tmp/.agentv/config.yaml')).toBeUndefined();
+    expect(parseTagsConfig(undefined, '/tmp/.agentv/config.yaml')).toBeUndefined();
   });
 });
 

@@ -476,6 +476,26 @@ describe('buildRunSummaryArtifact', () => {
     expect(summary.cost_usd).toBeDefined();
     expect(summary.cost_usd?.mean).toBe(0.075);
   });
+
+  it('records the resolved promptfoo tags map on run metadata', () => {
+    const benchmark = buildRunSummaryArtifact(
+      [makeResult({})],
+      'test.eval.yaml',
+      'baseline-v2',
+      'run-1',
+      undefined,
+      undefined,
+      undefined,
+      { experiment: 'baseline-v2', team: 'compliance' },
+    );
+
+    expect(benchmark.metadata.tags).toEqual({ experiment: 'baseline-v2', team: 'compliance' });
+  });
+
+  it('omits the tags map when no tags are resolved', () => {
+    const benchmark = buildRunSummaryArtifact([makeResult({})], 'test.eval.yaml');
+    expect(benchmark.metadata.tags).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1020,6 +1040,24 @@ describe('writeArtifactsFromResults', () => {
 
     expect(summary.metadata.runtime_source).toEqual(runtimeSource);
     expect(indexLine.runtime_source).toEqual(runtimeSource);
+  });
+
+  it('emits the resolved tags map to summary metadata and every index row', async () => {
+    const tags = { experiment: 'baseline-v2', team: 'compliance' };
+    const paths = await writeArtifactsFromResults(
+      [makeResult({ testId: 'alpha' }), makeResult({ testId: 'beta' })],
+      testDir,
+      { evalFile: 'evals/smoke.eval.yaml', experiment: 'baseline-v2', tags },
+    );
+
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.metadata.tags).toEqual(tags);
+
+    const indexLines = await readIndexLines(paths.indexPath);
+    expect(indexLines).toHaveLength(2);
+    for (const line of indexLines) {
+      expect(line.tags).toEqual(tags);
+    }
   });
 
   it('writes repeat runs in AgentV case and run folders', async () => {

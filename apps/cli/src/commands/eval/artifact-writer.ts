@@ -223,6 +223,7 @@ export async function writePerTestArtifacts(
     taskBundleTargets?: readonly TaskBundleTargetSelection[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
+    tags?: Record<string, string>;
   },
 ): Promise<void> {
   await writeCorePerTestArtifacts(results, outputDir, {
@@ -233,6 +234,7 @@ export async function writePerTestArtifacts(
     sourceTests: options?.sourceTests,
     additionalArtifacts: options?.additionalArtifacts ?? createTaskBundleArtifactsWriter(options),
     runtimeSource: options?.runtimeSource,
+    tags: options?.tags,
   });
 }
 
@@ -253,6 +255,7 @@ export async function writeArtifactsFromResults(
     taskBundleTargets?: readonly TaskBundleTargetSelection[];
     additionalArtifacts?: AdditionalResultArtifactsWriter;
     runtimeSource?: RunRuntimeSourceMetadata;
+    tags?: Record<string, string>;
   },
 ): Promise<{
   testArtifactDir: string;
@@ -270,5 +273,6 @@ export async function writeArtifactsFromResults(
     sourceTests: options?.sourceTests,
     additionalArtifacts: options?.additionalArtifacts ?? createTaskBundleArtifactsWriter(options),
     runtimeSource: options?.runtimeSource,
+    tags: options?.tags,
   });
 }

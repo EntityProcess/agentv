@@ -214,7 +214,8 @@ export const evalRunCommand = command({
     tag: multioption({
       type: array(string),
       long: 'tag',
-      description: 'Only run eval files that have this tag (repeatable, AND logic)',
+      description:
+        'Repeatable. `--tag name` filters to eval files with that tag (AND logic). `--tag key=value` sets a promptfoo-shaped run tag; `--tag experiment=<name>` labels the experiment (CLI > project config > eval tags).',
     }),
     excludeTag: multioption({
       type: array(string),

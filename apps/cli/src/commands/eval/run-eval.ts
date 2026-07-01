@@ -149,6 +149,8 @@ interface NormalizedOptions {
   readonly cliThreshold?: number;
   readonly tags: readonly string[];
   readonly excludeTags: readonly string[];
+  /** Promptfoo-shaped `--tag key=value` entries (CLI layer of the tags map). */
+  readonly tagMap: Record<string, string>;
   readonly transcript?: string;
   readonly recordReplay?: string;
   readonly recordReplayVariant?: string;
@@ -339,6 +341,113 @@ export function matchesTagFilters(
 }
 
 /**
+ * Split repeatable `--tag` values into two shapes, mirroring the suite-level
+ * `tags` union (selection list vs promptfoo map):
+ *
+ * - `--tag key=value` (contains `=`) -> a `Record<string,string>` tag-map entry
+ *   (promptfoo-shaped run metadata; the reserved `experiment` key feeds the
+ *   experiment namespace).
+ * - `--tag name` (no `=`) -> a bare selection tag, preserving the existing
+ *   file-level `--tag`/`--exclude-tag` AND-filter behavior.
+ *
+ * On repeated `key=value` for the same key, the last value wins. An empty value
+ * (`--tag experiment=`) is kept as an explicit empty string so callers can
+ * detect an intentional clear.
+ */
+export function splitCliTags(value: unknown): {
+  selectionTags: readonly string[];
+  tagMap: Record<string, string>;
+} {
+  const selectionTags: string[] = [];
+  const tagMap: Record<string, string> = {};
+  for (const entry of normalizeStringArray(value)) {
+    const eq = entry.indexOf('=');
+    if (eq === -1) {
+      selectionTags.push(entry);
+      continue;
+    }
+    const key = entry.slice(0, eq).trim();
+    if (key.length === 0) {
+      continue;
+    }
+    tagMap[key] = entry.slice(eq + 1).trim();
+  }
+  return { selectionTags, tagMap };
+}
+
+/**
+ * Resolve the effective promptfoo-shaped tags map for a run by merging layers
+ * with precedence CLI `--tag key=value` > project config `tags` > eval `tags`.
+ * Returns undefined when no layer contributes any entry.
+ */
+export function resolveEffectiveTags(layers: {
+  evalTags?: Record<string, string>;
+  configTags?: Record<string, string>;
+  cliTags?: Record<string, string>;
+}): Record<string, string> | undefined {
+  const merged: Record<string, string> = {
+    ...(layers.evalTags ?? {}),
+    ...(layers.configTags ?? {}),
+    ...(layers.cliTags ?? {}),
+  };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+/**
+ * Keep an emitted tags map's `experiment` key in lockstep with the resolved
+ * experiment namespace so a row's `experiment` field and `tags.experiment` never
+ * disagree — but only when an experiment was intentionally set (`--experiment`,
+ * i.e. `experimentIsIntentional`, or an authored `tags.experiment`). A tags map
+ * that carries no experiment (e.g. only `--tag team=core`) must not gain an
+ * eval-default experiment key, and no tags map means nothing to emit.
+ */
+export function syncTagsExperiment(
+  resolvedTags: Record<string, string> | undefined,
+  options: { experimentIsIntentional: boolean; normalizedExperiment: string },
+): Record<string, string> | undefined {
+  if (!resolvedTags) {
+    return undefined;
+  }
+  if (!options.experimentIsIntentional && resolvedTags.experiment === undefined) {
+    return resolvedTags;
+  }
+  return { ...resolvedTags, experiment: options.normalizedExperiment };
+}
+
+/**
+ * Resolve the experiment namespace and its provenance for a run.
+ *
+ * Precedence: `--experiment` (CLI) > `tags.experiment` (resolved tags map) >
+ * the eval-derived default (multi-eval label, suite `metadata.name`, or eval
+ * filename). This keeps `--experiment` authoritative while letting a
+ * promptfoo-shaped `tags.experiment` label a run, and preserves the existing
+ * default fallback when neither is set.
+ */
+export function resolveExperimentNamespace(params: {
+  cliExperiment?: string;
+  tagsExperiment?: string;
+  isMultiEval: boolean;
+  suiteName?: string;
+  resultGroupName: string;
+}): {
+  experiment: string;
+  source: RunRuntimeSourceMetadata['experiment_namespace_source'];
+} {
+  if (params.cliExperiment) {
+    return { experiment: params.cliExperiment, source: 'cli' };
+  }
+  if (params.tagsExperiment) {
+    return { experiment: params.tagsExperiment, source: 'tags' };
+  }
+  const source: RunRuntimeSourceMetadata['experiment_namespace_source'] = params.isMultiEval
+    ? 'multi_eval'
+    : params.suiteName
+      ? 'eval_metadata'
+      : 'eval_filename';
+  return { experiment: params.resultGroupName, source };
+}
+
+/**
  * Normalize --output-messages value. Accepts a number (>= 1) or "all".
  * Defaults to 1 (last assistant message only).
  */
@@ -458,6 +567,7 @@ function normalizeOptions(
     ...(resultsPush || resultsNoPush ? { auto_push: resultsPush && !resultsNoPush } : {}),
     ...(resultsRequirePush ? { require_push: true } : {}),
   };
+  const cliTags = splitCliTags(rawOptions.tag);
 
   return {
     target: singleTarget,
@@ -515,8 +625,9 @@ function normalizeOptions(
     outputMessages: normalizeOutputMessages(normalizeString(rawOptions.outputMessages)),
     threshold: cliThreshold,
     cliThreshold,
-    tags: normalizeStringArray(rawOptions.tag),
+    tags: cliTags.selectionTags,
     excludeTags: normalizeStringArray(rawOptions.excludeTag),
+    tagMap: cliTags.tagMap,
     transcript: normalizeString(rawOptions.transcript),
     recordReplay: normalizeString(rawOptions.recordReplay),
     recordReplayVariant: normalizeString(rawOptions.recordReplayVariant),
@@ -1625,22 +1736,42 @@ export async function runEvalCommand(
     resolvedTestFiles.length === 1
       ? (primarySuite?.metadata?.name ?? fallbackResultGroupName)
       : fallbackResultGroupName;
-  const experimentNamespaceSource: RunRuntimeSourceMetadata['experiment_namespace_source'] =
-    resolvedExperiment.name
-      ? 'cli'
-      : resolvedTestFiles.length > 1
-        ? 'multi_eval'
-        : primarySuite?.metadata?.name
-          ? 'eval_metadata'
-          : 'eval_filename';
+  // Resolve the promptfoo-shaped tags map: eval `tags` < project config `tags`
+  // < CLI `--tag key=value`. The reserved `experiment` key feeds the namespace
+  // between an explicit --experiment (CLI) and the eval-derived default.
+  const resolvedTags = resolveEffectiveTags({
+    evalTags: primarySuite?.tags,
+    configTags: yamlConfig?.tags,
+    cliTags: options.tagMap,
+  });
+  const { experiment: resolvedExperimentNamespace, source: experimentNamespaceSource } =
+    resolveExperimentNamespace({
+      cliExperiment: resolvedExperiment.name,
+      tagsExperiment: normalizeString(resolvedTags?.experiment),
+      isMultiEval: resolvedTestFiles.length > 1,
+      suiteName: primarySuite?.metadata?.name,
+      resultGroupName,
+    });
+  // Normalize once so the row `experiment` field, AGENTV_EXPERIMENT, and the
+  // emitted tags map all agree (and any invalid-name error surfaces in one place).
+  const normalizedExperiment = normalizeExperimentName(resolvedExperimentNamespace);
   options = {
     ...options,
-    experiment: resolvedExperiment.name ?? resultGroupName,
+    experiment: resolvedExperimentNamespace,
   };
+  // Keep the emitted tags map's `experiment` key in lockstep with the resolved
+  // namespace ONLY when an experiment was intentionally set — via `--experiment`
+  // or an authored `tags.experiment`. A run whose tags map carries no experiment
+  // (e.g. only `--tag team=core`) must not gain an eval-default experiment key,
+  // and a run with no tags at all emits no map.
+  const emittedTags = syncTagsExperiment(resolvedTags, {
+    experimentIsIntentional: resolvedExperiment.name !== undefined,
+    normalizedExperiment,
+  });
   const hasCliRuntimeConfig = hasCliRuntimeSource(input.rawOptions);
 
   if (!process.env.AGENTV_EXPERIMENT) {
-    process.env.AGENTV_EXPERIMENT = normalizeExperimentName(options.experiment);
+    process.env.AGENTV_EXPERIMENT = normalizedExperiment;
   }
 
   // Validate --grader-target / --model combinations
@@ -2126,6 +2257,7 @@ export async function runEvalCommand(
       runId: path.basename(runDir),
       experimentMetadata: runExperimentMetadata,
       runtimeSource: runtimeSourceMetadata,
+      tags: emittedTags,
     });
   }
 
@@ -2402,6 +2534,7 @@ export async function runEvalCommand(
           sourceTests,
           taskBundleTargets,
           runtimeSource: runtimeSourceMetadata,
+          tags: emittedTags,
         });
         const { summaryPath } = await aggregateRunDir(runDir, {
           evalFile,
@@ -2409,6 +2542,7 @@ export async function runEvalCommand(
           runId: path.basename(runDir),
           experimentMetadata: runExperimentMetadata,
           runtimeSource: runtimeSourceMetadata,
+          tags: emittedTags,
         });
         const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
         console.log(`Artifact bundle updated: ${runDir}`);
@@ -2430,6 +2564,7 @@ export async function runEvalCommand(
             sourceTests,
             taskBundleTargets,
             runtimeSource: runtimeSourceMetadata,
+            tags: emittedTags,
           },
         );
         console.log(`Artifact bundle written to: ${runDir}`);
