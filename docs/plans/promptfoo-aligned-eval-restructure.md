@@ -372,6 +372,7 @@ Decisions:
 - **Rename the reference `manifest_path` → `index_path`** (+ `resolveExistingResultIndexPath`) so file and field agree. Reserve **"manifest"/`bundle.json`** for the frozen-config file only.
 - **`summary.json`** = the queryable aggregate (do not call it a manifest).
 - Move machine files (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`) into per-run **`.internal/`**; keep the run root clean (`summary.json` + per-case dirs). Cross-run `.indexes/`/`.cache/` at the results root are a separate scope and stay.
+- **Merge `timing.json` into `metrics.json` (owner Q; fixes a real duplication).** Prior discussion: ADR-0011 & ADR-0012 both defined `metrics.json` *and* `timing.json` as separate per-attempt sidecars (`metrics_path` + `timing_path`), and both are written today. But the split is muddy — `timing.json` (`TimingArtifact`) already carries `total_tokens`, `cost_usd`, `token_usage`, `usage_sources` (perf metrics, not just timing), while `metrics.json` carries trace-derived execution/trajectory metrics. **No reference splits them** (agentskills folds tokens+duration into one `timing.json`; vercel/margin keep one per-attempt metrics/result blob). **Decision: one `metrics.json`** per attempt with sections — `duration` (timing), `tokens`, `cost` (always present), and `execution`/trajectory tool-call metrics (present when a trace exists). Drop `timing.json` and the `timing_path` field; keep a single `metrics_path`. The output-contract ADR supersedes the 0011/0012 timing+metrics split.
 
 - **Keep** `.agentv/results/<run_id>/` bundle (ADR-0011/0012). Reconcile field names with margin-lab's `results.json` `Summary` where useful.
 - **Analytics = one pure function** (margin-lab's `runresults.Build`): given instances+results, produce a deterministic `Summary` with per-case **pass@k** (`pass_count`/`pass_rate` over samples), `status` breakdown, `usage` aggregation, and infra-failure taxonomy. AgentV currently lacks pass@k/variance — this fills it.
@@ -451,6 +452,7 @@ Since this is a major version with nothing in production, **remove** the accumul
 
 **C. Duplicate types to consolidate (judgment, not blind delete):**
 - `EvaluationScore` vs `ChildGraderResult` (`graders/types.ts`) are near-identical (`score`/`verdict`/`assertions`/`graderRawRequest`/`scores`/`details`/`tokenUsage`). Consider one recursive type.
+- **`timing.json` + `metrics.json` → one `metrics.json`** (see §6.0.1). `timing.json` already holds tokens/cost, overlapping `metrics.json`; merge into sections, drop `timing_path`. Supersedes the ADR-0011/0012 split.
 - `orchestrator.ts:495` "legacy workspace pooling toggle" (`workspaceMode`) — reconcile with §4's reset-based pool (one pooling model, not two).
 
 **Sequencing:** land **group A** as its own small, tested, dogfooded cleanup PR *now* (independent of the schema work — pure removal of dead aliases, shrinks the surface the restructure must touch). Handle **group B** inside the restructure phases (they need the new schema first). Do **group C** as targeted refactors with tests. Every deletion needs a green test run + a live dogfood per `.agents/verification.md` before merge.
