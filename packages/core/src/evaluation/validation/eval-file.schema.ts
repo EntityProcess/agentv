@@ -48,7 +48,7 @@ const ExpectedOutputSchema = z.union([z.string(), JsonObjectSchema, z.array(Mess
 const EvaluatorCommonSchema = z.object({
   name: z.string().optional(),
   weight: z.number().min(0).optional(),
-  required: z.union([z.boolean(), z.number().gt(0).lte(1)]).optional(),
+  required: z.boolean().optional(),
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   min_score: z.number().gt(0).lte(1).optional(),
   negate: z.boolean().optional(),

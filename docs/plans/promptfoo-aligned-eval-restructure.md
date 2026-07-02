@@ -450,7 +450,7 @@ Since this is a major version with nothing in production, **remove** the accumul
 - `script` alias for `command` in workspace hooks/scripts — `types.ts:218/258/375/401`, `workspace/script-executor.ts:66-69` (runtime warning), `validation/workspace-path-validator.ts:112`. Keep only `command`.
 - `judge_target` → `grader_target` — `providers/types.ts:373`. Remove alias.
 - Legacy grader-provider fields — `graders/llm-grader.ts:95/102` (`resolveGraderProvider`, `graderTargetProvider`), `registry/grader-registry.ts:22/34` (`graderProvider`, `llmGrader`).
-- Legacy rubric gating — `types.ts:480/489-490`, `graders/llm-grader.ts:1316-1325` (0-10 `required_min_score`, `required: true`→`min_score:1.0`). Keep only `min_score` (0-1).
+- Legacy rubric gating — `types.ts:480/489-490`, `graders/llm-grader.ts:1316-1325` (0-10 `required_min_score`, numeric `required` thresholds). Keep boolean `required` for hard gates and `min_score` (0-1) for custom thresholds.
 - `EvalCase` → `EvalTest` alias — `types.ts:1053`. (Ties to `eval_cases`→`tests` removal.)
 - Programmatic snake_case `expected_output` aliases in `evaluate.ts:104/127` — keep the YAML/wire field `expected_output` and SDK field `expectedOutput`; remove or clearly isolate only the TypeScript convenience alias if this Group A cleanup reaches the programmatic API surface.
 - `@deprecated Use Message` — `providers/types.ts:255`.

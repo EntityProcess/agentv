@@ -2644,14 +2644,15 @@ describe('required gates', () => {
       expectedIndividualScores: undefined,
     },
     {
-      label: 'numeric required threshold triggers gate when score is below threshold',
+      label: 'min_score threshold triggers required gate when score is below threshold',
       output: 'The answer is goodbye',
       assertions: [
         {
           name: 'must-pass',
           type: 'contains' as const,
           value: 'hello',
-          required: 0.6 as boolean | number,
+          required: true,
+          min_score: 0.6,
         },
         { name: 'optional', type: 'contains' as const, value: 'goodbye' },
       ],
@@ -2659,14 +2660,15 @@ describe('required gates', () => {
       expectedIndividualScores: undefined,
     },
     {
-      label: 'numeric required threshold passes when score meets threshold',
+      label: 'min_score threshold passes when required grader meets threshold',
       output: 'hello world',
       assertions: [
         {
           name: 'must-pass',
           type: 'contains' as const,
           value: 'hello',
-          required: 0.6 as boolean | number,
+          required: true,
+          min_score: 0.6,
         },
         { name: 'optional', type: 'contains' as const, value: 'foo' },
       ],

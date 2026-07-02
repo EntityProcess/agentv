@@ -1161,7 +1161,7 @@ tests:
       expect(warnings).toHaveLength(0);
     });
 
-    it('validates required field accepts number between 0 and 1', async () => {
+    it('warns when required field is numeric', async () => {
       const filePath = path.join(tempDir, 'assert-required-number.yaml');
       await writeFile(
         filePath,
@@ -1177,9 +1177,8 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(true);
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings).toHaveLength(0);
+      expect(warnings.some((e) => e.message.includes("Numeric 'required: 0.8'"))).toBe(true);
     });
 
     it('warns on invalid required field type', async () => {
@@ -1202,7 +1201,7 @@ tests:
       expect(warnings.some((e) => e.message.includes('required'))).toBe(true);
     });
 
-    it('warns on required number out of range (0)', async () => {
+    it('warns on removed required number 0', async () => {
       const filePath = path.join(tempDir, 'assert-required-zero.yaml');
       await writeFile(
         filePath,
@@ -1219,10 +1218,10 @@ tests:
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('required'))).toBe(true);
+      expect(warnings.some((e) => e.message.includes("Numeric 'required: 0'"))).toBe(true);
     });
 
-    it('warns on required number out of range (> 1)', async () => {
+    it('warns on removed required number greater than 1', async () => {
       const filePath = path.join(tempDir, 'assert-required-over-one.yaml');
       await writeFile(
         filePath,
@@ -1239,7 +1238,7 @@ tests:
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('required'))).toBe(true);
+      expect(warnings.some((e) => e.message.includes("Numeric 'required: 1.5'"))).toBe(true);
     });
 
     it('warns when assertions is not an array', async () => {

@@ -2001,31 +2001,19 @@ function logWarning(message: string, details?: readonly string[]): void {
 }
 
 /**
- * Parse a `required` value from raw evaluator config.
- * Accepts `true` (uses default 0.8 threshold) or a number in (0, 1] range.
- * Returns undefined for falsy/invalid values.
- */
-function parseRequired(value: JsonValue | undefined): boolean | number | undefined {
-  if (value === true) return true;
-  if (typeof value === 'number' && value > 0 && value <= 1) return value;
-  return undefined;
-}
-
-/**
- * Parse `required` and `min_score` from raw evaluator config, handling deprecated `required: number`.
+ * Parse `required` and `min_score` from raw evaluator config.
  *
  * - `required: true` → `{ required: true }`
- * - `required: 0.7` (deprecated) → `{ required: true, min_score: 0.7 }` + deprecation warning
  * - `min_score: 0.7` → `{ min_score: 0.7 }`
- * - Explicit `min_score` takes priority over `required: number`
+ * - Numeric `required` has been removed; use `required: true` + `min_score`.
  */
 function parseRequiredAndMinScore(
   rawRequired: JsonValue | undefined,
   rawMinScore: JsonValue | undefined,
   evaluatorName: string,
   evalId: string,
-): { required?: boolean | number; min_score?: number } {
-  const result: { required?: boolean | number; min_score?: number } = {};
+): { required?: boolean; min_score?: number } {
+  const result: { required?: boolean; min_score?: number } = {};
 
   // Parse min_score (explicit field, takes priority)
   if (typeof rawMinScore === 'number' && rawMinScore > 0 && rawMinScore <= 1) {
@@ -2035,15 +2023,9 @@ function parseRequiredAndMinScore(
   // Parse required
   if (rawRequired === true) {
     result.required = true;
-  } else if (typeof rawRequired === 'number' && rawRequired > 0 && rawRequired <= 1) {
-    // Deprecated: required: number → required: true + min_score
-    if (result.min_score === undefined) {
-      result.min_score = rawRequired;
-    }
-    // Keep numeric required for backward compat (orchestrator reads min_score preferentially)
-    result.required = rawRequired;
-    logWarning(
-      `Grader '${evaluatorName}' in '${evalId}': 'required: ${rawRequired}' is deprecated. ` +
+  } else if (typeof rawRequired === 'number') {
+    throw new Error(
+      `Grader '${evaluatorName}' in '${evalId}': numeric 'required: ${rawRequired}' has been removed. ` +
         `Use 'required: true' + 'min_score: ${rawRequired}' instead.`,
     );
   }

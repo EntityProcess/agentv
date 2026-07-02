@@ -929,17 +929,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1032,17 +1022,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1223,17 +1203,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1342,17 +1312,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1482,17 +1442,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1563,17 +1513,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1607,17 +1547,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1651,17 +1581,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1703,17 +1623,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1772,17 +1682,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1815,17 +1715,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1858,17 +1748,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1898,17 +1778,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -1941,17 +1811,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2059,17 +1919,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2162,17 +2012,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2353,17 +2193,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2472,17 +2302,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2612,17 +2432,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2693,17 +2503,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2737,17 +2537,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2781,17 +2571,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2833,17 +2613,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2902,17 +2672,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2945,17 +2705,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -2988,17 +2738,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -3028,17 +2768,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -3071,17 +2801,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -3195,17 +2915,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3298,17 +3008,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3489,17 +3189,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3608,17 +3298,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3754,17 +3434,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3835,17 +3505,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3879,17 +3539,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3923,17 +3573,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -3975,17 +3615,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4044,17 +3674,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4087,17 +3707,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4130,17 +3740,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4170,17 +3770,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4213,17 +3803,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4331,17 +3911,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4434,17 +4004,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4625,17 +4185,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4744,17 +4294,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4890,17 +4430,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -4971,17 +4501,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5015,17 +4535,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5059,17 +4569,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5111,17 +4611,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5180,17 +4670,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5223,17 +4703,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5266,17 +4736,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5306,17 +4766,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5349,17 +4799,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -5875,17 +5315,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -5978,17 +5408,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6169,17 +5589,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6288,17 +5698,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6444,17 +5844,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6525,17 +5915,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6569,17 +5949,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6613,17 +5983,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6665,17 +6025,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6734,17 +6084,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6777,17 +6117,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6820,17 +6150,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6860,17 +6180,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -6903,17 +6213,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -7378,17 +6678,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -7481,17 +6771,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -7672,17 +6952,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -7791,17 +7061,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -7931,17 +7191,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8012,17 +7262,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8056,17 +7296,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8100,17 +7330,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8152,17 +7372,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8221,17 +7431,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8264,17 +7464,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8307,17 +7497,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8347,17 +7527,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8390,17 +7560,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8508,17 +7668,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8611,17 +7761,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8802,17 +7942,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -8921,17 +8051,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9061,17 +8181,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9142,17 +8252,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9186,17 +8286,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9230,17 +8320,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9282,17 +8362,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9351,17 +8421,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9394,17 +8454,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9437,17 +8487,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9477,17 +8517,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9520,17 +8550,7 @@
                                   "minimum": 0
                                 },
                                 "required": {
-                                  "anyOf": [
-                                    {
-                                      "type": "boolean"
-                                    },
-                                    {
-                                      "type": "number",
-                                      "exclusiveMinimum": true,
-                                      "minimum": 0,
-                                      "maximum": 1
-                                    }
-                                  ]
+                                  "type": "boolean"
                                 },
                                 "min_score": {
                                   "type": "number",
@@ -9644,17 +8664,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -9747,17 +8757,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -9938,17 +8938,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10057,17 +9047,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10203,17 +9183,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10284,17 +9254,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10328,17 +9288,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10372,17 +9322,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10424,17 +9364,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10493,17 +9423,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10536,17 +9456,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10579,17 +9489,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10619,17 +9519,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10662,17 +9552,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10780,17 +9660,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -10883,17 +9753,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11074,17 +9934,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11193,17 +10043,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11339,17 +10179,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11420,17 +10250,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11464,17 +10284,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11508,17 +10318,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11560,17 +10360,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11629,17 +10419,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11672,17 +10452,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11715,17 +10485,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11755,17 +10515,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -11798,17 +10548,7 @@
                                       "minimum": 0
                                     },
                                     "required": {
-                                      "anyOf": [
-                                        {
-                                          "type": "boolean"
-                                        },
-                                        {
-                                          "type": "number",
-                                          "exclusiveMinimum": true,
-                                          "minimum": 0,
-                                          "maximum": 1
-                                        }
-                                      ]
+                                      "type": "boolean"
                                     },
                                     "min_score": {
                                       "type": "number",
@@ -12324,17 +11064,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -12427,17 +11157,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -12618,17 +11338,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -12737,17 +11447,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -12893,17 +11593,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -12974,17 +11664,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13018,17 +11698,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13062,17 +11732,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13114,17 +11774,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13183,17 +11833,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13226,17 +11866,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13269,17 +11899,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13309,17 +11929,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13352,17 +11962,7 @@
                                             "minimum": 0
                                           },
                                           "required": {
-                                            "anyOf": [
-                                              {
-                                                "type": "boolean"
-                                              },
-                                              {
-                                                "type": "number",
-                                                "exclusiveMinimum": true,
-                                                "minimum": 0,
-                                                "maximum": 1
-                                              }
-                                            ]
+                                            "type": "boolean"
                                           },
                                           "min_score": {
                                             "type": "number",
@@ -13912,17 +12512,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14015,17 +12605,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14206,17 +12786,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14325,17 +12895,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14465,17 +13025,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14546,17 +13096,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14590,17 +13130,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14634,17 +13164,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14686,17 +13206,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14755,17 +13265,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14798,17 +13298,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14841,17 +13331,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14881,17 +13361,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",
@@ -14924,17 +13394,7 @@
                     "minimum": 0
                   },
                   "required": {
-                    "anyOf": [
-                      {
-                        "type": "boolean"
-                      },
-                      {
-                        "type": "number",
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
-                        "maximum": 1
-                      }
-                    ]
+                    "type": "boolean"
                   },
                   "min_score": {
                     "type": "number",

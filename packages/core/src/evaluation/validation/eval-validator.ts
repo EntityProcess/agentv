@@ -1956,21 +1956,19 @@ function validateRequiredField(
     return; // Valid
   }
   if (typeof required === 'number') {
-    if (required <= 0 || required > 1) {
-      errors.push({
-        severity: 'warning',
-        filePath,
-        location: `${parentLocation}.required`,
-        message: `Invalid 'required' value ${required}. When a number, it must be between 0 (exclusive) and 1 (inclusive).`,
-      });
-    }
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: `${parentLocation}.required`,
+      message: `Numeric 'required: ${required}' has been removed. Use 'required: true' and 'min_score: ${required}' instead.`,
+    });
     return;
   }
   errors.push({
     severity: 'warning',
     filePath,
     location: `${parentLocation}.required`,
-    message: `Invalid 'required' value. Must be a boolean or a number between 0 (exclusive) and 1 (inclusive).`,
+    message: `Invalid 'required' value. Must be a boolean. Use 'min_score' for custom score thresholds.`,
   });
 }
 

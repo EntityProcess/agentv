@@ -1870,10 +1870,31 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required: 0.6 (numeric threshold) on contains evaluator', async () => {
+  it('rejects required: 0.6 numeric threshold on contains evaluator', async () => {
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0.6 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: 0\.6' has been removed/i);
+  });
+
+  it('parses required: true with min_score on contains evaluator', async () => {
     const evaluators = await parseGraders(
       {
-        evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0.6 }],
+        evaluators: [
+          {
+            name: 'check',
+            type: 'contains',
+            value: 'DENIED',
+            required: true,
+            min_score: 0.6,
+          },
+        ],
       },
       undefined,
       [tempDir],
@@ -1881,7 +1902,8 @@ describe('parseGraders - required field', () => {
     );
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as ContainsGraderConfig;
-    expect(config.required).toBe(0.6);
+    expect(config.required).toBe(true);
+    expect(config.min_score).toBe(0.6);
   });
 
   it('ignores required: false', async () => {
@@ -1933,10 +1955,10 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on llm-grader evaluator', async () => {
+  it('parses required with min_score on llm-grader evaluator', async () => {
     const evaluators = await parseGraders(
       {
-        evaluators: [{ name: 'grader', type: 'llm-grader', required: 0.7 }],
+        evaluators: [{ name: 'grader', type: 'llm-grader', required: true, min_score: 0.7 }],
       },
       undefined,
       [tempDir],
@@ -1944,25 +1966,55 @@ describe('parseGraders - required field', () => {
     );
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as LlmGraderConfig;
-    expect(config.required).toBe(0.7);
+    expect(config.required).toBe(true);
+    expect(config.min_score).toBe(0.7);
   });
 
-  it('ignores invalid required values (string, negative, > 1)', async () => {
+  it('rejects numeric required values', async () => {
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: 0' has been removed/i);
+
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 1.5 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: 1\.5' has been removed/i);
+
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: -0.5 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: -0\.5' has been removed/i);
+  });
+
+  it('ignores non-numeric invalid required values', async () => {
     const evaluators = await parseGraders(
       {
-        evaluators: [
-          { name: 'c1', type: 'contains', value: 'A', required: 'yes' },
-          { name: 'c2', type: 'contains', value: 'B', required: -0.5 },
-          { name: 'c3', type: 'contains', value: 'C', required: 1.5 },
-          { name: 'c4', type: 'contains', value: 'D', required: 0 },
-        ],
+        evaluators: [{ name: 'c1', type: 'contains', value: 'A', required: 'yes' }],
       },
       undefined,
       [tempDir],
       'test-1',
     );
-    expect(evaluators).toHaveLength(4);
-    // All invalid required values should be dropped (undefined)
+    expect(evaluators).toHaveLength(1);
     for (const config of evaluators ?? []) {
       expect((config as ContainsGraderConfig).required).toBeUndefined();
     }
