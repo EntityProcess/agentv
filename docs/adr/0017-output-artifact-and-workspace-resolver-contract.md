@@ -73,14 +73,16 @@ New backends plug in without touching the eval schema because all resolve the sa
 
 ### Note: SWE-bench `FAIL_TO_PASS` / `PASS_TO_PASS`
 
-SWE-bench grades by running the repo's test suite and checking two named sets:
-`FAIL_TO_PASS` (must flip fail→pass, proves the fix) and `PASS_TO_PASS` (must stay
-passing, proves no regression). **No new assertion primitive is needed** — a
-workspace-`cwd` `code-grader` runs the tests and checks the two sets (margin does exactly
-this via `tests/test.sh` exit code). Optionally ship a thin SDK recipe
-(`defineTestDiffGrader({ testCommand, failToPass, passToPass })`) for SWE-bench ergonomics.
-Combined with the Docker-image acquisition backend (#5) + the `code-grader`, this is how
-AgentV runs SWE-bench natively — same `repo`+`commit` provenance, no schema change.
+`FAIL_TO_PASS`/`PASS_TO_PASS` are two lists of test IDs shipped with each SWE-bench
+dataset row. The distinction (fix-tests vs regression-tests) matters only at
+*dataset-construction* time; at *run* time it collapses to "**run these named tests; pass
+iff all pass**". So it is **too domain-specific for a core primitive, and needs no
+dedicated SDK recipe** — it is plainly a workspace-`cwd` **`code-grader`**: the grader runs
+the repo's tests in the workspace and its exit code is the verdict (exactly margin's
+`tests/test.sh` 0/1/2 model). The two lists are just data the grader's command consumes
+(inline, or from `vars`/`metadata`). Combined with the Docker-image acquisition backend
+(#5), this is how AgentV runs SWE-bench natively — same `repo`+`commit` provenance, no
+schema change, no new grader type.
 
 ## Consequences
 
