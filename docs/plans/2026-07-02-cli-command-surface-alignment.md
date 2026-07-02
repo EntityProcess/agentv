@@ -30,7 +30,7 @@ No broad web search was used. Peer research used local clones first, with DeepWi
 | Promptfoo | `/home/entity/projects/promptfoo/promptfoo` | `9a337ab3bc479b1bd7cb3a67c6fc00220390a703` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main` |
 | Margin evals | `/home/entity/projects/Margin-Lab/evals` | `53fb2fd080689efaf7934573d8759d14fc1043e4` | `main...origin/main`, clean |
 | DeepEval | `/home/entity/projects/confident-ai/deepeval` | `55ad7910e70e3af6cd9d8b12030efb44b356ed3f` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main` |
-| Vercel agent-eval | `/home/entity/projects/vercel-labs/agent-eval` | `6ebfe82f39dddb9614add9bebf14a843658ef058` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main` |
+| Vercel agent-eval | `/home/entity/projects/vercel-labs/agent-eval` | `1d1f4f60b290d1ca3fac00afe07f3db231f00afd` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main`; post-`6ebfe82f39dddb9614add9bebf14a843658ef058` delta touched release/changelog/package metadata only, not inspected command files |
 | AgentV baseline | this worktree | branch `research/av-ap2w-cli-command-surface` | clean before this report |
 
 DeepWiki usage:
