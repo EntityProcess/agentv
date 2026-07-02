@@ -14,7 +14,7 @@ Because the contract is "we invoke a command and read a file," almost any useful
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my_agent
+  - label: my_agent
     provider: cli
     command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
     grader_target: azure-base   # required if your evals use LLM graders
@@ -70,7 +70,7 @@ echo "Hello, world!" > {OUTPUT_FILE}
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `name` | string | yes | — | Target identifier used in eval configs. |
+| `label` | string | yes | — | AgentV target name used by eval `target`, CLI `--target`, and comparisons. |
 | `provider` | literal `"cli"` | yes | — | Selects this provider. |
 | `command` | string | yes | — | Shell command template. |
 | `timeout_seconds` | number | no | — | Kill the process if it runs longer than this. |
@@ -89,7 +89,7 @@ For targets where spin-up cost dominates per-case work (e.g. loading a model, au
 
 ```yaml
 targets:
-  - name: batched_agent
+  - label: batched_agent
     provider: cli
     provider_batching: true
     command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
@@ -106,12 +106,12 @@ AgentV has no dedicated "oracle" feature because the `cli` provider already comp
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my_agent
+  - label: my_agent
     provider: cli
     command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
     grader_target: azure-base
 
-  - name: oracle
+  - label: oracle
     provider: cli
     command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
     grader_target: azure-base

@@ -631,7 +631,7 @@ agentv compare \
 agentv validate <file.yaml>
 ```
 
-**Replay targets:** Add `provider: replay`, `fixtures: <jsonl>`, and `source_target: <live target name>` in `.agentv/targets.yaml`. Optional `suite`, `eval_path`, and `variant` tighten lookup. The eval YAML and graders stay unchanged; replay only substitutes recorded target output, and graders run fresh.
+**Replay targets:** Add `provider: replay`, `fixtures: <jsonl>`, and `source_target: <live target label>` in `.agentv/targets.yaml`. Optional `suite`, `eval_path`, and `variant` tighten lookup. The eval YAML and graders stay unchanged; replay only substitutes recorded target output, and graders run fresh.
 
 ## TypeScript SDK Helpers
 

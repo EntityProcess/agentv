@@ -914,10 +914,6 @@
                                 "type": "string",
                                 "minLength": 1
                               },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
                               "provider": {
                                 "type": "string",
                                 "minLength": 1
@@ -1244,10 +1240,6 @@
                                     "type": "string",
                                     "minLength": 1
                                   },
-                                  "name": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
                                   "provider": {
                                     "type": "string",
                                     "minLength": 1
@@ -1571,10 +1563,6 @@
                                       "minLength": 1
                                     },
                                     "extends": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "name": {
                                       "type": "string",
                                       "minLength": 1
                                     },
@@ -5653,10 +5641,6 @@
                                 "type": "string",
                                 "minLength": 1
                               },
-                              "name": {
-                                "type": "string",
-                                "minLength": 1
-                              },
                               "provider": {
                                 "type": "string",
                                 "minLength": 1
@@ -5983,10 +5967,6 @@
                                     "type": "string",
                                     "minLength": 1
                                   },
-                                  "name": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
                                   "provider": {
                                     "type": "string",
                                     "minLength": 1
@@ -6310,10 +6290,6 @@
                                       "minLength": 1
                                     },
                                     "extends": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "name": {
                                       "type": "string",
                                       "minLength": 1
                                     },
@@ -10368,10 +10344,6 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "name": {
-                  "type": "string",
-                  "minLength": 1
-                },
                 "provider": {
                   "type": "string",
                   "minLength": 1
@@ -10695,10 +10667,6 @@
                       "minLength": 1
                     },
                     "extends": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "name": {
                       "type": "string",
                       "minLength": 1
                     },
@@ -11028,10 +10996,6 @@
                         "type": "string",
                         "minLength": 1
                       },
-                      "name": {
-                        "type": "string",
-                        "minLength": 1
-                      },
                       "provider": {
                         "type": "string",
                         "minLength": 1
@@ -11339,6 +11303,9 @@
             }
           ]
         },
+        "providers": {
+          "not": {}
+        },
         "model": {
           "not": {}
         },
@@ -11510,10 +11477,6 @@
                       "minLength": 1
                     },
                     "extends": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "name": {
                       "type": "string",
                       "minLength": 1
                     },
@@ -11843,10 +11806,6 @@
                           "type": "string",
                           "minLength": 1
                         },
-                        "name": {
-                          "type": "string",
-                          "minLength": 1
-                        },
                         "provider": {
                           "type": "string",
                           "minLength": 1
@@ -12170,10 +12129,6 @@
                             "minLength": 1
                           },
                           "extends": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "name": {
                             "type": "string",
                             "minLength": 1
                           },
@@ -12819,10 +12774,6 @@
                               "type": "string",
                               "minLength": 1
                             },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
                             "provider": {
                               "type": "string",
                               "minLength": 1
@@ -13149,10 +13100,6 @@
                                   "type": "string",
                                   "minLength": 1
                                 },
-                                "name": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
                                 "provider": {
                                   "type": "string",
                                   "minLength": 1
@@ -13476,10 +13423,6 @@
                                     "minLength": 1
                                   },
                                   "extends": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "name": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -14060,10 +14003,6 @@
                               "type": "string",
                               "minLength": 1
                             },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1
-                            },
                             "provider": {
                               "type": "string",
                               "minLength": 1
@@ -14390,10 +14329,6 @@
                                   "type": "string",
                                   "minLength": 1
                                 },
-                                "name": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
                                 "provider": {
                                   "type": "string",
                                   "minLength": 1
@@ -14717,10 +14652,6 @@
                                     "minLength": 1
                                   },
                                   "extends": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "name": {
                                     "type": "string",
                                     "minLength": 1
                                   },

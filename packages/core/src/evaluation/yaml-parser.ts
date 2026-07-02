@@ -54,6 +54,7 @@ import {
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
+import { normalizeTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
 import type {
   AgentRulesExtensionConfig,
@@ -188,6 +189,7 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `tests` instead */
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly providers?: JsonValue;
   readonly model?: JsonValue;
   readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
@@ -1619,6 +1621,11 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
       `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.`,
     );
   }
+  if (suite.providers !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.`,
+    );
+  }
   if (suite.model !== undefined) {
     throw new Error(
       `Invalid eval runtime config in ${evalFilePath}: top-level 'model' is not part of eval YAML. Put model inside the target object.`,
@@ -1673,23 +1680,27 @@ function parseEvalTargetSpec(rawTarget: JsonValue | undefined): EvalTargetSpec |
   if (!isJsonObject(rawTarget)) {
     throw new Error("Invalid top-level 'target': use a target name or target object.");
   }
+  if (typeof rawTarget.name === 'string' && rawTarget.name.trim().length > 0) {
+    throw new Error(
+      "Invalid top-level 'target': field 'name' has been removed. Use 'label' instead.",
+    );
+  }
 
   const rawExtends = rawTarget.extends;
   const extendsTarget =
     typeof rawExtends === 'string' && rawExtends.trim().length > 0 ? rawExtends.trim() : undefined;
-  const rawName = rawTarget.name;
+  const rawLabel = rawTarget.label;
   const name =
-    typeof rawName === 'string' && rawName.trim().length > 0
-      ? rawName.trim()
+    typeof rawLabel === 'string' && rawLabel.trim().length > 0
+      ? rawLabel.trim()
       : (extendsTarget ?? 'eval-local-target');
   const hooks = parseTargetHooks(rawTarget.hooks);
   const definitionEntries = Object.entries(rawTarget).filter(
     ([key]) => key !== 'extends' && key !== 'hooks',
   );
-  const definition = {
-    ...Object.fromEntries(definitionEntries),
-    name,
-  } as unknown as TargetDefinition;
+  const definition = normalizeTargetDefinition(Object.fromEntries(definitionEntries), {
+    defaultName: name,
+  });
 
   return {
     name,

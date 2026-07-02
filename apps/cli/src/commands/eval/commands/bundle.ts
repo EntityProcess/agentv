@@ -91,7 +91,9 @@ function definitionsWithEvalTargetRefs(
 
   const result = [...definitions];
   for (const ref of targetRefs) {
-    if (ref.use_target && !result.some((definition) => definition.name === ref.name)) {
+    if (ref.definition && !result.some((definition) => definition.name === ref.name)) {
+      result.push(ref.definition);
+    } else if (ref.use_target && !result.some((definition) => definition.name === ref.name)) {
       result.push({ name: ref.name, use_target: ref.use_target } as TargetDefinition);
     }
   }

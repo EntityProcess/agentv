@@ -11,21 +11,29 @@ Targets define which agent or LLM provider to evaluate. They are configured in `
 
 ```yaml
 targets:
-  - name: azure-base
+  - label: azure-base
     provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
 
-  - name: vscode_dev
+  - label: vscode_dev
     provider: vscode
     grader_target: azure-base
 
-  - name: local_agent
+  - label: local_agent
     provider: cli
-    command: 'python agent.py --prompt {PROMPT}'
+    config:
+      command: 'python agent.py --prompt {PROMPT}'
     grader_target: azure-base
 ```
+
+Use `label` for AgentV target references and comparison names. Use `id` only when you need to carry a promptfoo provider/backend identifier. The
+`provider` field selects the backend kind. Provider-specific settings belong in
+`config`; AgentV target extensions such as `grader_target`, `use_target`,
+`fallback_targets`, `workers`, and `provider_batching` remain top-level fields on
+the target object.
 
 ## Environment Variables
 
@@ -35,10 +43,11 @@ eval directory hierarchy when present:
 
 ```yaml
 targets:
-  - name: my_target
+  - label: my_target
     provider: anthropic
-    api_key: ${{ ANTHROPIC_API_KEY }}
-    model: ${{ ANTHROPIC_MODEL }}
+    config:
+      api_key: ${{ ANTHROPIC_API_KEY }}
+      model: ${{ ANTHROPIC_MODEL }}
 ```
 
 This keeps secrets out of version-controlled files and avoids requiring a CI step that rewrites
@@ -80,7 +89,7 @@ Agent targets that need LLM-based evaluation specify a `grader_target` — the L
 
 ```yaml
 targets:
-  - name: codex_target
+  - label: codex_target
     provider: codex
     grader_target: azure-base  # LLM used for grading
 ```

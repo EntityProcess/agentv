@@ -307,7 +307,9 @@ export async function selectMultipleTargets(
   const definitions = [...fileDefinitions];
   if (targetRefs) {
     for (const ref of targetRefs) {
-      if (ref.use_target && !fileDefinitions.some((d) => d.name === ref.name)) {
+      if (ref.definition && !fileDefinitions.some((d) => d.name === ref.name)) {
+        definitions.push(ref.definition);
+      } else if (ref.use_target && !fileDefinitions.some((d) => d.name === ref.name)) {
         definitions.push({ name: ref.name, use_target: ref.use_target } as TargetDefinition);
       }
     }

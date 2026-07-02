@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { parseYamlValue } from '../yaml-loader.js';
+import { normalizeTargetDefinition } from './targets.js';
 import { TARGETS_SCHEMA_V2 } from './types.js';
 import type { TargetDefinition } from './types.js';
 
@@ -23,25 +24,29 @@ function assertTargetDefinition(value: unknown, index: number, filePath: string)
     throw new Error(`targets.yaml entry at index ${index} in ${filePath} must be an object`);
   }
 
-  const name = value.name;
+  const label = value.label;
   const provider = value.provider;
 
-  if (typeof name !== 'string' || name.trim().length === 0) {
+  if (typeof label !== 'string' || label.trim().length === 0) {
     throw new Error(
-      `targets.yaml entry at index ${index} in ${filePath} is missing a valid 'name'`,
+      `targets.yaml entry at index ${index} in ${filePath} is missing a valid 'label'`,
+    );
+  }
+
+  if (typeof value.name === 'string' && value.name.trim().length > 0) {
+    throw new Error(
+      `targets.yaml entry '${label}' in ${filePath} uses removed field 'name'. Use 'label' for the AgentV target name.`,
     );
   }
 
   const hasUseTarget = typeof value.use_target === 'string' && value.use_target.trim().length > 0;
   if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
     throw new Error(
-      `targets.yaml entry '${name}' in ${filePath} is missing a valid 'provider' (or use use_target for delegation)`,
+      `targets.yaml entry '${label}' in ${filePath} is missing a valid 'provider' (or use use_target for delegation)`,
     );
   }
 
-  // Pass through all properties from the YAML to support the flattened schema
-  // This includes all provider-specific settings at the top level
-  return value as unknown as TargetDefinition;
+  return normalizeTargetDefinition(value);
 }
 
 async function fileExists(filePath: string): Promise<boolean> {

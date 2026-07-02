@@ -226,6 +226,27 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/top-level 'policy'/);
   });
 
+  it('rejects top-level providers during runtime suite loading', async () => {
+    const evalPath = path.join(tempDir, 'top-level-providers.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'providers:',
+        '  - label: legacy',
+        '    provider: mock',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
+      /top-level 'providers' is not a runtime alias/,
+    );
+  });
+
   it('rejects removed top-level runs and early_exit controls', async () => {
     const evalPath = path.join(tempDir, 'removed-repeat-controls.eval.yaml');
     await writeFile(

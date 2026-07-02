@@ -162,7 +162,7 @@ tags:
 prompts:
   - raw: "Review {{ vars.diff }}"
 targets:
-  - id: local-agent
+  - label: local-agent
     provider: codex
 default_test:
   vars:
@@ -223,7 +223,7 @@ extensions:
     expect(result.errors).toHaveLength(0);
   });
 
-  it('warns rather than accepting top-level providers as a live alias for targets', async () => {
+  it('rejects top-level providers as a live alias for targets', async () => {
     const filePath = path.join(tempDir, 'top-level-providers.yaml');
     await writeFile(
       filePath,
@@ -242,13 +242,13 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
     expect(
       result.errors.some(
         (error) =>
-          error.severity === 'warning' &&
+          error.severity === 'error' &&
           error.location === 'providers' &&
-          error.message.includes("Unknown field 'providers'"),
+          error.message.includes("Top-level 'providers' is not a runtime alias"),
       ),
     ).toBe(true);
   });

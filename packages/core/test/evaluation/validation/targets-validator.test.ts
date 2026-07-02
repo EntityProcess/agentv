@@ -22,7 +22,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: openrouter-target
+  - label: openrouter-target
     provider: openrouter
     api_key: \${{ OPENROUTER_API_KEY }}
     model: openai/gpt-5-mini
@@ -40,32 +40,123 @@ describe('validateTargetsFile', () => {
     ).toBe(false);
   });
 
+  it('accepts promptfoo-shaped id, label, and config fields', async () => {
+    const filePath = path.join(tempDir, 'promptfoo-shaped-target.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - label: candidate-agent
+    id: openai:gpt-5-codex
+    provider: codex
+    config:
+      model: \${{ CODEX_MODEL }}
+      reasoning_effort: low
+      base_url: \${{ OPENAI_BASE_URL }}
+      api_key: \${{ OPENAI_API_KEY }}
+      api_format: responses
+    grader_target: grader
+    fallback_targets: [backup-agent]
+  - label: grader
+    provider: openai
+    config:
+      api_key: \${{ OPENAI_API_KEY }}
+      model: gpt-5-mini
+  - label: backup-agent
+    provider: mock
+    config:
+      response: backup
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors.filter((error) => error.severity === 'warning')).toEqual([]);
+  });
+
+  it('rejects authored target name in favor of label', async () => {
+    const filePath = path.join(tempDir, 'legacy-name-target.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: legacy-agent
+    provider: mock
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].label' &&
+          error.message.includes("Missing or invalid 'label' field"),
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].name' &&
+          error.message.includes("Use 'label'"),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects top-level providers as a targets.yaml runtime alias', async () => {
+    const filePath = path.join(tempDir, 'top-level-providers.yaml');
+    await writeFile(
+      filePath,
+      `providers:
+  - label: candidate-agent
+    provider: mock
+targets:
+  - label: candidate-agent
+    provider: mock
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'providers' &&
+          error.message.includes("Top-level 'providers' is not a runtime alias"),
+      ),
+    ).toBe(true);
+  });
+
   it('warns on removed built-in provider aliases', async () => {
     const filePath = path.join(tempDir, 'removed-provider-aliases.yaml');
     await writeFile(
       filePath,
       `targets:
-  - name: azure-alias
+  - label: azure-alias
     provider: azure-openai
-  - name: google-alias
+  - label: google-alias
     provider: google
-  - name: google-gemini-alias
+  - label: google-gemini-alias
     provider: google-gemini
-  - name: codex-cli-alias
+  - label: codex-cli-alias
     provider: codex-cli
-  - name: copilot-alias
+  - label: copilot-alias
     provider: copilot
-  - name: copilot-sdk-alias
+  - label: copilot-sdk-alias
     provider: copilot_sdk
-  - name: pi-alias
+  - label: pi-alias
     provider: pi
-  - name: claude-code-alias
+  - label: claude-code-alias
     provider: claude-code
-  - name: cc-mirror-alias
+  - label: cc-mirror-alias
     provider: cc-mirror
-  - name: bedrock-future
+  - label: bedrock-future
     provider: bedrock
-  - name: vertex-future
+  - label: vertex-future
     provider: vertex
 `,
     );
@@ -101,13 +192,13 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: codex-target
+  - label: codex-target
     provider: codex
     timeoutSeconds: 30
     logDir: ./logs
     systemPrompt: Be precise.
     modelReasoningEffort: low
-  - name: cli-target
+  - label: cli-target
     provider: cli
     command: echo {PROMPT}
     healthcheck:
@@ -166,7 +257,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: codex-target
+  - label: codex-target
     provider: codex
     model: \${{ CODEX_MODEL }}
     reasoning_effort: \${{ CODEX_REASONING_EFFORT }}
@@ -183,7 +274,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: copilot-sdk-custom-provider
+  - label: copilot-sdk-custom-provider
     provider: copilot-sdk
     model: gpt-5
     subprovider: openai
@@ -192,7 +283,7 @@ describe('validateTargetsFile', () => {
     api_format: responses
     model_id: gpt-5
     wire_model: \${{ OPENAI_MODEL }}
-  - name: copilot-cli-custom-provider
+  - label: copilot-cli-custom-provider
     provider: copilot-cli
     subprovider: openai
     base_url: \${{ OPENAI_ENDPOINT }}
@@ -212,7 +303,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: codex-local-openai
+  - label: codex-local-openai
     provider: codex
     model: \${{ CODEX_MODEL }}
     reasoning_effort: medium
@@ -236,19 +327,19 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: copilot-sdk-custom
+  - label: copilot-sdk-custom
     provider: copilot-sdk
     custom_provider:
       type: openai
       base_url: \${{ OPENAI_ENDPOINT }}
       api_key: \${{ OPENAI_API_KEY }}
-  - name: copilot-sdk-byok
+  - label: copilot-sdk-byok
     provider: copilot-sdk
     byok:
       type: openai
       base_url: \${{ OPENAI_ENDPOINT }}
       api_key: \${{ OPENAI_API_KEY }}
-  - name: copilot-cli-custom
+  - label: copilot-cli-custom
     provider: copilot-cli
     custom_provider:
       type: openai
@@ -278,11 +369,11 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: default
+  - label: default
     use_target: \${{ AGENT_TARGET }}
-  - name: grader
+  - label: grader
     use_target: \${{ GRADER_TARGET }}
-  - name: codex-agent
+  - label: codex-agent
     provider: codex
     grader_target: grader
 `,
@@ -323,11 +414,11 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: codex-agent
+  - label: codex-agent
     provider: codex
     model: gpt-5
     judge_target: grader
-  - name: grader
+  - label: grader
     provider: openai
     model: gpt-5-mini
 `,
@@ -351,10 +442,10 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: copilot-agent
+  - label: copilot-agent
     provider: copilot-cli
     log_format: json
-  - name: claude-agent
+  - label: claude-agent
     provider: claude
     log_output_format: summary
 `,
@@ -386,7 +477,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: azure-responses
+  - label: azure-responses
     provider: azure
     endpoint: \${{ AZURE_OPENAI_ENDPOINT }}
     api_key: \${{ AZURE_OPENAI_API_KEY }}
@@ -412,7 +503,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: replay-execution-trace
+  - label: replay-execution-trace
     provider: replay
     execution_traces: ./fixtures/execution-traces.jsonl
     source_target: live-agent
@@ -432,7 +523,7 @@ describe('validateTargetsFile', () => {
     await writeFile(
       filePath,
       `targets:
-  - name: replay-ambiguous
+  - label: replay-ambiguous
     provider: replay
     fixtures: ./fixtures/target-output.jsonl
     execution_traces: ./fixtures/execution-traces.jsonl

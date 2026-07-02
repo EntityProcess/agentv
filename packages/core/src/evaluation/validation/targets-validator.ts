@@ -6,6 +6,7 @@ import {
   CLI_PLACEHOLDERS,
   COMMON_TARGET_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
+  normalizeTargetDefinition,
 } from '../providers/targets.js';
 import { KNOWN_PROVIDERS } from '../providers/types.js';
 import { parseYamlValue } from '../yaml-loader.js';
@@ -266,8 +267,15 @@ function validateUnknownSettings(
 
   // Known base target fields that aren't settings
   const baseFields = new Set([
+    'id',
     'name',
+    'label',
     'provider',
+    'config',
+    'prompts',
+    'transform',
+    'delay',
+    'env',
     'grader_target',
     'judge_target',
     'workers',
@@ -502,6 +510,16 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     };
   }
 
+  if (Array.isArray(parsed.providers)) {
+    errors.push({
+      severity: 'error',
+      filePath: absolutePath,
+      location: 'providers',
+      message:
+        "Top-level 'providers' is not a runtime alias in targets.yaml. Use 'targets' for systems under test; provider names backend kind inside each target.",
+    });
+  }
+
   // Validate targets array
   const targets = parsed.targets;
   const rawTargets =
@@ -538,7 +556,22 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       continue;
     }
 
-    for (const warning of findDeprecatedCamelCaseTargetWarnings(target, location)) {
+    let normalizedTarget: JsonObject | undefined;
+    try {
+      normalizedTarget = normalizeTargetDefinition(target) as unknown as JsonObject;
+    } catch (error) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location,
+        message: (error as Error).message,
+      });
+    }
+
+    for (const warning of findDeprecatedCamelCaseTargetWarnings(
+      normalizedTarget ?? target,
+      location,
+    )) {
       const fieldMatch = warning.message.match(/field '([^']+)'/);
       const replacementMatch = warning.message.match(/Use '([^']+)' instead/);
       const field = fieldMatch?.[1] ?? 'unknown';
@@ -551,22 +584,34 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       });
     }
 
-    // Required field: name
-    const name = target.name;
-    if (typeof name !== 'string' || name.trim().length === 0) {
+    // Required field: label. Promptfoo `id` is a provider/backend identifier,
+    // not AgentV's target reference key.
+    const label = target.label;
+    if (typeof label !== 'string' || label.trim().length === 0) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.label`,
+        message: "Missing or invalid 'label' field (must be a non-empty string)",
+      });
+    }
+    if (typeof target.name === 'string' && target.name.trim().length > 0) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.name`,
-        message: "Missing or invalid 'name' field (must be a non-empty string)",
+        message:
+          "The target 'name' field has been removed. Use 'label' for the AgentV target name.",
       });
     }
 
     // Required field: provider
-    const provider = target.provider;
+    const effectiveTarget = normalizedTarget ?? target;
+    const provider = effectiveTarget.provider;
     const rawTarget = rawTargets[i];
     const rawUseTarget = isObject(rawTarget) ? rawTarget.use_target : undefined;
-    const hasUseTarget = isNonEmptyString(target.use_target) || isNonEmptyString(rawUseTarget);
+    const hasUseTarget =
+      isNonEmptyString(effectiveTarget.use_target) || isNonEmptyString(rawUseTarget);
     const providerValue = typeof provider === 'string' ? provider.trim().toLowerCase() : undefined;
     const isTemplated = typeof provider === 'string' && /^\$\{\{.+\}\}$/.test(provider.trim());
     if (!hasUseTarget && (typeof provider !== 'string' || provider.trim().length === 0)) {
@@ -589,11 +634,11 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
     // Validate CLI provider fields
     if (providerValue === 'cli') {
-      validateCliSettings(target, absolutePath, location, errors);
+      validateCliSettings(effectiveTarget, absolutePath, location, errors);
     }
     if (providerValue === 'replay') {
-      const hasFixtures = isNonEmptyString(target.fixtures);
-      const hasExecutionTraces = isNonEmptyString(target.execution_traces);
+      const hasFixtures = isNonEmptyString(effectiveTarget.fixtures);
+      const hasExecutionTraces = isNonEmptyString(effectiveTarget.execution_traces);
       if (hasFixtures === hasExecutionTraces) {
         errors.push({
           severity: 'error',
@@ -603,7 +648,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
             "Replay provider requires exactly one replay source: 'fixtures' or 'execution_traces'",
         });
       }
-      if (!isNonEmptyString(target.source_target)) {
+      if (!isNonEmptyString(effectiveTarget.source_target)) {
         errors.push({
           severity: 'error',
           filePath: absolutePath,
@@ -615,10 +660,10 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
 
     // Check for unknown settings properties on target object
     if (typeof provider === 'string' && !isTemplated) {
-      validateUnknownSettings(target, provider, absolutePath, location, errors);
+      validateUnknownSettings(effectiveTarget, provider, absolutePath, location, errors);
     }
 
-    if (target.judge_target !== undefined) {
+    if (effectiveTarget.judge_target !== undefined) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
@@ -628,7 +673,10 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
     }
 
     // Optional field: grader_target (must be string if present)
-    if (target.grader_target !== undefined && typeof target.grader_target !== 'string') {
+    if (
+      effectiveTarget.grader_target !== undefined &&
+      typeof effectiveTarget.grader_target !== 'string'
+    ) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,

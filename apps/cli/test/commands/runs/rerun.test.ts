@@ -30,7 +30,7 @@ interface CliResult {
 }
 
 const DEFAULT_TARGETS = `targets:
-  - name: captured
+  - label: captured
     provider: mock
 `;
 
@@ -121,7 +121,7 @@ async function createBundleFixture(
   await writeFile(
     overrideTargetsPath,
     `targets:
-  - name: local
+  - label: local
     provider: mock
 `,
     'utf8',
@@ -272,7 +272,7 @@ describe('agentv runs rerun', () => {
 
   it('fails clearly for missing env and accepts an explicit env file', async () => {
     const created = await fixture(`targets:
-  - name: captured
+  - label: captured
     provider: cli
     command: \${{ LOCAL_AGENT_COMMAND }}
 `);

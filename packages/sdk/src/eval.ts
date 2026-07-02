@@ -125,16 +125,23 @@ export interface EvalWorkspace {
 }
 
 export interface EvalTargetRef {
-  readonly name: string;
+  readonly label: string;
+  readonly id?: string;
   readonly useTarget?: string;
   readonly hooks?: EvalWorkspaceHooks;
 }
 
 export interface EvalTargetConfig {
   readonly extends?: string;
-  readonly name?: string;
+  readonly id?: string;
+  readonly label?: string;
   readonly provider?: string;
   readonly model?: string;
+  readonly config?: Readonly<Record<string, unknown>>;
+  readonly prompts?: unknown;
+  readonly transform?: unknown;
+  readonly delay?: number;
+  readonly env?: Readonly<Record<string, string>>;
   readonly reasoningEffort?: string;
   readonly hooks?: EvalWorkspaceHooks;
   readonly [key: string]: unknown;

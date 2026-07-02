@@ -11,6 +11,8 @@ import {
 } from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
 import { interpolateEnv } from '../interpolation.js';
+import { normalizeTargetDefinition } from '../providers/targets.js';
+import type { TargetDefinition } from '../providers/types.js';
 import type {
   EvalTargetRef,
   FailOnError,
@@ -335,10 +337,15 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
     return targetValue.trim();
   }
   if (isJsonObject(targetValue)) {
-    const name = targetValue.name;
+    const label = targetValue.label;
     const extendsTarget = targetValue.extends;
-    if (typeof name === 'string' && name.trim().length > 0) {
-      return name.trim();
+    if (typeof targetValue.name === 'string' && targetValue.name.trim().length > 0) {
+      throw new Error(
+        "Top-level target object field 'name' has been removed. Use 'label' instead.",
+      );
+    }
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
     }
     if (typeof extendsTarget === 'string' && extendsTarget.trim().length > 0) {
       return extendsTarget.trim();
@@ -348,25 +355,70 @@ export function extractTargetFromSuite(suite: JsonObject): string | undefined {
   return undefined;
 }
 
-/**
- * Matrix target refs are not authored in eval YAML. The CLI keeps this helper
- * as an internal no-op for call sites that still handle runtime-only matrices.
- */
 export function extractTargetRefsFromSuite(
   suite: JsonObject,
 ): readonly EvalTargetRef[] | undefined {
   rejectAuthoredRuntimeContainers(suite);
-  return undefined;
+  const rawTargets = suite.targets;
+  if (rawTargets === undefined) {
+    return undefined;
+  }
+
+  const entries = Array.isArray(rawTargets) ? rawTargets : [rawTargets];
+  const refs = entries.map((entry, index) => parseEvalTargetRef(entry, `targets[${index}]`));
+  return refs.length > 0 ? refs : undefined;
 }
 
 /**
- * Extract runtime-only matrix target names from parsed eval suite.
+ * Extract live matrix target names from parsed eval suite.
  */
 export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | undefined {
   const refs = extractTargetRefsFromSuite(suite);
   if (!refs) return undefined;
   const names = refs.map((r) => r.name);
   return names.length > 0 ? names : undefined;
+}
+
+function parseEvalTargetRef(raw: unknown, location: string): EvalTargetRef {
+  if (typeof raw === 'string') {
+    const name = raw.trim();
+    if (name.length === 0) {
+      throw new Error(`Invalid ${location}: target reference must be non-empty.`);
+    }
+    return { name };
+  }
+
+  if (!isJsonObject(raw)) {
+    throw new Error(`Invalid ${location}: use a target label string or target object.`);
+  }
+  if (typeof raw.name === 'string' && raw.name.trim().length > 0) {
+    throw new Error(
+      `Invalid ${location}: target field 'name' has been removed. Use 'label' instead.`,
+    );
+  }
+
+  const rawLabel = raw.label;
+  const label =
+    typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
+  if (!label) {
+    throw new Error(`Invalid ${location}: target object requires a 'label' field.`);
+  }
+
+  const hooks = parseTargetHooks(raw.hooks);
+  const definition = normalizeTargetDefinition(
+    Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
+  ) as TargetDefinition;
+  const useTarget =
+    typeof raw.use_target === 'string' && raw.use_target.trim().length > 0
+      ? raw.use_target.trim()
+      : undefined;
+
+  return {
+    name: label,
+    ...(useTarget !== undefined ? { use_target: useTarget } : {}),
+    definition,
+    ...(hooks !== undefined ? { hooks } : {}),
+  };
 }
 
 /**

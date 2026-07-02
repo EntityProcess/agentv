@@ -62,7 +62,7 @@ The preread block instructs the agent to read input files before processing the 
 
 ```yaml
 targets:
-  - name: claude_agent
+  - label: claude_agent
     provider: claude
     grader_target: azure-base
 ```
@@ -102,7 +102,7 @@ part of the canonical target schema.
 
 ```yaml
 targets:
-  - name: codex_target
+  - label: codex_target
     provider: codex
     executable: codex-eng
     model: ${{ CODEX_MODEL }}
@@ -122,7 +122,7 @@ targets:
 
 ```yaml
 targets:
-  - name: copilot
+  - label: copilot
     provider: copilot-cli
     model: gpt-5-mini
     grader_target: azure-base
@@ -144,7 +144,7 @@ Route Copilot through an OpenAI-compatible endpoint:
 
 ```yaml
 targets:
-  - name: copilot-openai
+  - label: copilot-openai
     provider: copilot-cli
     subprovider: openai
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -159,7 +159,7 @@ Values can come from environment variables through `${{ ... }}` interpolation. F
 
 ```yaml
 targets:
-  - name: pi_target
+  - label: pi_target
     provider: pi-coding-agent
     subprovider: openai-codex
     model: gpt-5.5
@@ -184,7 +184,7 @@ configuration. This works for OpenAI-compatible endpoints:
 
 ```yaml
 targets:
-  - name: pi-sdk-openai
+  - label: pi-sdk-openai
     provider: pi-coding-agent
     subprovider: openai
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -210,7 +210,7 @@ is compatible with Azure OpenAI Responses:
 
 ```yaml
 targets:
-  - name: pi-cli-gateway
+  - label: pi-cli-gateway
     provider: pi-cli
     subprovider: azure
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -223,7 +223,7 @@ targets:
 
 ```yaml
 targets:
-  - name: vscode_dev
+  - label: vscode_dev
     provider: vscode
     grader_target: azure-base
 ```
@@ -237,7 +237,7 @@ Using a custom executable path:
 
 ```yaml
 targets:
-  - name: vscode_dev
+  - label: vscode_dev
     provider: vscode
     executable: ${{ VSCODE_CMD }}
     grader_target: azure-base
@@ -247,7 +247,7 @@ targets:
 
 ```yaml
 targets:
-  - name: vscode_insiders
+  - label: vscode_insiders
     provider: vscode-insiders
     grader_target: azure-base
 ```
@@ -260,7 +260,7 @@ Evaluate any command-line agent:
 
 ```yaml
 targets:
-  - name: local_agent
+  - label: local_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
     grader_target: azure-base
@@ -278,7 +278,7 @@ For testing the evaluation harness without calling real providers:
 
 ```yaml
 targets:
-  - name: mock_target
+  - label: mock_target
     provider: mock
 ```
 
@@ -299,7 +299,7 @@ The VS Code provider uses a **subagent file-messaging architecture**. AgentV pro
 
 ```yaml
 targets:
-  - name: copilot
+  - label: copilot
     provider: copilot-cli
     executable: ${{ COPILOT_EXE }}
     grader_target: azure-base

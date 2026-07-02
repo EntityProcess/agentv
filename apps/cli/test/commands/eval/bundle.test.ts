@@ -54,11 +54,11 @@ describe('agentv eval bundle', () => {
     await writeFile(
       path.join(sourceDir, '.agentv', 'targets.yaml'),
       `targets:
-  - name: inherited
+  - label: inherited
     provider: mock
     response: '{"answer":"Mock provider response from inherited target"}'
     fallback_targets: [backup]
-  - name: backup
+  - label: backup
     provider: mock
     response: '{"answer":"Backup mock response"}'
 `,
@@ -153,8 +153,8 @@ tests: ../data/cases.yaml
     expect(input[0]?.content[0]).toEqual({ type: 'file', value: 'files/data/input.txt' });
 
     const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
-    expect(bundledTargets).toContain('name: inherited');
-    expect(bundledTargets).toContain('name: backup');
+    expect(bundledTargets).toContain('label: inherited');
+    expect(bundledTargets).toContain('label: backup');
 
     await rm(sourceDir, { recursive: true, force: true });
     const run = await runCli(bundleDir, [
@@ -169,6 +169,43 @@ tests: ../data/cases.yaml
     await expectFileExists(path.join(bundleDir, 'run', 'index.jsonl'));
   }, 60_000);
 
+  it('preserves inline eval target object definitions in the bundled target graph', async () => {
+    const sourceDir = path.join(tempDir, 'inline-source');
+    const bundleDir = path.join(tempDir, 'inline-bundle');
+    await mkdir(path.join(sourceDir, '.agentv'), { recursive: true });
+    await mkdir(path.join(sourceDir, 'evals'), { recursive: true });
+    await writeFile(path.join(sourceDir, '.agentv', 'targets.yaml'), 'targets: []\n', 'utf8');
+    await writeFile(
+      path.join(sourceDir, 'evals', 'inline.eval.yaml'),
+      `targets:
+  - label: candidate
+    provider: mock
+    response: '{"answer":"inline bundled response"}'
+tests:
+  - id: inline-case
+    input: hello
+    assertions:
+      - type: contains
+        value: inline
+`,
+      'utf8',
+    );
+
+    const bundle = await runCli(sourceDir, [
+      'eval',
+      'bundle',
+      'evals/inline.eval.yaml',
+      '--out',
+      bundleDir,
+    ]);
+
+    expect(bundle.exitCode).toBe(0);
+    const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
+    expect(bundledTargets).toContain('label: candidate');
+    expect(bundledTargets).toContain('provider: mock');
+    expect(bundledTargets).toContain('inline bundled response');
+  }, 30_000);
+
   it('reports unbundleable workspace references with their eval location', async () => {
     const sourceDir = path.join(tempDir, 'missing-source');
     const bundleDir = path.join(tempDir, 'missing-bundle');
@@ -177,7 +214,7 @@ tests: ../data/cases.yaml
     await writeFile(
       path.join(sourceDir, '.agentv', 'targets.yaml'),
       `targets:
-  - name: default
+  - label: default
     provider: mock
 `,
       'utf8',
