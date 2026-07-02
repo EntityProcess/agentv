@@ -123,7 +123,7 @@ promptfoo `tests: file://tests.csv` with magic columns (`__expected`, `__expecte
 
 ### 1.10 Templating
 
-promptfoo renders `{{var}}` via **nunjucks** into prompt `raw`, `assert.value`, and `assert.metric`; array vars auto-expand into multiple rows; `_conversation` var auto-injected; custom filters via `nunjucks_filters`. AgentV uses `${{ ENV }}` substitution only. This is conflict 2.f — adopting nunjucks is required for true format parity.
+promptfoo renders `{{var}}` via **nunjucks** into prompt `raw`, `assert.value`, and `assert.metric`; array vars auto-expand into multiple rows; `_conversation` var auto-injected; custom filters via `nunjucks_filters`. AgentV uses `${{ ENV }}` substitution only. This is conflict 2.f — adopting nunjucks (for vars **and** env via `{{ env.VAR }}`) is required for true format parity.
 
 ---
 
@@ -131,7 +131,7 @@ promptfoo renders `{{var}}` via **nunjucks** into prompt `raw`, `assert.value`, 
 
 **Governing principle (owner decision).** Where a feature is functionally equivalent and semantically the same, **use promptfoo's name/shape** (e.g. `assert`, not `assertions`; `metric`, not `name`). **Keep AgentV's form only where its semantics are genuinely better** — e.g. AgentV's executable `gate` over promptfoo's scalar `threshold`, and AgentV's `repeat: { count, strategy, early_exit }` block over promptfoo's `repeat: <int>`.
 
-**Deprecation policy: HARD (owner decision).** This ships as a **major version**. Renamed/replaced keys are *removed*, not aliased — no back-compat shims, no soft-deprecation window. `assertions` → removed (use `assert`); `composite` → removed (use `assert-set`); grader `name`-as-metric → removed (use `metric`); `eval_cases` → removed; `tests[].input` / suite `input` → removed (use `prompts`+`vars`, §2.b); `workspace`/`on_run_complete`/`preprocessors` → removed (use `extensions`, §2.l); `${{ ENV }}` → removed (use `${ENV}`, §2.f). A one-shot codemod migrates existing eval files; the parser hard-errors on removed keys with a message pointing at the new name. **Owner note: the churn is acceptable because all of this was introduced recently and is not yet in production** — no external users to migrate, so a clean break beats carrying aliases.
+**Deprecation policy: HARD (owner decision).** This ships as a **major version**. Renamed/replaced keys are *removed*, not aliased — no back-compat shims, no soft-deprecation window. `assertions` → removed (use `assert`); `composite` → removed (use `assert-set`); grader `name`-as-metric → removed (use `metric`); `eval_cases` → removed; `tests[].input` / suite `input` → removed (use `prompts`+`vars`, §2.b); `workspace`/`on_run_complete`/`preprocessors` → removed (use `extensions`, §2.l); `${{ ENV }}` → removed (use nunjucks `{{ env.VAR }}`, §2.f). A one-shot codemod migrates existing eval files; the parser hard-errors on removed keys with a message pointing at the new name. **Owner note: the churn is acceptable because all of this was introduced recently and is not yet in production** — no external users to migrate, so a clean break beats carrying aliases.
 
 Applying that principle, the decisions are below (D = decided, ▸ = still a judgment call, tracked in §8).
 
@@ -204,15 +204,17 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 - **AgentV today:** graders carry `name`; no `derived_metrics`; aggregation via `weight`/`required`/`min_score`.
 - **D — prefer promptfoo `metric`:** `metric` is the named-score field (nunjucks-templated); `name` becomes display-only/alias. Add `named_scores` + `derived_metrics` to the result contract. Keep `weight`/`required`/`min_score` as AgentV extensions (richer aggregation).
 
-### 2.f Templating engine: nunjucks vs `${{ ENV }}`
-- **promptfoo:** nunjucks `{{ }}` everywhere + array-var row expansion + custom filters.
+### 2.f Templating engine: nunjucks for BOTH vars and env (promptfoo-native), replacing `${{ ENV }}`
+- **promptfoo:** nunjucks `{{ }}` everywhere + array-var row expansion + custom filters. **Env vars too** — `{{ env.VAR }}`, rendered at **config-load time before validation** (`load.ts:336`, `providers/index.ts:94`, docs `modular-configs.md`), so env works in paths/configs. NOT a `${ }` sigil.
 - **AgentV today:** `${{ ENV_VAR }}` env substitution in target configs only.
-- **Conflict:** different delimiters and capabilities; nunjucks is more capable and is the shared standard → principle says promptfoo wins.
-- **D — two distinct sigils by resolution phase (no collision):**
-  - **`{{ var }}`** — nunjucks, **eval-time** template vars, for `prompts`/`vars`/`assert.value`/`assert.metric`, + array-var row expansion + `nunjucks_filters` (promptfoo parity).
-  - **`${ENV}`** — shell/Docker/k8s style, **config-time** env interpolation (target configs, etc.), **replacing `${{ ENV }}`** (hard change per §deprecation). Support `${ENV:-default}` like docker-compose.
-  - Because `{{ }}` and `${ }` never overlap, the earlier `{{ }}`-vs-`${{ }}` collision is gone. Codemod rewrites `${{ X }}` → `${X}`.
-  - **Confirmed (owner Q): nunjucks meets AgentV's inline-mixing requirement.** nunjucks interpolates within arbitrary text, so `run hello --option1 {{ myvar }}` works for a test var, and `run hello --option1 ${MYVAR}` for an env var. Mixing text + values inline is nunjucks' primary mode — no gap. (Only sigil choice depends on var vs env.)
+- **Conflict:** different delimiters; nunjucks is the shared standard → principle says promptfoo wins for env *and* vars.
+- **D — one engine (nunjucks), phase-separated by render pass + namespace (owner: adopt promptfoo-native env):**
+  - **`{{ var }}`** — **eval-time** template vars, for `prompts`/`vars`/`assert.value`/`assert.metric`, + array-var row expansion + `nunjucks_filters`.
+  - **`{{ env.VAR }}`** — **config-time** env, rendered at **load-time before validation** (promptfoo-native), usable in target configs/paths. Defaults via `{{ env.VAR | default('x') }}` (replaces `${ENV:-default}`).
+  - **No `${ENV}` sigil** (reversed earlier decision): promptfoo uses `{{ env.X }}`, so adopting it keeps **one templating engine**, superset-compat (promptfoo env configs run unchanged), and the config-time/eval-time split is handled by *when* each is rendered + the `env` namespace — not a second sigil.
+  - **Key correctness win (owner insight): `{{ env.VAR }}` does not collide with runtime shell `${VAR}`.** CLI targets run shell commands whose `command` may contain `${VAR}`/`$VAR` that must reach the **shell at runtime in the subprocess**, untouched. A `${ENV}` config sigil would clobber those (ambiguous: resolve-now vs expand-later). With `{{ env.VAR }}`, AgentV resolves its own env at load-time and passes `${VAR}` through verbatim for the shell to expand — two non-overlapping namespaces.
+  - Codemod rewrites `${{ X }}` → `{{ env.X }}`.
+  - Inline mixing is nunjucks' primary mode: `--flag {{ myvar }}` (eval var), `--key {{ env.MY_KEY }}` (AgentV env), while `$SHELL_VAR` in a command stays for the runtime shell.
 
 ### 2.g `repeat` block vs `samples_per_case` vs promptfoo `repeat:int`
 - **promptfoo:** `evaluate_options.repeat` = integer (naive re-run).

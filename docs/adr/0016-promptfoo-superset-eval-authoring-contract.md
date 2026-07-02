@@ -46,9 +46,14 @@ keep AgentV's only where its semantics are genuinely better.**
 6. **Prompts + vars, not `input`**: adopt top-level `prompts` (string/chat-array/file/
    fn, nunjucks `{{vars}}`); collapse `tests[].input` into `prompts`+`vars`. `input_files`
    survives as prompt content.
-7. **Templating**: nunjucks `{{ }}` (eval-time vars, array-var expansion, `nunjucks_filters`,
-   autoescape off, render-then-parse for chat arrays) via the `nunjucks` package; `${ENV}`
-   (shell/docker/k8s style, with `${ENV:-default}`) for config-time env, replacing `${{ ENV }}`.
+7. **Templating**: nunjucks for BOTH vars and env (promptfoo-native), via the `nunjucks`
+   package. `{{ var }}` = eval-time vars (array-var expansion, `nunjucks_filters`, autoescape
+   off, render-then-parse for chat arrays); `{{ env.VAR }}` = config-time env, rendered at
+   load-time before validation (defaults via `{{ env.VAR | default('x') }}`). One engine,
+   phase-separated by render pass + the `env` namespace — **no `${ENV}` sigil**. Replaces
+   `${{ ENV }}`. Rationale beyond superset-compat: `{{ env.VAR }}` **does not collide with
+   runtime shell `${VAR}`** — CLI-target commands can carry `$VAR`/`${VAR}` that must reach
+   the shell at runtime untouched; a `${ENV}` config sigil would clobber them.
 8. **Optional test `id`**, layered identity: content identity = `test_id` (content hash,
    derived when unauthored); governance/trend identity = an author `tag`/`metadata` key
    (Dashboard keys comparison on this); display label = `description` → vars → `Test #n`.
