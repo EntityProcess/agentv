@@ -41,14 +41,14 @@ eval start
   |
   v
 +---------------------------+
-| 4. before_all hooks       |  workspace hook, then target hook
+| 4. beforeAll lifecycle    |  extensions, then target hook
 +---------------------------+
   |
   v
 +---------------------------+
 | 5. Test loop              |  For each test case:
-|    before_each -> run ->  |    workspace hook, target hook, agent,
-|    after_each             |    target hook, workspace hook
+|    beforeEach -> run ->   |    extension, target hook, agent,
+|    afterEach              |    target hook, extension, reset
 +---------------------------+
   |
   v

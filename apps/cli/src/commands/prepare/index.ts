@@ -8,6 +8,7 @@ import path from 'node:path';
 
 import {
   type EvalTargetRef,
+  type JsonObject,
   type PreparedEvalWorkspace,
   type PreparedWorkspaceRepoPin,
   type ResolvedTarget,
@@ -51,6 +52,8 @@ interface PrepareResult {
   readonly manifestPath: string;
   readonly setupStatus: 'ok';
   readonly setupSteps: readonly SetupStep[];
+  readonly providerContext?: JsonObject;
+  readonly metadata?: Record<string, unknown>;
   readonly repoPins: readonly RepoPin[];
   readonly baseline: PreparedEvalWorkspace['baseline'];
   readonly createdAt: string;
@@ -65,6 +68,8 @@ interface PrepareManifestWire {
   readonly prompt_path: string;
   readonly setup_status: 'ok';
   readonly setup_steps: readonly SetupStepWire[];
+  readonly provider_context?: JsonObject;
+  readonly metadata?: Record<string, unknown>;
   readonly repo_pins: readonly RepoPinWire[];
   readonly baseline: BaselineWire;
   readonly created_at: string;
@@ -128,6 +133,37 @@ function toRepoPins(pins: readonly PreparedWorkspaceRepoPin[]): readonly RepoPin
     ...(pin.ancestor !== undefined && { ancestor: pin.ancestor }),
     ...(pin.sparse !== undefined && { sparse: pin.sparse }),
   }));
+}
+
+function remapWorkspacePaths<T>(
+  value: T,
+  sourceWorkspacePath: string,
+  targetWorkspacePath: string,
+): T {
+  if (typeof value === 'string') {
+    const relativePath = path.relative(sourceWorkspacePath, value);
+    if (
+      relativePath === '' ||
+      (!!relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+    ) {
+      return path.join(targetWorkspacePath, relativePath) as T;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      remapWorkspacePaths(item, sourceWorkspacePath, targetWorkspacePath),
+    ) as T;
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        remapWorkspacePaths(item, sourceWorkspacePath, targetWorkspacePath),
+      ]),
+    ) as T;
+  }
+  return value;
 }
 
 async function moveDirectory(sourcePath: string, destinationPath: string): Promise<void> {
@@ -200,6 +236,8 @@ function toManifestWire(result: PrepareResult): PrepareManifestWire {
       status: step.status,
       ...(step.message !== undefined && { message: step.message }),
     })),
+    ...(result.providerContext !== undefined && { provider_context: result.providerContext }),
+    ...(result.metadata !== undefined && { metadata: result.metadata }),
     repo_pins: result.repoPins.map((pin) => ({
       ...(pin.path !== undefined && { path: pin.path }),
       ...(pin.repo !== undefined && { repo: pin.repo }),
@@ -322,6 +360,16 @@ async function prepareAttempt(options: {
     manifestPath,
     setupStatus: 'ok',
     setupSteps: setupStepsFromPrepared(prepared),
+    ...(prepared.providerContext !== undefined && {
+      providerContext: remapWorkspacePaths(
+        prepared.providerContext,
+        prepared.workspacePath,
+        workspacePath,
+      ),
+    }),
+    ...(prepared.metadata !== undefined && {
+      metadata: remapWorkspacePaths(prepared.metadata, prepared.workspacePath, workspacePath),
+    }),
     repoPins: toRepoPins(prepared.repoPins),
     baseline: prepared.baseline,
     createdAt: prepared.createdAt,

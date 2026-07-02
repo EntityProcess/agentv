@@ -17,12 +17,12 @@ The prepared directory contains:
 
 ```text
 /tmp/agentv-case-1/
-  workspace/              # materialized template/repos/hooks state
+  workspace/              # materialized template/repos/extensions state
   prompt.md               # safe task prompt for the human or external agent
   agentv_prepare.json     # snake_case manifest for audit and later grading
 ```
 
-`prepare` runs setup only: workspace `before_all`, target `before_all`, workspace `before_each`, and target `before_each`. It does not launch the agent, run graders, mark an eval complete, or expose hidden expected outputs and grader internals in `prompt.md`.
+`prepare` runs setup only: workspace materialization, extension `beforeAll`, target `before_all`, extension `beforeEach`, and target `before_each`. It does not launch the agent, run graders, mark an eval complete, or expose hidden expected outputs and grader internals in `prompt.md`.
 
 ## Grade the Attempt
 

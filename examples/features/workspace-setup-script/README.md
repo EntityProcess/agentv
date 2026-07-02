@@ -1,78 +1,54 @@
-# Workspace Setup Script
+# Workspace Setup Extension
 
-Demonstrates using a `before_all` lifecycle hook to clean and re-initialize an allagents workspace before evaluation runs, then register a project-scoped marketplace and sync plugin content (including prompt files).
+Demonstrates using a `beforeAll` lifecycle extension to clean and re-initialize an allagents workspace before evaluation runs, then register a project-scoped marketplace and sync plugin content.
 
 ## Problem
 
-`allagents workspace init` fails if `.allagents/workspace.yaml` already exists. In CI and repeated eval runs, stale artifacts need to be cleaned first. Without a wrapper, you'd need shell operators like `&&` (not cross-platform) or framework-level multi-command support.
+`allagents workspace init` fails if `.allagents/workspace.yaml` already exists. In CI and repeated eval runs, stale artifacts need to be cleaned before project-scoped plugin content is synced.
 
 ## Solution
 
-A generic Node.js script that any eval can reuse. It reads `workspace_path` from AgentV's stdin JSON, removes stale `.allagents/` state, runs `allagents workspace init --from`, registers a project-scoped marketplace, then runs `allagents workspace sync`.
+A Node.js lifecycle extension exports `beforeAll(context)`. AgentV runs it after `workspace.template` and `workspace.repos` materialize, so the extension can safely prepare local configuration without owning repo provisioning.
 
 ```
 workspace-setup-script/
 ├── evals/
-│   └── dataset.eval.yaml        # Eval with before_all hook
+│   └── dataset.eval.yaml        # Eval with beforeAll extension
 ├── plugins/
 │   └── my-plugin/               # Plugin content (AGENTS + prompt)
-│       ├── AGENTS.md             # Agent guidelines
+│       ├── AGENTS.md
 │       └── .github/
 │           └── prompts/
 │               └── summarize-repo.prompt.md
 ├── marketplace/
 │   └── .claude-plugin/
-│       └── marketplace.json     # Local marketplace manifest
+│       └── marketplace.json
 ├── scripts/
-│   └── workspace-setup.mjs      # Generic setup script (reusable across evals)
+│   └── workspace-setup.mjs      # Lifecycle extension module
 └── workspace-template/
     └── .allagents/
-        └── workspace.yaml       # Template for allagents init
+        └── workspace.yaml
 ```
-
-## Plugin Installation via Project Marketplace
-
-The `.allagents/workspace.yaml` installs a plugin from a named marketplace:
-
-```yaml
-# .allagents/workspace.yaml
-plugins:
-  - my-plugin@workspace-setup-script-marketplace
-```
-
-The setup script registers that marketplace using project scope:
-
-```bash
-npx --yes allagents plugin marketplace add ../marketplace --scope project
-```
-
-This matches the project-scoped marketplace flow introduced in `allagents` (PR #224).
 
 ## Eval YAML
 
-The template path and local marketplace path are passed as arguments. Use `--require` to validate expected artifacts after sync:
+Use top-level `extensions` for executable setup and keep repos under `workspace.repos`:
 
 ```yaml
+extensions:
+  - file://../scripts/workspace-setup.mjs:beforeAll
+
 workspace:
-  template: ./workspace-template
-  hooks:
-    before_all:
-      command:
-        - node
-        - ../scripts/workspace-setup.mjs
-        - --from
-        - ../workspace-template/.allagents/workspace.yaml
-        - --marketplace-source
-        - ../marketplace
-        - --require
-        - AGENTS.md
-        - --require
-        - .github/prompts/summarize-repo.prompt.md
+  template: ../workspace-template
+  repos:
+    - path: ./my-repo
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: main
 ```
 
-The `--require` flag accepts one or more file paths (relative to the workspace root). If any required file is missing after `allagents workspace init`, the script exits with an error listing the missing files.
+The extension reads `context.workspace_path` and `context.eval_dir`, refreshes `.allagents/`, runs `allagents workspace init`, registers the local marketplace with `--scope project`, syncs plugins, and validates that expected artifacts exist.
 
-## Referencing plugin files in test inputs
+## Referencing Plugin Files In Test Inputs
 
 Reference plugin files via `type: file` in test inputs to inject them into the agent's prompt:
 
@@ -90,22 +66,18 @@ tests:
 
 The `type: file` path is resolved from the eval file's directory up to the repo root. This injects the file contents into the agent's prompt alongside any text instructions.
 
-## How it works
+## How It Works
 
-1. AgentV copies `workspace-template/` to a pooled workspace
-2. The setup script removes stale `.allagents/` config and runs `npx allagents workspace init`
-3. The setup script registers the local marketplace with `--scope project`
-4. `allagents workspace sync` installs `my-plugin@workspace-setup-script-marketplace`
-5. `--require` checks verify `AGENTS.md` and `.github/prompts/summarize-repo.prompt.md` exist
-6. AgentV clones repos and runs tests against the initialized workspace
+1. AgentV copies `workspace-template/` to a pooled workspace.
+2. AgentV clones `workspace.repos`.
+3. The `beforeAll` extension removes stale `.allagents/` config and runs `npx allagents workspace init`.
+4. The extension registers the local marketplace with `--scope project`.
+5. `allagents workspace sync` installs `my-plugin@workspace-setup-script-marketplace`.
+6. Required-file checks verify `AGENTS.md` and `.github/prompts/summarize-repo.prompt.md` exist.
 
-## Cross-platform
+## Cross-Platform Notes
 
-The script handles Windows by using `npx.cmd` instead of `npx`.
-
-Because the script first reads AgentV payload from stdin, it then launches `npx` with:
+The extension handles Windows by using `npx.cmd` instead of `npx` and launches subprocesses with:
 
 - `stdio: ['ignore', 'inherit', 'inherit']`
 - `shell: process.platform === 'win32'`
-
-This avoids a Windows-specific `spawnSync npx.cmd EINVAL` failure seen when stdin is inherited after being consumed in `before_all` hooks.
