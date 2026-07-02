@@ -87,7 +87,7 @@ reserved for rebuildable local state and are skipped by run discovery.
 | `summary.json` | Aggregate run metadata and rollups: run id, experiment metadata, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
 | `index.jsonl` | Canonical row index: one row per result, attempt, or case-level aggregate, with identity fields, filter metadata, scores, status, and explicit run-relative paths to sidecars. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
 | `result.json` | Compact per-attempt manifest for one attempt directory, including AgentV `execution_status` and `verdict`. | Loading one attempt without scanning the whole run index. |
-| `grading.json` | Grader outputs, assertions, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
+| `grading.json` | Grader outputs, `assertion_results`, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
 | `metrics.json` | Derived executor behavior summary, such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, metric-style graders, adapter projections, and lightweight analysis. |
 | `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and script graders still receive the same full diff through `file_changes`. |
 | `timing.json` | Duration, token usage, cost usage, and source labels such as `provider_reported`, `token_estimated`, `aggregate`, or `unavailable`. | Cost/latency reporting and provider-accounting audits. |
@@ -101,6 +101,55 @@ should not scan every row just to show pass rate or total duration, and a row
 reader should not parse aggregate summary structures to find one case's grading
 or transcript. Keep aggregate questions on `summary.json`; keep row and artifact
 discovery on `index.jsonl`.
+
+## Grading Contract
+
+Each per-attempt `grading.json` uses `assertion_results` for the public
+per-criterion rows. The internal grader API and eval YAML still use
+`assertions`; the sidecar converts those rows at the artifact boundary.
+
+```json
+{
+  "score": 0.5,
+  "verdict": "fail",
+  "assertion_results": [
+    {
+      "text": "Answer cites the changed file",
+      "passed": true,
+      "evidence": "The answer cites src/refunds.ts.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Tests were updated",
+      "passed": false,
+      "evidence": "No test file path or diff was provided.",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 1,
+    "total": 2,
+    "pass_rate": 0.5
+  },
+  "graders": [
+    {
+      "name": "implementation_review",
+      "type": "llm-grader",
+      "score": 0.5,
+      "verdict": "fail",
+      "assertion_results": []
+    }
+  ]
+}
+```
+
+`score` values are normalized to the `0..1` range. `verdict` is `pass`,
+`fail`, or `skip` at the artifact level, and `pass` or `fail` on individual
+assertion rows. Evidence stays in `grading.json` so the sidecar remains useful
+without loading traces.
 
 ## Row Contract
 

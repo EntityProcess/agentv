@@ -229,6 +229,13 @@ function hydrateManifestRecord(
   const grading = readOptionalJson<GradingArtifact>(baseDir, record.grading_path);
   const timing = readOptionalJson<TimingArtifact>(baseDir, record.timing_path);
   const testId = record.test_id ?? 'unknown';
+  const gradingAssertions =
+    grading?.assertion_results ??
+    (
+      grading as
+        | (GradingArtifact & { assertions?: GradingArtifact['assertion_results'] })
+        | undefined
+    )?.assertions;
 
   return {
     timestamp: record.timestamp,
@@ -240,7 +247,7 @@ function hydrateManifestRecord(
     score: record.score,
     executionStatus: record.execution_status,
     error: record.error,
-    assertions: grading?.assertions.map((assertion) => ({
+    assertions: gradingAssertions?.map((assertion) => ({
       text: assertion.text,
       passed: assertion.passed,
       evidence: assertion.evidence,
@@ -256,8 +263,8 @@ function hydrateManifestRecord(
         name: evaluator.name,
         type: evaluator.type,
         score: evaluator.score,
-        assertions: Array.isArray(evaluator.assertions)
-          ? evaluator.assertions.map((assertion) => ({
+        assertions: Array.isArray(evaluator.assertion_results)
+          ? evaluator.assertion_results.map((assertion) => ({
               text: String((assertion as Record<string, unknown>).text ?? ''),
               passed: Boolean((assertion as Record<string, unknown>).passed),
               evidence:
@@ -265,7 +272,16 @@ function hydrateManifestRecord(
                   ? String((assertion as Record<string, unknown>).evidence)
                   : undefined,
             }))
-          : undefined,
+          : Array.isArray((evaluator as Record<string, unknown>).assertions)
+            ? ((evaluator as Record<string, unknown>).assertions as Record<string, unknown>[]).map(
+                (assertion) => ({
+                  text: String(assertion.text ?? ''),
+                  passed: Boolean(assertion.passed),
+                  evidence:
+                    typeof assertion.evidence === 'string' ? String(assertion.evidence) : undefined,
+                }),
+              )
+            : undefined,
         weight: typeof evaluator.weight === 'number' ? evaluator.weight : undefined,
         verdict: typeof evaluator.verdict === 'string' ? evaluator.verdict : undefined,
         details: evaluator.details,

@@ -722,12 +722,17 @@ describe('results export', () => {
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
 
-    // Uses artifact-writer's assertions field
-    expect(grading.assertions).toBeDefined();
-    expect(grading.assertions.length).toBeGreaterThan(0);
-    expect(grading.assertions[0]).toHaveProperty('text');
-    expect(grading.assertions[0]).toHaveProperty('passed');
-    expect(grading.assertions[0]).toHaveProperty('evidence');
+    // Uses artifact-writer's assertion_results field
+    expect(grading).not.toHaveProperty('assertions');
+    expect(grading.score).toBe(1);
+    expect(grading.verdict).toBe('pass');
+    expect(grading.assertion_results).toBeDefined();
+    expect(grading.assertion_results.length).toBeGreaterThan(0);
+    expect(grading.assertion_results[0]).toHaveProperty('text');
+    expect(grading.assertion_results[0]).toHaveProperty('passed');
+    expect(grading.assertion_results[0]).toHaveProperty('evidence');
+    expect(grading.assertion_results[0]).toHaveProperty('score');
+    expect(grading.assertion_results[0]).toHaveProperty('verdict');
 
     // Has summary
     expect(grading.summary).toBeDefined();
@@ -864,7 +869,8 @@ describe('results export', () => {
     expect(existsSync(gradingPath)).toBe(true);
 
     const grading: GradingArtifact = JSON.parse(readFileSync(gradingPath, 'utf8'));
-    expect(grading.assertions).toEqual([]);
+    expect(grading).not.toHaveProperty('assertions');
+    expect(grading.assertion_results).toEqual([]);
     expect(grading.summary.total).toBe(0);
   });
 

@@ -274,10 +274,10 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       } else {
         try {
           const grading = JSON.parse(readFileSync(gradingPath, 'utf8'));
-          if (!grading.assertions || !Array.isArray(grading.assertions)) {
+          if (!grading.assertion_results || !Array.isArray(grading.assertion_results)) {
             diagnostics.push({
               severity: 'error',
-              message: `${testId}: grading.json missing 'assertions' array`,
+              message: `${testId}: grading.json missing 'assertion_results' array`,
             });
           }
           if (!grading.summary) {

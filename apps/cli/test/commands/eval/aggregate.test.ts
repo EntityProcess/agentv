@@ -291,7 +291,7 @@ describe('writePerTestArtifacts', () => {
     const grading1 = JSON.parse(
       readFileSync(rowRunPath(tmpDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
     );
-    expect(grading1.assertions).toHaveLength(1);
+    expect(grading1.assertion_results).toHaveLength(1);
 
     const timing1 = JSON.parse(
       readFileSync(rowRunPath(tmpDir, 'test-1', 'run-1', 'timing.json'), 'utf8'),
@@ -301,7 +301,7 @@ describe('writePerTestArtifacts', () => {
     const grading2 = JSON.parse(
       readFileSync(rowRunPath(tmpDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
     );
-    expect(grading2.assertions).toHaveLength(1);
+    expect(grading2.assertion_results).toHaveLength(1);
   });
 
   it('writes outputs/answer.md for results with output', async () => {
