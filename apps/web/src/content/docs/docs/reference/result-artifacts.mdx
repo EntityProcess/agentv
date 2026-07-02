@@ -151,6 +151,11 @@ per-criterion rows. The internal grader API and eval YAML still use
 assertion rows. Evidence stays in `grading.json` so the sidecar remains useful
 without loading traces.
 
+Aggregate grading artifacts use the same top-level `score` and `verdict`
+fields. Their `score` is the mean normalized score across non-execution-error
+attempts or cases, while `verdict` reflects the already derived execution
+status for those quality results instead of recomputing a default threshold.
+
 ## Row Contract
 
 Each `index.jsonl` line is a JSON object. The exact field set grows as AgentV

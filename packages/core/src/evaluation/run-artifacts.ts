@@ -24,7 +24,7 @@ import {
   omitExternalTraceMetadataKeys,
   toExternalTraceMetadataWire,
 } from './external-trace.js';
-import { DEFAULT_THRESHOLD, clampScore, scoreToVerdict } from './graders/scoring.js';
+import { DEFAULT_THRESHOLD, clampScore } from './graders/scoring.js';
 import { buildMetricsArtifact } from './metrics.js';
 import {
   type ExportDuplicatePolicy,
@@ -463,6 +463,8 @@ export interface RunSummaryArtifact {
 }
 
 export interface AggregateGradingArtifact {
+  readonly score: number;
+  readonly verdict: 'pass' | 'fail' | 'skip';
   readonly assertion_results: readonly {
     readonly test_id: string;
     readonly text: string;
@@ -701,10 +703,10 @@ function resultVerdict(result: EvaluationResult): GradingArtifact['verdict'] {
   if (scores.length > 0 && scores.every((score) => score.verdict === 'skip')) {
     return 'skip';
   }
-  if (result.executionStatus === 'execution_error') {
-    return 'fail';
+  if (result.executionStatus === 'ok') {
+    return 'pass';
   }
-  return scoreToVerdict(clampScore(result.score));
+  return 'fail';
 }
 
 function buildEvaluators(scores: readonly GraderResult[] | undefined): GradingArtifact['graders'] {
@@ -947,7 +949,7 @@ function buildRepeatCaseSummaryArtifact(
   const passedRuns =
     trials.length > 0
       ? trials.filter((trial) => trial.verdict === 'pass').length
-      : result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
+      : resultVerdict(result) === 'pass'
         ? 1
         : 0;
   const fallbackMeanMs = totalRuns > 0 ? roundMillis(timing.duration_ms / totalRuns) : 0;
@@ -1045,10 +1047,7 @@ function singleRunTrial(result: EvaluationResult): TrialResult {
   return {
     attempt: 0,
     score: result.score,
-    verdict:
-      result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
-        ? 'pass'
-        : 'fail',
+    verdict: resultVerdict(result),
     scores: result.scores,
     error: result.error,
     costUsd: result.costUsd,
@@ -1534,8 +1533,9 @@ export function buildAggregateGradingArtifact(
   results: readonly EvaluationResult[],
 ): AggregateGradingArtifact {
   const assertionResults: AggregateGradingArtifact['assertion_results'][number][] = [];
+  const qualityResults = results.filter((r) => !isExecutionError(r));
 
-  for (const result of results.filter((r) => !isExecutionError(r))) {
+  for (const result of qualityResults) {
     const testId = result.testId ?? 'unknown';
     for (const assertion of result.assertions ?? []) {
       assertionResults.push({
@@ -1548,8 +1548,25 @@ export function buildAggregateGradingArtifact(
   const passed = assertionResults.filter((a) => a.passed).length;
   const failed = assertionResults.filter((a) => !a.passed).length;
   const total = assertionResults.length;
+  const score =
+    qualityResults.length > 0
+      ? Math.round(
+          (qualityResults.reduce((sum, result) => sum + clampScore(result.score), 0) /
+            qualityResults.length) *
+            1000,
+        ) / 1000
+      : 0;
+  const verdict =
+    results.length === 0
+      ? 'skip'
+      : qualityResults.length > 0 &&
+          qualityResults.every((result) => resultVerdict(result) === 'pass')
+        ? 'pass'
+        : 'fail';
 
   return {
+    score,
+    verdict,
     assertion_results: assertionResults,
     summary: {
       passed,

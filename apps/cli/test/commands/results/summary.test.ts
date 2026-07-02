@@ -76,6 +76,8 @@ describe('formatSummary', () => {
 describe('formatSummary with grading artifact', () => {
   it('uses assertion counts from grading artifact when provided', () => {
     const grading: AggregateGradingArtifact = {
+      score: 0.75,
+      verdict: 'fail',
       assertion_results: [
         { test_id: 'test-1', text: 'a', passed: true, evidence: '', score: 1, verdict: 'pass' },
         {

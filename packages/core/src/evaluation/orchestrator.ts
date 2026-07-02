@@ -2434,7 +2434,7 @@ async function runEvalCaseWithTrials(
     // Extract cost from trace summary if available
     const trialCost = result.costUsd;
 
-    const trialVerdict = scoreToVerdict(result.score);
+    const trialVerdict = result.executionStatus === 'ok' ? 'pass' : 'fail';
     const trial: TrialResult = {
       attempt,
       score: result.score,

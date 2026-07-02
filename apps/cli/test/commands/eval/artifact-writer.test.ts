@@ -151,6 +151,26 @@ describe('buildGradingArtifact', () => {
     expect(grading.verdict).toBe('pass');
   });
 
+  it('uses execution status for threshold-sensitive top-level verdicts', () => {
+    const passedBelowDefault = buildGradingArtifact(
+      makeResult({
+        score: 0.7,
+        executionStatus: 'ok',
+      }),
+    );
+    const failedAboveDefault = buildGradingArtifact(
+      makeResult({
+        score: 0.85,
+        executionStatus: 'quality_failure',
+      }),
+    );
+
+    expect(passedBelowDefault.score).toBe(0.7);
+    expect(passedBelowDefault.verdict).toBe('pass');
+    expect(failedAboveDefault.score).toBe(0.85);
+    expect(failedAboveDefault.verdict).toBe('fail');
+  });
+
   it('computes correct summary', () => {
     const result = makeResult({
       assertions: [
@@ -579,6 +599,8 @@ describe('buildAggregateGradingArtifact', () => {
 
     const aggregate = buildAggregateGradingArtifact(results);
 
+    expect(aggregate.score).toBe(0.9);
+    expect(aggregate.verdict).toBe('pass');
     expect(aggregate.assertion_results).toHaveLength(3);
     expect(aggregate.assertion_results[0]).toEqual({
       test_id: 'test-alpha',
@@ -634,6 +656,38 @@ describe('buildAggregateGradingArtifact', () => {
     });
   });
 
+  it('computes top-level score and verdict from quality result status', () => {
+    const aggregate = buildAggregateGradingArtifact([
+      makeResult({
+        testId: 'low-threshold-pass',
+        score: 0.7,
+        executionStatus: 'ok',
+        assertions: [{ text: 'passes under configured threshold', passed: true }],
+      }),
+      makeResult({
+        testId: 'high-threshold-fail',
+        score: 0.85,
+        executionStatus: 'quality_failure',
+        assertions: [{ text: 'fails under configured threshold', passed: false }],
+      }),
+      makeResult({
+        testId: 'provider-timeout',
+        score: 1,
+        executionStatus: 'execution_error',
+        assertions: [{ text: 'execution error placeholder', passed: false }],
+      }),
+    ]);
+
+    expect(aggregate.score).toBe(0.775);
+    expect(aggregate.verdict).toBe('fail');
+    expect(aggregate.summary).toEqual({
+      passed: 1,
+      failed: 1,
+      total: 2,
+      pass_rate: 0.5,
+    });
+  });
+
   it('handles results with no assertions', () => {
     const results = [
       makeResult({
@@ -647,6 +701,8 @@ describe('buildAggregateGradingArtifact', () => {
 
     expect(aggregate.assertion_results).toHaveLength(1);
     expect(aggregate.assertion_results[0].test_id).toBe('test-1');
+    expect(aggregate.score).toBe(0.9);
+    expect(aggregate.verdict).toBe('pass');
     expect(aggregate.summary.total).toBe(1);
     expect(aggregate.summary.passed).toBe(1);
     expect(aggregate.summary.failed).toBe(0);
@@ -677,6 +733,8 @@ describe('buildAggregateGradingArtifact', () => {
         verdict: 'pass',
       },
     ]);
+    expect(aggregate.score).toBe(0.9);
+    expect(aggregate.verdict).toBe('pass');
     expect(aggregate.summary).toEqual({
       passed: 1,
       failed: 0,
@@ -688,6 +746,8 @@ describe('buildAggregateGradingArtifact', () => {
   it('handles empty results array', () => {
     const aggregate = buildAggregateGradingArtifact([]);
 
+    expect(aggregate.score).toBe(0);
+    expect(aggregate.verdict).toBe('skip');
     expect(aggregate.assertion_results).toHaveLength(0);
     expect(aggregate.summary).toEqual({
       passed: 0,
@@ -756,7 +816,7 @@ describe('buildIndexArtifactEntry', () => {
           attempt: 0,
           run_path: 'run-1',
           score: 0.9,
-          verdict: 'pass',
+          verdict: 'fail',
           scores: [
             {
               name: 'quality',
