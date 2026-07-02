@@ -181,7 +181,7 @@ Agent Skills eval artifacts map into AgentV like this:
 
 | Agent Skills pattern | AgentV field | Artifact location |
 |----------------------|--------------|-------------------|
-| Authored `evals/evals.json` cases | AgentV eval cases and test bundle paths | Eval source plus optional `test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
+| Converted Agent Skills cases | AgentV eval cases and test bundle paths | Converted EVAL YAML plus optional `test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `attempt-N/outputs/answer.md` |
 | Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `attempt-N/transcript.json`, `attempt-N/transcript-raw.jsonl`, `attempt-N/metrics.json` |
 | Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `attempt-N/timing.json` |

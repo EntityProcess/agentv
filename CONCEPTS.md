@@ -38,7 +38,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Artifact sidecar** — A file beside or below a result directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
 
-**Artifact attempt folder** — A per-case `run-N/` folder under a result directory. It stores one materialized execution's sidecars and outputs. It is not the primary comparison dimension: stochastic samples and infrastructure retries should be represented with explicit sample/retry metadata rather than inferred from `run-1`, `run-2`, and so on.
+**Artifact attempt folder** — A per-case `attempt-N/` folder under a result directory. It stores one materialized execution's sidecars and outputs. It is not the primary comparison dimension: stochastic samples and infrastructure retries should be represented with explicit sample/retry metadata rather than inferred from `attempt-1`, `attempt-2`, and so on.
 
 ## Evaluation Reliability
 

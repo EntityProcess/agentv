@@ -21,8 +21,10 @@ tests:
       - Correctly explains the bug and proposes a fix
 ```
 
-`expected_output` is passive reference data; it is available to graders but does
-not create an LLM grading call by itself. See [How reference fields and assertions interact](/docs/evaluation/eval-cases/#how-reference-fields-and-assertions-interact).
+`expected_output` is passive gold/reference data. It is available to graders but
+does not create an LLM grading call by itself. Depending on the grader, it can
+be used as an exact target, a semantic reference answer, a structured object, or
+supporting context. See [How reference fields and assertions interact](/docs/evaluation/eval-cases/#how-reference-fields-and-assertions-interact).
 
 ## Configuration
 

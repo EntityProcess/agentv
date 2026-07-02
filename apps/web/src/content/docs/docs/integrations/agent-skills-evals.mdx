@@ -1,23 +1,30 @@
 ---
-title: Skill Evals (evals.json)
-description: Run evals.json skill evaluations with AgentV, and graduate to EVAL.yaml when you need more power.
+title: Agent Skills evals.json Adapter
+description: Run or convert Agent Skills evals.json files through AgentV's built-in read adapter.
 sidebar:
   order: 2
 ---
 
 ## Overview
 
-[Agent Skills](https://agentskills.io) is an open standard for describing AI agent capabilities. Its `evals.json` format defines simple test cases for skills — a prompt, expected output, and natural-language assertions.
+[Agent Skills](https://agentskills.io) uses `evals.json` for lightweight skill-scoped datasets: a prompt, optional expected outcome, optional fixture files, and natural-language assertions or expectations.
 
-AgentV natively supports `evals.json`. You can run Agent Skills evals directly:
+AgentV treats `evals.json` as a built-in read adapter input, not as a native core eval format. Detection requires a top-level `skill_name` string and `evals` array, so arbitrary `.json` files are still rejected. You can run a detected Agent Skills file directly:
 
 ```bash
 agentv eval evals.json --target claude
 ```
 
-When you need AgentV's power features (deterministic graders, composite scoring, multi-turn conversations, workspace isolation), you can graduate to EVAL.yaml.
+Or convert it to AgentV EVAL YAML when you want to edit the generated suite:
 
-## Quick start
+```bash
+agentv convert evals.json --out EVAL.yaml
+agentv eval EVAL.yaml --target claude
+```
+
+This keeps AgentV's core authoring formats focused on YAML, JSONL, and TypeScript while still making Agent Skills suites easy to onboard. The boundary is the same adapter layer used for external datasets: external schema in, AgentV-native cases at runtime.
+
+## Quick Start
 
 Create `evals.json`:
 
@@ -40,167 +47,140 @@ Create `evals.json`:
 }
 ```
 
-Run it:
+Run it directly or convert it first:
 
 ```bash
 agentv eval evals.json --target claude
+
+agentv convert evals.json --out EVAL.yaml
+agentv eval EVAL.yaml --target claude
 ```
 
-The `--target` flag selects the agent harness. The agent evaluates itself — skills load naturally via progressive disclosure.
+The `--target` flag selects the agent harness. The agent evaluates itself; skills load through the normal agent runtime.
 
-## Field mapping
+## CLI Surface
 
-When AgentV loads `evals.json`, it promotes fields to its internal representation:
-
-| evals.json | EVAL.yaml equivalent | Notes |
-|---|---|---|
-| `prompt` | `input` | Wrapped as `[{role: "user", content: prompt}]` |
-| `expected_output` | `expected_output` + `criteria` | Used as reference answer and evaluation criteria |
-| `assertions[]` | `assertions[]` | Each string becomes `{type: llm-grader, prompt: text}` |
-| `files[]` | `file_paths` | Resolved relative to evals.json, copied into workspace |
-| `skill_name` | `metadata.skill_name` | Carried as metadata |
-| `id` (number) | `id` (string) | Converted via `String(id)` |
-
-## Files support
-
-The `files[]` field lists files that the agent needs during evaluation. Paths are relative to the evals.json location:
-
-```json
-{
-  "evals": [
-    {
-      "id": 1,
-      "prompt": "Analyze the sales data",
-      "files": ["evals/files/sales.csv", "evals/files/config.json"]
-    }
-  ]
-}
-```
-
-AgentV resolves these paths and copies the files into the workspace before the agent runs. If a file is missing, the test case fails with a `file_copy_error`.
-
-## Offline grading (no API keys)
-
-Grade existing agent sessions offline using `agentv import` to convert transcripts, then run deterministic graders:
+Run a detected Agent Skills file directly:
 
 ```bash
-# Import a Claude Code session transcript
+agentv eval evals.json --target claude --output .agentv/results/csv-analyzer
+```
+
+Import the definition into editable AgentV YAML without running a target:
+
+```bash
+agentv convert evals.json --out EVAL.yaml
+```
+
+Prepare one converted case for a human or external agent without running the
+target provider:
+
+```bash
+agentv prepare EVAL.yaml --test-id "1" --target claude --out .agentv/prepared/csv-analyzer-1
+```
+
+`agentv import` is reserved for agent session transcripts and selected external
+datasets such as Hugging Face. Agent Skills `evals.json` uses the eval read
+adapter for execution and `convert` for definition import.
+
+## Field Mapping
+
+The read adapter promotes `evals.json` fields into AgentV cases. The converter writes the same mapping to YAML:
+
+| evals.json | EVAL.yaml output | Notes |
+|---|---|---|
+| `prompt` | `input` | Written as prompt text |
+| `expected_output` | `criteria` + `g-eval` criterion | Agent Skills uses this as expected outcome/rubric context, not AgentV passive reference-data `expected_output` |
+| `assertions[]` | `g-eval` criteria | Strings are grouped into one rubric with one criterion per assertion |
+| `expectations[]` | `g-eval` criteria | Same handling as `assertions[]` |
+| `files[]` | `input_files` | Resolved relative to the `evals.json` file |
+| `skill_name` | `tags.skill`, `description` | Used for suite grouping |
+| `id` | `id` | Converted to a string |
+
+The generated `g-eval` assertion emits per-criterion grading rows in AgentV artifacts just like other assertion entries. The converted YAML is the editable source of truth after conversion.
+
+## Files
+
+`evals.json` file paths map to AgentV `input_files`:
+
+```yaml
+tests:
+  - id: "1"
+    input_files:
+      - evals/files/sales.csv
+    input: "Analyze the sales data."
+```
+
+Use `workspace.repos` when the eval should materialize a repository before those fixture paths are read.
+
+## Offline Grading
+
+Grade existing agent sessions offline by importing transcripts and running the adapter input or converted YAML:
+
+```bash
 agentv import claude --list
 agentv import claude --session-id <uuid>
 
-# Run deterministic graders against the imported transcript
 agentv eval evals.json --target copilot-log
 ```
 
-If you're using the `agentv-bench` skill bundle, validate your evals before running:
+If another tool owns the original `evals.json`, keep that file as the source and run it through the read adapter. Convert only when you need to edit the AgentV-native form.
 
-```bash
-cd plugins/agentv-dev/skills/agentv-bench
-python scripts/quick_validate.py --eval evals/evals.json
-```
+## Converted YAML
 
-The rest of the bundle follows the same pattern:
-- `scripts/run_eval.py` runs evals via `claude -p`
-- `scripts/run_loop.py` iterates eval rounds automatically
-- `scripts/aggregate_benchmark.py` and `scripts/generate_report.py` read AgentV artifacts
-- `scripts/improve_description.py` proposes description experiments from observed failures
-
-## Benchmark output
-
-Generate the run `summary.json` alongside the standard result JSONL. The `summary.json` is automatically written to the artifact directory:
-
-```bash
-agentv eval evals.json --target claude --output ./results
-# summary.json is written to ./results/summary.json
-```
-
-The benchmark uses AgentV's pass threshold (score >= 0.8) for each target's `pass_rate`, plus timing and token summaries:
-
-```json
-{
-  "metadata": {
-    "targets": ["claude"],
-    "tests_run": ["example-test"]
-  },
-  "run_summary": {
-    "claude": {
-      "pass_rate": {"mean": 0.83, "stddev": 0.06},
-      "time_seconds": {"mean": 45.0, "stddev": 12.0},
-      "tokens": {"mean": 3800, "stddev": 400}
-    }
-  }
-}
-```
-
-If another tool needs a different benchmark shape, keep `--output` as the source of truth and convert `<output>/summary.json` in a wrapper.
-
-## Converting to EVAL.yaml
-
-When you're ready to graduate, convert your evals.json to EVAL.yaml:
-
-```bash
-# Output to stdout
-agentv convert evals.json
-
-# Write to file
-agentv convert evals.json -o eval.yaml
-```
-
-The generated YAML includes comments about available AgentV features you can use:
+The converter writes comments that point to native AgentV features:
 
 ```yaml
 # Converted from Agent Skills evals.json
+# Agent Skills expected_output is treated as expected outcome/rubric context,
+# not as AgentV expected_output reference data.
 # AgentV features you can add:
-#   - type: is_json, contains, regex for deterministic graders
+#   - type: is-json, contains, regex for deterministic graders
 #   - type: script for custom scoring scripts
+#   - type: g-eval criteria with weights and score ranges for rubrics
 #   - Multi-turn conversations via input message arrays
-#   - Composite graders with weighted scoring
+#   - Multiple assertions with weighted scoring
 #   - Workspace isolation with repos and hooks
+
+tags:
+  skill: "csv-analyzer"
+metadata:
+  source_adapter: "agent-skills-evals-json"
 
 tests:
   - id: "1"
     criteria: |-
       The top 3 months by revenue are November, September, and December.
-    input:
-      - role: user
-        content: "Find the top 3 months by revenue."
-    # Promoted from evals.json assertions[]
-    # Replace with type: is_json, contains, or regex for deterministic checks
+    input: "Find the top 3 months by revenue."
+    input_files:
+      - "evals/files/sales.csv"
+    # Promoted from evals.json expected_output, assertions[], and expectations[]
+    # Replace with type: is-json, contains, or regex for deterministic checks
     assertions:
-      - name: assertion-1
-        type: llm-grader
-        prompt: "Output identifies November as the highest revenue month"
+      - name: agent-skills-criteria
+        type: g-eval
+        criteria:
+          - id: "expected-outcome"
+            outcome: "The top 3 months by revenue are November, September, and December."
+            required: true
+          - id: "assertion-1"
+            outcome: "Output identifies November as the highest revenue month"
+            required: true
 ```
 
-Inside the agentv-bench bundle, use `agentv convert` directly:
+From there you can add deterministic graders, workspace isolation, multi-turn inputs, target-specific configuration, or script graders in normal AgentV YAML.
+
+## When to Keep evals.json
+
+Keep `evals.json` when another Agent Skills tool owns that file or when you are packaging a skill for an ecosystem that expects it. Use AgentV's read adapter directly:
 
 ```bash
-agentv convert evals/evals.json --out EVAL.yaml
+agentv eval evals/evals.json --target claude --output .agentv/results/csv-analyzer
 ```
 
-## When to stay with evals.json
+Use AgentV YAML directly when AgentV owns the eval lifecycle.
 
-Use `evals.json` when:
-
-- You're building a skill and want quick feedback loops
-- Your assertions are natural-language ("output includes a chart", "response is polite")
-- You want compatibility with other Agent Skills tooling
-- Tests don't need workspace isolation or deterministic checks
-
-## When to graduate to EVAL.yaml
-
-Switch to EVAL.yaml when you need:
-
-- **Deterministic graders**: `contains`, `regex`, `equals`, `is-json` — faster and cheaper than LLM graders
-- **Composite scoring**: Weighted graders with custom aggregation
-- **Multi-turn conversations**: Multi-message input sequences
-- **Workspace isolation**: Sandboxed file systems per test case
-- **Tool trajectory evaluation**: Assert on the sequence of tool calls
-- **Completed-run comparison**: Run the same eval once per target, then compare results
-
-## Side-by-side comparison
-
-The same eval expressed in both formats:
+## Side-by-side
 
 ### evals.json
 
@@ -222,31 +202,37 @@ The same eval expressed in both formats:
 }
 ```
 
-### EVAL.yaml equivalent
+### EVAL.yaml
 
 ```yaml
 tests:
   - id: "1"
     input: |
       A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
-    expected_output: |
+    criteria: |
       An empathetic response that offers to track the order and provides next steps.
     assertions:
-      - name: acknowledges-frustration
-        type: llm-grader
-        prompt: Response acknowledges the customer's frustration
-      - name: looks-up-order
+      - name: agent-skills-criteria
+        type: g-eval
+        criteria:
+          - id: expected-outcome
+            outcome: "An empathetic response that offers to track the order and provides next steps."
+            required: true
+          - id: assertion-1
+            outcome: "Response acknowledges the customer's frustration"
+            required: true
+          - id: assertion-2
+            outcome: "Response offers to look up order #12345"
+            required: true
+      - name: order-number
         type: contains
         value: "12345"
-      - name: has-next-steps
-        type: llm-grader
-        prompt: Response provides clear next steps
 ```
 
-Notice how the EVAL.yaml version can mix `llm-grader` (for subjective checks) with `contains` (for deterministic checks) — the order number check is now instant and free.
+The YAML version can mix rubric criteria with deterministic checks; the order-number assertion is instant and free.
 
 ## References
 
 - [Agent Skills specification](https://agentskills.io/specification)
 - [Agent Skills eval guide](https://agentskills.io/skill-creation/evaluating-skills)
-- [Example evals.json](https://github.com/EntityProcess/agentv/tree/main/examples/features/agent-skills-evals)
+- [Example conversion](https://github.com/EntityProcess/agentv/tree/main/examples/features/agent-skills-evals)

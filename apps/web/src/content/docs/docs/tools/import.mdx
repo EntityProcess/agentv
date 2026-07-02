@@ -155,8 +155,23 @@ transcript is not a provider-native session dump. Provider-native session or
 stream logs, when captured during a new eval run, are preserved in
 `transcript-raw.jsonl` and referenced by `transcript_raw_path`;
 `raw_provider_log_path` is a legacy/imported pointer when older bundles or
-external sources already provide one. Agent Skills import, convert, transpile,
-and run paths do not require those legacy log pointers.
+external sources already provide one. Agent Skills convert and transpile paths
+do not require those legacy log pointers.
+
+## Agent Skills evals.json
+
+Agent Skills `evals.json` is handled by a built-in eval read adapter, not `agentv import`:
+
+```bash
+agentv eval evals.json --target claude
+
+agentv convert evals.json --out EVAL.yaml
+agentv eval EVAL.yaml --target claude
+```
+
+Use [Convert](/docs/tools/convert/) to import the definition into editable YAML
+without running a target. Use [Agent Skills evals.json Adapter](/docs/integrations/agent-skills-evals/)
+for the field mapping and prepare workflow.
 
 ## What Gets Parsed
 

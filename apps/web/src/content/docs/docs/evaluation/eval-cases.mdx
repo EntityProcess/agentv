@@ -25,7 +25,8 @@ tests:
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier for the test |
 | `input` | Yes | Input sent to the target (string, object, or message array) |
-| `expected_output` | No | Passive reference response available to graders (string, object, or message array) |
+| `criteria` | No | Optional shared grader guidance for the case |
+| `expected_output` | No | Passive gold/reference data available to graders (string, object, or message array) |
 | `assertions` / `assert` | Yes | Per-test graders; plain strings become `g-eval` rubric checks |
 | `execution` | No | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
@@ -63,15 +64,27 @@ input:
 
 When suite-level `input` is defined in the eval file, those messages are prepended to the test's input. See [Suite-level Input](/docs/evaluation/eval-files/#suite-level-input).
 
+## Criteria
+
+`criteria` is optional case-level guidance for graders and prompt templates. Use
+it when the case needs shared evaluation context that several graders should
+see. If plain assertion strings already fully define the grading contract, omit
+`criteria` to avoid duplicating the same rubric in two places.
+
+Do not confuse case-level `criteria` with a structured `g-eval` criterion's
+`outcome` field. `criteria` describes the case-level grading context; `outcome`
+names one specific rubric item inside a `g-eval` criteria array.
+
 ## Expected Output
 
-Optional reference response for comparison by graders. Write `expected_output` as
-a golden answer or reference response the target could have produced, not as a
-rubric or "the agent should..." criteria list. `expected_output` is passive
-reference data: it is stored on the case and passed to graders, but it does not
-choose a grader by itself. Add explicit assertion
-strings, `llm-grader`, `script`, `field-accuracy`, or another
-reference-aware grader when you want the reference answer evaluated.
+Optional reference response for comparison by graders. Write `expected_output`
+as gold/reference data the target could have produced, not as a rubric or "the
+agent should..." criteria list. `expected_output` is passive by default: it is
+stored on the case and passed to graders, but it does not choose a grader by
+itself. A grader may treat it as a strict target, semantic reference, structured
+object, or supporting context depending on the grader type. Add explicit
+assertion strings, `llm-grader`, `script`, `field-accuracy`, or another
+reference-aware grader when you want the reference data evaluated.
 
 A string expands to a single assistant message:
 
@@ -313,7 +326,8 @@ Assertion graders auto-generate a `name` when one is not provided (e.g., `contai
 ### Advanced Rubric Assertions
 
 Use `type: g-eval` with a `criteria` array only when you need weights,
-required flags, or score ranges:
+required flags, or score ranges. Keep `criteria` as the grader-level collection
+name; each item uses `outcome` for the specific desired behavior being scored:
 
 ```yaml
 tests:
@@ -375,7 +389,9 @@ Required gates are evaluated after all graders run. If any required grader falls
 
 `expected_output` is reference data, not a grader. It is stored on the case and
 provided to graders that know how to use it, but it does not create an LLM
-grading call by itself. Put the grading contract in `assertions` or `assert`.
+grading call by itself. A grader can use that data as an exact target, a
+semantic reference, a structured comparison object, or supporting context. Put
+the grading contract in `assertions` or `assert`.
 
 Plain assertion strings are the default shape for semantic checks:
 

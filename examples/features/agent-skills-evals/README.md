@@ -1,13 +1,13 @@
 # Agent Skills Evals
 
-Demonstrates evaluating Claude Code skills using both the legacy `evals.json` format and the universal `EVAL.yaml` format, including transpilation between the two.
+Demonstrates evaluating Claude Code skills with AgentV `EVAL.yaml`, plus the built-in Agent Skills `evals.json` read adapter and conversion flow.
 
 ## Files
 
 ```
 agent-skills-evals/
 ├── README.md
-├── evals.json                       # Legacy skill-creator format
+├── evals.json                       # Agent Skills dataset; can run through AgentV's read adapter
 ├── csv-analyzer.EVAL.yaml           # Universal EVAL.yaml format
 ├── csv-analyzer.evals.json          # Transpiled output from EVAL.yaml
 ├── .agentv/
@@ -19,9 +19,19 @@ agent-skills-evals/
 
 ## Formats
 
-### evals.json (legacy)
+### evals.json (adapter input)
 
-The original skill-creator format. Each eval specifies a prompt, optional files, expected output, and assertions:
+The Agent Skills format. Each eval specifies a prompt, optional files, expected outcome, and assertions or expectations. Run it directly through the read adapter, or convert it when you want editable AgentV YAML:
+
+```bash
+agentv eval evals.json
+
+agentv convert evals.json --out converted.EVAL.yaml
+agentv eval converted.EVAL.yaml
+```
+
+Conversion maps `skill_name` to `tags.skill` for grouping and keeps
+`metadata.source_adapter` as adapter provenance.
 
 ```json
 {
