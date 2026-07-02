@@ -53,10 +53,7 @@ function normalizedStringArray(value: unknown): readonly string[] {
   return isStringArray(value) ? value.map((item) => item.trim()).filter(Boolean) : [];
 }
 
-export function parseAgentSkillsEvals(
-  parsed: unknown,
-  source: string,
-): ConvertedAgentSkillsSuite {
+export function parseAgentSkillsEvals(parsed: unknown, source: string): ConvertedAgentSkillsSuite {
   if (!isAgentSkillsEvalsFormat(parsed)) {
     throw new Error(
       "Not a valid Agent Skills evals.json: expected top-level 'skill_name' string and 'evals' array",
@@ -151,9 +148,7 @@ export function isAgentSkillsEvalsJsonFile(filePath: string): boolean {
   }
 }
 
-export function agentSkillsToAgentVYamlObject(
-  suite: ConvertedAgentSkillsSuite,
-): AgentVYamlObject {
+export function agentSkillsToAgentVYamlObject(suite: ConvertedAgentSkillsSuite): AgentVYamlObject {
   return {
     description: `Evals for ${suite.skillName} skill`,
     tags: {

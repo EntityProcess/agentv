@@ -121,7 +121,9 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
 
     // Emit expected_output / assertions / expectations as rubric criteria.
     if (test.criteria.length > 0) {
-      lines.push('    # Promoted from evals.json expected_output, assertions[], and expectations[]');
+      lines.push(
+        '    # Promoted from evals.json expected_output, assertions[], and expectations[]',
+      );
       lines.push('    # Replace with type: is-json, contains, or regex for deterministic checks');
       lines.push('    assertions:');
       lines.push('      - name: agent-skills-criteria');

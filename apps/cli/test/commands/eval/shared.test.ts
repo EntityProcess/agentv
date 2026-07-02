@@ -69,9 +69,7 @@ describe('resolveEvalPaths', () => {
     const evalFile = path.join(tempDir, 'evals.json');
     writeFileSync(evalFile, '{"skill_name":"demo","evals": []}');
 
-    await expect(resolveEvalPaths([evalFile], tempDir)).rejects.toThrow(
-      'agentv convert',
-    );
+    await expect(resolveEvalPaths([evalFile], tempDir)).rejects.toThrow('agentv convert');
   });
 
   it('accepts Agent Skills evals.json when read adapters are enabled', async () => {
@@ -93,9 +91,9 @@ describe('resolveEvalPaths', () => {
     const evalFile = path.join(tempDir, 'evals.json');
     writeFileSync(evalFile, '{"evals": []}');
 
-    await expect(resolveEvalPaths([evalFile], tempDir, { allowReadAdapters: true })).rejects.toThrow(
-      "top-level 'skill_name' and 'evals'",
-    );
+    await expect(
+      resolveEvalPaths([evalFile], tempDir, { allowReadAdapters: true }),
+    ).rejects.toThrow("top-level 'skill_name' and 'evals'");
   });
 
   it('discovers *.eval.ts files from directory auto-expansion', async () => {

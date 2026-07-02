@@ -81,10 +81,7 @@ export async function resolveEvalPaths(
         const filePattern = options.allowReadAdapters
           ? '{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts,evals.json,*.evals.json}'
           : '{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}';
-        const dirGlob = path.posix.join(
-          candidatePath.replace(/\\/g, '/'),
-          `**/${filePattern}`,
-        );
+        const dirGlob = path.posix.join(candidatePath.replace(/\\/g, '/'), `**/${filePattern}`);
         const dirMatches = await fg(dirGlob, {
           absolute: true,
           onlyFiles: true,
