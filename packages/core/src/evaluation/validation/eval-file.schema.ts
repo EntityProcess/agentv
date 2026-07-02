@@ -404,7 +404,8 @@ const TargetHooksSchema = z
 /** Eval target reference: string shorthand or object with hooks */
 const EvalTargetRefSchema = z
   .object({
-    name: z.string().min(1),
+    label: z.string().min(1),
+    id: z.string().min(1).optional(),
     use_target: z.string().optional(),
     hooks: TargetHooksSchema.optional(),
   })
@@ -415,7 +416,6 @@ const EvalLocalTargetSchema = z
     id: z.string().min(1).optional(),
     label: z.string().min(1).optional(),
     extends: z.string().min(1).optional(),
-    name: z.string().min(1).optional(),
     provider: z.string().min(1).optional(),
     model: z.string().min(1).optional(),
     config: JsonRecordSchema.optional(),
@@ -670,6 +670,7 @@ export const EvalFileSchema: z.ZodType = z
     // Target
     target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
     targets: EvalTargetsSchema.optional(),
+    providers: z.never().optional(),
     model: z.never().optional(),
     // Run/result grouping label and flat run controls
     experiment: z.string().min(1).optional(),

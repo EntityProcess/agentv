@@ -566,11 +566,23 @@ describe('extractTargetFromSuite', () => {
     expect(extractTargetFromSuite(suite)).toBe('codex-gpt5');
   });
 
-  it('extracts target object name from name or extends', () => {
+  it('extracts target object identity from label or extends', () => {
     const suite: JsonObject = {
-      target: { extends: 'codex-gpt5', model: 'gpt-5.1' },
+      target: {
+        label: 'codex-local',
+        id: 'codex:gpt-5.1',
+        extends: 'codex-gpt5',
+        config: { model: 'gpt-5.1' },
+      },
     };
-    expect(extractTargetFromSuite(suite)).toBe('codex-gpt5');
+    expect(extractTargetFromSuite(suite)).toBe('codex-local');
+  });
+
+  it('rejects target object name in favor of label', () => {
+    const suite: JsonObject = {
+      target: { name: 'legacy-target', provider: 'mock' },
+    };
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use 'label'/);
   });
 
   it('returns undefined when no target specified', () => {
@@ -585,10 +597,41 @@ describe('extractTargetFromSuite', () => {
 });
 
 describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
-  it('return undefined for authored eval YAML', () => {
+  it('return undefined when no targets are authored', () => {
     const suite: JsonObject = { tests: [] };
     expect(extractTargetsFromSuite(suite)).toBeUndefined();
     expect(extractTargetRefsFromSuite(suite)).toBeUndefined();
+  });
+
+  it('extracts live targets strings and promptfoo-shaped target objects', () => {
+    const suite: JsonObject = {
+      targets: [
+        'registry-agent',
+        {
+          label: 'inline-agent',
+          id: 'mock',
+          provider: 'mock',
+          config: { response: 'ok' },
+          fallback_targets: ['registry-agent'],
+        },
+      ],
+    };
+
+    expect(extractTargetsFromSuite(suite)).toEqual(['registry-agent', 'inline-agent']);
+    expect(extractTargetRefsFromSuite(suite)).toEqual([
+      { name: 'registry-agent' },
+      {
+        name: 'inline-agent',
+        definition: expect.objectContaining({
+          id: 'mock',
+          name: 'inline-agent',
+          label: 'inline-agent',
+          provider: 'mock',
+          response: 'ok',
+          fallback_targets: ['registry-agent'],
+        }),
+      },
+    ]);
   });
 
   it('reject top-level target arrays through execution', () => {

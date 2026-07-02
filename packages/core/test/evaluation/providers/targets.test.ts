@@ -87,6 +87,47 @@ describe('resolveTargetDefinition', () => {
     piGetModelMock.mockClear();
   });
 
+  it('uses promptfoo-shaped label as AgentV target identity and id as backend metadata', () => {
+    const target = resolveTargetDefinition(
+      {
+        label: 'primary-sut',
+        id: 'mock',
+        provider: 'mock',
+        config: {
+          response: 'ok',
+        },
+      } as never,
+      {},
+    );
+
+    expect(target.name).toBe('primary-sut');
+    expect(target.label).toBe('primary-sut');
+    expect(target.kind).toBe('mock');
+    expect(target.config.response).toBe('ok');
+  });
+
+  it('treats provider as backend kind while id remains a provider locator', () => {
+    const target = resolveTargetDefinition(
+      {
+        label: 'candidate-agent',
+        id: 'openai:gpt-5-mini',
+        provider: 'openai',
+        config: {
+          api_key: '${{ OPENAI_API_KEY }}',
+          model: '${{ OPENAI_MODEL }}',
+        },
+      } as never,
+      { OPENAI_API_KEY: 'secret', OPENAI_MODEL: 'gpt-5-mini' },
+    );
+
+    expect(target.name).toBe('candidate-agent');
+    expect(target.kind).toBe('openai');
+    if (target.kind !== 'openai') {
+      throw new Error('expected openai target');
+    }
+    expect(target.config.model).toBe('gpt-5-mini');
+  });
+
   it("throws when settings don't use ${{ }} syntax", () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',

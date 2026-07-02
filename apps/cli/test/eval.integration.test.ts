@@ -32,13 +32,13 @@ async function createFixture(): Promise<EvalFixture> {
   const targetsPath = path.join(agentvDir, 'targets.yaml');
   const targetsContent = `$schema: agentv-targets-v2.2
 targets:
-  - name: default
+  - label: default
     provider: mock
-  - name: file-target
+  - label: file-target
     provider: mock
-  - name: cli-target
+  - label: cli-target
     provider: mock
-  - name: codex-target
+  - label: codex-target
     provider: codex
     model: gpt-5-default
 `;
@@ -90,7 +90,7 @@ async function createNestedEnvFixture(): Promise<EvalFixture> {
   const targetsPath = path.join(agentvDir, 'targets.yaml');
   const targetsContent = `$schema: agentv-targets-v2.2
 targets:
-  - name: default
+  - label: default
     provider: mock
 `;
   await writeFile(targetsPath, targetsContent, 'utf8');

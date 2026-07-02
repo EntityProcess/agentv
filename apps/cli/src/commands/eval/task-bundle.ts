@@ -43,6 +43,27 @@ const SKIPPED_DIR_NAMES = new Set([
   '.beads',
   '.DS_Store',
 ]);
+const AUTHORING_TOP_LEVEL_TARGET_FIELDS = new Set([
+  'label',
+  'provider',
+  'prompts',
+  'transform',
+  'delay',
+  'env',
+  'model',
+  'use_target',
+  'fallback_targets',
+  'grader_target',
+  'max_budget_usd',
+  'workers',
+  'provider_batching',
+  'subagent_mode_allowed',
+  'max_retries',
+  'retry_initial_delay_ms',
+  'retry_max_delay_ms',
+  'retry_backoff_factor',
+  'retry_status_codes',
+]);
 
 export interface TaskBundleTargetSelection {
   readonly evalFileAbsolutePath?: string;
@@ -591,6 +612,44 @@ function uniqueTargetDefinitions(
   return selected;
 }
 
+function serializeTargetDefinition(definition: TargetDefinition): Record<string, unknown> {
+  const target: Record<string, unknown> = { label: definition.name };
+  if (definition.id !== undefined) {
+    target.id = definition.id;
+  }
+  const config: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(definition)) {
+    if (value === undefined || key === 'name' || key === 'id' || key === 'config') {
+      continue;
+    }
+    if (AUTHORING_TOP_LEVEL_TARGET_FIELDS.has(key)) {
+      target[key] = value;
+    } else {
+      config[key] = value;
+    }
+  }
+
+  if (isRecord(definition.config)) {
+    for (const [key, value] of Object.entries(definition.config)) {
+      if (value !== undefined) {
+        config[key] = value;
+      }
+    }
+  }
+  if (Object.keys(config).length > 0) {
+    target.config = config;
+  }
+
+  return target;
+}
+
+function serializeTargetDefinitions(
+  definitions: readonly TargetDefinition[],
+): readonly Record<string, unknown>[] {
+  return definitions.map((definition) => serializeTargetDefinition(definition));
+}
+
 function uniqueTargetNames(selections: readonly TaskBundleTargetSelection[]): readonly string[] {
   const names: string[] = [];
   const seen = new Set<string>();
@@ -962,7 +1021,7 @@ export async function materializeTaskBundle(
     target: options.targetName,
     tests: [evalCase],
   });
-  await writeYamlFile(targetsPath, { targets: targetDefinitions });
+  await writeYamlFile(targetsPath, { targets: serializeTargetDefinitions(targetDefinitions) });
 
   return {
     testDir,
@@ -1033,7 +1092,7 @@ export async function materializeEvalBundle(
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
   await writeYamlFile(targetsPath, {
-    targets: uniqueTargetDefinitions(options.targetSelections),
+    targets: serializeTargetDefinitions(uniqueTargetDefinitions(options.targetSelections)),
   });
 
   const manifest = bundleManifest({

@@ -342,7 +342,17 @@ export interface Provider {
 export type EnvLookup = Readonly<Record<string, string | undefined>>;
 
 export interface TargetDefinition {
+  /** Internal canonical target identity. Authored YAML uses `label`; loaders map label -> name. */
   readonly name: string;
+  /** Promptfoo provider/backend identifier, not the AgentV target reference key. */
+  readonly id?: string | undefined;
+  /** Authored promptfoo-shaped label; used as AgentV's authored target/comparison name. */
+  readonly label?: string | undefined;
+  /** Promptfoo-shaped provider options bag. Provider settings are flattened at the boundary. */
+  readonly config?: unknown | undefined;
+  readonly prompts?: unknown | undefined;
+  readonly transform?: unknown | undefined;
+  readonly delay?: number | unknown | undefined;
   readonly provider?: ProviderKind | string;
   // Delegation: resolve this target as another named target.
   // Supports ${{ ENV_VAR }} syntax (e.g., use_target: ${{ AGENT_TARGET }}).

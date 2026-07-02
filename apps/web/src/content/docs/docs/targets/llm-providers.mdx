@@ -11,7 +11,7 @@ LLM provider targets call language model APIs directly. These are used both as e
 
 ```yaml
 targets:
-  - name: openai-target
+  - label: openai-target
     provider: openai
     api_key: ${{ OPENAI_API_KEY }}
     model: gpt-4o
@@ -38,7 +38,7 @@ Most users should leave this unset. The default `chat` format is universally sup
 ```yaml
 # OpenAI-compatible endpoint (default chat format works)
 targets:
-  - name: github-models
+  - label: github-models
     provider: openai
     api_format: chat
     base_url: https://models.github.ai/inference/v1
@@ -46,7 +46,7 @@ targets:
     model: ${{ GH_MODELS_MODEL }}
 
   # Opt in to Responses API for api.openai.com
-  - name: openai-responses
+  - label: openai-responses
     provider: openai
     api_format: responses
     api_key: ${{ OPENAI_API_KEY }}
@@ -57,7 +57,7 @@ targets:
 
 ```yaml
 targets:
-  - name: azure-base
+  - label: azure-base
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -79,7 +79,7 @@ If your Azure deployment only exposes `/chat/completions` (older deployments, ce
 
 ```yaml
 targets:
-  - name: azure-chat
+  - label: azure-chat
     provider: openai
     base_url: https://<resource>.openai.azure.com/openai/deployments/<deployment>
     api_key: ${{ AZURE_OPENAI_API_KEY }}
@@ -93,7 +93,7 @@ The `api_format` field was previously available on `provider: azure` but has bee
 
 ```yaml
 targets:
-  - name: claude_target
+  - label: claude_target
     provider: anthropic
     api_key: ${{ ANTHROPIC_API_KEY }}
     model: claude-sonnet-4-20250514
@@ -108,7 +108,7 @@ targets:
 
 ```yaml
 targets:
-  - name: gemini_target
+  - label: gemini_target
     provider: gemini
     api_key: ${{ GEMINI_API_KEY }}
     model: gemini-2.0-flash

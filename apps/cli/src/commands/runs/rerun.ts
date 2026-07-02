@@ -122,6 +122,9 @@ async function readTargetDefinitions(
 }
 
 function targetName(definition: Record<string, unknown>): string | undefined {
+  if (typeof definition.label === 'string' && definition.label.trim().length > 0) {
+    return definition.label.trim();
+  }
   return typeof definition.name === 'string' && definition.name.trim().length > 0
     ? definition.name.trim()
     : undefined;

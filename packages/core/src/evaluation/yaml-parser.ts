@@ -54,6 +54,7 @@ import {
   resolveInputMessages,
 } from './loaders/shorthand-expansion.js';
 import { parseMetadata } from './metadata.js';
+import { normalizeTargetDefinition } from './providers/targets.js';
 import type { TargetDefinition } from './providers/types.js';
 import type {
   ConversationAggregation,
@@ -1660,23 +1661,27 @@ function parseEvalTargetSpec(rawTarget: JsonValue | undefined): EvalTargetSpec |
   if (!isJsonObject(rawTarget)) {
     throw new Error("Invalid top-level 'target': use a target name or target object.");
   }
+  if (typeof rawTarget.name === 'string' && rawTarget.name.trim().length > 0) {
+    throw new Error(
+      "Invalid top-level 'target': field 'name' has been removed. Use 'label' instead.",
+    );
+  }
 
   const rawExtends = rawTarget.extends;
   const extendsTarget =
     typeof rawExtends === 'string' && rawExtends.trim().length > 0 ? rawExtends.trim() : undefined;
-  const rawName = rawTarget.name;
+  const rawLabel = rawTarget.label;
   const name =
-    typeof rawName === 'string' && rawName.trim().length > 0
-      ? rawName.trim()
+    typeof rawLabel === 'string' && rawLabel.trim().length > 0
+      ? rawLabel.trim()
       : (extendsTarget ?? 'eval-local-target');
   const hooks = parseTargetHooks(rawTarget.hooks);
   const definitionEntries = Object.entries(rawTarget).filter(
     ([key]) => key !== 'extends' && key !== 'hooks',
   );
-  const definition = {
-    ...Object.fromEntries(definitionEntries),
-    name,
-  } as unknown as TargetDefinition;
+  const definition = normalizeTargetDefinition(Object.fromEntries(definitionEntries), {
+    defaultName: name,
+  });
 
   return {
     name,

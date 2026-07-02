@@ -54,11 +54,11 @@ describe('agentv eval bundle', () => {
     await writeFile(
       path.join(sourceDir, '.agentv', 'targets.yaml'),
       `targets:
-  - name: inherited
+  - label: inherited
     provider: mock
     response: '{"answer":"Mock provider response from inherited target"}'
     fallback_targets: [backup]
-  - name: backup
+  - label: backup
     provider: mock
     response: '{"answer":"Backup mock response"}'
 `,
@@ -153,8 +153,8 @@ tests: ../data/cases.yaml
     expect(input[0]?.content[0]).toEqual({ type: 'file', value: 'files/data/input.txt' });
 
     const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
-    expect(bundledTargets).toContain('name: inherited');
-    expect(bundledTargets).toContain('name: backup');
+    expect(bundledTargets).toContain('label: inherited');
+    expect(bundledTargets).toContain('label: backup');
 
     await rm(sourceDir, { recursive: true, force: true });
     const run = await runCli(bundleDir, [
@@ -177,7 +177,7 @@ tests: ../data/cases.yaml
     await writeFile(
       path.join(sourceDir, '.agentv', 'targets.yaml'),
       `targets:
-  - name: default
+  - label: default
     provider: mock
 `,
       'utf8',

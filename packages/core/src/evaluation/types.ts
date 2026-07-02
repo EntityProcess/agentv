@@ -296,13 +296,15 @@ export type TargetHooksConfig = {
  * Extended target reference from eval file.
  * Allows eval files to define per-target hooks and delegation alongside target names.
  *
- * String targets are shorthand for `{ name: "target-name" }` (no hooks).
+ * String targets are shorthand for `{ label: "target-name" }` (no hooks).
  */
 export type EvalTargetRef = {
-  /** Target name (must match a target in targets.yaml or be defined inline with use_target) */
+  /** Internal target identity (authored as `label` in object form). */
   readonly name: string;
   /** Delegate to another named target (same as use_target in targets.yaml) */
   readonly use_target?: string;
+  /** Inline target definition normalized from a promptfoo-shaped target object. */
+  readonly definition?: import('./providers/types.js').TargetDefinition;
   /** Per-target hooks for workspace customization */
   readonly hooks?: TargetHooksConfig;
 };

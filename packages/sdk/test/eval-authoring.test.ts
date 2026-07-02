@@ -9,9 +9,14 @@ describe('YAML-aligned eval authoring helpers', () => {
       inputFiles: ['fixtures/shared-system.md'],
       experiment: 'sdk-yaml-run',
       target: {
+        label: 'sdk-codex',
+        id: 'codex:gpt-5-codex',
         extends: 'mock-target',
-        model: 'gpt-5-codex',
-        reasoningEffort: 'high',
+        provider: 'codex',
+        config: {
+          model: 'gpt-5-codex',
+          reasoningEffort: 'high',
+        },
         hooks: {
           beforeAll: {
             command: ['bun', 'run', 'scripts/setup.ts'],
@@ -93,9 +98,14 @@ describe('YAML-aligned eval authoring helpers', () => {
       input_files: ['fixtures/shared-system.md'],
       experiment: 'sdk-yaml-run',
       target: {
+        label: 'sdk-codex',
+        id: 'codex:gpt-5-codex',
         extends: 'mock-target',
-        model: 'gpt-5-codex',
-        reasoning_effort: 'high',
+        provider: 'codex',
+        config: {
+          model: 'gpt-5-codex',
+          reasoning_effort: 'high',
+        },
         hooks: {
           before_all: {
             command: ['bun', 'run', 'scripts/setup.ts'],

@@ -654,6 +654,51 @@ const DEPRECATED_HEALTHCHECK_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['timeoutSeconds', 'timeout_seconds'],
 ]);
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export interface NormalizeTargetDefinitionOptions {
+  readonly defaultName?: string;
+}
+
+/**
+ * Converts the authored promptfoo-shaped target object into AgentV's internal
+ * target definition. Authored YAML uses `label` for AgentV's target/comparison
+ * name and `id` for the promptfoo provider/backend identifier. The runtime
+ * continues to use `name` as its stable resolver and artifact key.
+ */
+export function normalizeTargetDefinition(
+  definition: unknown,
+  options: NormalizeTargetDefinitionOptions = {},
+): TargetDefinition {
+  if (!isRecord(definition)) {
+    throw new Error('Target definition must be an object');
+  }
+
+  const rawId = definition.id;
+  const rawLabel = definition.label;
+  const rawName = definition.name;
+  const id = typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : undefined;
+  const label =
+    typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
+  const legacyName =
+    typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : undefined;
+  const name = label ?? legacyName ?? options.defaultName;
+  if (!name || name.trim().length === 0) {
+    throw new Error("Target definition is missing a valid 'label' field");
+  }
+
+  const config = isRecord(definition.config) ? definition.config : {};
+  return {
+    ...config,
+    ...definition,
+    ...(id !== undefined ? { id } : {}),
+    label: label ?? name,
+    name,
+  } as unknown as TargetDefinition;
+}
+
 function collectDeprecatedCamelCaseWarnings(
   value: unknown,
   location: string,
@@ -751,6 +796,7 @@ export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 /** Base fields shared by all resolved targets. */
 interface ResolvedTargetBase {
   readonly name: string;
+  readonly label?: string;
   readonly graderTarget?: string;
   readonly workers?: number;
   readonly providerBatching?: boolean;
@@ -824,8 +870,11 @@ const SECRET_ENV_TEMPLATE_PATTERN = /^\s*\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*
 
 const BASE_TARGET_SCHEMA = z
   .object({
+    id: z.string().optional(),
     name: z.string().min(1, 'target name is required'),
+    label: z.string().optional(),
     provider: z.string().optional(),
+    config: z.record(z.unknown()).optional(),
     use_target: z.string().optional(),
     grader_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
@@ -962,10 +1011,11 @@ export function resolveTargetDefinition(
   options?: { readonly emitDeprecationWarnings?: boolean },
 ): ResolvedTarget {
   void options;
-  assertNoRemovedTargetFields(definition);
-  assertNoDeprecatedCamelCaseTargetFields(definition);
+  const normalizedDefinition = normalizeTargetDefinition(definition);
+  assertNoRemovedTargetFields(normalizedDefinition);
+  assertNoDeprecatedCamelCaseTargetFields(normalizedDefinition);
 
-  const parsed = BASE_TARGET_SCHEMA.parse(definition);
+  const parsed = BASE_TARGET_SCHEMA.parse(normalizedDefinition);
   if (!parsed.provider) {
     throw new Error(
       `${parsed.name}: 'provider' is required (targets with use_target must be resolved before calling resolveTargetDefinition)`,
@@ -984,6 +1034,7 @@ export function resolveTargetDefinition(
   const fallbackTargets = parsed.fallback_targets;
   const base = {
     name: parsed.name,
+    label: parsed.label,
     graderTarget: parsed.grader_target,
     workers: parsed.workers,
     providerBatching,

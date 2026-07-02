@@ -166,6 +166,10 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'execution',
     "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.",
   ],
+  [
+    'providers',
+    "Top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.",
+  ],
   ['runs', "Top-level 'runs' has been removed. Use repeat.count instead."],
   ['early_exit', "Top-level 'early_exit' has been removed. Use repeat.early_exit instead."],
 ]);

@@ -177,7 +177,7 @@ Then reference it in your targets file:
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my_http_agent
+  - label: my_http_agent
     provider: http-agent
     grader_target: azure-base
 ```
@@ -208,7 +208,7 @@ Use `provider: cli` when:
 
 ```yaml
 targets:
-  - name: python_agent
+  - label: python_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
 ```
