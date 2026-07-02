@@ -162,7 +162,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `packages/core/src/evaluation/types.ts`, `packages/core/src/evaluation/yaml-parser.ts`, `packages/core/src/evaluation/validation/eval-file.schema.ts`, `packages/core/src/evaluation/validation/eval-validator.ts`, `packages/core/test/evaluation/validation/eval-file-schema.test.ts`, `packages/core/test/evaluation/validation/eval-validator.test.ts`, `packages/core/test/evaluation/yaml-parser-metadata.test.ts`
 - **Approach:** Add an `extensions` field to raw suite parsing and normalized suite metadata. Validate `file://path:function` references, recognize the Promptfoo hook names, reject missing functions for v1 unless a deliberate default-export convention is documented, and resolve relative paths from the eval file directory.
 - **Patterns to follow:** Existing `default_test` validation, file-reference validation, and Promptfoo's `getExtensionHookName` behavior as compatibility input.
-- **Test scenarios:** 
+- **Test scenarios:**
   - Parse a suite with `extensions: ["file://extensions/workspace.ts:beforeAll"]` and confirm the normalized suite retains the extension reference.
   - Reject an extension not starting with `file://`.
   - Reject a known hook typo such as `before_all` with a message that names `beforeAll`.
@@ -177,7 +177,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `packages/core/src/evaluation/extensions/runner.ts`, `packages/core/src/evaluation/extensions/types.ts`, `packages/core/src/evaluation/orchestrator.ts`, `packages/core/test/evaluation/extensions/runner.test.ts`, `packages/core/test/evaluation/orchestrator.test.ts`
 - **Approach:** Add a small extension runner that loads local JavaScript/TypeScript hook modules, invokes only hooks matching the current lifecycle, and merges returned AgentV-normalized runtime fields. Core should understand generic fields such as `cwd`, `env`, `metadata`, `artifacts`, `cleanup`, and provider context; it should not understand workspace repos, templates, Docker, or skill-copy rules.
 - **Patterns to follow:** Promptfoo hook filtering semantics, AgentV `executeWorkspaceScript` subprocess discipline, and orchestrator hook execution ordering.
-- **Test scenarios:** 
+- **Test scenarios:**
   - Two `beforeAll` extensions run in order and the second sees normalized state returned by the first.
   - A `beforeEach` extension does not run for `beforeAll`.
   - An extension error fails the run at a clear `setup` stage with the extension path in the message.
@@ -192,7 +192,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `packages/extensions/workspace/src/index.ts`, `packages/extensions/workspace/src/types.ts`, `packages/extensions/workspace/test/workspace-extension.test.ts`, `packages/core/src/evaluation/workspace/setup.ts`, `packages/core/src/evaluation/workspace/repo-config-parser.ts`, `packages/core/test/evaluation/workspace-config-parsing.test.ts`, `packages/core/test/evaluation/workspace/resolve.test.ts`, `packages/core/test/evaluation/orchestrator.test.ts`
 - **Approach:** Move the current workspace materialization code behind a bundled extension package or equivalent non-core module. The extension reads workspace config, materializes repos/templates/Docker/hooks, then returns generic runtime context to core. Keep machine-local `workspace_path` and mirror paths in `.agentv/config.local.yaml` or extension-local overlay files. Make top-level `workspace` a validation error with migration guidance.
 - **Patterns to follow:** `examples/features/workspace-shared-config/workspace.yaml` for reusable config and `packages/core/src/evaluation/workspace/setup.ts` as the extraction source.
-- **Test scenarios:** 
+- **Test scenarios:**
   - A workspace extension returns a config with pinned repos and the orchestrator materializes them through the existing repo manager.
   - A workspace extension returns `isolation: per_case` and each test receives a separate workspace.
   - A machine-local mirror path in a local overlay is not serialized into the portable eval suite.
@@ -207,7 +207,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `packages/extensions/skills/src/index.ts`, `packages/extensions/skills/src/types.ts`, `packages/extensions/skills/test/skills-extension.test.ts`, `packages/core/src/evaluation/loaders/agent-skills-parser.ts`, `packages/core/src/evaluation/providers/claude-cli.ts`, `packages/core/src/evaluation/providers/copilot-sdk.ts`, `packages/core/src/evaluation/providers/codex-cli.ts`, `packages/core/src/evaluation/providers/pi-cli.ts`, `packages/core/test/evaluation/loaders/agent-skills-parser.test.ts`, `packages/core/test/evaluation/providers/copilot-sdk.test.ts`
 - **Approach:** Let the skills extension copy or generate skill directories into the prepared runtime directory and return normalized `skill_paths` provider context. Providers that support explicit skill paths should consume those paths from provider request context. Existing `metadata.agent_skills_files` handling can remain as import compatibility but should not be the preferred authoring path.
 - **Patterns to follow:** `packages/core/src/evaluation/loaders/agent-skills-parser.ts` for Agent Skills import, `packages/core/src/evaluation/providers/copilot-sdk.ts` for auto-discovered skill directories, and `examples/features/copilot-log-eval/` for skill-trigger evidence.
-- **Test scenarios:** 
+- **Test scenarios:**
   - A skills extension stages a `SKILL.md` directory into a prepared workspace and exposes the staged path to a provider request.
   - Multiple skills can be staged without overwriting each other.
   - A missing skill source fails setup with a message naming the source command or path.
@@ -222,7 +222,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `docs/examples/promptfoo-compatible-layout.md`, `examples/features/promptfoo-compatible-extensions/README.md`, `examples/features/promptfoo-compatible-extensions/promptfooconfig.yaml`, `examples/features/promptfoo-compatible-extensions/extensions/workspace.ts`, `examples/features/promptfoo-compatible-extensions/extensions/skills.ts`, `examples/features/promptfoo-compatible-extensions/providers/local-agent.yaml`, `examples/features/promptfoo-compatible-extensions/datasets/sample/cases.yaml`, `examples/features/promptfoo-compatible-extensions/rubrics/fractional-rubric.json`
 - **Approach:** Add a non-sensitive AgentV example that mirrors the private PR 679 layout and documents how the private `wtg-ai-prompts-experiment` paths map into it. Keep the WTG-specific CargoWise fixtures and mirror paths in the private repo unless publishing is explicitly approved.
 - **Patterns to follow:** Promptfoo parity branch paths under `framework-parity/promptfoo/pr-679/`, AgentV examples under `examples/features/`, and docs guidance in `apps/web/src/content/docs/docs/evaluation/examples.mdx`.
-- **Test scenarios:** 
+- **Test scenarios:**
   - The example validates with extension-only workspace and skills setup.
   - Replacing only `datasets/sample/cases.yaml` does not require editing provider or extension files.
   - The README shows how to map the private PR 679 files into the reusable layout without absolute local paths.
@@ -236,7 +236,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `packages/core/scripts/generate-eval-schema.ts`, `apps/cli/src/commands/eval/commands/run.ts`, `apps/cli/src/commands/eval/shared.ts`, `apps/web/src/content/docs/docs/evaluation/eval-files.mdx`, `apps/web/src/content/docs/docs/guides/agent-eval-layers.mdx`, `plugins/agentv-dev/skills/agentv-eval-builder/SKILL.md`
 - **Approach:** Regenerate schema output, update CLI help and validation examples, and revise the AI-facing eval builder guidance so agents author `extensions` rather than top-level `workspace` for new evals.
 - **Patterns to follow:** `.agents/workflow.md` note that schema guidance changes update `plugins/agentv-dev/skills/agentv-eval-builder/`.
-- **Test scenarios:** 
+- **Test scenarios:**
   - Generated eval schema includes `extensions`.
   - CLI validation output identifies extension errors with file and hook context.
   - Docs examples use `default_test` rather than Promptfoo's camelCase `defaultTest` unless the example is explicitly showing Promptfoo source compatibility.
@@ -250,7 +250,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Files:** `examples/features/promptfoo-compatible-extensions/README.md`, private evidence branch contents outside the public repo
 - **Approach:** Run the smallest live coding-agent eval with a real provider and real LLM grader using the extension-only example. Capture the run bundle, validated config, evidence README, and any screenshots or artifact trees on an `agentv-private` evidence branch per `.agents/verification.md`.
 - **Patterns to follow:** `.agents/verification.md` live dogfood rules for eval execution, providers, graders, and artifact changes.
-- **Test scenarios:** 
+- **Test scenarios:**
   - Live provider loads the staged skill from the skills extension.
   - Workspace extension prepares the expected repo/template state.
   - LLM grader evaluates the result and the run bundle records canonical AgentV artifacts.
