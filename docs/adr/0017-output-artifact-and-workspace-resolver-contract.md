@@ -53,6 +53,11 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 - **Identity = `eval_path` + `test_id`** (uuid-suffixed dir), so overlapping `test_id`s across suites don't collide. `suite`/`name` are **display/grouping metadata, not routing** (ADR-0009).
 - **Categorize by BOTH, orthogonally** (each `index.jsonl` row carries both): **`suite`** (+`eval_path`) = structural origin; **`tags`** (map, incl **`experiment`**) = semantic/campaign grouping. `experiment` = the run/campaign bucket; `suite` = the intra-run structural group; the Dashboard groups by any tag key, and suite is another grouping dimension. Reports filter/group by either axis.
 
+### Artifact filenames (locked — accuracy over cosmetic consistency)
+- **`summary.json`** (run-root AND per-case) — the aggregate. Kept over margin's `results.json`: it's a *summary*, not the full results (those are the per-case dirs + `index.jsonl`); avoids the `results/<run_id>/results.json` stutter; symmetric at both levels (run aggregates cases, case aggregates samples); vercel-aligned. We match margin on the aggregate *concept/shape*, not the filename.
+- Per-sample triad (distinct, all kept): **`result.json`** (what happened), **`grading.json`** (verdict = `assertion_results`+`verdict`+`score`), **`metrics.json`** (duration+tokens+cost+execution/trajectory; the `timing.json` merge).
+- **`grading.json`** kept (not `grades.json`) — source-consistent with agentskills (whose file is `grading.json`), and "grading" names the grading *result*.
+
 ### Full results-tree layout (two levels — no per-run `.indexes`)
 ```
 .agentv/results/
