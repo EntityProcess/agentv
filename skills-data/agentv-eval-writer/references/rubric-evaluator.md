@@ -1,12 +1,12 @@
-# Rubric Grader
+# Rubric Graders
 
-Rubrics are defined as `assertions` entries with `type: rubrics`. They support binary checklist grading and score-range analytic grading.
+Rubrics are defined as `assertions` entries with plain strings, `type: g-eval`, or `type: llm-rubric`. They support binary checklist grading and score-range analytic grading.
 
 ## Field Reference
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `type` | string | required | Must be `rubrics` |
+| `type` | string | required | Use `g-eval` for grouped criteria or `llm-rubric` for a single structured rubric |
 | `criteria` | array | required | List of criterion strings or objects |
 | `required` | boolean or number | - | Gate: `true` requires score >= 0.8; a number (0–1) sets a custom threshold |
 
@@ -33,14 +33,14 @@ assertions:
   - States time complexity
 ```
 
-Equivalent to the full form with `type: rubrics`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
+Equivalent to the full form with `type: g-eval`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
 
 Mixed strings and objects are supported in `assertions` — strings are grouped into a single rubrics grader at the position of the first string:
 
 ```yaml
 assertions:
   - Mentions divide-and-conquer approach  # grouped into rubrics
-  - type: code-grader
+  - type: script
     command: [check_syntax.py]
   - States time complexity                # grouped into rubrics
 ```
@@ -49,7 +49,7 @@ assertions:
 
 ```yaml
 assertions:
-  - type: rubrics
+  - type: g-eval
     criteria:
       - Mentions divide-and-conquer approach
       - id: complexity
@@ -68,7 +68,7 @@ Use `operator` when outcome text should carry grading intent without embedding w
 
 ```yaml
 assertions:
-  - type: rubrics
+  - type: g-eval
     criteria:
       - id: supported-fact
         operator: correctness
@@ -87,7 +87,7 @@ Shorthand map format (recommended):
 
 ```yaml
 assertions:
-  - type: rubrics
+  - type: g-eval
     criteria:
       - id: correctness
         weight: 2.0

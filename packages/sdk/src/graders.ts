@@ -67,6 +67,18 @@ export interface RubricsGraderConfig extends EvalAssertionConfig, GraderCommonCo
   readonly criteria: readonly GraderRubricCriterion[];
 }
 
+export interface GEvalGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
+  readonly type: 'g-eval';
+  readonly criteria: readonly GraderRubricCriterion[];
+  readonly target?: string;
+}
+
+export interface LlmRubricGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
+  readonly type: 'llm-rubric';
+  readonly value: string;
+  readonly target?: string;
+}
+
 export interface GraderPromptScriptConfig {
   readonly command: readonly string[];
   readonly config?: Readonly<Record<string, unknown>>;
@@ -104,8 +116,8 @@ export interface CodeGraderOptions extends GraderHelperOptions {
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
-export interface CodeGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
-  readonly type: 'code-grader';
+export interface ScriptGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
+  readonly type: 'script';
   readonly command: GraderCommand;
   readonly cwd?: string;
   readonly target?: true | CodeGraderTargetOptions;
@@ -113,14 +125,19 @@ export interface CodeGraderConfig extends EvalAssertionConfig, GraderCommonConfi
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
+/** @deprecated Use ScriptGraderConfig with type: 'script'. */
+export type CodeGraderConfig = ScriptGraderConfig;
+
 export type GraderHelperConfig =
   | ContainsGraderConfig
   | EqualsGraderConfig
   | RegexGraderConfig
   | IsJsonGraderConfig
   | RubricsGraderConfig
+  | GEvalGraderConfig
+  | LlmRubricGraderConfig
   | LlmGraderConfig
-  | CodeGraderConfig;
+  | ScriptGraderConfig;
 
 function withCommon<T extends { readonly type: string }>(
   config: T,
@@ -180,6 +197,34 @@ export function rubricsGrader(
   return withCommon({ type: 'rubrics', criteria }, options);
 }
 
+export function gEvalGrader(
+  criteria: readonly GraderRubricCriterion[],
+  options: GraderHelperOptions & { readonly target?: string } = {},
+): GEvalGraderConfig {
+  return withCommon(
+    {
+      type: 'g-eval',
+      criteria,
+      ...(options.target !== undefined ? { target: options.target } : {}),
+    },
+    options,
+  );
+}
+
+export function llmRubricGrader(
+  value: string,
+  options: GraderHelperOptions & { readonly target?: string } = {},
+): LlmRubricGraderConfig {
+  return withCommon(
+    {
+      type: 'llm-rubric',
+      value,
+      ...(options.target !== undefined ? { target: options.target } : {}),
+    },
+    options,
+  );
+}
+
 export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
   return withCommon(
     {
@@ -199,10 +244,17 @@ export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
 export function codeGrader(
   command: GraderCommand,
   options: CodeGraderOptions = {},
-): CodeGraderConfig {
+): ScriptGraderConfig {
+  return scriptGrader(command, options);
+}
+
+export function scriptGrader(
+  command: GraderCommand,
+  options: CodeGraderOptions = {},
+): ScriptGraderConfig {
   return withCommon(
     {
-      type: 'code-grader',
+      type: 'script',
       command,
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
       ...(options.target !== undefined ? { target: options.target } : {}),
@@ -221,8 +273,12 @@ export const graders = Object.freeze({
   isJson: isJsonGrader,
   json: jsonGrader,
   rubrics: rubricsGrader,
+  gEval: gEvalGrader,
+  llmRubric: llmRubricGrader,
   llmGrader,
   codeGrader,
+  script: scriptGrader,
+  scriptGrader,
 });
 
 export type GraderCatalog = typeof graders;

@@ -69,6 +69,23 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].input).toHaveLength(1);
     expect(cases[0].input[0].role).toBe('user');
     expect(cases[0].input[0].content).toBe('Query');
+    expect(cases[0].assertions?.[0]?.type).toBe('g-eval');
+    expect(cases[0].assertions?.[0]?.rubrics?.[0]?.outcome).toBe('Goal');
+  });
+
+  it('keeps expected_output-only JSONL cases passive without implicit assertions', async () => {
+    const jsonlPath = path.join(tempDir, 'expected-output-only.jsonl');
+    await writeFile(
+      jsonlPath,
+      '{"id": "test-1", "input": "Query", "expected_output": "Reference answer"}\n',
+    );
+
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].criteria).toBe('');
+    expect(cases[0].expected_output[0].content).toBe('Reference answer');
+    expect(cases[0].assertions).toBeUndefined();
   });
 
   it('parses multi-line JSONL', async () => {
@@ -225,7 +242,7 @@ describe('loadTestsFromJsonl', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].assertions).toHaveLength(1);
-    expect(cases[0].assertions?.[0].type).toBe('llm-grader');
+    expect(cases[0].assertions?.[0].type).toBe('g-eval');
     const rubricEvaluator = cases[0].assertions?.[0] as { type: string; rubrics?: unknown[] };
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });
@@ -259,11 +276,13 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].assertions).toHaveLength(1);
     expect(cases[0].assertions?.[0]).toMatchObject({
       name: 'rubrics',
-      type: 'llm-grader',
+      type: 'g-eval',
       rubrics: [
         {
           id: 'quality',
+          outcome: 'Answer quality',
           min_score: 0.8,
+          weight: 1,
           score_ranges: [
             { score_range: [0, 4], outcome: 'Weak' },
             { score_range: [5, 7], outcome: 'Adequate' },
@@ -406,6 +425,27 @@ describe('loadTests with format detection', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('yaml-test');
+    expect(cases[0].assertions?.[0]?.type).toBe('g-eval');
+    expect(cases[0].assertions?.[0]?.rubrics?.[0]?.outcome).toBe('Goal');
+  });
+
+  it('keeps expected_output-only YAML cases passive without implicit assertions', async () => {
+    const yamlPath = path.join(tempDir, 'expected-output-only.yaml');
+    await writeFile(
+      yamlPath,
+      `tests:
+  - id: expected-only
+    input: Query
+    expected_output: Reference answer
+`,
+    );
+
+    const cases = await loadTests(yamlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].criteria).toBe('');
+    expect(cases[0].expected_output[0].content).toBe('Reference answer');
+    expect(cases[0].assertions).toBeUndefined();
   });
 
   it('routes .yml to YAML parser', async () => {
@@ -843,8 +883,8 @@ eval_cases:
     });
   });
 
-  describe('expected_outcome → criteria alias (YAML)', () => {
-    it('supports expected_outcome as deprecated alias for criteria', async () => {
+  describe('expected_outcome → assert compatibility (YAML)', () => {
+    it('supports expected_outcome as deprecated assertion shorthand', async () => {
       const yamlPath = path.join(tempDir, 'expected-outcome-alias.yaml');
       await writeFile(
         yamlPath,
@@ -885,8 +925,8 @@ eval_cases:
     });
   });
 
-  describe('expected_outcome → criteria alias (JSONL)', () => {
-    it('supports expected_outcome as deprecated alias for criteria', async () => {
+  describe('expected_outcome → assert compatibility (JSONL)', () => {
+    it('supports expected_outcome as deprecated assertion shorthand', async () => {
       const jsonlPath = path.join(tempDir, 'expected-outcome-alias.jsonl');
       await writeFile(
         jsonlPath,

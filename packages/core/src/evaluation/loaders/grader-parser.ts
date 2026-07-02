@@ -48,12 +48,78 @@ function isDeprecatedJudgeType(type: string): boolean {
   return type === 'code-judge' || type === 'llm-judge';
 }
 
+const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
+  'agent-rubric',
+  'answer-relevance',
+  'bleu',
+  'classifier',
+  'contains-html',
+  'contains-json',
+  'contains-sql',
+  'contains-xml',
+  'context-faithfulness',
+  'context-recall',
+  'context-relevance',
+  'conversation-relevance',
+  'factuality',
+  'finish-reason',
+  'gleu',
+  'guardrails',
+  'is-html',
+  'is-refusal',
+  'is-sql',
+  'is-valid-function-call',
+  'is-valid-openai-function-call',
+  'is-valid-openai-tools-call',
+  'is-xml',
+  'levenshtein',
+  'meteor',
+  'model-graded-closedqa',
+  'model-graded-factuality',
+  'moderation',
+  'perplexity',
+  'perplexity-score',
+  'pi',
+  'rouge-n',
+  'ruby',
+  'similar:cosine',
+  'similar:dot',
+  'similar:euclidean',
+  'select-best',
+  'human',
+  'max-score',
+  'tool-call-f1',
+  'skill-used',
+  'trajectory:goal-success',
+  'trajectory:tool-args-match',
+  'trajectory:step-count',
+  'trajectory:tool-sequence',
+  'trajectory:tool-used',
+  'trace-error-spans',
+  'trace-span-count',
+  'trace-span-duration',
+  'search-rubric',
+  'word-count',
+]);
+
+function assertSupportedPromptfooType(type: string, evalId: string, name?: string): void {
+  const baseType = type.startsWith('not-') ? type.slice(4) : type;
+  if (!UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES.has(baseType)) {
+    return;
+  }
+  throw new Error(
+    `Unsupported promptfoo assertion type '${type}' in '${evalId}'` +
+      `${name ? ` for evaluator '${name}'` : ''}. This type is future scope in AgentV and is not accepted as a custom assertion.`,
+  );
+}
+
 /**
  * Parse evaluators from eval case configuration.
  */
 export async function parseGraders(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
+    readonly assert?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
   },
@@ -65,17 +131,19 @@ export async function parseGraders(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level graders priority: assertions > legacy execution/top-level assertion lists
+  // Case-level graders priority: assert > assertions > legacy execution/top-level assertion lists
   const caseEvaluators =
+    rawEvalCase.assert ??
     rawEvalCase.assertions ??
+    (executionObject ? executionObject.assert : undefined) ??
     (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assertions
     rawEvalCase.evaluators; // deprecated: use assertions
 
-  // Root-level default graders: assertions > legacy execution assertion list
+  // Root-level default graders: assert > assertions > legacy execution assertion list
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assertions ?? globalExecution?.evaluators); // deprecated: use assertions
+    : (globalExecution?.assert ?? globalExecution?.assertions ?? globalExecution?.evaluators); // deprecated: use assertions
 
   // Parse case-level evaluators
   const parsedCase = await parseGraderList(
@@ -247,6 +315,7 @@ async function expandGraderEntries(
 export async function collectAssertionTemplateSourceReferences(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
+    readonly assert?: JsonValue;
     readonly assertions?: JsonValue;
     readonly evaluators?: JsonValue;
   },
@@ -257,13 +326,15 @@ export async function collectAssertionTemplateSourceReferences(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
   const caseEvaluators =
+    rawEvalCase.assert ??
     rawEvalCase.assertions ??
+    (executionObject ? executionObject.assert : undefined) ??
     (executionObject ? executionObject.evaluators : undefined) ??
     rawEvalCase.evaluators;
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assertions ?? globalExecution?.evaluators);
+    : (globalExecution?.assert ?? globalExecution?.assertions ?? globalExecution?.evaluators);
 
   return [
     ...(await collectAssertionTemplateReferencesFromValue(caseEvaluators, searchRoots, evalId)),
@@ -364,7 +435,7 @@ async function collectAssertionTemplateReferencesFromObject(
   includeContext: IncludeContext,
 ): Promise<readonly EvalSourceReference[]> {
   const references: EvalSourceReference[] = [];
-  for (const key of ['assertions', 'evaluators'] as const) {
+  for (const key of ['assert', 'assertions', 'evaluators'] as const) {
     references.push(
       ...(await collectAssertionTemplateReferencesFromValue(
         value[key],
@@ -426,7 +497,7 @@ async function parseGraderList(
             // e.g. [contains, "crit1", "crit2", "crit3"] → contains(w=1) + rubrics(w=3)
             // → each of the 4 visible assertions counts equally.
             result[placeholderIndex] = {
-              type: 'rubrics',
+              type: 'g-eval',
               criteria: strings,
               weight: strings.length,
             };
@@ -455,6 +526,10 @@ async function parseGraderList(
         `Skipping evaluator '${rawName ?? '<unnamed>'}' in '${evalId}': '${rawType}' is deprecated. Use '${typeValue.replace('-judge', '-grader')}' instead`,
       );
       continue;
+    }
+
+    if (typeof typeValue === 'string') {
+      assertSupportedPromptfooType(typeValue, evalId, rawName);
     }
 
     // Unknown types are treated as custom assertion types (resolved via registry discovery)
@@ -515,11 +590,64 @@ async function parseGraderList(
       continue;
     }
 
-    if (typeValue === 'code-grader') {
+    if (typeValue === 'assert-set') {
+      const rawMembers = rawEvaluator.assert ?? rawEvaluator.assertions;
+      if (!Array.isArray(rawMembers)) {
+        logWarning(`Skipping assert-set evaluator '${name}' in '${evalId}': missing assert array`);
+        continue;
+      }
+
+      const parsedMembers = await parseGraderList(
+        rawMembers as JsonValue,
+        searchRoots,
+        `${evalId}:${name}`,
+        defaultPreprocessors,
+      );
+      if (!parsedMembers || parsedMembers.length === 0) {
+        logWarning(
+          `Skipping assert-set evaluator '${name}' in '${evalId}': no valid child assertions`,
+        );
+        continue;
+      }
+
+      const threshold =
+        typeof rawEvaluator.threshold === 'number' &&
+        rawEvaluator.threshold >= 0 &&
+        rawEvaluator.threshold <= 1
+          ? rawEvaluator.threshold
+          : undefined;
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
+      evaluators.push({
+        name,
+        type: 'assert-set',
+        assertions: parsedMembers,
+        ...(threshold !== undefined ? { threshold } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'code-grader' || typeValue === 'script') {
+      const isLegacyCodeGrader = typeValue === 'code-grader';
+      if (isLegacyCodeGrader) {
+        logWarning(
+          `Evaluator '${name}' in '${evalId}': 'code-grader' is deprecated. Use 'script' instead.`,
+        );
+      }
+      const displayType = 'script';
       let command: string[] | undefined;
       if (rawEvaluator.script !== undefined) {
         throw new Error(
-          `Grader '${name}' in '${evalId}': 'script' has been removed. Use 'command' instead.`,
+          `Grader '${name}' in '${evalId}': 'script' field has been removed. Use 'command' instead.`,
         );
       }
       const rawCommand = rawEvaluator.command;
@@ -528,19 +656,19 @@ async function parseGraderList(
         const trimmed = rawCommand.trim();
         if (trimmed.length === 0) {
           throw new Error(
-            `Invalid code-grader command for evaluator '${name}' in '${evalId}': command cannot be empty`,
+            `Invalid ${displayType} command for evaluator '${name}' in '${evalId}': command cannot be empty`,
           );
         }
         command = parseCommandToArgv(trimmed);
       } else {
         command = asStringArray(
           rawCommand,
-          `code-grader command for evaluator '${name}' in '${evalId}'`,
+          `${displayType} command for evaluator '${name}' in '${evalId}'`,
         );
       }
 
       if (!command) {
-        logWarning(`Skipping code-grader evaluator '${name}' in '${evalId}': missing command`);
+        logWarning(`Skipping ${displayType} evaluator '${name}' in '${evalId}': missing command`);
         continue;
       }
 
@@ -556,7 +684,7 @@ async function parseGraderList(
           resolvedCwd = path.resolve(resolved.resolvedPath);
         } else {
           logWarning(
-            `Code-grader evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
+            `${displayType} evaluator '${name}' in '${evalId}': cwd not found (${resolved.displayPath})`,
             resolved.attempted.length > 0
               ? resolved.attempted.map((attempt) => `  Tried: ${attempt}`)
               : undefined,
@@ -625,7 +753,7 @@ async function parseGraderList(
 
       evaluators.push({
         name,
-        type: 'code-grader',
+        type: 'script',
         command,
         ...(resolvedScriptPath ? { resolvedScriptPath } : {}),
         cwd,
@@ -642,8 +770,8 @@ async function parseGraderList(
     }
 
     if (typeValue === 'composite') {
-      // Accept assertions > evaluators (deprecated)
-      const rawMembers = rawEvaluator.assertions ?? rawEvaluator.evaluators; // evaluators deprecated
+      // Accept assert > assertions > evaluators (deprecated)
+      const rawMembers = rawEvaluator.assert ?? rawEvaluator.assertions ?? rawEvaluator.evaluators; // evaluators deprecated
       if (!Array.isArray(rawMembers)) {
         logWarning(
           `Skipping composite evaluator '${name}' in '${evalId}': missing assertions (or evaluators) array`,
@@ -675,6 +803,7 @@ async function parseGraderList(
       }
       if (
         normalizedAggregatorType !== 'weighted_average' &&
+        normalizedAggregatorType !== 'script' &&
         normalizedAggregatorType !== 'code-grader' &&
         normalizedAggregatorType !== 'llm-grader' &&
         normalizedAggregatorType !== 'threshold'
@@ -710,7 +839,7 @@ async function parseGraderList(
           continue;
         }
 
-        // Parse member evaluator (reuse existing logic for code, llm-grader, code-grader)
+        // Parse member evaluator (reuse existing logic for code, llm-grader, script)
         const memberConfigs = await parseGraders(
           { evaluators: [rawMember] },
           undefined,
@@ -749,11 +878,19 @@ async function parseGraderList(
           type: 'weighted_average',
           ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
         };
-      } else if (normalizedAggregatorType === 'code-grader') {
+      } else if (
+        normalizedAggregatorType === 'script' ||
+        normalizedAggregatorType === 'code-grader'
+      ) {
+        if (normalizedAggregatorType === 'code-grader') {
+          logWarning(
+            `Composite evaluator '${name}' in '${evalId}': aggregator type 'code-grader' is deprecated. Use 'script' instead.`,
+          );
+        }
         const aggregatorPath = asString(rawAggregator.path);
         if (!aggregatorPath) {
           logWarning(
-            `Skipping composite evaluator '${name}' in '${evalId}': code-grader aggregator missing path`,
+            `Skipping composite evaluator '${name}' in '${evalId}': script aggregator missing path`,
           );
           continue;
         }
@@ -761,7 +898,7 @@ async function parseGraderList(
         // Set cwd to eval file directory (first search root)
         // Paths are resolved relative to this directory
         aggregator = {
-          type: 'code-grader',
+          type: 'script',
           path: aggregatorPath,
           cwd: searchRoots[0],
         };
@@ -1311,6 +1448,79 @@ async function parseGraderList(
       continue;
     }
 
+    if (typeValue === 'javascript' || typeValue === 'python' || typeValue === 'webhook') {
+      const value = asString(rawEvaluator.value);
+      if (!value || value.trim().length === 0) {
+        logWarning(`Skipping ${typeValue} evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const threshold =
+        typeof rawEvaluator.threshold === 'number' &&
+        rawEvaluator.threshold >= 0 &&
+        rawEvaluator.threshold <= 1
+          ? rawEvaluator.threshold
+          : undefined;
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
+      const config = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
+      evaluators.push({
+        name,
+        type: typeValue,
+        value,
+        ...(threshold !== undefined ? { threshold } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+        ...(config !== undefined ? { config } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'similar') {
+      const value = asString(rawEvaluator.value);
+      if (!value || value.trim().length === 0) {
+        logWarning(`Skipping similar evaluator '${name}' in '${evalId}': missing value`);
+        continue;
+      }
+      const threshold =
+        typeof rawEvaluator.threshold === 'number' &&
+        rawEvaluator.threshold >= 0 &&
+        rawEvaluator.threshold <= 1
+          ? rawEvaluator.threshold
+          : undefined;
+      const weight = validateWeight(rawEvaluator.weight, name, evalId);
+      const { required, min_score } = parseRequiredAndMinScore(
+        rawEvaluator.required,
+        (rawEvaluator as Record<string, unknown>).min_score as JsonValue | undefined,
+        name,
+        evalId,
+      );
+      const provider =
+        typeof rawEvaluator.provider === 'string' || isJsonObject(rawEvaluator.provider)
+          ? rawEvaluator.provider
+          : undefined;
+      const config = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
+      evaluators.push({
+        name,
+        type: 'similar',
+        value,
+        ...(threshold !== undefined ? { threshold } : {}),
+        ...(provider !== undefined ? { provider } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+        ...(config !== undefined ? { config } : {}),
+      });
+      continue;
+    }
+
     if (typeValue === 'contains') {
       const value = asString(rawEvaluator.value);
       if (!value) {
@@ -1526,20 +1736,13 @@ async function parseGraderList(
 
     if (typeValue === 'rubrics') {
       const rawCriteria = rawEvaluator.criteria;
-      if (!Array.isArray(rawCriteria) || rawCriteria.length === 0) {
+      const normalizedCriteria = normalizeRubricCriteria(rawCriteria);
+      if (!normalizedCriteria || normalizedCriteria.length === 0) {
         logWarning(
           `Skipping rubrics evaluator '${name}' in '${evalId}': criteria must be a non-empty array`,
         );
         continue;
       }
-
-      // Normalize string shorthands to objects before passing to parseRubricItems
-      const normalizedCriteria = rawCriteria.map((item, index) => {
-        if (typeof item === 'string') {
-          return { id: `rubric-${index + 1}`, outcome: item, weight: 1.0, required: true };
-        }
-        return item;
-      });
 
       const parsedCriteria = parseRubricItems(normalizedCriteria, name, evalId);
       if (!parsedCriteria || parsedCriteria.length === 0) {
@@ -1557,7 +1760,7 @@ async function parseGraderList(
 
       evaluators.push({
         name,
-        type: 'llm-grader',
+        type: 'g-eval',
         rubrics: parsedCriteria,
         ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
@@ -1643,7 +1846,7 @@ async function parseGraderList(
 
     const rawRubrics = rawEvaluator.rubrics;
     const parsedRubrics = Array.isArray(rawRubrics)
-      ? parseRubricItems(rawRubrics, name, evalId)
+      ? parseRubricItems(normalizeRubricCriteria(rawRubrics) ?? [], name, evalId)
       : undefined;
 
     if (typeValue === 'rubric') {
@@ -1667,7 +1870,7 @@ async function parseGraderList(
       // deprecated: `type: rubric` maps to `type: llm-grader` with `rubrics`. Use `type: rubrics` with `criteria` instead.
       evaluators.push({
         name,
-        type: 'llm-grader',
+        type: 'g-eval',
         rubrics: parsedRubrics,
         ...(graderTargetName ? { target: graderTargetName } : {}),
         ...(weight !== undefined ? { weight } : {}),
@@ -1735,6 +1938,73 @@ async function parseGraderList(
     const rawTempLlm = rawEvaluator.temperature;
     const llmTemperature =
       typeof rawTempLlm === 'number' && rawTempLlm >= 0 && rawTempLlm <= 2 ? rawTempLlm : undefined;
+
+    if (typeValue === 'g-eval') {
+      const rubricSource =
+        rawEvaluator.rubric_item ??
+        rawEvaluator.rubricItem ??
+        rawEvaluator.rubrics ??
+        rawEvaluator.criteria ??
+        rawEvaluator.value;
+      const normalizedCriteria = normalizeRubricCriteria(rubricSource, rawEvaluator);
+      const gEvalRubrics = normalizedCriteria
+        ? parseRubricItems(normalizedCriteria, name, evalId)
+        : undefined;
+      if (!gEvalRubrics || gEvalRubrics.length === 0) {
+        logWarning(
+          `Skipping g-eval evaluator '${name}' in '${evalId}': expected value, criteria, rubric_item, or rubrics`,
+        );
+        continue;
+      }
+
+      evaluators.push({
+        name,
+        type: 'g-eval',
+        prompt,
+        promptPath,
+        ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
+        ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
+        rubrics: gEvalRubrics,
+        ...(graderTargetName ? { target: graderTargetName } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+        ...(finalConfig ? { config: finalConfig } : {}),
+        ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
+        ...(llmTemperature !== undefined ? { temperature: llmTemperature } : {}),
+        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
+      });
+      continue;
+    }
+
+    if (typeValue === 'llm-rubric') {
+      const value =
+        typeof rawEvaluator.value === 'string'
+          ? rawEvaluator.value
+          : typeof rawEvaluator.criteria === 'string'
+            ? rawEvaluator.criteria
+            : undefined;
+      evaluators.push({
+        name,
+        type: 'llm-rubric',
+        prompt,
+        promptPath,
+        ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
+        ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
+        ...(value !== undefined ? { value } : {}),
+        ...(graderTargetName ? { target: graderTargetName } : {}),
+        ...(weight !== undefined ? { weight } : {}),
+        ...(required !== undefined ? { required } : {}),
+        ...(min_score !== undefined ? { min_score } : {}),
+        ...(negate !== undefined ? { negate } : {}),
+        ...(finalConfig ? { config: finalConfig } : {}),
+        ...(llmMaxSteps !== undefined ? { max_steps: llmMaxSteps } : {}),
+        ...(llmTemperature !== undefined ? { temperature: llmTemperature } : {}),
+        ...(mergedPreprocessors ? { preprocessors: mergedPreprocessors } : {}),
+      });
+      continue;
+    }
 
     evaluators.push({
       name,
@@ -2106,6 +2376,55 @@ function parseRubricOperator(
   return undefined;
 }
 
+function normalizeRubricCriteria(
+  raw: unknown,
+  fallback?: JsonObject,
+): readonly unknown[] | undefined {
+  if (typeof raw === 'string') {
+    return [
+      {
+        id: 'rubric-1',
+        outcome: raw,
+        weight: typeof fallback?.weight === 'number' ? fallback.weight : 1,
+        required: typeof fallback?.required === 'boolean' ? fallback.required : true,
+        ...(typeof fallback?.min_score === 'number' ? { min_score: fallback.min_score } : {}),
+        ...(fallback?.score_ranges !== undefined ? { score_ranges: fallback.score_ranges } : {}),
+        ...(typeof fallback?.operator === 'string' ? { operator: fallback.operator } : {}),
+      },
+    ];
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.map((item, index) => {
+      if (typeof item === 'string') {
+        return { id: `rubric-${index + 1}`, outcome: item, weight: 1.0, required: true };
+      }
+      return item;
+    });
+  }
+
+  if (isJsonObject(raw)) {
+    return [raw];
+  }
+
+  if (fallback?.score_ranges !== undefined) {
+    const outcome =
+      asString(fallback.criteria) ?? asString(fallback.value) ?? asString(fallback.outcome);
+    return [
+      {
+        id: asString(fallback.id) ?? 'rubric-1',
+        ...(outcome ? { outcome } : {}),
+        score_ranges: fallback.score_ranges,
+        weight: typeof fallback.weight === 'number' ? fallback.weight : 1,
+        ...(typeof fallback.min_score === 'number' ? { min_score: fallback.min_score } : {}),
+        ...(typeof fallback.operator === 'string' ? { operator: fallback.operator } : {}),
+      },
+    ];
+  }
+
+  return undefined;
+}
+
 /**
  * Parse rubric items from raw YAML/JSON data.
  * Supports both checklist rubrics and score-range rubrics.
@@ -2373,11 +2692,11 @@ function parseScoreRanges(
  * - String shorthand: "Must be polite" -> { id: "rubric-1", outcome: "Must be polite", weight: 1.0, required: true }
  * - Object form with outcome, weight, required, score_ranges, min_score
  *
- * Returns an LlmGraderConfig to prepend to evaluators, or undefined if no valid rubrics.
+ * Returns a g-eval config to prepend to evaluators, or undefined if no valid rubrics.
  */
 export function parseInlineRubrics(
   rawRubrics: readonly unknown[],
-): import('../types.js').LlmGraderConfig | undefined {
+): import('../types.js').GEvalGraderConfig | undefined {
   const rubricItems = rawRubrics
     .filter((r): r is JsonObject | string => isJsonObject(r) || typeof r === 'string')
     .map((rubric, index) => {
@@ -2456,7 +2775,7 @@ export function parseInlineRubrics(
 
   return {
     name: 'rubrics',
-    type: 'llm-grader',
+    type: 'g-eval',
     rubrics: rubricItems,
   };
 }

@@ -3,7 +3,7 @@ name: agentv-eval-writer
 description: >-
   Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
   Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
-  configure graders (`llm-grader`, `code-grader`, `rubrics`), review whether an eval is correct or complete,
+  configure graders (`g-eval`, `llm-rubric`, `llm-grader`, `script`), review whether an eval is correct or complete,
   convert between EVAL.yaml and evals.json using `agentv convert`, or generate eval test cases
   from chat transcripts (markdown conversation or JSON messages).
   Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
@@ -37,8 +37,8 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 
 ## Authoring Checklist
 
-- If `assertions` already state the grading contract, omit `criteria` instead of duplicating the same rubric twice.
-- Prefer plain assertion strings for semantic checks when the default LLM rubric grader can judge them. Use multiple named `type: llm-grader` blocks only for custom prompts, custom grader targets, or intentionally separate grader panels.
+- Put grading criteria in `assertions`/`assert`, not in test-level `criteria`. Plain assertion strings become a `g-eval` rubric grader.
+- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, `type: llm-grader` for custom prompts/targets, and `type: script` when grading must execute code.
 - Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
 - For historical or repo-state evals, materialize the repo under `workspace.repos[]` pinned to the commit under test. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 
@@ -60,7 +60,7 @@ agentv convert evals.json
 agentv eval evals.json
 ```
 
-The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (`llm-grader`), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, code graders, rubrics, required gates).
+The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (`g-eval` rubric checks), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, script graders, rubrics, required gates).
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -133,10 +133,9 @@ tests:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
-| `criteria` | conditional | What the response should accomplish; required only when no `expected_output` or `assertions` are present |
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
-| `assertions` | no | Graders: deterministic checks, rubrics, and LLM/code graders |
+| `assertions` / `assert` | yes | Graders: deterministic checks, rubrics, LLM graders, script graders, or plain-string `g-eval` checks |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -186,7 +185,8 @@ tests: ./cases.yaml
 
 # cases.yaml — each test only needs its own query
 # - id: test-1
-#   criteria: ...
+#   assertions:
+#     - ...
 #   input: "User question here"
 ```
 
@@ -207,7 +207,7 @@ The external file can be YAML (array of test objects) or JSONL.
 
 ## Assertions Field
 
-`assertions` defines graders at the suite level or per-test level. It is the canonical field for all graders:
+`assertions` (or `assert`) defines graders at the suite level or per-test level. It is the canonical field for all graders:
 
 ```yaml
 # Mix exact checks with rubric shorthand when both matter.
@@ -230,9 +230,11 @@ tests:
 
 Plain strings in `assertions` are rubric criteria and are the preferred shape for
 qualitative agent behavior. Use deterministic assertions (`contains`, `regex`,
-`is-json`, `equals`) only for exact machine-verifiable outputs, and code graders
+`is-json`, `equals`) only for exact machine-verifiable outputs, and script graders
 when the check must inspect files, run commands, or validate structured state.
-Do not add a separate `criteria` field that just repeats these assertion strings.
+Do not add a separate test-level `criteria` field. Legacy evals that still use
+`criteria` without explicit assertions are loaded as a plain-string assertion for
+compatibility, but new evals should author the assertion directly.
 
 For repo-state evals, combine a pinned checkout, a golden answer, and assertion
 shorthand:
@@ -262,33 +264,11 @@ tests:
       - The answer preserves the historical commit SHA as context.
 ```
 
-## How `criteria` and `assertions` Interact
+## Assertions and Reference Data
 
-`criteria` is a **data field** — it describes what the response should accomplish. It is **not** a grader. How it gets evaluated depends on whether `assertions` is present:
-
-| Scenario | What happens | Warning? |
-|----------|-------------|----------|
-| `criteria` + **no `assertions`** | Implicit `llm-grader` runs automatically against `criteria` | No |
-| `criteria` + **`assertions` with only deterministic graders** (contains, regex, etc.) | Only declared graders run. `criteria` is **not evaluated**. | Yes — warns that no grader will consume criteria |
-| `criteria` + **`assertions` with rubric shorthand or a grader** (plain strings, `llm-grader`, `code-grader`, `rubrics`) | Declared graders run. Graders receive `criteria` as input. | No |
-
-### No assertions → implicit llm-grader
-
-The simplest path. `criteria` is automatically evaluated by the default `llm-grader`:
-
-```yaml
-tests:
-  - id: simple-eval
-    criteria: Assistant correctly explains the bug and proposes a fix
-    input: "Debug this function..."
-    # No assertions → default llm-grader evaluates against criteria
-```
-
-### assertions present → no implicit grader
-
-When `assertions` is defined, **only the declared graders run**. For semantic
-checks, add plain rubric strings. If you need a custom LLM prompt or grader
-target, declare `llm-grader` explicitly:
+When `assertions` or `assert` is defined, **only the declared graders run**. For
+semantic checks, add plain rubric strings. If you need a custom LLM prompt or
+grader target, declare `llm-grader` explicitly:
 
 ```yaml
 tests:
@@ -300,22 +280,30 @@ tests:
         value: "fix"
 ```
 
-**Common mistake:** defining `criteria` with only deterministic graders. The criteria will be ignored and a warning is emitted:
+`expected_output` is passive reference data. It is available to graders through
+`{{expected_output}}` and the script stdin payload, but it does not create an
+implicit LLM grading call by itself.
+
+**Common mistake:** putting rubric prose in `expected_output` instead of an
+assertion:
 
 ```yaml
 tests:
   - id: bad-example
-    criteria: Gives a thoughtful answer    # ⚠ NOT evaluated — no grader in assertions
     input: "What is 2+2?"
-    assertions:
-      - type: contains
-        value: "4"
-    # Warning: criteria is defined but no grader in assertions will evaluate it.
+    expected_output: The assistant should explain why the answer is 4. # reference answer field, not a grader
 ```
 
-If plain assertion strings fully express the semantic contract, leave `criteria`
-out. Keep `criteria` for the implicit-grader path or for non-duplicative context
-that a declared grader actually needs.
+Write this as:
+
+```yaml
+tests:
+  - id: good-example
+    input: "What is 2+2?"
+    expected_output: "4"
+    assertions:
+      - The answer is 4 and explains the arithmetic briefly
+```
 
 ## Required Gates
 
@@ -326,7 +314,7 @@ assertions:
   - type: contains
     value: "DENIED"
     required: true          # must score >= 0.8 (default)
-  - type: rubrics
+  - type: g-eval
     required: true
     min_score: 0.6          # must score >= 0.6 (custom threshold)
     criteria:
@@ -413,26 +401,26 @@ See https://agentv.dev/targets/configuration/#repository-lifecycle
 
 Configure via `assertions` array. Multiple graders produce a weighted average score.
 
-### code-grader
+### script
 ```yaml
 - name: format_check
-  type: code-grader
+  type: script
   command: [uv, run, validate.py]
   cwd: ./scripts          # optional working directory
   target: {}              # optional: enable LLM target proxy (max_calls: 50)
 ```
 Contract: stdin JSON -> stdout JSON `{score, assertions: [{text, passed, evidence?}], reasoning}`
-Raw stdin uses snake_case and includes: `criteria`, `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
+Raw stdin uses snake_case and includes: `input`, `expected_output`, `output` (final answer string), `messages`, `trace`, `trace_summary`, `token_usage`, `cost_usd`, `duration_ms`, `start_time`, `end_time`, `file_changes`, `workspace_path`, `config`
 SDK handlers receive the same payload in camelCase: `expectedOutput`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`, `fileChanges`, `workspacePath`.
 When a workspace is configured, `workspace_path` is the absolute path to the workspace dir (also available as `AGENTV_WORKSPACE_PATH` env var). Use this for functional grading (e.g., running `npm test` in the workspace).
 For deterministic workspace checks that fit normal Vitest `expect(...)` tests, prefer a plain verifier file and the built-in adapter:
 ```yaml
 - name: welcome_banner
-  type: code-grader
+  type: script
   command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 AgentV infers the Vitest adapter for `*.test.ts`, `*.spec.ts`, and Vercel-style `EVAL.ts` files. Use the explicit `agentv eval vitest` subcommand only when you need adapter flags such as `--cwd`, `--in-workspace`, or `--vitest-command`.
-See docs at https://agentv.dev/graders/code-graders/
+See the Script Graders docs for the full stdin/stdout contract.
 
 ### llm-grader
 ```yaml
@@ -557,15 +545,16 @@ Binary check: does output exactly equal the value (both trimmed)?
 ```
 Binary check: is the output valid JSON?
 
-### rubrics
+### g-eval / llm-rubric
 ```yaml
 - Correctly identifies the denied party
 - Provides clear reasoning
 ```
 LLM-judged structured evaluation. Plain strings are the preferred shorthand.
-Use `type: rubrics` only when you need weighted criteria, `required: false`,
-`min_score`, or score ranges. Criteria items support `id`, `outcome`, `weight`,
-and `required` fields.
+Use `type: g-eval` when you need weighted criteria, `required: false`,
+`min_score`, or score ranges. Use `type: llm-rubric` for a single structured
+rubric item with the same LLM rubric semantics. Criteria items support `id`,
+`outcome`, `weight`, and `required` fields.
 Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
 See `references/rubric-grader.md` for score-range mode and scoring formula.
@@ -663,7 +652,7 @@ export default defineEval({
 });
 ```
 
-The `graders` catalog returns ordinary `assertions` entries such as `type: is-json`, `type: regex`, `type: llm-grader`, and `type: code-grader`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
+The `graders` catalog returns ordinary `assertions` entries such as `type: is-json`, `type: regex`, `type: llm-grader`, and `type: script`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
 
 If adapting Braintrust `scores` or DeepEval metrics, write small AgentV helper factories that return `graders.*` configs:
 
@@ -714,7 +703,7 @@ export default defineCodeGrader(({ output, trace }) => {
 });
 ```
 
-`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineCodeGrader()` scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
+`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineCodeGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
 
 ### Convention-Based Discovery
 
@@ -798,14 +787,14 @@ After running evals, perform a human review before iterating. Create `feedback.j
       "test_id": "test-id",
       "verdict": "acceptable | needs_improvement | incorrect | flaky",
       "notes": "Why this verdict",
-      "evaluator_overrides": { "code-grader:name": "Override note" },
+      "evaluator_overrides": { "script:name": "Override note" },
       "workspace_notes": "Workspace state observations"
     }
   ]
 }
 ```
 
-Use `evaluator_overrides` for workspace evaluations to annotate specific grader results (e.g., "code-grader was too strict"). Use `workspace_notes` for observations about workspace state.
+Use `evaluator_overrides` for workspace evaluations to annotate specific grader results (e.g., "script grader was too strict"). Use `workspace_notes` for observations about workspace state.
 
 Review workflow: run evals → inspect results (`agentv inspect show`) → write feedback → tune prompts/graders → re-run.
 

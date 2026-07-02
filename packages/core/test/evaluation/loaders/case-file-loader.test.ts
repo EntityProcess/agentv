@@ -136,15 +136,11 @@ describe('resolveFileReference', () => {
     expect(cases[0].assertions).toEqual([
       { type: 'latency', threshold: 1000 },
       { type: 'cost', budget: 0.01 },
-      { type: 'code-grader', command: ['uv', 'run', 'python', graderPath] },
+      { type: 'script', command: ['uv', 'run', 'python', graderPath] },
     ]);
 
     const evaluators = await parseGraders(cases[0], undefined, [tempDir], 'csv-assertions');
-    expect(evaluators.map((evaluator) => evaluator.type)).toEqual([
-      'latency',
-      'cost',
-      'code-grader',
-    ]);
+    expect(evaluators.map((evaluator) => evaluator.type)).toEqual(['latency', 'cost', 'script']);
   });
 
   it('rejects unsupported promptfoo expected DSL forms clearly', async () => {

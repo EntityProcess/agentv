@@ -165,6 +165,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
 
 const GRADER_KIND_VALUES = [
   'code-grader',
+  'script',
   'llm-grader',
   'rubric',
   'composite',
@@ -175,6 +176,9 @@ const GRADER_KIND_VALUES = [
   'token-usage',
   'execution-metrics',
   'skill-trigger',
+  'assert-set',
+  'g-eval',
+  'llm-rubric',
   'contains',
   'contains-any',
   'contains-all',
@@ -186,6 +190,10 @@ const GRADER_KIND_VALUES = [
   'regex',
   'is-json',
   'equals',
+  'javascript',
+  'python',
+  'webhook',
+  'similar',
   'rubrics',
   'inline-assert',
 ] as const;
@@ -387,9 +395,9 @@ export type WorkspaceConfig = {
   readonly env?: WorkspaceEnvConfig;
 };
 
-export type CodeGraderConfig = {
+export type ScriptGraderConfig = {
   readonly name: string;
-  readonly type: 'code-grader';
+  readonly type: 'script';
   readonly command: readonly string[];
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
@@ -400,12 +408,17 @@ export type CodeGraderConfig = {
   readonly min_score?: number;
   /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
   readonly negate?: boolean;
-  /** Pass-through configuration for the code-grader (any unrecognized YAML properties) */
+  /** Pass-through configuration for the script (any unrecognized YAML properties) */
   readonly config?: JsonObject;
   /** When present, enables target access via local proxy */
   readonly target?: TargetAccessConfig;
   /** Optional content preprocessors inherited from suite/evaluator config */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
+};
+
+/** @deprecated Use ScriptGraderConfig with type: 'script'. */
+export type CodeGraderConfig = Omit<ScriptGraderConfig, 'type'> & {
+  readonly type: 'code-grader';
 };
 
 /**
@@ -456,6 +469,18 @@ export type LlmGraderConfig = {
   /** Optional content preprocessors for ContentFile blocks in assistant output */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
+
+export type GEvalGraderConfig = Omit<LlmGraderConfig, 'type'> & {
+  readonly type: 'g-eval';
+};
+
+export type LlmRubricGraderConfig = Omit<LlmGraderConfig, 'type' | 'rubrics'> & {
+  readonly type: 'llm-rubric';
+  /** Promptfoo-compatible free-form rubric text. */
+  readonly value?: string;
+};
+
+export type LlmBackedGraderConfig = LlmGraderConfig | GEvalGraderConfig | LlmRubricGraderConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -510,6 +535,8 @@ export type RubricItem = {
 
 export type CompositeAggregatorConfig =
   | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
+  | { readonly type: 'script'; readonly path: string; readonly cwd?: string }
+  /** @deprecated Use the script aggregator type. */
   | { readonly type: 'code-grader'; readonly path: string; readonly cwd?: string }
   | {
       readonly type: 'llm-grader';
@@ -860,6 +887,42 @@ export type RubricsEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
+export type ScriptAssertionGraderConfig = {
+  readonly name: string;
+  readonly type: 'javascript' | 'python' | 'webhook';
+  readonly value: string;
+  readonly threshold?: number;
+  readonly weight?: number;
+  readonly required?: boolean;
+  readonly min_score?: number;
+  readonly negate?: boolean;
+  readonly config?: JsonObject;
+};
+
+export type SimilarGraderConfig = {
+  readonly name: string;
+  readonly type: 'similar';
+  readonly value: string;
+  readonly threshold?: number;
+  readonly provider?: string | JsonObject;
+  readonly weight?: number;
+  readonly required?: boolean;
+  readonly min_score?: number;
+  readonly negate?: boolean;
+  readonly config?: JsonObject;
+};
+
+export type AssertSetGraderConfig = {
+  readonly name: string;
+  readonly type: 'assert-set';
+  readonly assertions: readonly GraderConfig[];
+  readonly threshold?: number;
+  readonly weight?: number;
+  readonly required?: boolean;
+  readonly min_score?: number;
+  readonly negate?: boolean;
+};
+
 /**
  * Configuration for the skill-trigger evaluator.
  * Detects whether the agent invoked a named skill as its first tool call.
@@ -895,8 +958,11 @@ export type InlineAssertEvaluatorConfig = {
 };
 
 export type GraderConfig = (
+  | ScriptGraderConfig
   | CodeGraderConfig
   | LlmGraderConfig
+  | GEvalGraderConfig
+  | LlmRubricGraderConfig
   | CompositeGraderConfig
   | ToolTrajectoryGraderConfig
   | FieldAccuracyGraderConfig
@@ -917,6 +983,9 @@ export type GraderConfig = (
   | IsJsonGraderConfig
   | EqualsGraderConfig
   | RubricsEvaluatorConfig
+  | ScriptAssertionGraderConfig
+  | SimilarGraderConfig
+  | AssertSetGraderConfig
   | InlineAssertEvaluatorConfig
 ) & {
   /** Optional promptfoo-style named score key. Scoring aggregation support is layered separately. */
@@ -935,7 +1004,11 @@ export interface EvalSourceReference {
     | 'input_file'
     | 'llm_grader_prompt'
     | 'prompt_script'
+    | 'script_grader_command'
+    | 'script_grader_cwd'
+    /** @deprecated New eval loads emit script_grader_command. */
     | 'code_grader_command'
+    /** @deprecated New eval loads emit script_grader_cwd. */
     | 'code_grader_cwd'
     | 'assertion_template'
     | 'preprocessor_command';

@@ -7,19 +7,22 @@ sidebar:
 
 LLM graders use a language model to evaluate agent responses against custom criteria defined in a prompt file.
 
-## Default Grader
+## Explicit LLM Graders
 
-When a test defines `criteria` but has **no `assertions` field**, a default `llm-grader` runs automatically. The built-in prompt evaluates the response against your `criteria` and `expected_output`:
+Put semantic grading requirements in `assertions` or `assert`. Plain strings are
+handled by the built-in `g-eval` rubric grader. Use `type: llm-grader` when you
+need a custom prompt, target, or grader-specific preprocessing:
 
 ```yaml
 tests:
   - id: simple-eval
-    criteria: Correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assertions needed — default llm-grader evaluates against criteria
+    assertions:
+      - Correctly explains the bug and proposes a fix
 ```
 
-When `assertions` **is** present, no default grader is added. To use an LLM grader alongside other graders, declare it explicitly. See [How criteria and assertions interact](/docs/evaluation/eval-cases/#how-criteria-and-assertions-interact).
+`expected_output` is passive reference data; it is available to graders but does
+not create an LLM grading call by itself. See [How reference fields and assertions interact](/docs/evaluation/eval-cases/#how-reference-fields-and-assertions-interact).
 
 ## Configuration
 
@@ -71,7 +74,7 @@ Score the response from 0.0 to 1.0 based on:
 | `output` | Candidate answer text |
 | `metadata` | Test metadata as formatted JSON |
 | `metadata_json` | Test metadata as compact JSON |
-| `rubrics` | LLM-grader rubric items as formatted JSON |
+| `g-eval` | LLM-grader rubric items as formatted JSON |
 | `rubrics_json` | LLM-grader rubric items as compact JSON |
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 | `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
@@ -99,7 +102,7 @@ tests:
       - name: dexter_semantic
         type: llm-grader
         prompt: file://prompts/dexter-grader.md
-        rubrics:
+        g-eval:
           - operator: correctness
             criteria: Uses the provided ticker and company.
 ```
@@ -196,9 +199,9 @@ preprocessors:
 
 tests:
   - id: spreadsheet-output
-    criteria: Output includes the revenue rows
     input: Generate the spreadsheet report
     assertions:
+      - Output includes the revenue rows
       - name: spreadsheet-check
         type: llm-grader
         prompt: |
@@ -214,8 +217,6 @@ Resolution order:
 - per-grader `preprocessors` override suite-level entries
 - if no preprocessor matches, AgentV falls back to a UTF-8 text read
 - if the fallback read looks binary or invalid, the grader receives a warning note instead of failing the test run
-
-The implicit default `llm-grader` also inherits suite-level `preprocessors`, so you can omit `assertions` and still preprocess file outputs before grading.
 
 See [`examples/features/preprocessors/`](../../../../examples/features/preprocessors/) for a runnable example with a file-producing target and a custom preprocessor script.
 

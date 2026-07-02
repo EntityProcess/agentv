@@ -32,6 +32,13 @@ import {
 } from '../graders.js';
 import { InlineAssertGrader } from '../graders/inline-assert.js';
 import { containsTemplateVariables, resolveCustomPrompt } from '../graders/prompt-resolution.js';
+import {
+  AssertSetGrader,
+  JavascriptAssertionGrader,
+  PythonAssertionGrader,
+  SimilarAssertionGrader,
+  WebhookAssertionGrader,
+} from '../graders/promptfoo-assertions.js';
 import { isAgentProvider } from '../providers/types.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryGraderConfig } from '../trace.js';
@@ -46,14 +53,20 @@ import type {
   EqualsGraderConfig,
   ExecutionMetricsGraderConfig,
   FieldAccuracyGraderConfig,
+  GEvalGraderConfig,
   GraderConfig,
   IcontainsAllGraderConfig,
   IcontainsAnyGraderConfig,
   IcontainsGraderConfig,
   IsJsonGraderConfig,
   LatencyGraderConfig,
+  LlmBackedGraderConfig,
   LlmGraderConfig,
+  LlmRubricGraderConfig,
   RegexGraderConfig,
+  ScriptAssertionGraderConfig,
+  ScriptGraderConfig,
+  SimilarGraderConfig,
   SkillTriggerGraderConfig,
   StartsWithGraderConfig,
   TokenUsageGraderConfig,
@@ -79,7 +92,7 @@ export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
  * - agentv provider: built-in AI SDK agent mode with filesystem tools
  */
 export const llmGraderFactory: GraderFactoryFn = (config, context) => {
-  const c = config as LlmGraderConfig;
+  const c = config as LlmBackedGraderConfig;
   const { llmGrader, graderProvider, targetResolver, agentTimeoutMs } = context;
 
   let evaluator = llmGrader;
@@ -111,7 +124,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
   }
 
   return {
-    kind: 'llm-grader',
+    kind: c.type,
     async evaluate(evalContext) {
       const customPrompt = await resolveCustomPrompt(
         c,
@@ -146,6 +159,9 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
 
       let graderTemplateOverride: string | undefined;
       let evalCase = evalContext.evalCase;
+      if (c.type === 'llm-rubric' && c.value && !customPrompt) {
+        evalCase = { ...evalCase, criteria: c.value };
+      }
       if (customPrompt) {
         if (!isFromInlinePrompt || containsTemplateVariables(customPrompt)) {
           graderTemplateOverride = customPrompt;
@@ -165,9 +181,15 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
   };
 };
 
-/** Factory for `code-grader` evaluators. */
+export const gEvalFactory: GraderFactoryFn = (config, context) =>
+  llmGraderFactory(config as GEvalGraderConfig, context);
+
+export const llmRubricFactory: GraderFactoryFn = (config, context) =>
+  llmGraderFactory(config as LlmRubricGraderConfig, context);
+
+/** Factory for subprocess-backed script evaluators. */
 export const codeFactory: GraderFactoryFn = (config, context) => {
-  const c = config as CodeGraderConfig;
+  const c = config as ScriptGraderConfig | CodeGraderConfig;
   return new CodeGrader({
     command: c.command,
     cwd: c.resolvedCwd ?? c.cwd,
@@ -175,6 +197,24 @@ export const codeFactory: GraderFactoryFn = (config, context) => {
     config: c.config,
     target: c.target,
   });
+};
+
+export const javascriptFactory: GraderFactoryFn = (config) =>
+  new JavascriptAssertionGrader(config as ScriptAssertionGraderConfig);
+
+export const pythonFactory: GraderFactoryFn = (config, context) =>
+  new PythonAssertionGrader(config as ScriptAssertionGraderConfig, context.agentTimeoutMs);
+
+export const webhookFactory: GraderFactoryFn = (config) =>
+  new WebhookAssertionGrader(config as ScriptAssertionGraderConfig);
+
+export const similarFactory: GraderFactoryFn = (config) =>
+  new SimilarAssertionGrader(config as SimilarGraderConfig);
+
+export const assertSetFactory: GraderFactoryFn = (config, context) => {
+  return new AssertSetGrader(config as import('../types.js').AssertSetGraderConfig, (child) =>
+    context.registry.create(child, context),
+  );
 };
 
 /** Factory for `composite` evaluators. */
@@ -407,7 +447,10 @@ export function createBuiltinRegistry(): GraderRegistry {
 
   registry
     .register('llm-grader', llmGraderFactory)
+    .register('g-eval', gEvalFactory)
+    .register('llm-rubric', llmRubricFactory)
     .register('code-grader', codeFactory)
+    .register('script', codeFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
     .register('field-accuracy', fieldAccuracyFactory)
@@ -416,6 +459,7 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('token-usage', tokenUsageFactory)
     .register('execution-metrics', executionMetricsFactory)
     .register('skill-trigger', skillTriggerFactory)
+    .register('assert-set', assertSetFactory)
     .register('contains', containsFactory)
     .register('contains-any', containsAnyFactory)
     .register('contains-all', containsAllFactory)
@@ -427,6 +471,10 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('regex', regexFactory)
     .register('is-json', isJsonFactory)
     .register('equals', equalsFactory)
+    .register('javascript', javascriptFactory)
+    .register('python', pythonFactory)
+    .register('webhook', webhookFactory)
+    .register('similar', similarFactory)
     .register('inline-assert', (config) => {
       // biome-ignore lint/suspicious/noExplicitAny: symbol key access requires any
       const fn = (config as any)[INLINE_ASSERT_FN] as

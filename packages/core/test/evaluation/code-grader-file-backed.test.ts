@@ -49,6 +49,30 @@ async function createScoringGrader(dir: string): Promise<readonly string[]> {
   return [process.execPath, script];
 }
 
+async function createPayloadShapeGrader(dir: string): Promise<readonly string[]> {
+  const script = join(dir, 'payload-shape-grader.js');
+  await writeFile(
+    script,
+    `const input = require('fs').readFileSync(0, 'utf8');
+const payload = JSON.parse(input);
+console.log(JSON.stringify({
+  score: payload.expected_output?.[0]?.content?.answer === 'Paris' &&
+    payload.config?.mode === 'strict' &&
+    payload.input?.[0]?.content === 'Test input' ? 1 : 0,
+  assertions: [{
+    text: 'structured stdin preserved',
+    passed: payload.expected_output?.[0]?.content?.answer === 'Paris' &&
+      payload.config?.mode === 'strict' &&
+      payload.input?.[0]?.content === 'Test input'
+  }],
+  details: { expected_output: payload.expected_output, config: payload.config, input: payload.input }
+}));
+`,
+    'utf8',
+  );
+  return [process.execPath, script];
+}
+
 describe('CodeGrader file-backed output', () => {
   let tmpDir: string;
 
@@ -112,5 +136,25 @@ describe('CodeGrader file-backed output', () => {
     // The echo grader returns parsed info about the payload
     // We can't inspect the payload directly, but the grader script should run without error
     expect(result.score).toBeGreaterThanOrEqual(0);
+  });
+
+  it('preserves structured expected_output, input, and config in stdin', async () => {
+    const command = await createPayloadShapeGrader(tmpDir);
+
+    const evaluator = new CodeGrader({ command, config: { mode: 'strict' } });
+    const result = await evaluator.evaluate({
+      evalCase: {
+        ...baseTestCase,
+        expected_output: [{ role: 'assistant', content: { answer: 'Paris' } }],
+      },
+      candidate: 'answer',
+      output: [{ role: 'assistant' as const, content: 'answer' }],
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.assertions).toEqual([{ text: 'structured stdin preserved', passed: true }]);
+    expect(result.details?.expected_output).toEqual([
+      { role: 'assistant', content: { answer: 'Paris' } },
+    ]);
   });
 });

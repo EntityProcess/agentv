@@ -32,7 +32,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
-| `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
+| `assertions` | Yes | Runs deterministic, LLM, composite, or script graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
 | `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and extension context; in-process custom assertions can also read it. |
 
@@ -74,7 +74,7 @@ Benchmark task packs map cleanly onto AgentV fields at authoring time:
 | Source checkout | `workspace.repos[].repo` and `workspace.repos[].commit` |
 | Per-case setup | `extensions: ["file://scripts/setup.mjs:beforeEach"]` reading `case_metadata` |
 | Gold answer | `expected_output` when the answer is passive reference data |
-| Active verification | `assertions`, especially `code-grader` for commands or artifact checks |
+| Active verification | `assertions`, especially `script` for commands or artifact checks |
 | Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
 | Bulky task files | Optional `tests: ./cases/` with per-case directories and supporting files |
 
@@ -113,7 +113,7 @@ extensions:
 
 assertions:
   - name: focused-tests
-    type: code-grader
+    type: script
     command: ["python", "./graders/run-focused-tests.py"]
     required: true
 
@@ -136,7 +136,7 @@ In this example, `workspace.repos[].commit` is the actual checkout. The
 matching `metadata.source_commit` is audit data that gets recorded with the case
 and is available to extensions. `apply-test-patch.mjs` can read
 `case_metadata.test_patch` and `case_metadata.fail_to_pass_tests`, then apply
-the patch and write the selected test list into the workspace. The code grader
+the patch and write the selected test list into the workspace. The script grader
 can read that workspace file through its `workspace_path` payload. Repo
 acquisition remains outside the eval; use registered projects or
 `git_cache.mirrors` when a local machine needs faster large-repo setup. See
@@ -167,7 +167,7 @@ target: codex
 
 assertions:
   - name: tests-pass
-    type: code-grader
+    type: script
     command: ["python", "./graders/run-tests.py"]
     required: true
 ```
@@ -220,7 +220,7 @@ letting a parent eval compare targets, repeat policy, and gates consistently.
 
 Generated datasets often need stable row provenance more than workspace setup.
 Keep the generated row identity in metadata, use `expected_output` for the gold
-answer, and score with rubrics or an LLM/code grader.
+answer, and score with rubrics or an LLM/script grader.
 
 ```yaml
 name: finance-research-generated
@@ -334,7 +334,7 @@ script.
 - Do not duplicate operational checkout state only in metadata. Put the real
   checkout under `workspace.repos`.
 - Keep `metadata` snake_case because it crosses process and result boundaries.
-- Prefer `expected_output` for passive gold answers and `code-grader` for active
+- Prefer `expected_output` for passive gold answers and `script` for active
   commands, file checks, or generated artifact validation.
 - Prefer case directories over long inline YAML only for bulky source inputs;
   the generated run folder remains the portable artifact contract.

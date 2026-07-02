@@ -20,7 +20,7 @@ assertions:
         type: llm-grader
         prompt: ./prompts/check1.md
       - name: evaluator_2
-        type: code-grader
+        type: script
         command: [uv, run, check2.py]
     aggregator:
       type: weighted_average
@@ -32,7 +32,7 @@ assertions:
 Each sub-grader runs independently, then the aggregator combines their results.
 Use `assertions` for composite members. `graders` is still accepted for backward compatibility.
 
-If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `code-grader`, `llm-grader`) or nested grader groups.
+If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `script`, `llm-grader`) or nested grader groups.
 
 ## Aggregator Types
 
@@ -100,7 +100,7 @@ Because this is an average, the final score is the fraction of passing children 
 
 ### OR Logic (Strict)
 
-For a strict OR, add a custom code-grader aggregator and return `1.0` when any child score passes.
+For a strict OR, add a custom script aggregator and return `1.0` when any child score passes.
 
 Composite aggregator execution accepts either a direct script path or a shell command.
 The `bun run` form is the recommended pattern:
@@ -110,7 +110,7 @@ assertions:
   - name: strict_or
     type: composite
     aggregator:
-      type: code-grader
+      type: script
       path: bun run ../scripts/or-aggregator.js
     assertions:
       - name: mentions-paris
@@ -138,13 +138,13 @@ console.log(
   );
 ```
 
-### Code Grader Aggregator
+### Script Grader Aggregator
 
 Run a custom command to decide the final score based on all grader results:
 
 ```yaml
 aggregator:
-  type: code-grader
+  type: script
   path: bun run ./scripts/safety-gate.js
   cwd: ./graders  # optional working directory
 ```
@@ -187,7 +187,7 @@ Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject 
 
 ### Safety Gate
 
-Block outputs that fail safety even if quality is high. A code grader aggregator can enforce hard gates:
+Block outputs that fail safety even if quality is high. A script grader aggregator can enforce hard gates:
 
 ```yaml
 tests:
@@ -207,7 +207,7 @@ tests:
             type: llm-grader
             prompt: ./prompts/quality-check.md
         aggregator:
-          type: code-grader
+          type: script
           path: ./scripts/safety-gate.js
 ```
 
@@ -225,7 +225,7 @@ Assign different importance to each evaluation dimension:
       type: llm-grader
       prompt: ./prompts/correctness.md
     - name: style
-      type: code-grader
+      type: script
       command: [uv, run, style_checker.py]
     - name: security
       type: llm-grader
@@ -313,7 +313,7 @@ Assertions from sub-graders are prefixed with the grader name (e.g., `[safety]`)
 ## Best Practices
 
 1. **Name graders clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
-2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code grader aggregator can enforce hard gates.
+2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A script grader aggregator can enforce hard gates.
 3. **Balance weights thoughtfully** -- consider which aspects matter most for your use case and assign weights accordingly.
 4. **Keep nesting shallow** -- deep nesting makes debugging harder. Two levels of composites is usually sufficient.
 5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite grader.

@@ -232,7 +232,7 @@ const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 /** Deprecated test-level fields with migration hints. */
 const DEPRECATED_TEST_FIELDS = new Map<string, string>([
   ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
-  ['expected_outcome', "'expected_outcome' is deprecated. Use 'criteria' instead."],
+  ['expected_outcome', "'expected_outcome' is deprecated. Use 'assert' instead."],
 ]);
 
 /** Name field pattern: lowercase alphanumeric with hyphens. */

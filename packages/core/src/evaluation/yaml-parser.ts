@@ -204,6 +204,7 @@ type RawTestSuite = JsonObject & {
   readonly default_test?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
+  readonly assert?: JsonValue;
   readonly preprocessors?: JsonValue;
   readonly extensions?: JsonValue;
   readonly on_run_complete?: JsonValue;
@@ -240,6 +241,7 @@ type RawEvalCase = JsonObject & {
   readonly run?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
+  readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
@@ -323,6 +325,9 @@ function interpolateRawEvalCase(
       : {}),
     ...(raw.expected_output !== undefined
       ? { expected_output: interpolateCaseField(raw.expected_output, vars, filters) }
+      : {}),
+    ...(raw.assert !== undefined
+      ? { assert: interpolateCaseField(raw.assert, vars, filters) }
       : {}),
     ...(raw.assertions !== undefined
       ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
@@ -624,7 +629,7 @@ async function loadTestsFromParsedYamlValue(
   const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
   const evalFileDir = path.dirname(absoluteTestPath);
 
-  const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm-grader';
+  const globalEvaluator = coerceEvaluator(suite.evaluator, 'global');
   const suitePreprocessors = await parsePreprocessors(
     suite.preprocessors,
     searchRoots,
@@ -679,9 +684,9 @@ async function loadTestsFromParsedYamlValue(
   readSuiteRuntimeBlock(suite, evalFilePath);
 
   // Build global execution context, including suite-level assertions (which is a sibling of execution)
-  const suiteAssertions = suite.assertions;
+  const suiteAssertions = suite.assert ?? suite.assertions;
   const globalExecution: JsonObject | undefined =
-    suiteAssertions !== undefined ? { assertions: suiteAssertions } : undefined;
+    suiteAssertions !== undefined ? { assert: suiteAssertions } : undefined;
 
   const results: EvalTest[] = [];
 
@@ -712,7 +717,7 @@ async function loadTestsFromParsedYamlValue(
         outcome = asString(renderedCase.expected_outcome);
         if (outcome) {
           logWarning(
-            `Test '${asString(renderedCase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+            `Test '${asString(renderedCase.id) ?? 'unknown'}': 'expected_outcome' has been removed. Use 'assert' instead.`,
           );
         }
       }
@@ -786,23 +791,42 @@ async function loadTestsFromParsedYamlValue(
           : undefined;
       const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
-      // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
+      const hasExplicitCaseGraders =
+        renderedCase.assert !== undefined ||
+        renderedCase.assertions !== undefined ||
+        renderedCase.evaluators !== undefined ||
+        renderedCase.rubrics !== undefined;
+      const hasExplicitRootGraders =
+        skipDefaults === true
+          ? false
+          : globalExecution?.assert !== undefined ||
+            globalExecution?.assertions !== undefined ||
+            globalExecution?.evaluators !== undefined;
+      const graderCase =
+        outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
+          ? ({ ...renderedCase, assert: [outcome] } satisfies RawEvalCase)
+          : renderedCase;
+
+      // A test is complete when it has id, input, and at least one of: criteria,
+      // expected_output, assertions, or turns (conversation mode). Legacy test-level
+      // criteria is desugared to a bare-string assert above so it uses the canonical
+      // g-eval path instead of the implicit default LLM grader.
       const hasEvaluationSpec =
         !!outcome ||
         expectedMessages.length > 0 ||
-        renderedCase.assertions !== undefined ||
+        graderCase.assertions !== undefined ||
+        graderCase.assert !== undefined ||
         (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
       const hasInputMessages =
         testInputMessages.length > 0 ||
         (effectiveSuiteInputMessages !== undefined && effectiveSuiteInputMessages.length > 0);
       if (!id || !hasEvaluationSpec || !hasInputMessages) {
         logError(
-          `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input or PROMPT.md, and at least one of criteria/expected_output/assertions/turns`,
+          `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input or PROMPT.md, and at least one of criteria/expected_output/assert/turns`,
         );
         continue;
       }
 
-      // Prepend suite-level input to test input (respecting skip_defaults)
       // expected_output is optional - for outcome-only evaluation
       const hasExpectedMessages = expectedMessages.length > 0;
 
@@ -870,7 +894,7 @@ async function loadTestsFromParsedYamlValue(
       let evaluators: Awaited<ReturnType<typeof parseGraders>>;
       try {
         evaluators = await parseGraders(
-          renderedCase,
+          graderCase,
           globalExecution,
           searchRoots,
           id ?? 'unknown',
@@ -884,7 +908,7 @@ async function loadTestsFromParsedYamlValue(
       }
 
       const assertionTemplateReferences = await collectAssertionTemplateSourceReferences(
-        renderedCase,
+        graderCase,
         globalExecution,
         searchRoots,
         id ?? 'unknown',
@@ -1891,10 +1915,10 @@ function collectSingleGraderSourceReferences(
 ): readonly EvalSourceReference[] {
   const references: EvalSourceReference[] = [];
 
-  if (evaluator.type === 'code-grader') {
+  if (evaluator.type === 'script' || evaluator.type === 'code-grader') {
     const command = evaluator.command ?? [];
     references.push({
-      kind: 'code_grader_command',
+      kind: 'script_grader_command',
       displayPath: evaluator.resolvedScriptPath ?? command.join(' '),
       ...(evaluator.resolvedScriptPath ? { resolvedPath: evaluator.resolvedScriptPath } : {}),
       graderName: evaluator.name,
@@ -1902,7 +1926,7 @@ function collectSingleGraderSourceReferences(
     });
     if (evaluator.resolvedCwd) {
       references.push({
-        kind: 'code_grader_cwd',
+        kind: 'script_grader_cwd',
         displayPath: evaluator.cwd ?? evaluator.resolvedCwd,
         resolvedPath: evaluator.resolvedCwd,
         graderName: evaluator.name,
@@ -1948,9 +1972,9 @@ function collectSingleGraderSourceReferences(
     for (const member of evaluator.assertions) {
       references.push(...collectSingleGraderSourceReferences(member));
     }
-    if (evaluator.aggregator.type === 'code-grader') {
+    if (evaluator.aggregator.type === 'script' || evaluator.aggregator.type === 'code-grader') {
       references.push({
-        kind: 'code_grader_command',
+        kind: 'script_grader_command',
         displayPath: evaluator.aggregator.path,
         resolvedPath: path.resolve(evaluator.aggregator.cwd ?? '', evaluator.aggregator.path),
         graderName: evaluator.name,

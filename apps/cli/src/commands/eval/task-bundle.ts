@@ -298,7 +298,7 @@ async function copyDirectory(sourcePath: string, destinationPath: string): Promi
 }
 
 function shouldCopyDirectory(reference: BundleSourceReference): boolean {
-  if (reference.kind !== 'code_grader_cwd') {
+  if (reference.kind !== 'script_grader_cwd' && reference.kind !== 'code_grader_cwd') {
     return true;
   }
   return !path.isAbsolute(reference.displayPath);

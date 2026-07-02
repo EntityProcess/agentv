@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 
 import { deriveCategory, loadTestSuite } from '@agentv/core';
-import type { CodeGraderConfig, GraderConfig, LlmGraderConfig } from '@agentv/core';
+import type { GraderConfig, LlmGraderConfig, ScriptGraderConfig } from '@agentv/core';
 import { command, number, oneOf, option, optional, positional, string } from 'cmd-ts';
 
 import { buildDefaultRunDir } from '../eval/result-layout.js';
@@ -439,14 +439,15 @@ async function writeGraderConfigs(
   let hasLlmGraders = false;
 
   for (const assertion of assertions) {
-    if (assertion.type === 'code-grader') {
+    if (assertion.type === 'script' || assertion.type === 'code-grader') {
       if (!hasCodeGraders) {
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;
       }
-      const config = assertion as CodeGraderConfig;
+      const config = assertion as ScriptGraderConfig;
       await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
+        type: 'script',
         command: config.command,
         cwd: config.resolvedCwd ?? config.cwd ?? evalDir,
         weight: config.weight ?? 1.0,

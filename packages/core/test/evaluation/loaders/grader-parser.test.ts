@@ -10,6 +10,7 @@ import type {
   CompositeGraderConfig,
   ContainsGraderConfig,
   EqualsGraderConfig,
+  GEvalGraderConfig,
   IsJsonGraderConfig,
   LatencyGraderConfig,
   LlmGraderConfig,
@@ -211,7 +212,7 @@ describe('parseGraders - deterministic assertion types', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses type: rubrics with criteria as llm-grader', async () => {
+  it('parses type: rubrics with criteria as g-eval', async () => {
     const evaluators = await parseGraders(
       {
         evaluators: [
@@ -227,8 +228,8 @@ describe('parseGraders - deterministic assertion types', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-grader');
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('g-eval');
+    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(1);
   });
 
   it('parses multiple assertion types in one evaluators array', async () => {
@@ -250,6 +251,75 @@ describe('parseGraders - deterministic assertion types', () => {
     expect(evaluators?.[1].type).toBe('regex');
     expect(evaluators?.[2].type).toBe('is-json');
     expect(evaluators?.[3].type).toBe('equals');
+  });
+
+  it('parses explicit g-eval criteria with score ranges', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            name: 'quality',
+            type: 'g-eval',
+            rubric_item: {
+              id: 'quality',
+              outcome: 'Answer quality',
+              min_score: 0.8,
+              score_ranges: [
+                { score_range: [0, 4], outcome: 'Weak' },
+                { score_range: [5, 7], outcome: 'Adequate' },
+                { score_range: [8, 10], outcome: 'Strong' },
+              ],
+            },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    const config = evaluators?.[0] as GEvalGraderConfig;
+    expect(config.type).toBe('g-eval');
+    expect(config.rubrics?.[0]).toMatchObject({
+      id: 'quality',
+      outcome: 'Answer quality',
+      min_score: 0.8,
+      score_ranges: [
+        { score_range: [0, 4], outcome: 'Weak' },
+        { score_range: [5, 7], outcome: 'Adequate' },
+        { score_range: [8, 10], outcome: 'Strong' },
+      ],
+    });
+  });
+
+  it('parses llm-rubric as free-form rubric text', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [{ name: 'freeform', type: 'llm-rubric', value: 'Judge whether it is helpful' }],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    expect(evaluators?.[0]).toMatchObject({
+      name: 'freeform',
+      type: 'llm-rubric',
+      value: 'Judge whether it is helpful',
+    });
+  });
+
+  it('rejects known unimplemented promptfoo assertion types', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [{ name: 'bleu', type: 'bleu', value: 'reference' }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow("Unsupported promptfoo assertion type 'bleu'");
   });
 });
 
@@ -447,7 +517,7 @@ describe('parseGraders - tool-trajectory', () => {
   });
 });
 
-describe('parseGraders - code-grader config pass-through', () => {
+describe('parseGraders - script config pass-through', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -466,7 +536,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'fuzzy-matcher',
-          type: 'code-grader',
+          type: 'script',
           command: ['bun', 'run', './test_script.ts'],
           fields: [
             { path: 'supplier.name', threshold: 0.85 },
@@ -482,7 +552,7 @@ describe('parseGraders - code-grader config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeGraderConfig;
-    expect(config.type).toBe('code-grader');
+    expect(config.type).toBe('script');
     expect(config.name).toBe('fuzzy-matcher');
     expect(config.config).toEqual({
       fields: [
@@ -499,7 +569,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'simple-grader',
-          type: 'code-grader',
+          type: 'script',
           command: ['bun', 'run', './test_script.ts'],
         },
       ],
@@ -509,7 +579,7 @@ describe('parseGraders - code-grader config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeGraderConfig;
-    expect(config.type).toBe('code-grader');
+    expect(config.type).toBe('script');
     expect(config.config).toBeUndefined();
   });
 
@@ -518,7 +588,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'with-weight',
-          type: 'code-grader',
+          type: 'script',
           command: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
@@ -550,7 +620,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'shell-command',
-          type: 'code-grader',
+          type: 'script',
           command: './test_script.ts',
         },
       ],
@@ -574,7 +644,7 @@ describe('parseGraders - code-grader config pass-through', () => {
           evaluators: [
             {
               name: 'legacy-script',
-              type: 'code-grader',
+              type: 'script',
               script: './test_script.ts',
             },
           ],
@@ -583,7 +653,7 @@ describe('parseGraders - code-grader config pass-through', () => {
         [tempDir],
         'test-case',
       ),
-    ).rejects.toThrow(/'script' has been removed.*command/);
+    ).rejects.toThrow(/'script' field has been removed.*command/);
   });
 });
 
@@ -609,7 +679,7 @@ describe('parseGraders - kebab-case type normalization', () => {
     expect((evaluators?.[0] as LlmGraderConfig).target).toBe('grader-low-cost-a');
   });
 
-  it('accepts code-grader kebab-case as canonical form', async () => {
+  it('normalizes legacy code-grader to script', async () => {
     const rawEvalCase = {
       evaluators: [
         {
@@ -623,7 +693,29 @@ describe('parseGraders - kebab-case type normalization', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('code-grader');
+    expect(evaluators?.[0].type).toBe('script');
+  });
+
+  it('accepts script as the subprocess grader type', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'subprocess-check',
+          type: 'script',
+          command: ['bun', 'run', './test_script.ts'],
+        },
+      ],
+    };
+
+    const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
+
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('script');
+    expect((evaluators?.[0] as CodeGraderConfig).command).toEqual([
+      'bun',
+      'run',
+      './test_script.ts',
+    ]);
   });
 
   it('accepts is-json kebab-case as canonical form', async () => {
@@ -1320,17 +1412,17 @@ describe('parseGraders - assertions field', () => {
     expect(evaluators?.[0].type).toBe('contains');
   });
 
-  it('ignores the removed assertion field as evaluator input', async () => {
-    const removedKey = ['ass', 'ert'].join('');
+  it('parses canonical assert field as evaluators', async () => {
     const evaluators = await parseGraders(
       {
-        [removedKey]: [{ type: 'contains', value: 'DENIED' }],
+        assert: [{ type: 'contains', value: 'DENIED' }],
       },
       undefined,
       [tempDir],
       'test-1',
     );
-    expect(evaluators).toBeUndefined();
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0].type).toBe('contains');
   });
 
   it('assertions takes precedence over execution.evaluators', async () => {
@@ -1347,6 +1439,23 @@ describe('parseGraders - assertions field', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('contains');
+  });
+
+  it('assert takes precedence over assertions and execution.evaluators', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [{ type: 'contains', value: 'CANONICAL' }],
+        assertions: [{ type: 'contains', value: 'LEGACY' }],
+        execution: {
+          evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+        },
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'CANONICAL' });
   });
 
   it('assertions takes precedence over top-level evaluators', async () => {
@@ -1406,6 +1515,22 @@ describe('parseGraders - assertions field', () => {
     expect(evaluators?.[0].type).toBe('latency');
   });
 
+  it('falls back to execution.assert when case-level assertions are not present', async () => {
+    const evaluators = await parseGraders(
+      {
+        execution: {
+          assert: [{ type: 'contains', value: 'EXEC' }],
+          evaluators: [{ name: 'latency-check', type: 'latency', threshold: 5000 }],
+        },
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'EXEC' });
+  });
+
   it('suite-level assertions takes precedence over suite-level execution.evaluators', async () => {
     const evaluators = await parseGraders(
       {},
@@ -1431,6 +1556,20 @@ describe('parseGraders - assertions field', () => {
     );
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('latency');
+  });
+
+  it('suite-level assert takes precedence over suite-level assertions', async () => {
+    const evaluators = await parseGraders(
+      {},
+      {
+        assert: [{ type: 'contains', value: 'CANONICAL' }],
+        assertions: [{ type: 'contains', value: 'LEGACY' }],
+      },
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    expect(evaluators?.[0]).toMatchObject({ type: 'contains', value: 'CANONICAL' });
   });
 });
 
@@ -1660,9 +1799,9 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-grader');
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics).toHaveLength(2);
-    expect((evaluators?.[0] as LlmGraderConfig).weight).toBe(4.0);
+    expect(evaluators?.[0].type).toBe('g-eval');
+    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as GEvalGraderConfig).weight).toBe(4.0);
   });
 
   it('preserves optional rubric criterion operators', async () => {
@@ -1831,9 +1970,9 @@ describe('parseGraders - type: rubrics with criteria', () => {
     );
 
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as LlmGraderConfig;
+    const config = evaluators?.[0] as GEvalGraderConfig;
     expect(config.name).toBe('rubrics');
-    expect(config.type).toBe('llm-grader');
+    expect(config.type).toBe('g-eval');
     expect(config.rubrics?.[0]?.min_score).toBe(0.8);
     expect(config.rubrics?.[0]?.score_ranges).toEqual([
       { score_range: [0, 4], outcome: 'Weak' },
@@ -1934,13 +2073,13 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on code-grader evaluator', async () => {
+  it('parses required on script evaluator', async () => {
     const evaluators = await parseGraders(
       {
         evaluators: [
           {
             name: 'code-check',
-            type: 'code-grader',
+            type: 'script',
             command: ['bun', 'run', './test_script.ts'],
             required: true,
           },
@@ -2059,6 +2198,31 @@ describe('parseGraders - composite assertions field', () => {
     expect(evaluators?.[0].type).toBe('composite');
   });
 
+  it('parses composite with canonical assert field', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            name: 'combined',
+            type: 'composite',
+            assert: [
+              { name: 'safety', type: 'llm-grader', prompt: './safety.md' },
+              { name: 'quality', type: 'llm-grader', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const composite = evaluators?.[0] as CompositeGraderConfig;
+    expect(composite.type).toBe('composite');
+    expect(composite.assertions).toHaveLength(2);
+  });
+
   it('composite still works with evaluators field (backward compat)', async () => {
     const evaluators = await parseGraders(
       {
@@ -2105,6 +2269,30 @@ describe('parseGraders - composite assertions field', () => {
     expect(composite.assertions).toHaveLength(1);
     expect(composite.assertions[0].name).toBe('safety');
   });
+
+  it('composite assert takes precedence over assertions and evaluators', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            name: 'combined',
+            type: 'composite',
+            assert: [{ name: 'safety', type: 'llm-grader', prompt: './safety.md' }],
+            assertions: [{ name: 'legacy', type: 'llm-grader', prompt: './quality.md' }],
+            evaluators: [{ name: 'quality', type: 'llm-grader', prompt: './quality.md' }],
+            aggregator: { type: 'weighted_average' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+    expect(evaluators).toHaveLength(1);
+    const composite = evaluators?.[0] as CompositeGraderConfig;
+    expect(composite.assertions).toHaveLength(1);
+    expect(composite.assertions[0].name).toBe('safety');
+  });
 });
 
 describe('parseGraders - string shorthand in assertions', () => {
@@ -2124,13 +2312,13 @@ describe('parseGraders - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(1);
     const rubrics = evaluators?.[0];
-    expect(rubrics?.type).toBe('llm-grader');
-    expect((rubrics as LlmGraderConfig).rubrics).toHaveLength(3);
-    expect((rubrics as LlmGraderConfig).rubrics?.[0].outcome).toBe(
+    expect(rubrics?.type).toBe('g-eval');
+    expect((rubrics as GEvalGraderConfig).rubrics).toHaveLength(3);
+    expect((rubrics as GEvalGraderConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
     );
-    expect((rubrics as LlmGraderConfig).rubrics?.[1].outcome).toBe('Explains partition step');
-    expect((rubrics as LlmGraderConfig).rubrics?.[2].outcome).toBe('States time complexity');
+    expect((rubrics as GEvalGraderConfig).rubrics?.[1].outcome).toBe('Explains partition step');
+    expect((rubrics as GEvalGraderConfig).rubrics?.[2].outcome).toBe('States time complexity');
   });
 
   it('groups strings into rubrics and preserves object evaluators', async () => {
@@ -2149,9 +2337,9 @@ describe('parseGraders - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(2);
     // First: rubrics (at position of first string)
-    expect(evaluators?.[0].type).toBe('llm-grader');
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics).toHaveLength(2);
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics?.[0].outcome).toBe(
+    expect(evaluators?.[0].type).toBe('g-eval');
+    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as GEvalGraderConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
     );
     // Second: the contains evaluator
@@ -2170,9 +2358,9 @@ describe('parseGraders - string shorthand in assertions', () => {
     );
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('llm-grader');
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics).toHaveLength(1);
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics?.[0].outcome).toBe(
+    expect(evaluators?.[0].type).toBe('g-eval');
+    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(1);
+    expect((evaluators?.[0] as GEvalGraderConfig).rubrics?.[0].outcome).toBe(
       'Response must be polite',
     );
   });
@@ -2208,8 +2396,8 @@ describe('parseGraders - string shorthand in assertions', () => {
     );
 
     expect(evaluators).toHaveLength(2);
-    const rubrics = evaluators?.[0] as LlmGraderConfig;
-    expect(rubrics.type).toBe('llm-grader');
+    const rubrics = evaluators?.[0] as GEvalGraderConfig;
+    expect(rubrics.type).toBe('g-eval');
     expect(rubrics.rubrics).toHaveLength(3);
     expect(rubrics.weight).toBe(3);
     expect(evaluators?.[1].type).toBe('contains');

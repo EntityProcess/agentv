@@ -50,12 +50,14 @@ type RawJsonlEvalCase = JsonObject & {
   readonly id?: JsonValue;
   readonly conversation_id?: JsonValue;
   readonly criteria?: JsonValue;
-  /** @deprecated Use `criteria` instead */
+  /** @deprecated Use `assert` instead */
   readonly expected_outcome?: JsonValue;
   readonly input?: JsonValue;
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
+  readonly assert?: JsonValue;
+  readonly assertions?: JsonValue;
   readonly rubrics?: JsonValue;
 };
 
@@ -167,7 +169,7 @@ export async function loadTestsFromJsonl(
     sidecar.name && sidecar.name.trim().length > 0 ? sidecar.name : fallbackSuiteName;
 
   // Global defaults from sidecar
-  const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar') ?? 'llm-grader';
+  const globalEvaluator = coerceEvaluator(sidecar.evaluator, 'sidecar');
   const globalExecution = sidecar.execution;
 
   if (verbose) {
@@ -197,7 +199,7 @@ export async function loadTestsFromJsonl(
       outcome = asString(testCaseConfig.expected_outcome);
       if (outcome) {
         logWarning(
-          `Test '${asString(testCaseConfig.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          `Test '${asString(testCaseConfig.id) ?? 'unknown'}': 'expected_outcome' has been removed. Use 'assert' instead.`,
         );
       }
     }
@@ -207,12 +209,37 @@ export async function loadTestsFromJsonl(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
-    // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
+    const hasExplicitCaseGraders =
+      testCaseConfig.assert !== undefined ||
+      testCaseConfig.assertions !== undefined ||
+      testCaseConfig.evaluators !== undefined ||
+      testCaseConfig.rubrics !== undefined;
+    const executionObject = isJsonObject(testCaseConfig.execution)
+      ? testCaseConfig.execution
+      : undefined;
+    const hasExplicitRootGraders =
+      executionObject?.skip_defaults === true
+        ? false
+        : globalExecution?.assert !== undefined ||
+          globalExecution?.assertions !== undefined ||
+          globalExecution?.evaluators !== undefined;
+    const graderCase =
+      outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
+        ? ({ ...testCaseConfig, assert: [outcome] } satisfies RawJsonlEvalCase)
+        : testCaseConfig;
+
+    // A test is complete when it has id, input, and at least one of: criteria,
+    // expected_output, or assertions. Legacy test-level criteria is desugared to a
+    // bare-string assert above so it uses the canonical g-eval path instead of the
+    // implicit default LLM grader.
     const hasEvaluationSpec =
-      !!outcome || expectedMessages.length > 0 || testCaseConfig.assertions !== undefined;
+      !!outcome ||
+      expectedMessages.length > 0 ||
+      graderCase.assert !== undefined ||
+      graderCase.assertions !== undefined;
     if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
-        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,
+        `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
       );
       continue;
     }
@@ -276,12 +303,7 @@ export async function loadTestsFromJsonl(
     const testCaseEvaluatorKind = coerceEvaluator(testCaseConfig.evaluator, id) ?? globalEvaluator;
     let evaluators: Awaited<ReturnType<typeof parseGraders>>;
     try {
-      evaluators = await parseGraders(
-        testCaseConfig,
-        mergedExecution,
-        searchRoots,
-        id ?? 'unknown',
-      );
+      evaluators = await parseGraders(graderCase, mergedExecution, searchRoots, id ?? 'unknown');
     } catch (error) {
       // Skip entire test if evaluator validation fails
       const message = error instanceof Error ? error.message : String(error);

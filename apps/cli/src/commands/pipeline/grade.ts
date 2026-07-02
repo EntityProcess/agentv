@@ -107,6 +107,7 @@ export async function runCodeGraders(
   const executeCodeGrader = async (graderConfig: Record<string, unknown>, task: GraderTask) => {
     const { testId, resultsDir, responseText, inputData } = task;
     const graderName = graderConfig.name as string;
+    const graderType = typeof graderConfig.type === 'string' ? graderConfig.type : 'script';
     const messages = [{ role: 'assistant' as const, content: responseText }];
     const trace = buildTraceFromMessages({
       input: inputData.input,
@@ -157,7 +158,7 @@ export async function runCodeGraders(
 
       await writeFile(
         join(resultsDir, `${graderName}.json`),
-        `${JSON.stringify({ name: graderName, type: 'code-grader', score, weight: graderConfig.weight ?? 1.0, assertions, details: parsed.details ?? {} }, null, 2)}\n`,
+        `${JSON.stringify({ name: graderName, type: graderType, score, weight: graderConfig.weight ?? 1.0, assertions, details: parsed.details ?? {} }, null, 2)}\n`,
         'utf8',
       );
     } catch (error) {
@@ -167,7 +168,7 @@ export async function runCodeGraders(
 
       await writeFile(
         join(resultsDir, `${graderName}.json`),
-        `${JSON.stringify({ name: graderName, type: 'code-grader', score: 0, weight: graderConfig.weight ?? 1.0, assertions: [{ text: `Error: ${message}`, passed: false }], details: { error: message } }, null, 2)}\n`,
+        `${JSON.stringify({ name: graderName, type: graderType, score: 0, weight: graderConfig.weight ?? 1.0, assertions: [{ text: `Error: ${message}`, passed: false }], details: { error: message } }, null, 2)}\n`,
         'utf8',
       );
     }

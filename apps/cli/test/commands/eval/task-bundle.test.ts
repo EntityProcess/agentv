@@ -72,7 +72,7 @@ describe('materializeTaskBundle', () => {
             graderName: 'quality',
           },
           {
-            kind: 'code_grader_command',
+            kind: 'script_grader_command',
             displayPath: scriptPath,
             resolvedPath: scriptPath,
             graderName: 'quality',
