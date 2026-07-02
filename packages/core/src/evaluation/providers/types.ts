@@ -252,9 +252,6 @@ export interface Message {
   readonly tokenUsage?: ProviderTokenUsage;
 }
 
-/** @deprecated Use Message instead */
-export type OutputMessage = Message;
-
 /**
  * Token usage metrics reported by provider.
  */

@@ -182,7 +182,6 @@ export {
 } from './config-overlays.js';
 export {
   getAgentvConfigDir,
-  getAgentvHome,
   getAgentvDataDir,
   getWorkspacesRoot,
   getSubagentsRoot,

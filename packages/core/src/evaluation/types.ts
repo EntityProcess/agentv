@@ -1035,9 +1035,6 @@ export interface DependencyResult {
   readonly status: 'passed' | 'failed' | 'error';
 }
 
-/** @deprecated Use `EvalTest` instead */
-export type EvalCase = EvalTest;
-
 /**
  * Supported repeat aggregation strategies.
  */

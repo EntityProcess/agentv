@@ -298,7 +298,7 @@ describe('validateConfigFile', () => {
     );
   });
 
-  it('warns on deprecated results_by_project', async () => {
+  it('treats removed results_by_project as an unexpected field', async () => {
     const filePath = path.join(tempDir, 'deprecated-results-by-project.yaml');
     await writeFile(
       filePath,
@@ -315,7 +315,7 @@ describe('validateConfigFile', () => {
     expect(result.errors).toContainEqual(
       expect.objectContaining({
         severity: 'warning',
-        location: 'results_by_project',
+        message: 'Unexpected fields: results_by_project',
       }),
     );
   });

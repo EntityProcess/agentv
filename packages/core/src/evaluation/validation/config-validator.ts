@@ -99,16 +99,6 @@ export async function validateConfigFile(
       }
     }
 
-    if (config.results_by_project !== undefined) {
-      errors.push({
-        severity: 'warning',
-        filePath,
-        location: 'results_by_project',
-        message:
-          "Field 'results_by_project' is deprecated. Put per-project result repo settings under projects[].results in $AGENTV_HOME/config.yaml.",
-      });
-    }
-
     const allowedFields = new Set([
       '$schema',
       'eval_patterns',
@@ -117,7 +107,6 @@ export async function validateConfigFile(
       'results',
       'repo_resolvers',
       'projects',
-      'results_by_project',
       'dashboard',
       'studio',
     ]);

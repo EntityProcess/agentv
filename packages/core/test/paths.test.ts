@@ -5,7 +5,6 @@ import path from 'node:path';
 import {
   getAgentvConfigDir,
   getAgentvDataDir,
-  getAgentvHome,
   getSubagentsRoot,
   getTraceStateRoot,
   getWorkspacePoolRoot,
@@ -36,7 +35,6 @@ describe('paths', () => {
 
   it('returns ~/.agentv when AGENTV_HOME is not set', () => {
     expect(getAgentvConfigDir()).toBe(path.join(os.homedir(), '.agentv'));
-    expect(getAgentvHome()).toBe(path.join(os.homedir(), '.agentv'));
   });
 
   it('treats the string "undefined" as unset', () => {
@@ -49,7 +47,6 @@ describe('paths', () => {
   it('uses AGENTV_HOME as the lightweight config/home directory', () => {
     process.env.AGENTV_HOME = '/custom/agentv-home';
     expect(getAgentvConfigDir()).toBe('/custom/agentv-home');
-    expect(getAgentvHome()).toBe('/custom/agentv-home');
   });
 
   it('defaults heavy data to the config/home directory', () => {

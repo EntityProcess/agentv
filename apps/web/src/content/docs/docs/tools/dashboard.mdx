@@ -314,7 +314,7 @@ results:
   auto_push: false
 ```
 
-Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
+Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. Put per-project results settings in `projects[].results` in `$AGENTV_HOME/config.yaml`.
 
 The project `repo` and the `results` block sync different repositories:
 
