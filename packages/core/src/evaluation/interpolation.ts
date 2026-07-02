@@ -80,6 +80,10 @@ function renderEnvString(template: string, env: EnvLookup): string {
   return template.replace(ENV_OUTPUT_PATTERN, (match) => renderString(match, { env }));
 }
 
+export function renderEnvTemplateString(template: string, env: EnvLookup): string {
+  return renderEnvString(template, env);
+}
+
 /**
  * Recursively render config-load `{{ env.VAR }}` templates in string values.
  *

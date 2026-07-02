@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { z } from 'zod';
 
+import { renderEnvTemplateString } from '../interpolation.js';
 import type { EnvLookup, TargetDefinition } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -819,6 +820,7 @@ export const COMMON_TARGET_SETTINGS = [
 ] as const;
 
 const USE_TARGET_ENV_PATTERN = /^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i;
+const WHOLE_ENV_TEMPLATE_PATTERN = /^\s*\{\{\s*env\.[\s\S]*?\}\}\s*$/;
 
 const BASE_TARGET_SCHEMA = z
   .object({
@@ -2336,6 +2338,23 @@ function resolveOptionalString(
       throw new Error(`Environment variable '${varName}' required for ${description} ${status}`);
     }
     return envValue;
+  }
+
+  if (trimmed.includes('{{') && trimmed.includes('env.')) {
+    const allowLiteral = options?.allowLiteral ?? false;
+    if (!allowLiteral && !WHOLE_ENV_TEMPLATE_PATTERN.test(trimmed)) {
+      throw new Error(
+        `${description} must use a whole \${{ VARIABLE_NAME }} or {{ env.VARIABLE_NAME }} reference`,
+      );
+    }
+    const rendered = renderEnvTemplateString(trimmed, env).trim();
+    if (rendered.length === 0) {
+      if (options?.optionalEnv ?? false) {
+        return undefined;
+      }
+      throw new Error(`${description} env template resolved to an empty value`);
+    }
+    return rendered;
   }
 
   // Return as literal value
