@@ -79,6 +79,7 @@ import type {
   TrialsConfig,
 } from './types.js';
 import { cleanupEvalWorkspaces, cleanupWorkspace } from './workspace/manager.js';
+import type { PoolSlot } from './workspace/pool-manager.js';
 import type { RepoManager } from './workspace/repo-manager.js';
 import {
   type ScriptExecutionContext,
@@ -996,6 +997,11 @@ export async function runEvaluation(
     let nextWorkerId = 1;
     const workerIdByEvalId = new Map<string, number>();
     let beforeAllOutputAttached = false;
+    const unavailablePoolSlotPaths = new Set<string>();
+    const poolSlotWaiters: Array<(slot: PoolSlot | undefined) => void> = [];
+    if (poolSlot && availablePoolSlots.length === 0) {
+      availablePoolSlots.push(poolSlot);
+    }
 
     // Suite-level budget tracking
     let cumulativeBudgetCost = 0;
@@ -1057,6 +1063,97 @@ export async function runEvaluation(
         }
       }
       return { ok: allPassed, depResults };
+    }
+
+    function acquirePoolSlot(): Promise<PoolSlot | undefined> {
+      while (availablePoolSlots.length > 0) {
+        const candidate = availablePoolSlots.pop();
+        if (candidate && !unavailablePoolSlotPaths.has(candidate.path)) {
+          return Promise.resolve(candidate);
+        }
+      }
+
+      if (unavailablePoolSlotPaths.size >= poolSlots.length) {
+        return Promise.resolve(undefined);
+      }
+
+      return new Promise((resolve) => {
+        poolSlotWaiters.push(resolve);
+      });
+    }
+
+    function returnPoolSlot(slot: PoolSlot): void {
+      if (unavailablePoolSlotPaths.has(slot.path)) {
+        return;
+      }
+      const waiter = poolSlotWaiters.shift();
+      if (waiter) {
+        waiter(slot);
+      } else {
+        availablePoolSlots.push(slot);
+      }
+    }
+
+    function markPoolSlotUnavailable(slot: PoolSlot): void {
+      unavailablePoolSlotPaths.add(slot.path);
+      if (unavailablePoolSlotPaths.size >= poolSlots.length) {
+        while (poolSlotWaiters.length > 0) {
+          poolSlotWaiters.shift()?.(undefined);
+        }
+      }
+    }
+
+    async function emitSetupErrorResult(
+      evalCase: EvalTest,
+      workerId: number,
+      message: string,
+      failureReasonCode: string,
+    ): Promise<EvaluationResult> {
+      if (failOnError === true) {
+        failOnErrorTriggered = true;
+      }
+      const output = `Error occurred: ${message}`;
+      const result: EvaluationResult = {
+        timestamp: (now ?? (() => new Date()))().toISOString(),
+        testId: authoredResultTestId(evalCase),
+        suite: evalCase.suite,
+        category: evalCase.category,
+        prompt: evalCase.prompt,
+        score: 0,
+        assertions: [{ text: `Error: ${message}`, passed: false }],
+        output,
+        trace: buildTraceFromMessages({
+          input: evalCase.input as readonly Message[],
+          output: [{ role: 'assistant' as const, content: output }],
+          finalOutput: output,
+          target: target.name,
+          testId: authoredResultTestId(evalCase),
+          conversationId: evalCase.conversation_id,
+          error: message,
+        }),
+        target: target.name,
+        error: message,
+        executionStatus: 'execution_error',
+        failureStage: 'setup',
+        failureReasonCode,
+        executionError: { message, stage: 'setup' },
+      };
+
+      if (onProgress) {
+        await onProgress({
+          workerId,
+          testId: evalCase.id,
+          status: 'failed',
+          completedAt: Date.now(),
+          error: result.error,
+          score: result.score,
+          executionStatus: result.executionStatus,
+        });
+      }
+      if (onResult) {
+        await onResult(result);
+      }
+      return result;
     }
 
     function extractEvaluationCostUsd(result: EvaluationResult): number | undefined {
@@ -1236,14 +1333,20 @@ export async function runEvaluation(
       // Per-case isolated cases and raw/no-workspace cases outside the selected
       // shared owner prepare without inheriting a child suite's workspace.
       const usesSharedWorkspace = caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
-      const testPoolSlot =
-        usesSharedWorkspace && availablePoolSlots.length > 0
-          ? availablePoolSlots.pop()
-          : usesSharedWorkspace
-            ? poolSlot
-            : undefined;
+      const pooledWorkspaceRequired = usesSharedWorkspace && poolSlots.length > 0;
+      const testPoolSlot = pooledWorkspaceRequired ? await acquirePoolSlot() : undefined;
+      if (pooledWorkspaceRequired && !testPoolSlot) {
+        return emitSetupErrorResult(
+          evalCase,
+          workerId,
+          'No clean pooled workspace slot is available; prior slot reset failed.',
+          'workspace_pool_unavailable',
+        );
+      }
       const testWorkspacePath = usesSharedWorkspace
-        ? (testPoolSlot?.path ?? sharedWorkspacePath)
+        ? pooledWorkspaceRequired
+          ? testPoolSlot?.path
+          : sharedWorkspacePath
         : undefined;
       const testBaselineCommit = usesSharedWorkspace
         ? testPoolSlot
@@ -1365,7 +1468,6 @@ export async function runEvaluation(
         // the per-slot baseline. Pooling is a local performance optimization,
         // not shared state between eval cases.
         if (testPoolSlot) {
-          const shouldReturnPoolSlot = testPoolSlot !== poolSlot;
           const resetMode = workspaceClean === 'full' ? 'strict' : 'fast';
           let resetSucceeded = true;
           try {
@@ -1375,6 +1477,7 @@ export async function runEvaluation(
             await resetWorkspaceRoot(testPoolSlot.path, resetMode, testBaselineCommit);
           } catch (resetError) {
             resetSucceeded = false;
+            markPoolSlotUnavailable(testPoolSlot);
             if (verbose) {
               const message = resetError instanceof Error ? resetError.message : String(resetError);
               console.warn(
@@ -1382,8 +1485,8 @@ export async function runEvaluation(
               );
             }
           }
-          if (resetSucceeded && shouldReturnPoolSlot) {
-            availablePoolSlots.push(testPoolSlot);
+          if (resetSucceeded) {
+            returnPoolSlot(testPoolSlot);
           }
         }
       }

@@ -773,6 +773,151 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     }
   }, 30_000);
 
+  it('does not reuse a single pooled workspace slot after reset failure', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-pooled-runner-reset-fail-'));
+    const previousAgentvHome = process.env.AGENTV_HOME;
+    const previousAgentvDataDir = process.env.AGENTV_DATA_DIR;
+    process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+    process.env.AGENTV_DATA_DIR = path.join(tempDir, 'agentv-data');
+
+    try {
+      const sourceRepo = path.join(tempDir, 'source-repo');
+      const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
+      const workspace = {
+        repos: [
+          {
+            path: './repo-a',
+            repo: `file://${sourceRepo}`,
+            commit: cleanCommit,
+          },
+        ],
+      };
+      let providerCalls = 0;
+      const provider: Provider = {
+        id: 'mock:single-slot-reset-failure',
+        kind: 'mock' as const,
+        targetName: 'single-slot-reset-failure',
+        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+          providerCalls += 1;
+          if (!request.cwd) {
+            throw new Error('missing cwd');
+          }
+          const repoDir = path.join(request.cwd, 'repo-a');
+          writeFileSync(path.join(repoDir, 'tracked.txt'), 'dirty\n');
+          rmSync(path.join(repoDir, '.git'), { recursive: true, force: true });
+          return { output: [{ role: 'assistant', content: `response ${providerCalls}` }] };
+        },
+      };
+
+      const results = await runEvaluation({
+        testFilePath: path.join(tempDir, 'eval.yaml'),
+        repoRoot: tempDir,
+        target: { ...baseTarget, name: 'single-slot-reset-failure' },
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        workspaceMode: 'pooled',
+        maxConcurrency: 1,
+        evalCases: [
+          { ...baseTestCase, id: 'case-1', workspace },
+          { ...baseTestCase, id: 'case-2', workspace },
+        ],
+      });
+
+      expect(providerCalls).toBe(1);
+      expect(results).toHaveLength(2);
+      expect(results[0].executionStatus).toBe('ok');
+      expect(results[1].executionStatus).toBe('execution_error');
+      expect(results[1].failureReasonCode).toBe('workspace_pool_unavailable');
+      expect(results[1].error).toContain('No clean pooled workspace slot is available');
+    } finally {
+      if (previousAgentvHome === undefined) {
+        process.env.AGENTV_HOME = undefined;
+      } else {
+        process.env.AGENTV_HOME = previousAgentvHome;
+      }
+      if (previousAgentvDataDir === undefined) {
+        process.env.AGENTV_DATA_DIR = undefined;
+      } else {
+        process.env.AGENTV_DATA_DIR = previousAgentvDataDir;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('fails later pooled workspace cases after all multi-slot resets fail', async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-pooled-runner-exhausted-'));
+    const previousAgentvHome = process.env.AGENTV_HOME;
+    const previousAgentvDataDir = process.env.AGENTV_DATA_DIR;
+    process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
+    process.env.AGENTV_DATA_DIR = path.join(tempDir, 'agentv-data');
+
+    try {
+      const sourceRepo = path.join(tempDir, 'source-repo');
+      const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
+      const workspace = {
+        repos: [
+          {
+            path: './repo-a',
+            repo: `file://${sourceRepo}`,
+            commit: cleanCommit,
+          },
+        ],
+      };
+      let providerCalls = 0;
+      const provider: Provider = {
+        id: 'mock:multi-slot-reset-failure',
+        kind: 'mock' as const,
+        targetName: 'multi-slot-reset-failure',
+        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
+          providerCalls += 1;
+          if (!request.cwd) {
+            throw new Error('missing cwd');
+          }
+          const repoDir = path.join(request.cwd, 'repo-a');
+          writeFileSync(path.join(repoDir, 'tracked.txt'), 'dirty\n');
+          rmSync(path.join(repoDir, '.git'), { recursive: true, force: true });
+          return { output: [{ role: 'assistant', content: `response ${providerCalls}` }] };
+        },
+      };
+
+      const results = await runEvaluation({
+        testFilePath: path.join(tempDir, 'eval.yaml'),
+        repoRoot: tempDir,
+        target: { ...baseTarget, name: 'multi-slot-reset-failure' },
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        workspaceMode: 'pooled',
+        maxConcurrency: 2,
+        configPoolMaxSlots: 2,
+        evalCases: [
+          { ...baseTestCase, id: 'case-1', workspace },
+          { ...baseTestCase, id: 'case-2', workspace },
+          { ...baseTestCase, id: 'case-3', workspace },
+        ],
+      });
+
+      expect(providerCalls).toBe(2);
+      expect(results).toHaveLength(3);
+      expect(results[0].executionStatus).toBe('ok');
+      expect(results[1].executionStatus).toBe('ok');
+      expect(results[2].executionStatus).toBe('execution_error');
+      expect(results[2].failureReasonCode).toBe('workspace_pool_unavailable');
+      expect(results[2].error).toContain('No clean pooled workspace slot is available');
+    } finally {
+      if (previousAgentvHome === undefined) {
+        process.env.AGENTV_HOME = undefined;
+      } else {
+        process.env.AGENTV_HOME = previousAgentvHome;
+      }
+      if (previousAgentvDataDir === undefined) {
+        process.env.AGENTV_DATA_DIR = undefined;
+      } else {
+        process.env.AGENTV_DATA_DIR = previousAgentvDataDir;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('applies exponential backoff between retries', async () => {
     const provider = new SequenceProvider('mock', {
       errors: [new Error('Transient failure')],
