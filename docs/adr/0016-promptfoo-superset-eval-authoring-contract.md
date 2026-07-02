@@ -59,7 +59,7 @@ keep AgentV's only where its semantics are genuinely better.**
    (Dashboard keys comparison on this); display label = `description` → vars → `Test #n`.
 9. **Keep AgentV where better**: `repeat: { count, strategy, early_exit }` (map promptfoo
    `repeat:int` → `count`+`pass_all`); executable `gate` release policy (alongside per-test
-   `threshold`); `imports`/`select`; `depends_on`. `experiment` is authored as `tags.experiment` — a reserved-by-convention **tag**, not a separate bucket/field/storage path (only the Dashboard's default compare key; ADR-0017).
+   `threshold`); `imports`/`select`; `depends_on`. `experiment` is authored as `tags.experiment` — a **plain tag with no privilege** (not a bucket/field/storage path, not even a default grouping key); `--experiment X` is sugar for `--tag experiment=X`; tag keys sort alphabetically and the default compare key is a user preference (ADR-0017).
 10. **Workspace repo provisioning is a declarative FIELD, not an extension.**
     `workspace.repos: [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]` is
     declared per-test (overridable) / at suite level, and the **harness materializes it
