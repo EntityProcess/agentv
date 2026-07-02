@@ -1015,7 +1015,7 @@ function artifactFileContentResponse(c: C, filePath: string, fileContent: string
 
 function missingTranscriptMessage(): string {
   return [
-    'This result does not include canonical transcript.jsonl metadata.',
+    'This result does not include canonical transcript.json metadata.',
     'Dashboard does not parse response.md or markdown transcripts for this view.',
   ].join(' ');
 }
@@ -1063,7 +1063,7 @@ function traceSessionArtifactResponse(
 function missingTraceMessage(): string {
   return [
     'This result does not include legacy trace artifact metadata.',
-    'Dashboard transcript inspection uses transcript.jsonl for current run bundles.',
+    'Dashboard transcript inspection uses transcript.json for current run bundles.',
   ].join(' ');
 }
 
@@ -1155,13 +1155,17 @@ function buildRepeatTrialReadModels(
     const metricsPath = caseTrialArtifactPath(resultDir, runPath, 'metrics.json');
     const timingPath = caseTrialArtifactPath(resultDir, runPath, 'timing.json');
     const gradingPath = caseTrialArtifactPath(resultDir, runPath, 'grading.json');
-    const transcriptPath = caseTrialArtifactPath(resultDir, runPath, 'transcript.jsonl');
+    const transcriptPath = caseTrialArtifactPath(resultDir, runPath, 'transcript.json');
     const transcriptRawPath = caseTrialArtifactPath(resultDir, runPath, 'transcript-raw.jsonl');
     const answerPath = caseTrialArtifactPath(resultDir, runPath, 'outputs/answer.md');
+    const resultPath = caseTrialArtifactPath(resultDir, runPath, 'result.json');
+    const runResult = readArtifactJsonObject(baseDir, resultPath);
     const metrics = readArtifactJsonObject(baseDir, metricsPath);
     const timing = readArtifactJsonObject(baseDir, timingPath);
     const toolCalls = objectField(metrics, 'tool_calls');
     const tokenUsage = objectField(timing, 'token_usage');
+    const transcriptSummary =
+      objectField(trial, 'transcript_summary') ?? objectField(runResult, 'transcript_summary');
 
     return {
       ...trial,
@@ -1179,6 +1183,7 @@ function buildRepeatTrialReadModels(
         total_tool_calls: numberField(metrics, 'total_tool_calls'),
       }),
       ...(toolCalls && { tool_calls: toolCalls }),
+      ...(transcriptSummary && { transcript_summary: transcriptSummary }),
       ...(metricsPath && { metrics_path: metricsPath }),
       ...(timingPath && { timing_path: timingPath }),
       ...(gradingPath && { grading_path: gradingPath }),

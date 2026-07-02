@@ -17,6 +17,7 @@
 import { readFile } from 'node:fs/promises';
 
 import type { Message, ProviderTokenUsage, ToolCall } from '../evaluation/providers/types.js';
+import { TRANSCRIPT_SCHEMA_VERSION } from '../evaluation/result-artifact-contract.js';
 import {
   EXECUTION_TRACE_SCHEMA_VERSION,
   type TraceEnvelope,
@@ -25,6 +26,12 @@ import {
   traceEnvelopeToTranscriptMessages,
 } from '../evaluation/trace-envelope.js';
 import { type Trace, buildTraceFromMessages } from '../evaluation/trace.js';
+import {
+  type CanonicalTranscriptToolName,
+  type TranscriptSummaryWire,
+  buildTranscriptSummary,
+  canonicalTranscriptToolName,
+} from '../evaluation/transcript-summary.js';
 
 export const TRANSCRIPT_ROW_SCHEMA_VERSION = 'agentv.transcript.v1' as const;
 
@@ -152,6 +159,7 @@ export type NormalizedTranscriptContentBlock =
   | {
       readonly type: 'tool_use';
       readonly id: string;
+      readonly tool_name: CanonicalTranscriptToolName;
       readonly name: string;
       readonly input: unknown;
       readonly result?: {
@@ -185,6 +193,14 @@ export interface NormalizedTranscriptJsonLine {
   readonly input_tokens?: number;
   readonly output_tokens?: number;
   readonly raw_refs?: readonly NormalizedTranscriptRawRef[];
+}
+
+export interface NormalizedTranscriptJson {
+  readonly schema_version: typeof TRANSCRIPT_SCHEMA_VERSION;
+  readonly provider_id: string;
+  readonly target: string;
+  readonly transcript_summary: TranscriptSummaryWire;
+  readonly turns: readonly NormalizedTranscriptJsonLine[];
 }
 
 /**
@@ -515,10 +531,12 @@ function normalizedToolBlock(
   toolCall: ToolCall,
   messageIndex: number,
   toolIndex: number,
+  providerId: string | undefined,
 ): NormalizedTranscriptContentBlock {
   return dropUndefined({
     type: 'tool_use',
     id: toolCall.id ?? `tool_${messageIndex + 1}_${toolIndex + 1}`,
+    tool_name: canonicalTranscriptToolName(toolCall.tool, providerId),
     name: toolCall.tool,
     input: toolCall.input ?? {},
     result: normalizedToolResult(toolCall),
@@ -540,6 +558,7 @@ function normalizedImageMetadata(
 function normalizedContentBlocks(
   message: Message,
   messageIndex: number,
+  providerId: string | undefined,
 ): NormalizedTranscriptContentBlock[] {
   const blocks: NormalizedTranscriptContentBlock[] = [];
   const content = message.content;
@@ -580,7 +599,7 @@ function normalizedContentBlocks(
   }
 
   for (const [toolIndex, toolCall] of (message.toolCalls ?? []).entries()) {
-    blocks.push(normalizedToolBlock(toolCall, messageIndex, toolIndex));
+    blocks.push(normalizedToolBlock(toolCall, messageIndex, toolIndex, providerId));
   }
 
   return blocks;
@@ -612,6 +631,7 @@ function applyToolResultToPriorTurn(
   turns: NormalizedTranscriptJsonLine[],
   message: Message,
   messageIndex: number,
+  providerId: string | undefined,
 ): boolean {
   const name = message.name;
   for (let turnIndex = turns.length - 1; turnIndex >= 0; turnIndex -= 1) {
@@ -650,6 +670,7 @@ function applyToolResultToPriorTurn(
       {
         type: 'tool_use',
         id: normalizedTurnId(message) ?? `tool_${messageIndex + 1}`,
+        tool_name: canonicalTranscriptToolName(name, providerId),
         name: name ?? 'tool',
         input: {},
         result: {
@@ -671,12 +692,13 @@ export function traceEnvelopeToNormalizedTranscriptJsonLines(
   const summary = traceEnvelopeToTraceSummary(envelope);
   const source = sourceFromEnvelope(envelope, summary);
   const agent = source.provider ?? envelope.eval.target ?? 'agentv';
+  const providerId = source.provider ?? envelope.eval.target;
   const model = modelFromSource(source);
   const turns: NormalizedTranscriptJsonLine[] = [];
 
   messages.forEach((message, index) => {
     if (message.role === 'tool' || message.role === 'function') {
-      applyToolResultToPriorTurn(turns, message, index);
+      applyToolResultToPriorTurn(turns, message, index, providerId);
       return;
     }
 
@@ -685,7 +707,7 @@ export function traceEnvelopeToNormalizedTranscriptJsonLines(
       return;
     }
 
-    const content = normalizedContentBlocks(message, index);
+    const content = normalizedContentBlocks(message, index, providerId);
     if (content.length === 0) {
       return;
     }
@@ -706,6 +728,28 @@ export function traceEnvelopeToNormalizedTranscriptJsonLines(
   });
 
   return turns;
+}
+
+export function traceEnvelopeToNormalizedTranscriptJson(
+  envelope: TraceEnvelope,
+  options?: { fileChanges?: string; error?: string },
+): NormalizedTranscriptJson {
+  const messages = traceEnvelopeToTranscriptMessages(envelope);
+  const summary = traceEnvelopeToTraceSummary(envelope);
+  const source = sourceFromEnvelope(envelope, summary);
+  const providerId = source.provider ?? envelope.eval.target ?? 'agentv';
+  return {
+    schema_version: TRANSCRIPT_SCHEMA_VERSION,
+    provider_id: providerId,
+    target: envelope.eval.target,
+    transcript_summary: buildTranscriptSummary({
+      messages,
+      providerId,
+      fileChanges: options?.fileChanges,
+      error: options?.error,
+    }),
+    turns: traceEnvelopeToNormalizedTranscriptJsonLines(envelope),
+  };
 }
 
 export function traceEnvelopeToTranscriptJsonLines(

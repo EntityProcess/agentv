@@ -20,7 +20,7 @@ describe('TranscriptTimeline', () => {
         entries={parsed.entries}
         finalAnswer={'{"answer":42,"source":"src/app.ts"}'}
         answerPath="final-json-answer__codex/outputs/answer.md"
-        transcriptPath="final-json-answer__codex/transcript.jsonl"
+        transcriptPath="final-json-answer__codex/transcript.json"
         answerHref="/api/raw-answer"
         transcriptHref="/api/raw-transcript"
         transcriptDownloadHref="/api/download-transcript"
@@ -28,13 +28,54 @@ describe('TranscriptTimeline', () => {
     );
   }
 
-  it('parses canonical transcript JSONL rows in chronological order', () => {
+  it('parses canonical transcript rows in chronological order', () => {
     const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
 
     expect(parsed.error).toBeUndefined();
     expect(parsed.entries.map((entry) => entry.role)).toEqual(['user', 'assistant', 'assistant']);
     expect(parsed.entries[1].tool_calls?.[0]?.tool).toBe('read_file');
     expect(parsed.entries[1].tool_calls?.[0]?.status).toBe('success');
+  });
+
+  it('parses canonical transcript JSON documents with tool_name values', () => {
+    const parsed = parseTranscriptJsonl(
+      JSON.stringify({
+        schema_version: 'agentv.normalized_transcript.v1',
+        provider_id: 'codex',
+        target: 'codex',
+        transcript_summary: {
+          total_turns: 1,
+          tool_calls: { file_read: 1 },
+          files_read: ['src/app.ts'],
+          files_modified: [],
+          shell_commands: [],
+          web_fetches: [],
+          errors: [],
+          thinking_blocks: 0,
+        },
+        turns: [
+          {
+            v: 1,
+            agent: 'codex',
+            type: 'assistant',
+            content: [
+              {
+                type: 'tool_use',
+                id: 'call-read-1',
+                tool_name: 'file_read',
+                name: 'Read',
+                input: { file_path: 'src/app.ts' },
+                result: { status: 'success', output: 'contents' },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.entries[0].tool_calls?.[0]?.tool).toBe('file_read');
   });
 
   it('rejects malformed optional tool_calls fields before rendering', () => {
@@ -54,7 +95,7 @@ describe('TranscriptTimeline', () => {
 
   it('finds canonical transcript and answer artifacts without selecting response.md', () => {
     expect(findTranscriptPath(structuredTranscriptFiles)).toBe(
-      'final-json-answer__codex/transcript.jsonl',
+      'final-json-answer__codex/transcript.json',
     );
     expect(findAnswerPath(structuredTranscriptFiles)).toBe(
       'final-json-answer__codex/outputs/answer.md',
@@ -115,7 +156,7 @@ describe('TranscriptTimeline', () => {
     const html = renderToStaticMarkup(
       <TranscriptTimeline
         entries={parsed.entries}
-        transcriptPath="failing-shell__codex/transcript.jsonl"
+        transcriptPath="failing-shell__codex/transcript.json"
         transcriptHref="/api/raw-transcript"
         transcriptDownloadHref="/api/download-transcript"
       />,
@@ -126,7 +167,7 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('/tmp/agentv-fixture');
   });
 
-  it('renders final answer separately from prior assistant/tool context with normalized JSONL access', () => {
+  it('renders final answer separately from prior assistant/tool context with normalized JSON access', () => {
     const html = renderStructuredTranscript();
 
     expect(html).toContain('Final answer');
@@ -137,8 +178,8 @@ describe('TranscriptTimeline', () => {
     expect(html).toContain('Arguments');
     expect(html).toContain('Result');
     expect(html).toContain('success');
-    expect(html).toContain('Open normalized JSONL');
-    expect(html).toContain('Download normalized JSONL');
+    expect(html).toContain('Open normalized JSON');
+    expect(html).toContain('Download normalized JSON');
     expect(html).toContain('{&quot;answer&quot;:42,&quot;source&quot;:&quot;src/app.ts&quot;}');
   });
 });

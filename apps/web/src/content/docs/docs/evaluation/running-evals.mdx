@@ -137,7 +137,7 @@ my-results/
       grading.json
       metrics.json
       timing.json
-      transcript.jsonl
+      transcript.json
       transcript-raw.jsonl
       outputs/answer.md
       outputs/file_changes.diff  # when workspace changes are captured
@@ -462,7 +462,7 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
 Each result row's `result_dir` is an allocated folder under the timestamped run
 bundle, usually with a readable test-id prefix plus a short hash suffix. It can
-include `transcript.jsonl`, `transcript-raw.jsonl`, `grading.json`,
+include `transcript.json`, `transcript-raw.jsonl`, `grading.json`,
 `timing.json`, `metrics.json`, and generated outputs under `outputs/`. The run
 root does not contain target, model, or `cases/` folders, and it does not contain
 a mixed transcript artifact; use each index row's `transcript_path` to find the
@@ -491,10 +491,10 @@ AgentV does not persist a public `trace.json` sidecar in run bundles. Use
 `external_trace` metadata for link-out correlation when another observability
 system already owns spans.
 
-`transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
-It uses provider-neutral `agentv.transcript.v1` rows with stable top-level fields
-for message order, role/content, tool calls and paired results, timing, token
-usage, cost, source metadata, capture state, and trace pointers.
+`transcript.json` is the canonical AgentV transcript/timeline artifact.
+It uses provider-neutral `agentv.normalized_transcript.v1` data with stable
+fields for message order, role/content, canonical `tool_name` values, paired
+tool results, and `transcript_summary`.
 Provider-native payloads can appear only inside opaque nested fields such as
 `metadata`, `source.metadata`, tool `input`, or tool `output`.
 

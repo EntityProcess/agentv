@@ -40,7 +40,7 @@ The default local layout is:
         grading.json
         metrics.json
         timing.json
-        transcript.jsonl
+        transcript.json
         transcript-raw.jsonl
         outputs/
           answer.md
@@ -50,7 +50,7 @@ The default local layout is:
         grading.json
         metrics.json
         timing.json
-        transcript.jsonl
+        transcript.json
         transcript-raw.jsonl
         outputs/
           answer.md
@@ -91,7 +91,7 @@ reserved for rebuildable local state and are skipped by run discovery.
 | `metrics.json` | Derived executor behavior summary, such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, metric-style graders, adapter projections, and lightweight analysis. |
 | `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and code graders still receive the same full diff through `file_changes`. |
 | `timing.json` | Duration, token usage, cost usage, and source labels such as `provider_reported`, `token_estimated`, `aggregate`, or `unavailable`. | Cost/latency reporting and provider-accounting audits. |
-| `transcript.jsonl` | AgentV-normalized transcript/timeline rows. | Portable human review, replay, transcript-aware graders, and tool-trajectory analysis. |
+| `transcript.json` | AgentV-normalized transcript/timeline document with canonical `tool_name` values and `transcript_summary`. | Portable human review, transcript-aware graders, and tool-trajectory analysis. |
 | `transcript-raw.jsonl` | Native provider or harness evidence when available. | Parser debugging, forensic review, and preserving source bytes without making provider schemas public AgentV fields. |
 | `test/` | Generated test bundle for the exact eval slice and target settings that produced a row. | Audit, external review, and rerun workflows that should not depend on a mutable source checkout. |
 | `artifact_pointers` | Offload indirection for large detached payload bytes. | Finding payloads published outside the primary metadata/control-plane branch, such as transcript bytes on `agentv/artifacts/v1`. |
@@ -136,8 +136,18 @@ Example row:
   "grading_path": "refund-eligibility--4f9a7c2d1b6e/run-1/grading.json",
   "metrics_path": "refund-eligibility--4f9a7c2d1b6e/run-1/metrics.json",
   "timing_path": "refund-eligibility--4f9a7c2d1b6e/run-1/timing.json",
-  "transcript_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript.jsonl",
+  "transcript_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript.json",
   "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript-raw.jsonl",
+  "transcript_summary": {
+    "total_turns": 4,
+    "tool_calls": { "file_read": 2, "shell": 1, "unknown": 0 },
+    "files_read": ["src/refunds.ts"],
+    "files_modified": ["src/refunds.ts"],
+    "shell_commands": ["bun test refunds.test.ts"],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 1
+  },
   "output_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
   "answer_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
   "file_changes_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/file_changes.diff",

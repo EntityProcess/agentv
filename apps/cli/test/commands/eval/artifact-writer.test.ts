@@ -746,6 +746,28 @@ describe('buildIndexArtifactEntry', () => {
           error: 'model drift',
           cost_usd: 0.25,
           execution_status: 'quality_failure',
+          transcript_summary: {
+            total_turns: 1,
+            tool_calls: {
+              file_read: 0,
+              file_write: 0,
+              file_edit: 0,
+              shell: 0,
+              web_fetch: 0,
+              web_search: 0,
+              glob: 0,
+              grep: 0,
+              list_dir: 0,
+              agent_task: 0,
+              unknown: 0,
+            },
+            files_read: [],
+            files_modified: [],
+            shell_commands: [],
+            web_fetches: [],
+            errors: [{ message: 'model drift' }],
+            thinking_blocks: 0,
+          },
         },
       ],
     });
@@ -1031,7 +1053,7 @@ describe('writeArtifactsFromResults', () => {
       'result.json',
       'timing.json',
       'transcript-raw.jsonl',
-      'transcript.jsonl',
+      'transcript.json',
     ]);
 
     const alphaGrading: GradingArtifact = JSON.parse(
@@ -1159,7 +1181,7 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexEntry] = await readIndexLines(paths.indexPath);
     const repeatRowDir = expectRowDir(indexEntry, 'repeat-case');
-    expect(indexEntry?.trials).toEqual([
+    expect(indexEntry?.trials).toMatchObject([
       { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
       { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
     ]);
@@ -1227,7 +1249,7 @@ describe('writeArtifactsFromResults', () => {
         'result.json',
         'timing.json',
         'transcript-raw.jsonl',
-        'transcript.jsonl',
+        'transcript.json',
       ]);
     }
 
@@ -1245,7 +1267,7 @@ describe('writeArtifactsFromResults', () => {
       model: 'test-target',
       grading_path: './grading.json',
       metrics_path: './metrics.json',
-      transcript_path: './transcript.jsonl',
+      transcript_path: './transcript.json',
       transcript_raw_path: './transcript-raw.jsonl',
       output_paths: { answer: './outputs/answer.md' },
       timing: {
@@ -1253,6 +1275,7 @@ describe('writeArtifactsFromResults', () => {
       },
     });
     expect(runOneResult).not.toHaveProperty('status');
+    expect(indexEntry?.trials?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
 
     const runTwoAnswer = await readFile(
       path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'outputs', 'answer.md'),
@@ -1271,13 +1294,14 @@ describe('writeArtifactsFromResults', () => {
       verdict: 'pass',
       grading_path: './grading.json',
       metrics_path: './metrics.json',
-      transcript_path: './transcript.jsonl',
+      transcript_path: './transcript.json',
       transcript_raw_path: './transcript-raw.jsonl',
       timing: {
         duration_ms: 4000,
       },
     });
     expect(runTwoResult).not.toHaveProperty('status');
+    expect(indexEntry?.trials?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
   });
 
   it('handles empty results array', async () => {
@@ -1330,7 +1354,7 @@ describe('writeArtifactsFromResults', () => {
     expect(timingOne.duration_ms).toBe(0);
   });
 
-  it('writes normalized transcript.jsonl rows plus raw transcript evidence', async () => {
+  it('writes normalized transcript.json plus raw transcript evidence', async () => {
     const input = [{ role: 'user' as const, content: 'Inspect artifact output' }];
     const output = [
       {
@@ -1346,7 +1370,7 @@ describe('writeArtifactsFromResults', () => {
             durationMs: 25,
           },
           {
-            tool: 'Bash',
+            tool: 'command_execution',
             id: 'bash-1',
             input: { command: 'bun test missing.test.ts' },
             status: 'error' as const,
@@ -1358,7 +1382,7 @@ describe('writeArtifactsFromResults', () => {
     const results = [
       makeResult({
         testId: 'transcript-case',
-        target: 'codex',
+        target: 'friendly-codex-target',
         conversationId: 'session-123',
         durationMs: 4200,
         costUsd: 0.25,
@@ -1369,7 +1393,8 @@ describe('writeArtifactsFromResults', () => {
           input,
           output,
           finalOutput: 'Reading artifact-writer.ts',
-          target: 'codex',
+          target: 'friendly-codex-target',
+          provider: 'codex',
           testId: 'transcript-case',
           conversationId: 'session-123',
           tokenUsage: { input: 100, output: 40, cached: 10, reasoning: 5 },
@@ -1383,11 +1408,8 @@ describe('writeArtifactsFromResults', () => {
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'transcript-case');
 
-    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript.jsonl');
-    const transcriptLines = (await readFile(transcriptPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line));
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript.json');
+    const transcript = JSON.parse(await readFile(transcriptPath, 'utf8'));
 
     const rawTranscriptLines = (
       await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl'), 'utf8')
@@ -1396,14 +1418,43 @@ describe('writeArtifactsFromResults', () => {
       .split('\n')
       .map((line) => JSON.parse(line));
 
-    expect(transcriptLines).toHaveLength(2);
-    expect(transcriptLines[0]).toMatchObject({
+    expect(transcript).toMatchObject({
+      schema_version: 'agentv.normalized_transcript.v1',
+      provider_id: 'codex',
+      target: 'friendly-codex-target',
+      transcript_summary: {
+        total_turns: 2,
+        tool_calls: {
+          file_read: 1,
+          file_write: 0,
+          file_edit: 0,
+          shell: 1,
+          web_fetch: 0,
+          web_search: 0,
+          glob: 0,
+          grep: 0,
+          list_dir: 0,
+          agent_task: 0,
+          unknown: 0,
+        },
+        files_read: ['apps/cli/src/commands/eval/artifact-writer.ts'],
+        files_modified: [],
+        shell_commands: ['bun test missing.test.ts'],
+        web_fetches: [],
+        errors: [
+          { message: 'Tool command_execution error', tool_call_id: 'bash-1', tool_name: 'shell' },
+        ],
+        thinking_blocks: 0,
+      },
+    });
+    expect(transcript.turns).toHaveLength(2);
+    expect(transcript.turns[0]).toMatchObject({
       v: 1,
       agent: 'codex',
       type: 'user',
       content: [{ type: 'text', text: 'Inspect artifact output' }],
     });
-    expect(transcriptLines[1]).toMatchObject({
+    expect(transcript.turns[1]).toMatchObject({
       v: 1,
       agent: 'codex',
       type: 'assistant',
@@ -1412,6 +1463,7 @@ describe('writeArtifactsFromResults', () => {
         {
           type: 'tool_use',
           id: 'read-1',
+          tool_name: 'file_read',
           name: 'Read',
           input: { file_path: 'apps/cli/src/commands/eval/artifact-writer.ts' },
           result: {
@@ -1423,7 +1475,8 @@ describe('writeArtifactsFromResults', () => {
         {
           type: 'tool_use',
           id: 'bash-1',
-          name: 'Bash',
+          tool_name: 'shell',
+          name: 'command_execution',
           input: { command: 'bun test missing.test.ts' },
           result: {
             status: 'error',
@@ -1432,23 +1485,26 @@ describe('writeArtifactsFromResults', () => {
         },
       ],
     });
-    expect(transcriptLines[1]).not.toHaveProperty('schema_version');
-    expect(transcriptLines[1]).not.toHaveProperty('o11y');
+    expect(transcript.turns[1]).not.toHaveProperty('schema_version');
+    expect(transcript.turns[1]).not.toHaveProperty('o11y');
     expect(rawTranscriptLines[0]).toMatchObject({
       schema_version: 'agentv.transcript.v1',
       test_id: 'transcript-case',
-      target: 'codex',
+      target: 'friendly-codex-target',
       message_index: 0,
       role: 'user',
     });
-    await expect(readFile(path.join(testDir, rowDir, 'transcript.json'), 'utf8')).rejects.toThrow();
+    await expect(
+      readFile(path.join(testDir, rowDir, 'run-1', 'transcript.jsonl'), 'utf8'),
+    ).rejects.toThrow();
     await expect(
       readFile(runArtifactPath(testDir, indexLine, 'run-1', 'trace.json'), 'utf8'),
     ).rejects.toThrow();
 
     expect(indexLine).not.toHaveProperty('trace_path');
-    expect(indexLine?.transcript_path).toBe(`${rowDir}/run-1/transcript.jsonl`);
+    expect(indexLine?.transcript_path).toBe(`${rowDir}/run-1/transcript.json`);
     expect(indexLine?.transcript_raw_path).toBe(`${rowDir}/run-1/transcript-raw.jsonl`);
+    expect(indexLine?.transcript_summary).toEqual(transcript.transcript_summary);
     expect(indexLine?.metrics_path).toBe(`${rowDir}/run-1/metrics.json`);
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
 
@@ -1583,7 +1639,7 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(summary.trace).not.toHaveProperty('path');
     expect(summary.source_artifacts).toMatchObject({
-      transcript_path: 'transcript.jsonl',
+      transcript_path: 'transcript.json',
       grading_path: 'grading.json',
       timing_path: 'timing.json',
       file_changes_path: CANONICAL_FILE_CHANGES_ARTIFACT_PATH,
@@ -1803,15 +1859,14 @@ describe('writeArtifactsFromResults', () => {
     const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);
     await expect(readFile(rawLogPath, 'utf8')).resolves.toBe(rawLog);
-    await expect(readFile(path.join(testDir, rowDir, 'transcript.json'), 'utf8')).rejects.toThrow();
+    await expect(
+      readFile(path.join(testDir, rowDir, 'run-1', 'transcript.jsonl'), 'utf8'),
+    ).rejects.toThrow();
 
-    const transcriptLines = (
-      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript.jsonl'), 'utf8')
-    )
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line));
-    expect(transcriptLines[0]).toMatchObject({
+    const transcript = JSON.parse(
+      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript.json'), 'utf8'),
+    );
+    expect(transcript.turns[0]).toMatchObject({
       v: 1,
       agent: 'codex',
       type: 'assistant',
@@ -1819,7 +1874,7 @@ describe('writeArtifactsFromResults', () => {
     });
 
     expect(indexLine.raw_provider_log_path).toBeUndefined();
-    expect(indexLine.transcript_path).toBe(`${rowDir}/run-1/transcript.jsonl`);
+    expect(indexLine.transcript_path).toBe(`${rowDir}/run-1/transcript.json`);
     expect(indexLine.transcript_raw_path).toBe(`${rowDir}/run-1/transcript-raw.jsonl`);
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
@@ -1865,7 +1920,7 @@ describe('writeArtifactsFromResults', () => {
     expect(JSON.stringify(indexLine)).not.toContain('api_key');
 
     const transcriptJson = await readFile(
-      runArtifactPath(testDir, indexLine, 'run-1', 'transcript.jsonl'),
+      runArtifactPath(testDir, indexLine, 'run-1', 'transcript.json'),
       'utf8',
     );
     expect(transcriptJson).not.toContain('secret');

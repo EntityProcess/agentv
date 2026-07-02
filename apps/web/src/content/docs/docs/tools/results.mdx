@@ -130,7 +130,7 @@ token/cost usage.
 Every case uses aggregate `summary.json`, then stores execution artifact details
 under `run-N/`. Each `run-N/` contains a compact per-attempt manifest
 `result.json`, `grading.json`, `metrics.json`, `timing.json`,
-`transcript.jsonl`, `transcript-raw.jsonl`, `outputs/answer.md`, and
+`transcript.json`, `transcript-raw.jsonl`, `outputs/answer.md`, and
 `outputs/file_changes.diff` when workspace changes were captured. The
 `result.json` file carries AgentV `execution_status` and `verdict` fields plus
 `grading_path`, `metrics_path`, transcript, output, and `file_changes_path`
@@ -139,8 +139,9 @@ dimension; stochastic samples and infrastructure retries should be represented
 with explicit sample/retry metadata rather than inferred from folder names.
 
 `transcript-raw.jsonl` preserves native provider or harness transcript bytes
-when they are available, while `transcript.jsonl` is the normalized
-conversation transcript with joined `tool_use.result` blocks. AgentV does not
+when they are available, while `transcript.json` is the normalized
+conversation transcript with canonical `tool_name` values, joined
+`tool_use.result` blocks, and a precomputed `transcript_summary`. AgentV does not
 persist a public `trace.json` sidecar in run bundles; external observability
 systems can be linked through safe `external_trace` metadata when available.
 `summary.json` remains the run-level aggregate summary. `index.jsonl` is the
@@ -172,7 +173,7 @@ Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 | `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `metrics.json`; compact counts can also appear in `summary.json.run_summary[*].tool_calls` |
 | `totalToolCalls` | `metrics.total_tool_calls` | `metrics.json` |
 | `webFetches` | `metrics.web_fetches` | `metrics.json` |
-| `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational rows remain in `transcript.jsonl` |
+| `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational turns remain in `transcript.json` |
 | `errors` | `metrics.errors` | `metrics.json` |
 | `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `metrics.json` |
 
@@ -182,11 +183,11 @@ Agent Skills eval artifacts map into AgentV like this:
 |----------------------|--------------|-------------------|
 | Authored `evals/evals.json` cases | AgentV eval cases and test bundle paths | Eval source plus optional `test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
 | Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
-| Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `run-N/transcript.jsonl`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json` |
+| Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json` |
 | Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `run-N/timing.json` |
 | Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
-| Transcript/log outlier analysis | Normalized transcript, raw evidence, metrics, and optional external trace link | `transcript.jsonl` for portable review; `transcript-raw.jsonl` for native evidence; `metrics.json` for behavior summaries; `external_trace` for link-out correlation |
+| Transcript/log outlier analysis | Normalized transcript, raw evidence, metrics, and optional external trace link | `transcript.json` for portable review; `transcript-raw.jsonl` for native evidence; `metrics.json` for behavior summaries; `external_trace` for link-out correlation |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle

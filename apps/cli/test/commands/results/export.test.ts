@@ -385,7 +385,7 @@ describe('results export', () => {
       metrics_path: `${resultDir}/run-1/metrics.json`,
       output_path: `${resultDir}/run-1/outputs/answer.md`,
       answer_path: `${resultDir}/run-1/outputs/answer.md`,
-      transcript_path: `${resultDir}/run-1/transcript.jsonl`,
+      transcript_path: `${resultDir}/run-1/transcript.json`,
       transcript_raw_path: `${resultDir}/run-1/transcript-raw.jsonl`,
     });
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('trace_path');
@@ -459,7 +459,7 @@ describe('results export', () => {
       metrics_path: `${rowDir}/run-1/metrics.json`,
       output_path: `${rowDir}/run-1/outputs/answer.md`,
       answer_path: `${rowDir}/run-1/outputs/answer.md`,
-      transcript_path: `${rowDir}/run-1/transcript.jsonl`,
+      transcript_path: `${rowDir}/run-1/transcript.json`,
       transcript_raw_path: `${rowDir}/run-1/transcript-raw.jsonl`,
     });
     expect(entries[0]).not.toHaveProperty('input_path');

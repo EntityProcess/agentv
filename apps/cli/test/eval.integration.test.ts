@@ -409,8 +409,9 @@ describe('agentv eval CLI', () => {
       expect(canonicalResults).toHaveLength(2);
       await expectFileExists(path.join(outputDir, 'summary.json'));
       for (const row of canonicalResults) {
-        expect(row.transcript_path).toMatch(/run-1\/transcript\.jsonl$/);
+        expect(row.transcript_path).toMatch(/run-1\/transcript\.json$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
+        expect(row.transcript_summary).toBeDefined();
         expect(row.transcript_raw_path).toMatch(/run-1\/transcript-raw\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_raw_path as string));
       }

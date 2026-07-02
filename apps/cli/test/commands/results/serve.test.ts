@@ -2435,6 +2435,81 @@ describe('serve app', () => {
       expect(data.source_label).toBe(filename);
     });
 
+    it('projects repeat trial transcript summaries from manifest rows and run result sidecars', async () => {
+      const runsDir = localResultsExperimentDir(tempDir);
+      const filename = '2026-03-25T10-05-00-000Z';
+      const runDir = path.join(runsDir, filename);
+      const resultDir = 'demo/repeat-case';
+      const firstSummary = {
+        total_turns: 1,
+        tool_calls: { shell: 1 },
+        files_read: [],
+        files_modified: [],
+        shell_commands: ['bun test'],
+        web_fetches: [],
+        errors: [],
+        thinking_blocks: 0,
+      };
+      const secondSummary = {
+        total_turns: 2,
+        tool_calls: { file_read: 1 },
+        files_read: ['src/index.ts'],
+        files_modified: [],
+        shell_commands: [],
+        web_fetches: [],
+        errors: [],
+        thinking_blocks: 1,
+      };
+
+      mkdirSync(path.join(runDir, resultDir, 'run-1'), { recursive: true });
+      mkdirSync(path.join(runDir, resultDir, 'run-2'), { recursive: true });
+      writeFileSync(
+        path.join(runDir, resultDir, 'run-1', 'result.json'),
+        `${JSON.stringify({ transcript_summary: firstSummary })}\n`,
+      );
+      writeFileSync(
+        path.join(runDir, resultDir, 'run-2', 'result.json'),
+        `${JSON.stringify({ transcript_summary: secondSummary })}\n`,
+      );
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          test_id: 'repeat-case',
+          result_dir: resultDir,
+          trials: [
+            {
+              attempt: 0,
+              run_path: 'run-1',
+              score: 0.25,
+              verdict: 'fail',
+              transcript_summary: firstSummary,
+            },
+            { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
+          ],
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const res = await app.request(`/api/runs/${filename}`);
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as {
+        results: Array<{
+          trials?: Array<{
+            transcript_path?: string;
+            transcript_summary?: Record<string, unknown>;
+          }>;
+        }>;
+      };
+
+      expect(data.results[0]?.trials?.[0]?.transcript_summary).toEqual(firstSummary);
+      expect(data.results[0]?.trials?.[1]?.transcript_summary).toEqual(secondSummary);
+      expect(data.results[0]?.trials?.map((trial) => trial.transcript_path)).toEqual([
+        `${resultDir}/run-1/transcript.json`,
+        `${resultDir}/run-2/transcript.json`,
+      ]);
+    });
+
     it('loads historical runs without test bundle metadata', async () => {
       const runId = writeLocalRunArtifact(
         tempDir,
@@ -2998,7 +3073,7 @@ describe('serve app', () => {
       };
       expect(traceData.schema_version).toBe('agentv.dashboard.trace_artifact.v1');
       expect(traceData.status).toBe('missing');
-      expect(traceData.message).toContain('transcript.jsonl');
+      expect(traceData.message).toContain('transcript.json');
 
       const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
       expect(detailRes.status).toBe(200);
@@ -3450,7 +3525,7 @@ describe('serve app', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as { status: string; message: string };
       expect(data.status).toBe('missing');
-      expect(data.message).toContain('transcript.jsonl');
+      expect(data.message).toContain('transcript.json');
     });
 
     it('returns a clear dangling state when the transcript pointer cannot be read', async () => {
