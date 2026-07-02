@@ -90,6 +90,150 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig?.threshold).toBe(0.9);
   });
 
+  it('expands top-level prompts across tests with per-test vars', async () => {
+    const evalPath = path.join(tempDir, 'prompt-matrix.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: prompt-matrix-suite',
+        'prompts:',
+        '  - id: direct',
+        '    label: Direct',
+        '    prompt: "Summarize {{ topic }}."',
+        '  - id: terse',
+        '    label: Terse',
+        '    prompt: "In one sentence, summarize {{ topic }}."',
+        'targets:',
+        '  - id: openai:gpt-5.4-mini',
+        '    label: mini',
+        '  - id: local-codex',
+        'tests:',
+        '  - id: docs',
+        '    vars:',
+        '      topic: release notes',
+        '    expected_output: concise release-note summary',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.tests.map((test) => test.id)).toEqual([
+      'docs__prompt_direct',
+      'docs__prompt_terse',
+    ]);
+    expect(suite.tests.map((test) => test.testId)).toEqual(['docs', 'docs']);
+    expect(suite.tests.map((test) => test.prompt)).toEqual([
+      { id: 'direct', label: 'Direct', kind: 'string' },
+      { id: 'terse', label: 'Terse', kind: 'string' },
+    ]);
+    expect(suite.tests.map((test) => test.question)).toEqual([
+      'Summarize release notes.',
+      'In one sentence, summarize release notes.',
+    ]);
+    expect(suite.targets).toEqual(['openai:gpt-5.4-mini', 'local-codex']);
+    expect(suite.targetRefs).toEqual([
+      { name: 'openai:gpt-5.4-mini', id: 'openai:gpt-5.4-mini', label: 'mini' },
+      { name: 'local-codex', id: 'local-codex' },
+    ]);
+  });
+
+  it('loads function prompt sources from top-level prompts', async () => {
+    const promptScriptPath = path.join(tempDir, 'prompt-source.js');
+    const evalPath = path.join(tempDir, 'function-prompts.eval.yaml');
+    await writeFile(
+      promptScriptPath,
+      "console.log(JSON.stringify({ prompt: 'Explain {{ topic }} with one concrete example.' }));\n",
+    );
+    await writeFile(
+      evalPath,
+      [
+        'name: function-prompt-suite',
+        'prompts:',
+        '  - id: generated',
+        '    label: Generated',
+        '    function_file: prompt-source.js',
+        'tests:',
+        '  - id: docs',
+        '    vars:',
+        '      topic: release notes',
+        '    expected_output: concrete release-note explanation',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests[0]?.id).toBe('docs');
+    expect(suite.tests[0]?.testId).toBe('docs');
+    expect(suite.tests[0]?.prompt).toEqual({
+      id: 'generated',
+      label: 'Generated',
+      kind: 'function',
+    });
+    expect(suite.tests[0]?.question).toBe('Explain release notes with one concrete example.');
+  });
+
+  it('loads chat and file prompts from the top-level prompt matrix', async () => {
+    const promptPath = path.join(tempDir, 'prompt.md');
+    const evalPath = path.join(tempDir, 'prompt-sources.eval.yaml');
+    await writeFile(promptPath, 'Review {{ file_name }}.\n');
+    await writeFile(
+      evalPath,
+      [
+        'name: prompt-sources-suite',
+        'prompts:',
+        '  - id: chat',
+        '    messages:',
+        '      - role: system',
+        '        content: Be precise.',
+        '      - role: user',
+        '        content: "Inspect {{ file_name }}."',
+        '  - id: file',
+        '    file: prompt.md',
+        'tests:',
+        '  - id: inspect',
+        '    vars:',
+        '      file_name: README.md',
+        '    criteria: useful',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.tests).toHaveLength(2);
+    expect(suite.tests[0]?.input).toEqual([
+      { role: 'system', content: 'Be precise.' },
+      { role: 'user', content: 'Inspect README.md.' },
+    ]);
+    expect(suite.tests[1]?.question).toBe('Review README.md.');
+    expect(suite.tests[1]?.prompt).toEqual({
+      id: 'file',
+      label: 'prompt.md',
+      kind: 'file',
+    });
+  });
+
+  it('rejects tests input when top-level prompts are authored', async () => {
+    const evalPath = path.join(tempDir, 'mixed-prompt-contract.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'prompts:',
+        '  - hello',
+        'tests:',
+        '  - id: one',
+        '    input: legacy',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/tests\[\]\.input/);
+  });
+
   it('parses evaluate_options.budget_usd and prefers it over legacy top-level budget_usd', async () => {
     const evalPath = path.join(tempDir, 'evaluate-options-budget.eval.yaml');
     await writeFile(

@@ -1344,7 +1344,8 @@ async function prepareFileMetadata(params: {
 
       selections = multiSelections.map((sel) => ({
         selection: sel,
-        inlineTargetLabel: resolveTargetLabel(sel.targetName, sel.resolvedTarget.name),
+        inlineTargetLabel:
+          sel.targetLabel ?? resolveTargetLabel(sel.targetName, sel.resolvedTarget.name),
       }));
     } else {
       // Single target mode (legacy path)
@@ -1368,18 +1369,22 @@ async function prepareFileMetadata(params: {
       });
 
       // Attach target hooks from eval file if available
-      const singleTargetHooks = targetRefs?.find((ref) => ref.name === selection.targetName)?.hooks;
-      const augmentedSelection: TargetSelection = singleTargetHooks
-        ? { ...selection, targetHooks: singleTargetHooks }
-        : selection;
+      const singleTargetRef = targetRefs?.find((ref) => ref.name === selection.targetName);
+      const augmentedSelection: TargetSelection = {
+        ...selection,
+        ...(singleTargetRef?.label ? { targetLabel: singleTargetRef.label } : {}),
+        ...(singleTargetRef?.hooks ? { targetHooks: singleTargetRef.hooks } : {}),
+      };
 
       selections = [
         {
           selection: augmentedSelection,
-          inlineTargetLabel: resolveTargetLabel(
-            augmentedSelection.targetName,
-            augmentedSelection.resolvedTarget.name,
-          ),
+          inlineTargetLabel:
+            augmentedSelection.targetLabel ??
+            resolveTargetLabel(
+              augmentedSelection.targetName,
+              augmentedSelection.resolvedTarget.name,
+            ),
         },
       ];
     }
@@ -2307,7 +2312,8 @@ export async function runEvalCommand(
           const explicitVariant = targetVariantForSelection(selection);
           const skippedResults: EvaluationResult[] = targetPrep.testCases.map((testCase) => ({
             timestamp: new Date().toISOString(),
-            testId: testCase.id,
+            testId: testCase.testId ?? testCase.id,
+            prompt: testCase.prompt,
             score: 0,
             assertions: [],
             output: budgetMsg,
@@ -2316,7 +2322,7 @@ export async function runEvalCommand(
               output: [{ role: 'assistant' as const, content: budgetMsg }],
               finalOutput: budgetMsg,
               target: selection.targetName,
-              testId: testCase.id,
+              testId: testCase.testId ?? testCase.id,
               conversationId: testCase.conversation_id,
               error: budgetMsg,
             }),
@@ -2426,7 +2432,8 @@ export async function runEvalCommand(
               withSourceMetadata(
                 {
                   timestamp: new Date().toISOString(),
-                  testId: testCase.id,
+                  testId: testCase.testId ?? testCase.id,
+                  prompt: testCase.prompt,
                   score: 0,
                   assertions: [],
                   output: message,
@@ -2435,7 +2442,7 @@ export async function runEvalCommand(
                     output: [{ role: 'assistant' as const, content: message }],
                     finalOutput: message,
                     target: selection.targetName,
-                    testId: testCase.id,
+                    testId: testCase.testId ?? testCase.id,
                     conversationId: testCase.conversation_id,
                     error: message,
                   }),

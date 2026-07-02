@@ -255,7 +255,7 @@ describe('agentv prepare', () => {
       path.join(tempDir, '.agentv', 'targets.yaml'),
       `
 targets:
-  - name: codex
+  - label: codex
     provider: cli
     command: bun ./scripts/target.ts
 `,

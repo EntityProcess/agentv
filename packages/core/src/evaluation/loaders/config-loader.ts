@@ -398,25 +398,43 @@ function parseEvalTargetRef(raw: unknown, location: string): EvalTargetRef {
   }
 
   const rawLabel = raw.label;
+  const rawId = raw.id;
+  const useTarget = raw.use_target;
+  const legacyName = raw.name;
+  const id = typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : undefined;
   const label =
     typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
-  if (!label) {
-    throw new Error(`Invalid ${location}: target object requires a 'label' field.`);
+  const useTargetName =
+    typeof useTarget === 'string' && useTarget.trim().length > 0 ? useTarget.trim() : undefined;
+  const legacyTargetName =
+    typeof legacyName === 'string' && legacyName.trim().length > 0 ? legacyName.trim() : undefined;
+  if (legacyName !== undefined) {
+    throw new Error(
+      `Invalid ${location}: target field 'name' has been removed. Use 'id' and 'label' instead.`,
+    );
   }
 
   const hooks = parseTargetHooks(raw.hooks);
-  const definition = normalizeTargetDefinition(
-    Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
-  ) as TargetDefinition;
-  const useTarget =
-    typeof raw.use_target === 'string' && raw.use_target.trim().length > 0
-      ? raw.use_target.trim()
-      : undefined;
+  const hasInlineDefinition = typeof raw.provider === 'string' || useTargetName !== undefined;
+  if (hasInlineDefinition && !label) {
+    throw new Error(`Invalid ${location}: target object requires a 'label' field.`);
+  }
+  const name = hasInlineDefinition ? label : (id ?? legacyTargetName ?? label);
+  if (!name) {
+    throw new Error(`Invalid ${location}: target object requires an 'id' or 'label' field.`);
+  }
+  const definition = hasInlineDefinition
+    ? (normalizeTargetDefinition(
+        Object.fromEntries(Object.entries(raw).filter(([key]) => key !== 'hooks')),
+      ) as TargetDefinition)
+    : undefined;
 
   return {
-    name: label,
-    ...(useTarget !== undefined ? { use_target: useTarget } : {}),
-    definition,
+    name,
+    ...(id !== undefined ? { id } : {}),
+    ...(label !== undefined ? { label } : {}),
+    ...(useTargetName !== undefined ? { use_target: useTargetName } : {}),
+    ...(definition ? { definition } : {}),
     ...(hooks !== undefined ? { hooks } : {}),
   };
 }

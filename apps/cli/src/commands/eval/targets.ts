@@ -85,6 +85,7 @@ export interface TargetSelection {
   readonly definitions: readonly TargetDefinition[];
   readonly resolvedTarget: ResolvedTarget;
   readonly targetName: string;
+  readonly targetLabel?: string;
   readonly targetSource: 'cli' | 'test-file' | 'default';
   readonly targetsFilePath: string;
   /** Per-target hooks from eval file (eval-level customization) */
@@ -260,10 +261,14 @@ export async function selectMultipleTargets(
 
   // Build a lookup for target hooks from eval target refs
   const hooksMap = new Map<string, import('@agentv/core').TargetHooksConfig>();
+  const labelsMap = new Map<string, string>();
   if (targetRefs) {
     for (const ref of targetRefs) {
       if (ref.hooks) {
         hooksMap.set(ref.name, ref.hooks);
+      }
+      if (ref.label) {
+        labelsMap.set(ref.name, ref.label);
       }
     }
   }
@@ -323,6 +328,7 @@ export async function selectMultipleTargets(
       modelOverride,
     );
     const hooks = hooksMap.get(name);
+    const targetLabel = labelsMap.get(name);
 
     try {
       const resolvedTarget = resolveTargetDefinition(targetDefinition, env, testFilePath, {
@@ -332,6 +338,7 @@ export async function selectMultipleTargets(
         definitions,
         resolvedTarget,
         targetName: name,
+        ...(targetLabel ? { targetLabel } : {}),
         targetSource: options.targetSource ?? 'cli',
         targetsFilePath,
         ...(hooks && { targetHooks: hooks }),

@@ -3181,6 +3181,46 @@ describe('suite-level total budget guardrail', () => {
     expect(results[2].error).toContain('Run budget exceeded');
     expect(results[3].error).toContain('Run budget exceeded');
   });
+
+  it('preserves authored prompt identity on budget-skipped prompt-expanded rows', async () => {
+    const prompt = { id: 'direct', label: 'Direct prompt', kind: 'string' as const };
+    const provider: Provider = {
+      id: 'budget:mock',
+      kind: 'mock' as const,
+      targetName: 'mock',
+      async invoke(): Promise<ProviderResponse> {
+        return {
+          output: [{ role: 'assistant', content: 'response' }],
+          costUsd: 3.0,
+        };
+      },
+    };
+
+    const evalCases: EvalTest[] = [
+      { ...baseTestCase, id: 'warmup' },
+      {
+        ...baseTestCase,
+        id: 'docs__prompt_direct',
+        testId: 'docs',
+        prompt,
+      },
+    ];
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => provider,
+      evaluators: evaluatorRegistry,
+      evalCases,
+      maxConcurrency: 1,
+      runBudgetTracker: new RunBudgetTracker(2.0),
+    });
+
+    expect(results[1]?.budgetExceeded).toBe(true);
+    expect(results[1]?.testId).toBe('docs');
+    expect(results[1]?.prompt).toEqual(prompt);
+  });
 });
 
 describe('fail_on_error tolerance', () => {
@@ -3223,8 +3263,49 @@ describe('fail_on_error tolerance', () => {
     // Remaining cases should be halted by error_threshold_exceeded
     expect(results[1].executionStatus).toBe('execution_error');
     expect(results[1].failureReasonCode).toBe('error_threshold_exceeded');
+    expect(results[1].testId).toBe('skip-case-1');
     expect(results[2].executionStatus).toBe('execution_error');
     expect(results[2].failureReasonCode).toBe('error_threshold_exceeded');
+  });
+
+  it('preserves authored prompt identity on fail_on_error halted prompt-expanded rows', async () => {
+    let callCount = 0;
+    const prompt = { id: 'direct', label: 'Direct prompt', kind: 'string' as const };
+    const errorOnFirstProvider: Provider = {
+      id: 'mock:error-on-first',
+      kind: 'mock' as const,
+      targetName: 'error-on-first',
+      async invoke(): Promise<ProviderResponse> {
+        callCount++;
+        if (callCount === 1) {
+          throw new Error('Provider failed');
+        }
+        return { output: [{ role: 'assistant', content: 'ok' }] };
+      },
+    };
+
+    const results = await runEvaluation({
+      testFilePath: 'in-memory.yaml',
+      repoRoot: 'in-memory',
+      target: baseTarget,
+      providerFactory: () => errorOnFirstProvider,
+      evaluators: evaluatorRegistry,
+      evalCases: [
+        { ...baseTestCase, id: 'fail-case' },
+        {
+          ...baseTestCase,
+          id: 'docs__prompt_direct',
+          testId: 'docs',
+          prompt,
+        },
+      ],
+      failOnError: true,
+      maxConcurrency: 1,
+    });
+
+    expect(results[1]?.failureReasonCode).toBe('error_threshold_exceeded');
+    expect(results[1]?.testId).toBe('docs');
+    expect(results[1]?.prompt).toEqual(prompt);
   });
 
   it('fail_on_error: false never halts on errors', async () => {
