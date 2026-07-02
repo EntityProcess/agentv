@@ -227,7 +227,7 @@ function parseAssertionFromString(expected: string, sourceFilePath: string): Jso
   }
   if (expected.startsWith('python:')) {
     return {
-      type: 'code-grader',
+      type: 'script',
       command: ['uv', 'run', 'python', expected.slice('python:'.length).trim()],
     };
   }
@@ -235,14 +235,14 @@ function parseAssertionFromString(expected: string, sourceFilePath: string): Jso
     const filePath = stripFileProtocol(expected).trim();
     if (!filePath.endsWith('.py')) {
       throw new Error(
-        `Unsupported promptfoo __expected file assertion "${expected}". Only file://*.py code graders are supported.`,
+        `Unsupported promptfoo __expected file assertion "${expected}". Only file://*.py script graders are supported.`,
       );
     }
     const commandPath = path.isAbsolute(filePath)
       ? filePath
       : path.resolve(path.dirname(sourceFilePath), filePath);
     return {
-      type: 'code-grader',
+      type: 'script',
       command: ['uv', 'run', 'python', commandPath],
     };
   }
