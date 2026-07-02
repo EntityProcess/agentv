@@ -204,6 +204,7 @@ type RawTestSuite = JsonObject & {
   readonly default_test?: JsonValue;
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
+  readonly assert?: JsonValue;
   readonly preprocessors?: JsonValue;
   readonly extensions?: JsonValue;
   readonly on_run_complete?: JsonValue;
@@ -240,6 +241,7 @@ type RawEvalCase = JsonObject & {
   readonly run?: JsonValue;
   readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
+  readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
@@ -323,6 +325,9 @@ function interpolateRawEvalCase(
       : {}),
     ...(raw.expected_output !== undefined
       ? { expected_output: interpolateCaseField(raw.expected_output, vars, filters) }
+      : {}),
+    ...(raw.assert !== undefined
+      ? { assert: interpolateCaseField(raw.assert, vars, filters) }
       : {}),
     ...(raw.assertions !== undefined
       ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
@@ -679,9 +684,9 @@ async function loadTestsFromParsedYamlValue(
   readSuiteRuntimeBlock(suite, evalFilePath);
 
   // Build global execution context, including suite-level assertions (which is a sibling of execution)
-  const suiteAssertions = suite.assertions;
+  const suiteAssertions = suite.assert ?? suite.assertions;
   const globalExecution: JsonObject | undefined =
-    suiteAssertions !== undefined ? { assertions: suiteAssertions } : undefined;
+    suiteAssertions !== undefined ? { assert: suiteAssertions } : undefined;
 
   const results: EvalTest[] = [];
 
@@ -786,11 +791,13 @@ async function loadTestsFromParsedYamlValue(
           : undefined;
       const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
-      // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
+      // A test is complete when it has id, input, and at least one of: criteria,
+      // expected_output, assertions, or turns (conversation mode).
       const hasEvaluationSpec =
         !!outcome ||
         expectedMessages.length > 0 ||
         renderedCase.assertions !== undefined ||
+        renderedCase.assert !== undefined ||
         (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
       const hasInputMessages =
         testInputMessages.length > 0 ||
@@ -802,7 +809,6 @@ async function loadTestsFromParsedYamlValue(
         continue;
       }
 
-      // Prepend suite-level input to test input (respecting skip_defaults)
       // expected_output is optional - for outcome-only evaluation
       const hasExpectedMessages = expectedMessages.length > 0;
 

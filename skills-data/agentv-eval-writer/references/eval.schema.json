@@ -2298,7 +2298,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "enum": ["code-grader", "code_grader"]
+                                  "enum": ["script", "code-grader", "code_grader"]
                                 },
                                 "command": {
                                   "anyOf": [
@@ -2603,8 +2603,6 @@
                                     "python",
                                     "webhook",
                                     "similar",
-                                    "select-best",
-                                    "human",
                                     "contains",
                                     "contains-any",
                                     "contains-all",
@@ -2895,6 +2893,10 @@
                                 "type": {
                                   "type": "string",
                                   "const": "composite"
+                                },
+                                "assert": {
+                                  "type": "array",
+                                  "items": {}
                                 },
                                 "assertions": {
                                   "type": "array",
@@ -3621,6 +3623,21 @@
                           "workers": {
                             "not": {}
                           },
+                          "assert": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {},
+                                  "additionalProperties": {}
+                                }
+                              ]
+                            }
+                          },
                           "assertions": {
                             "type": "array",
                             "items": {
@@ -3667,7 +3684,7 @@
                                     },
                                     "type": {
                                       "type": "string",
-                                      "enum": ["code-grader", "code_grader"]
+                                      "enum": ["script", "code-grader", "code_grader"]
                                     },
                                     "command": {
                                       "anyOf": [
@@ -3972,8 +3989,6 @@
                                         "python",
                                         "webhook",
                                         "similar",
-                                        "select-best",
-                                        "human",
                                         "contains",
                                         "contains-any",
                                         "contains-all",
@@ -4264,6 +4279,10 @@
                                     "type": {
                                       "type": "string",
                                       "const": "composite"
+                                    },
+                                    "assert": {
+                                      "type": "array",
+                                      "items": {}
                                     },
                                     "assertions": {
                                       "type": "array",
@@ -7025,7 +7044,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "enum": ["code-grader", "code_grader"]
+                                  "enum": ["script", "code-grader", "code_grader"]
                                 },
                                 "command": {
                                   "anyOf": [
@@ -7330,8 +7349,6 @@
                                     "python",
                                     "webhook",
                                     "similar",
-                                    "select-best",
-                                    "human",
                                     "contains",
                                     "contains-any",
                                     "contains-all",
@@ -7622,6 +7639,10 @@
                                 "type": {
                                   "type": "string",
                                   "const": "composite"
+                                },
+                                "assert": {
+                                  "type": "array",
+                                  "items": {}
                                 },
                                 "assertions": {
                                   "type": "array",
@@ -8348,6 +8369,21 @@
                           "workers": {
                             "not": {}
                           },
+                          "assert": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {},
+                                  "additionalProperties": {}
+                                }
+                              ]
+                            }
+                          },
                           "assertions": {
                             "type": "array",
                             "items": {
@@ -8394,7 +8430,7 @@
                                     },
                                     "type": {
                                       "type": "string",
-                                      "enum": ["code-grader", "code_grader"]
+                                      "enum": ["script", "code-grader", "code_grader"]
                                     },
                                     "command": {
                                       "anyOf": [
@@ -8699,8 +8735,6 @@
                                         "python",
                                         "webhook",
                                         "similar",
-                                        "select-best",
-                                        "human",
                                         "contains",
                                         "contains-any",
                                         "contains-all",
@@ -8991,6 +9025,10 @@
                                     "type": {
                                       "type": "string",
                                       "const": "composite"
+                                    },
+                                    "assert": {
+                                      "type": "array",
+                                      "items": {}
                                     },
                                     "assertions": {
                                       "type": "array",
@@ -15387,7 +15425,7 @@
                               },
                               "type": {
                                 "type": "string",
-                                "enum": ["code-grader", "code_grader"]
+                                "enum": ["script", "code-grader", "code_grader"]
                               },
                               "command": {
                                 "anyOf": [
@@ -15692,8 +15730,6 @@
                                   "python",
                                   "webhook",
                                   "similar",
-                                  "select-best",
-                                  "human",
                                   "contains",
                                   "contains-any",
                                   "contains-all",
@@ -15984,6 +16020,10 @@
                               "type": {
                                 "type": "string",
                                 "const": "composite"
+                              },
+                              "assert": {
+                                "type": "array",
+                                "items": {}
                               },
                               "assertions": {
                                 "type": "array",
@@ -16710,6 +16750,21 @@
                         "workers": {
                           "not": {}
                         },
+                        "assert": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {},
+                                "additionalProperties": {}
+                              }
+                            ]
+                          }
+                        },
                         "assertions": {
                           "type": "array",
                           "items": {
@@ -16756,7 +16811,7 @@
                                   },
                                   "type": {
                                     "type": "string",
-                                    "enum": ["code-grader", "code_grader"]
+                                    "enum": ["script", "code-grader", "code_grader"]
                                   },
                                   "command": {
                                     "anyOf": [
@@ -17061,8 +17116,6 @@
                                       "python",
                                       "webhook",
                                       "similar",
-                                      "select-best",
-                                      "human",
                                       "contains",
                                       "contains-any",
                                       "contains-all",
@@ -17353,6 +17406,10 @@
                                   "type": {
                                     "type": "string",
                                     "const": "composite"
+                                  },
+                                  "assert": {
+                                    "type": "array",
+                                    "items": {}
                                   },
                                   "assertions": {
                                     "type": "array",

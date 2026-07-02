@@ -106,7 +106,7 @@ const RubricCriterionSchema = z.union([z.string().min(1), RubricItemSchema]);
 // --- Type-specific evaluator schemas ---
 
 const CodeGraderSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['code-grader', 'code_grader']),
+  type: z.enum(['script', 'code-grader', 'code_grader']),
   command: z.union([z.string(), z.array(z.string())]),
   cwd: z.string().optional(),
   target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
@@ -158,6 +158,7 @@ const AggregatorSchema = z.discriminatedUnion('type', [
 const CompositeSchema: z.ZodType = z.lazy(() =>
   EvaluatorCommonSchema.extend({
     type: z.literal('composite'),
+    assert: z.array(EvaluatorSchema).optional(),
     assertions: z.array(EvaluatorSchema).optional(),
     evaluators: z.array(EvaluatorSchema).optional(),
     aggregator: AggregatorSchema,
@@ -264,8 +265,6 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
     'python',
     'webhook',
     'similar',
-    'select-best',
-    'human',
     'contains',
     'contains-any',
     'contains-all',
@@ -504,6 +503,7 @@ const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
   workers: z.never().optional(),
+  assert: z.array(AssertionItemSchema).optional(),
   assertions: z.array(AssertionItemSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),

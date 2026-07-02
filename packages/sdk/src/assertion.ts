@@ -38,7 +38,11 @@ export type AssertionContext = CodeGraderInput;
 export type AssertionType =
   // kebab-case (canonical internal form)
   | 'llm-grader'
+  | 'g-eval'
+  | 'llm-rubric'
+  | 'script'
   | 'code-grader'
+  | 'assert-set'
   | 'rubrics'
   | 'composite'
   | 'tool-trajectory'
@@ -59,6 +63,10 @@ export type AssertionType =
   | 'equals'
   | 'regex'
   | 'is-json'
+  | 'javascript'
+  | 'python'
+  | 'webhook'
+  | 'similar'
   // legacy snake_case aliases (still accepted)
   | 'llm_grader'
   | 'code_grader'

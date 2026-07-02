@@ -225,7 +225,7 @@ describe('loadTestsFromJsonl', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].assertions).toHaveLength(1);
-    expect(cases[0].assertions?.[0].type).toBe('llm-grader');
+    expect(cases[0].assertions?.[0].type).toBe('g-eval');
     const rubricEvaluator = cases[0].assertions?.[0] as { type: string; rubrics?: unknown[] };
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });
@@ -259,11 +259,13 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].assertions).toHaveLength(1);
     expect(cases[0].assertions?.[0]).toMatchObject({
       name: 'rubrics',
-      type: 'llm-grader',
+      type: 'g-eval',
       rubrics: [
         {
           id: 'quality',
+          outcome: 'Answer quality',
           min_score: 0.8,
+          weight: 1,
           score_ranges: [
             { score_range: [0, 4], outcome: 'Weak' },
             { score_range: [5, 7], outcome: 'Adequate' },

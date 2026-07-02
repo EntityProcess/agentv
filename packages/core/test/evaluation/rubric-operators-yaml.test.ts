@@ -39,9 +39,9 @@ describe('rubric criterion operators', () => {
     const tests = await loadTests(path.join(dir, 'suite.eval.yaml'), dir);
     const evaluator = tests[0]?.assertions?.[0];
 
-    expect(evaluator?.type).toBe('llm-grader');
-    if (!evaluator || evaluator.type !== 'llm-grader') {
-      throw new Error('expected rubrics to normalize to llm-grader');
+    expect(evaluator?.type).toBe('g-eval');
+    if (!evaluator || evaluator.type !== 'g-eval') {
+      throw new Error('expected rubrics to normalize to g-eval');
     }
 
     expect(evaluator.rubrics?.map((rubric) => rubric.operator)).toEqual([

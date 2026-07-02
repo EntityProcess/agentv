@@ -165,6 +165,7 @@ export function isTestMessage(value: unknown): value is TestMessage {
 
 const GRADER_KIND_VALUES = [
   'code-grader',
+  'script',
   'llm-grader',
   'rubric',
   'composite',
@@ -175,6 +176,9 @@ const GRADER_KIND_VALUES = [
   'token-usage',
   'execution-metrics',
   'skill-trigger',
+  'assert-set',
+  'g-eval',
+  'llm-rubric',
   'contains',
   'contains-any',
   'contains-all',
@@ -186,6 +190,10 @@ const GRADER_KIND_VALUES = [
   'regex',
   'is-json',
   'equals',
+  'javascript',
+  'python',
+  'webhook',
+  'similar',
   'rubrics',
   'inline-assert',
 ] as const;
@@ -389,7 +397,7 @@ export type WorkspaceConfig = {
 
 export type CodeGraderConfig = {
   readonly name: string;
-  readonly type: 'code-grader';
+  readonly type: 'code-grader' | 'script';
   readonly command: readonly string[];
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
@@ -456,6 +464,18 @@ export type LlmGraderConfig = {
   /** Optional content preprocessors for ContentFile blocks in assistant output */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
+
+export type GEvalGraderConfig = Omit<LlmGraderConfig, 'type'> & {
+  readonly type: 'g-eval';
+};
+
+export type LlmRubricGraderConfig = Omit<LlmGraderConfig, 'type' | 'rubrics'> & {
+  readonly type: 'llm-rubric';
+  /** Promptfoo-compatible free-form rubric text. */
+  readonly value?: string;
+};
+
+export type LlmBackedGraderConfig = LlmGraderConfig | GEvalGraderConfig | LlmRubricGraderConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -860,6 +880,42 @@ export type RubricsEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
+export type ScriptAssertionGraderConfig = {
+  readonly name: string;
+  readonly type: 'javascript' | 'python' | 'webhook';
+  readonly value: string;
+  readonly threshold?: number;
+  readonly weight?: number;
+  readonly required?: boolean;
+  readonly min_score?: number;
+  readonly negate?: boolean;
+  readonly config?: JsonObject;
+};
+
+export type SimilarGraderConfig = {
+  readonly name: string;
+  readonly type: 'similar';
+  readonly value: string;
+  readonly threshold?: number;
+  readonly provider?: string | JsonObject;
+  readonly weight?: number;
+  readonly required?: boolean;
+  readonly min_score?: number;
+  readonly negate?: boolean;
+  readonly config?: JsonObject;
+};
+
+export type AssertSetGraderConfig = {
+  readonly name: string;
+  readonly type: 'assert-set';
+  readonly assertions: readonly GraderConfig[];
+  readonly threshold?: number;
+  readonly weight?: number;
+  readonly required?: boolean;
+  readonly min_score?: number;
+  readonly negate?: boolean;
+};
+
 /**
  * Configuration for the skill-trigger evaluator.
  * Detects whether the agent invoked a named skill as its first tool call.
@@ -897,6 +953,8 @@ export type InlineAssertEvaluatorConfig = {
 export type GraderConfig = (
   | CodeGraderConfig
   | LlmGraderConfig
+  | GEvalGraderConfig
+  | LlmRubricGraderConfig
   | CompositeGraderConfig
   | ToolTrajectoryGraderConfig
   | FieldAccuracyGraderConfig
@@ -917,6 +975,9 @@ export type GraderConfig = (
   | IsJsonGraderConfig
   | EqualsGraderConfig
   | RubricsEvaluatorConfig
+  | ScriptAssertionGraderConfig
+  | SimilarGraderConfig
+  | AssertSetGraderConfig
   | InlineAssertEvaluatorConfig
 ) & {
   /** Optional promptfoo-style named score key. Scoring aggregation support is layered separately. */

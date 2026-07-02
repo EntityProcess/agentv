@@ -215,7 +215,15 @@ describe('EvalFileSchema input shorthand', () => {
               value: ['Identifies user impact', 'Avoids unsupported claims'],
               score_ranges: [{ score_range: [0, 10], outcome: 'overall quality' }],
             },
+            {
+              type: 'composite',
+              assert: [{ type: 'contains', value: 'safe' }],
+              aggregator: { type: 'weighted_average' },
+            },
           ],
+          execution: {
+            assert: [{ type: 'contains', value: 'Looks' }],
+          },
         },
       ],
       scenarios: [

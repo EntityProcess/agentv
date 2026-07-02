@@ -56,6 +56,8 @@ type RawJsonlEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly evaluators?: JsonValue;
+  readonly assert?: JsonValue;
+  readonly assertions?: JsonValue;
   readonly rubrics?: JsonValue;
 };
 
@@ -209,7 +211,10 @@ export async function loadTestsFromJsonl(
 
     // A test is complete when it has id, input, and at least one of: criteria, expected_output, or assertions
     const hasEvaluationSpec =
-      !!outcome || expectedMessages.length > 0 || testCaseConfig.assertions !== undefined;
+      !!outcome ||
+      expectedMessages.length > 0 ||
+      testCaseConfig.assert !== undefined ||
+      testCaseConfig.assertions !== undefined;
     if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
         `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assertions`,

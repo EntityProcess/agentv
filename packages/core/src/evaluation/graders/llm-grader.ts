@@ -13,7 +13,7 @@ import type { Message, Provider, ProviderResponse, ProviderTool } from '../provi
 import { extractLastAssistantContent, isAgentProvider } from '../providers/types.js';
 import { TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { TokenUsage } from '../trace.js';
-import type { AssertionEntry, JsonObject, RubricItem } from '../types.js';
+import type { AssertionEntry, GraderConfig, JsonObject, RubricItem } from '../types.js';
 import { formatRubricOperatorGuidance, formatRubricOperatorLabel } from './rubric-operators.js';
 import { clampScore, isNonEmptyString, parseJsonFromText, scoreToVerdict } from './scoring.js';
 import type { EvaluationContext, EvaluationScore, Grader } from './types.js';
@@ -164,7 +164,7 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
     context.promptInputs.question && context.promptInputs.question.trim().length > 0
       ? context.promptInputs.question
       : context.evalCase.question;
-  const rubrics = context.evaluator?.type === 'llm-grader' ? context.evaluator.rubrics : undefined;
+  const rubrics = getRubrics(context.evaluator);
 
   return {
     [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
@@ -178,6 +178,18 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
     [TEMPLATE_VARIABLES.FILE_CHANGES]: context.fileChanges ?? '',
     [TEMPLATE_VARIABLES.TOOL_CALLS]: context.toolCalls ?? '',
   };
+}
+
+function getRubrics(config: GraderConfig | undefined): readonly RubricItem[] | undefined {
+  return config?.type === 'llm-grader' || config?.type === 'g-eval' ? config.rubrics : undefined;
+}
+
+function isLlmBackedWithPreprocessors(
+  config: GraderConfig | undefined,
+): config is Extract<GraderConfig, { readonly type: 'llm-grader' | 'g-eval' | 'llm-rubric' }> {
+  return (
+    config?.type === 'llm-grader' || config?.type === 'g-eval' || config?.type === 'llm-rubric'
+  );
 }
 
 function resolveContentBasePath(context: EvaluationContext): string | undefined {
@@ -242,7 +254,11 @@ export class LlmGrader implements Grader {
 
     // LLM mode: structured JSON evaluation
     const config = preparedContext.evaluator;
-    if (config?.type === 'llm-grader' && config.rubrics && config.rubrics.length > 0) {
+    if (
+      (config?.type === 'llm-grader' || config?.type === 'g-eval') &&
+      config.rubrics &&
+      config.rubrics.length > 0
+    ) {
       return this.evaluateWithRubrics(preparedContext, graderProvider, config.rubrics);
     }
 
@@ -251,7 +267,7 @@ export class LlmGrader implements Grader {
 
   private async prepareContext(context: EvaluationContext): Promise<EvaluationContext> {
     const config = context.evaluator;
-    if (config?.type !== 'llm-grader' || !context.output) {
+    if (!isLlmBackedWithPreprocessors(config) || !context.output) {
       return context;
     }
 
@@ -505,7 +521,7 @@ export class LlmGrader implements Grader {
     const userPrompt = this.buildAgentUserPrompt(context);
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
+    const rubrics = getRubrics(config);
 
     const fsTools = createFilesystemTools(workspacePath);
 
@@ -625,7 +641,7 @@ export class LlmGrader implements Grader {
       }
 
       const config = context.evaluator;
-      const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
+      const rubrics = getRubrics(config);
 
       const details: JsonObject = {
         mode: modeLabel,
@@ -669,7 +685,7 @@ export class LlmGrader implements Grader {
    */
   private buildAgentSystemPrompt(context: EvaluationContext): string {
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
+    const rubrics = getRubrics(config);
 
     const parts: string[] = [
       'You are an expert grader with access to the workspace filesystem.',
@@ -705,7 +721,7 @@ export class LlmGrader implements Grader {
     }
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
+    const rubrics = getRubrics(config);
 
     const parts: string[] = [
       'Evaluate the candidate answer by investigating the workspace.',
@@ -763,7 +779,7 @@ export class LlmGrader implements Grader {
         : context.evalCase.question;
 
     const config = context.evaluator;
-    const rubrics = config?.type === 'llm-grader' ? config.rubrics : undefined;
+    const rubrics = getRubrics(config);
 
     const template = context.graderTemplateOverride ?? this.graderTemplate;
     if (template) {
