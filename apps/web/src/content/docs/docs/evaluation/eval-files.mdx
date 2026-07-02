@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. The reserved `tags.experiment` key is the run/result grouping label, top-level `target` identifies the system under test, and fields such as `repeat`, `threshold`, `timeout_seconds`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency` control repeated attempts and gates. Workspace reuse belongs under `workspace.isolation`; Docker/container binding belongs under `workspace.docker`. Install, build, and reset commands belong under `workspace.hooks`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. The reserved `tags.experiment` key is the run/result grouping label, top-level `target` identifies the system under test, and fields such as `repeat`, `threshold`, `timeout_seconds`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency` control repeated attempts and gates. Workspace reuse belongs under `workspace.isolation`; repository provenance belongs under `workspace.repos`; Docker/container binding belongs under `workspace.docker`. Non-provisioning setup commands belong in top-level `extensions`; reset policy stays under `workspace.hooks.after_each.reset`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
 Eval files describe the task, target binding, and run controls. Use `evaluate_options.max_concurrency` for authored suite concurrency. Operators can still override concurrency with `--workers` or set defaults with `execution.workers` in `agentv.config.*` / `.agentv/config.yaml`; do not author legacy `workers` fields in eval YAML.
@@ -122,19 +122,57 @@ tests:
 | `evaluate_options` | Optional evaluation runtime options such as `budget_usd` and `max_concurrency` |
 | `threshold` | Optional suite quality threshold |
 | `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
+| `extensions` | Promptfoo-style lifecycle hooks: `file://path/to/hooks.mjs:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, plus the built-in `agentv:agent-rules`. Hooks run after `workspace.repos` materializes. |
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
 
 `workspace` is what the agent can inspect or modify through tools, not prompt
-input. Put instructions in `input`; put repos, templates, and lifecycle setup in
-`workspace`.
+input. Put instructions in `input`; put repos, templates, Docker config, env
+checks, isolation, and repo provenance in `workspace`. Put lifecycle setup that
+does not acquire repos in `extensions`.
 
 For historical or repo-state evals, put the checkout under
 `workspace.repos[].commit` or `workspace.repos[].base_commit`. A commit SHA in
 the prompt or metadata is useful context, but it does not materialize a repo for
 the agent to inspect.
+
+### Lifecycle Extensions
+
+`extensions` uses Promptfoo-compatible lifecycle names. File hooks are local
+JavaScript or TypeScript modules resolved relative to the eval file:
+
+```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+  - file://scripts/setup.mjs:beforeEach
+  - file://scripts/setup.mjs:afterEach
+  - file://scripts/setup.mjs:afterAll
+```
+
+Each exported function receives a context object with snake_case keys such as
+`workspace_path`, `test_id`, `eval_run_id`, `case_input`, and `case_metadata`.
+Setup hook failures (`beforeAll`, `beforeEach`) fail the affected run; teardown
+hook failures (`afterEach`, `afterAll`) are non-fatal.
+
+`agentv:agent-rules` is the only built-in extension in this slice. It runs after
+workspace materialization and exposes staged rule paths to providers and result
+metadata as `agent_rules_paths`:
+
+```yaml
+extensions:
+  - id: agentv:agent-rules
+    hook: beforeAll
+    skills: agent-rules/skills
+    hooks: agent-rules/hooks
+    agents: agent-rules/agents
+    rules: agent-rules/AGENTS.md
+```
+
+If `agentv:agent-rules` is authored as a string, it defaults to `beforeAll` and
+discovers conventional rule locations already present in the materialized
+workspace. It does not clone repositories or replace `workspace.repos`.
 
 ### Metadata Fields
 

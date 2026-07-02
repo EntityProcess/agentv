@@ -326,14 +326,16 @@ agentv eval evals/my-eval.yaml --workspace-clean full
 agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
 ```
 
-Portable eval YAML keeps workspace intent under templates, repos, hooks, env,
-Docker, and folder isolation:
+Portable eval YAML keeps workspace intent under templates, repos, env, Docker,
+and folder isolation. Use top-level extensions for executable setup:
 
 ```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+
 workspace:
   isolation: shared      # shared | per_case
   hooks:
-    enabled: true        # set false to skip all hooks
     after_each:
       reset: fast        # none | fast | strict
 ```
@@ -343,7 +345,7 @@ Notes:
 - Pooled mode is an explicit machine-local optimization.
 - `--workspace-path` uses an existing machine-local directory as-is and implies static runtime mode.
 - Runtime static mode is incompatible with `isolation: per_case`.
-- `hooks.enabled: false` skips all lifecycle hooks (setup, teardown, reset).
+- `workspace.hooks.after_each.reset` resets file state after each case.
 - Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Resume an Interrupted Run

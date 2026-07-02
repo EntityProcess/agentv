@@ -4,7 +4,7 @@
 # whether an agent invoked the right skills — without needing the
 # skill-trigger evaluator.
 #
-# Skills live in workspace/.agents/skills/. The before_all hook copies
+# Skills live in workspace/.agents/skills/. The setup hook copies
 # them to .claude/skills/ so copilot and other providers can discover them.
 #
 # Run:

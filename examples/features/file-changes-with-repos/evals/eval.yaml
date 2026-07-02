@@ -6,8 +6,8 @@
 #
 # Setup:
 #   - workspace.template copies workspace-template/ into the temp workspace
-#   - before_all hook initialises my-lib/ as a git repo inside the workspace
-#   - initializeBaseline (runs after before_all) sees my-lib/.git as a gitlink
+#   - setup hook initialises my-lib/ as a git repo inside the workspace
+#   - initializeBaseline sees my-lib/.git as a gitlink after setup
 #
 # Agent behaviour:
 #   - Writes report.txt to workspace root (not inside any repo)

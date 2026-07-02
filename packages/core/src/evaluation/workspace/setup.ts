@@ -18,7 +18,13 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { getWorkspacePoolRoot } from '../../paths.js';
+import {
+  type ExtensionRuntimeState,
+  mergeExtensionState,
+  runExtensionsForHook,
+} from '../extensions/runner.js';
 import type {
+  AgentVExtensionConfig,
   EvalTest,
   FailureStage,
   TargetHooksConfig,
@@ -120,6 +126,7 @@ export interface SharedWorkspaceSetup {
   readonly useStaticWorkspace: boolean;
   readonly configuredMode: WorkspaceSetupMode;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
+  readonly extensionState?: ExtensionRuntimeState;
 }
 
 export interface EvalCaseWorkspaceSetupOptions {
@@ -134,6 +141,7 @@ export interface EvalCaseWorkspaceSetupOptions {
   readonly cleanupWorkspaces?: boolean;
   readonly targetHooks?: TargetHooksConfig;
   readonly setupDebug?: boolean;
+  readonly sharedExtensionState?: ExtensionRuntimeState;
 }
 
 export interface EvalCaseWorkspaceSetup {
@@ -144,6 +152,7 @@ export interface EvalCaseWorkspaceSetup {
   readonly baselineCommit?: string;
   readonly isSharedWorkspace: boolean;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
+  readonly extensionState?: ExtensionRuntimeState;
 }
 
 export function toScriptConfig(
@@ -299,6 +308,28 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWor
   );
 }
 
+function selectSuiteExtensions(evalCases: readonly EvalTest[]): readonly AgentVExtensionConfig[] {
+  const candidates = new Map<string, readonly AgentVExtensionConfig[]>();
+  for (const evalCase of evalCases) {
+    const extensions = evalCase.extensions ?? [];
+    if (extensions.length === 0 || isPerCaseIsolation(evalCase.workspace)) {
+      continue;
+    }
+    candidates.set(stableWorkspaceValue(extensions), extensions);
+  }
+
+  if (candidates.size > 1) {
+    throw new WorkspaceSetupError(
+      'Wrapper eval contains multiple shared extension sets. Split the suites or use isolation: per_case when lifecycle extensions differ.',
+      {
+        failureStage: 'setup',
+        failureReasonCode: 'ambiguous_shared_extensions',
+      },
+    );
+  }
+  return [...candidates.values()][0] ?? [];
+}
+
 function workspaceGitEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
@@ -338,6 +369,10 @@ export async function resetWorkspaceRoot(
 
 function commandForHook(hook: WorkspaceHookConfig | undefined): readonly string[] | undefined {
   return hook?.command;
+}
+
+function mergeHookOutput(left: string | undefined, right: string | undefined): string | undefined {
+  return [left, right].filter(Boolean).join('\n') || undefined;
 }
 
 function hookExecution(options: {
@@ -404,6 +439,7 @@ export async function prepareSharedWorkspaceSetup(
   } = options;
   const selectedSuiteWorkspace = selectSuiteWorkspace(evalCases);
   const suiteWorkspace = selectedSuiteWorkspace?.workspace;
+  const suiteExtensions = selectSuiteExtensions(evalCases);
   const rawTemplate = suiteWorkspace?.template;
   const resolvedTemplate = await resolveWorkspaceTemplate(rawTemplate);
   const workspaceTemplate = resolvedTemplate?.dir;
@@ -447,7 +483,8 @@ export async function prepareSharedWorkspaceSetup(
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
     (!isPerCaseWorkspace &&
-      (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length))
+      (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) ||
+    suiteExtensions.length > 0
   );
 
   const poolEnabled = configuredMode === 'pooled';
@@ -480,6 +517,7 @@ export async function prepareSharedWorkspaceSetup(
   const availablePoolSlots: PoolSlot[] = [];
   const poolSlotBaselines = new Map<string, string>();
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
+  let extensionState: ExtensionRuntimeState | undefined;
 
   const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
   let repoManager: RepoManager | undefined;
@@ -532,7 +570,10 @@ export async function prepareSharedWorkspaceSetup(
           cause: error,
         });
       }
-    } else if (!isPerCaseWorkspace && (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) {
+    } else if (
+      !isPerCaseWorkspace &&
+      (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length || suiteExtensions.length > 0)
+    ) {
       sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
       await mkdir(sharedWorkspacePath, { recursive: true });
       setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
@@ -603,6 +644,34 @@ export async function prepareSharedWorkspaceSetup(
 
     const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
     const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
+    if (sharedWorkspacePath && suiteExtensions.length > 0) {
+      try {
+        extensionState = await runExtensionsForHook({
+          extensions: suiteExtensions,
+          hook: 'beforeAll',
+          context: {
+            hook_name: 'beforeAll',
+            workspace_path: sharedWorkspacePath,
+            test_id: '__before_all__',
+            eval_run_id: evalRunId,
+            eval_dir: evalDir,
+          },
+          state: extensionState,
+        });
+        beforeAllOutput = mergeHookOutput(beforeAllOutput, extensionState?.output);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (sharedWorkspacePath && !useStaticWorkspace) {
+          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+        }
+        throw new WorkspaceSetupError(`beforeAll extension failed: ${message}`, {
+          failureStage: 'setup',
+          failureReasonCode: 'extension_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
     if (sharedWorkspacePath && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
       const beforeAllHook = suiteBeforeAllHook;
       const beforeAllCommand = (beforeAllHook.command ?? []).join(' ');
@@ -662,6 +731,34 @@ export async function prepareSharedWorkspaceSetup(
       const beforeAllHook = suiteBeforeAllHook;
       for (const slot of availablePoolSlots) {
         setupLog(`running before_all on pool slot ${slot.index}`);
+        try {
+          extensionState = mergeExtensionState(
+            extensionState,
+            await runExtensionsForHook({
+              extensions: suiteExtensions,
+              hook: 'beforeAll',
+              context: {
+                hook_name: 'beforeAll',
+                workspace_path: slot.path,
+                test_id: '__before_all__',
+                eval_run_id: evalRunId,
+                eval_dir: evalDir,
+              },
+            }),
+          );
+          beforeAllOutput = mergeHookOutput(beforeAllOutput, extensionState?.output);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new WorkspaceSetupError(
+            `beforeAll extension failed on pool slot ${slot.index}: ${message}`,
+            {
+              failureStage: 'setup',
+              failureReasonCode: 'extension_error',
+              hookExecutions,
+              cause: error,
+            },
+          );
+        }
         const scriptContext: ScriptExecutionContext = {
           workspacePath: slot.path,
           testId: '__before_all__',
@@ -860,6 +957,7 @@ export async function prepareSharedWorkspaceSetup(
       useStaticWorkspace,
       configuredMode,
       hookExecutions,
+      ...(extensionState !== undefined && { extensionState }),
     };
   } catch (error) {
     await releasePoolSlots({ poolManager, poolSlot, poolSlots }).catch(() => {});
@@ -881,6 +979,7 @@ export async function prepareEvalCaseWorkspace(
     cleanupWorkspaces: forceCleanup,
     targetHooks,
     setupDebug,
+    sharedExtensionState,
   } = options;
 
   let workspacePath: string | undefined = isPerCaseIsolation(evalCase.workspace)
@@ -893,6 +992,7 @@ export async function prepareEvalCaseWorkspace(
   let caseWorkspaceFile: string | undefined;
   const caseHooksEnabled = hooksEnabled(evalCase.workspace);
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
+  let extensionState = sharedExtensionState;
 
   if (!workspacePath) {
     const rawCaseTemplate = evalCase.workspace?.template;
@@ -925,7 +1025,9 @@ export async function prepareEvalCaseWorkspace(
 
     if (
       !workspacePath &&
-      (evalCase.workspace?.hooks || evalCase.workspace?.repos?.length) &&
+      (evalCase.workspace?.hooks ||
+        evalCase.workspace?.repos?.length ||
+        evalCase.extensions?.length) &&
       evalRunId
     ) {
       workspacePath = getWorkspacePath(evalRunId, evalCase.id);
@@ -1019,6 +1121,38 @@ export async function prepareEvalCaseWorkspace(
         throw new WorkspaceSetupError(message, {
           failureStage: 'setup',
           failureReasonCode: 'preflight_error',
+          hookExecutions,
+          cause: error,
+        });
+      }
+    }
+
+    if (workspacePath && evalCase.extensions && evalCase.extensions.length > 0) {
+      try {
+        extensionState = await runExtensionsForHook({
+          extensions: evalCase.extensions,
+          hook: 'beforeAll',
+          context: {
+            hook_name: 'beforeAll',
+            workspace_path: workspacePath,
+            test_id: evalCase.id,
+            eval_run_id: evalRunId ?? '',
+            case_input: evalCase.question,
+            case_metadata: evalCase.metadata,
+            eval_dir: evalDir ?? process.cwd(),
+            workspace_file_dir: evalCase.workspace?.workspaceFileDir,
+          },
+          state: extensionState,
+        });
+        beforeAllOutput = mergeHookOutput(beforeAllOutput, extensionState?.output);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (forceCleanup && workspacePath) {
+          await cleanupWorkspace(workspacePath).catch(() => {});
+        }
+        throw new WorkspaceSetupError(`beforeAll extension failed: ${message}`, {
+          failureStage: 'setup',
+          failureReasonCode: 'extension_error',
           hookExecutions,
           cause: error,
         });
@@ -1122,6 +1256,39 @@ export async function prepareEvalCaseWorkspace(
   }
 
   const caseBeforeEachHook = evalCase.workspace?.hooks?.before_each;
+  if (workspacePath && evalCase.extensions && evalCase.extensions.length > 0) {
+    try {
+      const nextState = await runExtensionsForHook({
+        extensions: evalCase.extensions,
+        hook: 'beforeEach',
+        context: {
+          hook_name: 'beforeEach',
+          workspace_path: workspacePath,
+          test_id: evalCase.id,
+          eval_run_id: evalRunId ?? '',
+          case_input: evalCase.question,
+          case_metadata: evalCase.metadata,
+          eval_dir: evalDir ?? process.cwd(),
+          workspace_file_dir: evalCase.workspace?.workspaceFileDir,
+        },
+        state: extensionState,
+      });
+      if (nextState !== extensionState) {
+        beforeEachNeedsFreshBaseline = true;
+      }
+      extensionState = nextState;
+      beforeEachOutput = mergeHookOutput(beforeEachOutput, extensionState?.output);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new WorkspaceSetupError(`beforeEach extension failed: ${message}`, {
+        failureStage: 'setup',
+        failureReasonCode: 'extension_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
+  }
+
   if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeEachHook)) {
     const beforeEachHook = caseBeforeEachHook;
     const scriptContext: ScriptExecutionContext = {
@@ -1243,6 +1410,7 @@ export async function prepareEvalCaseWorkspace(
     ...(baselineCommit !== undefined && { baselineCommit }),
     isSharedWorkspace,
     hookExecutions,
+    ...(extensionState !== undefined && { extensionState }),
   };
 }
 

@@ -189,7 +189,7 @@ Scoped `run:` supports `threshold`, `repeat`, `timeout_seconds`, and legacy
 per-case `budget_usd` overrides. Parent suite budgets should use
 `evaluate_options.budget_usd` for public eval authoring. Use
 `evaluate_options.max_concurrency` for authored concurrency. Candidate-changing fields stay
-parent-level. Workspace mutation belongs in `workspace.hooks`, and
+parent-level. Executable workspace setup belongs in top-level lifecycle extensions, and
 provider-specific setup belongs in target configuration.
 
 ## Lifecycle Ownership
@@ -199,8 +199,9 @@ target-specific runner state.
 
 | Need | Put it in |
 | --- | --- |
-| Install dependencies, build the repo, seed files | `workspace.hooks.before_all` |
-| Reset or apply per-case state | `workspace.hooks.before_each` / `workspace.hooks.after_each` |
+| Install dependencies, build the repo, seed files | `extensions: ["file://scripts/setup.mjs:beforeAll"]` |
+| Apply per-case state | `extensions: ["file://scripts/setup.mjs:beforeEach"]` |
+| Reset file state after each case | `workspace.hooks.after_each.reset` |
 | Configure an agent runner or provider variant | `target` object or `targets.yaml` |
 | Choose the target | top-level `target` |
 | Override the target's default model | `target.model` |
@@ -208,10 +209,8 @@ target-specific runner state.
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml
-workspace:
-  hooks:
-    before_all:
-      command: ["bash", "-lc", "bun install && bun run build"]
+extensions:
+  - file://scripts/build.mjs:beforeAll
 
 target:
   extends: codex-gpt5

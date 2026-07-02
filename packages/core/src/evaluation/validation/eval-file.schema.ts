@@ -325,6 +325,68 @@ const WorkspaceScriptSchema = z
   })
   .strict();
 
+const ExtensionHookSchema = z.enum(['beforeAll', 'beforeEach', 'afterEach', 'afterAll']);
+
+const FileExtensionSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.startsWith('file://'), {
+    message: 'file extensions must start with file://',
+  })
+  .refine(
+    (value) => {
+      const lastColon = value.lastIndexOf(':');
+      return (
+        lastColon > 'file://'.length &&
+        ExtensionHookSchema.safeParse(value.slice(lastColon + 1)).success
+      );
+    },
+    {
+      message: 'file extensions must be of the form file://path/to/hook.ts:beforeAll',
+    },
+  );
+
+const AgentRulesStringExtensionSchema = z.union([
+  z.literal('agentv:agent-rules'),
+  z
+    .string()
+    .startsWith('agentv:agent-rules:')
+    .refine(
+      (value) => ExtensionHookSchema.safeParse(value.slice('agentv:agent-rules:'.length)).success,
+      {
+        message: 'agentv:agent-rules hook must be beforeAll, beforeEach, afterEach, or afterAll',
+      },
+    ),
+]);
+
+const AgentRulesPathListSchema = z.union([z.string().min(1), z.array(z.string().min(1))]);
+
+const AgentRulesObjectExtensionSchema = z
+  .object({
+    id: z.literal('agentv:agent-rules'),
+    hook: ExtensionHookSchema.optional(),
+    skills: AgentRulesPathListSchema.optional(),
+    hooks: AgentRulesPathListSchema.optional(),
+    agents: AgentRulesPathListSchema.optional(),
+    rules: AgentRulesPathListSchema.optional(),
+    config: z
+      .object({
+        skills: AgentRulesPathListSchema.optional(),
+        hooks: AgentRulesPathListSchema.optional(),
+        agents: AgentRulesPathListSchema.optional(),
+        rules: AgentRulesPathListSchema.optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
+const ExtensionSchema = z.union([
+  FileExtensionSchema,
+  AgentRulesStringExtensionSchema,
+  AgentRulesObjectExtensionSchema,
+]);
+
 // ---------------------------------------------------------------------------
 // Repo lifecycle
 // ---------------------------------------------------------------------------
@@ -686,8 +748,8 @@ export const EvalFileSchema: z.ZodType = z
     output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
     env: z.record(z.string()).optional(),
     nunjucks_filters: z.union([JsonObjectSchema, z.array(z.string().min(1))]).optional(),
-    extensions: z.array(z.union([z.string().min(1), JsonObjectSchema])).optional(),
-    on_run_complete: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    extensions: z.array(ExtensionSchema).optional(),
+    on_run_complete: z.never().optional(),
     policy: z.never().optional(),
     execution: z.never().optional(),
     // Suite-level assertions
