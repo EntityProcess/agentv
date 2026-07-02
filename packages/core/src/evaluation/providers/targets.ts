@@ -1151,7 +1151,7 @@ function resolveAzureConfig(
   // documented escape hatch instead of silently 400-ing on every call.
   if (target.api_format !== undefined) {
     throw new Error(
-      `The 'api_format' field is no longer supported on Azure targets ('${target.name}'). AgentV always uses Azure's Responses API. If your deployment only exposes /chat/completions, use 'provider: openai' with a deployment-scoped 'base_url' instead. See docs/targets/llm-providers for details.`,
+      `The 'api_format' field has been removed from Azure targets ('${target.name}'). AgentV always uses Azure's Responses API. If your deployment only exposes /chat/completions, use 'provider: openai' with a deployment-scoped 'base_url' instead. See docs/targets/llm-providers for details.`,
     );
   }
 

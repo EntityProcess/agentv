@@ -250,7 +250,7 @@ describe('resolveTargetDefinition', () => {
         },
         env,
       ),
-    ).toThrow(/'api_format' field is no longer supported/i);
+    ).toThrow(/'api_format' field has been removed/i);
   });
 
   it('rejects removed judge_target alias', () => {
