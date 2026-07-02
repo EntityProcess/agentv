@@ -13,6 +13,7 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 const JsonObjectSchema = z.object({}).catchall(z.unknown());
+const JsonRecordSchema = z.record(z.unknown());
 
 /** Message content: string, structured object, or structured array */
 const ContentItemSchema = z.object({
@@ -47,6 +48,7 @@ const ExpectedOutputSchema = z.union([z.string(), JsonObjectSchema, z.array(Mess
 /** Common fields shared by all evaluators */
 const EvaluatorCommonSchema = z.object({
   name: z.string().optional(),
+  metric: z.string().optional(),
   weight: z.number().min(0).optional(),
   required: z.boolean().optional(),
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
@@ -54,14 +56,27 @@ const EvaluatorCommonSchema = z.object({
   negate: z.boolean().optional(),
 });
 
-/** Prompt: string (inline/file path) or executable script config */
+/** Prompt: string (inline/file path), promptfoo-shaped object, or executable script config */
 const PromptSchema = z.union([
   z.string(),
   z.object({
     command: z.union([z.string(), z.array(z.string())]),
     config: z.record(z.unknown()).optional(),
   }),
+  z
+    .object({
+      id: z.string().optional(),
+      label: z.string().optional(),
+      raw: z.string().optional(),
+      path: z.string().optional(),
+      prefix: z.string().optional(),
+      suffix: z.string().optional(),
+      config: JsonRecordSchema.optional(),
+    })
+    .passthrough(),
 ]);
+
+const PromptsSchema = z.union([PromptSchema, z.array(PromptSchema).min(1)]);
 
 const PreprocessorSchema = z.object({
   type: z.string().min(1),
@@ -240,10 +255,46 @@ const RubricsSchema = EvaluatorCommonSchema.extend({
   criteria: z.array(RubricCriterionSchema).min(1),
 });
 
+const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
+  type: z.enum([
+    'assert-set',
+    'g-eval',
+    'llm-rubric',
+    'javascript',
+    'python',
+    'webhook',
+    'similar',
+    'select-best',
+    'human',
+    'contains',
+    'contains-any',
+    'contains-all',
+    'icontains',
+    'icontains-any',
+    'icontains-all',
+    'starts-with',
+    'ends-with',
+    'regex',
+    'is-json',
+    'equals',
+  ]),
+  value: z.unknown().optional(),
+  threshold: z.number().min(0).max(1).optional(),
+  criteria: z.union([z.string(), z.array(RubricCriterionSchema)]).optional(),
+  rubrics: z.array(RubricItemSchema).optional(),
+  score_ranges: z.array(ScoreRangeSchema).optional(),
+  provider: z.union([z.string(), JsonObjectSchema]).optional(),
+  config: JsonRecordSchema.optional(),
+  assert: z.array(z.union([z.string(), JsonObjectSchema])).optional(),
+  assertions: z.array(z.union([z.string(), JsonObjectSchema])).optional(),
+  transform: z.union([z.string(), JsonObjectSchema]).optional(),
+}).passthrough();
+
 /** Union of all grader types */
 const EvaluatorSchema = z.union([
   CodeGraderSchema,
   LlmGraderSchema,
+  PromptfooAssertionSchema,
   IncludeSchema,
   CompositeSchema,
   ToolTrajectorySchema,
@@ -258,6 +309,9 @@ const EvaluatorSchema = z.union([
   EqualsSchema,
   RubricsSchema,
 ]);
+
+/** Assertion item: string shorthand (becomes a criteria/rubric grader) or full evaluator config. */
+const AssertionItemSchema = z.union([z.string(), JsonObjectSchema]);
 
 // ---------------------------------------------------------------------------
 // Workspace
@@ -358,14 +412,24 @@ const EvalTargetRefSchema = z
 
 const EvalLocalTargetSchema = z
   .object({
+    id: z.string().min(1).optional(),
+    label: z.string().min(1).optional(),
     extends: z.string().min(1).optional(),
     name: z.string().min(1).optional(),
     provider: z.string().min(1).optional(),
     model: z.string().min(1).optional(),
+    config: JsonRecordSchema.optional(),
+    prompts: PromptsSchema.optional(),
+    transform: z.union([z.string(), JsonObjectSchema]).optional(),
+    delay: z.number().min(0).optional(),
+    env: z.record(z.string()).optional(),
     reasoning_effort: z.string().min(1).optional(),
     hooks: TargetHooksSchema.optional(),
   })
   .passthrough();
+
+const EvalTargetSchema = z.union([z.string().min(1), EvalLocalTargetSchema]);
+const EvalTargetsSchema = z.union([EvalTargetSchema, z.array(EvalTargetSchema).min(1)]);
 
 // ---------------------------------------------------------------------------
 // Execution block
@@ -378,7 +442,7 @@ const ExecutionSchema = z.object({
   target: z.string().optional(),
   targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
   workers: z.never().optional(),
-  assertions: z.array(EvaluatorSchema).optional(),
+  assertions: z.array(AssertionItemSchema).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
@@ -412,7 +476,18 @@ const RunOverrideSchema = z
 
 const DefaultTestSchema = z
   .object({
+    vars: JsonObjectSchema.optional(),
+    provider: EvalTargetSchema.optional(),
+    providers: EvalTargetsSchema.optional(),
+    prompts: PromptsSchema.optional(),
+    provider_output: ExpectedOutputSchema.optional(),
+    expected_output: ExpectedOutputSchema.optional(),
+    assert: z.array(AssertionItemSchema).optional(),
+    assertions: z.array(AssertionItemSchema).optional(),
+    assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
+    options: JsonObjectSchema.optional(),
     threshold: z.number().min(0).max(1).optional(),
+    metadata: z.record(z.unknown()).optional(),
   })
   .strict();
 
@@ -420,17 +495,22 @@ const EvaluateOptionsSchema = z
   .object({
     budget_usd: z.number().gt(0).optional(),
     max_concurrency: z.number().int().min(1).max(50).optional(),
+    cache: z.union([z.boolean(), JsonObjectSchema]).optional(),
+    delay: z.number().min(0).optional(),
+    generate_suggestions: z.boolean().optional(),
+    repeat: z.union([z.number().int().min(1), ExperimentRepeatSchema]).optional(),
+    timeout_ms: z.number().gt(0).optional(),
+    max_eval_time_ms: z.number().gt(0).optional(),
+    filter_range: z.union([z.tuple([z.number(), z.number()]), z.string()]).optional(),
   })
   .strict();
-
-/** Per-turn assertion: string shorthand (becomes rubric) or full evaluator config */
-const TurnAssertionSchema = z.union([z.string(), EvaluatorSchema]);
 
 /** A single turn in a multi-turn conversation */
 const ConversationTurnSchema = z.object({
   input: z.union([z.string(), MessageContentSchema]),
   expected_output: z.union([z.string(), MessageContentSchema]).optional(),
-  assertions: z.array(TurnAssertionSchema).optional(),
+  assert: z.array(AssertionItemSchema).optional(),
+  assertions: z.array(AssertionItemSchema).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -440,13 +520,22 @@ const ConversationTurnSchema = z.object({
 const TestExecutionSchema = ExecutionSchema.omit({ target: true, targets: true }).strict();
 
 const EvalTestSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).optional(),
+  description: z.string().optional(),
   vars: JsonObjectSchema.optional(),
   criteria: z.string().optional(),
+  provider: EvalTargetSchema.optional(),
+  providers: EvalTargetsSchema.optional(),
+  prompts: PromptsSchema.optional(),
+  provider_output: ExpectedOutputSchema.optional(),
   input: InputSchema.optional(),
   input_files: z.array(z.string()).optional(),
   expected_output: ExpectedOutputSchema.optional(),
-  assertions: z.array(EvaluatorSchema).optional(),
+  assert: z.array(AssertionItemSchema).optional(),
+  assertions: z.array(AssertionItemSchema).optional(),
+  assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
+  options: JsonObjectSchema.optional(),
+  threshold: z.number().min(0).max(1).optional(),
   evaluators: z.array(EvaluatorSchema).optional(),
   execution: TestExecutionSchema.optional(),
   run: RunOverrideSchema.optional(),
@@ -513,11 +602,46 @@ const TestsSchema = z.union([
   z.string().min(1),
 ]);
 
+const ScenarioConfigSchema = z
+  .object({
+    vars: JsonObjectSchema.optional(),
+    provider: EvalTargetSchema.optional(),
+    providers: EvalTargetsSchema.optional(),
+    prompts: PromptsSchema.optional(),
+    provider_output: ExpectedOutputSchema.optional(),
+    assert: z.array(AssertionItemSchema).optional(),
+    assertions: z.array(AssertionItemSchema).optional(),
+    options: JsonObjectSchema.optional(),
+    threshold: z.number().min(0).max(1).optional(),
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
+const ScenarioSchema = z
+  .object({
+    description: z.string().optional(),
+    config: z.array(ScenarioConfigSchema).optional(),
+    tests: z.array(EvalTestSchema).optional(),
+  })
+  .strict();
+
+const DerivedMetricSchema = z
+  .object({
+    name: z.string().min(1),
+    value: z.union([z.string().min(1), JsonObjectSchema]),
+  })
+  .strict();
+
+const TagsSchema = z.union([
+  z.array(z.string()),
+  z.record(z.union([z.string(), z.number(), z.boolean()])),
+]);
+
 // ---------------------------------------------------------------------------
 // Top-level eval file
 // ---------------------------------------------------------------------------
 
-export const EvalFileSchema = z
+export const EvalFileSchema: z.ZodType = z
   .object({
     $schema: z.string().optional(),
     // Metadata
@@ -529,11 +653,12 @@ export const EvalFileSchema = z
     category: z.string().optional(),
     version: z.string().optional(),
     author: z.string().optional(),
-    tags: z.array(z.string()).optional(),
+    tags: TagsSchema.optional(),
     license: z.string().optional(),
     requires: z.object({ agentv: z.string().optional() }).optional(),
     // Suite-level input
     input: InputSchema.optional(),
+    prompts: PromptsSchema.optional(),
     // Suite-level input_files shorthand
     input_files: z.array(z.string()).optional(),
     // Imports: suites preserve child context; tests import raw rows into parent context
@@ -544,6 +669,7 @@ export const EvalFileSchema = z
     eval_cases: TestsSchema.optional(),
     // Target
     target: z.union([z.string().min(1), EvalLocalTargetSchema]).optional(),
+    targets: EvalTargetsSchema.optional(),
     model: z.never().optional(),
     // Run/result grouping label and flat run controls
     experiment: z.string().min(1).optional(),
@@ -555,11 +681,18 @@ export const EvalFileSchema = z
     budget_usd: z.number().gt(0).optional(),
     threshold: z.number().min(0).max(1).optional(),
     default_test: DefaultTestSchema.optional(),
+    scenarios: z.array(ScenarioSchema).optional(),
+    derived_metrics: z.array(DerivedMetricSchema).optional(),
+    output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+    env: z.record(z.string()).optional(),
+    nunjucks_filters: z.union([JsonObjectSchema, z.array(z.string().min(1))]).optional(),
+    extensions: z.array(z.union([z.string().min(1), JsonObjectSchema])).optional(),
     on_run_complete: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
     policy: z.never().optional(),
     execution: z.never().optional(),
     // Suite-level assertions
-    assertions: z.array(EvaluatorSchema).optional(),
+    assert: z.array(AssertionItemSchema).optional(),
+    assertions: z.array(AssertionItemSchema).optional(),
     // Suite-level content preprocessors shared by evaluators
     preprocessors: z.array(PreprocessorSchema).optional(),
     // Workspace (inline object or path to external workspace YAML file)
@@ -567,6 +700,9 @@ export const EvalFileSchema = z
   })
   .refine(
     (value) =>
-      value.tests !== undefined || value.eval_cases !== undefined || value.imports !== undefined,
-    { message: "Eval files must define 'tests' or 'imports'." },
+      value.tests !== undefined ||
+      value.eval_cases !== undefined ||
+      value.imports !== undefined ||
+      value.scenarios !== undefined,
+    { message: "Eval files must define 'tests', 'imports', or 'scenarios'." },
   );

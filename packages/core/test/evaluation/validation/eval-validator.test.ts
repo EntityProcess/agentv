@@ -129,7 +129,7 @@ tests:
       filePath,
       `default_test:
   threshold: 1.2
-  assertions: []
+  unsupported: true
 tests:
   - id: test-1
     criteria: Goal
@@ -147,7 +147,108 @@ tests:
     ).toBe(true);
     expect(
       result.errors.some(
-        (error) => error.severity === 'error' && error.location === 'default_test.assertions',
+        (error) => error.severity === 'error' && error.location === 'default_test.unsupported',
+      ),
+    ).toBe(true);
+  });
+
+  it('validates promptfoo-shaped assert, default_test, and evaluate_options fields', async () => {
+    const filePath = path.join(tempDir, 'promptfoo-shaped.yaml');
+    await writeFile(
+      filePath,
+      `description: Promptfoo-compatible shape
+tags:
+  suite: smoke
+prompts:
+  - raw: "Review {{ vars.diff }}"
+targets:
+  - id: local-agent
+    provider: codex
+default_test:
+  vars:
+    tone: concise
+  assert:
+    - Mentions the main risk
+  options:
+    disable_default_asserts: true
+  threshold: 0.7
+evaluate_options:
+  cache: true
+  delay: 100
+  generate_suggestions: false
+  repeat: 2
+  timeout_ms: 30000
+  max_eval_time_ms: 120000
+  filter_range: [0, 10]
+tests:
+  - description: fixed output row
+    vars:
+      diff: change
+    provider_output: "Looks safe."
+    assert:
+      - type: contains
+        value: safe
+        metric: safety_text
+      - type: g-eval
+        value:
+          - Identifies user impact
+          - Avoids unsupported claims
+scenarios:
+  - description: severity variants
+    config:
+      - vars:
+          severity: high
+    tests:
+      - vars:
+          diff: critical fix
+        assert:
+          - type: llm-rubric
+            value: Flags the risk clearly
+derived_metrics:
+  - name: weighted_quality
+    value: safety_text * 0.5
+output_path: results.json
+env:
+  EVAL_MODE: local
+nunjucks_filters:
+  slug: ./filters/slug.ts
+extensions:
+  - agentv:agent-rules
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('warns rather than accepting top-level providers as a live alias for targets', async () => {
+    const filePath = path.join(tempDir, 'top-level-providers.yaml');
+    await writeFile(
+      filePath,
+      `prompts:
+  - raw: Hello {{ vars.name }}
+providers:
+  - openai:gpt-5.4-mini
+tests:
+  - vars:
+      name: Ada
+    assert:
+      - type: contains
+        value: Hello
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'warning' &&
+          error.location === 'providers' &&
+          error.message.includes("Unknown field 'providers'"),
       ),
     ).toBe(true);
   });
@@ -1943,15 +2044,14 @@ tests:
       ).toBe(true);
     });
 
-    it('errors on removed assertion field at test level', async () => {
-      const removedKey = ['ass', 'ert'].join('');
-      const filePath = path.join(tempDir, 'removed-test-field.yaml');
+    it('accepts canonical assert field at test level', async () => {
+      const filePath = path.join(tempDir, 'test-level-assert.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "Hello"
-    ${removedKey}:
+    assert:
       - type: contains
         value: "hello"
 `,
@@ -1959,22 +2059,15 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(false);
-      const errors = result.errors.filter((e) => e.severity === 'error');
-      expect(
-        errors.some(
-          (e) =>
-            e.message.includes("'assert' has been removed") && e.message.includes("'assertions'"),
-        ),
-      ).toBe(true);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('errors on removed assertion field at top level', async () => {
-      const removedKey = ['ass', 'ert'].join('');
-      const filePath = path.join(tempDir, 'removed-top-field.yaml');
+    it('accepts canonical assert field at top level', async () => {
+      const filePath = path.join(tempDir, 'top-level-assert.yaml');
       await writeFile(
         filePath,
-        `${removedKey}:
+        `assert:
   - type: contains
     value: "hello"
 tests:
@@ -1985,14 +2078,8 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      expect(result.valid).toBe(false);
-      const errors = result.errors.filter((e) => e.severity === 'error');
-      expect(
-        errors.some(
-          (e) =>
-            e.message.includes("'assert' has been removed") && e.message.includes("'assertions'"),
-        ),
-      ).toBe(true);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
   });
 });
