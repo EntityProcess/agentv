@@ -6,8 +6,6 @@ Date: 2026-07-01
 
 Accepted, then **superseded** (eval-authoring portions) by [ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md) as part of the promptfoo-superset restructure (2026-07-02).
 
-Accepted
-
 Supersedes the eval-authoring placement portions of
 [ADR 0002](0002-keep-harbor-benchmark-execution-behind-runner-boundary.md),
 [ADR 0006](0006-separate-experiments-from-eval-definitions.md), and

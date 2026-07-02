@@ -6,8 +6,6 @@ Date: 2026-07-01
 
 Accepted, then **superseded** (eval-authoring portions) by [ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md) as part of the promptfoo-superset restructure (2026-07-02).
 
-Accepted
-
 Extends [ADR 0009](0009-eval-path-result-identity-and-default-experiment.md) and
 builds on [ADR 0012](0012-finalize-run-artifact-layout.md), which established
 that `experiment` is a mutable run-grouping label recorded in run metadata
