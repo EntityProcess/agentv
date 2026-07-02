@@ -173,6 +173,7 @@ async function maybeWriteDiagnostics(
   }
 
   const payload = {
+    testFilePath: options.testFilePath,
     target: options.target?.name,
     targetKind: options.target?.kind,
     targetModel:
