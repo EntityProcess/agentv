@@ -63,6 +63,17 @@ describe('inline experiment config', () => {
     });
   });
 
+  it('normalizes repeat number shorthand', () => {
+    const config = normalizeExperimentConfig({
+      repeat: 3,
+    });
+
+    expect(config.repeat).toEqual({
+      count: 3,
+      strategy: 'pass_any',
+    });
+  });
+
   it('rejects invalid run counts', () => {
     expect(() => normalizeExperimentConfig({ runs: 3 })).toThrow(/repeat.count/);
     expect(() => normalizeExperimentConfig({ early_exit: true })).toThrow(/repeat.early_exit/);

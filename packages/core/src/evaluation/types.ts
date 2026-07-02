@@ -1165,7 +1165,7 @@ export interface DependencyResult {
 export type TrialStrategy = 'pass_any' | 'pass_all' | 'mean' | 'confidence_interval';
 
 /**
- * Configuration for running multiple trials per eval case.
+ * Configuration for running repeated attempts per eval case.
  */
 export interface TrialsConfig {
   readonly count: number;
@@ -1176,7 +1176,7 @@ export interface TrialsConfig {
 }
 
 /**
- * Result of a single trial attempt.
+ * Result of a single produced attempt.
  */
 export interface TrialResult {
   readonly attempt: number;
@@ -1185,7 +1185,7 @@ export interface TrialResult {
   readonly scores?: readonly GraderResult[];
   readonly error?: string;
   readonly costUsd?: number;
-  /** Primary classification for this trial attempt */
+  /** Primary classification for this attempt */
   readonly executionStatus?: ExecutionStatus;
   /** Pipeline stage where failure occurred */
   readonly failureStage?: FailureStage;
@@ -1193,7 +1193,7 @@ export interface TrialResult {
   readonly failureReasonCode?: string;
   /**
    * Full per-attempt result used by artifact writers to materialize AgentV
-   * run-N folders. This is intentionally omitted from wire trial summaries.
+   * attempt-N folders. This is intentionally omitted from compact wire summaries.
    */
   readonly result?: EvaluationResult;
 }
@@ -1348,11 +1348,11 @@ export interface EvaluationResult {
   readonly afterEachOutput?: string;
   /** Unified diff of workspace file changes */
   readonly fileChanges?: string;
-  /** Individual trial results (only present when trials.count > 1) */
+  /** Individual attempt results (only present when evaluate_options.repeat.count > 1) */
   readonly trials?: readonly TrialResult[];
-  /** Aggregation metadata describing how the final score was computed from trials */
+  /** Aggregation metadata describing how the final score was computed from attempts */
   readonly aggregation?: TrialAggregation;
-  /** Whether the trial loop was terminated early due to cost limit */
+  /** Whether the attempt loop was terminated early due to cost limit */
   readonly costLimited?: boolean;
   /** Whether the evaluation was skipped due to suite-level budget exhaustion */
   readonly budgetExceeded?: boolean;

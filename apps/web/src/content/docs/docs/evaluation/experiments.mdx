@@ -8,8 +8,8 @@ sidebar:
 AgentV eval files are the runnable authoring artifact. Use top-level
 `description` for display metadata, `tags.experiment` as the run/result grouping
 label, `target` for the system under test, and flat top-level run controls such
-as `repeat`, `timeout_seconds`, and `threshold`. Use `evaluate_options` for
-evaluation runtime options such as `budget_usd` and `max_concurrency`.
+as `timeout_seconds` and `threshold`. Use `evaluate_options` for evaluation
+runtime options such as `repeat`, `budget_usd`, and `max_concurrency`.
 Use `agentv eval --workers N` or project config defaults such as
 `agentv.config.*` / `.agentv/config.yaml` `execution.workers` for operator-side
 overrides.
@@ -23,11 +23,11 @@ target:
   extends: codex-gpt5
   model: gpt-5.1
   reasoning_effort: high
-repeat:
-  count: 4
-  strategy: pass_any
 timeout_seconds: 720
 evaluate_options:
+  repeat:
+    count: 4
+    strategy: pass_any
   budget_usd: 2.00
   max_concurrency: 3
 
@@ -157,9 +157,10 @@ test.run > import run > parent top-level run controls
 ```yaml
 target: agent
 threshold: 0.8
-repeat:
-  count: 3
-  strategy: pass_any
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
 
 imports:
   suites:
@@ -205,7 +206,7 @@ target-specific runner state.
 | Configure an agent runner or provider variant | `target` object or `targets.yaml` |
 | Choose the target | top-level `target` |
 | Override the target's default model | `target.model` |
-| Configure repeat policy, budget, concurrency, timeout, threshold | top-level `repeat`, `evaluate_options.budget_usd`, `evaluate_options.max_concurrency`, `timeout_seconds`, `threshold` |
+| Configure repeat policy, budget, concurrency, timeout, threshold | `evaluate_options.repeat`, `evaluate_options.budget_usd`, `evaluate_options.max_concurrency`, `timeout_seconds`, `threshold` |
 | Bind an existing local workspace directory | `--workspace-path` or `.agentv/config.local.yaml` |
 
 ```yaml
@@ -217,9 +218,10 @@ target:
   hooks:
     before_each:
       command: ["sh", "-c", "cp -R skills \"{{workspace_path}}/.codex/skills\""]
-repeat:
-  count: 3
-  strategy: pass_any
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
 ```
 
 Existing local workspace paths are machine-local bindings: pass
@@ -230,18 +232,32 @@ top-level or case-level `workspace`.
 
 ## Repeat Runs
 
-Use top-level `runs` when you want AgentV to try each case more than once:
+Use `evaluate_options.repeat` when you want AgentV to try each case more than once:
 
 ```yaml
-runs: 3
+evaluate_options:
+  repeat: 3
 ```
 
-`repeat.strategy` controls verdict aggregation. `pass_any` treats the case as
-successful when any completed attempt passes; `pass_all` requires every
-completed attempt to pass. `mean` and `confidence_interval` aggregate scores
-where supported today. `repeat.early_exit` is only a scheduling and cost
-optimization: `pass_any` may stop at the first pass, and `pass_all` may stop at
-the first fail. Leave it unset or `false` when you want complete variance data.
+Use object form when you need richer AgentV behavior:
+
+```yaml
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: true
+    cost_limit_usd: 1.00
+```
+
+`evaluate_options.repeat.strategy` controls verdict aggregation. `pass_any`
+treats the case as successful when any completed attempt passes; `pass_all`
+requires every completed attempt to pass. `mean` and `confidence_interval`
+aggregate scores where supported today. `evaluate_options.repeat.early_exit` is
+only a scheduling and cost optimization: `pass_any` may stop at the first pass,
+and `pass_all` may stop at the first fail. Leave it unset or `false` when you
+want complete variance data. Per-case `tests[].options.repeat` overrides the
+global repeat count or object for that case.
 
 ## Result Layout
 

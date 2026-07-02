@@ -152,7 +152,7 @@ function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {
 }
 
 function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
-  return trial.run_path ?? `run-${trial.attempt ?? index + 1}`;
+  return trial.attempt_path ?? trial.run_path ?? `attempt-${trial.attempt ?? index + 1}`;
 }
 
 function compactTokenBreakdown(result: EvalResult): string | undefined {
@@ -711,15 +711,15 @@ function RepeatStatusCell({
   return (
     <ResultStatusSymbol
       status={status}
-      label={`${group.passedTrials}/${group.trialCount} runs passed`}
+      label={`${group.passedTrials}/${group.trialCount} attempts passed`}
     />
   );
 }
 
 function RepeatSummaryText({ group }: { group: RepeatRunGroup }) {
   const parts = [
-    `${group.trialCount} runs`,
-    `${formatPercent(group.passRate)} run success`,
+    `${group.trialCount} attempts`,
+    `${formatPercent(group.passRate)} attempt success`,
     `${formatPercent(group.meanScore)} mean score`,
     group.assertionPassRate != null
       ? `${formatPercent(group.assertionPassRate)} assertions (${group.passedAssertions}/${group.assertionCount})`

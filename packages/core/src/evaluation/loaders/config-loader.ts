@@ -275,7 +275,7 @@ function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
   }
   if (suite.policy !== undefined) {
     throw new Error(
-      "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.",
+      "Top-level 'policy' is not part of eval YAML. Put repeat under evaluate_options.repeat, timeout_seconds and threshold at the top level, and budget_usd under evaluate_options.",
     );
   }
   if (suite.execution !== undefined) {

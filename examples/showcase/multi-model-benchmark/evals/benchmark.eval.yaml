@@ -16,11 +16,11 @@ description: Multi-model benchmark — accuracy, completeness, and clarity acros
 tags: [multi-provider]
 
 target: copilot
-repeat:
-  count: 2
-  strategy: pass_any
-  early_exit: false
 evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+    early_exit: false
   budget_usd: 2.00
 
 assertions:

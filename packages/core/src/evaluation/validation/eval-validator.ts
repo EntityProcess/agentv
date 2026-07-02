@@ -170,7 +170,7 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
     'policy',
-    "Top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.",
+    "Top-level 'policy' is not part of eval YAML. Put repeat under evaluate_options.repeat, timeout_seconds and threshold at the top level, and budget_usd under evaluate_options.",
   ],
   [
     'execution',
@@ -180,8 +180,12 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'providers',
     "Top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.",
   ],
-  ['runs', "Top-level 'runs' has been removed. Use repeat.count instead."],
-  ['early_exit', "Top-level 'early_exit' has been removed. Use repeat.early_exit instead."],
+  ['repeat', "Top-level 'repeat' has been removed. Use evaluate_options.repeat instead."],
+  ['runs', "Top-level 'runs' has been removed. Use evaluate_options.repeat.count instead."],
+  [
+    'early_exit',
+    "Top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
+  ],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
@@ -401,7 +405,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
-  validateRepeatOverride(parsed.repeat, 'repeat', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
   validateAssertArray(parsed.assertions, 'assertions', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
@@ -608,6 +611,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     );
 
     validateRunOverride(evalCase.run, `${location}.run`, absolutePath, errors);
+    validateTestOptions(evalCase.options, `${location}.options`, absolutePath, errors);
 
     // Cross-field validation for conversation mode
     validateConversationMode(evalCase, location, absolutePath, errors);
@@ -1135,6 +1139,27 @@ function validateRunOverride(
   }
 
   validateRepeatOverride(run.repeat, `${location}.repeat`, filePath, errors);
+}
+
+function validateTestOptions(
+  options: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (options === undefined) {
+    return;
+  }
+  if (!isObject(options)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'options' field (must be an object)",
+    });
+    return;
+  }
+  validateEvaluateOptionsRepeat(options.repeat, `${location}.repeat`, filePath, errors);
 }
 
 function validateDefaultTest(

@@ -810,11 +810,11 @@ export async function runEvaluation(
   } = options;
   const repoRootPath = pathFromRoot(repoRoot);
 
-  // Disable cache when trials > 1 (cache makes trials deterministic = pointless)
+  // Disable cache when repeat count > 1 (cached responses would make attempts deterministic).
   let useCache = options.useCache;
   if (trials && trials.count > 1 && useCache) {
     console.warn(
-      'Warning: Caching is disabled when trials.count > 1 (cached responses would make trials deterministic).',
+      'Warning: Caching is disabled when evaluate_options.repeat.count > 1 (cached responses would make attempts deterministic).',
     );
     useCache = false;
   }
@@ -876,9 +876,11 @@ export async function runEvaluation(
     typeof primaryProvider.invokeBatch === 'function';
   let batchingDisabledByRuntimePolicy = false;
 
-  // Disable batch mode when trials > 1 (batch processes all cases at once, incompatible with per-case retries)
+  // Disable batch mode when repeat count > 1 (batching is incompatible with separate attempts).
   if (trials && trials.count > 1 && providerSupportsBatch) {
-    console.warn('Warning: Batch mode is disabled when trials.count > 1. Using per-case dispatch.');
+    console.warn(
+      'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-case dispatch for attempts.',
+    );
     providerSupportsBatch = false;
     batchingDisabledByRuntimePolicy = true;
   }
@@ -2454,7 +2456,7 @@ async function runEvalCaseWithTrials(
       cumulativeCost += trialCost;
     } else if (trialsConfig.costLimitUsd && !costWarningEmitted) {
       console.warn(
-        'Warning: cost_limit_usd is set but provider does not report cost. All trials will run.',
+        'Warning: cost_limit_usd is set but provider does not report cost. All attempts will run.',
       );
       costWarningEmitted = true;
     }

@@ -113,14 +113,14 @@ describe('YAML-aligned eval authoring helpers', () => {
           },
         },
       },
-      repeat: {
-        count: 3,
-        strategy: 'pass_any',
-        early_exit: false,
-      },
       timeout_seconds: 600,
       threshold: 0.8,
       evaluate_options: {
+        repeat: {
+          count: 3,
+          strategy: 'pass_any',
+          early_exit: false,
+        },
         budget_usd: 1.5,
       },
       assertions: [

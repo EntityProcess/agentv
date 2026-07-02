@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
 import {
   existsSync,
   mkdirSync,
@@ -769,7 +769,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       .map((line) => JSON.parse(line) as Record<string, string | undefined>);
     const resultDir = indexRows[0]?.result_dir;
     expect(resultDir).toMatch(/^case-1--[a-f0-9]{12}$/);
-    const runDir = path.join(outputDir, resultDir ?? '', 'run-1');
+    const runDir = path.join(outputDir, resultDir ?? '', 'attempt-1');
     const outputsDir = path.join(runDir, 'outputs');
     expect(readdirSync(runDir)).not.toContain('provider.log');
     expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
@@ -782,8 +782,8 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
     expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
     expect(indexRows[0]?.trace_path).toBeUndefined();
-    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/run-1/transcript.json`);
-    expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/run-1/transcript-raw.jsonl`);
+    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/attempt-1/transcript.json`);
+    expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/attempt-1/transcript-raw.jsonl`);
     expect(existsSync(rawLogPath)).toBe(false);
   });
 
@@ -902,6 +902,56 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     } finally {
       const { rm } = await import('node:fs/promises');
       await rm(templateDir, { recursive: true, force: true });
+    }
+  });
+
+  it('disables provider batching when repeat attempts are configured', async () => {
+    class BatchCapableProvider implements Provider {
+      readonly id = 'batch:repeat';
+      readonly kind = 'mock' as const;
+      readonly targetName = 'repeat';
+      readonly supportsBatch = true;
+      invokeCalls = 0;
+      batchCalls = 0;
+
+      async invoke(): Promise<ProviderResponse> {
+        this.invokeCalls += 1;
+        return {
+          output: [{ role: 'assistant', content: 'OK' }],
+        };
+      }
+
+      async invokeBatch(): Promise<readonly ProviderResponse[]> {
+        this.batchCalls += 1;
+        throw new Error('batch should not be used for repeat attempts');
+      }
+    }
+
+    const provider = new BatchCapableProvider();
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: {
+          ...baseTarget,
+          providerBatching: true,
+          workers: 1,
+        },
+        providerFactory: () => provider,
+        evaluators: evaluatorRegistry,
+        evalCases: [baseTestCase],
+        trials: { count: 2, strategy: 'pass_any' },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(provider.batchCalls).toBe(0);
+      expect(provider.invokeCalls).toBe(2);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-case dispatch for attempts.',
+      );
+    } finally {
+      warnSpy.mockRestore();
     }
   });
 
@@ -1936,7 +1986,7 @@ describe('runEvaluation with trials', () => {
     expect(result.costLimited).toBeUndefined();
   });
 
-  it('disables cache when trials > 1', async () => {
+  it('disables cache when repeat attempts are configured', async () => {
     const provider = new MultiCallProvider();
     const evalRegistry = createScoringEvaluator([0.5, 0.9]);
     const trials: TrialsConfig = { count: 2, strategy: 'pass_any' };
@@ -1948,21 +1998,29 @@ describe('runEvaluation with trials', () => {
       async set() {},
     };
 
-    const results = await runEvaluation({
-      testFilePath: 'in-memory.yaml',
-      repoRoot: 'in-memory',
-      target: baseTarget,
-      providerFactory: () => provider,
-      evaluators: evalRegistry,
-      evalCases: [baseTestCase],
-      trials,
-      cache,
-      useCache: true, // Should be overridden to false
-    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const results = await runEvaluation({
+        testFilePath: 'in-memory.yaml',
+        repoRoot: 'in-memory',
+        target: baseTarget,
+        providerFactory: () => provider,
+        evaluators: evalRegistry,
+        evalCases: [baseTestCase],
+        trials,
+        cache,
+        useCache: true, // Should be overridden to false
+      });
 
-    // Provider should have been called for each trial (cache disabled)
-    expect(provider.callCount).toBe(2);
-    expect(results[0].trials).toHaveLength(2);
+      // Provider should have been called for each attempt (cache disabled)
+      expect(provider.callCount).toBe(2);
+      expect(results[0].trials).toHaveLength(2);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Warning: Caching is disabled when evaluate_options.repeat.count > 1 (cached responses would make attempts deterministic).',
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 

@@ -289,17 +289,17 @@ describe('writePerTestArtifacts', () => {
     await writePerTestArtifacts(results, tmpDir);
 
     const grading1 = JSON.parse(
-      readFileSync(rowRunPath(tmpDir, 'test-1', 'run-1', 'grading.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-1', 'attempt-1', 'grading.json'), 'utf8'),
     );
     expect(grading1.assertions).toHaveLength(1);
 
     const timing1 = JSON.parse(
-      readFileSync(rowRunPath(tmpDir, 'test-1', 'run-1', 'timing.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-1', 'attempt-1', 'timing.json'), 'utf8'),
     );
     expect(timing1.total_tokens).toBeGreaterThanOrEqual(0);
 
     const grading2 = JSON.parse(
-      readFileSync(rowRunPath(tmpDir, 'test-2', 'run-1', 'grading.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-2', 'attempt-1', 'grading.json'), 'utf8'),
     );
     expect(grading2.assertions).toHaveLength(1);
   });
@@ -310,7 +310,7 @@ describe('writePerTestArtifacts', () => {
     await writePerTestArtifacts(results, tmpDir);
 
     const answer = readFileSync(
-      rowRunPath(tmpDir, 'test-1', 'run-1', 'outputs', 'answer.md'),
+      rowRunPath(tmpDir, 'test-1', 'attempt-1', 'outputs', 'answer.md'),
       'utf8',
     );
     expect(answer).toContain('hello');

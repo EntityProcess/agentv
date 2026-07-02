@@ -197,7 +197,7 @@ function runArtifactDir(
   outputDir: string,
   record: { suite?: string; target?: string; test_id?: string },
 ): string {
-  return path.join(artifactDir(outputDir, record), 'run-1');
+  return path.join(artifactDir(outputDir, record), 'attempt-1');
 }
 
 function readAnswer(
@@ -299,7 +299,7 @@ describe('results export', () => {
     });
     expect(first.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      timing_path: expect.stringMatching(/^test-private--[a-f0-9]{12}\/run-1\/timing\.json$/),
+      timing_path: expect.stringMatching(/^test-private--[a-f0-9]{12}\/attempt-1\/timing\.json$/),
     });
     expect(first.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(first.entries[0].artifact_refs).not.toHaveProperty('output_path');
@@ -380,20 +380,20 @@ describe('results export', () => {
       status: 'planned_export',
       result_dir: resultDir,
       summary_path: `${resultDir}/summary.json`,
-      grading_path: `${resultDir}/run-1/grading.json`,
-      timing_path: `${resultDir}/run-1/timing.json`,
-      metrics_path: `${resultDir}/run-1/metrics.json`,
-      output_path: `${resultDir}/run-1/outputs/answer.md`,
-      answer_path: `${resultDir}/run-1/outputs/answer.md`,
-      transcript_path: `${resultDir}/run-1/transcript.json`,
-      transcript_raw_path: `${resultDir}/run-1/transcript-raw.jsonl`,
+      grading_path: `${resultDir}/attempt-1/grading.json`,
+      timing_path: `${resultDir}/attempt-1/timing.json`,
+      metrics_path: `${resultDir}/attempt-1/metrics.json`,
+      output_path: `${resultDir}/attempt-1/outputs/answer.md`,
+      answer_path: `${resultDir}/attempt-1/outputs/answer.md`,
+      transcript_path: `${resultDir}/attempt-1/transcript.json`,
+      transcript_raw_path: `${resultDir}/attempt-1/transcript-raw.jsonl`,
     });
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('trace_path');
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(bundle.entries[0].trace).not.toHaveProperty('envelope_ref');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
     expect(bundle.entries[0].trace_envelope.artifacts).not.toHaveProperty('trace_path');
-    expect(bundle.entries[0].feedback.grading_path).toBe(`${resultDir}/run-1/grading.json`);
+    expect(bundle.entries[0].feedback.grading_path).toBe(`${resultDir}/attempt-1/grading.json`);
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');
     expect(serialized).toContain('SECRET_PROMPT_TEXT');
@@ -454,13 +454,13 @@ describe('results export', () => {
       execution_status: 'ok',
       result_dir: rowDir,
       summary_path: `${rowDir}/summary.json`,
-      grading_path: `${rowDir}/run-1/grading.json`,
-      timing_path: `${rowDir}/run-1/timing.json`,
-      metrics_path: `${rowDir}/run-1/metrics.json`,
-      output_path: `${rowDir}/run-1/outputs/answer.md`,
-      answer_path: `${rowDir}/run-1/outputs/answer.md`,
-      transcript_path: `${rowDir}/run-1/transcript.json`,
-      transcript_raw_path: `${rowDir}/run-1/transcript-raw.jsonl`,
+      grading_path: `${rowDir}/attempt-1/grading.json`,
+      timing_path: `${rowDir}/attempt-1/timing.json`,
+      metrics_path: `${rowDir}/attempt-1/metrics.json`,
+      output_path: `${rowDir}/attempt-1/outputs/answer.md`,
+      answer_path: `${rowDir}/attempt-1/outputs/answer.md`,
+      transcript_path: `${rowDir}/attempt-1/transcript.json`,
+      transcript_raw_path: `${rowDir}/attempt-1/transcript-raw.jsonl`,
     });
     expect(entries[0]).not.toHaveProperty('input_path');
     expect(entries[0].projection_identity).toMatchObject({
@@ -832,7 +832,7 @@ describe('results export', () => {
 
     const answerPath = path.join(
       artifactDir(outputDir, RESULT_DIFFERENT_TARGET),
-      'run-1',
+      'attempt-1',
       'outputs',
       'answer.md',
     );

@@ -8,9 +8,9 @@
  *     index.jsonl              — per-test manifest with artifact pointers
  *     <test-id>/
  *       summary.json           — per-case aggregate
- *       run-1/result.json      — per-run result
- *       run-1/grading.json     — per-run grading artifact (assertions, graders)
- *       run-1/metrics.json     — per-run metrics artifact
+ *       attempt-1/result.json  — per-attempt result
+ *       attempt-1/grading.json — per-attempt grading artifact (assertions, graders)
+ *       attempt-1/metrics.json — per-attempt metrics artifact
  *
  * This module delegates artifact building to the shared artifact-writer so
  * that summary/grading/timing schemas stay aligned with `agentv eval`.

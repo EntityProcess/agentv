@@ -89,7 +89,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts top-level target object and repeat runtime controls with include selection entries', () => {
+  it('accepts top-level target object and evaluate_options repeat controls with include selection entries', () => {
     const result = EvalFileSchema.safeParse({
       name: 'wrapper',
       description: 'Wrapper eval',
@@ -100,17 +100,23 @@ describe('EvalFileSchema input shorthand', () => {
         reasoning_effort: 'high',
       },
       threshold: 0.8,
-      repeat: {
-        count: 2,
-        strategy: 'pass_any',
-        early_exit: true,
-      },
       timeout_seconds: 300,
       evaluate_options: {
         budget_usd: 2,
         max_concurrency: 3,
+        repeat: {
+          count: 2,
+          strategy: 'pass_any',
+          early_exit: true,
+        },
       },
       tests: [
+        {
+          ...baseTest,
+          options: {
+            repeat: 3,
+          },
+        },
         {
           include: './evals/**/*.eval.yaml',
           type: 'suite',

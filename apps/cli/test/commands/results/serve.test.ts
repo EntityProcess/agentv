@@ -2461,14 +2461,14 @@ describe('serve app', () => {
         thinking_blocks: 1,
       };
 
-      mkdirSync(path.join(runDir, resultDir, 'run-1'), { recursive: true });
-      mkdirSync(path.join(runDir, resultDir, 'run-2'), { recursive: true });
+      mkdirSync(path.join(runDir, resultDir, 'attempt-1'), { recursive: true });
+      mkdirSync(path.join(runDir, resultDir, 'attempt-2'), { recursive: true });
       writeFileSync(
-        path.join(runDir, resultDir, 'run-1', 'result.json'),
+        path.join(runDir, resultDir, 'attempt-1', 'result.json'),
         `${JSON.stringify({ transcript_summary: firstSummary })}\n`,
       );
       writeFileSync(
-        path.join(runDir, resultDir, 'run-2', 'result.json'),
+        path.join(runDir, resultDir, 'attempt-2', 'result.json'),
         `${JSON.stringify({ transcript_summary: secondSummary })}\n`,
       );
       writeFileSync(
@@ -2477,15 +2477,15 @@ describe('serve app', () => {
           ...RESULT_A,
           test_id: 'repeat-case',
           result_dir: resultDir,
-          trials: [
+          attempts: [
             {
               attempt: 0,
-              run_path: 'run-1',
+              attempt_path: 'attempt-1',
               score: 0.25,
               verdict: 'fail',
               transcript_summary: firstSummary,
             },
-            { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
+            { attempt: 1, attempt_path: 'attempt-2', score: 1, verdict: 'pass' },
           ],
         }),
       );
@@ -2495,18 +2495,18 @@ describe('serve app', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as {
         results: Array<{
-          trials?: Array<{
+          attempts?: Array<{
             transcript_path?: string;
             transcript_summary?: Record<string, unknown>;
           }>;
         }>;
       };
 
-      expect(data.results[0]?.trials?.[0]?.transcript_summary).toEqual(firstSummary);
-      expect(data.results[0]?.trials?.[1]?.transcript_summary).toEqual(secondSummary);
-      expect(data.results[0]?.trials?.map((trial) => trial.transcript_path)).toEqual([
-        `${resultDir}/run-1/transcript.json`,
-        `${resultDir}/run-2/transcript.json`,
+      expect(data.results[0]?.attempts?.[0]?.transcript_summary).toEqual(firstSummary);
+      expect(data.results[0]?.attempts?.[1]?.transcript_summary).toEqual(secondSummary);
+      expect(data.results[0]?.attempts?.map((trial) => trial.transcript_path)).toEqual([
+        `${resultDir}/attempt-1/transcript.json`,
+        `${resultDir}/attempt-2/transcript.json`,
       ]);
     });
 
@@ -3706,8 +3706,8 @@ describe('serve app', () => {
       const timestampDir = path.join(runsDir, '2026-03-25T10-00-00-000Z');
       const alphaDir = 'case-one--111111111111';
       const betaDir = 'case-one--222222222222';
-      const alphaAnswer = path.join(timestampDir, alphaDir, 'run-1', 'outputs', 'answer.md');
-      const betaAnswer = path.join(timestampDir, betaDir, 'run-1', 'outputs', 'answer.md');
+      const alphaAnswer = path.join(timestampDir, alphaDir, 'attempt-1', 'outputs', 'answer.md');
+      const betaAnswer = path.join(timestampDir, betaDir, 'attempt-1', 'outputs', 'answer.md');
 
       mkdirSync(path.dirname(alphaAnswer), { recursive: true });
       mkdirSync(path.dirname(betaAnswer), { recursive: true });
@@ -3722,7 +3722,7 @@ describe('serve app', () => {
             test_id: 'case-one',
             target: 'mock-alpha',
             result_dir: alphaDir,
-            answer_path: `${alphaDir}/run-1/outputs/answer.md`,
+            answer_path: `${alphaDir}/attempt-1/outputs/answer.md`,
           },
           {
             ...RESULT_A,
@@ -3730,14 +3730,14 @@ describe('serve app', () => {
             test_id: 'case-one',
             target: 'mock-beta',
             result_dir: betaDir,
-            answer_path: `${betaDir}/run-1/outputs/answer.md`,
+            answer_path: `${betaDir}/attempt-1/outputs/answer.md`,
           },
         ),
       );
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
       const res = await app.request(
-        `/api/runs/${encodeURIComponent('2026-03-25T10-00-00-000Z')}/evals/case-one/files/${betaDir}/run-1/outputs/answer.md?result_dir=${encodeURIComponent(betaDir)}`,
+        `/api/runs/${encodeURIComponent('2026-03-25T10-00-00-000Z')}/evals/case-one/files/${betaDir}/attempt-1/outputs/answer.md?result_dir=${encodeURIComponent(betaDir)}`,
       );
 
       expect(res.status).toBe(200);

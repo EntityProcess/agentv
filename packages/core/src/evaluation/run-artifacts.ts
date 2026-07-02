@@ -349,13 +349,13 @@ export interface GradingArtifact {
     readonly turns: number;
     readonly conversation_id: string;
   };
-  readonly trials?: readonly TrialResultArtifact[];
+  readonly attempts?: readonly TrialResultArtifact[];
   readonly aggregation?: TrialAggregationArtifact;
 }
 
 export type TrialResultArtifact = {
   readonly attempt: number;
-  readonly run_path?: string;
+  readonly attempt_path?: string;
   readonly score: number;
   readonly verdict: string;
   readonly scores?: IndexArtifactEntry['scores'];
@@ -490,7 +490,7 @@ export interface IndexArtifactEntry {
   readonly start_time?: string;
   readonly end_time?: string;
   readonly scores?: readonly Record<string, unknown>[];
-  readonly trials?: readonly TrialResultArtifact[];
+  readonly attempts?: readonly TrialResultArtifact[];
   readonly aggregation?: TrialAggregationArtifact;
   readonly execution_status?: string;
   readonly error?: string;
@@ -584,8 +584,8 @@ export interface AgentVRunResultArtifact {
 }
 
 export interface RepeatCaseSummaryArtifact {
-  readonly total_runs: number;
-  readonly passed_runs: number;
+  readonly total_attempts: number;
+  readonly passed_attempts: number;
   readonly pass_rate: string;
   readonly mean_duration_ms: number;
   readonly mean_duration_seconds: number;
@@ -732,8 +732,8 @@ function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifa
   return scores?.map(toIndexScore) as IndexArtifactEntry['scores'];
 }
 
-function trialRunDirName(attempt: number): string {
-  return `run-${attempt + 1}`;
+function attemptDirName(attempt: number): string {
+  return `attempt-${attempt + 1}`;
 }
 
 function hasPersistedTrialRuns(result: EvaluationResult): boolean {
@@ -755,7 +755,7 @@ function toTrialArtifacts(
   }
   return trials.map((trial) => ({
     attempt: trial.attempt,
-    run_path: trial.result ? trialRunDirName(trial.attempt) : undefined,
+    attempt_path: trial.result ? attemptDirName(trial.attempt) : undefined,
     score: trial.score,
     verdict: trial.verdict,
     scores: toIndexScores(trial.scores),
@@ -927,8 +927,8 @@ function buildRepeatCaseSummaryArtifact(
   const meanDurationMs = timing.mean_duration_ms ?? fallbackMeanMs;
 
   return {
-    total_runs: totalRuns,
-    passed_runs: passedRuns,
+    total_attempts: totalRuns,
+    passed_attempts: passedRuns,
     pass_rate: formatRepeatPassRate(passedRuns, totalRuns),
     mean_duration_ms: meanDurationMs,
     mean_duration_seconds: timing.mean_duration_seconds ?? roundSecondsFromMs(meanDurationMs),
@@ -1052,7 +1052,7 @@ async function writeTrialRunArtifacts(params: {
     return;
   }
 
-  const runDirName = trialRunDirName(params.trial.attempt);
+  const runDirName = attemptDirName(params.trial.attempt);
   const runDir = path.join(params.parentTestDir, runDirName);
   const grading = buildGradingArtifact(result, { includeTrials: false });
   const timing = buildTimingArtifact([result]);
@@ -1221,7 +1221,7 @@ export function buildGradingArtifact(
           conversation_id: result.conversationId,
         }
       : undefined,
-    trials: includeTrials ? toIndexTrialArtifacts(result) : undefined,
+    attempts: includeTrials ? toIndexTrialArtifacts(result) : undefined,
     aggregation: includeTrials ? toTrialAggregationArtifact(result.aggregation) : undefined,
   };
 }
@@ -1767,7 +1767,7 @@ export function buildIndexArtifactEntry(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
-    trials: toIndexTrialArtifacts(result),
+    attempts: toIndexTrialArtifacts(result),
     aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
@@ -1840,7 +1840,7 @@ export function buildResultIndexArtifact(
   const hasFileChanges = result.fileChanges !== undefined && result.fileChanges.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedTrialRuns(result);
-  const singleRunDir = path.posix.join(artifactSubdir, trialRunDirName(0));
+  const singleRunDir = path.posix.join(artifactSubdir, attemptDirName(0));
 
   return {
     timestamp: result.timestamp,
@@ -1857,7 +1857,7 @@ export function buildResultIndexArtifact(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
-    trials: toIndexTrialArtifacts(result),
+    attempts: toIndexTrialArtifacts(result),
     aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
     error: result.error,
@@ -2353,7 +2353,7 @@ export async function writePerTestArtifacts(
     }
 
     const isSingleRun = !hasPersistedTrialRuns(result);
-    const singleRunDir = path.join(testDir, trialRunDirName(0));
+    const singleRunDir = path.join(testDir, attemptDirName(0));
     const singleAnswerPath =
       isSingleRun && result.output.length > 0
         ? path.join(singleRunDir, 'outputs', 'answer.md')
@@ -2469,7 +2469,7 @@ export async function writeArtifactsFromResults(
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const identityId = projectionIdentity.id;
     const isSingleRun = !hasPersistedTrialRuns(result);
-    const singleRunDir = path.join(testDir, trialRunDirName(0));
+    const singleRunDir = path.join(testDir, attemptDirName(0));
     const singleAnswerPath =
       isSingleRun && result.output.length > 0
         ? path.join(singleRunDir, 'outputs', 'answer.md')

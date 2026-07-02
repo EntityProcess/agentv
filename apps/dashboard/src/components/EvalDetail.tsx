@@ -64,7 +64,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
 }
 
 function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
-  return trial.run_path ?? `run-${trial.attempt ?? index + 1}`;
+  return trial.attempt_path ?? trial.run_path ?? `attempt-${trial.attempt ?? index + 1}`;
 }
 
 function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {
@@ -618,9 +618,12 @@ function RepeatAggregateChecksTab({
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="grid gap-3 md:grid-cols-4">
-          <RunMetricRow label="Run success" value={formatPercent(group.passRate)} />
+          <RunMetricRow label="Attempt success" value={formatPercent(group.passRate)} />
           <RunMetricRow label="Mean score" value={formatPercent(group.meanScore)} />
-          <RunMetricRow label="Passed runs" value={`${group.passedTrials}/${group.trialCount}`} />
+          <RunMetricRow
+            label="Passed attempts"
+            value={`${group.passedTrials}/${group.trialCount}`}
+          />
           <RunMetricRow label="Assertions" value={formatPercent(group.assertionPassRate)} />
         </div>
       </div>
@@ -644,7 +647,7 @@ function RepeatAggregateChecksTab({
       ) : null}
 
       <section className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">Runs</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">Attempts</h4>
         {group.trials.map((trial, index) => (
           <TrialActionRow
             key={caseTrialPath(trial, index)}
@@ -726,7 +729,7 @@ function TrialChecksTab({
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-400">Run score</span>
+          <span className="text-sm font-medium text-gray-400">Attempt score</span>
           <div className="flex-1">
             <ScoreBar score={result.score} />
           </div>
@@ -804,7 +807,7 @@ function RepeatAggregateTranscriptTab({
   return (
     <section className="space-y-3">
       <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
-        Run transcripts
+        Attempt transcripts
       </h4>
       {group.trials.map((trial, index) => {
         const runLabel = caseTrialPath(trial, index);
@@ -891,7 +894,7 @@ function TrialTranscriptTab({
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
         <p className="mt-2 text-sm text-gray-500">
-          This run does not include a transcript artifact.
+          This attempt does not include a transcript artifact.
         </p>
       </div>
     );

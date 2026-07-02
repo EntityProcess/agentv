@@ -196,7 +196,7 @@ function numeric(values: readonly (number | undefined)[]): number[] {
 }
 
 function caseTrials(result: EvalResult): readonly EvalCaseTrial[] {
-  return result.trials ?? [];
+  return result.attempts ?? result.trials ?? [];
 }
 
 function caseTrialPassed(trial: EvalCaseTrial, passThreshold: number): boolean {
@@ -309,7 +309,9 @@ function buildRow(
 }
 
 function buildRepeatGroup(row: ResultTableRow, passThreshold: number): RepeatRunGroup | undefined {
-  const trials = caseTrials(row.result).filter((trial) => trial.run_path || trial.verdict);
+  const trials = caseTrials(row.result).filter(
+    (trial) => trial.attempt_path || trial.run_path || trial.verdict,
+  );
   if (trials.length <= 1) return undefined;
 
   const passedTrials = trials.filter((trial) => caseTrialPassed(trial, passThreshold)).length;

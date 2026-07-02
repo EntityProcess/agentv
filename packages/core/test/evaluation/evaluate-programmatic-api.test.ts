@@ -162,11 +162,11 @@ describe('evaluate() — programmatic API extensions', () => {
         expect(summaryArtifact.timing.duration_ms).toBeGreaterThanOrEqual(0);
 
         expect(resultDir).toMatch(/^programmatic-artifacts--[a-f0-9]{12}$/);
-        expect(existsSync(path.join(outputDir, resultDir ?? '', 'run-1', 'grading.json'))).toBe(
+        expect(existsSync(path.join(outputDir, resultDir ?? '', 'attempt-1', 'grading.json'))).toBe(
           true,
         );
         expect(
-          existsSync(path.join(outputDir, resultDir ?? '', 'run-1', 'outputs', 'answer.md')),
+          existsSync(path.join(outputDir, resultDir ?? '', 'attempt-1', 'outputs', 'answer.md')),
         ).toBe(true);
       } finally {
         rmSync(outputDir, { recursive: true, force: true });
