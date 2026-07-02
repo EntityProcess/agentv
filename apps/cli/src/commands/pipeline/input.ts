@@ -22,7 +22,7 @@ import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 
-import type { CodeGraderConfig, GraderConfig, LlmGraderConfig } from '@agentv/core';
+import type { GraderConfig, LlmGraderConfig, ScriptGraderConfig } from '@agentv/core';
 
 /** Assertion types that can be graded deterministically without external scripts or LLMs. */
 const BUILTIN_ASSERTION_TYPES = new Set([
@@ -252,15 +252,15 @@ async function writeGraderConfigs(
   let hasLlmGraders = false;
 
   for (const assertion of assertions) {
-    if (assertion.type === 'code-grader') {
+    if (assertion.type === 'script' || assertion.type === 'code-grader') {
       if (!hasCodeGraders) {
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;
       }
-      const config = assertion as CodeGraderConfig;
+      const config = assertion as ScriptGraderConfig;
       await writeJson(join(codeGradersDir, `${config.name}.json`), {
         name: config.name,
-        type: 'code-grader',
+        type: 'script',
         command: config.command,
         cwd: config.resolvedCwd ?? config.cwd ?? evalDir,
         weight: config.weight ?? 1.0,
