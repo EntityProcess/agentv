@@ -131,6 +131,9 @@ the repo's tests in the workspace and its exit code is the verdict (exactly marg
 (#5), this is how AgentV runs SWE-bench natively — same `repo`+`commit` provenance, no
 schema change, no new grader type.
 
+### Cross-check: exploitbench (confirms + two borrowables)
+exploitbench (security-exploit benchmark; AgentV research `entities/exploitbench.md`) **confirms** this contract: split filesystem run-tree is the source of truth (`job.json`/`score.json`/`cost.json`/`transcript.jsonl`/`tool_calls.jsonl`/`config_snapshot.yaml`); its SQLite is a **derived, rebuildable view** (`import`/`export` bijection), not required — validating our no-DB core (jq + `index.jsonl` is the query surface; a SQLite view stays an optional post-run adapter, Phoenix boundary intact). Docker images are pinned by `sha256:` digest at run start (reinforces resolver backend #5); `config_snapshot` = our `bundle.json`. **Borrow:** (1) a **`provenance`** field on result rows (`native`/`mock`/`replay`/`imported_from_*`) — durable, fits AgentV's replay/transcript/mock providers; adopt now. (2) **Eval-integrity / anti-reward-hacking — future scope**: run high-stakes graders in a fresh container with the workspace mounted **read-only**; an `audit` pass that re-grades from the stored transcript, scans for reward-hacking red flags, and verifies model identity (the provider served the requested model). "Post-hoc audit as part of benchmark validity."
+
 ## Consequences
 
 - Refines ADR-0011/0012 (bundle layout, `index_path`, timing→metrics merge, `.internal/`);
