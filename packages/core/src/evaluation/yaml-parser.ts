@@ -777,9 +777,14 @@ async function loadTestsFromParsedYamlValue(
           }
         }
       }
-      const testInputMessages = resolveInputMessages(inputCase, inputSuiteFiles);
+      const testInputMessages = resolveInputMessages(inputCase, inputSuiteFiles) ?? [];
       // Resolve expected_output with shorthand support
       const expectedMessages = resolveExpectedMessages(renderedCase) ?? [];
+      const effectiveSuiteInputValue =
+        rawSuiteInput && !skipDefaults
+          ? interpolateCaseField(rawSuiteInput, caseVars, nunjucksFilters)
+          : undefined;
+      const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
       // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
       const hasEvaluationSpec =
@@ -787,7 +792,10 @@ async function loadTestsFromParsedYamlValue(
         expectedMessages.length > 0 ||
         renderedCase.assertions !== undefined ||
         (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
-      if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
+      const hasInputMessages =
+        testInputMessages.length > 0 ||
+        (effectiveSuiteInputMessages !== undefined && effectiveSuiteInputMessages.length > 0);
+      if (!id || !hasEvaluationSpec || !hasInputMessages) {
         logError(
           `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input or PROMPT.md, and at least one of criteria/expected_output/assertions/turns`,
         );
@@ -795,12 +803,6 @@ async function loadTestsFromParsedYamlValue(
       }
 
       // Prepend suite-level input to test input (respecting skip_defaults)
-      const effectiveSuiteInputValue =
-        rawSuiteInput && !skipDefaults
-          ? interpolateCaseField(rawSuiteInput, caseVars, nunjucksFilters)
-          : undefined;
-      const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
-
       // expected_output is optional - for outcome-only evaluation
       const hasExpectedMessages = expectedMessages.length > 0;
 
@@ -1502,8 +1504,11 @@ async function resolveIncludePaths(
   includePath: string,
   evalFileDir: string,
 ): Promise<readonly string[]> {
-  const absolutePattern = path.resolve(evalFileDir, includePath);
-  if (hasGlobMagic(includePath)) {
+  const normalizedPath = includePath.startsWith('file://')
+    ? includePath.slice('file://'.length)
+    : includePath;
+  const absolutePattern = path.resolve(evalFileDir, normalizedPath);
+  if (hasGlobMagic(normalizedPath)) {
     const matches = (await fg(absolutePattern.replaceAll('\\', '/'), {
       onlyFiles: true,
       absolute: true,

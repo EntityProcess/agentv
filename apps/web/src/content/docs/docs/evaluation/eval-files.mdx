@@ -20,8 +20,9 @@ experiment format.
 - A **task suite** is eval YAML that owns task context: `workspace`, shared
   `input`, shared `assertions`, fixtures, graders, and test cases. It can run
   directly or be imported through `imports.suites`.
-- A **raw case file** is a YAML/JSONL array, directory, or glob of cases. Import
-  it with `imports.tests`, `tests: ./cases.yaml`, or string shorthand; parent
+- A **raw case file** is a YAML, JSON, JSONL, CSV, script-backed dataset,
+  directory, or glob of cases. Import it with `imports.tests`,
+  `tests: ./cases.yaml`, `tests: file://cases.csv`, or string shorthand; parent
   suite context applies because raw cases do not carry their own suite context.
 - A **wrapper eval** is eval YAML that imports one or more suites with
   `imports.suites` and binds run controls with top-level `target`, `repeat`,
@@ -373,14 +374,32 @@ tests: ./cases.yaml
 ```
 
 The path is resolved relative to the eval file's directory. The external raw
-case file should contain a YAML array of test objects or a JSONL file with one
-test per line. String entries inside a `tests:` list work the same way and may
-use direct paths, directories, or globs:
+case file can be a YAML or JSON array of test objects, a JSONL file with one
+test per line, a promptfoo-compatible CSV file, or an explicit JavaScript or
+Python dataset function such as `file://generate-tests.mjs:createTests` or
+`file://generate_tests.py:create_tests`. String entries inside a `tests:` list
+work the same way and may use direct paths, `file://` paths, directories, or
+globs:
 
 ```yaml
 tests:
   - ./cases/*.cases.yaml
 ```
+
+CSV datasets support promptfoo-style magic columns. `__expected` and
+`__expectedN` create AgentV assertions using the supported expected-column
+mini-DSL (`contains:*`, `icontains:*`, `contains-any:*`, `contains-all:*`,
+`icontains-any:*`, `icontains-all:*`, `starts-with:*`, `ends-with:*`,
+`regex:*`, `equals:*`, `is-json`, `latency(<ms>)`, `cost(<usd>)`,
+`grade:*`, `llm-rubric:*`, `javascript:*`, `fn:*`, `eval:*`, `python:*`, and
+`file://*.py`; file paths inside CSV cells are resolved relative to the CSV
+file). Unsupported promptfoo assertion forms such as `similar:*` are rejected
+during validation instead of being skipped at runtime.
+`__provider_output` becomes first-class `expected_output`, `__metric` names the
+generated assertions, `__threshold` sets the test threshold,
+`__metadata:<key>` adds metadata, and `__config:__expectedN:threshold` sets an
+assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
+suite-level `input` that interpolates those variables.
 
 String shorthand is raw-case-only. Import reusable task suites through
 `imports.suites`; use `imports.tests` when you want to drop suite context and

@@ -1579,6 +1579,87 @@ tests: "./cases-shorthand-workspace.yaml"
       );
       expect(extWarnings).toHaveLength(0);
     });
+
+    it('passes dataset loader extensions without unsupported-extension warnings', async () => {
+      const files = {
+        'cases.csv': 'id,input,__expected\ncsv-1,Hello,contains:Hi\n',
+        'cases.json': '[{"id":"json-1","criteria":"Goal","input":"Query"}]\n',
+        'cases.mjs': 'export function createTests() { return []; }\n',
+        'cases.py': 'def create_tests():\n    return []\n',
+      };
+      for (const [filename, content] of Object.entries(files)) {
+        await writeFile(path.join(tempDir, filename), content);
+      }
+
+      const filePath = path.join(tempDir, 'tests-dataset-extensions.yaml');
+      await writeFile(
+        filePath,
+        `imports:
+  tests:
+    - path: file://cases.csv
+    - path: cases.json
+    - path: cases.mjs:createTests
+    - path: cases.py:create_tests
+tests:
+  - id: inline
+    criteria: Goal
+    input: Query
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      const extWarnings = result.errors.filter(
+        (error) => error.severity === 'warning' && error.message.includes('extension'),
+      );
+      expect(extWarnings).toHaveLength(0);
+    });
+
+    it('passes promptfoo CSV rows that rely on suite-level input', async () => {
+      await writeFile(
+        path.join(tempDir, 'suite-input-cases.csv'),
+        'id,topic,__expected\ncase,refund,contains:refund\n',
+      );
+
+      const filePath = path.join(tempDir, 'suite-input-csv.yaml');
+      await writeFile(
+        filePath,
+        `input: Answer about {{ topic }}
+tests: file://suite-input-cases.csv
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('rejects unsupported promptfoo CSV expected DSL forms during validation', async () => {
+      await writeFile(
+        path.join(tempDir, 'unsupported-expected-cases.csv'),
+        'id,input,__expected\ncase,Hello,similar:hello\n',
+      );
+
+      const filePath = path.join(tempDir, 'unsupported-expected-csv.yaml');
+      await writeFile(
+        filePath,
+        `tests: file://unsupported-expected-cases.csv
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'tests',
+          message: expect.stringContaining('Unsupported promptfoo __expected assertion "similar"'),
+        }),
+      );
+    });
   });
 
   describe('suite-level input validation', () => {
