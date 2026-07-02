@@ -2783,6 +2783,22 @@ async function runEvaluatorsForCase(options: {
     });
   }
 
+  if (!evalCase.evaluator && (!evalCase.preprocessors || evalCase.preprocessors.length === 0)) {
+    return {
+      score: {
+        score: 1,
+        verdict: 'pass',
+        assertions: [
+          {
+            text: 'No assertions declared; grading skipped',
+            passed: true,
+          },
+        ],
+        expectedAspectCount: 1,
+      },
+    };
+  }
+
   const evaluatorKind = evalCase.evaluator ?? 'llm-grader';
   const activeEvaluator = evaluators[evaluatorKind] ?? evaluators['llm-grader'];
   if (!activeEvaluator) {

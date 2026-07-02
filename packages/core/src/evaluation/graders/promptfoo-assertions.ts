@@ -41,8 +41,9 @@ function buildAssertionContext(context: EvaluationContext): Record<string, unkno
 function normalizeScriptResult(
   result: ScriptResult,
   fallbackText: string,
-  threshold = 0,
+  threshold?: number,
 ): EvaluationScore {
+  const passThreshold = threshold ?? Number.EPSILON;
   if (typeof result === 'boolean') {
     return {
       score: result ? 1 : 0,
@@ -54,7 +55,7 @@ function normalizeScriptResult(
 
   if (typeof result === 'number') {
     const score = clampScore(result);
-    const passed = score >= threshold;
+    const passed = score >= passThreshold;
     return {
       score,
       verdict: passed ? 'pass' : 'fail',
@@ -71,13 +72,13 @@ function normalizeScriptResult(
         : result.pass === false
           ? 0
           : 0;
-  const passed = result.pass ?? score >= threshold;
+  const passed = result.pass ?? score >= passThreshold;
   const assertions =
     result.assertions && result.assertions.length > 0
       ? result.assertions
       : [
           {
-            text: result.reason ?? (score >= threshold ? 'Assertion passed' : fallbackText),
+            text: result.reason ?? (passed ? 'Assertion passed' : fallbackText),
             passed,
           },
         ];

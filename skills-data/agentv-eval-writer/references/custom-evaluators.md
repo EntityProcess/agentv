@@ -6,7 +6,6 @@
 
 ```json
 {
-  "criteria": "string",
   "input_files": ["path"],
   "input": [{"role": "user", "content": "..."}],
   "expected_output": [{"role": "assistant", "content": "..."}],
@@ -69,7 +68,7 @@ import {
   - `.invokeBatch(requests)` - Batch LLM calls
 - `definePromptTemplate(fn)` - Wraps prompt generation function
   - Raw stdin uses `snake_case`; SDK handlers receive `camelCase`
-  - Context fields: `input`, `expectedOutput`, `output`, `messages`, `criteria`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
+  - Context fields: `input`, `expectedOutput`, `output`, `messages`, `config`, `trace`, `traceSummary`, `tokenUsage`, `costUsd`, `durationMs`, `startTime`, `endTime`
 
 For Python, the repo-local helper example in `examples/features/sdk-python/` keeps canonical `snake_case` fields and rejects deprecated wire aliases like `output_text`, `input_text`, and `reference_answer`. It is not a separate Python runner or a promised published package; generated evals still run through the AgentV CLI.
 
@@ -145,10 +144,13 @@ if __name__ == "__main__":
 #!/usr/bin/env bun
 import { defineCodeGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, criteria }) => {
+export default defineCodeGrader(({ output, expectedOutput }) => {
   const candidate = output ?? '';
+  const expected = expectedOutput
+    ?.map((message) => (typeof message.content === 'string' ? message.content : ''))
+    .join('\n') ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
-  if (candidate.includes(criteria)) {
+  if (expected.length > 0 && candidate.includes(expected)) {
     assertions.push({ text: 'Matches expected outcome', passed: true });
   } else {
     assertions.push({ text: 'Does not match expected outcome', passed: false });
@@ -167,7 +169,6 @@ Derived from test fields (users never author these directly):
 
 | Variable | Source |
 |----------|--------|
-| `criteria` | Test `criteria` field |
 | `input` | Full resolved input array (JSON) |
 | `expected_output` | Full resolved expected array (JSON) |
 | `output` | Final answer / scored result string |

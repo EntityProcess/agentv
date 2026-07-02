@@ -27,7 +27,7 @@ Skip the review step for routine CI gate runs where you only need pass/fail.
 | **False positive** | A `contains` check passes on a coincidental substring match |
 | **False negative** | An LLM grader penalizes a correct answer that uses different phrasing |
 | **Qualitative regression** | Scores stay the same but tone, formatting, or helpfulness degrades |
-| **Grader miscalibration** | A code grader is too strict on whitespace; a rubric is too lenient on accuracy |
+| **Grader miscalibration** | A script grader is too strict on whitespace; a rubric is too lenient on accuracy |
 | **Flaky results** | The same test produces wildly different scores across runs |
 
 ## How to review
@@ -92,7 +92,7 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
       "verdict": "needs_improvement",
       "notes": "Missing coverage of multi-document queries.",
       "evaluator_overrides": {
-        "code-grader:format-check": "Too strict — penalized valid output with trailing newline",
+        "script:format-check": "Too strict — penalized valid output with trailing newline",
         "llm-grader:quality": "Score 0.6 seems fair, answer was incomplete"
       },
       "workspace_notes": "Workspace had stale cached files from previous run — may have affected retrieval results."
@@ -137,14 +137,14 @@ The `feedback.json` file is a structured annotation of a single eval run. It rec
 
 ### Grader overrides (workspace evaluations)
 
-For workspace evaluations with multiple graders (code graders, LLM graders, tool trajectory checks), the `evaluator_overrides` field lets the reviewer annotate specific grader results:
+For workspace evaluations with multiple graders (script graders, LLM graders, tool trajectory checks), the `evaluator_overrides` field lets the reviewer annotate specific grader results:
 
 ```json
 {
   "test_id": "test-refactor-api",
   "verdict": "needs_improvement",
   "evaluator_overrides": {
-    "code-grader:test-pass": "Tests pass but the refactored code has a subtle race condition the tests don't cover",
+    "script:test-pass": "Tests pass but the refactored code has a subtle race condition the tests don't cover",
     "llm-grader:quality": "Score 0.9 is too high — the agent left dead code behind",
     "tool-trajectory:efficiency": "Used 12 tool calls where 5 would suffice, but the result is correct"
   },

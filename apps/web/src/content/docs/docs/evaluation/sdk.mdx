@@ -9,7 +9,7 @@ YAML remains AgentV's canonical, portable eval format. The SDK surfaces below ar
 
 AgentV currently provides two npm packages for programmatic use:
 
-- **`@agentv/sdk`** — user-facing SDK for `evaluate()`, YAML-aligned eval authoring, custom assertions, and code graders
+- **`@agentv/sdk`** — user-facing SDK for `evaluate()`, YAML-aligned eval authoring, custom assertions, and script graders
 - **`@agentv/core`** — core implementation package and typed configuration
 
 ## Installation
@@ -140,7 +140,7 @@ export default defineEval({
         graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
-        graders.rubrics(['Greets the user'], { name: 'rubric-review' }),
+        graders.g-eval(['Greets the user'], { name: 'rubric-review' }),
         graders.llmGrader({
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
@@ -153,7 +153,7 @@ export default defineEval({
 });
 ```
 
-The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `rubrics`, `llm-grader`, and `code-grader`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `g-eval`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## AgentV-Native Helper Factories
 
@@ -262,7 +262,7 @@ assertions:
     value: "Hello"
 ```
 
-## Code Graders
+## Script Graders
 
 Use `defineCodeGrader` from `@agentv/sdk` for full control over scoring with an explicit assertions array:
 
@@ -294,7 +294,7 @@ it('links to the dashboard', () => {
 ```yaml
 assertions:
   - name: vitest-welcome-banner
-    type: code-grader
+    type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
@@ -311,9 +311,9 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 ]);
 ```
 
-`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` custom scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. Plain Vitest verifier files can use `command: [agentv, eval, graders/check.test.ts]` without a custom wrapper; use `agentv eval vitest` when you need adapter flags. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` custom scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest verifier files can use `command: [agentv, eval, graders/check.test.ts]` without a custom wrapper; use `agentv eval vitest` when you need adapter flags. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
-For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/graders/code-graders/).
+For detailed patterns, input/output contracts, and language-agnostic examples, see [Script Graders](/docs/graders/code-graders/).
 
 ## Wire Format vs SDK Format
 

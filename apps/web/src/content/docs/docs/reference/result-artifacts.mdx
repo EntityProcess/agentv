@@ -89,7 +89,7 @@ reserved for rebuildable local state and are skipped by run discovery.
 | `result.json` | Compact per-attempt manifest for one attempt directory, including AgentV `execution_status` and `verdict`. | Loading one attempt without scanning the whole run index. |
 | `grading.json` | Grader outputs, assertions, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
 | `metrics.json` | Derived executor behavior summary, such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, metric-style graders, adapter projections, and lightweight analysis. |
-| `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and code graders still receive the same full diff through `file_changes`. |
+| `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and script graders still receive the same full diff through `file_changes`. |
 | `timing.json` | Duration, token usage, cost usage, and source labels such as `provider_reported`, `token_estimated`, `aggregate`, or `unavailable`. | Cost/latency reporting and provider-accounting audits. |
 | `transcript.json` | AgentV-normalized transcript/timeline document with canonical `tool_name` values and `transcript_summary`. | Portable human review, transcript-aware graders, and tool-trajectory analysis. |
 | `transcript-raw.jsonl` | Native provider or harness evidence when available. | Parser debugging, forensic review, and preserving source bytes without making provider schemas public AgentV fields. |

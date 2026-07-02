@@ -2120,7 +2120,7 @@ tests:
         warnings.some(
           (e) =>
             e.message.includes("'expected_outcome' is deprecated") &&
-            e.message.includes("'criteria'"),
+            e.message.includes("'assert'"),
         ),
       ).toBe(true);
     });

@@ -24,14 +24,12 @@ tests:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier for the test |
-| `criteria` | Conditional | Description of what a correct response should contain. Required only when the case has no `expected_output` or `assertions` |
 | `input` | Yes | Input sent to the target (string, object, or message array) |
-| `expected_output` | No | Expected response for comparison (string, object, or message array) |
+| `expected_output` | No | Passive reference response available to graders (string, object, or message array) |
+| `assertions` / `assert` | Yes | Per-test graders; plain strings become `g-eval` rubric checks |
 | `execution` | No | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
-| `rubrics` | No | Structured evaluation criteria |
-| `assertions` | No | Per-test graders |
 
 ## Input
 
@@ -41,7 +39,7 @@ The simplest form is a string, which expands to a single user message:
 input: What is 15 + 27?
 ```
 
-Structured object input also expands to a single user message while preserving the object for code graders and batch runners:
+Structured object input also expands to a single user message while preserving the object for script graders and batch runners:
 
 ```yaml
 input:
@@ -71,8 +69,8 @@ Optional reference response for comparison by graders. Write `expected_output` a
 a golden answer or reference response the target could have produced, not as a
 rubric or "the agent should..." criteria list. `expected_output` is passive
 reference data: it is stored on the case and passed to graders, but it does not
-choose a grader by itself when `assertions` is present. Add explicit assertion
-strings, `llm-grader`, `code-grader`, `field-accuracy`, or another
+choose a grader by itself. Add explicit assertion
+strings, `llm-grader`, `script`, `field-accuracy`, or another
 reference-aware grader when you want the reference answer evaluated.
 
 A string expands to a single assistant message:
@@ -98,10 +96,10 @@ eval suites, or tags/filters for target-specific cases.
 ```yaml
 tests:
   - id: complex-case
-    criteria: Provides detailed explanation
     input: Explain quicksort algorithm
 
     assertions:
+      - Provides a detailed explanation
       - name: depth_check
         type: llm-grader
         prompt: ./graders/depth.md
@@ -117,16 +115,17 @@ assertions:
 
 tests:
   - id: normal-case
-    criteria: Returns correct answer
     input: What is 2+2?
+    assertions:
+      - Returns the correct answer
     # Gets latency_check from root-level assertions
 
   - id: special-case
-    criteria: Handles edge case
     input: Handle this edge case
     execution:
       skip_defaults: true
     assertions:
+      - Handles the edge case
       - name: custom_eval
         type: llm-grader
     # Does NOT get latency_check
@@ -144,16 +143,18 @@ workspace:
 
 tests:
   - id: case-1
-    criteria: Should work
     input: Do something
+    assertions:
+      - Completes the requested task
     workspace:
       hooks:
         before_all:
           command: ["bun", "run", "custom-setup.ts"]
 
   - id: case-2
-    criteria: Should also work
     input: Do something else
+    assertions:
+      - Completes the requested task
     # Inherits suite-level hooks.before_all
 ```
 
@@ -287,17 +288,17 @@ All deterministic assertions support these optional fields:
 ```yaml
 tests:
   - id: no-competitors
-    criteria: Response must not mention any competitor
     input: "Describe our product advantages."
     assertions:
+      - Response must not mention any competitor
       - type: contains-any
         value: ["CompetitorA", "CompetitorB", "CompetitorC"]
         negate: true
 
   - id: required-inputs
-    criteria: Agent asks for missing rule codes
     input: "Process customs entry for country BE."
     assertions:
+      - Agent asks for missing rule codes
       - name: asks-for-rule-codes
         type: icontains-any
         value: ["rule code", "rule codes"]
@@ -311,13 +312,12 @@ Assertion graders auto-generate a `name` when one is not provided (e.g., `contai
 
 ### Advanced Rubric Assertions
 
-Use `type: rubrics` with a `criteria` array only when you need weights,
+Use `type: g-eval` with a `criteria` array only when you need weights,
 required flags, or score ranges:
 
 ```yaml
 tests:
   - id: denied-party
-    criteria: Must identify denied party
     input:
       - role: user
         content: Screen "Acme Corp" against denied parties list
@@ -328,7 +328,7 @@ tests:
       - type: contains
         value: "DENIED"
         required: true
-      - type: rubrics
+      - type: g-eval
         criteria:
           - id: accuracy
             outcome: Correctly identifies the denied party
@@ -352,7 +352,7 @@ assertions:
   - type: contains
     value: "DENIED"
     required: true          # must pass (>= 0.8)
-  - type: rubrics
+  - type: g-eval
     required: true
     min_score: 0.6          # must score at least 0.6
     criteria:
@@ -373,24 +373,22 @@ Required gates are evaluated after all graders run. If any required grader falls
 
 ## How Reference Fields and `assertions` Interact
 
-The `criteria` and `expected_output` fields are **data fields** that describe what the
-response should accomplish. They are not graders themselves — how they get used depends
-on whether `assertions` is present.
+`expected_output` is reference data, not a grader. It is stored on the case and
+provided to graders that know how to use it, but it does not create an LLM
+grading call by itself. Put the grading contract in `assertions` or `assert`.
 
-### No `assertions` — implicit LLM grader
-
-When a test has no `assertions` field, a default `llm-grader` grader runs automatically
-and uses the case context, including `criteria` and `expected_output` when present:
+Plain assertion strings are the default shape for semantic checks:
 
 ```yaml
 tests:
   - id: simple-eval
-    criteria: Assistant correctly explains the bug and proposes a fix
     input: "Debug this function..."
-    # No assertions → default llm-grader evaluates against criteria
+    assertions:
+      - Assistant correctly explains the bug and proposes a fix
 ```
 
-Suite-level `preprocessors` also apply to this implicit grader. That matters when the agent output is a `ContentFile` block rather than plain text:
+Suite-level `preprocessors` apply to explicit LLM graders. That matters when the
+agent output is a `ContentFile` block rather than plain text:
 
 ```yaml
 preprocessors:
@@ -399,16 +397,15 @@ preprocessors:
 
 tests:
   - id: spreadsheet-eval
-    criteria: Output includes the revenue rows
     input: Generate the spreadsheet report
+    assertions:
+      - Output includes the revenue rows
 ```
 
-### `assertions` present — explicit graders only
-
-When `assertions` is defined, only the declared graders run. No implicit grader is added
-because `criteria` or `expected_output` exists. Graders that are declared (such as
-plain rubric strings, `llm-grader`, `code-grader`, or `rubrics`) receive the case
-context, including `criteria` and `expected_output`, as input automatically.
+When `assertions` is defined, only the declared graders run. No implicit grader is
+added because `expected_output` exists. Declared graders such as plain rubric
+strings, `llm-grader`, `script`, or `g-eval` receive the case context, including
+`expected_output`, as input automatically.
 
 This means a case with `expected_output` and only deterministic assertions evaluates only
 those deterministic assertions:
@@ -424,7 +421,7 @@ tests:
 ```
 
 For contract-style evals where assertion strings express every semantic check,
-omit `criteria`:
+keep those checks in `assertions`:
 
 ```yaml
 tests:
@@ -440,21 +437,11 @@ tests:
       - The answer avoids preserving one-off observations as durable guidance.
 ```
 
-If `assertions` contains only deterministic graders (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
-
-```
-Warning: Test 'my-test': criteria is defined but no grader in assertions
-will evaluate it. Add a rubric assertion string or another grader to assertions,
-or remove criteria if it is documentation-only.
-```
-
-To use `criteria` alongside deterministic checks, add a rubric assertion string
-or another grader explicitly:
+To combine deterministic checks with semantic checks, add both explicitly:
 
 ```yaml
 tests:
   - id: mixed-eval
-    criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
       - Explains why the bug happens
@@ -471,9 +458,9 @@ preprocessors:
 
 tests:
   - id: mixed-eval
-    criteria: Response is helpful and mentions the fix
     input: "Debug this function..."
     assertions:
+      - Response is helpful and mentions the fix
       - type: llm-grader        # use explicit form for custom preprocessors
         preprocessors:
           - type: xlsx
@@ -489,11 +476,12 @@ Pass additional context through the `metadata` field:
 ```yaml
 tests:
   - id: code-gen
-    criteria: Generates valid Python
     metadata:
       language: python
       difficulty: medium
     input: Write a function to sort a list
+    assertions:
+      - Generates valid Python
 ```
 
 `metadata` is passed to workspace lifecycle hooks as `case_metadata`, preserved

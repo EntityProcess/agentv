@@ -15,8 +15,8 @@ Covers plan quality, plan adherence, and tool selection rationale. Use LLM-based
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Plan quality & coherence | `rubrics` |
-| Workspace-aware auditing | `rubrics` with `required: true` criteria |
+| Plan quality & coherence | `g-eval` |
+| Workspace-aware auditing | `g-eval` with `required: true` criteria |
 
 ```yaml
 # Layer 1: Reasoning — verify the agent's plan makes sense
@@ -24,7 +24,7 @@ assertions:
   - Agent formed a coherent plan before acting
   - Agent selected appropriate tools for the task
   - name: workspace-audit
-    type: rubrics
+    type: g-eval
     criteria:
       - id: plan-before-act
         outcome: Agent formed a plan before making changes
@@ -43,7 +43,7 @@ Covers tool call correctness, argument validity, execution path, and redundancy.
 | Tool sequence | `tool_trajectory` (`in_order`, `exact`) |
 | Minimum tool usage | `tool_trajectory` (`any_order`) |
 | Argument correctness | `tool_trajectory` with `args` matching |
-| Custom validation logic | `code_grader` |
+| Custom validation logic | `script` |
 
 ```yaml
 # Layer 2: Action — verify the agent called the right tools
@@ -72,7 +72,7 @@ Covers task completion, output correctness, step efficiency, latency, and cost. 
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Output correctness | `rubrics`, `equals`, `contains`, `regex` |
+| Output correctness | `g-eval`, `equals`, `contains`, `regex` |
 | Structured data accuracy | `field_accuracy` |
 | Efficiency budgets | `execution_metrics` |
 | Multi-signal rollup | `composite` |
@@ -102,8 +102,8 @@ Covers prompt injection resilience, policy adherence, bias, and content safety. 
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Content safety | `rubrics` |
-| Policy enforcement | `code_grader` with policy command |
+| Content safety | `g-eval` |
+| Policy enforcement | `script` with policy command |
 | "Must NOT" assertions | Any grader with `negate: true` |
 
 ```yaml

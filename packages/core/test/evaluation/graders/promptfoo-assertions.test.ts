@@ -78,6 +78,31 @@ describe('promptfoo-compatible built-in assertions', () => {
     expect(result.assertions[0].passed).toBe(false);
   });
 
+  it('fails numeric javascript score zero when no threshold is set', async () => {
+    const result = await run({
+      name: 'js-zero',
+      type: 'javascript',
+      value: '0',
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions[0].passed).toBe(false);
+  });
+
+  it('honors explicit threshold zero for numeric javascript results', async () => {
+    const result = await run({
+      name: 'js-zero-threshold',
+      type: 'javascript',
+      value: '0',
+      threshold: 0,
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('pass');
+    expect(result.assertions[0].passed).toBe(true);
+  });
+
   it('runs python assertions in a subprocess', async () => {
     const result = await run({
       name: 'py',
@@ -87,6 +112,18 @@ describe('promptfoo-compatible built-in assertions', () => {
 
     expect(result.score).toBe(1);
     expect(result.verdict).toBe('pass');
+  });
+
+  it('fails object python score zero when no pass flag or threshold is set', async () => {
+    const result = await run({
+      name: 'py-zero',
+      type: 'python',
+      value: "{'score': 0, 'reason': 'zero score'}",
+    });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions[0]).toEqual({ text: 'zero score', passed: false });
   });
 
   it('runs webhook assertions against an HTTP endpoint', async () => {
@@ -119,6 +156,29 @@ describe('promptfoo-compatible built-in assertions', () => {
     expect(result.assertions[0].text).toBe('saw output');
   });
 
+  it('fails webhook score zero when no pass flag or threshold is set', async () => {
+    const url = await new Promise<string>((resolve) => {
+      server = createServer((req, res) => {
+        req.resume();
+        req.on('end', () => {
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ score: 0, reason: 'zero score' }));
+        });
+      }).listen(0, () => {
+        const address = server?.address();
+        if (address && typeof address === 'object') {
+          resolve(`http://127.0.0.1:${address.port}`);
+        }
+      });
+    });
+
+    const result = await run({ name: 'webhook-zero', type: 'webhook', value: url });
+
+    expect(result.score).toBe(0);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions[0]).toEqual({ text: 'zero score', passed: false });
+  });
+
   it('aggregates nested assert-set children', async () => {
     const result = await run({
       name: 'set',
@@ -132,6 +192,31 @@ describe('promptfoo-compatible built-in assertions', () => {
 
     expect(result.score).toBe(1);
     expect(result.scores?.map((score) => score.type)).toEqual(['contains', 'starts-with']);
+  });
+
+  it('does not count zero-score script children as passing in composite thresholds', async () => {
+    const result = await run({
+      name: 'gate',
+      type: 'composite',
+      assertions: [
+        { name: 'js-zero', type: 'javascript', value: '0' },
+        { name: 'contains', type: 'contains', value: 'Paris' },
+      ],
+      aggregator: { type: 'threshold', threshold: 1 },
+    });
+
+    expect(result.score).toBe(0.5);
+    expect(result.verdict).toBe('fail');
+    expect(result.assertions[0]).toEqual({
+      text: '1/2 evaluators passed (threshold: 1)',
+      passed: false,
+    });
+    expect(result.scores?.[0]).toMatchObject({
+      name: 'js-zero',
+      type: 'javascript',
+      score: 0,
+      verdict: 'fail',
+    });
   });
 
   it('runs similar with an OpenAI-compatible embeddings provider', async () => {

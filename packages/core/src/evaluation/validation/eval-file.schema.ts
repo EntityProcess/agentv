@@ -585,7 +585,6 @@ const EvalTestSchema = z.object({
   id: z.string().min(1).optional(),
   description: z.string().optional(),
   vars: JsonObjectSchema.optional(),
-  criteria: z.string().optional(),
   provider: EvalTargetSchema.optional(),
   providers: EvalTargetsSchema.optional(),
   prompts: PromptsSchema.optional(),

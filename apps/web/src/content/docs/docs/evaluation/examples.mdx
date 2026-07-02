@@ -69,7 +69,7 @@ tests:
 
 ## Multi-Grader
 
-Combine a code grader and an LLM grader on the same test:
+Combine a script grader and an LLM grader on the same test:
 
 ```yaml
 description: JSON generation with validation
@@ -81,7 +81,7 @@ tests:
 
     assertions:
       - name: json_format_validator
-        type: code-grader
+        type: script
         command: [uv, run, validate_json.py]
         cwd: ./graders
       - name: content_evaluator
@@ -310,7 +310,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
         cwd: .
 
@@ -343,7 +343,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
         cwd: .
 ```

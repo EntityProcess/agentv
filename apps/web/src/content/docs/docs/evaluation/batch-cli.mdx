@@ -54,7 +54,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: [bun, run, ./scripts/check-output.ts]
         cwd: .
 
@@ -82,7 +82,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: [bun, run, ./scripts/check-output.ts]
         cwd: .
 ```
@@ -141,7 +141,7 @@ AgentV extracts tool calls directly from `output[].tool_calls[]` for `tool_traje
 
 ## Grader Implementation
 
-Each test has its own grader that validates the batch runner output. The grader receives the standard `code_grader` input via stdin.
+Each test has its own grader that validates the batch runner output. The grader receives the standard `script` input via stdin.
 
 **Input (stdin):**
 ```json

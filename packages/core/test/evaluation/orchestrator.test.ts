@@ -2568,6 +2568,41 @@ describe('criteria with assertions runs only declared evaluators (#452)', () => 
     expect(result.score).toBe(1);
   });
 
+  it('does not run the default llm-grader for passive expected_output-only cases', async () => {
+    const provider = new SequenceProvider('mock', {
+      responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],
+    });
+    const llmEvaluate = mock(() => {
+      throw new Error('default llm-grader should not run');
+    });
+
+    const { evaluator: _evaluator, ...referenceOnlyCase } = criteriaTestCase;
+    const result = await runEvalCase({
+      evalCase: {
+        ...referenceOnlyCase,
+        criteria: '',
+        expected_output: [{ role: 'assistant', content: 'hello world' }],
+      },
+      provider,
+      target: {
+        ...baseTarget,
+        graderTarget: 'grader-target',
+      },
+      evaluators: {
+        'llm-grader': {
+          kind: 'llm-grader',
+          evaluate: llmEvaluate,
+        },
+      },
+    });
+
+    expect(llmEvaluate).not.toHaveBeenCalled();
+    expect(result.score).toBe(1);
+    expect(result.assertions).toEqual([
+      { text: 'No assertions declared; grading skipped', passed: true },
+    ]);
+  });
+
   it('criteria is available as evalCase data for evaluators that consume it', async () => {
     const provider = new SequenceProvider('mock', {
       responses: [{ output: [{ role: 'assistant', content: 'hello world' }] }],

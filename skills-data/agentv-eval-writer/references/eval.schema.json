@@ -890,9 +890,6 @@
                         "properties": {},
                         "additionalProperties": {}
                       },
-                      "criteria": {
-                        "type": "string"
-                      },
                       "provider": {
                         "anyOf": [
                           {
@@ -5635,9 +5632,6 @@
                         "type": "object",
                         "properties": {},
                         "additionalProperties": {}
-                      },
-                      "criteria": {
-                        "type": "string"
                       },
                       "provider": {
                         "anyOf": [
@@ -14016,9 +14010,6 @@
                       "type": "object",
                       "properties": {},
                       "additionalProperties": {}
-                    },
-                    "criteria": {
-                      "type": "string"
                     },
                     "provider": {
                       "anyOf": [
