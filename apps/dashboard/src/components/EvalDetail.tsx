@@ -669,11 +669,15 @@ type ParsedGradingArtifact = {
   error?: string;
 };
 
-function parseGradingArtifact(content: string | undefined): ParsedGradingArtifact | null {
+export function parseGradingArtifact(content: string | undefined): ParsedGradingArtifact | null {
   if (!content) return null;
   try {
     const parsed = JSON.parse(content) as Record<string, unknown>;
-    const rawAssertions = Array.isArray(parsed.assertions) ? parsed.assertions : [];
+    const rawAssertions = Array.isArray(parsed.assertion_results)
+      ? parsed.assertion_results
+      : Array.isArray(parsed.assertions)
+        ? parsed.assertions
+        : [];
     const assertions = rawAssertions.flatMap((value): AssertionEntry[] => {
       if (!value || typeof value !== 'object') return [];
       const assertion = value as Record<string, unknown>;

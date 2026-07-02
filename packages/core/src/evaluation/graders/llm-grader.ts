@@ -392,7 +392,10 @@ export class LlmGrader implements Grader {
       context.graderTemplateOverride || this.graderTemplate
         ? this.buildCustomPrompt(context)
         : this.buildRubricPrompt(context, rubrics);
-    const systemPrompt = buildRubricOutputSchema();
+    const systemPrompt =
+      context.graderTemplateOverride || this.graderTemplate
+        ? buildRubricFormatInstructions()
+        : buildRubricOutputSchema();
 
     const graderRawRequest: JsonObject = {
       userPrompt: prompt,
@@ -451,7 +454,10 @@ export class LlmGrader implements Grader {
       context.graderTemplateOverride || this.graderTemplate
         ? this.buildCustomPrompt(context)
         : this.buildScoreRangePrompt(context, rubrics);
-    const systemPrompt = buildScoreRangeOutputSchema();
+    const systemPrompt =
+      context.graderTemplateOverride || this.graderTemplate
+        ? buildScoreRangeFormatInstructions()
+        : buildScoreRangeOutputSchema();
 
     const graderRawRequest: JsonObject = {
       userPrompt: prompt,
@@ -791,8 +797,13 @@ export class LlmGrader implements Grader {
       const variables = buildTemplateVariables(context);
       const customPrompt = substituteVariables(template, variables);
 
+      const hasScoreRanges = rubrics?.some((r) => r.score_ranges && r.score_ranges.length > 0);
       const outputSchema =
-        rubrics && rubrics.length > 0 ? buildRubricOutputSchema() : buildOutputSchema();
+        rubrics && rubrics.length > 0
+          ? hasScoreRanges
+            ? buildScoreRangeFormatInstructions()
+            : buildRubricFormatInstructions()
+          : buildOutputSchema();
 
       return `${customPrompt}\n\n${outputSchema}`;
     }
@@ -1213,10 +1224,8 @@ function sumTokenUsage(
   };
 }
 
-export function buildRubricOutputSchema(): string {
-  return `You are an expert grader. Evaluate the candidate answer against each rubric item.
-Be skeptical: mark a rubric satisfied only when concrete evidence supports it, and cite paths, diffs, tool calls, or answer excerpts in reasoning when available.
-You must return a valid JSON object matching this schema:
+export function buildRubricFormatInstructions(): string {
+  return `You must return a valid JSON object matching this schema:
 {
   "checks": [
     {
@@ -1227,6 +1236,14 @@ You must return a valid JSON object matching this schema:
   ],
   "overall_reasoning": "string (summary)"
 }`;
+}
+
+export function buildRubricOutputSchema(): string {
+  return [
+    'You are an expert grader. Evaluate the candidate answer against each rubric item.',
+    'Be skeptical: mark a rubric satisfied only when concrete evidence supports it, and cite paths, diffs, tool calls, or answer excerpts in reasoning when available.',
+    buildRubricFormatInstructions(),
+  ].join('\n');
 }
 
 export function substituteVariables(template: string, variables: Record<string, string>): string {
@@ -1278,10 +1295,8 @@ export function calculateRubricScore(
 /**
  * Build the output schema for score-range rubric evaluation.
  */
-export function buildScoreRangeOutputSchema(): string {
-  return `You are an expert grader. Score the candidate answer on each criterion.
-Be skeptical: award credit only for concrete evidence, and cite paths, diffs, tool calls, or answer excerpts in reasoning when available.
-You must return a valid JSON object matching this schema:
+export function buildScoreRangeFormatInstructions(): string {
+  return `You must return a valid JSON object matching this schema:
 {
   "checks": [
     {
@@ -1294,6 +1309,14 @@ You must return a valid JSON object matching this schema:
 }
 
 Important: The "score" must be an integer from 0 to 10 that falls within one of the defined score ranges for that criterion.`;
+}
+
+export function buildScoreRangeOutputSchema(): string {
+  return [
+    'You are an expert grader. Score the candidate answer on each criterion.',
+    'Be skeptical: award credit only for concrete evidence, and cite paths, diffs, tool calls, or answer excerpts in reasoning when available.',
+    buildScoreRangeFormatInstructions(),
+  ].join('\n');
 }
 
 /**

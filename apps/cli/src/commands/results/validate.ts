@@ -274,7 +274,14 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       } else {
         try {
           const grading = JSON.parse(readFileSync(gradingPath, 'utf8'));
-          if (!grading.assertion_results || !Array.isArray(grading.assertion_results)) {
+          if (Array.isArray(grading.assertion_results)) {
+            // Current grading sidecar contract.
+          } else if (Array.isArray(grading.assertions)) {
+            diagnostics.push({
+              severity: 'warning',
+              message: `${testId}: grading.json uses legacy 'assertions' array; rewrite the run to emit 'assertion_results'`,
+            });
+          } else {
             diagnostics.push({
               severity: 'error',
               message: `${testId}: grading.json missing 'assertion_results' array`,

@@ -107,6 +107,49 @@ describe('results validate', () => {
     }
   });
 
+  it('accepts legacy grading assertions with a compatibility warning', () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-validate-test-'));
+
+    try {
+      const runDir = path.join(tempDir, '.agentv', 'results', '2026-03-27T12-42-24-429Z');
+      mkdirSync(path.join(runDir, 'test-greeting'), { recursive: true });
+      writeFileSync(
+        path.join(runDir, 'index.jsonl'),
+        `${JSON.stringify({
+          timestamp: '2026-03-27T12:42:24.429Z',
+          test_id: 'test-greeting',
+          score: 1,
+          target: 'gpt-4o',
+          execution_status: 'ok',
+          summary_path: 'test-greeting/summary.json',
+          grading_path: 'test-greeting/grading.json',
+        })}\n`,
+      );
+      writeFileSync(path.join(runDir, 'test-greeting', 'summary.json'), '{}\n');
+      writeFileSync(path.join(runDir, 'summary.json'), '{}\n');
+      writeFileSync(
+        path.join(runDir, 'test-greeting', 'grading.json'),
+        `${JSON.stringify({
+          score: 1,
+          verdict: 'pass',
+          assertions: [{ text: 'legacy assertion', passed: true }],
+          summary: { passed: 1, failed: 0, total: 1, pass_rate: 1 },
+        })}\n`,
+      );
+
+      const { diagnostics } = validateRunDirectory(runDir);
+
+      expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+      expect(diagnostics).toContainEqual({
+        severity: 'warning',
+        message:
+          "test-greeting: grading.json uses legacy 'assertions' array; rewrite the run to emit 'assertion_results'",
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('accepts new test_dir and legacy task_dir bundle metadata', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-validate-test-'));
 

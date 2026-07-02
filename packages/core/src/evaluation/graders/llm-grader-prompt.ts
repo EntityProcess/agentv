@@ -5,7 +5,9 @@ import type { PromptInputs } from '../yaml-parser.js';
 import {
   DEFAULT_GRADER_TEMPLATE,
   buildOutputSchema,
+  buildRubricFormatInstructions,
   buildRubricOutputSchema,
+  buildScoreRangeFormatInstructions,
   buildScoreRangeOutputSchema,
   substituteVariables,
 } from './llm-grader.js';
@@ -151,7 +153,9 @@ function assembleCustom(
   graderTemplateOverride: string,
 ): LlmGraderPromptAssembly {
   const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
-  const systemPrompt = hasScoreRanges ? buildScoreRangeOutputSchema() : buildRubricOutputSchema();
+  const systemPrompt = hasScoreRanges
+    ? buildScoreRangeFormatInstructions()
+    : buildRubricFormatInstructions();
   const userPrompt = substituteVariables(
     graderTemplateOverride,
     buildTemplateVariables({
