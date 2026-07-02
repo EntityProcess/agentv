@@ -1072,7 +1072,7 @@ export interface DependencyResult {
 export type TrialStrategy = 'pass_any' | 'pass_all' | 'mean' | 'confidence_interval';
 
 /**
- * Configuration for running multiple trials per eval case.
+ * Configuration for running repeated attempts per eval case.
  */
 export interface TrialsConfig {
   readonly count: number;
@@ -1083,7 +1083,7 @@ export interface TrialsConfig {
 }
 
 /**
- * Result of a single trial attempt.
+ * Result of a single produced attempt.
  */
 export interface TrialResult {
   readonly attempt: number;
@@ -1092,7 +1092,7 @@ export interface TrialResult {
   readonly scores?: readonly GraderResult[];
   readonly error?: string;
   readonly costUsd?: number;
-  /** Primary classification for this trial attempt */
+  /** Primary classification for this attempt */
   readonly executionStatus?: ExecutionStatus;
   /** Pipeline stage where failure occurred */
   readonly failureStage?: FailureStage;
@@ -1100,7 +1100,7 @@ export interface TrialResult {
   readonly failureReasonCode?: string;
   /**
    * Full per-attempt result used by artifact writers to materialize AgentV
-   * run-N folders. This is intentionally omitted from wire trial summaries.
+   * attempt-N folders. This is intentionally omitted from compact wire summaries.
    */
   readonly result?: EvaluationResult;
 }

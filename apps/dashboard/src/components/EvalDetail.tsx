@@ -729,7 +729,7 @@ function TrialChecksTab({
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-400">Run score</span>
+          <span className="text-sm font-medium text-gray-400">Attempt score</span>
           <div className="flex-1">
             <ScoreBar score={result.score} />
           </div>
@@ -894,7 +894,7 @@ function TrialTranscriptTab({
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <h3 className="text-sm font-medium text-gray-300">No structured transcript</h3>
         <p className="mt-2 text-sm text-gray-500">
-          This run does not include a transcript artifact.
+          This attempt does not include a transcript artifact.
         </p>
       </div>
     );
