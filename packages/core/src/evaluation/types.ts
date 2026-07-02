@@ -292,6 +292,29 @@ export type TargetHooksConfig = {
   readonly after_all?: WorkspaceHookConfig;
 };
 
+export type ExtensionLifecycleHook = 'beforeAll' | 'beforeEach' | 'afterEach' | 'afterAll';
+
+export type AgentRulesPaths = {
+  readonly skills?: readonly string[];
+  readonly hooks?: readonly string[];
+  readonly agents?: readonly string[];
+  readonly rules?: readonly string[];
+};
+
+export type AgentRulesExtensionConfig = AgentRulesPaths & {
+  readonly id: 'agentv:agent-rules';
+  readonly hook: ExtensionLifecycleHook;
+};
+
+export type FileExtensionConfig = {
+  readonly id: string;
+  readonly hook: ExtensionLifecycleHook;
+  readonly path: string;
+  readonly functionName: ExtensionLifecycleHook;
+};
+
+export type AgentVExtensionConfig = AgentRulesExtensionConfig | FileExtensionConfig;
+
 /**
  * Extended target reference from eval file.
  * Allows eval files to define per-target hooks and delegation alongside target names.
@@ -325,7 +348,7 @@ export type DockerWorkspaceConfig = {
 
 /**
  * Preflight environment requirements for the workspace.
- * Checked once before before_all hooks run. Fails fast if anything is missing.
+ * Checked once before workspace setup hooks run. Fails fast if anything is missing.
  *
  * @example
  * ```yaml
@@ -358,7 +381,7 @@ export type WorkspaceConfig = {
    *  Used as default cwd for hook commands so that file-referenced templates resolve
    *  relative paths from their own directory, not the eval file's directory. */
   readonly workspaceFileDir?: string;
-  /** Preflight environment requirements. Checked before before_all hooks run. */
+  /** Preflight environment requirements. Checked before workspace setup hooks run. */
   readonly env?: WorkspaceEnvConfig;
 };
 
@@ -994,6 +1017,8 @@ export interface EvalTest {
   readonly assertions?: readonly GraderConfig[];
   /** Suite-level preprocessors used by the implicit default llm-grader. */
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
+  /** Promptfoo-style lifecycle extensions inherited from the suite. */
+  readonly extensions?: readonly AgentVExtensionConfig[];
   /** Workspace configuration (merged from suite-level and case-level) */
   readonly workspace?: WorkspaceConfig;
   /** Arbitrary metadata passed to workspace scripts via stdin */

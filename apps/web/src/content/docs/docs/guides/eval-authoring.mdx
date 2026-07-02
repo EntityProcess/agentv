@@ -5,59 +5,57 @@ sidebar:
   order: 3
 ---
 
-## Workspace Setup: Skill Discovery Paths
+## Agent Rules and Skill Paths
 
-The `before_all` setup hook must copy skills to **all** provider discovery paths. Each provider searches a different directory:
-
-| Provider | Discovery path |
-|----------|---------------|
-| claude-cli | `.claude/skills/` |
-| allagents | `.agents/skills/` |
-| pi-cli | `.pi/skills/` |
-
-If your setup hook only copies to one path, `skill-trigger` assertions will fail for other providers.
-
-### Example setup.mjs
-
-```javascript
-import { cp, mkdir } from 'node:fs/promises';
-import path from 'node:path';
-
-// Read AgentV payload from stdin
-const payload = JSON.parse(await new Promise((resolve) => {
-  let data = '';
-  process.stdin.on('data', (chunk) => (data += chunk));
-  process.stdin.on('end', () => resolve(data));
-}));
-
-const workspacePath = payload.workspace_path;
-const skillSource = path.resolve('skills');
-
-// Copy skills to all provider discovery paths
-const discoveryPaths = [
-  '.claude/skills',
-  '.agents/skills',
-  '.pi/skills',
-];
-
-for (const rel of discoveryPaths) {
-  const dest = path.join(workspacePath, rel);
-  await mkdir(path.dirname(dest), { recursive: true });
-  await cp(skillSource, dest, { recursive: true });
-}
-```
-
-### In your eval YAML
+Use the built-in `agentv:agent-rules` extension when an eval needs to stage or
+expose agent-facing rules, skills, hooks, or subagents. It runs after
+`workspace.template` and `workspace.repos` materialize, then writes
+`agent_rules_paths` into provider context and result metadata.
 
 ```yaml
+extensions:
+  - id: agentv:agent-rules
+    hook: beforeAll
+    skills: agent-rules/skills
+    hooks: agent-rules/hooks
+    agents: agent-rules/agents
+    rules: agent-rules/AGENTS.md
+
 workspace:
   template: ./workspace-template
-  hooks:
-    before_all:
-      command:
-        - node
-        - ../scripts/setup.mjs
+  repos:
+    - path: ./app
+      repo: acme/app
+      commit: main
 ```
+
+Configured paths are resolved relative to the eval file and staged under the
+materialized workspace. If you write the shorthand form, AgentV discovers
+conventional rule locations already present in the workspace:
+
+```yaml
+extensions:
+  - agentv:agent-rules
+```
+
+Do not move repo acquisition into `agentv:agent-rules`. Repositories remain
+first-class workspace provenance through `workspace.repos`.
+
+## Custom Lifecycle Setup
+
+Use file extensions for setup that is not repo provisioning:
+
+```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+  - file://scripts/setup.mjs:beforeEach
+  - file://scripts/setup.mjs:afterEach
+  - file://scripts/setup.mjs:afterAll
+```
+
+Each file hook exports a function with the matching name. The function receives
+context such as `workspace_path`, `test_id`, `eval_run_id`, `case_input`, and
+`case_metadata`.
 
 ## Workspace Limitations: No GitHub Remote
 

@@ -38,7 +38,7 @@ the latest session from `~/.copilot/session-state/` and runs all graders.
 ## How it works
 
 ```
-allagents workspace init (before_all hook)
+allagents workspace init (setup hook)
   ↓ syncs agentv-dev plugin skills from marketplace
 ~/.copilot/session-state/{uuid}/events.jsonl
   ↓ copilot-log provider (reads from disk)

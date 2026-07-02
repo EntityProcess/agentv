@@ -85,56 +85,49 @@ targets:
     grader_target: azure-base  # LLM used for grading
 ```
 
-### Workspace Lifecycle Hooks
+### Lifecycle Extensions
 
-Run commands and reset/cleanup policies at different lifecycle points using `workspace.hooks`. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
-Use workspace hooks for repo preparation such as dependency installs, builds,
-fixture generation, and per-case resets. Use target hooks for runner-specific
-setup.
+Run non-provisioning setup at Promptfoo-compatible lifecycle points using
+top-level `extensions`. The harness materializes `workspace.template` and
+`workspace.repos` first, then runs `beforeAll` extensions. Use extensions for
+dependency installs, builds, fixture generation, and agent-rule staging. Use
+target hooks for runner-specific setup. Keep repo identity and checkout pins in
+`workspace.repos`; extensions must not become the default repo acquisition path.
 
 ```yaml
+extensions:
+  - file://scripts/workspace.mjs:beforeAll
+  - file://scripts/workspace.mjs:beforeEach
+  - file://scripts/workspace.mjs:afterEach
+  - file://scripts/workspace.mjs:afterAll
+  - id: agentv:agent-rules
+    hook: beforeAll
+    skills: agent-rules/skills
+    rules: agent-rules/AGENTS.md
+
 workspace:
   template: ./workspace-templates/my-project
   hooks:
-    before_all:
-      command: ["bun", "run", "setup.ts"]
-      timeout_ms: 120000
-      cwd: ./scripts
     after_each:
-      command: ["bun", "run", "reset.ts"]
-      timeout_ms: 5000
       reset: fast
-    after_all:
-      command: ["bun", "run", "cleanup.ts"]
-      timeout_ms: 30000
 ```
 
 | Field | Description |
 |-------|-------------|
 | `template` | Directory to copy as workspace |
-| `hooks.before_all` | Runs once after workspace creation, before the first test |
-| `hooks.after_all` | Runs once after the last test, before cleanup |
-| `hooks.before_each` | Runs before each test |
-| `hooks.after_each` | Runs after each test (supports both `command` and `reset`) |
+| `extensions[]` | `file://...:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, or `agentv:agent-rules` |
+| `hooks.after_each.reset` | Reset mode: `none`, `fast`, `strict` |
 
-Each hook config accepts:
-
-| Field | Description |
-|-------|-------------|
-| `command` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
-| `reset` | Reset mode: `none`, `fast`, `strict` |
-| `timeout_ms` | Timeout in milliseconds (default: 60000 for setup hooks, 30000 for teardown hooks) |
-| `cwd` | Working directory (relative paths resolved against eval file directory) |
-
-**Lifecycle order:** template copy → repo materialization → workspace `hooks.before_all` → target `hooks.before_all` → git baseline → (`hooks.before_each` → target `hooks.before_each` → agent runs → file changes captured → target `hooks.after_each` → `hooks.after_each`) × N tests → target `hooks.after_all` → `hooks.after_all` → cleanup
+**Lifecycle order:** template copy → repo materialization → `extensions.beforeAll` → target `hooks.before_all` → git baseline → (`extensions.beforeEach` → target `hooks.before_each` → agent runs → file changes captured → target `hooks.after_each` → `extensions.afterEach` → `workspace.hooks.after_each.reset`) × N tests → target `hooks.after_all` → `extensions.afterAll` → cleanup
 
 **Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `hooks.after_each.reset` to reset state between tests (e.g., `fast`/`strict`).
 
 **Error handling:**
-- `hooks.before_all` / `hooks.before_each` command failure aborts the test with an error result
-- `hooks.after_all` / `hooks.after_each` command failure is non-fatal (warning only)
+- `beforeAll` / `beforeEach` extension failure aborts the affected run with an error result
+- `afterAll` / `afterEach` extension failure is non-fatal
 
-**Script context:** All scripts receive a JSON object on stdin with case context:
+**File hook context:** Exported functions receive a JSON-compatible object with
+case context:
 
 ```json
 {
@@ -146,7 +139,9 @@ Each hook config accepts:
 }
 ```
 
-**Suite vs per-test:** When both are defined, test-level fields replace suite-level fields. See [Per-Test Workspace Config](/docs/evaluation/eval-cases/#per-case-workspace-config) for examples.
+`workspace.hooks` remains the reset-policy home for `after_each.reset`. Legacy
+command hooks still parse for existing local suites, but new portable evals
+should use `extensions` for executable setup.
 
 ### Repository Lifecycle
 
@@ -237,7 +232,7 @@ Use `cwd` on a target to run in an existing directory (shared across tests). If 
 
 Eval files can define per-target hooks that run setup/teardown scripts to customize the workspace for each target variant. This enables comparing different harness configurations (e.g., baseline vs with-plugins) in a single eval file.
 
-Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config. Keep installs, builds, fixture generation, and case resets in `workspace.hooks`.
+Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as enabling wrappers or changing provider-local config. Keep installs, builds, fixture generation, and case setup in top-level lifecycle `extensions`.
 
 Target hooks can be scoped to an eval-local target object:
 
@@ -253,7 +248,7 @@ target:
 
 Target hooks run after workspace hooks on setup, before workspace hooks on teardown:
 
-1. Workspace `before_all`
+1. Extension `beforeAll`
 2. **Target `before_all`**
 3. For each test:
    - Workspace `before_each`

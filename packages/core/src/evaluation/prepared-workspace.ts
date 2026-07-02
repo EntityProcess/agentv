@@ -18,7 +18,7 @@ import micromatch from 'micromatch';
 import type { ResolvedTarget } from './providers/targets.js';
 import type { ChatPrompt } from './providers/types.js';
 import { AGENT_PROVIDER_KINDS } from './providers/types.js';
-import type { EvalTest, RepoConfig, TargetHooksConfig } from './types.js';
+import type { EvalTest, JsonObject, RepoConfig, TargetHooksConfig } from './types.js';
 import {
   type SharedWorkspaceSetup,
   type WorkspaceSetupCleanPolicy,
@@ -100,6 +100,8 @@ export interface PreparedEvalWorkspace {
   readonly workspaceFile?: string;
   readonly createdAt: string;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
+  readonly providerContext?: JsonObject;
+  readonly metadata?: Record<string, unknown>;
   readonly repoPins: readonly PreparedWorkspaceRepoPin[];
   readonly baseline: PreparedWorkspaceBaseline;
   readonly promptSource: PreparedWorkspacePromptSource;
@@ -244,6 +246,7 @@ export async function prepareEvalWorkspace(
       evalDir,
       cleanupWorkspaces: options.cleanupWorkspaces,
       targetHooks: options.targetHooks,
+      sharedExtensionState: sharedSetup.extensionState,
       setupDebug: options.verbose,
     });
 
@@ -267,6 +270,12 @@ export async function prepareEvalWorkspace(
       }),
       createdAt: (options.now ?? (() => new Date()))().toISOString(),
       hookExecutions: [...sharedSetup.hookExecutions, ...caseSetup.hookExecutions],
+      ...(caseSetup.extensionState?.providerContext !== undefined && {
+        providerContext: caseSetup.extensionState.providerContext,
+      }),
+      ...(caseSetup.extensionState?.metadata !== undefined && {
+        metadata: caseSetup.extensionState.metadata,
+      }),
       repoPins: toRepoPins(evalCase.workspace?.repos),
       baseline: caseSetup.baselineCommit
         ? { status: 'initialized', commit: caseSetup.baselineCommit }

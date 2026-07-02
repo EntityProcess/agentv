@@ -56,6 +56,9 @@ import {
 import { parseMetadata } from './metadata.js';
 import type { TargetDefinition } from './providers/types.js';
 import type {
+  AgentRulesExtensionConfig,
+  AgentRulesPaths,
+  AgentVExtensionConfig,
   ConversationAggregation,
   ConversationMode,
   ConversationTurn,
@@ -65,6 +68,7 @@ import type {
   EvalSourceReference,
   EvalTest,
   EvalTestSource,
+  ExtensionLifecycleHook,
   GraderConfig,
   JsonObject,
   JsonValue,
@@ -199,6 +203,8 @@ type RawTestSuite = JsonObject & {
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
+  readonly extensions?: JsonValue;
+  readonly on_run_complete?: JsonValue;
   readonly nunjucks_filters?: JsonValue;
   readonly input?: JsonValue;
   readonly metadata?: JsonValue;
@@ -614,6 +620,7 @@ async function loadTestsFromParsedYamlValue(
   // Top-level `metadata:` is inherited by cases. Suite identity tags are parsed
   // separately by parseMetadata() and are not case tags.
   const suiteMetadataPayload = extractSuiteMetadataPayload(suite);
+  const evalFileDir = path.dirname(absoluteTestPath);
 
   const globalEvaluator = coerceEvaluator(suite.evaluator, 'global') ?? 'llm-grader';
   const suitePreprocessors = await parsePreprocessors(
@@ -622,9 +629,9 @@ async function loadTestsFromParsedYamlValue(
     '<suite>',
     absoluteTestPath,
   );
+  const suiteExtensions = parseExtensions(suite.extensions, evalFileDir);
 
   const importedSuiteTests: EvalTest[] = [];
-  const evalFileDir = path.dirname(absoluteTestPath);
   const nunjucksFilters = await loadNunjucksFilters(suite.nunjucks_filters, evalFileDir);
   const parentWorkspace = parentWorkspaceLocation(suite);
   const importEntries = readImports(suite.imports);
@@ -956,6 +963,7 @@ async function loadTestsFromParsedYamlValue(
         evaluator: testCaseEvaluatorKind,
         assertions: evaluators,
         ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
+        ...(suiteExtensions.length > 0 ? { extensions: suiteExtensions } : {}),
         workspace: mergedWorkspace,
         metadata,
         ...(caseRun?.threshold !== undefined ? { threshold: caseRun.threshold } : {}),
@@ -1626,6 +1634,11 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
       `Invalid eval runtime config in ${evalFilePath}: top-level 'early_exit' has been removed. Use repeat.early_exit instead.`,
     );
   }
+  if (suite.on_run_complete !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'on_run_complete' has been removed. Use extensions with afterAll instead.`,
+    );
+  }
   return undefined;
 }
 
@@ -2103,6 +2116,106 @@ function parseWorkspaceHooksConfig(
     ...(afterAll !== undefined && { after_all: afterAll }),
   };
   return Object.keys(hooks).length > 0 ? hooks : undefined;
+}
+
+const EXTENSION_HOOKS = new Set(['beforeAll', 'beforeEach', 'afterEach', 'afterAll']);
+
+function parseExtensions(raw: unknown, evalFileDir: string): AgentVExtensionConfig[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    throw new Error('extensions must be an array');
+  }
+
+  return raw.map((entry, index) => parseExtension(entry, index, evalFileDir));
+}
+
+function parseExtension(entry: unknown, index: number, evalFileDir: string): AgentVExtensionConfig {
+  if (typeof entry === 'string') {
+    return parseExtensionString(entry, `extensions[${index}]`, evalFileDir);
+  }
+  if (!isJsonObject(entry)) {
+    throw new Error(`extensions[${index}] must be a string or object`);
+  }
+
+  const obj = entry as Record<string, unknown>;
+  const id = typeof obj.id === 'string' ? obj.id : undefined;
+  if (id !== 'agentv:agent-rules') {
+    throw new Error(`extensions[${index}].id must be agentv:agent-rules`);
+  }
+  const hook = parseExtensionHook(obj.hook, `extensions[${index}].hook`) ?? 'beforeAll';
+  const source = isJsonObject(obj.config) ? (obj.config as Record<string, unknown>) : obj;
+  return {
+    id,
+    hook,
+    ...(readPathList(source.skills, `extensions[${index}].skills`) ?? {}),
+    ...(readPathList(source.hooks, `extensions[${index}].hooks`) ?? {}),
+    ...(readPathList(source.agents, `extensions[${index}].agents`) ?? {}),
+    ...(readPathList(source.rules, `extensions[${index}].rules`) ?? {}),
+  };
+}
+
+function parseExtensionString(
+  raw: string,
+  label: string,
+  evalFileDir: string,
+): AgentVExtensionConfig {
+  if (raw === 'agentv:agent-rules') {
+    return { id: 'agentv:agent-rules', hook: 'beforeAll' };
+  }
+  if (raw.startsWith('agentv:agent-rules:')) {
+    const hook = parseExtensionHook(raw.slice('agentv:agent-rules:'.length), label);
+    if (!hook) {
+      throw new Error(`${label} must use one of beforeAll, beforeEach, afterEach, afterAll`);
+    }
+    return { id: 'agentv:agent-rules', hook };
+  }
+  if (!raw.startsWith('file://')) {
+    throw new Error(`${label} must start with file:// or agentv:agent-rules`);
+  }
+
+  const lastColon = raw.lastIndexOf(':');
+  if (lastColon <= 'file://'.length) {
+    throw new Error(`${label} must be of the form file://path/to/hook.ts:beforeAll`);
+  }
+  const functionName = raw.slice(lastColon + 1);
+  const hook = parseExtensionHook(functionName, label);
+  if (!hook) {
+    throw new Error(`${label} must target one of beforeAll, beforeEach, afterEach, afterAll`);
+  }
+  const filePart = raw.slice('file://'.length, lastColon);
+  if (!filePart) {
+    throw new Error(`${label} must include a file path`);
+  }
+  const resolvedPath = path.isAbsolute(filePart) ? filePart : path.resolve(evalFileDir, filePart);
+  return {
+    id: raw,
+    hook,
+    path: resolvedPath,
+    functionName: hook,
+  };
+}
+
+function parseExtensionHook(raw: unknown, label: string): ExtensionLifecycleHook | undefined {
+  if (typeof raw !== 'string') return undefined;
+  if (!EXTENSION_HOOKS.has(raw)) {
+    throw new Error(`${label} must be one of beforeAll, beforeEach, afterEach, afterAll`);
+  }
+  return raw as ExtensionLifecycleHook;
+}
+
+function readPathList(raw: unknown, label: string): Partial<AgentRulesPaths> | undefined {
+  if (raw === undefined) return undefined;
+  const values =
+    typeof raw === 'string'
+      ? [raw]
+      : Array.isArray(raw)
+        ? raw.filter((entry): entry is string => typeof entry === 'string')
+        : undefined;
+  if (!values) {
+    throw new Error(`${label} must be a string or string array`);
+  }
+  const key = label.split('.').at(-1) as keyof AgentRulesExtensionConfig | undefined;
+  return key ? ({ [key]: values } as Partial<AgentRulesPaths>) : undefined;
 }
 
 /**

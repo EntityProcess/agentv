@@ -1,22 +1,13 @@
 description: >-
-  Demonstrates using a before_all workspace setup script with the VSCode target.
+  Demonstrates using a beforeAll lifecycle extension with the VSCode target.
   Same as dataset.eval.yaml but uses vscode instead of copilot.
+
+extensions:
+  - file://../scripts/workspace-setup.mjs:beforeAll
 
 workspace:
   template: ../workspace-template
   hooks:
-    before_all:
-      command:
-        - node
-        - ../scripts/workspace-setup.mjs
-        - --from
-        - ../workspace-template/.allagents/workspace.yaml
-        - --marketplace-source
-        - ../marketplace
-        - --require
-        - AGENTS.md
-        - --require
-        - .github/prompts/summarize-repo.prompt.md
     after_each:
       reset: fast
   repos:

@@ -27,24 +27,25 @@ Use this split when deciding where a benchmark key belongs:
 |------------|--------------|------------------|
 | `workspace.repos[]` | Yes | Declares repo identity and checkout refs; AgentV resolves acquisition and materializes the checkout. |
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
-| `workspace.hooks` | Yes | Runs lifecycle commands with workspace and case context on stdin. |
+| `extensions` | Yes | Runs Promptfoo-style lifecycle setup after `workspace.template` and `workspace.repos` materialize. |
+| `workspace.hooks.after_each.reset` | Yes | Controls workspace reset policy after each case. |
 | `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
 | `assertions` | Yes | Runs deterministic, LLM, composite, or code graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
-| `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and hook stdin; in-process custom assertions can also read it. |
+| `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and extension context; in-process custom assertions can also read it. |
 
-`metadata` can still become operational inside your own hook scripts. For
-example, a `before_each` hook can read `case_metadata.test_patch` and apply that
+`metadata` can still become operational inside your own lifecycle extensions. For
+example, a `beforeEach` extension can read `case_metadata.test_patch` and apply that
 patch before the agent starts. The distinction is that AgentV itself only passes
-the metadata along; the script owns the behavior.
+the metadata along; the extension owns the behavior.
 
-## Hook Payloads
+## Extension Context
 
-Lifecycle hooks receive JSON on stdin. Case-scoped hooks such as per-test
-`before_all`, `before_each`, and `after_each` receive the current test's
-metadata as `case_metadata`:
+File lifecycle extensions export functions named `beforeAll`, `beforeEach`,
+`afterEach`, or `afterAll`. AgentV calls each function with context including
+the current test's metadata as `case_metadata`:
 
 ```json
 {
@@ -59,9 +60,9 @@ metadata as `case_metadata`:
 }
 ```
 
-Suite-level `before_all` hooks run once for the workspace, before any one test is
-selected, so they should do suite setup only. Use `before_each` when setup depends
-on per-case metadata such as a patch path, source row, or selected test list.
+`beforeAll` runs once for the shared workspace after repo materialization, so it
+should do suite setup only. Use `beforeEach` when setup depends on per-case
+metadata such as a patch path, source row, or selected test list.
 
 ## Task Artifact Anatomy
 
@@ -71,7 +72,7 @@ Benchmark task packs map cleanly onto AgentV fields at authoring time:
 |---------------|----------------|
 | Prompt or instruction | `input`, usually with `type: file` blocks for long prompts |
 | Source checkout | `workspace.repos[].repo` and `workspace.repos[].commit` |
-| Per-case setup | `workspace.hooks.before_each` reading `case_metadata` |
+| Per-case setup | `extensions: ["file://scripts/setup.mjs:beforeEach"]` reading `case_metadata` |
 | Gold answer | `expected_output` when the answer is passive reference data |
 | Active verification | `assertions`, especially `code-grader` for commands or artifact checks |
 | Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
@@ -104,11 +105,11 @@ workspace:
       repo: https://github.com/example/widget.git
       commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
   hooks:
-    before_each:
-      command: ["python", "./scripts/apply-test-patch.py"]
-      timeout_ms: 120000
     after_each:
       reset: strict
+
+extensions:
+  - file://scripts/apply-test-patch.mjs:beforeEach
 
 assertions:
   - name: focused-tests
@@ -133,7 +134,7 @@ tests:
 
 In this example, `workspace.repos[].commit` is the actual checkout. The
 matching `metadata.source_commit` is audit data that gets recorded with the case
-and is available to scripts. `apply-test-patch.py` can read
+and is available to extensions. `apply-test-patch.mjs` can read
 `case_metadata.test_patch` and `case_metadata.fail_to_pass_tests`, then apply
 the patch and write the selected test list into the workspace. The code grader
 can read that workspace file through its `workspace_path` payload. Repo
@@ -158,9 +159,9 @@ workspace:
     - path: ./repo
       repo: https://github.com/example/widget.git
       commit: 4f3e2d19b6e4e8f1c2b7d9a0e5a6b7c8d9e0f123
-  hooks:
-    before_each:
-      command: ["python", "./scripts/apply-case-fixtures.py"]
+
+extensions:
+  - file://scripts/apply-case-fixtures.mjs:beforeEach
 
 target: codex
 

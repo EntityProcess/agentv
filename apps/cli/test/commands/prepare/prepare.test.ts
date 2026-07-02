@@ -238,4 +238,75 @@ describe('agentv prepare', () => {
     expect(typeof output.baseline.commit).toBe('string');
     expect(Object.keys(output)).not.toContain('workspacePath');
   });
+
+  it('remaps prepared extension context paths into the output workspace', async () => {
+    const evalPath = path.join(tempDir, 'evals', 'suite.eval.yaml');
+    const outDir = path.join(tempDir, 'prepared-extension-context');
+
+    await mkdir(path.join(tempDir, 'evals'), { recursive: true });
+    await mkdir(path.join(tempDir, 'template'), { recursive: true });
+    await mkdir(path.join(tempDir, 'rules'), { recursive: true });
+    await mkdir(path.join(tempDir, 'scripts'), { recursive: true });
+    await mkdir(path.join(tempDir, '.agentv'), { recursive: true });
+    await writeFile(path.join(tempDir, 'template', 'app.txt'), 'initial\n', 'utf8');
+    await writeFile(path.join(tempDir, 'rules', 'AGENTS.md'), '# Rules\n', 'utf8');
+    await writeFile(path.join(tempDir, 'scripts', 'target.ts'), '', 'utf8');
+    await writeFile(
+      path.join(tempDir, '.agentv', 'targets.yaml'),
+      `
+targets:
+  - name: codex
+    provider: cli
+    command: bun ./scripts/target.ts
+`,
+      'utf8',
+    );
+    await writeFile(
+      evalPath,
+      `
+extensions:
+  - id: agentv:agent-rules
+    hook: beforeAll
+    rules: ../rules/AGENTS.md
+workspace:
+  template: ../template
+tests:
+  - id: case-1
+    input: "Fix the workspace file."
+    criteria: "Works"
+`,
+      'utf8',
+    );
+
+    await execa(
+      'bun',
+      [
+        '--no-env-file',
+        CLI_ENTRY,
+        'prepare',
+        evalPath,
+        '--test-id',
+        'case-1',
+        '--target',
+        'codex',
+        '--out',
+        outDir,
+      ],
+      {
+        cwd: tempDir,
+        env: {
+          AGENTV_HOME: path.join(tempDir, '.agentv-home'),
+          AGENTV_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    const workspacePath = path.join(outDir, 'workspace');
+    const manifest = JSON.parse(await readFile(path.join(outDir, 'agentv_prepare.json'), 'utf8'));
+    const rulesPath = manifest.provider_context.agent_rules_paths.rules[0];
+
+    expect(rulesPath).toStartWith(workspacePath);
+    expect(await exists(rulesPath)).toBe(true);
+    expect(manifest.metadata.agent_rules_paths.rules[0]).toBe(rulesPath);
+  });
 });

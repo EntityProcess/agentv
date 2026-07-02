@@ -31,9 +31,9 @@ On subsequent runs:
 1. AgentV computes the fingerprint from your repo configs
 2. If a matching pool entry exists, it acquires a slot and resets it (`git reset --hard` + `git clean -fd`)
 3. Template files are re-copied (repo directories are preserved)
-4. Lifecycle hooks (`before_all`, etc.) run as normal
+4. Lifecycle extensions (`beforeAll`, etc.) run as normal
 
-**Keep templates small.** Template files are re-copied into every slot on every run. Use them for lightweight setup — agent skills, configuration files, prompt templates — not large assets. Heavy dependencies belong in repos (pooled and reused) or should be installed by `before_all` hooks (cached across reuse cycles with `fast` reset).
+**Keep templates small.** Template files are re-copied into every slot on every run. Use them for lightweight setup — agent skills, configuration files, prompt templates — not large assets. Heavy dependencies belong in repos (pooled and reused) or should be installed by `beforeAll` extensions (cached across reuse cycles with `fast` reset).
 
 The first pooled run materializes from scratch. Subsequent pooled runs reuse the pool — skipping clone and checkout entirely.
 
@@ -57,7 +57,7 @@ execution:
 
 ## Pool reset mode
 
-By default, pool reset uses `git clean -fd` which **preserves `.gitignore`d files** like `node_modules/`, `build/`, and compiled binaries. This means `before_all` build steps survive across reuse cycles.
+By default, pool reset uses `git clean -fd` which **preserves `.gitignore`d files** like `node_modules/`, `build/`, and compiled binaries. This means `beforeAll` build steps survive across reuse cycles.
 
 For strict reset that also removes `.gitignore`d files, use the `--workspace-clean full` CLI flag:
 

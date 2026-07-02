@@ -1,149 +1,158 @@
-#!/usr/bin/env node
 // @ts-check
 //
-// Generic workspace setup script for AgentV before_all lifecycle hook.
+// AgentV beforeAll lifecycle extension for this example.
 //
-// Reads workspace_path from AgentV stdin JSON, removes stale .allagents/
-// config, copies source directories, and runs `npx allagents workspace init`.
-//
-// Usage in eval YAML:
-//   workspace:
-//     hooks:
-//       before_all:
-//         command:
-//           - node
-//           - ../scripts/workspace-setup.mjs
-//           - --from
-//           - ../workspace-template/.allagents/workspace.yaml
-//           - --source
-//           - ../guidelines
-//           - --require
-//           - AGENTS.md
+// It runs after workspace.template and workspace.repos materialize, then
+// refreshes allagents project state inside the prepared workspace.
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, readFileSync, rmSync } from 'node:fs';
-import { basename, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// --- parse arguments ---
-const fromIndex = process.argv.indexOf('--from');
-if (fromIndex === -1 || !process.argv[fromIndex + 1]) {
-  console.error(
-    'Usage: workspace-setup.mjs --from <template-path> [--source <dir> ...] [--marketplace-source <dir>] [--marketplace-name <name>] [--require <file> ...]',
-  );
-  process.exit(1);
-}
-const templatePath = process.argv[fromIndex + 1];
+const REQUIRED_FILES = ['AGENTS.md', '.github/prompts/summarize-repo.prompt.md'];
 
-// Collect --source arguments: directories to copy into the workspace before init
-const sourceDirs = [];
-for (let i = 0; i < process.argv.length; i++) {
-  if (process.argv[i] === '--source' && process.argv[i + 1]) {
-    sourceDirs.push(process.argv[i + 1]);
-    i++;
+/**
+ * @param {{
+ *   workspace_path?: string;
+ *   eval_dir: string;
+ * }} context
+ */
+export function beforeAll(context) {
+  const workspacePath = context.workspace_path;
+  if (!workspacePath) {
+    throw new Error('workspace_path not provided to workspace setup extension');
   }
+
+  const templatePath = resolve(context.eval_dir, '../workspace-template/.allagents/workspace.yaml');
+  const marketplaceSource = resolve(context.eval_dir, '../marketplace');
+
+  runAllagentsSetup({
+    workspacePath,
+    templatePath,
+    marketplaceSource,
+    requiredFiles: REQUIRED_FILES,
+  });
+
+  return {
+    metadata: {
+      workspace_setup: {
+        marketplace_source: marketplaceSource,
+        required_files: REQUIRED_FILES,
+      },
+    },
+  };
 }
 
-// Collect --require arguments: files that must exist in the workspace after init
-const requiredFiles = [];
-for (let i = 0; i < process.argv.length; i++) {
-  if (process.argv[i] === '--require' && process.argv[i + 1]) {
-    requiredFiles.push(process.argv[i + 1]);
-    i++;
-  }
-}
+/**
+ * @param {{
+ *   workspacePath: string;
+ *   templatePath: string;
+ *   marketplaceSource?: string;
+ *   marketplaceName?: string;
+ *   requiredFiles: readonly string[];
+ * }} options
+ */
+function runAllagentsSetup(options) {
+  rmSync(join(options.workspacePath, '.allagents'), { recursive: true, force: true });
 
-// Optional project-scoped marketplace source to register after init.
-const marketplaceSourceIndex = process.argv.indexOf('--marketplace-source');
-const marketplaceSource =
-  marketplaceSourceIndex !== -1 ? process.argv[marketplaceSourceIndex + 1] : undefined;
-const marketplaceNameIndex = process.argv.indexOf('--marketplace-name');
-const marketplaceName =
-  marketplaceNameIndex !== -1 ? process.argv[marketplaceNameIndex + 1] : undefined;
-
-// --- stdin context from AgentV ---
-const { workspace_path } = JSON.parse(readFileSync(0, 'utf8'));
-if (!workspace_path) {
-  console.error('workspace_path not provided on stdin');
-  process.exit(1);
-}
-
-// --- copy source directories into workspace ---
-for (const src of sourceDirs) {
-  if (!existsSync(src)) {
-    console.error(`Source directory not found: ${src}`);
-    process.exit(1);
-  }
-  const dest = join(workspace_path, basename(src));
-  cpSync(src, dest, { recursive: true });
-}
-
-// --- clean previous workspace config ---
-rmSync(join(workspace_path, '.allagents'), { recursive: true, force: true });
-
-// --- run allagents workspace init ---
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const result = spawnSync(
-  npx,
-  ['--yes', 'allagents', 'workspace', 'init', workspace_path, '--from', templatePath],
-  {
-    // This script reads AgentV stdin first, so don't pass fd 0 through.
-    // On Windows, inheriting stdin into `npx.cmd` can raise EINVAL.
-    // shell=true ensures `.cmd` is launched reliably.
-    stdio: ['ignore', 'inherit', 'inherit'],
-    shell: process.platform === 'win32',
-  },
-);
-if (result.status !== 0) {
-  process.exit(result.status ?? 1);
-}
-
-// --- optionally register project-scoped marketplace and resync ---
-if (marketplaceSource) {
-  const resolvedMarketplaceSource = isAbsolute(marketplaceSource)
-    ? marketplaceSource
-    : resolve(process.cwd(), marketplaceSource);
-
-  const addMarketplaceArgs = [
+  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  run(npx, [
     '--yes',
     'allagents',
-    'plugin',
-    'marketplace',
-    'add',
-    resolvedMarketplaceSource,
-    '--scope',
-    'project',
-  ];
-  if (marketplaceName) {
-    addMarketplaceArgs.push('--name', marketplaceName);
+    'workspace',
+    'init',
+    options.workspacePath,
+    '--from',
+    options.templatePath,
+  ]);
+
+  if (options.marketplaceSource) {
+    const addMarketplaceArgs = [
+      '--yes',
+      'allagents',
+      'plugin',
+      'marketplace',
+      'add',
+      options.marketplaceSource,
+      '--scope',
+      'project',
+    ];
+    if (options.marketplaceName) {
+      addMarketplaceArgs.push('--name', options.marketplaceName);
+    }
+    run(npx, addMarketplaceArgs, options.workspacePath);
+    run(npx, ['--yes', 'allagents', 'workspace', 'sync'], options.workspacePath);
   }
 
-  const addMarketplaceResult = spawnSync(npx, addMarketplaceArgs, {
-    stdio: ['ignore', 'inherit', 'inherit'],
-    shell: process.platform === 'win32',
-    cwd: workspace_path,
-  });
-  if (addMarketplaceResult.status !== 0) {
-    process.exit(addMarketplaceResult.status ?? 1);
-  }
-
-  const syncResult = spawnSync(npx, ['--yes', 'allagents', 'workspace', 'sync'], {
-    stdio: ['ignore', 'inherit', 'inherit'],
-    shell: process.platform === 'win32',
-    cwd: workspace_path,
-  });
-  if (syncResult.status !== 0) {
-    process.exit(syncResult.status ?? 1);
+  const missing = options.requiredFiles.filter(
+    (file) => !existsSync(join(options.workspacePath, file)),
+  );
+  if (missing.length > 0) {
+    throw new Error(`Required artifacts not found in workspace: ${missing.join(', ')}`);
   }
 }
 
-// --- validate required artifacts exist in workspace ---
-const missing = requiredFiles.filter((file) => !existsSync(join(workspace_path, file)));
-if (missing.length > 0) {
-  console.error('Required artifacts not found in workspace:');
-  for (const file of missing) {
-    console.error(`  - ${file}`);
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {string | undefined} cwd
+ */
+function run(command, args, cwd = undefined) {
+  const result = spawnSync(command, args, {
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: process.platform === 'win32',
+    ...(cwd ? { cwd } : {}),
+  });
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed with exit ${result.status ?? 1}`);
   }
-  process.exit(1);
 }
 
-process.exit(0);
+function runCli() {
+  const fromIndex = process.argv.indexOf('--from');
+  if (fromIndex === -1 || !process.argv[fromIndex + 1]) {
+    throw new Error(
+      'Usage: workspace-setup.mjs --from <template-path> [--marketplace-source <dir>] [--marketplace-name <name>] [--require <file> ...]',
+    );
+  }
+
+  const { workspace_path } = JSON.parse(readFileSync(0, 'utf8'));
+  if (!workspace_path) {
+    throw new Error('workspace_path not provided on stdin');
+  }
+
+  const requiredFiles = [];
+  for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === '--require' && process.argv[i + 1]) {
+      requiredFiles.push(process.argv[i + 1]);
+      i++;
+    }
+  }
+
+  const marketplaceSourceIndex = process.argv.indexOf('--marketplace-source');
+  const marketplaceSource =
+    marketplaceSourceIndex !== -1
+      ? resolve(process.cwd(), process.argv[marketplaceSourceIndex + 1])
+      : undefined;
+  const marketplaceNameIndex = process.argv.indexOf('--marketplace-name');
+  const marketplaceName =
+    marketplaceNameIndex !== -1 ? process.argv[marketplaceNameIndex + 1] : undefined;
+
+  runAllagentsSetup({
+    workspacePath: workspace_path,
+    templatePath: resolve(process.cwd(), process.argv[fromIndex + 1]),
+    ...(marketplaceSource ? { marketplaceSource } : {}),
+    ...(marketplaceName ? { marketplaceName } : {}),
+    requiredFiles,
+  });
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  try {
+    runCli();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import micromatch from 'micromatch';
 import pLimit from 'p-limit';
 
+import { runExtensionsForHook } from './extensions/runner.js';
 import { readJsonFile } from './file-utils.js';
 import {
   type ChildGraderResult,
@@ -143,6 +144,21 @@ function extractProviderRawLogPath(response: ProviderResponse): string | undefin
 
   const trimmed = logFile.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function mergeMetadata(
+  base: Record<string, unknown> | undefined,
+  overlay: JsonObject | Record<string, unknown> | undefined,
+): JsonObject | undefined {
+  const merged = {
+    ...(base ?? {}),
+    ...(overlay ?? {}),
+  } as JsonObject;
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+function mergeTextOutput(left: string | undefined, right: string | undefined): string | undefined {
+  return [left, right].filter(Boolean).join('\n') || undefined;
 }
 
 interface EvaluationRuntimeOptions {
@@ -415,6 +431,8 @@ export interface RunEvalCaseOptions {
   readonly sharedWorkspacePath?: string;
   /** Pre-initialized baseline commit for shared workspace */
   readonly sharedBaselineCommit?: string;
+  /** Provider/runtime context produced by shared beforeAll extensions. */
+  readonly sharedExtensionState?: import('./extensions/runner.js').ExtensionRuntimeState;
   /** Suite-level .code-workspace file (resolved from workspace.template) */
   readonly suiteWorkspaceFile?: string;
   /** Real-time observability callbacks passed to the provider */
@@ -959,10 +977,14 @@ export async function runEvaluation(
     poolSlots,
     availablePoolSlots,
     poolSlotBaselines,
+    poolSlotExtensionStates,
     useStaticWorkspace,
+    extensionState: sharedExtensionState,
   } = sharedSetup;
   const targetHooks = options.targetHooks;
   const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
+  const suiteExtensions =
+    filteredEvalCases.find((evalCase) => evalCase.extensions?.length)?.extensions ?? [];
 
   try {
     // Track worker assignments for progress reporting
@@ -1216,6 +1238,11 @@ export async function runEvaluation(
           ? poolSlotBaselines.get(testPoolSlot.path)
           : sharedBaselineCommit
         : undefined;
+      const testExtensionState = usesSharedWorkspace
+        ? testPoolSlot
+          ? poolSlotExtensionStates.get(testPoolSlot.path)
+          : sharedExtensionState
+        : undefined;
 
       try {
         const graderProvider = await resolveGraderProvider(target);
@@ -1247,6 +1274,7 @@ export async function runEvaluation(
           verbose,
           threshold: scoreThreshold,
           targetHooks: options.targetHooks,
+          sharedExtensionState: testExtensionState,
           replayRecording,
           evalFilePath,
           repoRoot: repoRootPath,
@@ -1457,6 +1485,35 @@ export async function runEvaluation(
     }
 
     const suiteAfterAllHook = suiteWorkspace?.hooks?.after_all;
+    if (afterAllWorkspaces.length > 0 && suiteExtensions.length > 0) {
+      for (const wsPath of afterAllWorkspaces) {
+        try {
+          const afterAllState = await runExtensionsForHook({
+            extensions: suiteExtensions,
+            hook: 'afterAll',
+            context: {
+              hook_name: 'afterAll',
+              workspace_path: wsPath,
+              test_id: '__after_all__',
+              eval_run_id: evalRunId,
+              eval_dir: evalDir,
+            },
+            state: poolSlotExtensionStates.get(wsPath) ?? sharedExtensionState,
+          });
+          if (afterAllState?.output && results.length > 0 && wsPath === afterAllWorkspaces[0]) {
+            results[results.length - 1] = {
+              ...results[results.length - 1],
+              afterAllOutput: mergeTextOutput(
+                results[results.length - 1].afterAllOutput,
+                afterAllState.output,
+              ),
+            };
+          }
+        } catch {
+          // afterAll extension failures are non-fatal, matching teardown hooks.
+        }
+      }
+    }
     if (afterAllWorkspaces.length > 0 && suiteHooksEnabled && hasHookCommand(suiteAfterAllHook)) {
       const afterAllHook = suiteAfterAllHook;
       for (const wsPath of afterAllWorkspaces) {
@@ -1792,6 +1849,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     retainOnFailure,
     sharedWorkspacePath,
     sharedBaselineCommit,
+    sharedExtensionState,
     suiteWorkspaceFile,
     typeRegistry: providedTypeRegistry,
     repoManager,
@@ -1833,6 +1891,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       cleanupWorkspaces: forceCleanup,
       targetHooks: options.targetHooks,
       setupDebug,
+      sharedExtensionState,
     });
   } catch (error) {
     const setupError = error instanceof WorkspaceSetupError ? error : undefined;
@@ -1856,11 +1915,114 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     baselineCommit,
     isSharedWorkspace,
     caseWorkspaceFile,
+    extensionState,
   } = workspaceSetup;
+  const extensionMetadata = extensionState?.metadata;
+  const providerMetadata = mergeMetadata(evalCase.metadata, extensionState?.providerContext);
+  const resultMetadata = mergeMetadata(evalCase.metadata, extensionMetadata);
+
+  const runAfterEachHooks = async () => {
+    // Execute target after_each hook before workspace after_each/reset.
+    const targetAfterEachHook = options.targetHooks?.after_each;
+    if (workspacePath && hasHookCommand(targetAfterEachHook)) {
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath,
+        testId: evalCase.id,
+        evalRunId: evalRunId ?? '',
+        caseInput: evalCase.question,
+        caseMetadata: evalCase.metadata,
+        evalDir,
+        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+      };
+      try {
+        await executeWorkspaceScript(
+          toScriptConfig(targetAfterEachHook, 'after_each', `target hook for '${evalCase.id}'`),
+          scriptContext,
+          'warn',
+        );
+      } catch {
+        // target after_each failures are non-fatal
+      }
+    }
+
+    if (workspacePath && evalCase.extensions && evalCase.extensions.length > 0) {
+      try {
+        const afterEachState = await runExtensionsForHook({
+          extensions: evalCase.extensions,
+          hook: 'afterEach',
+          context: {
+            hook_name: 'afterEach',
+            workspace_path: workspacePath,
+            test_id: evalCase.id,
+            eval_run_id: evalRunId ?? '',
+            case_input: evalCase.question,
+            case_metadata: evalCase.metadata,
+            eval_dir: evalDir ?? process.cwd(),
+            workspace_file_dir: evalCase.workspace?.workspaceFileDir,
+          },
+          state: extensionState,
+        });
+        afterEachOutput = mergeTextOutput(afterEachOutput, afterEachState?.output);
+      } catch {
+        // afterEach extension failures are non-fatal, matching teardown hooks.
+      }
+    }
+
+    // Reset workspace state before after_each hook (if configured), but only
+    // after graders have inspected the agent-modified workspace.
+    if (
+      caseHooksEnabled &&
+      workspacePath &&
+      evalCase.workspace?.hooks?.after_each?.reset &&
+      evalCase.workspace.hooks.after_each.reset !== 'none'
+    ) {
+      try {
+        if (repoManager && evalCase.workspace.repos?.length) {
+          await repoManager.reset(
+            evalCase.workspace.repos,
+            workspacePath,
+            evalCase.workspace.hooks.after_each.reset,
+          );
+        } else {
+          await resetWorkspaceRoot(
+            workspacePath,
+            evalCase.workspace.hooks.after_each.reset,
+            baselineCommit,
+          );
+        }
+      } catch {
+        // Reset failures are non-fatal (like after_each)
+      }
+    }
+
+    // Execute after_each hook (runs after grading, before cleanup)
+    const caseAfterEachHook = evalCase.workspace?.hooks?.after_each;
+    if (workspacePath && caseHooksEnabled && hasHookCommand(caseAfterEachHook)) {
+      const afterEachHook = caseAfterEachHook;
+      const scriptContext: ScriptExecutionContext = {
+        workspacePath,
+        testId: evalCase.id,
+        evalRunId: evalRunId ?? '',
+        caseInput: evalCase.question,
+        caseMetadata: evalCase.metadata,
+        evalDir,
+        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
+      };
+      try {
+        afterEachOutput = await executeWorkspaceScript(
+          toScriptConfig(afterEachHook, 'after_each', `test '${evalCase.id}'`),
+          scriptContext,
+          'warn',
+        );
+      } catch {
+        // after_each failures are non-fatal
+      }
+    }
+  };
 
   // Conversation mode: turn-by-turn evaluation
   if (evalCase.mode === 'conversation' && evalCase.turns?.length) {
-    const conversationResult = await runConversationMode({
+    let conversationResult = await runConversationMode({
       evalCase,
       provider,
       target,
@@ -1879,7 +2041,16 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       targetResolver,
       availableTargets,
       evalFilePath,
+      metadata: providerMetadata,
     });
+    await runAfterEachHooks();
+    conversationResult = {
+      ...conversationResult,
+      ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
+      beforeAllOutput,
+      beforeEachOutput,
+      afterEachOutput,
+    };
 
     // Cleanup workspace (same logic as standard path)
     if (workspacePath && !isSharedWorkspace) {
@@ -1917,6 +2088,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         workspaceFile: caseWorkspaceFile,
         captureFileChanges: !!baselineCommit,
         streamCallbacks: options.streamCallbacks,
+        metadata: providerMetadata,
       });
     } catch (error) {
       lastError = error;
@@ -1950,6 +2122,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           workspaceFile: caseWorkspaceFile,
           captureFileChanges: !!baselineCommit,
           streamCallbacks: options.streamCallbacks,
+          metadata: providerMetadata,
         });
         targetUsed = fallbackName;
         break; // Fallback succeeded
@@ -2059,82 +2232,6 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
 
   const providerError = extractProviderError(providerResponse);
 
-  const runAfterEachHooks = async () => {
-    // Execute target after_each hook before workspace after_each/reset.
-    const targetAfterEachHook = options.targetHooks?.after_each;
-    if (workspacePath && hasHookCommand(targetAfterEachHook)) {
-      const scriptContext: ScriptExecutionContext = {
-        workspacePath,
-        testId: evalCase.id,
-        evalRunId: evalRunId ?? '',
-        caseInput: evalCase.question,
-        caseMetadata: evalCase.metadata,
-        evalDir,
-        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
-      };
-      try {
-        await executeWorkspaceScript(
-          toScriptConfig(targetAfterEachHook, 'after_each', `target hook for '${evalCase.id}'`),
-          scriptContext,
-          'warn',
-        );
-      } catch {
-        // target after_each failures are non-fatal
-      }
-    }
-
-    // Reset workspace state before after_each hook (if configured), but only
-    // after graders have inspected the agent-modified workspace.
-    if (
-      caseHooksEnabled &&
-      workspacePath &&
-      evalCase.workspace?.hooks?.after_each?.reset &&
-      evalCase.workspace.hooks.after_each.reset !== 'none'
-    ) {
-      try {
-        if (repoManager && evalCase.workspace.repos?.length) {
-          await repoManager.reset(
-            evalCase.workspace.repos,
-            workspacePath,
-            evalCase.workspace.hooks.after_each.reset,
-          );
-        } else {
-          await resetWorkspaceRoot(
-            workspacePath,
-            evalCase.workspace.hooks.after_each.reset,
-            baselineCommit,
-          );
-        }
-      } catch {
-        // Reset failures are non-fatal (like after_each)
-      }
-    }
-
-    // Execute after_each hook (runs after grading, before cleanup)
-    const caseAfterEachHook = evalCase.workspace?.hooks?.after_each;
-    if (workspacePath && caseHooksEnabled && hasHookCommand(caseAfterEachHook)) {
-      const afterEachHook = caseAfterEachHook;
-      const scriptContext: ScriptExecutionContext = {
-        workspacePath,
-        testId: evalCase.id,
-        evalRunId: evalRunId ?? '',
-        caseInput: evalCase.question,
-        caseMetadata: evalCase.metadata,
-        evalDir,
-        workspaceFileDir: evalCase.workspace?.workspaceFileDir,
-      };
-      try {
-        afterEachOutput = await executeWorkspaceScript(
-          toScriptConfig(afterEachHook, 'after_each', `test '${evalCase.id}'`),
-          scriptContext,
-          'warn',
-        );
-      } catch {
-        // after_each failures are non-fatal
-      }
-    }
-  };
-
   try {
     const result = await evaluateCandidate({
       evalCase,
@@ -2215,6 +2312,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
           failureStage: 'agent' as const,
           failureReasonCode: 'provider_error',
           executionError: { message: providerError, stage: 'agent' as const },
+          ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
           beforeAllOutput,
           beforeEachOutput,
           afterEachOutput,
@@ -2234,6 +2332,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
             failureStage: 'evaluator' as const,
             failureReasonCode: 'evaluator_error',
             executionError: { message: skippedEvaluatorError, stage: 'evaluator' as const },
+            ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
             beforeAllOutput,
             beforeEachOutput,
             afterEachOutput,
@@ -2243,6 +2342,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
             ...targetUsedField,
             evalRun,
             executionStatus,
+            ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
             beforeAllOutput,
             beforeEachOutput,
             afterEachOutput,
@@ -3035,6 +3135,7 @@ async function runConversationMode(options: {
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly evalFilePath?: string;
+  readonly metadata?: JsonObject;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -3055,6 +3156,7 @@ async function runConversationMode(options: {
     targetResolver,
     availableTargets,
     evalFilePath,
+    metadata,
   } = options;
 
   // biome-ignore lint/style/noNonNullAssertion: turns is guaranteed by the caller (conversation mode gate)
@@ -3114,6 +3216,7 @@ async function runConversationMode(options: {
         cwd: workspacePath,
         workspaceFile: caseWorkspaceFile,
         streamCallbacks,
+        metadata,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -3414,6 +3517,7 @@ async function invokeProvider(
     readonly workspaceFile?: string;
     /** When true, AgentV captures file changes — provider should skip forced diff prompt */
     readonly captureFileChanges?: boolean;
+    readonly metadata?: JsonObject;
     /** Real-time observability callbacks */
     readonly streamCallbacks?: ProviderStreamCallbacks;
   },
@@ -3428,6 +3532,7 @@ async function invokeProvider(
     cwd,
     workspaceFile,
     captureFileChanges,
+    metadata,
     streamCallbacks,
   } = options;
 
@@ -3455,6 +3560,7 @@ async function invokeProvider(
       cwd,
       workspaceFile,
       captureFileChanges,
+      metadata,
       streamCallbacks,
       braintrustSpanIds: braintrustSpanIds ?? undefined,
     });
