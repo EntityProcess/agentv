@@ -53,6 +53,11 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 - **Identity = `eval_path` + `test_id`** (uuid-suffixed dir), so overlapping `test_id`s across suites don't collide. `suite`/`name` are **display/grouping metadata, not routing** (ADR-0009).
 - **Categorize by BOTH, orthogonally** (each `index.jsonl` row carries both): **`suite`** (+`eval_path`) = structural origin; **`tags`** (map, incl **`experiment`**) = semantic/campaign grouping. `experiment` = the run/campaign bucket; `suite` = the intra-run structural group; the Dashboard groups by any tag key, and suite is another grouping dimension. Reports filter/group by either axis.
 
+### Run organization: cross-run index, repeat naming, experiment-as-tag
+- **Cross-run index (rebuildable cache, not source of truth):** keep per-run `index.jsonl` (rows = cases); add a cross-run catalog `.agentv/results/.indexes/runs.jsonl` (already-reserved `.indexes/` namespace) — **one row per run** (run_id, timestamp, targets, `tags` incl experiment, aggregate pass@k). Derived by scanning `*/summary.json`, rebuildable, optional (Dashboard can glob summaries as fallback). JSONL (append per run), **not `index.json`**.
+- **Repeat folder = `sample-N`, not `run-N`.** "run" is overloaded (`run_id` = the whole invocation). Rename `run-${attempt+1}` → `sample-1`, `sample-2`, … (matches margin `samples_per_case`/`sample_index`, pass@k, and AgentV's `repeat`; Inspect's `epoch` is the ML-jargon alt). Keep the metadata split: `sample_index` = repeats, `retry_index` = infra retries.
+- **`experiment` is a reserved-by-convention TAG, not a separate bucket.** Continues ADR-0006→0009→0013's demotion: no experiment storage dir (already `<run_id>/`), no top-level field (it's `tags.experiment`), no special schema — it's a normal tag. Only residual role: the Dashboard's **default cross-run compare/group key** (a UI convention; falls back to suite or all-runs when unset). One grouping mechanism = tags; `experiment`/`suite` are just conventional keys.
+
 ## Decision — workspace resolver (provenance vs acquisition)
 
 Cross-framework convergent rule (SWE-bench, Terminal-bench, margin, lm-eval, Inspect):
