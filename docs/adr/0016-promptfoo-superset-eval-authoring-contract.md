@@ -37,14 +37,15 @@ keep AgentV's only where its semantics are genuinely better.**
    evidence-gathering judges stay an AgentV extension rather than being forced into
    `llm-rubric`. Structured AgentV rubric criteria are preserved, not flattened
    into a single text blob: criteria objects keep `weight`, `operator`,
-   `score_ranges`, and `min_score` so grading artifacts can emit one assertion
-   result per criterion. Artifact assertion rows are the generic AgentV grader
-   contract, not a `g-eval` special case: each grader returns `assertions[]`, the
-   orchestrator flattens those rows into `grading.json.assertions[]`, and
-   `grading.json.graders[].assertions[]` keeps the per-grader breakdown. Promptfoo's
-   `g-eval` and `llm-rubric` return aggregate assertion results; AgentV's structured
-   `g-eval` extension deliberately populates the same generic assertion rows once per
-   criterion so the Dashboard can show criterion-level evidence.
+   `score_ranges`, and `min_score`. Artifact assertion rows are the generic
+   AgentV grader contract, not a `g-eval` special case: each grader returns
+   `assertions[]`, the orchestrator flattens those rows into
+   `grading.json.assertions[]`, and `grading.json.graders[].assertions[]` keeps
+   the per-grader breakdown. Deterministic graders usually emit one row, while
+   multi-aspect graders emit one row per authored check or result unit. Structured
+   `g-eval` criteria therefore populate one assertion row per criterion so the
+   Dashboard can show criterion-level evidence, using the same mechanism as code
+   graders, field accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
    `code-grader` = the subprocess power tool (workspace-`cwd`, arbitrary language) —
    `javascript` is NOT desugared to `code-grader`.
