@@ -594,8 +594,8 @@ const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['timeoutSeconds', 'timeout_seconds'],
   ['logDir', 'log_dir'],
   ['logDirectory', 'log_directory'],
-  ['logFormat', 'log_format'],
-  ['logOutputFormat', 'log_output_format'],
+  ['logFormat', 'stream_log'],
+  ['logOutputFormat', 'stream_log'],
   ['systemPrompt', 'system_prompt'],
   ['maxTurns', 'max_turns'],
   ['maxBudgetUsd', 'max_budget_usd'],
@@ -698,6 +698,16 @@ function assertNoRemovedTargetFields(definition: TargetDefinition): void {
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'judge_target')) {
     throw new Error(
       `target "${definition.name}".judge_target: field 'judge_target' has been removed. Use 'grader_target' instead.`,
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'log_format')) {
+    throw new Error(
+      `target "${definition.name}".log_format: field 'log_format' has been removed. Use 'stream_log' instead.`,
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'log_output_format')) {
+    throw new Error(
+      `target "${definition.name}".log_output_format: field 'log_output_format' has been removed. Use 'stream_log' instead.`,
     );
   }
 }
@@ -1315,11 +1325,6 @@ function resolveCodexConfig(
   const logDirSource = target.log_dir ?? target.log_directory;
   const systemPromptSource = target.system_prompt;
 
-  if (target.log_format !== undefined || target.log_output_format !== undefined) {
-    throw new Error(
-      `${target.name}: log_format is no longer supported for codex targets. Use stream_log instead.`,
-    );
-  }
   const streamLogResult = resolveStreamLog({ name: target.name, stream_log: target.stream_log });
 
   const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
@@ -1475,26 +1480,11 @@ function normalizeCodexApprovalPolicy(value: string | undefined): CodexApprovalP
   );
 }
 
-/**
- * Resolve the stream_log config field, falling back to log_format with a
- * deprecation warning.
- *
- * Resolution order:
- *   1. stream_log (new canonical field)
- *   2. log_format / log_output_format (deprecated, mapped to stream_log equivalent)
- *   3. environment variable fallback (optional)
- *
- * Mapping: log_format 'json' → 'raw', log_format 'summary' → 'summary'.
- */
-function resolveStreamLog(
-  target: { stream_log?: unknown; log_format?: unknown; log_output_format?: unknown; name: string },
-  envFallback?: unknown,
-): {
+/** Resolve canonical stream_log config and the legacy logger format it implies. */
+function resolveStreamLog(target: { stream_log?: unknown; name: string }): {
   streamLog: false | 'raw' | 'summary' | undefined;
   logFormat: 'summary' | 'json' | undefined;
-  deprecationWarning?: string;
 } {
-  // 1. New stream_log field takes precedence
   if (target.stream_log !== undefined && target.stream_log !== null) {
     const val = target.stream_log;
     if (val === false || val === 'false') {
@@ -1509,27 +1499,7 @@ function resolveStreamLog(
     throw new Error(`${target.name}: stream_log must be false, 'raw', or 'summary'`);
   }
 
-  // 2. Fall back to log_format (deprecated)
-  const logFormatRaw = target.log_format ?? target.log_output_format ?? envFallback;
-  if (logFormatRaw === undefined || logFormatRaw === null) {
-    return { streamLog: undefined, logFormat: undefined };
-  }
-
-  if (typeof logFormatRaw !== 'string') {
-    throw new Error(`${target.name}: log_format must be 'summary' or 'json'`);
-  }
-
-  const normalized = logFormatRaw.trim().toLowerCase();
-  if (normalized !== 'json' && normalized !== 'summary') {
-    throw new Error(`${target.name}: log_format must be 'summary' or 'json'`);
-  }
-
-  const streamLogEquivalent = normalized === 'json' ? 'raw' : 'summary';
-  return {
-    streamLog: streamLogEquivalent,
-    logFormat: normalized as 'json' | 'summary',
-    deprecationWarning: `${target.name}: 'log_format' is deprecated and will be removed in v4.16. Use 'stream_log: ${streamLogEquivalent}' instead (log_format: '${normalized}' → stream_log: '${streamLogEquivalent}').`,
-  };
+  return { streamLog: undefined, logFormat: undefined };
 }
 
 function resolveCopilotSdkConfig(
@@ -1545,13 +1515,9 @@ function resolveCopilotSdkConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const cliUrl = resolveOptionalString(cliUrlSource, env, `${target.name} copilot-sdk cli URL`, {
     allowLiteral: true,
@@ -1597,8 +1563,6 @@ function resolveCopilotSdkConfig(
     },
   );
 
-  const logFormat = normalizeCopilotLogFormat(logFormatSource);
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1615,7 +1579,7 @@ function resolveCopilotSdkConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
     ...(customProvider ? { customProvider } : {}),
@@ -1712,13 +1676,9 @@ function resolveCopilotCliConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} copilot-cli executable`, {
@@ -1750,8 +1710,6 @@ function resolveCopilotCliConfig(
     },
   );
 
-  const logFormat = normalizeCopilotLogFormat(logFormatSource);
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1765,19 +1723,11 @@ function resolveCopilotCliConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
     ...(customProvider ? { customProvider } : {}),
   };
-}
-
-function normalizeCopilotLogFormat(value: unknown): 'summary' | 'json' | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'string') throw new Error("copilot log format must be 'summary' or 'json'");
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'json' || normalized === 'summary') return normalized;
-  throw new Error("copilot log format must be 'summary' or 'json'");
 }
 
 function resolvePiCodingAgentConfig(
@@ -1793,13 +1743,9 @@ function resolvePiCodingAgentConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -1849,9 +1795,6 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
-  const logFormat =
-    logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1867,7 +1810,7 @@ function resolvePiCodingAgentConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
@@ -1887,13 +1830,9 @@ function resolvePiCliConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
@@ -1950,9 +1889,6 @@ function resolvePiCliConfig(
     optionalEnv: true,
   });
 
-  const logFormat =
-    logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1970,7 +1906,7 @@ function resolvePiCliConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
@@ -2000,14 +1936,9 @@ function resolveClaudeConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource =
-    target.log_format ?? target.log_output_format ?? env.AGENTV_CLAUDE_LOG_FORMAT;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} claude-cli executable`, {
@@ -2031,8 +1962,6 @@ function resolveClaudeConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
-
-  const logFormat = normalizeClaudeLogFormat(logFormatSource);
 
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
@@ -2058,24 +1987,10 @@ function resolveClaudeConfig(
     maxTurns,
     maxBudgetUsd,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     bypassPermissions,
   };
-}
-
-function normalizeClaudeLogFormat(value: unknown): 'summary' | 'json' | undefined {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (typeof value !== 'string') {
-    throw new Error("claude log format must be 'summary' or 'json'");
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'json' || normalized === 'summary') {
-    return normalized;
-  }
-  throw new Error("claude log format must be 'summary' or 'json'");
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {

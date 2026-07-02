@@ -133,7 +133,6 @@ const COPILOT_SDK_SETTINGS = new Set([
   'cwd',
   'timeout_seconds',
   'log_dir',
-  'log_format',
   'stream_log',
   'system_prompt',
   'subprovider',
@@ -157,7 +156,6 @@ const COPILOT_CLI_SETTINGS = new Set([
   'cwd',
   'timeout_seconds',
   'log_dir',
-  'log_format',
   'stream_log',
   'system_prompt',
   'subprovider',
@@ -208,8 +206,6 @@ const CLAUDE_SETTINGS = new Set([
   'timeout_seconds',
   'log_dir',
   'log_directory',
-  'log_format',
-  'log_output_format',
   'stream_log',
   'system_prompt',
   'max_turns',
@@ -285,20 +281,10 @@ function validateUnknownSettings(
     azure: new Map([
       [
         'api_format',
-        "The 'api_format' field is no longer supported on Azure targets. " +
+        "The 'api_format' field has been removed from Azure targets. " +
           "AgentV always uses Azure's Responses API (`/openai/v1/responses`). " +
           "If your deployment only exposes /chat/completions, use 'provider: openai' " +
           "with a deployment-scoped 'base_url' instead.",
-      ],
-    ]),
-    codex: new Map([
-      [
-        'log_format',
-        "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
-      ],
-      [
-        'log_output_format',
-        "The 'log_output_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
       ],
     ]),
   };
@@ -312,6 +298,15 @@ function validateUnknownSettings(
         location: `${location}.${key}`,
         message:
           'workspace_template has been removed from targets. Use eval-level workspace.template instead.',
+      });
+      continue;
+    }
+    if (key === 'log_format' || key === 'log_output_format') {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message: `The '${key}' field has been removed. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.`,
       });
       continue;
     }

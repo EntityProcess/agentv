@@ -346,7 +346,42 @@ describe('validateTargetsFile', () => {
     ).toBe(true);
   });
 
-  it('rejects azure api_format with a migration error', async () => {
+  it('rejects removed log_format target aliases', async () => {
+    const filePath = path.join(tempDir, 'log-format-aliases.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: copilot-agent
+    provider: copilot-cli
+    log_format: json
+  - name: claude-agent
+    provider: claude
+    log_output_format: summary
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].log_format' &&
+          error.message.includes("Use 'stream_log: raw'"),
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[1].log_output_format' &&
+          error.message.includes("Use 'stream_log: raw'"),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects azure api_format with a removed-field error', async () => {
     const filePath = path.join(tempDir, 'azure-api-format.yaml');
     await writeFile(
       filePath,
@@ -367,7 +402,7 @@ describe('validateTargetsFile', () => {
         (error) =>
           error.severity === 'error' &&
           error.location === 'targets[0].api_format' &&
-          /'api_format' field is no longer supported/i.test(error.message),
+          /'api_format' field has been removed/i.test(error.message),
       ),
     ).toBe(true);
   });

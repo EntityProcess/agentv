@@ -543,6 +543,9 @@ export class CopilotCliProvider implements Provider {
   }
 
   private resolveLogDirectory(request: ProviderRequest): string | undefined {
+    if (this.config.streamLog === false) {
+      return undefined;
+    }
     if (isLogStreamingDisabled('AGENTV_COPILOT_CLI_STREAM_LOGS')) {
       return undefined;
     }
