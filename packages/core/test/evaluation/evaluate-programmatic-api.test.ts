@@ -253,6 +253,35 @@ describe('evaluate() — programmatic API extensions', () => {
   );
 
   it(
+    'rejects removed expected_output on individual turns',
+    async () => {
+      const removedKey = ['expected', 'output'].join('_');
+      const removedAliasTurn: {
+        readonly input: string;
+        readonly assertions: readonly { readonly type: string; readonly value: string }[];
+        readonly [key: string]: unknown;
+      } = {
+        input: 'Say hello',
+        [removedKey]: 'Hello!',
+        assertions: [{ type: 'contains', value: 'mock' }],
+      };
+
+      await expect(
+        evaluate({
+          tests: [
+            {
+              id: 'turn-removed-expected-output',
+              turns: [removedAliasTurn],
+            },
+          ],
+          target: { name: 'default', provider: 'mock', response: 'mock response' },
+        }),
+      ).rejects.toThrow("'expected_output' has been removed");
+    },
+    PROGRAMMATIC_API_TIMEOUT_MS,
+  );
+
+  it(
     'supports message array input in turns',
     async () => {
       const { summary } = await evaluate({

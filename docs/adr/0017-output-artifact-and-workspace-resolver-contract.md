@@ -35,9 +35,10 @@ bundle, and how a workspace is acquired.
    passed, evidence }]` + `summary` counts, PLUS AgentV's superset — top-level **string
    `verdict` (`pass`|`fail`|`skip`)** + fractional **`score`** (not a boolean; needs skip
    + fractional). These rows are the generic AgentV grader evidence channel: every
-   grader can emit `assertions[]`, multi-aspect graders emit one row per distinct
-   criterion/aspect, and the artifact preserves both the flattened rows and each
-   grader's nested rows. Default judge = skeptical evidence-by-path (opt-out via
+   grader returns `assertions[]`; deterministic graders typically return one row,
+   while multi-aspect graders return one row per distinct criterion/aspect. The
+   artifact preserves both the flattened rows and each grader's nested rows.
+   Default judge = skeptical evidence-by-path (opt-out via
    explicit `prompt`); judge pinning via `grader_target`. Evidence stays in
    `grading.json`.
 5. **Bundle layout / naming**: machine files move under per-run **`.internal/`**
