@@ -628,6 +628,44 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/whole .+ env\.VARIABLE_NAME/i);
   });
 
+  it('rejects composed {{ env.* }} templates in secret fields', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'openai-target',
+          provider: 'openai',
+          endpoint: '{{ env.OPENAI_ENDPOINT }}',
+          api_key: '{{ env.OPENAI_API_KEY }}{{ env.OPENAI_API_KEY_2 }}',
+          model: '{{ env.OPENAI_MODEL }}',
+        },
+        {
+          OPENAI_ENDPOINT: 'https://llm-gateway.example.com/v1',
+          OPENAI_API_KEY: 'openai-secret',
+          OPENAI_API_KEY_2: 'extra-secret',
+          OPENAI_MODEL: 'gpt-5.4',
+        },
+      ),
+    ).toThrow(/whole .+ env\.VARIABLE_NAME/i);
+  });
+
+  it('rejects literal defaults in secret field env templates', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'openai-target',
+          provider: 'openai',
+          endpoint: '{{ env.OPENAI_ENDPOINT }}',
+          api_key: '{{ env.OPENAI_API_KEY | default("hardcoded-secret") }}',
+          model: '{{ env.OPENAI_MODEL }}',
+        },
+        {
+          OPENAI_ENDPOINT: 'https://llm-gateway.example.com/v1',
+          OPENAI_MODEL: 'gpt-5.4',
+        },
+      ),
+    ).toThrow(/whole .+ env\.VARIABLE_NAME/i);
+  });
+
   it('resolves openrouter settings from environment', () => {
     const env = {
       OPENROUTER_API_KEY: 'openrouter-secret',

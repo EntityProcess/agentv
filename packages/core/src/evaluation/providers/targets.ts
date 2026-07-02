@@ -820,7 +820,7 @@ export const COMMON_TARGET_SETTINGS = [
 ] as const;
 
 const USE_TARGET_ENV_PATTERN = /^\$\{\{\s*([A-Z0-9_]+)\s*\}\}$/i;
-const WHOLE_ENV_TEMPLATE_PATTERN = /^\s*\{\{\s*env\.[\s\S]*?\}\}\s*$/;
+const SECRET_ENV_TEMPLATE_PATTERN = /^\s*\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}\s*$/;
 
 const BASE_TARGET_SCHEMA = z
   .object({
@@ -2342,7 +2342,8 @@ function resolveOptionalString(
 
   if (trimmed.includes('{{') && trimmed.includes('env.')) {
     const allowLiteral = options?.allowLiteral ?? false;
-    if (!allowLiteral && !WHOLE_ENV_TEMPLATE_PATTERN.test(trimmed)) {
+    const isSecretField = /\b(api key|bearer token|github token|token|secret)\b/i.test(description);
+    if (!allowLiteral && isSecretField && !SECRET_ENV_TEMPLATE_PATTERN.test(trimmed)) {
       throw new Error(
         `${description} must use a whole \${{ VARIABLE_NAME }} or {{ env.VARIABLE_NAME }} reference`,
       );

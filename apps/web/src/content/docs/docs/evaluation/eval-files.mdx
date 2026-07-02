@@ -407,26 +407,26 @@ dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/guid
 
 ## Environment Variable Interpolation
 
-All string fields in eval files support `${{ VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
+All string fields in eval files support `{{ env.VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
 
 ```yaml
 workspace:
   repos:
     - path: ./RepoA
-      repo: "${{ REPO_A_URL }}"
-      commit: "${{ REPO_A_COMMIT }}"
+      repo: "{{ env.REPO_A_URL }}"
+      commit: "{{ env.REPO_A_COMMIT }}"
 
 tests:
   - id: test-1
-    input: "Evaluate the code in ${{ PROJECT_NAME }}"
-    criteria: "${{ EVAL_CRITERIA }}"
+    input: "Evaluate the code in {{ env.PROJECT_NAME }}"
+    criteria: "{{ env.EVAL_CRITERIA }}"
 ```
 
 ### Behavior
 
-- **Syntax:** `${{ VARIABLE_NAME }}` with optional whitespace around the name
+- **Syntax:** `{{ env.VARIABLE_NAME }}` with optional whitespace around the name
 - **Missing variables** resolve to an empty string
-- **Partial interpolation** is supported: `${{ HOME }}/repos/${{ PROJECT }}` becomes `/home/user/repos/myproject`
+- **Partial interpolation** is supported: `{{ env.HOME }}/repos/{{ env.PROJECT }}` becomes `/home/user/repos/myproject`
 - **Non-string values** (numbers, booleans) are not affected
 - Interpolation is applied recursively to all nested objects and arrays
 - Works in YAML eval files, external YAML/JSONL case files, and external workspace config files
