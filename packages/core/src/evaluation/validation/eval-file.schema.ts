@@ -67,6 +67,9 @@ const PromptSchema = z.union([
     .object({
       id: z.string().optional(),
       label: z.string().optional(),
+      prompt: z.union([z.string(), z.array(JsonObjectSchema)]).optional(),
+      file: z.string().optional(),
+      messages: z.array(JsonObjectSchema).optional(),
       raw: z.string().optional(),
       path: z.string().optional(),
       prefix: z.string().optional(),
