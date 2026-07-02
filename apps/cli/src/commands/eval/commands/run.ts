@@ -168,10 +168,11 @@ export const evalRunCommand = command({
       description:
         'Resume an interrupted run: skip already-completed tests and append new results to --output dir',
     }),
-    rerunFailed: flag({
+    rerunFailed: option({
+      type: optional(string),
       long: 'rerun-failed',
       description:
-        'Rerun failed/errored tests while keeping passing results. Implies --resume semantics',
+        'Run ID, run workspace, or index.jsonl to rerun failed/errored tests while keeping passing results',
     }),
     strict: flag({
       long: 'strict',

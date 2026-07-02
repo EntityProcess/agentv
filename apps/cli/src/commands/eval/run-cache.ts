@@ -54,10 +54,10 @@ export async function loadRunCache(cwd: string): Promise<RunCache | undefined> {
 /**
  * Resolve the cached last-run directory for a cwd, if it still exists on disk.
  * Returns undefined when there is no cache, the cache lacks a `lastRunDir`,
- * or the directory has since been deleted. Used by `--resume` / `--rerun-failed`
- * to default `--output` to the most recent run when no explicit dir is given,
- * matching the convention used by promptfoo (`--resume [evalId]`) and
- * OpenCompass (`-r [timestamp]`).
+ * or the directory has since been deleted. Used by `--resume` to default
+ * `--output` to the most recent run when no explicit dir is given, matching
+ * the convention used by promptfoo (`--resume [evalId]`) and OpenCompass
+ * (`-r [timestamp]`).
  */
 export async function resolveCachedRunDir(cwd: string): Promise<string | undefined> {
   const cache = await loadRunCache(cwd);

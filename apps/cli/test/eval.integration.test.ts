@@ -933,6 +933,101 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('reruns failed rows from a canonical run id', async () => {
+    const fixture = await createFixture();
+    try {
+      const priorRunDir = path.join(fixture.suiteDir, '.agentv', 'results', 'prior-run');
+      const first = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--output',
+        priorRunDir,
+        '--threshold',
+        '0.8',
+      ]);
+      expect(first.exitCode).toBe(1);
+      const priorIndexPath = path.join(priorRunDir, 'index.jsonl');
+      const priorRows = (await readJsonLines(priorIndexPath)) as Array<Record<string, unknown>>;
+      await writeFile(
+        priorIndexPath,
+        `${priorRows
+          .map((row) =>
+            JSON.stringify({
+              ...row,
+              execution_status: row.test_id === 'case-alpha' ? 'quality_failure' : 'ok',
+            }),
+          )
+          .join('\n')}\n`,
+        'utf8',
+      );
+
+      const second = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--rerun-failed',
+        'prior-run',
+        '--threshold',
+        '0.8',
+      ]);
+      expect(second.exitCode).toBe(1);
+      expect(second.stdout).toContain('Rerun-failed: found 2 existing result(s), skipping 1');
+
+      const diagnostics = await readDiagnostics(fixture);
+      const calls = diagnostics.calls as Array<Record<string, unknown>>;
+      expect(calls.at(-1)).toMatchObject({
+        evalCaseIds: ['case-alpha'],
+      });
+
+      const rows = await readJsonLines(priorIndexPath);
+      expect(rows).toHaveLength(3);
+      expect((rows.at(-1) as Record<string, unknown>).test_id).toBe('case-alpha');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('does not multiply max_concurrency across target matrix selections', async () => {
+    const fixture = await createFixture();
+    try {
+      const evalPath = path.join(fixture.suiteDir, 'target-matrix.eval.yaml');
+      await writeFile(
+        evalPath,
+        [
+          'name: target-matrix',
+          'target: file-target',
+          'tests:',
+          '  - id: first-case',
+          '    input: first',
+          '    criteria: ok',
+          '  - id: second-case',
+          '    input: second',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { exitCode } = await runCli(fixture, [
+        'eval',
+        evalPath,
+        '--workers',
+        '2',
+        '--target',
+        'file-target',
+        '--target',
+        'cli-target',
+      ]);
+
+      expect(exitCode).toBe(0);
+      const diagnostics = await readDiagnostics(fixture);
+      const calls = diagnostics.calls as Array<Record<string, unknown>>;
+      expect(calls).toHaveLength(2);
+      expect(calls.map((call) => call.maxConcurrency)).toEqual([1, 1]);
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('records CLI-named experiment namespace separately from default runtime config', async () => {
     const fixture = await createFixture();
     try {
