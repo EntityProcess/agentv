@@ -746,6 +746,28 @@ describe('buildIndexArtifactEntry', () => {
           error: 'model drift',
           cost_usd: 0.25,
           execution_status: 'quality_failure',
+          transcript_summary: {
+            total_turns: 1,
+            tool_calls: {
+              file_read: 0,
+              file_write: 0,
+              file_edit: 0,
+              shell: 0,
+              web_fetch: 0,
+              web_search: 0,
+              glob: 0,
+              grep: 0,
+              list_dir: 0,
+              agent_task: 0,
+              unknown: 0,
+            },
+            files_read: [],
+            files_modified: [],
+            shell_commands: [],
+            web_fetches: [],
+            errors: [{ message: 'model drift' }],
+            thinking_blocks: 0,
+          },
         },
       ],
     });
@@ -1159,7 +1181,7 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexEntry] = await readIndexLines(paths.indexPath);
     const repeatRowDir = expectRowDir(indexEntry, 'repeat-case');
-    expect(indexEntry?.trials).toEqual([
+    expect(indexEntry?.trials).toMatchObject([
       { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
       { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
     ]);
@@ -1253,6 +1275,7 @@ describe('writeArtifactsFromResults', () => {
       },
     });
     expect(runOneResult).not.toHaveProperty('status');
+    expect(indexEntry?.trials?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
 
     const runTwoAnswer = await readFile(
       path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'outputs', 'answer.md'),
@@ -1278,6 +1301,7 @@ describe('writeArtifactsFromResults', () => {
       },
     });
     expect(runTwoResult).not.toHaveProperty('status');
+    expect(indexEntry?.trials?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
   });
 
   it('handles empty results array', async () => {

@@ -362,6 +362,7 @@ export type TrialResultArtifact = {
   readonly execution_status?: string;
   readonly failure_stage?: string;
   readonly failure_reason_code?: string;
+  readonly transcript_summary?: TranscriptSummaryWire;
 };
 
 export type TrialAggregationArtifact =
@@ -737,6 +738,13 @@ function hasPersistedTrialRuns(result: EvaluationResult): boolean {
   return (result.trials ?? []).some((trial) => trial.result !== undefined);
 }
 
+function toTrialTranscriptSummary(trial: TrialResult): TranscriptSummaryWire | undefined {
+  const result = trial.result;
+  return result && resultHasExecutionTraceTranscript(result)
+    ? buildResultTranscriptSummary(result)
+    : undefined;
+}
+
 function toTrialArtifacts(
   trials: readonly TrialResult[] | undefined,
 ): readonly TrialResultArtifact[] | undefined {
@@ -754,6 +762,7 @@ function toTrialArtifacts(
     execution_status: trial.executionStatus,
     failure_stage: trial.failureStage,
     failure_reason_code: trial.failureReasonCode,
+    transcript_summary: toTrialTranscriptSummary(trial),
   }));
 }
 
