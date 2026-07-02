@@ -464,3 +464,21 @@ Since this is a major version with nothing in production, **remove** the accumul
 - `orchestrator.ts:495` "legacy workspace pooling toggle" (`workspaceMode`) — reconcile with §4's reset-based pool (one pooling model, not two).
 
 **Sequencing:** land **group A** as its own small, tested, dogfooded cleanup PR *now* (independent of the schema work — pure removal of dead aliases, shrinks the surface the restructure must touch). Handle **group B** inside the restructure phases (they need the new schema first). Do **group C** as targeted refactors with tests. Every deletion needs a green test run + a live dogfood per `.agents/verification.md` before merge.
+
+---
+
+## 11. Quality gate & live dogfood (CargoWise PR-679)
+
+Layered gate (matches `.agents/verification.md`):
+
+1. **Deterministic CI = authoritative merge gate (every bead PR):** `agentv validate`, `bun test` (unit + schema-sync), `typecheck`, `lint`, `build`, Validate Evals. No live provider.
+2. **Live eval dogfood = blocking before ready-for-review:** the **PR-679 CargoWise scenario** with a **live provider + real LLM grader**, producing canonical `.agentv/results/<run_id>/`, evidence to `agentv-private`. Chosen because it exercises the whole restructure at once: repo materialization, the `agentv:workspace` extension, `llm-rubric` agentic judge, transcript/`tool_name`, `grading.json`, output bundle, targets. This is `av-kfik.16`.
+3. **Superset-parity check (recommended):** run PR-679 in **both** promptfoo (the parity example) and AgentV (new format) and diff — proves "snake_cased promptfoo ⊆ AgentV" end-to-end.
+
+### Workspace acquisition — two resolver adapters (= `av-w5cw` → `av-kfik.14`)
+Both materialize a workspace at a pinned `workspace.repos[].commit`; they differ only in source:
+
+- **Local git-mirror path** (default for dev): clone/checkout from the local mirror (`~/projects/WiseTechGlobal/CargoWise`, ~7.3 GB). Offline, fast. The parity example's `git_cache.mirrors`. Not usable in CI (size + private + no LFS creds).
+- **Snapshot-download adapter** (CI): port `WTG.AI.Prompts/scripts/eval-config/download-release-deps.ts` — `agentv workspace deps <evals>` → manifest → download pinned **per-year `.git`-only tarballs** from a release (`snapshot/v1.x.0`), one shared `git clone`+`checkout <sha>` per (repo,commit), symlink each workspace to the shared **read-only** checkout, `GIT_LFS_SKIP_SMUDGE=1`. Reproducible, no full mirror.
+
+Unify under the **resolver** abstraction (already fronted by `agentv workspace deps`): the eval file is identical; the resolver picks mirror (local) vs snapshot (CI) by config/env. `av-kfik.14` carries this two-adapter design; `av-kfik.16` depends on it.
