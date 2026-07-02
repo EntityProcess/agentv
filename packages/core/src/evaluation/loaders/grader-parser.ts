@@ -637,7 +637,13 @@ async function parseGraderList(
     }
 
     if (typeValue === 'code-grader' || typeValue === 'script') {
-      const displayType = typeValue;
+      const isLegacyCodeGrader = typeValue === 'code-grader';
+      if (isLegacyCodeGrader) {
+        logWarning(
+          `Evaluator '${name}' in '${evalId}': 'code-grader' is deprecated. Use 'script' instead.`,
+        );
+      }
+      const displayType = 'script';
       let command: string[] | undefined;
       if (rawEvaluator.script !== undefined) {
         throw new Error(
@@ -747,7 +753,7 @@ async function parseGraderList(
 
       evaluators.push({
         name,
-        type: typeValue,
+        type: 'script',
         command,
         ...(resolvedScriptPath ? { resolvedScriptPath } : {}),
         cwd,
@@ -797,6 +803,7 @@ async function parseGraderList(
       }
       if (
         normalizedAggregatorType !== 'weighted_average' &&
+        normalizedAggregatorType !== 'script' &&
         normalizedAggregatorType !== 'code-grader' &&
         normalizedAggregatorType !== 'llm-grader' &&
         normalizedAggregatorType !== 'threshold'
@@ -832,7 +839,7 @@ async function parseGraderList(
           continue;
         }
 
-        // Parse member evaluator (reuse existing logic for code, llm-grader, code-grader)
+        // Parse member evaluator (reuse existing logic for code, llm-grader, script)
         const memberConfigs = await parseGraders(
           { evaluators: [rawMember] },
           undefined,
@@ -871,11 +878,19 @@ async function parseGraderList(
           type: 'weighted_average',
           ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
         };
-      } else if (normalizedAggregatorType === 'code-grader') {
+      } else if (
+        normalizedAggregatorType === 'script' ||
+        normalizedAggregatorType === 'code-grader'
+      ) {
+        if (normalizedAggregatorType === 'code-grader') {
+          logWarning(
+            `Composite evaluator '${name}' in '${evalId}': aggregator type 'code-grader' is deprecated. Use 'script' instead.`,
+          );
+        }
         const aggregatorPath = asString(rawAggregator.path);
         if (!aggregatorPath) {
           logWarning(
-            `Skipping composite evaluator '${name}' in '${evalId}': code-grader aggregator missing path`,
+            `Skipping composite evaluator '${name}' in '${evalId}': script aggregator missing path`,
           );
           continue;
         }
@@ -883,7 +898,7 @@ async function parseGraderList(
         // Set cwd to eval file directory (first search root)
         // Paths are resolved relative to this directory
         aggregator = {
-          type: 'code-grader',
+          type: 'script',
           path: aggregatorPath,
           cwd: searchRoots[0],
         };

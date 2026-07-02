@@ -41,7 +41,6 @@ export type AssertionType =
   | 'g-eval'
   | 'llm-rubric'
   | 'script'
-  | 'code-grader'
   | 'assert-set'
   | 'rubrics'
   | 'composite'

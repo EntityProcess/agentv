@@ -2298,7 +2298,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "enum": ["script", "code-grader", "code_grader"]
+                                  "const": "script"
                                 },
                                 "command": {
                                   "anyOf": [
@@ -2946,7 +2946,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code-grader"
+                                          "const": "script"
                                         },
                                         "path": {
                                           "type": "string"
@@ -3684,7 +3684,7 @@
                                     },
                                     "type": {
                                       "type": "string",
-                                      "enum": ["script", "code-grader", "code_grader"]
+                                      "const": "script"
                                     },
                                     "command": {
                                       "anyOf": [
@@ -4332,7 +4332,7 @@
                                           "properties": {
                                             "type": {
                                               "type": "string",
-                                              "const": "code-grader"
+                                              "const": "script"
                                             },
                                             "path": {
                                               "type": "string"
@@ -7044,7 +7044,7 @@
                                 },
                                 "type": {
                                   "type": "string",
-                                  "enum": ["script", "code-grader", "code_grader"]
+                                  "const": "script"
                                 },
                                 "command": {
                                   "anyOf": [
@@ -7692,7 +7692,7 @@
                                       "properties": {
                                         "type": {
                                           "type": "string",
-                                          "const": "code-grader"
+                                          "const": "script"
                                         },
                                         "path": {
                                           "type": "string"
@@ -8430,7 +8430,7 @@
                                     },
                                     "type": {
                                       "type": "string",
-                                      "enum": ["script", "code-grader", "code_grader"]
+                                      "const": "script"
                                     },
                                     "command": {
                                       "anyOf": [
@@ -9078,7 +9078,7 @@
                                           "properties": {
                                             "type": {
                                               "type": "string",
-                                              "const": "code-grader"
+                                              "const": "script"
                                             },
                                             "path": {
                                               "type": "string"
@@ -15425,7 +15425,7 @@
                               },
                               "type": {
                                 "type": "string",
-                                "enum": ["script", "code-grader", "code_grader"]
+                                "const": "script"
                               },
                               "command": {
                                 "anyOf": [
@@ -16073,7 +16073,7 @@
                                     "properties": {
                                       "type": {
                                         "type": "string",
-                                        "const": "code-grader"
+                                        "const": "script"
                                       },
                                       "path": {
                                         "type": "string"
@@ -16811,7 +16811,7 @@
                                   },
                                   "type": {
                                     "type": "string",
-                                    "enum": ["script", "code-grader", "code_grader"]
+                                    "const": "script"
                                   },
                                   "command": {
                                     "anyOf": [
@@ -17459,7 +17459,7 @@
                                         "properties": {
                                           "type": {
                                             "type": "string",
-                                            "const": "code-grader"
+                                            "const": "script"
                                           },
                                           "path": {
                                             "type": "string"

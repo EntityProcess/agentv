@@ -12,6 +12,7 @@ import {
   llmGrader,
   regexGrader,
   rubricsGrader,
+  scriptGrader,
   serializeEvalYaml,
   toEvalYamlObject,
 } from '../src/index.js';
@@ -64,11 +65,15 @@ describe('grader helper config builders', () => {
       }),
     ).toEqual({
       name: 'scripted-check',
-      type: 'code-grader',
+      type: 'script',
       command: ['bun', 'run', 'graders/check.ts'],
       cwd: 'graders',
       target: { maxCalls: 2 },
       config: { mode: 'strict' },
+    });
+    expect(scriptGrader(['bun', 'run', 'graders/check.ts'])).toEqual({
+      type: 'script',
+      command: ['bun', 'run', 'graders/check.ts'],
     });
   });
 
@@ -112,7 +117,7 @@ describe('grader helper config builders', () => {
                 },
               ],
             }),
-            graders.codeGrader(['bun', 'run', 'graders/check.ts'], {
+            graders.script(['bun', 'run', 'graders/check.ts'], {
               name: 'scripted-check',
               target: { maxCalls: 2 },
               minScore: 0.5,
@@ -163,7 +168,7 @@ describe('grader helper config builders', () => {
       },
       {
         name: 'scripted-check',
-        type: 'code-grader',
+        type: 'script',
         command: ['bun', 'run', 'graders/check.ts'],
         target: { max_calls: 2 },
         min_score: 0.5,
@@ -174,7 +179,7 @@ describe('grader helper config builders', () => {
 
     expect(yaml).toContain('assertions:');
     expect(yaml).toContain('type: llm-grader');
-    expect(yaml).toContain('type: code-grader');
+    expect(yaml).toContain('type: script');
     expect(yaml).toContain('max_steps: 2');
     expect(yaml).toContain('max_calls: 2');
     expect(yaml).toContain('min_score: 0.8');

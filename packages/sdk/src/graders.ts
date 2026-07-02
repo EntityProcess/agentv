@@ -116,14 +116,17 @@ export interface CodeGraderOptions extends GraderHelperOptions {
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
-export interface CodeGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
-  readonly type: 'script' | 'code-grader';
+export interface ScriptGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
+  readonly type: 'script';
   readonly command: GraderCommand;
   readonly cwd?: string;
   readonly target?: true | CodeGraderTargetOptions;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
+
+/** @deprecated Use ScriptGraderConfig with type: 'script'. */
+export type CodeGraderConfig = ScriptGraderConfig;
 
 export type GraderHelperConfig =
   | ContainsGraderConfig
@@ -134,7 +137,7 @@ export type GraderHelperConfig =
   | GEvalGraderConfig
   | LlmRubricGraderConfig
   | LlmGraderConfig
-  | CodeGraderConfig;
+  | ScriptGraderConfig;
 
 function withCommon<T extends { readonly type: string }>(
   config: T,
@@ -241,10 +244,17 @@ export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
 export function codeGrader(
   command: GraderCommand,
   options: CodeGraderOptions = {},
-): CodeGraderConfig {
+): ScriptGraderConfig {
+  return scriptGrader(command, options);
+}
+
+export function scriptGrader(
+  command: GraderCommand,
+  options: CodeGraderOptions = {},
+): ScriptGraderConfig {
   return withCommon(
     {
-      type: 'code-grader',
+      type: 'script',
       command,
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
       ...(options.target !== undefined ? { target: options.target } : {}),
@@ -267,6 +277,8 @@ export const graders = Object.freeze({
   llmRubric: llmRubricGrader,
   llmGrader,
   codeGrader,
+  script: scriptGrader,
+  scriptGrader,
 });
 
 export type GraderCatalog = typeof graders;

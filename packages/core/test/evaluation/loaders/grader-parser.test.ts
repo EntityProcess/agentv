@@ -517,7 +517,7 @@ describe('parseGraders - tool-trajectory', () => {
   });
 });
 
-describe('parseGraders - code-grader config pass-through', () => {
+describe('parseGraders - script config pass-through', () => {
   let tempDir: string;
 
   beforeAll(async () => {
@@ -536,7 +536,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'fuzzy-matcher',
-          type: 'code-grader',
+          type: 'script',
           command: ['bun', 'run', './test_script.ts'],
           fields: [
             { path: 'supplier.name', threshold: 0.85 },
@@ -552,7 +552,7 @@ describe('parseGraders - code-grader config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeGraderConfig;
-    expect(config.type).toBe('code-grader');
+    expect(config.type).toBe('script');
     expect(config.name).toBe('fuzzy-matcher');
     expect(config.config).toEqual({
       fields: [
@@ -569,7 +569,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'simple-grader',
-          type: 'code-grader',
+          type: 'script',
           command: ['bun', 'run', './test_script.ts'],
         },
       ],
@@ -579,7 +579,7 @@ describe('parseGraders - code-grader config pass-through', () => {
 
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as CodeGraderConfig;
-    expect(config.type).toBe('code-grader');
+    expect(config.type).toBe('script');
     expect(config.config).toBeUndefined();
   });
 
@@ -588,7 +588,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'with-weight',
-          type: 'code-grader',
+          type: 'script',
           command: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
@@ -620,7 +620,7 @@ describe('parseGraders - code-grader config pass-through', () => {
       evaluators: [
         {
           name: 'shell-command',
-          type: 'code-grader',
+          type: 'script',
           command: './test_script.ts',
         },
       ],
@@ -644,7 +644,7 @@ describe('parseGraders - code-grader config pass-through', () => {
           evaluators: [
             {
               name: 'legacy-script',
-              type: 'code-grader',
+              type: 'script',
               script: './test_script.ts',
             },
           ],
@@ -679,7 +679,7 @@ describe('parseGraders - kebab-case type normalization', () => {
     expect((evaluators?.[0] as LlmGraderConfig).target).toBe('grader-low-cost-a');
   });
 
-  it('accepts code-grader kebab-case as canonical form', async () => {
+  it('normalizes legacy code-grader to script', async () => {
     const rawEvalCase = {
       evaluators: [
         {
@@ -693,7 +693,7 @@ describe('parseGraders - kebab-case type normalization', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('code-grader');
+    expect(evaluators?.[0].type).toBe('script');
   });
 
   it('accepts script as the subprocess grader type', async () => {
@@ -2073,13 +2073,13 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on code-grader evaluator', async () => {
+  it('parses required on script evaluator', async () => {
     const evaluators = await parseGraders(
       {
         evaluators: [
           {
             name: 'code-check',
-            type: 'code-grader',
+            type: 'script',
             command: ['bun', 'run', './test_script.ts'],
             required: true,
           },

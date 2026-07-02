@@ -71,6 +71,7 @@ export class CompositeGrader implements Grader {
     const aggregator = this.config.aggregator;
 
     switch (aggregator.type) {
+      case 'script':
       case 'code-grader':
         return this.runCodeAggregator(results, aggregator.path, aggregator.cwd ?? this.cwd);
       case 'llm-grader':

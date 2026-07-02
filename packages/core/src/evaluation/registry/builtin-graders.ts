@@ -65,6 +65,7 @@ import type {
   LlmRubricGraderConfig,
   RegexGraderConfig,
   ScriptAssertionGraderConfig,
+  ScriptGraderConfig,
   SimilarGraderConfig,
   SkillTriggerGraderConfig,
   StartsWithGraderConfig,
@@ -186,9 +187,9 @@ export const gEvalFactory: GraderFactoryFn = (config, context) =>
 export const llmRubricFactory: GraderFactoryFn = (config, context) =>
   llmGraderFactory(config as LlmRubricGraderConfig, context);
 
-/** Factory for subprocess-backed script/code-grader evaluators. */
+/** Factory for subprocess-backed script evaluators. */
 export const codeFactory: GraderFactoryFn = (config, context) => {
-  const c = config as CodeGraderConfig;
+  const c = config as ScriptGraderConfig | CodeGraderConfig;
   return new CodeGrader({
     command: c.command,
     cwd: c.resolvedCwd ?? c.cwd,

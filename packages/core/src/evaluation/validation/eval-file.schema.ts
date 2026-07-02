@@ -106,7 +106,7 @@ const RubricCriterionSchema = z.union([z.string().min(1), RubricItemSchema]);
 // --- Type-specific evaluator schemas ---
 
 const CodeGraderSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['script', 'code-grader', 'code_grader']),
+  type: z.literal('script'),
   command: z.union([z.string(), z.array(z.string())]),
   cwd: z.string().optional(),
   target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
@@ -143,7 +143,7 @@ const AggregatorSchema = z.discriminatedUnion('type', [
     threshold: z.number().min(0).max(1),
   }),
   z.object({
-    type: z.literal('code-grader'),
+    type: z.literal('script'),
     path: z.string(),
     cwd: z.string().optional(),
   }),

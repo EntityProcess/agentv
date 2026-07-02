@@ -168,6 +168,7 @@ export {
   llmRubricGrader,
   regexGrader,
   rubricsGrader,
+  scriptGrader,
   type CodeGraderConfig,
   type CodeGraderOptions,
   type CodeGraderTargetOptions,
@@ -191,6 +192,7 @@ export {
   type RegexGraderConfig,
   type RegexGraderOptions,
   type RubricsGraderConfig,
+  type ScriptGraderConfig,
 } from './graders.js';
 
 // Re-export target client
