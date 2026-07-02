@@ -34,9 +34,12 @@ bundle, and how a workspace is acquired.
 4. **Per-assertion grading ← agentskills**: `grading.json` = `assertion_results[{ text,
    passed, evidence }]` + `summary` counts, PLUS AgentV's superset — top-level **string
    `verdict` (`pass`|`fail`|`skip`)** + fractional **`score`** (not a boolean; needs skip
-   + fractional). `llm-rubric` maps its verdict to one `assertion_result` per criterion.
-   Default judge = skeptical evidence-by-path (opt-out via explicit `prompt`); judge
-   pinning via `grader_target`. Evidence stays in `grading.json`.
+   + fractional). These rows are the generic AgentV grader evidence channel: every
+   grader can emit `assertions[]`, multi-aspect graders emit one row per distinct
+   criterion/aspect, and the artifact preserves both the flattened rows and each
+   grader's nested rows. Default judge = skeptical evidence-by-path (opt-out via
+   explicit `prompt`); judge pinning via `grader_target`. Evidence stays in
+   `grading.json`.
 5. **Bundle layout / naming**: machine files move under per-run **`.internal/`**
    (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`); run root stays clean
    (`summary.json` + per-case dirs). Rename the reference field `manifest_path` →

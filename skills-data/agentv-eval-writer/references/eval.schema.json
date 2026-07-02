@@ -967,19 +967,6 @@
                                     }
                                   ]
                                 },
-                                "script": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "string"
-                                      }
-                                    }
-                                  ]
-                                },
                                 "cwd": {
                                   "type": "string"
                                 },
@@ -1091,24 +1078,12 @@
                                             }
                                           ]
                                         },
-                                        "script": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
-                                            },
-                                            {
-                                              "type": "array",
-                                              "items": {
-                                                "type": "string"
-                                              }
-                                            }
-                                          ]
-                                        },
                                         "config": {
                                           "type": "object",
                                           "additionalProperties": {}
                                         }
                                       },
+                                      "required": ["command"],
                                       "additionalProperties": false
                                     }
                                   ]
@@ -2122,19 +2097,6 @@
                                     }
                                   ]
                                 },
-                                "script": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "string"
-                                      }
-                                    }
-                                  ]
-                                },
                                 "cwd": {
                                   "type": "string"
                                 },
@@ -2246,24 +2208,12 @@
                                             }
                                           ]
                                         },
-                                        "script": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
-                                            },
-                                            {
-                                              "type": "array",
-                                              "items": {
-                                                "type": "string"
-                                              }
-                                            }
-                                          ]
-                                        },
                                         "config": {
                                           "type": "object",
                                           "additionalProperties": {}
                                         }
                                       },
+                                      "required": ["command"],
                                       "additionalProperties": false
                                     }
                                   ]
@@ -3283,19 +3233,6 @@
                                         }
                                       ]
                                     },
-                                    "script": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      ]
-                                    },
                                     "cwd": {
                                       "type": "string"
                                     },
@@ -3407,24 +3344,12 @@
                                                 }
                                               ]
                                             },
-                                            "script": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "array",
-                                                  "items": {
-                                                    "type": "string"
-                                                  }
-                                                }
-                                              ]
-                                            },
                                             "config": {
                                               "type": "object",
                                               "additionalProperties": {}
                                             }
                                           },
+                                          "required": ["command"],
                                           "additionalProperties": false
                                         }
                                       ]
@@ -4444,19 +4369,6 @@
                                         }
                                       ]
                                     },
-                                    "script": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      ]
-                                    },
                                     "cwd": {
                                       "type": "string"
                                     },
@@ -4568,24 +4480,12 @@
                                                 }
                                               ]
                                             },
-                                            "script": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "array",
-                                                  "items": {
-                                                    "type": "string"
-                                                  }
-                                                }
-                                              ]
-                                            },
                                             "config": {
                                               "type": "object",
                                               "additionalProperties": {}
                                             }
                                           },
+                                          "required": ["command"],
                                           "additionalProperties": false
                                         }
                                       ]
@@ -5668,10 +5568,6 @@
                                   "items": {
                                     "type": "string"
                                   }
-                                },
-                                "resolver": {
-                                  "type": "string",
-                                  "minLength": 1
                                 }
                               },
                               "additionalProperties": false
@@ -5687,19 +5583,6 @@
                                 "type": "object",
                                 "properties": {
                                   "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
-                                  "script": {
                                     "anyOf": [
                                       {
                                         "type": "string"
@@ -5744,19 +5627,6 @@
                                       }
                                     ]
                                   },
-                                  "script": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
                                   "timeout_ms": {
                                     "type": "number"
                                   },
@@ -5789,19 +5659,6 @@
                                       }
                                     ]
                                   },
-                                  "script": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
                                   "timeout_ms": {
                                     "type": "number"
                                   },
@@ -5822,19 +5679,6 @@
                                 "type": "object",
                                 "properties": {
                                   "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
-                                  "script": {
                                     "anyOf": [
                                       {
                                         "type": "string"
@@ -6069,19 +5913,6 @@
                                               }
                                             ]
                                           },
-                                          "script": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string"
-                                              },
-                                              {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "string"
-                                                }
-                                              }
-                                            ]
-                                          },
                                           "cwd": {
                                             "type": "string"
                                           },
@@ -6193,24 +6024,12 @@
                                                       }
                                                     ]
                                                   },
-                                                  "script": {
-                                                    "anyOf": [
-                                                      {
-                                                        "type": "string"
-                                                      },
-                                                      {
-                                                        "type": "array",
-                                                        "items": {
-                                                          "type": "string"
-                                                        }
-                                                      }
-                                                    ]
-                                                  },
                                                   "config": {
                                                     "type": "object",
                                                     "additionalProperties": {}
                                                   }
                                                 },
+                                                "required": ["command"],
                                                 "additionalProperties": false
                                               }
                                             ]
@@ -7597,19 +7416,6 @@
                                     }
                                   ]
                                 },
-                                "script": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "string"
-                                      }
-                                    }
-                                  ]
-                                },
                                 "cwd": {
                                   "type": "string"
                                 },
@@ -7721,24 +7527,12 @@
                                             }
                                           ]
                                         },
-                                        "script": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
-                                            },
-                                            {
-                                              "type": "array",
-                                              "items": {
-                                                "type": "string"
-                                              }
-                                            }
-                                          ]
-                                        },
                                         "config": {
                                           "type": "object",
                                           "additionalProperties": {}
                                         }
                                       },
+                                      "required": ["command"],
                                       "additionalProperties": false
                                     }
                                   ]
@@ -8752,19 +8546,6 @@
                                     }
                                   ]
                                 },
-                                "script": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string"
-                                    },
-                                    {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "string"
-                                      }
-                                    }
-                                  ]
-                                },
                                 "cwd": {
                                   "type": "string"
                                 },
@@ -8876,24 +8657,12 @@
                                             }
                                           ]
                                         },
-                                        "script": {
-                                          "anyOf": [
-                                            {
-                                              "type": "string"
-                                            },
-                                            {
-                                              "type": "array",
-                                              "items": {
-                                                "type": "string"
-                                              }
-                                            }
-                                          ]
-                                        },
                                         "config": {
                                           "type": "object",
                                           "additionalProperties": {}
                                         }
                                       },
+                                      "required": ["command"],
                                       "additionalProperties": false
                                     }
                                   ]
@@ -9913,19 +9682,6 @@
                                         }
                                       ]
                                     },
-                                    "script": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      ]
-                                    },
                                     "cwd": {
                                       "type": "string"
                                     },
@@ -10037,24 +9793,12 @@
                                                 }
                                               ]
                                             },
-                                            "script": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "array",
-                                                  "items": {
-                                                    "type": "string"
-                                                  }
-                                                }
-                                              ]
-                                            },
                                             "config": {
                                               "type": "object",
                                               "additionalProperties": {}
                                             }
                                           },
+                                          "required": ["command"],
                                           "additionalProperties": false
                                         }
                                       ]
@@ -11074,19 +10818,6 @@
                                         }
                                       ]
                                     },
-                                    "script": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string"
-                                        },
-                                        {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      ]
-                                    },
                                     "cwd": {
                                       "type": "string"
                                     },
@@ -11198,24 +10929,12 @@
                                                 }
                                               ]
                                             },
-                                            "script": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string"
-                                                },
-                                                {
-                                                  "type": "array",
-                                                  "items": {
-                                                    "type": "string"
-                                                  }
-                                                }
-                                              ]
-                                            },
                                             "config": {
                                               "type": "object",
                                               "additionalProperties": {}
                                             }
                                           },
+                                          "required": ["command"],
                                           "additionalProperties": false
                                         }
                                       ]
@@ -12298,10 +12017,6 @@
                                   "items": {
                                     "type": "string"
                                   }
-                                },
-                                "resolver": {
-                                  "type": "string",
-                                  "minLength": 1
                                 }
                               },
                               "additionalProperties": false
@@ -12317,19 +12032,6 @@
                                 "type": "object",
                                 "properties": {
                                   "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
-                                  "script": {
                                     "anyOf": [
                                       {
                                         "type": "string"
@@ -12374,19 +12076,6 @@
                                       }
                                     ]
                                   },
-                                  "script": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
                                   "timeout_ms": {
                                     "type": "number"
                                   },
@@ -12419,19 +12108,6 @@
                                       }
                                     ]
                                   },
-                                  "script": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
                                   "timeout_ms": {
                                     "type": "number"
                                   },
@@ -12452,19 +12128,6 @@
                                 "type": "object",
                                 "properties": {
                                   "command": {
-                                    "anyOf": [
-                                      {
-                                        "type": "string"
-                                      },
-                                      {
-                                        "type": "array",
-                                        "items": {
-                                          "type": "string"
-                                        }
-                                      }
-                                    ]
-                                  },
-                                  "script": {
                                     "anyOf": [
                                       {
                                         "type": "string"
@@ -12699,19 +12362,6 @@
                                               }
                                             ]
                                           },
-                                          "script": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string"
-                                              },
-                                              {
-                                                "type": "array",
-                                                "items": {
-                                                  "type": "string"
-                                                }
-                                              }
-                                            ]
-                                          },
                                           "cwd": {
                                             "type": "string"
                                           },
@@ -12823,24 +12473,12 @@
                                                       }
                                                     ]
                                                   },
-                                                  "script": {
-                                                    "anyOf": [
-                                                      {
-                                                        "type": "string"
-                                                      },
-                                                      {
-                                                        "type": "array",
-                                                        "items": {
-                                                          "type": "string"
-                                                        }
-                                                      }
-                                                    ]
-                                                  },
                                                   "config": {
                                                     "type": "object",
                                                     "additionalProperties": {}
                                                   }
                                                 },
+                                                "required": ["command"],
                                                 "additionalProperties": false
                                               }
                                             ]
@@ -14041,19 +13679,6 @@
                             }
                           ]
                         },
-                        "script": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
                         "timeout_ms": {
                           "type": "number"
                         },
@@ -14074,19 +13699,6 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "script": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -14131,19 +13743,6 @@
                             }
                           ]
                         },
-                        "script": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
                         "timeout_ms": {
                           "type": "number"
                         },
@@ -14164,19 +13763,6 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "script": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -14364,19 +13950,6 @@
                       }
                     ]
                   },
-                  "script": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    ]
-                  },
                   "cwd": {
                     "type": "string"
                   },
@@ -14488,24 +14061,12 @@
                               }
                             ]
                           },
-                          "script": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
-                              }
-                            ]
-                          },
                           "config": {
                             "type": "object",
                             "additionalProperties": {}
                           }
                         },
+                        "required": ["command"],
                         "additionalProperties": false
                       }
                     ]
@@ -15534,10 +15095,6 @@
                         "items": {
                           "type": "string"
                         }
-                      },
-                      "resolver": {
-                        "type": "string",
-                        "minLength": 1
                       }
                     },
                     "additionalProperties": false
@@ -15553,19 +15110,6 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "script": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -15610,19 +15154,6 @@
                             }
                           ]
                         },
-                        "script": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
                         "timeout_ms": {
                           "type": "number"
                         },
@@ -15655,19 +15186,6 @@
                             }
                           ]
                         },
-                        "script": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
                         "timeout_ms": {
                           "type": "number"
                         },
@@ -15688,19 +15206,6 @@
                       "type": "object",
                       "properties": {
                         "command": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            }
-                          ]
-                        },
-                        "script": {
                           "anyOf": [
                             {
                               "type": "string"

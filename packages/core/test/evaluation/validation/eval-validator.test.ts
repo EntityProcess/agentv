@@ -1653,8 +1653,7 @@ tests:
       expect(
         result.errors.some(
           (e) =>
-            e.severity === 'error' &&
-            e.message.includes('workspace.repos[].type has been removed'),
+            e.severity === 'error' && e.message.includes('workspace.repos[].type has been removed'),
         ),
       ).toBe(true);
       expect(

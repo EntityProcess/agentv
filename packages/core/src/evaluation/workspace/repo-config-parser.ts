@@ -40,10 +40,14 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
     throw new Error('workspace.repos[].type has been removed. Use workspace.repos[].repo.');
   }
   if ('resolve' in obj) {
-    throw new Error('workspace.repos[].resolve has been removed. Configure repo_resolvers instead.');
+    throw new Error(
+      'workspace.repos[].resolve has been removed. Configure repo_resolvers instead.',
+    );
   }
   if ('resolver' in obj) {
-    throw new Error('workspace.repos[].resolver has been removed. Configure repo_resolvers.repos patterns instead.');
+    throw new Error(
+      'workspace.repos[].resolver has been removed. Configure repo_resolvers.repos patterns instead.',
+    );
   }
 
   const repoPath = readString(obj, 'path');
