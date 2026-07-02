@@ -711,15 +711,15 @@ function RepeatStatusCell({
   return (
     <ResultStatusSymbol
       status={status}
-      label={`${group.passedTrials}/${group.trialCount} runs passed`}
+      label={`${group.passedTrials}/${group.trialCount} attempts passed`}
     />
   );
 }
 
 function RepeatSummaryText({ group }: { group: RepeatRunGroup }) {
   const parts = [
-    `${group.trialCount} runs`,
-    `${formatPercent(group.passRate)} run success`,
+    `${group.trialCount} attempts`,
+    `${formatPercent(group.passRate)} attempt success`,
     `${formatPercent(group.meanScore)} mean score`,
     group.assertionPassRate != null
       ? `${formatPercent(group.assertionPassRate)} assertions (${group.passedAssertions}/${group.assertionCount})`

@@ -618,9 +618,12 @@ function RepeatAggregateChecksTab({
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
         <div className="grid gap-3 md:grid-cols-4">
-          <RunMetricRow label="Run success" value={formatPercent(group.passRate)} />
+          <RunMetricRow label="Attempt success" value={formatPercent(group.passRate)} />
           <RunMetricRow label="Mean score" value={formatPercent(group.meanScore)} />
-          <RunMetricRow label="Passed runs" value={`${group.passedTrials}/${group.trialCount}`} />
+          <RunMetricRow
+            label="Passed attempts"
+            value={`${group.passedTrials}/${group.trialCount}`}
+          />
           <RunMetricRow label="Assertions" value={formatPercent(group.assertionPassRate)} />
         </div>
       </div>
@@ -644,7 +647,7 @@ function RepeatAggregateChecksTab({
       ) : null}
 
       <section className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">Runs</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">Attempts</h4>
         {group.trials.map((trial, index) => (
           <TrialActionRow
             key={caseTrialPath(trial, index)}
@@ -804,7 +807,7 @@ function RepeatAggregateTranscriptTab({
   return (
     <section className="space-y-3">
       <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
-        Run transcripts
+        Attempt transcripts
       </h4>
       {group.trials.map((trial, index) => {
         const runLabel = caseTrialPath(trial, index);

@@ -1250,11 +1250,11 @@ export interface EvaluationResult {
   readonly afterEachOutput?: string;
   /** Unified diff of workspace file changes */
   readonly fileChanges?: string;
-  /** Individual trial results (only present when trials.count > 1) */
+  /** Individual attempt results (only present when evaluate_options.repeat.count > 1) */
   readonly trials?: readonly TrialResult[];
-  /** Aggregation metadata describing how the final score was computed from trials */
+  /** Aggregation metadata describing how the final score was computed from attempts */
   readonly aggregation?: TrialAggregation;
-  /** Whether the trial loop was terminated early due to cost limit */
+  /** Whether the attempt loop was terminated early due to cost limit */
   readonly costLimited?: boolean;
   /** Whether the evaluation was skipped due to suite-level budget exhaustion */
   readonly budgetExceeded?: boolean;
