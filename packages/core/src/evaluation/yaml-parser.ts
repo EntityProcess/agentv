@@ -1502,8 +1502,11 @@ async function resolveIncludePaths(
   includePath: string,
   evalFileDir: string,
 ): Promise<readonly string[]> {
-  const absolutePattern = path.resolve(evalFileDir, includePath);
-  if (hasGlobMagic(includePath)) {
+  const normalizedPath = includePath.startsWith('file://')
+    ? includePath.slice('file://'.length)
+    : includePath;
+  const absolutePattern = path.resolve(evalFileDir, normalizedPath);
+  if (hasGlobMagic(normalizedPath)) {
     const matches = (await fg(absolutePattern.replaceAll('\\', '/'), {
       onlyFiles: true,
       absolute: true,

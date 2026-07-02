@@ -1,0 +1,2 @@
+id,input,__expected,__provider_output,__metric,__threshold,__metadata:source,locale
+csv-magic-greeting,Reply with a short greeting,icontains:hello,Hello there,greeting,0.8,csv,en-US

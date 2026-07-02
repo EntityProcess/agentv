@@ -76,6 +76,82 @@ describe('resolveFileReference', () => {
     expect(cases[1].id).toBe('jsonl-2');
   });
 
+  it('loads test objects from a JSON file', async () => {
+    await writeFile(
+      path.join(tempDir, 'cases', 'tests.json'),
+      JSON.stringify([
+        { id: 'json-1', criteria: 'Goal 1', input: 'Query 1' },
+        { id: 'json-2', criteria: 'Goal 2', input: 'Query 2' },
+      ]),
+    );
+
+    const cases = await resolveFileReference('file://cases/tests.json', tempDir);
+
+    expect(cases).toHaveLength(2);
+    expect(cases[0].id).toBe('json-1');
+    expect(cases[1].id).toBe('json-2');
+  });
+
+  it('maps promptfoo CSV magic columns into AgentV raw cases', async () => {
+    await writeFile(
+      path.join(tempDir, 'cases', 'tests.csv'),
+      [
+        'id,input,__expected,__expected2,__prefix,__suffix,__description,__provider_output,__metric,__threshold,__metadata:category,__metadata:tags[],__config:__expected2:threshold,locale',
+        'csv-1,"What is 2+2?",equals:4,icontains:four,"Answer briefly:"," Thanks","Arithmetic case","4","accuracy",0.7,math,"smoke,regression",0.6,en-US',
+      ].join('\n'),
+    );
+
+    const cases = await resolveFileReference('file://cases/tests.csv', tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0]).toMatchObject({
+      id: 'csv-1',
+      input: 'Answer briefly:What is 2+2? Thanks',
+      expected_output: '4',
+      criteria: 'Arithmetic case',
+      threshold: 0.7,
+      vars: { locale: 'en-US' },
+      metadata: { category: 'math', tags: ['smoke', 'regression'], threshold: 0.6 },
+      assertions: [
+        { type: 'equals', value: '4', metric: 'accuracy' },
+        { type: 'icontains', value: 'four', metric: 'accuracy', min_score: 0.6 },
+      ],
+    });
+  });
+
+  it('loads tests from explicit JavaScript function dataset files', async () => {
+    await writeFile(
+      path.join(tempDir, 'cases', 'dataset.mjs'),
+      `export function createTests() {
+  return [
+    { id: 'js-1', criteria: 'JS goal', input: 'JS input' },
+  ];
+}
+`,
+    );
+
+    const cases = await resolveFileReference('file://cases/dataset.mjs:createTests', tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('js-1');
+  });
+
+  it('loads tests from explicit Python function dataset files', async () => {
+    await writeFile(
+      path.join(tempDir, 'cases', 'dataset.py'),
+      `def create_tests():
+    return [
+        {"id": "py-1", "criteria": "Python goal", "input": "Python input"},
+    ]
+`,
+    );
+
+    const cases = await resolveFileReference('file://cases/dataset.py:create_tests', tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].id).toBe('py-1');
+  });
+
   it('resolves glob patterns to multiple files', async () => {
     await mkdir(path.join(tempDir, 'glob-cases'), { recursive: true });
     await writeFile(
@@ -351,6 +427,90 @@ tests: ./cases.jsonl
     expect(tests).toHaveLength(2);
     expect(tests[0].id).toBe('ext-jsonl-1');
     expect(tests[1].id).toBe('ext-jsonl-2');
+  });
+
+  it('loads tests from file:// string paths', async () => {
+    await writeFile(
+      path.join(tempDir, 'file-url-cases.json'),
+      JSON.stringify([{ id: 'file-url-json', criteria: 'JSON goal', input: 'Input' }]),
+    );
+
+    await writeFile(
+      path.join(tempDir, 'file-url-suite.yaml'),
+      `name: file-url-suite
+tests: file://file-url-cases.json
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'file-url-suite.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].id).toBe('file-url-json');
+  });
+
+  it('keeps imports.tests select working beside file-backed tests', async () => {
+    await writeFile(
+      path.join(tempDir, 'import-cases.yaml'),
+      `- id: imported-keep
+  criteria: "Imported keep"
+  input: "Imported keep input"
+  metadata:
+    group: keep
+- id: imported-drop
+  criteria: "Imported drop"
+  input: "Imported drop input"
+  metadata:
+    group: drop
+`,
+    );
+    await writeFile(
+      path.join(tempDir, 'direct-cases.jsonl'),
+      '{"id": "direct-case", "criteria": "Direct goal", "input": "Direct input"}\n',
+    );
+    await writeFile(
+      path.join(tempDir, 'imports-and-file-tests.yaml'),
+      `imports:
+  tests:
+    - path: import-cases.yaml
+      select:
+        metadata:
+          group: keep
+tests: file://direct-cases.jsonl
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'imports-and-file-tests.yaml'), tempDir);
+
+    expect(tests.map((test) => test.id)).toEqual(['imported-keep', 'direct-case']);
+  });
+
+  it('loads promptfoo CSV magic columns through the full suite parser', async () => {
+    await writeFile(
+      path.join(tempDir, 'magic-cases.csv'),
+      [
+        'id,input,__expected,__metric,__threshold,__metadata:category,__provider_output',
+        'magic-csv,Hello,contains:Hi,greeting,0.9,smoke,Hi there',
+      ].join('\n'),
+    );
+    await writeFile(
+      path.join(tempDir, 'magic-suite.yaml'),
+      `name: magic-suite
+tests: file://magic-cases.csv
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'magic-suite.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].id).toBe('magic-csv');
+    expect(tests[0].threshold).toBe(0.9);
+    expect(tests[0].metadata).toMatchObject({ category: 'smoke' });
+    expect(tests[0].reference_answer).toBe('Hi there');
+    expect(tests[0].assertions?.[0]).toMatchObject({
+      name: 'greeting',
+      type: 'contains',
+      value: 'Hi',
+    });
   });
 
   it('resolves relative path against eval file directory', async () => {

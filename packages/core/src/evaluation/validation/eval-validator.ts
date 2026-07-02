@@ -57,7 +57,17 @@ const PROMPTFOO_ASSERTION_TYPES = new Set([
 ]);
 
 /** Valid file extensions for external test files. */
-const VALID_TEST_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.jsonl']);
+const VALID_TEST_FILE_EXTENSIONS = new Set([
+  '.csv',
+  '.cjs',
+  '.js',
+  '.json',
+  '.jsonl',
+  '.mjs',
+  '.py',
+  '.yaml',
+  '.yml',
+]);
 
 /** Known fields at the top level of an eval file. */
 const KNOWN_TOP_LEVEL_FIELDS = new Set([
@@ -1826,9 +1836,13 @@ function validateTestsStringPath(
   errors: ValidationError[],
   location = 'tests',
 ): boolean {
-  const normalizedPath = testsPath.startsWith('file://')
+  let normalizedPath = testsPath.startsWith('file://')
     ? testsPath.slice('file://'.length)
     : testsPath;
+  const scriptFunctionMatch = normalizedPath.match(/\.(?:mjs|cjs|js|py):[^/\\:]+$/i);
+  if (scriptFunctionMatch) {
+    normalizedPath = normalizedPath.slice(0, normalizedPath.lastIndexOf(':'));
+  }
   if (/\.eval\.ya?ml$/i.test(normalizedPath)) {
     errors.push({
       severity: 'error',
@@ -1880,7 +1894,10 @@ async function validateRawCaseImportPath(
 
     let caseIndex = 0;
     for (const casePath of caseFiles) {
-      const pathStat = await stat(casePath).catch(() => undefined);
+      const statPath = casePath.match(/\.(?:mjs|cjs|js|py):[^/\\:]+$/i)
+        ? casePath.slice(0, casePath.lastIndexOf(':'))
+        : casePath;
+      const pathStat = await stat(statPath).catch(() => undefined);
       const externalCases = pathStat?.isDirectory()
         ? await loadCasesFromDirectory(casePath)
         : await loadCasesFromFile(casePath);
