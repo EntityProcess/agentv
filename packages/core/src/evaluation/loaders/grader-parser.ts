@@ -470,6 +470,7 @@ async function parseGraderList(
     const name =
       rawName ??
       (isCustomType ? typeValue : generateAssertionName(typeValue as GraderKind, rawEvaluator));
+    const metric = asString(rawEvaluator.metric);
 
     if (!name) {
       logWarning(`Skipping evaluator with missing name in '${evalId}'`);
@@ -1327,6 +1328,7 @@ async function parseGraderList(
         name,
         type: 'contains',
         value,
+        ...(metric !== undefined ? { metric } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(min_score !== undefined ? { min_score } : {}),

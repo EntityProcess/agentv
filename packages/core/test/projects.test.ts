@@ -324,11 +324,9 @@ dashboard:
   it('interpolates env vars in repo', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });
-    // Use concatenation to avoid JS template literal evaluating ${{ ... }}
-    const d = '$';
     writeFileSync(
       registryPath,
-      `projects:\n  - id: env-bench\n    repo: "${d}{{ BENCH_REPO_URL }}"\n    path: /srv/agentv/repo\n    branch: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n`,
+      'projects:\n  - id: env-bench\n    repo: "{{ env.BENCH_REPO_URL }}"\n    path: /srv/agentv/repo\n    branch: main\n    added_at: "2026-01-01T00:00:00Z"\n    last_opened_at: "2026-01-01T00:00:00Z"\n',
       'utf-8',
     );
 

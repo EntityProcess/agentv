@@ -1,6 +1,6 @@
 # Environment Variable Interpolation
 
-Demonstrates `${{ VAR }}` syntax for portable eval configs.
+Demonstrates `{{ env.VAR }}` syntax for portable eval configs.
 
 ## Usage
 
@@ -14,7 +14,7 @@ Or create a `.env` file — AgentV loads `.env` files automatically from the dir
 
 ## Features
 
-- **Full-value**: `criteria: "${{ EVAL_CRITERIA }}"` — entire field from env var
-- **Partial/inline**: `"must be ${{ EXPECTED }} and clear"` — env var within a string
+- **Full-value**: `criteria: "{{ env.EVAL_CRITERIA }}"` — entire field from env var
+- **Partial/inline**: `"must be {{ env.EXPECTED }} and clear"` — env var within a string
 - **Missing vars**: resolve to empty string (downstream validation catches required blanks)
 - **All fields**: works in any string field — criteria, input, workspace paths, etc.

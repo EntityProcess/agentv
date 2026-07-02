@@ -1,14 +1,12 @@
+import nunjucks from 'nunjucks';
 import type { EnvLookup } from './providers/types.js';
 
-const ENV_VAR_PATTERN = /\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
-const TEMPLATE_VAR_PATTERN = /\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/g;
-const WHOLE_TEMPLATE_VAR_PATTERN = /^\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}$/;
+export type NunjucksFilterMap = Readonly<Record<string, (...args: unknown[]) => unknown>>;
 
-/**
- * Regex that matches a string consisting of exactly one `${{ VAR }}` reference
- * and nothing else. Used to detect whole-value substitutions eligible for type coercion.
- */
-const WHOLE_VAR_PATTERN = /^\$\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$/;
+const WHOLE_SIMPLE_TEMPLATE_VAR_PATTERN =
+  /^\s*\{\{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\}\}\s*$/;
+const ENV_OUTPUT_PATTERN = /\{\{\s*env\.[\s\S]*?\}\}/g;
+const WHOLE_ENV_OUTPUT_PATTERN = /^\s*\{\{\s*env\.[\s\S]*?\}\}\s*$/;
 
 /**
  * Pattern matching plain integers (e.g. "42", "-7") and decimal fractions
@@ -20,9 +18,6 @@ const PLAIN_NUMBER_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/;
 /**
  * Coerce a resolved string to its native primitive type when appropriate.
  * "true"/"false" become booleans; plain integer/decimal strings become numbers.
- * Strings that happen to be valid JS numbers but are not plain decimal notation
- * (hex, scientific notation, "Infinity") are left as strings.
- * All other strings (including empty string) are returned as-is.
  */
 function coercePrimitive(value: string): unknown {
   if (value === 'true') return true;
@@ -49,53 +44,52 @@ function cloneTemplateValue(value: unknown): unknown {
   return value;
 }
 
-function stringifyTemplateValue(value: unknown): string {
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
+function createNunjucksEnvironment(filters?: NunjucksFilterMap): nunjucks.Environment {
+  const environment = new nunjucks.Environment(undefined, {
+    autoescape: false,
+    throwOnUndefined: false,
+  });
+  environment.addFilter('load', (value: string) => JSON.parse(value) as unknown);
+  for (const [name, filter] of Object.entries(filters ?? {})) {
+    environment.addFilter(name, filter);
+  }
+  return environment;
 }
 
-function lookupTemplateVar(
-  vars: Readonly<Record<string, unknown>>,
-  expression: string,
-): unknown | undefined {
-  if (!expression) return undefined;
+function lookupPath(context: Readonly<Record<string, unknown>>, expression: string): unknown {
   return expression.split('.').reduce<unknown>((current, segment) => {
     if (!isPlainObject(current)) {
       return undefined;
     }
     return current[segment];
-  }, vars);
+  }, context);
+}
+
+function renderString(
+  template: string,
+  context: Readonly<Record<string, unknown>>,
+  filters?: NunjucksFilterMap,
+): string {
+  return createNunjucksEnvironment(filters).renderString(template, context);
+}
+
+function renderEnvString(template: string, env: EnvLookup): string {
+  if (template.includes('${{')) {
+    return template;
+  }
+  return template.replace(ENV_OUTPUT_PATTERN, (match) => renderString(match, { env }));
 }
 
 /**
- * Recursively interpolate `${{ VAR }}` references in all string values.
- * Missing variables resolve to empty string.
- * Non-string values pass through unchanged. Returns a new object (no mutation).
+ * Recursively render config-load `{{ env.VAR }}` templates in string values.
  *
- * Type coercion: when the **entire** string value is a single `${{ VAR }}` reference
- * (no surrounding text), the resolved value is coerced to its native type —
- * `"true"`/`"false"` become booleans, numeric strings become numbers. This allows
- * boolean and numeric config fields to be driven by environment variables:
- *
- * ```yaml
- * # .agentv/config.yaml
- * results:
- *   export:
- *     auto_push: ${{ AGENTV_AUTO_PUSH }}   # AGENTV_AUTO_PUSH=true → boolean true
- * ```
- *
- * Inline/partial substitutions (e.g. `"prefix-${{ VAR }}"`) are always strings.
+ * Runtime shell variables such as `$VAR` and `${VAR}` are intentionally outside
+ * this syntax and pass through unchanged for CLI target subprocesses.
  */
 export function interpolateEnv(value: unknown, env: EnvLookup): unknown {
   if (typeof value === 'string') {
-    // Whole-value substitution: coerce the resolved value to its native type.
-    const wholeMatch = WHOLE_VAR_PATTERN.exec(value);
-    if (wholeMatch) {
-      const resolved = env[wholeMatch[1] as string] ?? '';
-      return coercePrimitive(resolved);
-    }
-    // Partial/inline substitution: always produces a string.
-    return value.replace(ENV_VAR_PATTERN, (_, varName: string) => env[varName] ?? '');
+    const rendered = renderEnvString(value, env);
+    return WHOLE_ENV_OUTPUT_PATTERN.test(value) ? coercePrimitive(rendered) : rendered;
   }
   if (Array.isArray(value)) {
     return value.map((item) => interpolateEnv(item, env));
@@ -111,35 +105,37 @@ export function interpolateEnv(value: unknown, env: EnvLookup): unknown {
 }
 
 /**
- * Recursively interpolate `{{ var }}` references in string values using per-test vars.
- * Missing variables are left unchanged so unrelated template syntaxes remain intact.
- * When the whole string is a single variable reference, the original JSON value is preserved.
+ * Recursively render eval-time Nunjucks templates using per-test vars.
+ *
+ * The context exposes both promptfoo-style top-level vars (`{{ name }}`) and the
+ * explicit namespace (`{{ vars.name }}`). When the whole field is exactly a
+ * simple variable reference, the original JSON value is preserved.
  */
 export function interpolateTemplateVars(
   value: unknown,
   vars: Readonly<Record<string, unknown>>,
+  filters?: NunjucksFilterMap,
 ): unknown {
   if (typeof value === 'string') {
-    const wholeMatch = WHOLE_TEMPLATE_VAR_PATTERN.exec(value);
+    const context = { ...vars, vars };
+    const wholeMatch = WHOLE_SIMPLE_TEMPLATE_VAR_PATTERN.exec(value);
     if (wholeMatch) {
-      const resolved = lookupTemplateVar(vars, wholeMatch[1] as string);
-      return resolved === undefined ? value : cloneTemplateValue(resolved);
+      const resolved = lookupPath(context, wholeMatch[1] as string);
+      if (resolved !== undefined) {
+        return cloneTemplateValue(resolved);
+      }
     }
-
-    return value.replace(TEMPLATE_VAR_PATTERN, (match, expression: string) => {
-      const resolved = lookupTemplateVar(vars, expression);
-      return resolved === undefined ? match : stringifyTemplateValue(resolved);
-    });
+    return renderString(value, context, filters);
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => interpolateTemplateVars(item, vars));
+    return value.map((item) => interpolateTemplateVars(item, vars, filters));
   }
 
   if (isPlainObject(value)) {
     const result: Record<string, unknown> = {};
     for (const [key, nested] of Object.entries(value)) {
-      result[key] = interpolateTemplateVars(nested, vars);
+      result[key] = interpolateTemplateVars(nested, vars, filters);
     }
     return result;
   }
