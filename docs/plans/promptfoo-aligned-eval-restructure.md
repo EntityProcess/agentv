@@ -240,25 +240,20 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 > **REVISED (finalized in ADR-0016 pt10 / ADR-0017).** The text below originally proposed repo materialization via `vars.workspace` + an `agentv:workspace` *extension*. That is **superseded**: **repo provisioning is a declarative `workspace.repos` field the harness materializes BEFORE hooks** (all 4 benchmark frameworks treat provisioning as harness-core; promptfoo has no workspace to align with). Extensions (`beforeAll`/…) are only for **non-provisioning** pluggable setup — `agentv:agent-rules` (skills/hooks/agents staging) + custom `file://` hooks — running after materialization. `isolation` is a `workspace` field, not a hook choice. `on_run_complete`/`preprocessors` still removed → `extensions`.
 - **Principle (owner decision):** don't invent a top-level `workspace:` block, and don't keep AgentV-specific lifecycle keys. Align maximally with promptfoo. Both reference frameworks agree workspace **is part of the dataset** — vercel: a case *is* a fixture dir; margin-lab: a case *is* a Docker image + tests.
 - **D — one lifecycle surface: promptfoo `extensions`.** `beforeAll`/`afterAll`/`beforeEach`/`afterEach`. **Remove** `on_run_complete` (= `afterAll`), `preprocessors`, and `workspace.hooks` — they collapse into `extensions` (hard, major version).
-- **D — workspace spec = dataset data (`vars`), not a schema block.** The repo/fixture spec rides as a `var` (per-test or `default_test`, `file://`-loadable). This is literally what your promptfoo parity example does (`workspace.yaml` + `vars`). No new concept; matches vercel (fixture=case) and margin (image=case).
-- **D — ship a built-in, auto-registered, overridable extension `agentv:workspace`.** It does what the parity example hand-rolls (git materialization + mirror cache à la margin's image cache; optional docker isolation; per-case fixture copy à la vercel) — but in the box. It **validates** the `vars.workspace` shape (recovers the safety a schema block would give) and writes the materialized path back into `vars`/context so the target picks up `cwd` (cleaner than promptfoo's `PROMPTFOO_*` env side-channel).
-- **D — isolation = the hook name in the extension reference (verified promptfoo mechanism).** promptfoo (`src/evaluatorHelpers.ts:633`) has `EXTENSION_HOOK_NAMES = {beforeAll, beforeEach, afterEach, afterAll}`: if the function named after the last `:` is exactly a hook name, it runs **only** at that phase; any other name = generic handler run at all phases. So:
-  - `extensions: [agentv:workspace:beforeAll]` → **shared** workspace (materialize once for the run).
-  - `extensions: [agentv:workspace:beforeEach]` → **per-case** workspace (context carries the test's `vars.workspace`).
-  Isolation is expressed by *which hook you reference* — no `isolation:` enum needed. Registering both (or a generic `agentv:workspace`) makes the built-in dispatch across phases (beforeAll = shared base + mirror cache; beforeEach = clone/copy per case; afterEach = reset/clean).
-- **Shape:**
+- **FINAL (ADR-0016 pt10 / ADR-0017):** repo provisioning is a declarative **`workspace` field** (durable name — CI-standard `GITHUB_WORKSPACE`, margin, git/Cargo/Bazel; not `sandbox`/`environment`/`testbed`), suite-level default + per-test override. Provenance only; acquisition is a pluggable harness resolver (machine config, keyed on `repo`); hooks → `extensions`.
   ```yaml
   targets: file://targets/reviewer.yaml
-  extensions:
-    - agentv:workspace:beforeAll        # shared; use :beforeEach for per-case
-  default_test:
-    vars:
-      workspace:                        # dataset data, not a top-level block
-        repos:
-          - { path: ./CargoWise, repo: https://…/CargoWise.git, commit: 953adb9 }
-  tests: file://cases.yaml              # a row may override vars.workspace (per-case fixture)
+  workspace:                    # suite default; tests[].workspace overrides per case
+    repos:
+      - path: ./CargoWise
+        repo: https://github.com/WiseTechGlobal/CargoWise.git
+        commit: 953adb9         # immutable SHA (base_commit input alias); sparse/ancestor optional
+    isolation: fresh            # fresh (default) | pooled | shared
+  extensions:                   # non-provisioning setup only
+    - agentv:agent-rules:beforeAll
+  tests: file://cases.yaml
   ```
-- **Import mapping:** a promptfoo `extensions: [file://mat.ts:beforeAll]` that materializes a dir maps 1:1 onto AgentV `extensions` (same hook semantics); the dir it builds becomes `vars.workspace` consumed by `agentv:workspace`.
+- **Never in the schema:** acquisition (resolver/backends → machine config) and hooks (→ extensions) — keeping them out is what makes the schema durable. Custom acquisition = a registered resolver backend or a `beforeAll` escape hatch (ADR-0017 pt5).
 
 ---
 

@@ -53,6 +53,40 @@ Cross-framework convergent rule (SWE-bench, Terminal-bench, margin, lm-eval, Ins
 **the case declares WHAT (identity + pin); the harness resolves WHERE-FROM via a
 selectable backend. Nobody puts acquisition in the task.**
 
+**Field (WHAT) and resolver (HOW) are orthogonal — both required, neither replaces the
+other.** Analogy: `package.json` vs the package registry. `dependencies: {lodash: ^4}` is
+the **field** (always declared); npm's registry/mirror/tarball resolution is **pluggable
+acquisition** — you can point npm at a custom registry, but you don't delete `package.json`.
+Likewise: the `workspace` field declares provenance; the resolver (built-in backends +
+custom-backend plugin + `beforeAll` escape hatch) is the pluggable *how*. A custom backend
+still reads the field to know which `repo`+`commit` to fetch. You only "don't need the
+field" if you go full escape-hatch and forgo declarative provenance (not recommended).
+
+### Naming: `workspace` (durable, locked)
+Chosen over alternatives for longevity — it names the *what* (a working directory), not the
+*how*: CI-standard (`GITHUB_WORKSPACE`), used by margin-lab, git/Cargo/Bazel/VS Code.
+Rejected: `sandbox` (Inspect — connotes an isolation boundary, which is a *property* → the
+`isolation`/`docker` fields, not the concept); `environment` (overloaded with env vars);
+`testbed` (SWE-bench jargon).
+
+### Final locked schema
+```yaml
+workspace:                    # suite-level default; tests[].workspace overrides per case
+  repos:                      # PROVENANCE only (what to materialize)
+    - path: ./CargoWise       # where it lands in the workspace
+      repo: https://github.com/WiseTechGlobal/CargoWise.git   # canonical identity (join key)
+      commit: 953adb9         # immutable SHA pin (base_commit accepted as input alias)
+      sparse: [src/X]         # optional content selection
+      ancestor: 1             # optional (nth-ancestor pin)
+  isolation: fresh            # fresh (default, safe) | pooled | shared
+  template: ./tmpl            # optional local scaffold
+  docker: { image: ... }      # optional container env
+```
+**Never in this schema:** acquisition (resolver + backends → harness/machine config, keyed
+on `repo`) and hooks (→ `extensions`). Keeping those out is what makes the schema durable —
+new acquisition technology plugs in without touching it. `commit` is an immutable SHA
+(reproducible); mutable refs are excluded.
+
 1. **Eval declares provenance ONLY, in a declarative `workspace.repos` field** (per-test
    overridable / suite-level; NOT a `vars` blob and NOT an extension): `workspace.repos:
    [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`, plus `workspace.isolation`
