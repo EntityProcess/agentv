@@ -68,11 +68,21 @@ selectable backend. Nobody puts acquisition in the task.**
 3. **`--reference` (mirror cache) is the workhorse**: shallow-speed WITH full history, so
    deep `base_commit` pins never break — retires the `--depth`/`--filter` debate. Keep
    `sparse` for content selection.
-4. **Materialization is declarative harness logic, not a user hook**; hooks run after it.
-   Resolver config is machine-local, orthogonal to eval and target YAML. Targets carry no
-   repos.
+4. **Materialization runs before hooks and reads the declared provenance**; ordinary user
+   `beforeAll`/`beforeEach` hooks run *after* it. Resolver config is machine-local,
+   orthogonal to eval and target YAML. Targets carry no repos.
+5. **The resolver is PLUGGABLE — custom acquisition is first-class** (per the "plugins over
+   built-ins" product guardrail). Two extension points beyond the built-in backends:
+   (a) **register a custom acquisition backend** (a resolver plugin, config-level, keyed on
+   `repo`) for a bespoke store/format — the recommended path; (b) a **`beforeAll` extension
+   escape hatch** that materializes a fully author-owned workspace and reports its path
+   (what the promptfoo parity example did). The built-in acquisition itself may be
+   implemented as an auto-registered, ordered-first, **swappable** plugin over the same
+   public interface — so the default is zero-config yet replaceable.
 
-New backends plug in without touching the eval schema because all resolve the same pin.
+The invariants (not the mechanism) are what matter: provenance is declared as data;
+acquisition runs before hooks and is keyed on the pin; built-ins ship. New backends —
+built-in or user — plug in without touching the eval schema because all resolve the same pin.
 
 ### Note: SWE-bench `FAIL_TO_PASS` / `PASS_TO_PASS`
 

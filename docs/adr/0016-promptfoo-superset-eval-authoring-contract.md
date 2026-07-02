@@ -63,12 +63,14 @@ keep AgentV's only where its semantics are genuinely better.**
 10. **Workspace repo provisioning is a declarative FIELD, not an extension.**
     `workspace.repos: [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]` is
     declared per-test (overridable) / at suite level, and the **harness materializes it
-    (harness-owned resolver, ADR 0017) BEFORE any hook or the target runs** — it is not a
-    user hook, because it must precede hooks and acquisition is harness-owned. (All four
-    reference frameworks treat provisioning as harness-core; promptfoo has no workspace
-    concept, so its `extensions` bolt-on is not a model.) **This reverses the earlier
-    "workspace-as-extension" direction.** `isolation` (shared/pooled/fresh) is a
-    `workspace` config field, not a hook choice.
+    (harness-owned resolver, ADR 0017) BEFORE any hook or the target runs.** The *common
+    case* is not a hand-rolled per-eval hook (ordering + reproducibility + declarative
+    provenance). **But acquisition is pluggable** (ADR 0017 pt5): custom acquisition is
+    first-class via a registered custom backend or a `beforeAll` escape hatch, and the
+    built-in acquisition may itself be a swappable plugin — this is the correction of an
+    earlier over-absolute "not an extension" claim; provenance stays a declarative field,
+    acquisition stays extensible. `isolation` (shared/pooled/fresh) is a `workspace`
+    config field, not a hook choice.
     **Extensions are for pluggable non-provisioning setup only**: promptfoo lifecycle
     (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
     e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
