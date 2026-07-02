@@ -72,8 +72,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [input-files-shorthand](input-files-shorthand/) | Attach files to every test using a compact shorthand |
 | [suite-level-input](suite-level-input/) | Prepend a shared system prompt to every test in the suite |
 | [suite-level-input-files](suite-level-input-files/) | Share file attachments across every test in the suite |
-| [env-interpolation](env-interpolation/) | Inject environment variables into eval config with `${{ VAR }}` |
-| [test-vars-templating](test-vars-templating/) | Inject per-test `vars` into `{{name}}` templates in eval fields |
+| [env-interpolation](env-interpolation/) | Inject environment variables into eval config with `{{ env.VAR }}` |
+| [test-vars-templating](test-vars-templating/) | Inject per-test `vars` into `{{ vars.name }}` templates in eval fields |
 
 ---
 

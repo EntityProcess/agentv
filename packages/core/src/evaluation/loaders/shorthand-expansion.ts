@@ -29,6 +29,10 @@ export function expandInputShorthand(value: JsonValue | undefined): TestMessage[
 
   // String shorthand: single user message
   if (typeof value === 'string') {
+    const parsedMessages = parseChatArrayPrompt(value);
+    if (parsedMessages) {
+      return parsedMessages;
+    }
     return [{ role: 'user', content: value }];
   }
 
@@ -48,6 +52,24 @@ export function expandInputShorthand(value: JsonValue | undefined): TestMessage[
   }
 
   return undefined;
+}
+
+function parseChatArrayPrompt(value: string): TestMessage[] | undefined {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('[')) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!Array.isArray(parsed)) {
+      return undefined;
+    }
+    const messages = parsed.filter((message): message is TestMessage => isTestMessage(message));
+    return messages.length === parsed.length && messages.length > 0 ? messages : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

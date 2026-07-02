@@ -407,26 +407,26 @@ dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/guid
 
 ## Environment Variable Interpolation
 
-All string fields in eval files support `${{ VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
+All string fields in eval files support `{{ env.VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
 
 ```yaml
 workspace:
   repos:
     - path: ./RepoA
-      repo: "${{ REPO_A_URL }}"
-      commit: "${{ REPO_A_COMMIT }}"
+      repo: "{{ env.REPO_A_URL }}"
+      commit: "{{ env.REPO_A_COMMIT }}"
 
 tests:
   - id: test-1
-    input: "Evaluate the code in ${{ PROJECT_NAME }}"
-    criteria: "${{ EVAL_CRITERIA }}"
+    input: "Evaluate the code in {{ env.PROJECT_NAME }}"
+    criteria: "{{ env.EVAL_CRITERIA }}"
 ```
 
 ### Behavior
 
-- **Syntax:** `${{ VARIABLE_NAME }}` with optional whitespace around the name
+- **Syntax:** `{{ env.VARIABLE_NAME }}` with optional whitespace around the name
 - **Missing variables** resolve to an empty string
-- **Partial interpolation** is supported: `${{ HOME }}/repos/${{ PROJECT }}` becomes `/home/user/repos/myproject`
+- **Partial interpolation** is supported: `{{ env.HOME }}/repos/{{ env.PROJECT }}` becomes `/home/user/repos/myproject`
 - **Non-string values** (numbers, booleans) are not affected
 - Interpolation is applied recursively to all nested objects and arrays
 - Works in YAML eval files, external YAML/JSONL case files, and external workspace config files
@@ -438,8 +438,8 @@ tests:
 # workspace.yaml — works on any machine
 repos:
   - path: ./my-repo
-    repo: "${{ MY_REPO_URL }}"
-    commit: "${{ MY_REPO_COMMIT }}"
+    repo: "{{ env.MY_REPO_URL }}"
+    commit: "{{ env.MY_REPO_COMMIT }}"
 ```
 
 ```bash
@@ -450,31 +450,31 @@ MY_REPO_COMMIT=main
 
 ## Per-Test Template Variables
 
-Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{name}}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
+Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{ vars.name }}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
 
 ```yaml
-input: "Answer clearly: {{question}}"
+input: "Answer clearly: {{ vars.question }}"
 
 tests:
   - id: capital
     vars:
       question: What is the capital of France?
       expected_answer: Paris
-    criteria: "Answers {{question}} correctly"
+    criteria: "Answers {{ vars.question }} correctly"
     input:
       - role: user
-        content: "Question: {{question}}"
-    expected_output: "{{expected_answer}}"
+        content: "Question: {{ vars.question }}"
+    expected_output: "{{ vars.expected_answer }}"
 ```
 
 ### Behavior
 
 - `vars` is defined per test as an object
-- `{{name}}` and dotted paths like `{{ user.name }}` are supported
-- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, and conversation turn `input` / `expected_output`
+- `{{ vars.name }}` and dotted paths like `{{ vars.user.name }}` are supported
+- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
 - When the whole string is a single placeholder, the original JSON value is preserved
-- Missing variables are left unchanged, so unrelated template syntax is not silently blanked out
-- `vars` interpolation is separate from environment interpolation: `{{question}}` uses test data, `${{ PROJECT_NAME }}` uses environment variables
+- Missing variables render as empty strings following Nunjucks semantics
+- `vars` interpolation is separate from environment interpolation: `{{ vars.question }}` uses test data, `{{ env.PROJECT_NAME }}` uses environment variables
 
 ## JSONL Format
 

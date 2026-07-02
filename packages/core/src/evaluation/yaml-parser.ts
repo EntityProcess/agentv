@@ -1,5 +1,6 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import fg from 'fast-glob';
 import micromatch from 'micromatch';
 import { stringify as stringifyYaml } from 'yaml';
@@ -11,7 +12,11 @@ import {
   normalizeExperimentRunOverride,
 } from './experiment.js';
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
-import { interpolateEnv, interpolateTemplateVars } from './interpolation.js';
+import {
+  type NunjucksFilterMap,
+  interpolateEnv,
+  interpolateTemplateVars,
+} from './interpolation.js';
 import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
 import {
   expandFileReferences,
@@ -194,6 +199,7 @@ type RawTestSuite = JsonObject & {
   readonly workspace?: JsonValue;
   readonly assertions?: JsonValue;
   readonly preprocessors?: JsonValue;
+  readonly nunjucks_filters?: JsonValue;
   readonly input?: JsonValue;
   readonly metadata?: JsonValue;
   readonly governance?: JsonValue;
@@ -254,16 +260,18 @@ function resolveTests(suite: RawTestSuite): JsonValue | undefined {
 function interpolateCaseField<T extends JsonValue | undefined>(
   value: T,
   vars: JsonObject | undefined,
+  filters?: NunjucksFilterMap,
 ): T {
   if (!vars || value === undefined) {
     return value;
   }
-  return interpolateTemplateVars(value, vars as Record<string, unknown>) as T;
+  return interpolateTemplateVars(value, vars as Record<string, unknown>, filters) as T;
 }
 
 function interpolateCaseTurns(
   turns: JsonValue | undefined,
   vars: JsonObject | undefined,
+  filters?: NunjucksFilterMap,
 ): JsonValue | undefined {
   if (!vars || !Array.isArray(turns)) {
     return turns;
@@ -276,32 +284,121 @@ function interpolateCaseTurns(
 
     return {
       ...rawTurn,
-      input: interpolateCaseField(rawTurn.input, vars),
-      expected_output: interpolateCaseField(rawTurn.expected_output, vars),
+      input: interpolateCaseField(rawTurn.input, vars, filters),
+      expected_output: interpolateCaseField(rawTurn.expected_output, vars, filters),
+      assertions: interpolateCaseField(rawTurn.assertions, vars, filters),
     } satisfies JsonObject;
   });
 }
 
-function interpolateRawEvalCase(raw: RawEvalCase, vars: JsonObject | undefined): RawEvalCase {
+function interpolateRawEvalCase(
+  raw: RawEvalCase,
+  vars: JsonObject | undefined,
+  filters?: NunjucksFilterMap,
+): RawEvalCase {
   if (!vars) {
     return raw;
   }
 
   return {
     ...raw,
-    ...(raw.criteria !== undefined ? { criteria: interpolateCaseField(raw.criteria, vars) } : {}),
-    ...(raw.expected_outcome !== undefined
-      ? { expected_outcome: interpolateCaseField(raw.expected_outcome, vars) }
+    ...(raw.id !== undefined ? { id: interpolateCaseField(raw.id, vars, filters) } : {}),
+    ...(raw.criteria !== undefined
+      ? { criteria: interpolateCaseField(raw.criteria, vars, filters) }
       : {}),
-    ...(raw.input !== undefined ? { input: interpolateCaseField(raw.input, vars) } : {}),
+    ...(raw.expected_outcome !== undefined
+      ? { expected_outcome: interpolateCaseField(raw.expected_outcome, vars, filters) }
+      : {}),
+    ...(raw.input !== undefined ? { input: interpolateCaseField(raw.input, vars, filters) } : {}),
     ...(raw.input_files !== undefined
-      ? { input_files: interpolateCaseField(raw.input_files, vars) }
+      ? { input_files: interpolateCaseField(raw.input_files, vars, filters) }
       : {}),
     ...(raw.expected_output !== undefined
-      ? { expected_output: interpolateCaseField(raw.expected_output, vars) }
+      ? { expected_output: interpolateCaseField(raw.expected_output, vars, filters) }
       : {}),
-    ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars) } : {}),
+    ...(raw.assertions !== undefined
+      ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
+      : {}),
+    ...(raw.evaluators !== undefined
+      ? { evaluators: interpolateCaseField(raw.evaluators, vars, filters) }
+      : {}),
+    ...(raw.rubrics !== undefined
+      ? { rubrics: interpolateCaseField(raw.rubrics, vars, filters) }
+      : {}),
+    ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars, filters) } : {}),
   };
+}
+
+function shouldExpandVarValue(value: JsonValue): value is readonly JsonValue[] {
+  return Array.isArray(value) && (value.length === 0 || typeof value[0] === 'string');
+}
+
+function expandArrayVarCases(raw: RawEvalCase): readonly RawEvalCase[] {
+  if (!isJsonObject(raw.vars)) {
+    return [raw];
+  }
+
+  const entries = Object.entries(raw.vars);
+  let combinations: Record<string, JsonValue>[] = [{}];
+  let expanded = false;
+
+  for (const [key, value] of entries) {
+    const values = shouldExpandVarValue(value) ? value : [value];
+    expanded ||= values.length !== 1 || values[0] !== value;
+    const next: Record<string, JsonValue>[] = [];
+    for (const combination of combinations) {
+      for (const candidate of values) {
+        next.push({ ...combination, [key]: candidate });
+      }
+    }
+    combinations = next;
+  }
+
+  if (!expanded) {
+    return [raw];
+  }
+
+  return combinations.map((vars) => ({ ...raw, vars }));
+}
+
+async function loadNunjucksFilters(
+  rawFilters: JsonValue | undefined,
+  evalFileDir: string,
+): Promise<NunjucksFilterMap | undefined> {
+  if (rawFilters === undefined) {
+    return undefined;
+  }
+  if (!isJsonObject(rawFilters)) {
+    logWarning('Invalid nunjucks_filters: expected object mapping filter names to file paths');
+    return undefined;
+  }
+
+  const filters: Record<string, (...args: unknown[]) => unknown> = {};
+  for (const [name, rawFilterPath] of Object.entries(rawFilters)) {
+    if (typeof rawFilterPath !== 'string' || rawFilterPath.trim().length === 0) {
+      logWarning(`Skipping nunjucks filter '${name}': expected file path string`);
+      continue;
+    }
+
+    const filterPath = rawFilterPath.startsWith('file://')
+      ? rawFilterPath.slice('file://'.length)
+      : rawFilterPath;
+    const matches = await fg(path.resolve(evalFileDir, filterPath).replaceAll('\\', '/'), {
+      onlyFiles: true,
+      absolute: true,
+    });
+    const resolvedPath = matches.sort().at(-1) ?? path.resolve(evalFileDir, filterPath);
+    const imported = (await import(pathToFileURL(resolvedPath).href)) as Record<string, unknown>;
+    const filter = imported.default ?? imported[name];
+    if (typeof filter !== 'function') {
+      throw new Error(
+        `Invalid nunjucks filter '${name}' at ${resolvedPath}: expected default export or named export '${name}' to be a function`,
+      );
+    }
+    filters[name] = filter as (...args: unknown[]) => unknown;
+  }
+
+  return Object.keys(filters).length > 0 ? filters : undefined;
 }
 
 /**
@@ -528,6 +625,7 @@ async function loadTestsFromParsedYamlValue(
 
   const importedSuiteTests: EvalTest[] = [];
   const evalFileDir = path.dirname(absoluteTestPath);
+  const nunjucksFilters = await loadNunjucksFilters(suite.nunjucks_filters, evalFileDir);
   const parentWorkspace = parentWorkspaceLocation(suite);
   const importEntries = readImports(suite.imports);
   const expandedImports = await expandImportEntries({
@@ -578,301 +676,312 @@ async function loadTestsFromParsedYamlValue(
 
   const results: EvalTest[] = [];
 
-  for (const rawTestCase of expandedTestCases) {
-    if (!isJsonObject(rawTestCase)) {
-      logWarning('Skipping invalid test entry (expected object)');
-      continue;
-    }
+  for (const rawExpandedTestCase of expandedTestCases) {
+    const expandedVarCases = isJsonObject(rawExpandedTestCase)
+      ? expandArrayVarCases(rawExpandedTestCase as RawEvalCase)
+      : [rawExpandedTestCase];
 
-    const testCaseConfig = rawTestCase as RawEvalCase;
-    const id = asString(testCaseConfig.id);
+    for (const rawTestCase of expandedVarCases) {
+      if (!isJsonObject(rawTestCase)) {
+        logWarning('Skipping invalid test entry (expected object)');
+        continue;
+      }
 
-    // Skip tests that don't match the filter pattern (glob supported)
-    if (filterPattern && (!id || !matchesFilter(id, filterPattern))) {
-      continue;
-    }
+      const testCaseConfig = rawTestCase as RawEvalCase;
+      const caseVars = isJsonObject(testCaseConfig.vars) ? testCaseConfig.vars : undefined;
+      const renderedCase = interpolateRawEvalCase(testCaseConfig, caseVars, nunjucksFilters);
+      const id = asString(renderedCase.id);
 
-    const caseVars = isJsonObject(testCaseConfig.vars) ? testCaseConfig.vars : undefined;
-    const renderedCase = interpolateRawEvalCase(testCaseConfig, caseVars);
+      // Skip tests that don't match the filter pattern (glob supported)
+      if (filterPattern && (!id || !matchesFilter(id, filterPattern))) {
+        continue;
+      }
 
-    const conversationId = asString(renderedCase.conversation_id);
-    let outcome = asString(renderedCase.criteria);
-    if (!outcome && renderedCase.expected_outcome !== undefined) {
-      outcome = asString(renderedCase.expected_outcome);
-      if (outcome) {
-        logWarning(
-          `Test '${asString(renderedCase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+      const conversationId = asString(renderedCase.conversation_id);
+      let outcome = asString(renderedCase.criteria);
+      if (!outcome && renderedCase.expected_outcome !== undefined) {
+        outcome = asString(renderedCase.expected_outcome);
+        if (outcome) {
+          logWarning(
+            `Test '${asString(renderedCase.id) ?? 'unknown'}': 'expected_outcome' is deprecated. Use 'criteria' instead.`,
+          );
+        }
+      }
+
+      // Extract per-case execution config early (reused below for skip_defaults)
+      const caseExecution = isJsonObject(renderedCase.execution)
+        ? renderedCase.execution
+        : undefined;
+      rejectUnsupportedTestExecutionFields(caseExecution, id);
+      if (caseExecution?.workspace !== undefined) {
+        throw new Error(
+          `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
         );
       }
-    }
-
-    // Extract per-case execution config early (reused below for skip_defaults)
-    const caseExecution = isJsonObject(renderedCase.execution) ? renderedCase.execution : undefined;
-    rejectUnsupportedTestExecutionFields(caseExecution, id);
-    if (caseExecution?.workspace !== undefined) {
-      throw new Error(
-        `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
+      const skipDefaults = caseExecution?.skip_defaults === true;
+      const caseThreshold =
+        typeof caseExecution?.threshold === 'number' &&
+        (caseExecution.threshold as number) >= 0 &&
+        (caseExecution.threshold as number) <= 1
+          ? (caseExecution.threshold as number)
+          : undefined;
+      const caseRun = mergeRunOverrides(
+        caseThreshold !== undefined ? { threshold: caseThreshold } : undefined,
+        normalizeRunOverride(renderedCase.run, `test '${id ?? 'unknown'}'.run`),
       );
-    }
-    const skipDefaults = caseExecution?.skip_defaults === true;
-    const caseThreshold =
-      typeof caseExecution?.threshold === 'number' &&
-      (caseExecution.threshold as number) >= 0 &&
-      (caseExecution.threshold as number) <= 1
-        ? (caseExecution.threshold as number)
-        : undefined;
-    const caseRun = mergeRunOverrides(
-      caseThreshold !== undefined ? { threshold: caseThreshold } : undefined,
-      normalizeRunOverride(renderedCase.run, `test '${id ?? 'unknown'}'.run`),
-    );
 
-    // Resolve input with shorthand support (pass suite-level input_files for merge)
-    const effectiveSuiteInputFiles =
-      rawSuiteInputFiles && !skipDefaults
-        ? interpolateCaseField(rawSuiteInputFiles, caseVars)
-        : undefined;
-    let inputCase = renderedCase;
-    let inputSuiteFiles = effectiveSuiteInputFiles;
-    if (renderedCase.input === undefined) {
-      const promptFallback = await loadPromptMdFallback({
-        evalFilePath: absoluteTestPath,
-        searchRoots,
-        testInputFiles: renderedCase.input_files,
-        suiteInputFiles: effectiveSuiteInputFiles,
-      });
-      if (promptFallback) {
-        if (promptFallback.inputFilesSource === 'test') {
-          const { input_files: _inputFiles, ...caseWithoutInputFiles } = renderedCase;
-          inputCase = {
-            ...caseWithoutInputFiles,
-            input: promptFallback.promptText,
-            ...(promptFallback.remainingInputFiles
-              ? { input_files: [...promptFallback.remainingInputFiles] }
-              : {}),
-          };
-          inputSuiteFiles = undefined;
-        } else {
-          inputCase = {
-            ...renderedCase,
-            input: promptFallback.promptText,
-          };
-          if (promptFallback.inputFilesSource === 'suite') {
-            inputSuiteFiles = promptFallback.remainingInputFiles
-              ? [...promptFallback.remainingInputFiles]
-              : undefined;
+      // Resolve input with shorthand support (pass suite-level input_files for merge)
+      const effectiveSuiteInputFiles =
+        rawSuiteInputFiles && !skipDefaults
+          ? interpolateCaseField(rawSuiteInputFiles, caseVars, nunjucksFilters)
+          : undefined;
+      let inputCase = renderedCase;
+      let inputSuiteFiles = effectiveSuiteInputFiles;
+      if (renderedCase.input === undefined) {
+        const promptFallback = await loadPromptMdFallback({
+          evalFilePath: absoluteTestPath,
+          searchRoots,
+          testInputFiles: renderedCase.input_files,
+          suiteInputFiles: effectiveSuiteInputFiles,
+        });
+        if (promptFallback) {
+          if (promptFallback.inputFilesSource === 'test') {
+            const { input_files: _inputFiles, ...caseWithoutInputFiles } = renderedCase;
+            inputCase = {
+              ...caseWithoutInputFiles,
+              input: promptFallback.promptText,
+              ...(promptFallback.remainingInputFiles
+                ? { input_files: [...promptFallback.remainingInputFiles] }
+                : {}),
+            };
+            inputSuiteFiles = undefined;
+          } else {
+            inputCase = {
+              ...renderedCase,
+              input: promptFallback.promptText,
+            };
+            if (promptFallback.inputFilesSource === 'suite') {
+              inputSuiteFiles = promptFallback.remainingInputFiles
+                ? [...promptFallback.remainingInputFiles]
+                : undefined;
+            }
           }
         }
       }
-    }
-    const testInputMessages = resolveInputMessages(inputCase, inputSuiteFiles);
-    // Resolve expected_output with shorthand support
-    const expectedMessages = resolveExpectedMessages(renderedCase) ?? [];
+      const testInputMessages = resolveInputMessages(inputCase, inputSuiteFiles);
+      // Resolve expected_output with shorthand support
+      const expectedMessages = resolveExpectedMessages(renderedCase) ?? [];
 
-    // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
-    const hasEvaluationSpec =
-      !!outcome ||
-      expectedMessages.length > 0 ||
-      renderedCase.assertions !== undefined ||
-      (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
-    if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
-      logError(
-        `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input or PROMPT.md, and at least one of criteria/expected_output/assertions/turns`,
-      );
-      continue;
-    }
-
-    // Prepend suite-level input to test input (respecting skip_defaults)
-    const effectiveSuiteInputValue =
-      rawSuiteInput && !skipDefaults ? interpolateCaseField(rawSuiteInput, caseVars) : undefined;
-    const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
-
-    // expected_output is optional - for outcome-only evaluation
-    const hasExpectedMessages = expectedMessages.length > 0;
-
-    const inputTextParts: string[] = [];
-
-    // Process suite-level input first
-    const suiteResolvedInputMessages = effectiveSuiteInputMessages
-      ? await processMessages({
-          messages: effectiveSuiteInputMessages,
-          searchRoots,
-          repoRootPath,
-          textParts: inputTextParts,
-          messageType: 'input',
-          verbose,
-        })
-      : [];
-
-    // Process test-level input
-    const testResolvedInputMessages = await processMessages({
-      messages: testInputMessages,
-      searchRoots,
-      repoRootPath,
-      textParts: inputTextParts,
-      messageType: 'input',
-      verbose,
-    });
-    const inputMessages = [...suiteResolvedInputMessages, ...testResolvedInputMessages];
-
-    // Process expected_output into segments (only if provided)
-    // Preserve full message structure including role and tool_calls for evaluator
-    const outputSegments = hasExpectedMessages
-      ? await processExpectedMessages({
-          messages: expectedMessages,
-          searchRoots,
-          repoRootPath,
-          verbose,
-        })
-      : [];
-
-    // Build reference_answer:
-    // Extract the content from the last message in expected_output (similar to answer)
-    let referenceAnswer = '';
-    if (outputSegments.length > 0) {
-      // Get the last message
-      const lastMessage = outputSegments[outputSegments.length - 1];
-      const content = lastMessage.content;
-      const toolCalls = lastMessage.tool_calls;
-
-      if (typeof content === 'string') {
-        referenceAnswer = content;
-      } else if (content !== undefined && content !== null) {
-        // Serialize just the content, not the entire message
-        referenceAnswer = JSON.stringify(content, null, 2);
-      } else if (toolCalls !== undefined && toolCalls !== null) {
-        // Message with only tool_calls - serialize just the tool_calls
-        referenceAnswer = JSON.stringify(toolCalls, null, 2);
+      // A test is complete when it has id, input, and at least one of: criteria, expected_output, assertions, or turns (conversation mode)
+      const hasEvaluationSpec =
+        !!outcome ||
+        expectedMessages.length > 0 ||
+        renderedCase.assertions !== undefined ||
+        (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
+      if (!id || !hasEvaluationSpec || !testInputMessages || testInputMessages.length === 0) {
+        logError(
+          `Skipping incomplete test: ${id ?? 'unknown'}. Missing required fields: id, input or PROMPT.md, and at least one of criteria/expected_output/assertions/turns`,
+        );
+        continue;
       }
-    }
-    const question = inputTextParts
-      .map((part) => part.trim())
-      .filter((part) => part.length > 0)
-      .join(' ');
 
-    const testCaseEvaluatorKind = coerceEvaluator(renderedCase.evaluator, id) ?? globalEvaluator;
-    let evaluators: Awaited<ReturnType<typeof parseGraders>>;
-    try {
-      evaluators = await parseGraders(
+      // Prepend suite-level input to test input (respecting skip_defaults)
+      const effectiveSuiteInputValue =
+        rawSuiteInput && !skipDefaults
+          ? interpolateCaseField(rawSuiteInput, caseVars, nunjucksFilters)
+          : undefined;
+      const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
+
+      // expected_output is optional - for outcome-only evaluation
+      const hasExpectedMessages = expectedMessages.length > 0;
+
+      const inputTextParts: string[] = [];
+
+      // Process suite-level input first
+      const suiteResolvedInputMessages = effectiveSuiteInputMessages
+        ? await processMessages({
+            messages: effectiveSuiteInputMessages,
+            searchRoots,
+            repoRootPath,
+            textParts: inputTextParts,
+            messageType: 'input',
+            verbose,
+          })
+        : [];
+
+      // Process test-level input
+      const testResolvedInputMessages = await processMessages({
+        messages: testInputMessages,
+        searchRoots,
+        repoRootPath,
+        textParts: inputTextParts,
+        messageType: 'input',
+        verbose,
+      });
+      const inputMessages = [...suiteResolvedInputMessages, ...testResolvedInputMessages];
+
+      // Process expected_output into segments (only if provided)
+      // Preserve full message structure including role and tool_calls for evaluator
+      const outputSegments = hasExpectedMessages
+        ? await processExpectedMessages({
+            messages: expectedMessages,
+            searchRoots,
+            repoRootPath,
+            verbose,
+          })
+        : [];
+
+      // Build reference_answer:
+      // Extract the content from the last message in expected_output (similar to answer)
+      let referenceAnswer = '';
+      if (outputSegments.length > 0) {
+        // Get the last message
+        const lastMessage = outputSegments[outputSegments.length - 1];
+        const content = lastMessage.content;
+        const toolCalls = lastMessage.tool_calls;
+
+        if (typeof content === 'string') {
+          referenceAnswer = content;
+        } else if (content !== undefined && content !== null) {
+          // Serialize just the content, not the entire message
+          referenceAnswer = JSON.stringify(content, null, 2);
+        } else if (toolCalls !== undefined && toolCalls !== null) {
+          // Message with only tool_calls - serialize just the tool_calls
+          referenceAnswer = JSON.stringify(toolCalls, null, 2);
+        }
+      }
+      const question = inputTextParts
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+        .join(' ');
+
+      const testCaseEvaluatorKind = coerceEvaluator(renderedCase.evaluator, id) ?? globalEvaluator;
+      let evaluators: Awaited<ReturnType<typeof parseGraders>>;
+      try {
+        evaluators = await parseGraders(
+          renderedCase,
+          globalExecution,
+          searchRoots,
+          id ?? 'unknown',
+          suitePreprocessors,
+        );
+      } catch (error) {
+        // Skip entire test if evaluator validation fails
+        const message = error instanceof Error ? error.message : String(error);
+        logError(`Skipping test '${id}': ${message}`);
+        continue;
+      }
+
+      const assertionTemplateReferences = await collectAssertionTemplateSourceReferences(
         renderedCase,
         globalExecution,
         searchRoots,
         id ?? 'unknown',
-        suitePreprocessors,
       );
-    } catch (error) {
-      // Skip entire test if evaluator validation fails
-      const message = error instanceof Error ? error.message : String(error);
-      logError(`Skipping test '${id}': ${message}`);
-      continue;
-    }
 
-    const assertionTemplateReferences = await collectAssertionTemplateSourceReferences(
-      renderedCase,
-      globalExecution,
-      searchRoots,
-      id ?? 'unknown',
-    );
-
-    // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-    const inlineRubrics = renderedCase.rubrics;
-    if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
-      const rubricEvaluator = parseInlineRubrics(inlineRubrics);
-      if (rubricEvaluator) {
-        // Prepend rubric evaluator to existing evaluators
-        evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
+      // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
+      const inlineRubrics = renderedCase.rubrics;
+      if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
+        const rubricEvaluator = parseInlineRubrics(inlineRubrics);
+        if (rubricEvaluator) {
+          // Prepend rubric evaluator to existing evaluators
+          evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
+        }
       }
-    }
 
-    warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
+      warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
-    const userFilePaths = collectResolvedInputFilePaths(inputMessages);
+      const userFilePaths = collectResolvedInputFilePaths(inputMessages);
 
-    // Parse per-case workspace config and merge with suite-level
-    const caseWorkspace = await resolveWorkspaceConfig(renderedCase.workspace, evalFileDir);
-    const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
+      // Parse per-case workspace config and merge with suite-level
+      const caseWorkspace = await resolveWorkspaceConfig(renderedCase.workspace, evalFileDir);
+      const mergedWorkspace = mergeWorkspaceConfigs(suiteWorkspace, caseWorkspace);
 
-    // Parse per-case metadata, then merge suite-level metadata payload.
-    // Arrays concatenate (suite-first, deduplicated), scalars on the case win.
-    const rawCaseMetadata = isJsonObject(renderedCase.metadata)
-      ? (renderedCase.metadata as Record<string, unknown>)
-      : undefined;
-    const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suiteMetadataPayload);
-
-    // Extract dependency fields
-    const dependsOn = Array.isArray(renderedCase.depends_on)
-      ? (renderedCase.depends_on as readonly string[]).filter(
-          (v): v is string => typeof v === 'string',
-        )
-      : undefined;
-    const onDependencyFailureRaw = asString(renderedCase.on_dependency_failure);
-    const onDependencyFailure =
-      onDependencyFailureRaw === 'skip' ||
-      onDependencyFailureRaw === 'fail' ||
-      onDependencyFailureRaw === 'run'
-        ? (onDependencyFailureRaw as import('./types.js').DependencyFailurePolicy)
+      // Parse per-case metadata, then merge suite-level metadata payload.
+      // Arrays concatenate (suite-first, deduplicated), scalars on the case win.
+      const rawCaseMetadata = isJsonObject(renderedCase.metadata)
+        ? (renderedCase.metadata as Record<string, unknown>)
         : undefined;
+      const metadata = mergeSuiteMetadataPayload(rawCaseMetadata, suiteMetadataPayload);
 
-    // Extract conversation mode fields
-    const modeRaw = asString(renderedCase.mode);
-    const mode: ConversationMode | undefined =
-      modeRaw === 'conversation' ? 'conversation' : undefined;
-    const turns = Array.isArray(renderedCase.turns)
-      ? parseTurns(renderedCase.turns as readonly unknown[])
-      : undefined;
-    const aggregationRaw = asString(renderedCase.aggregation);
-    const aggregation: ConversationAggregation | undefined =
-      aggregationRaw === 'mean' || aggregationRaw === 'min' || aggregationRaw === 'max'
-        ? aggregationRaw
+      // Extract dependency fields
+      const dependsOn = Array.isArray(renderedCase.depends_on)
+        ? (renderedCase.depends_on as readonly string[]).filter(
+            (v): v is string => typeof v === 'string',
+          )
         : undefined;
-    const onTurnFailureRaw = asString(renderedCase.on_turn_failure);
-    const onTurnFailure: TurnFailurePolicy | undefined =
-      onTurnFailureRaw === 'continue' || onTurnFailureRaw === 'stop' ? onTurnFailureRaw : undefined;
-    const windowSize =
-      typeof renderedCase.window_size === 'number' && renderedCase.window_size >= 1
-        ? (renderedCase.window_size as number)
+      const onDependencyFailureRaw = asString(renderedCase.on_dependency_failure);
+      const onDependencyFailure =
+        onDependencyFailureRaw === 'skip' ||
+        onDependencyFailureRaw === 'fail' ||
+        onDependencyFailureRaw === 'run'
+          ? (onDependencyFailureRaw as import('./types.js').DependencyFailurePolicy)
+          : undefined;
+
+      // Extract conversation mode fields
+      const modeRaw = asString(renderedCase.mode);
+      const mode: ConversationMode | undefined =
+        modeRaw === 'conversation' ? 'conversation' : undefined;
+      const turns = Array.isArray(renderedCase.turns)
+        ? parseTurns(renderedCase.turns as readonly unknown[])
         : undefined;
+      const aggregationRaw = asString(renderedCase.aggregation);
+      const aggregation: ConversationAggregation | undefined =
+        aggregationRaw === 'mean' || aggregationRaw === 'min' || aggregationRaw === 'max'
+          ? aggregationRaw
+          : undefined;
+      const onTurnFailureRaw = asString(renderedCase.on_turn_failure);
+      const onTurnFailure: TurnFailurePolicy | undefined =
+        onTurnFailureRaw === 'continue' || onTurnFailureRaw === 'stop'
+          ? onTurnFailureRaw
+          : undefined;
+      const windowSize =
+        typeof renderedCase.window_size === 'number' && renderedCase.window_size >= 1
+          ? (renderedCase.window_size as number)
+          : undefined;
 
-    const category = normalizeCategoryPath(suite.category ?? options?.category);
+      const category = normalizeCategoryPath(suite.category ?? options?.category);
 
-    const testCase: EvalTest = {
-      id,
-      suite: suiteName,
-      category,
-      conversation_id: conversationId,
-      question: question,
-      input: inputMessages,
-      expected_output: outputSegments,
-      reference_answer: referenceAnswer,
-      file_paths: userFilePaths,
-      criteria: outcome ?? '',
-      evaluator: testCaseEvaluatorKind,
-      assertions: evaluators,
-      ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
-      workspace: mergedWorkspace,
-      metadata,
-      ...(caseRun?.threshold !== undefined ? { threshold: caseRun.threshold } : {}),
-      ...(caseRun !== undefined ? { run: caseRun } : {}),
-      ...(mode ? { mode } : {}),
-      ...(turns && turns.length > 0 ? { turns } : {}),
-      ...(aggregation ? { aggregation } : {}),
-      ...(onTurnFailure ? { on_turn_failure: onTurnFailure } : {}),
-      ...(windowSize !== undefined ? { window_size: windowSize } : {}),
-      ...(dependsOn && dependsOn.length > 0 ? { depends_on: dependsOn } : {}),
-      ...(onDependencyFailure ? { on_dependency_failure: onDependencyFailure } : {}),
-      source: buildEvalTestSource({
-        evalFilePath,
-        absoluteTestPath,
-        repoRootPath,
+      const testCase: EvalTest = {
         id,
-        renderedCase,
-        rawCaseSnapshots,
-        inputMessages,
-        evaluators,
-        assertionTemplateReferences,
-      }),
-    };
+        suite: suiteName,
+        category,
+        conversation_id: conversationId,
+        question: question,
+        input: inputMessages,
+        expected_output: outputSegments,
+        reference_answer: referenceAnswer,
+        file_paths: userFilePaths,
+        criteria: outcome ?? '',
+        evaluator: testCaseEvaluatorKind,
+        assertions: evaluators,
+        ...(suitePreprocessors ? { preprocessors: suitePreprocessors } : {}),
+        workspace: mergedWorkspace,
+        metadata,
+        ...(caseRun?.threshold !== undefined ? { threshold: caseRun.threshold } : {}),
+        ...(caseRun !== undefined ? { run: caseRun } : {}),
+        ...(mode ? { mode } : {}),
+        ...(turns && turns.length > 0 ? { turns } : {}),
+        ...(aggregation ? { aggregation } : {}),
+        ...(onTurnFailure ? { on_turn_failure: onTurnFailure } : {}),
+        ...(windowSize !== undefined ? { window_size: windowSize } : {}),
+        ...(dependsOn && dependsOn.length > 0 ? { depends_on: dependsOn } : {}),
+        ...(onDependencyFailure ? { on_dependency_failure: onDependencyFailure } : {}),
+        source: buildEvalTestSource({
+          evalFilePath,
+          absoluteTestPath,
+          repoRootPath,
+          id,
+          renderedCase,
+          rawCaseSnapshots,
+          inputMessages,
+          evaluators,
+          assertionTemplateReferences,
+        }),
+      };
 
-    results.push(testCase);
+      results.push(testCase);
+    }
   }
 
   return {

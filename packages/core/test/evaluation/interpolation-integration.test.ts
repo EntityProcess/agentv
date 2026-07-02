@@ -26,11 +26,11 @@ describe('env interpolation in YAML loading', () => {
     }
   });
 
-  it('interpolates ${{ VAR }} in test criteria field', async () => {
+  it('interpolates {{ env.VAR }} in test criteria field', async () => {
     const evalFile = path.join(testDir, 'interp-criteria.eval.yaml');
     await writeFile(
       evalFile,
-      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "${{ AGENTV_TEST_CRITERIA }}"\n',
+      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "{{ env.AGENTV_TEST_CRITERIA }}"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('Must return correct answer');
@@ -44,11 +44,11 @@ describe('env interpolation in YAML loading', () => {
         'workspace:',
         '  repos:',
         '    - path: ./RepoA',
-        '      repo: "${{ AGENTV_TEST_PATH }}"',
+        '      repo: "{{ env.AGENTV_TEST_PATH }}"',
         'tests:',
         '  - id: test-1',
         '    input: "hello"',
-        '    criteria: "${{ AGENTV_TEST_CRITERIA }}"',
+        '    criteria: "{{ env.AGENTV_TEST_CRITERIA }}"',
         '',
       ].join('\n'),
     );
@@ -58,7 +58,7 @@ describe('env interpolation in YAML loading', () => {
     expect(cases[0].workspace?.repos?.[0]?.repo).toBe('https://github.com/org/from-env.git');
   });
 
-  it('interpolates ${{ VAR }} in workspace repo identity', async () => {
+  it('interpolates {{ env.VAR }} in workspace repo identity', async () => {
     const evalFile = path.join(testDir, 'interp-workspace.eval.yaml');
     await writeFile(
       evalFile,
@@ -66,7 +66,7 @@ describe('env interpolation in YAML loading', () => {
         'workspace:',
         '  repos:',
         '    - path: ./RepoA',
-        '      repo: "${{ AGENTV_TEST_PATH }}"',
+        '      repo: "{{ env.AGENTV_TEST_PATH }}"',
         'tests:',
         '  - id: test-1',
         '    input: "hello"',
@@ -78,11 +78,11 @@ describe('env interpolation in YAML loading', () => {
     expect(cases[0].workspace?.repos?.[0]?.repo).toBe('https://github.com/org/from-env.git');
   });
 
-  it('interpolates ${{ VAR }} in external workspace YAML file', async () => {
+  it('interpolates {{ env.VAR }} in external workspace YAML file', async () => {
     const workspaceFile = path.join(testDir, 'workspace.yaml');
     await writeFile(
       workspaceFile,
-      ['repos:', '  - path: ./RepoB', '    repo: "${{ AGENTV_TEST_PATH }}"', ''].join('\n'),
+      ['repos:', '  - path: ./RepoB', '    repo: "{{ env.AGENTV_TEST_PATH }}"', ''].join('\n'),
     );
     const evalFile = path.join(testDir, 'interp-ext-workspace.eval.yaml');
     await writeFile(
@@ -100,11 +100,11 @@ describe('env interpolation in YAML loading', () => {
     expect(cases[0].workspace?.repos?.[0]?.repo).toBe('https://github.com/org/from-env.git');
   });
 
-  it('interpolates ${{ VAR }} in external YAML case files', async () => {
+  it('interpolates {{ env.VAR }} in external YAML case files', async () => {
     const casesFile = path.join(testDir, 'cases.yaml');
     await writeFile(
       casesFile,
-      ['- id: ext-1', '  input: "hello"', '  criteria: "${{ AGENTV_TEST_CRITERIA }}"', ''].join(
+      ['- id: ext-1', '  input: "hello"', '  criteria: "{{ env.AGENTV_TEST_CRITERIA }}"', ''].join(
         '\n',
       ),
     );
@@ -114,11 +114,11 @@ describe('env interpolation in YAML loading', () => {
     expect(cases[0].criteria).toBe('Must return correct answer');
   });
 
-  it('interpolates ${{ VAR }} in external JSONL case files', async () => {
+  it('interpolates {{ env.VAR }} in external JSONL case files', async () => {
     const casesFile = path.join(testDir, 'cases.jsonl');
     await writeFile(
       casesFile,
-      '{"id": "ext-jsonl-1", "input": "hello", "criteria": "${{ AGENTV_TEST_CRITERIA }}"}\n',
+      '{"id": "ext-jsonl-1", "input": "hello", "criteria": "{{ env.AGENTV_TEST_CRITERIA }}"}\n',
     );
     const evalFile = path.join(testDir, 'interp-external-jsonl.eval.yaml');
     await writeFile(evalFile, 'tests: cases.jsonl\n');
@@ -142,9 +142,45 @@ describe('env interpolation in YAML loading', () => {
     // (empty criteria alone causes the test loader to skip it as incomplete)
     await writeFile(
       evalFile,
-      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "prefix ${{ AGENTV_NONEXISTENT_VAR }} suffix"\n    expected_output: "some output"\n',
+      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "prefix {{ env.AGENTV_NONEXISTENT_VAR }} suffix"\n    expected_output: "some output"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('prefix  suffix');
+  });
+
+  it('resolves default filter values through env rendering', async () => {
+    const evalFile = path.join(testDir, 'interp-default.eval.yaml');
+    await writeFile(
+      evalFile,
+      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "{{ env.AGENTV_NONEXISTENT_VAR | default(\\"fallback criteria\\") }}"\n',
+    );
+    const cases = await loadTests(evalFile, testDir);
+    expect(cases[0].criteria).toBe('fallback criteria');
+  });
+
+  it('leaves runtime shell variables in target commands untouched', async () => {
+    const evalFile = path.join(testDir, 'interp-shell-vars.eval.yaml');
+    await writeFile(
+      evalFile,
+      [
+        'target:',
+        '  name: local-shell',
+        '  provider: cli',
+        '  command: "echo $RUNTIME ${RUNTIME} {{ env.AGENTV_TEST_PATH }}"',
+        'tests:',
+        '  - id: test-1',
+        '    input: "hello"',
+        '    criteria: "do something"',
+        '',
+      ].join('\n'),
+    );
+    const { targetSpec } = await import('../../src/evaluation/yaml-parser.js').then((module) =>
+      module.readTestSuiteMetadata(evalFile),
+    );
+    expect(
+      targetSpec?.definition && 'command' in targetSpec.definition
+        ? targetSpec.definition.command
+        : '',
+    ).toBe('echo $RUNTIME ${RUNTIME} https://github.com/org/from-env.git');
   });
 });

@@ -256,6 +256,7 @@ tests:
   - id: templated
     vars:
       question: "What is the capital of France?"
+      expected_answer: "Paris"
     criteria: "Answers {{question}} correctly"
     input:
       - role: user
@@ -287,10 +288,158 @@ tests:
       role: 'assistant',
       content: 'Thinking about What is the capital of France?',
     });
-    expect(tests[0].expected_output).toEqual([
-      { role: 'assistant', content: '{{expected_answer}}' },
-    ]);
+    expect(tests[0].expected_output).toEqual([{ role: 'assistant', content: 'Paris' }]);
     expect(tests[0].metadata).toEqual({ untouched: '{{question}}' });
+  });
+
+  it('applies namespaced vars with loops in suite and test input templates', async () => {
+    await writeFile(
+      path.join(tempDir, 'templated-namespaced-input.eval.yaml'),
+      `input: |
+  Items:
+  {% for item in vars.group.items %}- {{ item | upper }}
+  {% endfor %}
+tests:
+  - id: templated-namespaced
+    vars:
+      group:
+        items:
+          - alpha
+          - beta
+    criteria: "Mentions {{ vars.group.items | length }} items"
+    input: "Question: {{ vars.group.items[0] }}"
+`,
+    );
+
+    const tests = await loadTests(
+      path.join(tempDir, 'templated-namespaced-input.eval.yaml'),
+      tempDir,
+    );
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].criteria).toBe('Mentions 2 items');
+    expect(tests[0].input[0]).toEqual({
+      role: 'user',
+      content: 'Items:\n- ALPHA\n- BETA\n\n',
+    });
+    expect(tests[0].input[1]).toEqual({
+      role: 'user',
+      content: 'Question: alpha',
+    });
+  });
+
+  it('loads custom nunjucks_filters for eval-time rendering', async () => {
+    const filterPath = path.join(tempDir, 'slug-filter.ts');
+    await writeFile(
+      filterPath,
+      'export default function slug(value: unknown) { return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }\n',
+    );
+    await writeFile(
+      path.join(tempDir, 'templated-custom-filter.eval.yaml'),
+      `nunjucks_filters:
+  slug: ./slug-filter.ts
+tests:
+  - id: filter-test
+    vars:
+      title: "Hello AgentV"
+    criteria: "Slug is {{ vars.title | slug }}"
+    input: "Write {{ vars.title | slug }}"
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'templated-custom-filter.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].criteria).toBe('Slug is hello-agentv');
+    expect(tests[0].input[0]).toEqual({ role: 'user', content: 'Write hello-agentv' });
+  });
+
+  it('expands string array vars into multiple rendered rows', async () => {
+    await writeFile(
+      path.join(tempDir, 'templated-array-vars.eval.yaml'),
+      `tests:
+  - id: "fruit-{{ vars.fruit }}"
+    vars:
+      fruit:
+        - apple
+        - pear
+      color:
+        - red
+        - green
+      tags:
+        - stable
+    criteria: "{{ vars.color }} {{ vars.fruit }}"
+    input: "Describe {{ vars.color }} {{ vars.fruit }}"
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'templated-array-vars.eval.yaml'), tempDir);
+
+    expect(tests.map((test) => test.id)).toEqual([
+      'fruit-apple',
+      'fruit-apple',
+      'fruit-pear',
+      'fruit-pear',
+    ]);
+    expect(tests.map((test) => test.criteria)).toEqual([
+      'red apple',
+      'green apple',
+      'red pear',
+      'green pear',
+    ]);
+    expect(tests.map((test) => test.input[0]?.content)).toEqual([
+      'Describe red apple',
+      'Describe green apple',
+      'Describe red pear',
+      'Describe green pear',
+    ]);
+  });
+
+  it('renders then parses chat-array prompt strings', async () => {
+    await writeFile(
+      path.join(tempDir, 'templated-chat-array.eval.yaml'),
+      `tests:
+  - id: chat-array
+    vars:
+      topic: "templating"
+    criteria: "Uses chat array"
+    input: '[{"role":"system","content":"You review {{ vars.topic }}"},{"role":"user","content":"Explain {{ vars.topic }}"}]'
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'templated-chat-array.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].input).toEqual([
+      { role: 'system', content: 'You review templating' },
+      { role: 'user', content: 'Explain templating' },
+    ]);
+  });
+
+  it('renders assertion values and metrics with per-test vars', async () => {
+    await writeFile(
+      path.join(tempDir, 'templated-assertions.eval.yaml'),
+      `tests:
+  - id: assertions
+    vars:
+      expected: "DENIED"
+      metric_name: "policy"
+    input: "Check access"
+    assertions:
+      - type: contains
+        metric: "{{ vars.metric_name }}_decision"
+        value: "{{ vars.expected }}"
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'templated-assertions.eval.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0].assertions?.[0]).toMatchObject({
+      type: 'contains',
+      value: 'DENIED',
+      metric: 'policy_decision',
+    });
   });
 
   it('applies per-test vars inside conversation turns', async () => {
@@ -317,7 +466,7 @@ tests:
       {
         input: 'Fix parser null check',
         expected_output: 'Fixed parser null check',
-        assertions: ['Mentions {{bug}}'],
+        assertions: ['Mentions parser null check'],
       },
     ]);
   });

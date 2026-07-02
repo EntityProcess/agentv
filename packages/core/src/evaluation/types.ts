@@ -869,7 +869,7 @@ export type InlineAssertEvaluatorConfig = {
   readonly negate?: boolean;
 };
 
-export type GraderConfig =
+export type GraderConfig = (
   | CodeGraderConfig
   | LlmGraderConfig
   | CompositeGraderConfig
@@ -892,7 +892,11 @@ export type GraderConfig =
   | IsJsonGraderConfig
   | EqualsGraderConfig
   | RubricsEvaluatorConfig
-  | InlineAssertEvaluatorConfig;
+  | InlineAssertEvaluatorConfig
+) & {
+  /** Optional promptfoo-style named score key. Scoring aggregation support is layered separately. */
+  readonly metric?: string;
+};
 
 /**
  * Source reference resolved while loading an eval definition.

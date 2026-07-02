@@ -273,7 +273,7 @@ tests:
 workspace:
   repos:
     - path: ./repo
-      repo: \${{ TEST_REPO_URL }}
+      repo: "{{ env.TEST_REPO_URL }}"
 tests:
   - id: test-1
     input: hello
