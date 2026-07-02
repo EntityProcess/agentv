@@ -185,6 +185,7 @@ type RawTestSuite = JsonObject & {
   /** @deprecated Use `tests` instead */
   readonly evalcases?: JsonValue;
   readonly target?: JsonValue;
+  readonly providers?: JsonValue;
   readonly model?: JsonValue;
   readonly experiment?: JsonValue;
   readonly execution?: JsonValue;
@@ -1610,6 +1611,11 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   if (suite.execution !== undefined) {
     throw new Error(
       `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.`,
+    );
+  }
+  if (suite.providers !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'providers' is not a runtime alias in AgentV eval YAML. Use 'targets' for systems under test; provider names backend kind inside each target.`,
     );
   }
   if (suite.model !== undefined) {
