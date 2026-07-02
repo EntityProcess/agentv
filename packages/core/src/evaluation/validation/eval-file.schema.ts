@@ -736,7 +736,7 @@ export const EvalFileSchema: z.ZodType = z
     model: z.never().optional(),
     // Run/result grouping label and flat run controls
     experiment: z.string().min(1).optional(),
-    repeat: ExperimentRepeatSchema.optional(),
+    repeat: z.never().optional(),
     runs: z.never().optional(),
     early_exit: z.never().optional(),
     timeout_seconds: z.number().gt(0).optional(),

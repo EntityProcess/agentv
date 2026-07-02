@@ -35,7 +35,7 @@ The default local layout is:
         targets.yaml
         files/
         graders/
-      run-1/
+      attempt-1/
         result.json
         grading.json
         metrics.json
@@ -45,7 +45,7 @@ The default local layout is:
         outputs/
           answer.md
           file_changes.diff
-      run-2/
+      attempt-2/
         result.json
         grading.json
         metrics.json
@@ -133,11 +133,11 @@ Example row:
   "duration_ms": 184200,
   "result_dir": "refund-eligibility--4f9a7c2d1b6e",
   "summary_path": "refund-eligibility--4f9a7c2d1b6e/summary.json",
-  "grading_path": "refund-eligibility--4f9a7c2d1b6e/run-1/grading.json",
-  "metrics_path": "refund-eligibility--4f9a7c2d1b6e/run-1/metrics.json",
-  "timing_path": "refund-eligibility--4f9a7c2d1b6e/run-1/timing.json",
-  "transcript_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript.json",
-  "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/run-1/transcript-raw.jsonl",
+  "grading_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/grading.json",
+  "metrics_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/metrics.json",
+  "timing_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/timing.json",
+  "transcript_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/transcript.json",
+  "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/transcript-raw.jsonl",
   "transcript_summary": {
     "total_turns": 4,
     "tool_calls": { "file_read": 2, "shell": 1, "unknown": 0 },
@@ -148,9 +148,9 @@ Example row:
     "errors": [],
     "thinking_blocks": 1
   },
-  "output_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
-  "answer_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/answer.md",
-  "file_changes_path": "refund-eligibility--4f9a7c2d1b6e/run-1/outputs/file_changes.diff",
+  "output_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/outputs/answer.md",
+  "answer_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/outputs/answer.md",
+  "file_changes_path": "refund-eligibility--4f9a7c2d1b6e/attempt-1/outputs/file_changes.diff",
   "test_dir": "refund-eligibility--4f9a7c2d1b6e/test"
 }
 ```
@@ -167,12 +167,13 @@ each row and as `summary.json.metadata.tags`. Its reserved `experiment` key
 matches the row `experiment` field, so trend/compare views can group by
 `tags.experiment`.
 
-The `run-1/`, `run-2/`, and later folders under a result directory are artifact
-attempt/execution folders. Do not treat those folder names as the comparison
-dimension. Repeated stochastic samples should be represented by explicit
-metadata such as `sample_index` and `sample_count`; infrastructure retries
-should use retry metadata such as `retry_index`, `retry_count`, and
-`retry_reason` when available.
+Use `repeat` for authoring configuration and `attempts` for produced
+executions. The `attempt-1/`, `attempt-2/`, and later folders under a result
+directory are artifact folders for those produced executions. Do not treat those
+folder names as the comparison dimension. Repeated stochastic samples should be
+represented by explicit metadata such as `sample_index` and `sample_count`;
+infrastructure retries should use retry metadata such as `retry_index`,
+`retry_count`, and `retry_reason` when available.
 
 ## Reader Rules
 

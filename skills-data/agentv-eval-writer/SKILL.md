@@ -19,7 +19,7 @@ Comprehensive docs: https://agentv.dev
 Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVAL.yaml` first, then use TypeScript helpers, Python scripts, or executable graders only when they lower to the same fields or when the evaluation logic must actually run code.
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
-task fixtures, top-level `target`, and top-level run controls. Use `imports.suites`
+task fixtures, top-level `target`, and suite run controls. Use `imports.suites`
 for full child suites that preserve their workspace, shared input, assertions,
 fixtures, and graders. Use `imports.tests` for raw case rows that should run in
 the parent file's context. Inline `tests` are also parent-owned raw cases.
@@ -30,7 +30,8 @@ entries still load with a migration warning, but new evals should use
 individual tests only for `threshold`, `repeat`, `timeout_seconds`, and
 legacy `budget_usd`; keep target selection at top-level `target` or CLI `--target`,
 put suite budget caps under `evaluate_options.budget_usd`, authored concurrency
-under `evaluate_options.max_concurrency`,
+under `evaluate_options.max_concurrency`, suite repeat policy under
+`evaluate_options.repeat`,
 and keep setup and workspace mutation under `workspace`.
 
 Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for new evals, examples, scaffolds, or skill guidance; it was a deprecated compatibility package and has been removed from this repository.
@@ -126,7 +127,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `repeat`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assertions`, `input`
 
 **Test fields:**
 
@@ -572,13 +573,14 @@ See `references/rubric-grader.md` for score-range mode and scoring formula.
 
 ## Suite-Level Quality Threshold
 
-Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use top-level `repeat` when each case should be attempted more than once.
+Set a minimum mean score for the eval suite. If the mean quality score falls below the threshold, the CLI exits with code 1 — useful for CI/CD quality gates. Use `evaluate_options.repeat` when each case should be attempted more than once.
 
 ```yaml
-repeat:
-  count: 3
-  strategy: pass_any
-  early_exit: false
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: false
 threshold: 0.8
 ```
 
@@ -644,6 +646,7 @@ import { defineEval, graders } from '@agentv/sdk';
 export default defineEval({
   name: 'helper-suite',
   target: 'default',
+  // The SDK helper lowers this to evaluate_options.repeat in generated YAML.
   repeat: {
     count: 3,
     strategy: 'pass_any',

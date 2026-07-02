@@ -238,7 +238,7 @@ function runArtifactDir(
   outputDir: string,
   record: { suite?: string; target?: string; test_id?: string },
 ): string {
-  return path.join(outputDir, findIndexEntry(outputDir, record).result_dir, 'run-1');
+  return path.join(outputDir, findIndexEntry(outputDir, record).result_dir, 'attempt-1');
 }
 
 describe('export e2e — multi-provider metrics verification', () => {

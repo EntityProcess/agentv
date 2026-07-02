@@ -5,11 +5,11 @@ name: trials
 description: Repeat runs example with 2 attempts configured inline
 
 target: llm
-repeat:
-  count: 2
-  strategy: pass_any
-  early_exit: false
 evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+    early_exit: false
   budget_usd: 1.00
 
 tests:

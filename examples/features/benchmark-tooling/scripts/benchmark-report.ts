@@ -30,7 +30,7 @@ interface ResultRecord {
   target?: string;
   score: number;
   scores?: EvaluatorScore[];
-  trials?: TrialRecord[];
+  attempts?: TrialRecord[];
   aggregation?: AggregationInfo;
 }
 
@@ -198,8 +198,10 @@ function readResultFile(filePath: string, fallbackTarget: string): ResultRecord[
     if (Array.isArray(raw.scores)) {
       record.scores = raw.scores as EvaluatorScore[];
     }
-    if (Array.isArray(raw.trials)) {
-      record.trials = raw.trials as TrialRecord[];
+    if (Array.isArray(raw.attempts)) {
+      record.attempts = raw.attempts as TrialRecord[];
+    } else if (Array.isArray(raw.trials)) {
+      record.attempts = raw.trials as TrialRecord[];
     }
     if (raw.aggregation && typeof raw.aggregation === 'object') {
       record.aggregation = raw.aggregation as AggregationInfo;

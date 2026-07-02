@@ -343,7 +343,7 @@ describe('agentv eval CLI', () => {
         const resultDir = row.result_dir as string;
         expect(resultDir).not.toContain('/');
         await expectFileExists(path.join(outputDir, resultDir, 'summary.json'));
-        await expectFileExists(path.join(outputDir, resultDir, 'run-1', 'grading.json'));
+        await expectFileExists(path.join(outputDir, resultDir, 'attempt-1', 'grading.json'));
       }
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
@@ -366,7 +366,7 @@ describe('agentv eval CLI', () => {
       const [firstRow] = (await readJsonLines(indexPath)) as Array<Record<string, unknown>>;
       await expectFileExists(path.join(outputDir, firstRow.result_dir as string, 'summary.json'));
       await expectFileExists(
-        path.join(outputDir, firstRow.result_dir as string, 'run-1', 'grading.json'),
+        path.join(outputDir, firstRow.result_dir as string, 'attempt-1', 'grading.json'),
       );
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
@@ -409,10 +409,10 @@ describe('agentv eval CLI', () => {
       expect(canonicalResults).toHaveLength(2);
       await expectFileExists(path.join(outputDir, 'summary.json'));
       for (const row of canonicalResults) {
-        expect(row.transcript_path).toMatch(/run-1\/transcript\.json$/);
+        expect(row.transcript_path).toMatch(/attempt-1\/transcript\.json$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
         expect(row.transcript_summary).toBeDefined();
-        expect(row.transcript_raw_path).toMatch(/run-1\/transcript-raw\.jsonl$/);
+        expect(row.transcript_raw_path).toMatch(/attempt-1\/transcript-raw\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_raw_path as string));
       }
     } finally {
@@ -640,10 +640,11 @@ describe('agentv eval CLI', () => {
           'timeout_seconds: 12',
           'threshold: 0.8',
           'budget_usd: 3',
-          'repeat:',
-          '  count: 2',
-          '  strategy: pass_any',
-          '  early_exit: true',
+          'evaluate_options:',
+          '  repeat:',
+          '    count: 2',
+          '    strategy: pass_any',
+          '    early_exit: true',
           'tests:',
           '  - include: sample.test.yaml',
           '    type: suite',

@@ -25,6 +25,8 @@ export type ExperimentRepeatWire = {
   readonly cost_limit_usd?: number;
 };
 
+export type ExperimentRepeatInput = number | ExperimentRepeatWire;
+
 export type ExperimentRepeat = {
   readonly count: number;
   readonly strategy: TrialStrategy;
@@ -39,7 +41,7 @@ export type ExperimentConfigWire = {
   readonly targets?: readonly ExperimentTargetRefWire[];
   readonly model?: string;
   readonly agent_options?: Record<string, unknown>;
-  readonly repeat?: ExperimentRepeatWire;
+  readonly repeat?: ExperimentRepeatInput;
   readonly timeout_seconds?: number;
   readonly threshold?: number;
   readonly budget_usd?: number;
@@ -220,8 +222,14 @@ function readRepeat(raw: unknown): ExperimentRepeat | undefined {
   if (raw === undefined) {
     return undefined;
   }
+  if (typeof raw === 'number') {
+    return {
+      count: readRequiredPositiveInteger(raw, 'repeat'),
+      strategy: 'pass_any',
+    };
+  }
   if (!isRecord(raw)) {
-    throw new Error('Experiment repeat must be an object.');
+    throw new Error('Experiment repeat must be a positive integer or object.');
   }
   for (const key of Object.keys(raw)) {
     if (!REPEAT_FIELDS.has(key)) {
@@ -322,12 +330,12 @@ function readOptionalRepeatStrategy(raw: unknown): TrialStrategy | undefined {
 function rejectLegacyTopLevelRepeatFields(rawConfig: Record<string, unknown>): void {
   if (rawConfig.runs !== undefined) {
     throw new Error(
-      "Experiment top-level 'runs' has been removed. Use repeat.count and repeat.strategy instead.",
+      "Experiment top-level 'runs' has been removed. Use evaluate_options.repeat.count and evaluate_options.repeat.strategy instead.",
     );
   }
   if (rawConfig.early_exit !== undefined || rawConfig.earlyExit !== undefined) {
     throw new Error(
-      "Experiment top-level 'early_exit' has been removed. Use repeat.early_exit instead.",
+      "Experiment top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
     );
   }
 }

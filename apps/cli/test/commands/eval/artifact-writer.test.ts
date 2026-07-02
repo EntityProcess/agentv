@@ -186,7 +186,7 @@ describe('buildGradingArtifact', () => {
 
     const grading = buildGradingArtifact(result);
 
-    expect(grading.trials).toEqual([
+    expect(grading.attempts).toEqual([
       {
         attempt: 0,
         score: 0.4,
@@ -524,7 +524,7 @@ describe('buildRunSummaryArtifact', () => {
       [makeResult({})],
       'test.eval.yaml',
       'baseline-v2',
-      'run-1',
+      'attempt-1',
       undefined,
       undefined,
       undefined,
@@ -691,8 +691,8 @@ describe('buildIndexArtifactEntry', () => {
       }),
       {
         outputDir: '/tmp/artifacts',
-        gradingPath: '/tmp/artifacts/alpha/run-1/grading.json',
-        timingPath: '/tmp/artifacts/alpha/run-1/timing.json',
+        gradingPath: '/tmp/artifacts/alpha/attempt-1/grading.json',
+        timingPath: '/tmp/artifacts/alpha/attempt-1/timing.json',
         outputPath: '/tmp/artifacts/alpha/outputs/answer.md',
         answerPath: '/tmp/artifacts/alpha/outputs/answer.md',
       },
@@ -722,14 +722,14 @@ describe('buildIndexArtifactEntry', () => {
       ],
       execution_status: 'quality_failure',
       error: 'model drift',
-      grading_path: 'alpha/run-1/grading.json',
-      timing_path: 'alpha/run-1/timing.json',
+      grading_path: 'alpha/attempt-1/grading.json',
+      timing_path: 'alpha/attempt-1/timing.json',
       output_path: 'alpha/outputs/answer.md',
       answer_path: 'alpha/outputs/answer.md',
-      trials: [
+      attempts: [
         {
           attempt: 0,
-          run_path: 'run-1',
+          attempt_path: 'attempt-1',
           score: 0.9,
           verdict: 'pass',
           scores: [
@@ -790,12 +790,12 @@ describe('buildIndexArtifactEntry', () => {
       }),
       {
         outputDir: '/tmp/artifacts',
-        gradingPath: '/tmp/artifacts/alpha/run-1/grading.json',
-        timingPath: '/tmp/artifacts/alpha/run-1/timing.json',
+        gradingPath: '/tmp/artifacts/alpha/attempt-1/grading.json',
+        timingPath: '/tmp/artifacts/alpha/attempt-1/timing.json',
       },
     );
 
-    expect(entry.trials).toEqual([
+    expect(entry.attempts).toEqual([
       { attempt: 0, score: 0.8, verdict: 'pass' },
       { attempt: 1, score: 0.6, verdict: 'fail', error: 'missing token' },
     ]);
@@ -855,9 +855,9 @@ describe('parseJsonlResults', () => {
       artifactPointers: {
         transcript: {
           ref: 'agentv/artifacts/v1',
-          key: 'transcripts/pointer-row/run-1/transcript-raw.jsonl',
+          key: 'transcripts/pointer-row/attempt-1/transcript-raw.jsonl',
           object_version: 'sha256:test',
-          path: 'pointer-row/run-1/transcript-raw.jsonl',
+          path: 'pointer-row/attempt-1/transcript-raw.jsonl',
           sha256: 'test',
           size: 1,
           schema_version: 'agentv.transcript.v1',
@@ -875,7 +875,7 @@ describe('parseJsonlResults', () => {
       test_id: 'file-changes-row',
       target: 'codex',
       score: 1,
-      fileChangesPath: 'file-changes-row/run-1/outputs/file_changes.diff',
+      fileChangesPath: 'file-changes-row/attempt-1/outputs/file_changes.diff',
     })}\n`;
 
     expect(() => parseJsonlResults(content)).toThrow(/Use "file_changes_path"/);
@@ -887,7 +887,7 @@ describe('parseJsonlResults', () => {
       target: 'codex',
       score: 1,
       output: 'done',
-      raw_provider_log_path: 'raw-log-case/run-1/provider.log',
+      raw_provider_log_path: 'raw-log-case/attempt-1/provider.log',
     })}\n`;
 
     const results = parseJsonlResults(content);
@@ -1043,9 +1043,11 @@ describe('writeArtifactsFromResults', () => {
     expect(rootSummary.manifest_path).toBe(RESULT_INDEX_FILENAME);
 
     const alphaEntries = await readdir(path.join(paths.testArtifactDir, alphaRowDir));
-    expect(alphaEntries.sort()).toEqual(['run-1', 'summary.json']);
+    expect(alphaEntries.sort()).toEqual(['attempt-1', 'summary.json']);
 
-    const alphaRunEntries = await readdir(path.join(paths.testArtifactDir, alphaRowDir, 'run-1'));
+    const alphaRunEntries = await readdir(
+      path.join(paths.testArtifactDir, alphaRowDir, 'attempt-1'),
+    );
     expect(alphaRunEntries.sort()).toEqual([
       'grading.json',
       'metrics.json',
@@ -1058,7 +1060,7 @@ describe('writeArtifactsFromResults', () => {
 
     const alphaGrading: GradingArtifact = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, alphaRowDir, 'run-1', 'grading.json'),
+        path.join(paths.testArtifactDir, alphaRowDir, 'attempt-1', 'grading.json'),
         'utf8',
       ),
     );
@@ -1066,7 +1068,10 @@ describe('writeArtifactsFromResults', () => {
     expect(alphaGrading).not.toHaveProperty('execution_metrics');
 
     const alphaTiming: TimingArtifact = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, alphaRowDir, 'run-1', 'timing.json'), 'utf8'),
+      await readFile(
+        path.join(paths.testArtifactDir, alphaRowDir, 'attempt-1', 'timing.json'),
+        'utf8',
+      ),
     );
     expect(alphaTiming.duration_ms).toBe(5000);
 
@@ -1076,9 +1081,9 @@ describe('writeArtifactsFromResults', () => {
     expect(summary.timing.duration_ms).toBe(13000);
 
     expect(indexLines[0]?.summary_path).toBe(`${alphaRowDir}/summary.json`);
-    expect(indexLines[0]?.grading_path).toBe(`${alphaRowDir}/run-1/grading.json`);
-    expect(indexLines[0]?.timing_path).toBe(`${alphaRowDir}/run-1/timing.json`);
-    expect(indexLines[0]?.metrics_path).toBe(`${alphaRowDir}/run-1/metrics.json`);
+    expect(indexLines[0]?.grading_path).toBe(`${alphaRowDir}/attempt-1/grading.json`);
+    expect(indexLines[0]?.timing_path).toBe(`${alphaRowDir}/attempt-1/timing.json`);
+    expect(indexLines[0]?.metrics_path).toBe(`${alphaRowDir}/attempt-1/metrics.json`);
   });
 
   it('writes optional runtime source metadata to summary and index rows', async () => {
@@ -1181,9 +1186,9 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexEntry] = await readIndexLines(paths.indexPath);
     const repeatRowDir = expectRowDir(indexEntry, 'repeat-case');
-    expect(indexEntry?.trials).toMatchObject([
-      { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
-      { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
+    expect(indexEntry?.attempts).toMatchObject([
+      { attempt: 0, attempt_path: 'attempt-1', score: 0.25, verdict: 'fail' },
+      { attempt: 1, attempt_path: 'attempt-2', score: 1, verdict: 'pass' },
     ]);
     expect(indexEntry?.aggregation).toEqual({
       strategy: 'confidence_interval',
@@ -1202,14 +1207,14 @@ describe('writeArtifactsFromResults', () => {
     expect(indexEntry?.metrics_path).toBeUndefined();
 
     const repeatEntries = await readdir(path.join(paths.testArtifactDir, repeatRowDir));
-    expect(repeatEntries.sort()).toEqual(['run-1', 'run-2', 'summary.json']);
+    expect(repeatEntries.sort()).toEqual(['attempt-1', 'attempt-2', 'summary.json']);
 
     const caseSummary = JSON.parse(
       await readFile(path.join(paths.testArtifactDir, repeatRowDir, 'summary.json'), 'utf8'),
     ) as Record<string, unknown>;
     expect(caseSummary).toMatchObject({
-      total_runs: 2,
-      passed_runs: 1,
+      total_attempts: 2,
+      passed_attempts: 1,
       pass_rate: '50%',
       mean_duration_ms: 3000,
       mean_duration_seconds: 3,
@@ -1240,7 +1245,7 @@ describe('writeArtifactsFromResults', () => {
       readFile(path.join(paths.testArtifactDir, repeatRowDir, 'grading.json'), 'utf8'),
     ).rejects.toThrow();
 
-    for (const runDir of ['run-1', 'run-2']) {
+    for (const runDir of ['attempt-1', 'attempt-2']) {
       const runEntries = await readdir(path.join(paths.testArtifactDir, repeatRowDir, runDir));
       expect(runEntries.sort()).toEqual([
         'grading.json',
@@ -1255,7 +1260,7 @@ describe('writeArtifactsFromResults', () => {
 
     const runOneResult = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, repeatRowDir, 'run-1', 'result.json'),
+        path.join(paths.testArtifactDir, repeatRowDir, 'attempt-1', 'result.json'),
         'utf8',
       ),
     ) as Record<string, unknown>;
@@ -1275,17 +1280,17 @@ describe('writeArtifactsFromResults', () => {
       },
     });
     expect(runOneResult).not.toHaveProperty('status');
-    expect(indexEntry?.trials?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
+    expect(indexEntry?.attempts?.[0]?.transcript_summary).toEqual(runOneResult.transcript_summary);
 
     const runTwoAnswer = await readFile(
-      path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'outputs', 'answer.md'),
+      path.join(paths.testArtifactDir, repeatRowDir, 'attempt-2', 'outputs', 'answer.md'),
       'utf8',
     );
     expect(runTwoAnswer).toBe('second attempt');
 
     const runTwoResult = JSON.parse(
       await readFile(
-        path.join(paths.testArtifactDir, repeatRowDir, 'run-2', 'result.json'),
+        path.join(paths.testArtifactDir, repeatRowDir, 'attempt-2', 'result.json'),
         'utf8',
       ),
     ) as Record<string, unknown>;
@@ -1301,7 +1306,7 @@ describe('writeArtifactsFromResults', () => {
       },
     });
     expect(runTwoResult).not.toHaveProperty('status');
-    expect(indexEntry?.trials?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
+    expect(indexEntry?.attempts?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
   });
 
   it('handles empty results array', async () => {
@@ -1338,13 +1343,13 @@ describe('writeArtifactsFromResults', () => {
     const testTwo = indexLines.find((line) => line.test_id === 'test-2');
 
     const gradingOne: GradingArtifact = JSON.parse(
-      await readFile(runArtifactPath(testDir, testOne, 'run-1', 'grading.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, testOne, 'attempt-1', 'grading.json'), 'utf8'),
     );
     const gradingTwo: GradingArtifact = JSON.parse(
-      await readFile(runArtifactPath(testDir, testTwo, 'run-1', 'grading.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, testTwo, 'attempt-1', 'grading.json'), 'utf8'),
     );
     const timingOne: TimingArtifact = JSON.parse(
-      await readFile(runArtifactPath(testDir, testOne, 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, testOne, 'attempt-1', 'timing.json'), 'utf8'),
     );
 
     expect(gradingOne.summary.total).toBe(1);
@@ -1408,11 +1413,14 @@ describe('writeArtifactsFromResults', () => {
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'transcript-case');
 
-    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript.json');
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'attempt-1', 'transcript.json');
     const transcript = JSON.parse(await readFile(transcriptPath, 'utf8'));
 
     const rawTranscriptLines = (
-      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl'), 'utf8')
+      await readFile(
+        runArtifactPath(testDir, indexLine, 'attempt-1', 'transcript-raw.jsonl'),
+        'utf8',
+      )
     )
       .trim()
       .split('\n')
@@ -1495,17 +1503,17 @@ describe('writeArtifactsFromResults', () => {
       role: 'user',
     });
     await expect(
-      readFile(path.join(testDir, rowDir, 'run-1', 'transcript.jsonl'), 'utf8'),
+      readFile(path.join(testDir, rowDir, 'attempt-1', 'transcript.jsonl'), 'utf8'),
     ).rejects.toThrow();
     await expect(
-      readFile(runArtifactPath(testDir, indexLine, 'run-1', 'trace.json'), 'utf8'),
+      readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'trace.json'), 'utf8'),
     ).rejects.toThrow();
 
     expect(indexLine).not.toHaveProperty('trace_path');
-    expect(indexLine?.transcript_path).toBe(`${rowDir}/run-1/transcript.json`);
-    expect(indexLine?.transcript_raw_path).toBe(`${rowDir}/run-1/transcript-raw.jsonl`);
+    expect(indexLine?.transcript_path).toBe(`${rowDir}/attempt-1/transcript.json`);
+    expect(indexLine?.transcript_raw_path).toBe(`${rowDir}/attempt-1/transcript-raw.jsonl`);
     expect(indexLine?.transcript_summary).toEqual(transcript.transcript_summary);
-    expect(indexLine?.metrics_path).toBe(`${rowDir}/run-1/metrics.json`);
+    expect(indexLine?.metrics_path).toBe(`${rowDir}/attempt-1/metrics.json`);
     expect(indexLine.metrics_path.endsWith(CANONICAL_METRICS_ARTIFACT_PATH)).toBe(true);
 
     expect(indexLine.artifact_pointers).toBeUndefined();
@@ -1608,26 +1616,26 @@ describe('writeArtifactsFromResults', () => {
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'summary-case');
 
-    expect(indexLine?.metrics_path).toBe(`${rowDir}/run-1/metrics.json`);
+    expect(indexLine?.metrics_path).toBe(`${rowDir}/attempt-1/metrics.json`);
     expect(indexLine?.file_changes_path).toBe(
-      `${rowDir}/run-1/${CANONICAL_FILE_CHANGES_ARTIFACT_PATH}`,
+      `${rowDir}/attempt-1/${CANONICAL_FILE_CHANGES_ARTIFACT_PATH}`,
     );
     await expect(
       readFile(
-        runArtifactPath(testDir, indexLine, 'run-1', 'outputs', 'file_changes.diff'),
+        runArtifactPath(testDir, indexLine, 'attempt-1', 'outputs', 'file_changes.diff'),
         'utf8',
       ),
     ).resolves.toBe(fileChanges);
 
     const runResult = JSON.parse(
-      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'result.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'result.json'), 'utf8'),
     );
     expect(runResult.file_changes_path).toBe('./outputs/file_changes.diff');
     expect(runResult.output_paths.file_changes).toBe('./outputs/file_changes.diff');
 
     const summary = MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'metrics.json'), 'utf8'),
+        await readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'metrics.json'), 'utf8'),
       ),
     );
 
@@ -1646,7 +1654,7 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(summary.source_artifacts).not.toHaveProperty('trace_path');
     await expect(
-      readFile(runArtifactPath(testDir, indexLine, 'run-1', 'trace.json'), 'utf8'),
+      readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'trace.json'), 'utf8'),
     ).rejects.toThrow();
     expect(summary.metrics.total_turns).toBe(2);
     expect(summary.metrics.total_tool_calls).toBe(4);
@@ -1720,7 +1728,7 @@ describe('writeArtifactsFromResults', () => {
     expect(summary).not.toHaveProperty('usage_summary');
 
     const timing = JSON.parse(
-      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'timing.json'), 'utf8'),
     );
     expect(timing).toMatchObject({
       total_tokens: 140,
@@ -1778,21 +1786,21 @@ describe('writeArtifactsFromResults', () => {
     const estimatedRow = indexLines.find((line) => line.test_id === 'estimated-usage');
 
     const aggregateTiming = JSON.parse(
-      await readFile(runArtifactPath(testDir, aggregateRow, 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, aggregateRow, 'attempt-1', 'timing.json'), 'utf8'),
     );
     const estimatedTiming = JSON.parse(
-      await readFile(runArtifactPath(testDir, estimatedRow, 'run-1', 'timing.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, estimatedRow, 'attempt-1', 'timing.json'), 'utf8'),
     );
     const runSummary = JSON.parse(await readFile(path.join(testDir, 'summary.json'), 'utf8'));
 
     MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(runArtifactPath(testDir, aggregateRow, 'run-1', 'metrics.json'), 'utf8'),
+        await readFile(runArtifactPath(testDir, aggregateRow, 'attempt-1', 'metrics.json'), 'utf8'),
       ),
     );
     MetricsArtifactWireSchema.parse(
       JSON.parse(
-        await readFile(runArtifactPath(testDir, estimatedRow, 'run-1', 'metrics.json'), 'utf8'),
+        await readFile(runArtifactPath(testDir, estimatedRow, 'attempt-1', 'metrics.json'), 'utf8'),
       ),
     );
 
@@ -1853,18 +1861,18 @@ describe('writeArtifactsFromResults', () => {
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'raw-log-case');
 
-    const copiedRawLogPath = runArtifactPath(testDir, indexLine, 'run-1', 'provider.log');
+    const copiedRawLogPath = runArtifactPath(testDir, indexLine, 'attempt-1', 'provider.log');
     await expect(readFile(copiedRawLogPath, 'utf8')).rejects.toThrow();
 
-    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl');
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'attempt-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);
     await expect(readFile(rawLogPath, 'utf8')).resolves.toBe(rawLog);
     await expect(
-      readFile(path.join(testDir, rowDir, 'run-1', 'transcript.jsonl'), 'utf8'),
+      readFile(path.join(testDir, rowDir, 'attempt-1', 'transcript.jsonl'), 'utf8'),
     ).rejects.toThrow();
 
     const transcript = JSON.parse(
-      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'transcript.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'transcript.json'), 'utf8'),
     );
     expect(transcript.turns[0]).toMatchObject({
       v: 1,
@@ -1874,8 +1882,8 @@ describe('writeArtifactsFromResults', () => {
     });
 
     expect(indexLine.raw_provider_log_path).toBeUndefined();
-    expect(indexLine.transcript_path).toBe(`${rowDir}/run-1/transcript.json`);
-    expect(indexLine.transcript_raw_path).toBe(`${rowDir}/run-1/transcript-raw.jsonl`);
+    expect(indexLine.transcript_path).toBe(`${rowDir}/attempt-1/transcript.json`);
+    expect(indexLine.transcript_raw_path).toBe(`${rowDir}/attempt-1/transcript-raw.jsonl`);
     expect(indexLine).not.toHaveProperty('transcript_json_path');
   });
 
@@ -1920,7 +1928,7 @@ describe('writeArtifactsFromResults', () => {
     expect(JSON.stringify(indexLine)).not.toContain('api_key');
 
     const transcriptJson = await readFile(
-      runArtifactPath(testDir, indexLine, 'run-1', 'transcript.json'),
+      runArtifactPath(testDir, indexLine, 'attempt-1', 'transcript.json'),
       'utf8',
     );
     expect(transcriptJson).not.toContain('secret');
@@ -1939,12 +1947,12 @@ describe('writeArtifactsFromResults', () => {
     const paths = await writeArtifactsFromResults(results, testDir);
     const [indexLine] = await readIndexLines(paths.indexPath);
 
-    const transcriptPath = runArtifactPath(testDir, indexLine, 'run-1', 'transcript-raw.jsonl');
+    const transcriptPath = runArtifactPath(testDir, indexLine, 'attempt-1', 'transcript-raw.jsonl');
     await expect(readFile(transcriptPath, 'utf8')).rejects.toThrow();
 
     expect(indexLine).not.toHaveProperty('transcript_path');
     expect(indexLine.metrics_path).toBe(
-      `${expectRowDir(indexLine, 'no-transcript-case')}/run-1/metrics.json`,
+      `${expectRowDir(indexLine, 'no-transcript-case')}/attempt-1/metrics.json`,
     );
     expect(indexLine.artifact_pointers).toBeUndefined();
   });
@@ -1973,11 +1981,11 @@ describe('writeArtifactsFromResults', () => {
     const [indexLine] = await readIndexLines(paths.indexPath);
     const rowDir = expectRowDir(indexLine, 'shared-id');
 
-    expect(indexLine.grading_path).toBe(`${rowDir}/run-1/grading.json`);
+    expect(indexLine.grading_path).toBe(`${rowDir}/attempt-1/grading.json`);
     expect(rowDir).not.toContain('/');
 
     const grading: GradingArtifact = JSON.parse(
-      await readFile(runArtifactPath(testDir, indexLine, 'run-1', 'grading.json'), 'utf8'),
+      await readFile(runArtifactPath(testDir, indexLine, 'attempt-1', 'grading.json'), 'utf8'),
     );
 
     expect(grading.assertions[0].text).toBe('baseline-check');
@@ -1996,11 +2004,11 @@ describe('writeArtifactsFromResults', () => {
     const rowDirs = indexLines.map((line) => expectRowDir(line, 'shared-id'));
     expect(new Set(rowDirs).size).toBe(2);
     expect(indexLines.map((line) => line.grading_path)).toEqual(
-      rowDirs.map((rowDir) => `${rowDir}/run-1/grading.json`),
+      rowDirs.map((rowDir) => `${rowDir}/attempt-1/grading.json`),
     );
     const answers = await Promise.all(
       indexLines.map((line) =>
-        readFile(runArtifactPath(testDir, line, 'run-1', 'outputs', 'answer.md'), 'utf8'),
+        readFile(runArtifactPath(testDir, line, 'attempt-1', 'outputs', 'answer.md'), 'utf8'),
       ),
     );
     expect(answers.sort()).toEqual(['alpha answer', 'beta answer']);
@@ -2088,7 +2096,7 @@ describe('writeArtifactsFromResults', () => {
         id: 'alpha',
         key: 'alpha',
         dimensions: {
-          runId: 'run-1',
+          runId: 'attempt-1',
           suite: 'variant-suite',
           evalPath: 'evals/variant.eval.yaml',
           testId: 'shared-id',
@@ -2110,7 +2118,7 @@ describe('writeArtifactsFromResults', () => {
         id: 'beta',
         key: 'beta',
         dimensions: {
-          runId: 'run-1',
+          runId: 'attempt-1',
           suite: 'variant-suite',
           evalPath: 'evals/variant.eval.yaml',
           testId: 'shared-id',

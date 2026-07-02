@@ -197,7 +197,7 @@ describe('agentv grade prepared attempts', () => {
     });
     expect(typeof row.metadata.prepared_attempt.baseline_commit).toBe('string');
 
-    expect(row.file_changes_path).toMatch(/\/run-1\/outputs\/file_changes\.diff$/);
+    expect(row.file_changes_path).toMatch(/\/attempt-1\/outputs\/file_changes\.diff$/);
     await expect(readFile(path.join(runDir, row.file_changes_path), 'utf8')).resolves.toContain(
       '+manual edit',
     );

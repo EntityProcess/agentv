@@ -261,8 +261,8 @@ function lowerEvalYamlValue(value: unknown): unknown {
 
 function lowerEvalDefinition(definition: unknown): Record<string, unknown> {
   const lowered = lowerEvalYamlValue(definition) as Record<string, unknown>;
-  const { budget_usd: budgetUsd, ...loweredWithoutBudget } = lowered;
-  if (budgetUsd === undefined) {
+  const { budget_usd: budgetUsd, repeat, ...loweredWithoutRuntimeOptions } = lowered;
+  if (budgetUsd === undefined && repeat === undefined) {
     return lowered;
   }
 
@@ -273,11 +273,14 @@ function lowerEvalDefinition(definition: unknown): Record<string, unknown> {
       ? { ...(lowered.evaluate_options as Record<string, unknown>) }
       : {};
 
-  if (evaluateOptions.budget_usd === undefined) {
+  if (budgetUsd !== undefined && evaluateOptions.budget_usd === undefined) {
     evaluateOptions.budget_usd = budgetUsd;
   }
+  if (repeat !== undefined && evaluateOptions.repeat === undefined) {
+    evaluateOptions.repeat = repeat;
+  }
   return {
-    ...loweredWithoutBudget,
+    ...loweredWithoutRuntimeOptions,
     evaluate_options: evaluateOptions,
   };
 }
@@ -319,7 +322,7 @@ function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
   for (const field of ['model', 'policy', 'execution', 'runs', 'earlyExit']) {
     if (Object.prototype.hasOwnProperty.call(rawDefinition, field)) {
       throw new Error(
-        `defineEval() does not accept top-level '${field}'. Put target overrides in target and repeat controls under repeat.`,
+        `defineEval() does not accept top-level '${field}'. Put target overrides in target and repeat controls under repeat, which serializes to evaluate_options.repeat.`,
       );
     }
   }

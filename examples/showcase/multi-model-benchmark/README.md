@@ -130,16 +130,16 @@ Weighted average formula: `(3×accuracy + 2×completeness + 1×clarity) / 6`
 
 ### 3. Repeat Runs
 
-Each test runs twice through top-level repeat controls. The repeated-attempt
+Each test runs twice through `evaluate_options.repeat`. The repeated-attempt
 aggregation below treats a case as successful when any completed attempt
 succeeds.
 
 ```yaml
-repeat:
-  count: 2
-  strategy: pass_any
-  early_exit: false
 evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+    early_exit: false
   budget_usd: 2.00
 ```
 
@@ -204,14 +204,14 @@ assertions:
 
 ### Adjusting run count
 
-Increase `repeat.count` for more variability data (at proportional cost):
+Increase `evaluate_options.repeat.count` for more variability data (at proportional cost):
 
 ```yaml
-repeat:
-  count: 5
-  strategy: pass_any
-  early_exit: false
 evaluate_options:
+  repeat:
+    count: 5
+    strategy: pass_any
+    early_exit: false
   budget_usd: 5.00
 ```
 

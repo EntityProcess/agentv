@@ -127,8 +127,8 @@ describe('result-table model', () => {
           eval_path: 'evals/strict-layout.eval.yaml',
           target: 'openai',
           trials: [
-            { attempt: 0, run_path: 'run-1', score: 1, verdict: 'pass' },
-            { attempt: 1, run_path: 'run-2', score: 0.4, verdict: 'fail' },
+            { attempt: 0, attempt_path: 'attempt-1', score: 1, verdict: 'pass' },
+            { attempt: 1, attempt_path: 'attempt-2', score: 0.4, verdict: 'fail' },
           ],
         }),
       ],

@@ -34,8 +34,17 @@ export interface ResultManifestRecord {
   readonly variant?: string;
   readonly score: number;
   readonly scores?: readonly Record<string, unknown>[];
+  readonly attempts?: readonly {
+    readonly attempt?: number;
+    readonly attempt_path?: string;
+    readonly run_path?: string;
+    readonly score?: number;
+    readonly verdict?: string;
+    readonly [key: string]: unknown;
+  }[];
   readonly trials?: readonly {
     readonly attempt?: number;
+    readonly attempt_path?: string;
     readonly run_path?: string;
     readonly score?: number;
     readonly verdict?: string;

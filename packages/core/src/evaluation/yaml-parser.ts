@@ -735,8 +735,14 @@ async function loadTestsFromParsedYamlValue(
           ? (caseExecution.threshold as number)
           : undefined;
       const caseRun = mergeRunOverrides(
-        caseThreshold !== undefined ? { threshold: caseThreshold } : undefined,
-        normalizeRunOverride(renderedCase.run, `test '${id ?? 'unknown'}'.run`),
+        mergeRunOverrides(
+          caseThreshold !== undefined ? { threshold: caseThreshold } : undefined,
+          normalizeRunOverride(renderedCase.run, `test '${id ?? 'unknown'}'.run`),
+        ),
+        normalizeOptionsRepeatOverride(
+          renderedCase.options,
+          `test '${id ?? 'unknown'}'.options.repeat`,
+        ),
       );
 
       // Resolve input with shorthand support (pass suite-level input_files for merge)
@@ -1151,6 +1157,22 @@ function normalizeRunOverride(value: unknown, label: string): EvalRunOverride | 
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`Invalid ${label}: ${reason}`);
   }
+}
+
+function normalizeOptionsRepeatOverride(
+  value: JsonValue | undefined,
+  label: string,
+): EvalRunOverride | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isJsonObject(value)) {
+    return undefined;
+  }
+  if (value.repeat === undefined) {
+    return undefined;
+  }
+  return normalizeRunOverride({ repeat: value.repeat }, label);
 }
 
 function mergeRunOverrides(
@@ -1613,7 +1635,7 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.policy !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat, timeout_seconds, and threshold at the top level, and budget_usd under evaluate_options.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'policy' is not part of eval YAML. Put repeat under evaluate_options.repeat, timeout_seconds and threshold at the top level, and budget_usd under evaluate_options.`,
     );
   }
   if (suite.execution !== undefined) {
@@ -1633,12 +1655,17 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
   }
   if (suite.runs !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'runs' has been removed. Use repeat.count instead.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'runs' has been removed. Use evaluate_options.repeat.count instead.`,
     );
   }
   if (suite.early_exit !== undefined) {
     throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'early_exit' has been removed. Use repeat.early_exit instead.`,
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.`,
+    );
+  }
+  if (suite.repeat !== undefined) {
+    throw new Error(
+      `Invalid eval runtime config in ${evalFilePath}: top-level 'repeat' has been removed. Use evaluate_options.repeat instead.`,
     );
   }
   if (suite.on_run_complete !== undefined) {
@@ -1655,10 +1682,11 @@ function normalizeSuiteExperimentConfig(parsed: JsonObject): ExperimentConfig | 
   const targetSpec = parseEvalTargetSpec(suite.target);
   const experimentName = asString(suite.experiment);
   const budgetUsd = extractBudgetUsd(parsed);
+  const evaluateOptions = isJsonObject(suite.evaluate_options) ? suite.evaluate_options : undefined;
   const runtimeConfig: JsonObject = {
     ...(experimentName !== undefined ? { name: experimentName } : {}),
     ...(targetSpec !== undefined ? { target: targetSpec.name } : {}),
-    ...(suite.repeat !== undefined ? { repeat: suite.repeat } : {}),
+    ...(evaluateOptions?.repeat !== undefined ? { repeat: evaluateOptions.repeat } : {}),
     ...(suite.timeout_seconds !== undefined ? { timeout_seconds: suite.timeout_seconds } : {}),
     ...(budgetUsd !== undefined ? { budget_usd: budgetUsd } : {}),
     ...(suite.threshold !== undefined ? { threshold: suite.threshold } : {}),

@@ -93,6 +93,7 @@ export interface AssertionEntry {
 
 export interface EvalCaseTrial {
   attempt?: number;
+  attempt_path?: string;
   run_path?: string;
   score?: number;
   verdict?: string;
@@ -240,6 +241,7 @@ export interface EvalResult {
   externalTrace?: CamelExternalTraceMetadata;
   metadata?: Record<string, unknown>;
   source_traceability?: SourceTraceability;
+  attempts?: EvalCaseTrial[];
   trials?: EvalCaseTrial[];
   aggregation?: EvalTrialAggregation;
   result_dir?: string;

@@ -17,7 +17,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses top-level target and repeat controls as the canonical runtime block', async () => {
+  it('parses evaluate_options.repeat object as the canonical runtime block', async () => {
     const evalPath = path.join(tempDir, 'runtime.eval.yaml');
     await writeFile(
       evalPath,
@@ -29,10 +29,11 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  model: gpt-5.1',
         '  reasoning_effort: high',
         'threshold: 0.7',
-        'repeat:',
-        '  count: 2',
-        '  strategy: pass_any',
-        '  early_exit: true',
+        'evaluate_options:',
+        '  repeat:',
+        '    count: 2',
+        '    strategy: pass_any',
+        '    early_exit: true',
         'timeout_seconds: 30',
         'budget_usd: 1.5',
         'tests:',
@@ -63,6 +64,28 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       },
     });
     expect(suite.targets).toBeUndefined();
+  });
+
+  it('parses evaluate_options.repeat number shorthand', async () => {
+    const evalPath = path.join(tempDir, 'runtime-repeat-shorthand.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: runtime-repeat-shorthand',
+        'target: codex',
+        'evaluate_options:',
+        '  repeat: 3',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.experimentConfig?.repeat).toEqual({ count: 3, strategy: 'pass_any' });
   });
 
   it('parses default_test.threshold separately from legacy top-level threshold', async () => {
@@ -247,12 +270,14 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
   });
 
-  it('rejects removed top-level runs and early_exit controls', async () => {
+  it('rejects removed top-level repeat controls', async () => {
     const evalPath = path.join(tempDir, 'removed-repeat-controls.eval.yaml');
     await writeFile(
       evalPath,
       [
         'target: codex',
+        'repeat:',
+        '  count: 2',
         'runs: 2',
         'early_exit: true',
         'tests:',
@@ -263,7 +288,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/repeat.count/);
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/evaluate_options\.repeat/);
   });
 
   it('rejects top-level execution blocks and non-string experiment values', async () => {
@@ -683,9 +708,10 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: parent-suite',
         'target: parent-target',
         'threshold: 0.8',
-        'repeat:',
-        '  count: 3',
-        '  strategy: pass_any',
+        'evaluate_options:',
+        '  repeat:',
+        '    count: 3',
+        '    strategy: pass_any',
         'timeout_seconds: 30',
         'budget_usd: 1.5',
         'input: parent shared input',
@@ -714,6 +740,55 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     ]);
     expect(test.assertions?.[0]?.type).toBe('contains');
     expect(test.assertions?.[0]).toMatchObject({ value: 'child' });
+  });
+
+  it('applies tests[].options.repeat over the global repeat object', async () => {
+    const evalPath = path.join(tempDir, 'test-options-repeat.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: test-options-repeat',
+        'target: codex',
+        'evaluate_options:',
+        '  repeat:',
+        '    count: 4',
+        '    strategy: pass_all',
+        'tests:',
+        '  - id: global-repeat',
+        '    input: hello',
+        '    criteria: ok',
+        '  - id: case-repeat-count',
+        '    input: hello',
+        '    criteria: ok',
+        '    options:',
+        '      repeat: 2',
+        '  - id: case-repeat-object',
+        '    input: hello',
+        '    criteria: ok',
+        '    run:',
+        '      threshold: 0.9',
+        '    options:',
+        '      repeat:',
+        '        count: 3',
+        '        strategy: mean',
+        '        early_exit: false',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+    const byId = new Map(suite.tests.map((test) => [test.id, test]));
+
+    expect(suite.experimentConfig?.repeat).toEqual({ count: 4, strategy: 'pass_all' });
+    expect(byId.get('global-repeat')?.run).toBeUndefined();
+    expect(byId.get('case-repeat-count')?.run?.repeat).toEqual({
+      count: 2,
+      strategy: 'pass_any',
+    });
+    expect(byId.get('case-repeat-object')?.run).toMatchObject({
+      threshold: 0.9,
+      repeat: { count: 3, strategy: 'mean', earlyExit: false },
+    });
   });
 
   it('rejects parent workspace when importing eval suites with type: suite', async () => {

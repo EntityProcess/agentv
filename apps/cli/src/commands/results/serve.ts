@@ -805,8 +805,9 @@ function addTrialRunCatalogEntries(
     ? normalizeArtifactRelativePath(record.result_dir)
     : undefined;
   if (!resultDir) return;
-  for (const trial of record.trials ?? []) {
-    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+  for (const trial of record.attempts ?? record.trials ?? []) {
+    const rawPath = typeof trial.attempt_path === 'string' ? trial.attempt_path : trial.run_path;
+    const runPath = rawPath ? normalizeArtifactRelativePath(rawPath) : undefined;
     if (!runPath) continue;
     const runDir = path.posix.join(resultDir, runPath);
     addDirectArtifactCatalogEntry(
@@ -1145,13 +1146,15 @@ function buildRepeatTrialReadModels(
   baseDir: string,
   record: ResultManifestRecord,
 ): Array<Record<string, unknown>> | undefined {
-  if (!record.trials || record.trials.length === 0) return undefined;
+  const attempts = record.attempts ?? record.trials;
+  if (!attempts || attempts.length === 0) return undefined;
   const resultDir = record.result_dir
     ? normalizeArtifactRelativePath(record.result_dir)
     : undefined;
 
-  return record.trials.map((trial) => {
-    const runPath = trial.run_path ? normalizeArtifactRelativePath(trial.run_path) : undefined;
+  return attempts.map((trial) => {
+    const rawPath = typeof trial.attempt_path === 'string' ? trial.attempt_path : trial.run_path;
+    const runPath = rawPath ? normalizeArtifactRelativePath(rawPath) : undefined;
     const metricsPath = caseTrialArtifactPath(resultDir, runPath, 'metrics.json');
     const timingPath = caseTrialArtifactPath(resultDir, runPath, 'timing.json');
     const gradingPath = caseTrialArtifactPath(resultDir, runPath, 'grading.json');
@@ -1202,7 +1205,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
   return results.map((result, index) => {
     const record = records[index];
     if (!record) return result;
-    const trials = buildRepeatTrialReadModels(baseDir, record);
+    const attempts = buildRepeatTrialReadModels(baseDir, record);
     return {
       ...result,
       ...(record.aggregation && { aggregation: record.aggregation }),
@@ -1217,7 +1220,7 @@ function attachRunDetailReadModelFields<T extends Record<string, unknown>>(
       ...(record.transcript_raw_path && { transcript_raw_path: record.transcript_raw_path }),
       ...(record.output_path && { output_path: record.output_path }),
       ...(record.answer_path && { answer_path: record.answer_path }),
-      ...(trials && { trials }),
+      ...(attempts && { attempts }),
     };
   });
 }

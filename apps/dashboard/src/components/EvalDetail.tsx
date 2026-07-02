@@ -64,7 +64,7 @@ function findFirstFile(nodes: FileNode[]): string | null {
 }
 
 function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
-  return trial.run_path ?? `run-${trial.attempt ?? index + 1}`;
+  return trial.attempt_path ?? trial.run_path ?? `attempt-${trial.attempt ?? index + 1}`;
 }
 
 function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {

@@ -76,12 +76,12 @@ describe('results validate', () => {
           scores: [{ name: 'quality', type: 'llm', score: 1, verdict: 'pass' }],
           execution_status: 'ok',
           summary_path: 'test-greeting/summary.json',
-          trace_path: 'test-greeting/run-1/trace.json',
+          trace_path: 'test-greeting/attempt-1/trace.json',
           artifact_pointers: {
             trace: {
               ref: 'agentv/artifacts/v1',
-              key: 'traces/test-greeting/run-1/trace.json',
-              path: 'test-greeting/run-1/trace.json',
+              key: 'traces/test-greeting/attempt-1/trace.json',
+              path: 'test-greeting/attempt-1/trace.json',
             },
           },
         })}\n`,
