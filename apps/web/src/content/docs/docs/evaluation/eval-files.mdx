@@ -41,12 +41,15 @@ workspace:
     - path: ./support-app
       repo: acme/support-app
       commit: main
-input: Answer using the refund policy in the workspace.
+prompts:
+  - id: refund-policy
+    prompt: Answer using the refund policy in the workspace. Customer: {{ customer_question }}
 assertions:
   - Applies the refund policy correctly
 tests:
   - id: missing-receipt
-    input: Can this customer get a refund without a receipt?
+    vars:
+      customer_question: Can this customer get a refund without a receipt?
 ```
 
 Raw cases are just case data:
@@ -96,7 +99,13 @@ The primary format. A single file contains metadata, inline runtime config, and 
 
 ```yaml
 description: Math problem solving evaluation
-target: default
+targets:
+  - id: default
+    label: default
+
+prompts:
+  - id: math
+    prompt: "{{ question }}"
 
 assertions:
   - Correctly calculates the answer
@@ -104,7 +113,8 @@ assertions:
 
 tests:
   - id: addition
-    input: What is 15 + 27?
+    vars:
+      question: What is 15 + 27?
     expected_output: "42"
 ```
 
@@ -116,7 +126,9 @@ tests:
 | `suite` | Optional suite identifier |
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
+| `targets` | Promptfoo-style target matrix. `id` is the provider/backend locator identity and `label` is the display/comparison name. |
 | `experiment` | Optional run/result grouping label |
+| `prompts` | Top-level prompt matrix. Supports string prompts, chat message arrays, and file prompt objects. Prompts combine with `targets`, `tests`, and `repeat.count` into deterministic execution instances. |
 | `repeat` | Optional repeat policy with `count`, `strategy`, and `early_exit` |
 | `timeout_seconds` | Optional per-case timeout |
 | `evaluate_options` | Optional evaluation runtime options such as `budget_usd` and `max_concurrency` |
@@ -125,7 +137,7 @@ tests:
 | `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
 | `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
-| `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
+| `input` | Deprecated compatibility input. Prefer top-level `prompts` plus per-test `vars`. |
 
 `workspace` is what the agent can inspect or modify through tools, not prompt
 input. Put instructions in `input`; put repos, templates, and lifecycle setup in
@@ -450,10 +462,12 @@ MY_REPO_COMMIT=main
 
 ## Per-Test Template Variables
 
-Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{name}}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
+Eval YAML supports per-test `vars` for data-driven prompt templates. Prefer top-level `prompts` as the authored input surface, then use `{{name}}` placeholders to vary each test row.
 
 ```yaml
-input: "Answer clearly: {{question}}"
+prompts:
+  - id: clear-answer
+    prompt: "Answer clearly: {{question}}"
 
 tests:
   - id: capital
@@ -461,9 +475,6 @@ tests:
       question: What is the capital of France?
       expected_answer: Paris
     criteria: "Answers {{question}} correctly"
-    input:
-      - role: user
-        content: "Question: {{question}}"
     expected_output: "{{expected_answer}}"
 ```
 
@@ -471,7 +482,7 @@ tests:
 
 - `vars` is defined per test as an object
 - `{{name}}` and dotted paths like `{{ user.name }}` are supported
-- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, and conversation turn `input` / `expected_output`
+- Substitution applies to `prompts`, `criteria`, `expected_output`, and conversation turn `input` / `expected_output`
 - When the whole string is a single placeholder, the original JSON value is preserved
 - Missing variables are left unchanged, so unrelated template syntax is not silently blanked out
 - `vars` interpolation is separate from environment interpolation: `{{question}}` uses test data, `${{ PROJECT_NAME }}` uses environment variables

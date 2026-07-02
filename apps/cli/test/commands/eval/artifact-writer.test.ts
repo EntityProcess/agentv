@@ -1103,17 +1103,24 @@ describe('writeArtifactsFromResults', () => {
   });
 
   it('writes repeat runs in AgentV case and run folders', async () => {
+    const prompt = { id: 'direct', label: 'Direct prompt', kind: 'string' as const };
     const results = [
       makeResult({
         testId: 'repeat-case',
+        prompt,
         score: 1,
         trials: [
           {
             attempt: 0,
+            sampleIndex: 0,
+            retryIndex: 0,
             score: 0.25,
             verdict: 'fail',
             result: makeResult({
               testId: 'repeat-case',
+              prompt,
+              sampleIndex: 0,
+              retryIndex: 0,
               score: 0.25,
               output: 'first attempt',
               durationMs: 2000,
@@ -1122,10 +1129,15 @@ describe('writeArtifactsFromResults', () => {
           },
           {
             attempt: 1,
+            sampleIndex: 1,
+            retryIndex: 0,
             score: 1,
             verdict: 'pass',
             result: makeResult({
               testId: 'repeat-case',
+              prompt,
+              sampleIndex: 1,
+              retryIndex: 0,
               score: 1,
               output: 'second attempt',
               durationMs: 4000,
@@ -1159,9 +1171,25 @@ describe('writeArtifactsFromResults', () => {
 
     const [indexEntry] = await readIndexLines(paths.indexPath);
     const repeatRowDir = expectRowDir(indexEntry, 'repeat-case');
+    expect(indexEntry?.prompt_id).toBe('direct');
+    expect(indexEntry?.prompt_label).toBe('Direct prompt');
     expect(indexEntry?.trials).toEqual([
-      { attempt: 0, run_path: 'run-1', score: 0.25, verdict: 'fail' },
-      { attempt: 1, run_path: 'run-2', score: 1, verdict: 'pass' },
+      {
+        attempt: 0,
+        sample_index: 0,
+        retry_index: 0,
+        run_path: 'run-1',
+        score: 0.25,
+        verdict: 'fail',
+      },
+      {
+        attempt: 1,
+        sample_index: 1,
+        retry_index: 0,
+        run_path: 'run-2',
+        score: 1,
+        verdict: 'pass',
+      },
     ]);
     expect(indexEntry?.aggregation).toEqual({
       strategy: 'confidence_interval',

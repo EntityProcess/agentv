@@ -439,6 +439,8 @@ export interface RunEvalCaseOptions {
   readonly evalFilePath?: string;
   /** Repo root used to serialize replay fixture eval_path as a stable relative path. */
   readonly repoRoot?: string;
+  /** Zero-based sample index produced by repeat.count. */
+  readonly sampleIndex?: number;
 }
 
 export interface ProgressEvent {
@@ -1652,6 +1654,7 @@ async function runBatchEvaluation(options: {
         promptInputs,
         nowFn,
         attempt: 0,
+        sampleIndex: 0,
         graderProvider: await resolveGraderProvider(target),
         agentTimeoutMs,
         output,
@@ -1693,6 +1696,7 @@ async function runBatchEvaluation(options: {
         'evaluator',
         'evaluator_error',
         verbose,
+        { sampleIndex: 0, retryIndex: 0 },
       );
       results.push(errorResult);
       if (onResult) {
@@ -1802,6 +1806,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     replayRecording,
     evalFilePath,
     repoRoot,
+    sampleIndex = 0,
   } = options;
   const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
@@ -1846,6 +1851,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       setupError?.failureStage ?? 'setup',
       setupError?.failureReasonCode ?? 'script_error',
       verbose,
+      { sampleIndex },
     );
   }
 
@@ -1879,6 +1885,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       targetResolver,
       availableTargets,
       evalFilePath,
+      sampleIndex,
     });
 
     // Cleanup workspace (same logic as standard path)
@@ -1971,6 +1978,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       'agent',
       'provider_error',
       verbose,
+      { sampleIndex, retryIndex: attempt },
     );
     // On error, keep workspace for debugging (unless forceCleanup is set)
     if (workspacePath) {
@@ -2146,6 +2154,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       promptInputs,
       nowFn,
       attempt,
+      sampleIndex,
       graderProvider,
       agentTimeoutMs,
       output,
@@ -2282,6 +2291,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       'evaluator',
       'evaluator_error',
       verbose,
+      { sampleIndex, retryIndex: attempt },
     );
     // On error, keep workspace for debugging (only for per-case workspaces)
     if (workspacePath && !isSharedWorkspace) {
@@ -2316,6 +2326,7 @@ async function runEvalCaseWithTrials(
       ...options,
       // Disable cache for individual trials (each should be a fresh invocation)
       useCache: false,
+      sampleIndex: attempt,
       // Force cleanup for intermediate trials
       cleanupWorkspaces: isLastDeclaredTrial ? options.cleanupWorkspaces : true,
       keepWorkspaces: isLastDeclaredTrial ? options.keepWorkspaces : false,
@@ -2332,6 +2343,8 @@ async function runEvalCaseWithTrials(
     const trialVerdict = scoreToVerdict(result.score);
     const trial: TrialResult = {
       attempt,
+      sampleIndex: result.sampleIndex ?? attempt,
+      retryIndex: result.retryIndex,
       score: result.score,
       verdict: trialVerdict,
       scores: result.scores,
@@ -2414,6 +2427,8 @@ async function runEvalCaseWithTrials(
   return {
     ...baseResult,
     score,
+    sampleIndex: undefined,
+    retryIndex: undefined,
     trials: trialResults,
     aggregation,
     costLimited: costLimited || undefined,
@@ -2434,6 +2449,7 @@ async function evaluateCandidate(options: {
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
   readonly attempt: number;
+  readonly sampleIndex: number;
   readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
@@ -2464,6 +2480,7 @@ async function evaluateCandidate(options: {
     promptInputs,
     nowFn,
     attempt,
+    sampleIndex,
     graderProvider,
     agentTimeoutMs,
     output,
@@ -2567,7 +2584,10 @@ async function evaluateCandidate(options: {
       : undefined;
   return {
     timestamp: completedAt.toISOString(),
-    testId: evalCase.id,
+    testId: evalCase.testId ?? evalCase.id,
+    prompt: evalCase.prompt,
+    sampleIndex,
+    retryIndex: attempt,
     source: evalCase.source,
     suite: evalCase.suite,
     category: evalCase.category,
@@ -3035,6 +3055,7 @@ async function runConversationMode(options: {
   readonly targetResolver?: (name: string) => Provider | undefined;
   readonly availableTargets?: readonly string[];
   readonly evalFilePath?: string;
+  readonly sampleIndex?: number;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -3055,6 +3076,7 @@ async function runConversationMode(options: {
     targetResolver,
     availableTargets,
     evalFilePath,
+    sampleIndex = 0,
   } = options;
 
   // biome-ignore lint/style/noNonNullAssertion: turns is guaranteed by the caller (conversation mode gate)
@@ -3183,6 +3205,7 @@ async function runConversationMode(options: {
       },
       nowFn,
       attempt: 0,
+      sampleIndex,
       graderProvider,
       agentTimeoutMs,
       output: response.output,
@@ -3245,6 +3268,7 @@ async function runConversationMode(options: {
       },
       nowFn,
       attempt: 0,
+      sampleIndex,
       graderProvider,
       agentTimeoutMs,
       verbose,
@@ -3288,7 +3312,7 @@ async function runConversationMode(options: {
     durationMs: totalDurationMs,
     provider: provider.kind,
     target: target.name,
-    testId: evalCase.id,
+    testId: evalCase.testId ?? evalCase.id,
     conversationId: evalCase.conversation_id,
   });
 
@@ -3296,7 +3320,10 @@ async function runConversationMode(options: {
 
   return {
     timestamp: nowFn().toISOString(),
-    testId: evalCase.id,
+    testId: evalCase.testId ?? evalCase.id,
+    prompt: evalCase.prompt,
+    sampleIndex,
+    retryIndex: 0,
     suite: evalCase.suite,
     category: evalCase.category,
     score: finalScore,
@@ -3475,6 +3502,10 @@ function buildErrorResult(
   failureStage: FailureStage,
   failureReasonCode: string,
   verbose?: boolean,
+  identity?: {
+    readonly sampleIndex?: number;
+    readonly retryIndex?: number;
+  },
 ): EvaluationResult {
   const message = extractErrorMessage(error);
 
@@ -3521,7 +3552,10 @@ function buildErrorResult(
 
   return {
     timestamp: timestamp.toISOString(),
-    testId: evalCase.id,
+    testId: evalCase.testId ?? evalCase.id,
+    prompt: evalCase.prompt,
+    sampleIndex: identity?.sampleIndex,
+    retryIndex: identity?.retryIndex,
     suite: evalCase.suite,
     category: evalCase.category,
     conversationId: evalCase.conversation_id,

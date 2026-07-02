@@ -299,8 +299,16 @@ export type TargetHooksConfig = {
  * String targets are shorthand for `{ name: "target-name" }` (no hooks).
  */
 export type EvalTargetRef = {
-  /** Target name (must match a target in targets.yaml or be defined inline with use_target) */
+  /**
+   * Internal target selection name. Authored YAML should prefer `id` and
+   * `label`; this field remains the runtime bridge to existing targets.yaml
+   * resolution until target-provider locator work lands.
+   */
   readonly name: string;
+  /** Provider/backend locator identity from authored eval YAML. */
+  readonly id?: string;
+  /** Display/comparison label from authored eval YAML. */
+  readonly label?: string;
   /** Delegate to another named target (same as use_target in targets.yaml) */
   readonly use_target?: string;
   /** Per-target hooks for workspace customization */
@@ -972,14 +980,30 @@ export type ConversationAggregation = 'mean' | 'min' | 'max';
  */
 export type TurnFailurePolicy = 'continue' | 'stop';
 
+export type EvalPromptKind = 'string' | 'chat' | 'file' | 'function';
+
+/**
+ * Stable identity for an authored top-level prompt. The prompt content itself
+ * is rendered into EvalTest.input; this metadata keeps the matrix dimension
+ * visible to reports, artifacts, and future flat-instance workers.
+ */
+export interface EvalPromptIdentity {
+  readonly id: string;
+  readonly label?: string;
+  readonly kind: EvalPromptKind;
+}
+
 /**
  * Eval test definition sourced from AgentV specs.
  */
 export interface EvalTest {
   readonly id: string;
+  /** Original authored test id before prompt expansion rewrites duplicate internal ids. */
+  readonly testId?: string;
   readonly suite?: string;
   readonly category?: string;
   readonly conversation_id?: string;
+  readonly prompt?: EvalPromptIdentity;
   readonly question: string;
   readonly input: readonly TestMessage[];
   readonly expected_output: readonly JsonObject[];
@@ -1056,6 +1080,10 @@ export interface TrialsConfig {
  */
 export interface TrialResult {
   readonly attempt: number;
+  /** Zero-based sample index produced from repeat.count. */
+  readonly sampleIndex?: number;
+  /** Provider retry index for the attempt that produced this trial result. */
+  readonly retryIndex?: number;
   readonly score: number;
   readonly verdict: EvaluationVerdict;
   readonly scores?: readonly GraderResult[];
@@ -1164,6 +1192,11 @@ export type FailOnError = boolean;
 export interface EvaluationResult {
   readonly timestamp: string;
   readonly testId: string;
+  readonly prompt?: EvalPromptIdentity;
+  /** Zero-based sample index produced from repeat.count. */
+  readonly sampleIndex?: number;
+  /** Provider retry index for the attempt that produced this result. */
+  readonly retryIndex?: number;
   readonly source?: EvalTestSource;
   readonly suite?: string;
   readonly category?: string;

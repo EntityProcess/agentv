@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import fg from 'fast-glob';
@@ -31,7 +32,11 @@ import {
   loadConfig,
   parseTargetHooks,
 } from './loaders/config-loader.js';
-import { buildSearchRoots, resolveToAbsolutePath } from './loaders/file-resolver.js';
+import {
+  buildSearchRoots,
+  resolveFileReference,
+  resolveToAbsolutePath,
+} from './loaders/file-resolver.js';
 import {
   coerceEvaluator,
   collectAssertionTemplateSourceReferences,
@@ -56,6 +61,7 @@ import type {
   ConversationTurn,
   DockerWorkspaceConfig,
   EvalGraderSource,
+  EvalPromptIdentity,
   EvalRunOverride,
   EvalSourceReference,
   EvalTest,
@@ -185,6 +191,7 @@ type RawTestSuite = JsonObject & {
   readonly policy?: JsonValue;
   readonly repeat?: JsonValue;
   readonly runs?: JsonValue;
+  readonly prompts?: JsonValue;
   readonly early_exit?: JsonValue;
   readonly timeout_seconds?: JsonValue;
   readonly evaluate_options?: JsonValue;
@@ -236,6 +243,17 @@ type RawEvalCase = JsonObject & {
   readonly aggregation?: JsonValue;
   readonly on_turn_failure?: JsonValue;
   readonly window_size?: JsonValue;
+};
+
+type PromptDefinition = {
+  readonly identity: EvalPromptIdentity;
+  readonly input: JsonValue;
+};
+
+type PromptExpansionResult = {
+  readonly rawCases: readonly JsonValue[];
+  readonly promptById: ReadonlyMap<string, EvalPromptIdentity>;
+  readonly sourceTestIdById: ReadonlyMap<string, string>;
 };
 
 function resolveTests(suite: RawTestSuite): JsonValue | undefined {
@@ -302,6 +320,250 @@ function interpolateRawEvalCase(raw: RawEvalCase, vars: JsonObject | undefined):
       : {}),
     ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars) } : {}),
   };
+}
+
+function stablePromptId(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 12);
+}
+
+function safePromptId(value: string): string {
+  const safe = value
+    .trim()
+    .replace(/[^A-Za-z0-9_.-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return safe.length > 0 ? safe.slice(0, 48) : stablePromptId(value);
+}
+
+function stripFileProtocol(value: string): string {
+  return value.startsWith('file://') ? value.slice('file://'.length) : value;
+}
+
+function isChatPromptArray(value: readonly JsonValue[]): boolean {
+  return value.length > 0 && value.every((entry) => isJsonObject(entry) && isTestMessage(entry));
+}
+
+async function readPromptFile(
+  rawPath: string,
+  searchRoots: readonly string[],
+): Promise<{
+  readonly displayPath: string;
+  readonly text: string;
+}> {
+  const filePath = stripFileProtocol(rawPath);
+  const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+    filePath,
+    searchRoots,
+  );
+  if (!resolvedPath) {
+    const attempts = attempted.length
+      ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
+      : undefined;
+    logError(`Prompt file not found: ${displayPath}`, attempts);
+    throw new Error(`Prompt file not found: ${displayPath}`);
+  }
+  return {
+    displayPath,
+    text: (await readFile(resolvedPath, 'utf8')).replace(/\r\n/g, '\n'),
+  };
+}
+
+async function parsePromptDefinition(
+  rawPrompt: JsonValue,
+  searchRoots: readonly string[],
+  index: number,
+): Promise<PromptDefinition> {
+  if (typeof rawPrompt === 'string') {
+    if (rawPrompt.startsWith('file://')) {
+      const { displayPath, text } = await readPromptFile(rawPrompt, searchRoots);
+      return {
+        identity: { id: displayPath, label: displayPath, kind: 'file' },
+        input: text,
+      };
+    }
+    return {
+      identity: { id: `prompt-${stablePromptId(rawPrompt)}`, kind: 'string' },
+      input: rawPrompt,
+    };
+  }
+
+  if (Array.isArray(rawPrompt)) {
+    if (!isChatPromptArray(rawPrompt)) {
+      throw new Error(
+        'Invalid prompts entry: arrays must be chat messages or a top-level list of prompt entries.',
+      );
+    }
+    return {
+      identity: { id: `chat-${stablePromptId(rawPrompt)}`, kind: 'chat' },
+      input: rawPrompt,
+    };
+  }
+
+  if (!isJsonObject(rawPrompt)) {
+    throw new Error(`Invalid prompts[${index}]: expected string, chat array, or object.`);
+  }
+
+  if (rawPrompt.function !== undefined || rawPrompt.function_file !== undefined) {
+    throw new Error(
+      'Function prompt sources are not supported by the YAML loader yet. Use a string, chat-array, or file prompt.',
+    );
+  }
+
+  const label = asString(rawPrompt.label)?.trim();
+  const explicitId = asString(rawPrompt.id)?.trim();
+
+  if (rawPrompt.file !== undefined) {
+    const fileRef = asString(rawPrompt.file);
+    if (!fileRef) {
+      throw new Error(`Invalid prompts[${index}].file: expected non-empty string.`);
+    }
+    const { displayPath, text } = await readPromptFile(fileRef, searchRoots);
+    return {
+      identity: {
+        id: explicitId ?? displayPath,
+        ...(label ? { label } : { label: displayPath }),
+        kind: 'file',
+      },
+      input: text,
+    };
+  }
+
+  if (rawPrompt.messages !== undefined) {
+    if (!Array.isArray(rawPrompt.messages) || !isChatPromptArray(rawPrompt.messages)) {
+      throw new Error(`Invalid prompts[${index}].messages: expected chat message array.`);
+    }
+    return {
+      identity: {
+        id: explicitId ?? `chat-${stablePromptId(rawPrompt.messages)}`,
+        ...(label ? { label } : {}),
+        kind: 'chat',
+      },
+      input: rawPrompt.messages,
+    };
+  }
+
+  if (rawPrompt.prompt !== undefined) {
+    const promptValue = rawPrompt.prompt;
+    if (
+      typeof promptValue !== 'string' &&
+      !(Array.isArray(promptValue) && isChatPromptArray(promptValue))
+    ) {
+      throw new Error(`Invalid prompts[${index}].prompt: expected string or chat message array.`);
+    }
+    const kind = Array.isArray(promptValue) ? 'chat' : 'string';
+    return {
+      identity: {
+        id: explicitId ?? `${kind}-${stablePromptId(promptValue)}`,
+        ...(label ? { label } : {}),
+        kind,
+      },
+      input: promptValue,
+    };
+  }
+
+  if (isTestMessage(rawPrompt)) {
+    return {
+      identity: {
+        id: explicitId ?? `chat-${stablePromptId(rawPrompt)}`,
+        ...(label ? { label } : {}),
+        kind: 'chat',
+      },
+      input: [rawPrompt],
+    };
+  }
+
+  throw new Error(`Invalid prompts[${index}]: expected prompt, messages, or file.`);
+}
+
+async function parseSuitePrompts(
+  rawPrompts: JsonValue | undefined,
+  searchRoots: readonly string[],
+): Promise<readonly PromptDefinition[] | undefined> {
+  if (rawPrompts === undefined || rawPrompts === null) {
+    return undefined;
+  }
+
+  const entries =
+    Array.isArray(rawPrompts) && !isChatPromptArray(rawPrompts) ? rawPrompts : [rawPrompts];
+  const prompts: PromptDefinition[] = [];
+  for (let index = 0; index < entries.length; index++) {
+    prompts.push(await parsePromptDefinition(entries[index] as JsonValue, searchRoots, index));
+  }
+  return prompts;
+}
+
+function renderPromptInput(prompt: PromptDefinition, vars: JsonObject | undefined): JsonValue {
+  return interpolateCaseField(prompt.input, vars);
+}
+
+function expandPromptMatrix(
+  rawCases: readonly JsonValue[],
+  prompts: readonly PromptDefinition[] | undefined,
+  suite: RawTestSuite,
+): PromptExpansionResult {
+  const promptById = new Map<string, EvalPromptIdentity>();
+  const sourceTestIdById = new Map<string, string>();
+
+  if (!prompts) {
+    if (suite.input !== undefined || suite.input_files !== undefined) {
+      logWarning(
+        "Top-level 'input' and 'input_files' are deprecated. Use top-level 'prompts' plus tests[].vars instead.",
+      );
+    } else if (
+      rawCases.some(
+        (rawCase) =>
+          isJsonObject(rawCase) &&
+          (rawCase.input !== undefined || rawCase.input_files !== undefined),
+      )
+    ) {
+      logWarning("tests[].input is deprecated. Use top-level 'prompts' plus tests[].vars instead.");
+    }
+    return { rawCases, promptById, sourceTestIdById };
+  }
+
+  if (suite.input !== undefined || suite.input_files !== undefined) {
+    throw new Error("Top-level 'input' and 'input_files' cannot be combined with 'prompts'.");
+  }
+
+  const expandedCases: JsonValue[] = [];
+  for (const rawCase of rawCases) {
+    if (!isJsonObject(rawCase)) {
+      expandedCases.push(rawCase);
+      continue;
+    }
+    if (rawCase.input !== undefined || rawCase.input_files !== undefined) {
+      throw new Error(
+        "tests[].input and tests[].input_files have been removed from the preferred prompt contract. Use top-level 'prompts' plus tests[].vars.",
+      );
+    }
+
+    const sourceTestId = asString(rawCase.id);
+    const vars = isJsonObject(rawCase.vars) ? rawCase.vars : undefined;
+    for (const prompt of prompts) {
+      const promptId = safePromptId(prompt.identity.id);
+      const expandedId =
+        sourceTestId && prompts.length > 1 ? `${sourceTestId}__prompt_${promptId}` : sourceTestId;
+      const expandedDependsOn = Array.isArray(rawCase.depends_on)
+        ? rawCase.depends_on.map((dep) =>
+            typeof dep === 'string' && prompts.length > 1 ? `${dep}__prompt_${promptId}` : dep,
+          )
+        : rawCase.depends_on;
+      const expandedCase: JsonObject = {
+        ...rawCase,
+        ...(expandedId ? { id: expandedId } : {}),
+        ...(expandedDependsOn !== undefined ? { depends_on: expandedDependsOn } : {}),
+        input: renderPromptInput(prompt, vars),
+      };
+      expandedCases.push(expandedCase);
+      if (expandedId) {
+        promptById.set(expandedId, prompt.identity);
+        if (sourceTestId) {
+          sourceTestIdById.set(expandedId, sourceTestId);
+        }
+      }
+    }
+  }
+
+  return { rawCases: expandedCases, promptById, sourceTestIdById };
 }
 
 /**
@@ -564,6 +826,10 @@ async function loadTestsFromParsedYamlValue(
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
 
+  const promptDefinitions = await parseSuitePrompts(suite.prompts, searchRoots);
+  const promptExpansion = expandPromptMatrix(expandedTestCases, promptDefinitions, suite);
+  expandedTestCases = promptExpansion.rawCases;
+
   const suiteWorkspace = await resolveWorkspaceConfig(suite.workspace, evalFileDir);
 
   const rawSuiteInput = suite.input;
@@ -586,6 +852,8 @@ async function loadTestsFromParsedYamlValue(
 
     const testCaseConfig = rawTestCase as RawEvalCase;
     const id = asString(testCaseConfig.id);
+    const promptIdentity = id ? promptExpansion.promptById.get(id) : undefined;
+    const sourceTestId = id ? promptExpansion.sourceTestIdById.get(id) : undefined;
 
     // Skip tests that don't match the filter pattern (glob supported)
     if (filterPattern && (!id || !matchesFilter(id, filterPattern))) {
@@ -836,9 +1104,11 @@ async function loadTestsFromParsedYamlValue(
 
     const testCase: EvalTest = {
       id,
+      ...(sourceTestId ? { testId: sourceTestId } : {}),
       suite: suiteName,
       category,
       conversation_id: conversationId,
+      ...(promptIdentity ? { prompt: promptIdentity } : {}),
       question: question,
       input: inputMessages,
       expected_output: outputSegments,

@@ -15,6 +15,7 @@ import type {
   EvalTargetRef,
   FailOnError,
   JsonObject,
+  JsonValue,
   TargetHooksConfig,
   WorkspaceHookConfig,
 } from '../types.js';
@@ -356,7 +357,24 @@ export function extractTargetRefsFromSuite(
   suite: JsonObject,
 ): readonly EvalTargetRef[] | undefined {
   rejectAuthoredRuntimeContainers(suite);
-  return undefined;
+  if (suite.providers !== undefined) {
+    throw new Error("Top-level 'providers' has been removed. Use 'targets' instead.");
+  }
+  if (suite.target !== undefined && suite.targets !== undefined) {
+    throw new Error("Use either top-level 'target' or 'targets', not both.");
+  }
+
+  const rawTargets = suite.targets;
+  if (rawTargets === undefined || rawTargets === null) {
+    return undefined;
+  }
+
+  const rawEntries = Array.isArray(rawTargets) ? rawTargets : [rawTargets];
+  const refs = rawEntries
+    .map((entry, index) => parseTargetRef(entry, index))
+    .filter((entry): entry is EvalTargetRef => entry !== undefined);
+
+  return refs.length > 0 ? refs : undefined;
 }
 
 /**
@@ -367,6 +385,50 @@ export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | 
   if (!refs) return undefined;
   const names = refs.map((r) => r.name);
   return names.length > 0 ? names : undefined;
+}
+
+function parseTargetRef(raw: JsonValue, index: number): EvalTargetRef | undefined {
+  if (typeof raw === 'string') {
+    const targetId = raw.trim();
+    return targetId ? { name: targetId, id: targetId } : undefined;
+  }
+
+  if (!isJsonObject(raw)) {
+    logWarning(`Invalid targets[${index}]: expected string or object. Ignoring.`);
+    return undefined;
+  }
+
+  const rawId = raw.id;
+  const rawLabel = raw.label;
+  const legacyName = raw.name;
+  const useTarget = raw.use_target;
+  const id = typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : undefined;
+  const label =
+    typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
+  const name =
+    label ??
+    id ??
+    (typeof legacyName === 'string' && legacyName.trim().length > 0
+      ? legacyName.trim()
+      : undefined);
+
+  if (!name) {
+    logWarning(`Invalid targets[${index}]: expected id or label. Ignoring.`);
+    return undefined;
+  }
+  if (legacyName !== undefined) {
+    logWarning('targets[].name is deprecated. Use targets[].id and targets[].label instead.');
+  }
+
+  return {
+    name,
+    ...(id ? { id } : {}),
+    ...(label ? { label } : {}),
+    ...(typeof useTarget === 'string' && useTarget.trim().length > 0
+      ? { use_target: useTarget.trim() }
+      : {}),
+    ...(raw.hooks !== undefined ? { hooks: parseTargetHooks(raw.hooks) } : {}),
+  };
 }
 
 /**

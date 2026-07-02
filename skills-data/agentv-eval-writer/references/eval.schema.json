@@ -193,6 +193,19 @@
                     "label": {
                       "type": "string"
                     },
+                    "prompt": {
+                      "type": "string"
+                    },
+                    "file": {
+                      "type": "string"
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
                     "raw": {
                       "type": "string"
                     },
@@ -253,6 +266,19 @@
                       },
                       "label": {
                         "type": "string"
+                      },
+                      "prompt": {
+                        "type": "string"
+                      },
+                      "file": {
+                        "type": "string"
+                      },
+                      "messages": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
                       },
                       "raw": {
                         "type": "string"
@@ -970,6 +996,19 @@
                                           "label": {
                                             "type": "string"
                                           },
+                                          "prompt": {
+                                            "type": "string"
+                                          },
+                                          "file": {
+                                            "type": "string"
+                                          },
+                                          "messages": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            }
+                                          },
                                           "raw": {
                                             "type": "string"
                                           },
@@ -1030,6 +1069,19 @@
                                             },
                                             "label": {
                                               "type": "string"
+                                            },
+                                            "prompt": {
+                                              "type": "string"
+                                            },
+                                            "file": {
+                                              "type": "string"
+                                            },
+                                            "messages": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                              }
                                             },
                                             "raw": {
                                               "type": "string"
@@ -1300,6 +1352,19 @@
                                               "label": {
                                                 "type": "string"
                                               },
+                                              "prompt": {
+                                                "type": "string"
+                                              },
+                                              "file": {
+                                                "type": "string"
+                                              },
+                                              "messages": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "additionalProperties": true
+                                                }
+                                              },
                                               "raw": {
                                                 "type": "string"
                                               },
@@ -1360,6 +1425,19 @@
                                                 },
                                                 "label": {
                                                   "type": "string"
+                                                },
+                                                "prompt": {
+                                                  "type": "string"
+                                                },
+                                                "file": {
+                                                  "type": "string"
+                                                },
+                                                "messages": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": true
+                                                  }
                                                 },
                                                 "raw": {
                                                   "type": "string"
@@ -1630,6 +1708,19 @@
                                                 "label": {
                                                   "type": "string"
                                                 },
+                                                "prompt": {
+                                                  "type": "string"
+                                                },
+                                                "file": {
+                                                  "type": "string"
+                                                },
+                                                "messages": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": true
+                                                  }
+                                                },
                                                 "raw": {
                                                   "type": "string"
                                                 },
@@ -1690,6 +1781,19 @@
                                                   },
                                                   "label": {
                                                     "type": "string"
+                                                  },
+                                                  "prompt": {
+                                                    "type": "string"
+                                                  },
+                                                  "file": {
+                                                    "type": "string"
+                                                  },
+                                                  "messages": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "additionalProperties": true
+                                                    }
                                                   },
                                                   "raw": {
                                                     "type": "string"
@@ -1925,6 +2029,19 @@
                                   "label": {
                                     "type": "string"
                                   },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
+                                  },
                                   "raw": {
                                     "type": "string"
                                   },
@@ -1985,6 +2102,19 @@
                                     },
                                     "label": {
                                       "type": "string"
+                                    },
+                                    "prompt": {
+                                      "type": "string"
+                                    },
+                                    "file": {
+                                      "type": "string"
+                                    },
+                                    "messages": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                      }
                                     },
                                     "raw": {
                                       "type": "string"
@@ -2445,6 +2575,19 @@
                                         },
                                         "label": {
                                           "type": "string"
+                                        },
+                                        "prompt": {
+                                          "type": "string"
+                                        },
+                                        "file": {
+                                          "type": "string"
+                                        },
+                                        "messages": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                          }
                                         },
                                         "raw": {
                                           "type": "string"
@@ -3814,6 +3957,19 @@
                                             },
                                             "label": {
                                               "type": "string"
+                                            },
+                                            "prompt": {
+                                              "type": "string"
+                                            },
+                                            "file": {
+                                              "type": "string"
+                                            },
+                                            "messages": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                              }
                                             },
                                             "raw": {
                                               "type": "string"
@@ -5709,6 +5865,19 @@
                                           "label": {
                                             "type": "string"
                                           },
+                                          "prompt": {
+                                            "type": "string"
+                                          },
+                                          "file": {
+                                            "type": "string"
+                                          },
+                                          "messages": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            }
+                                          },
                                           "raw": {
                                             "type": "string"
                                           },
@@ -5769,6 +5938,19 @@
                                             },
                                             "label": {
                                               "type": "string"
+                                            },
+                                            "prompt": {
+                                              "type": "string"
+                                            },
+                                            "file": {
+                                              "type": "string"
+                                            },
+                                            "messages": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                              }
                                             },
                                             "raw": {
                                               "type": "string"
@@ -6039,6 +6221,19 @@
                                               "label": {
                                                 "type": "string"
                                               },
+                                              "prompt": {
+                                                "type": "string"
+                                              },
+                                              "file": {
+                                                "type": "string"
+                                              },
+                                              "messages": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "additionalProperties": true
+                                                }
+                                              },
                                               "raw": {
                                                 "type": "string"
                                               },
@@ -6099,6 +6294,19 @@
                                                 },
                                                 "label": {
                                                   "type": "string"
+                                                },
+                                                "prompt": {
+                                                  "type": "string"
+                                                },
+                                                "file": {
+                                                  "type": "string"
+                                                },
+                                                "messages": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": true
+                                                  }
                                                 },
                                                 "raw": {
                                                   "type": "string"
@@ -6369,6 +6577,19 @@
                                                 "label": {
                                                   "type": "string"
                                                 },
+                                                "prompt": {
+                                                  "type": "string"
+                                                },
+                                                "file": {
+                                                  "type": "string"
+                                                },
+                                                "messages": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": true
+                                                  }
+                                                },
                                                 "raw": {
                                                   "type": "string"
                                                 },
@@ -6429,6 +6650,19 @@
                                                   },
                                                   "label": {
                                                     "type": "string"
+                                                  },
+                                                  "prompt": {
+                                                    "type": "string"
+                                                  },
+                                                  "file": {
+                                                    "type": "string"
+                                                  },
+                                                  "messages": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "additionalProperties": true
+                                                    }
                                                   },
                                                   "raw": {
                                                     "type": "string"
@@ -6664,6 +6898,19 @@
                                   "label": {
                                     "type": "string"
                                   },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
+                                  },
                                   "raw": {
                                     "type": "string"
                                   },
@@ -6724,6 +6971,19 @@
                                     },
                                     "label": {
                                       "type": "string"
+                                    },
+                                    "prompt": {
+                                      "type": "string"
+                                    },
+                                    "file": {
+                                      "type": "string"
+                                    },
+                                    "messages": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                      }
                                     },
                                     "raw": {
                                       "type": "string"
@@ -7184,6 +7444,19 @@
                                         },
                                         "label": {
                                           "type": "string"
+                                        },
+                                        "prompt": {
+                                          "type": "string"
+                                        },
+                                        "file": {
+                                          "type": "string"
+                                        },
+                                        "messages": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                          }
                                         },
                                         "raw": {
                                           "type": "string"
@@ -8553,6 +8826,19 @@
                                             },
                                             "label": {
                                               "type": "string"
+                                            },
+                                            "prompt": {
+                                              "type": "string"
+                                            },
+                                            "file": {
+                                              "type": "string"
+                                            },
+                                            "messages": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                              }
                                             },
                                             "raw": {
                                               "type": "string"
@@ -10424,6 +10710,19 @@
                             "label": {
                               "type": "string"
                             },
+                            "prompt": {
+                              "type": "string"
+                            },
+                            "file": {
+                              "type": "string"
+                            },
+                            "messages": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": true
+                              }
+                            },
                             "raw": {
                               "type": "string"
                             },
@@ -10484,6 +10783,19 @@
                               },
                               "label": {
                                 "type": "string"
+                              },
+                              "prompt": {
+                                "type": "string"
+                              },
+                              "file": {
+                                "type": "string"
+                              },
+                              "messages": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": true
+                                }
                               },
                               "raw": {
                                 "type": "string"
@@ -10754,6 +11066,19 @@
                                 "label": {
                                   "type": "string"
                                 },
+                                "prompt": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "messages": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                  }
+                                },
                                 "raw": {
                                   "type": "string"
                                 },
@@ -10814,6 +11139,19 @@
                                   },
                                   "label": {
                                     "type": "string"
+                                  },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
                                   },
                                   "raw": {
                                     "type": "string"
@@ -11084,6 +11422,19 @@
                                   "label": {
                                     "type": "string"
                                   },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
+                                  },
                                   "raw": {
                                     "type": "string"
                                   },
@@ -11144,6 +11495,19 @@
                                     },
                                     "label": {
                                       "type": "string"
+                                    },
+                                    "prompt": {
+                                      "type": "string"
+                                    },
+                                    "file": {
+                                      "type": "string"
+                                    },
+                                    "messages": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                      }
                                     },
                                     "raw": {
                                       "type": "string"
@@ -11569,6 +11933,19 @@
                                 "label": {
                                   "type": "string"
                                 },
+                                "prompt": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "messages": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                  }
+                                },
                                 "raw": {
                                   "type": "string"
                                 },
@@ -11629,6 +12006,19 @@
                                   },
                                   "label": {
                                     "type": "string"
+                                  },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
                                   },
                                   "raw": {
                                     "type": "string"
@@ -11899,6 +12289,19 @@
                                     "label": {
                                       "type": "string"
                                     },
+                                    "prompt": {
+                                      "type": "string"
+                                    },
+                                    "file": {
+                                      "type": "string"
+                                    },
+                                    "messages": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": true
+                                      }
+                                    },
                                     "raw": {
                                       "type": "string"
                                     },
@@ -11959,6 +12362,19 @@
                                       },
                                       "label": {
                                         "type": "string"
+                                      },
+                                      "prompt": {
+                                        "type": "string"
+                                      },
+                                      "file": {
+                                        "type": "string"
+                                      },
+                                      "messages": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "additionalProperties": true
+                                        }
                                       },
                                       "raw": {
                                         "type": "string"
@@ -12229,6 +12645,19 @@
                                       "label": {
                                         "type": "string"
                                       },
+                                      "prompt": {
+                                        "type": "string"
+                                      },
+                                      "file": {
+                                        "type": "string"
+                                      },
+                                      "messages": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "additionalProperties": true
+                                        }
+                                      },
                                       "raw": {
                                         "type": "string"
                                       },
@@ -12289,6 +12718,19 @@
                                         },
                                         "label": {
                                           "type": "string"
+                                        },
+                                        "prompt": {
+                                          "type": "string"
+                                        },
+                                        "file": {
+                                          "type": "string"
+                                        },
+                                        "messages": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                          }
                                         },
                                         "raw": {
                                           "type": "string"
@@ -12524,6 +12966,19 @@
                         "label": {
                           "type": "string"
                         },
+                        "prompt": {
+                          "type": "string"
+                        },
+                        "file": {
+                          "type": "string"
+                        },
+                        "messages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
                         "raw": {
                           "type": "string"
                         },
@@ -12584,6 +13039,19 @@
                           },
                           "label": {
                             "type": "string"
+                          },
+                          "prompt": {
+                            "type": "string"
+                          },
+                          "file": {
+                            "type": "string"
+                          },
+                          "messages": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": true
+                            }
                           },
                           "raw": {
                             "type": "string"
@@ -12875,6 +13343,19 @@
                                         "label": {
                                           "type": "string"
                                         },
+                                        "prompt": {
+                                          "type": "string"
+                                        },
+                                        "file": {
+                                          "type": "string"
+                                        },
+                                        "messages": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                          }
+                                        },
                                         "raw": {
                                           "type": "string"
                                         },
@@ -12935,6 +13416,19 @@
                                           },
                                           "label": {
                                             "type": "string"
+                                          },
+                                          "prompt": {
+                                            "type": "string"
+                                          },
+                                          "file": {
+                                            "type": "string"
+                                          },
+                                          "messages": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            }
                                           },
                                           "raw": {
                                             "type": "string"
@@ -13205,6 +13699,19 @@
                                             "label": {
                                               "type": "string"
                                             },
+                                            "prompt": {
+                                              "type": "string"
+                                            },
+                                            "file": {
+                                              "type": "string"
+                                            },
+                                            "messages": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                              }
+                                            },
                                             "raw": {
                                               "type": "string"
                                             },
@@ -13265,6 +13772,19 @@
                                               },
                                               "label": {
                                                 "type": "string"
+                                              },
+                                              "prompt": {
+                                                "type": "string"
+                                              },
+                                              "file": {
+                                                "type": "string"
+                                              },
+                                              "messages": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "additionalProperties": true
+                                                }
                                               },
                                               "raw": {
                                                 "type": "string"
@@ -13535,6 +14055,19 @@
                                               "label": {
                                                 "type": "string"
                                               },
+                                              "prompt": {
+                                                "type": "string"
+                                              },
+                                              "file": {
+                                                "type": "string"
+                                              },
+                                              "messages": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "additionalProperties": true
+                                                }
+                                              },
                                               "raw": {
                                                 "type": "string"
                                               },
@@ -13595,6 +14128,19 @@
                                                 },
                                                 "label": {
                                                   "type": "string"
+                                                },
+                                                "prompt": {
+                                                  "type": "string"
+                                                },
+                                                "file": {
+                                                  "type": "string"
+                                                },
+                                                "messages": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": true
+                                                  }
                                                 },
                                                 "raw": {
                                                   "type": "string"
@@ -13830,6 +14376,19 @@
                                 "label": {
                                   "type": "string"
                                 },
+                                "prompt": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "messages": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                  }
+                                },
                                 "raw": {
                                   "type": "string"
                                 },
@@ -13890,6 +14449,19 @@
                                   },
                                   "label": {
                                     "type": "string"
+                                  },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
                                   },
                                   "raw": {
                                     "type": "string"
@@ -14116,6 +14688,19 @@
                                         "label": {
                                           "type": "string"
                                         },
+                                        "prompt": {
+                                          "type": "string"
+                                        },
+                                        "file": {
+                                          "type": "string"
+                                        },
+                                        "messages": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                          }
+                                        },
                                         "raw": {
                                           "type": "string"
                                         },
@@ -14176,6 +14761,19 @@
                                           },
                                           "label": {
                                             "type": "string"
+                                          },
+                                          "prompt": {
+                                            "type": "string"
+                                          },
+                                          "file": {
+                                            "type": "string"
+                                          },
+                                          "messages": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            }
                                           },
                                           "raw": {
                                             "type": "string"
@@ -14446,6 +15044,19 @@
                                             "label": {
                                               "type": "string"
                                             },
+                                            "prompt": {
+                                              "type": "string"
+                                            },
+                                            "file": {
+                                              "type": "string"
+                                            },
+                                            "messages": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "additionalProperties": true
+                                              }
+                                            },
                                             "raw": {
                                               "type": "string"
                                             },
@@ -14506,6 +15117,19 @@
                                               },
                                               "label": {
                                                 "type": "string"
+                                              },
+                                              "prompt": {
+                                                "type": "string"
+                                              },
+                                              "file": {
+                                                "type": "string"
+                                              },
+                                              "messages": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "additionalProperties": true
+                                                }
                                               },
                                               "raw": {
                                                 "type": "string"
@@ -14776,6 +15400,19 @@
                                               "label": {
                                                 "type": "string"
                                               },
+                                              "prompt": {
+                                                "type": "string"
+                                              },
+                                              "file": {
+                                                "type": "string"
+                                              },
+                                              "messages": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "additionalProperties": true
+                                                }
+                                              },
                                               "raw": {
                                                 "type": "string"
                                               },
@@ -14836,6 +15473,19 @@
                                                 },
                                                 "label": {
                                                   "type": "string"
+                                                },
+                                                "prompt": {
+                                                  "type": "string"
+                                                },
+                                                "file": {
+                                                  "type": "string"
+                                                },
+                                                "messages": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": true
+                                                  }
                                                 },
                                                 "raw": {
                                                   "type": "string"
@@ -15071,6 +15721,19 @@
                                 "label": {
                                   "type": "string"
                                 },
+                                "prompt": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "messages": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": true
+                                  }
+                                },
                                 "raw": {
                                   "type": "string"
                                 },
@@ -15131,6 +15794,19 @@
                                   },
                                   "label": {
                                     "type": "string"
+                                  },
+                                  "prompt": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "messages": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": true
+                                    }
                                   },
                                   "raw": {
                                     "type": "string"
@@ -15591,6 +16267,19 @@
                                       },
                                       "label": {
                                         "type": "string"
+                                      },
+                                      "prompt": {
+                                        "type": "string"
+                                      },
+                                      "file": {
+                                        "type": "string"
+                                      },
+                                      "messages": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "additionalProperties": true
+                                        }
                                       },
                                       "raw": {
                                         "type": "string"
@@ -16960,6 +17649,19 @@
                                           },
                                           "label": {
                                             "type": "string"
+                                          },
+                                          "prompt": {
+                                            "type": "string"
+                                          },
+                                          "file": {
+                                            "type": "string"
+                                          },
+                                          "messages": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            }
                                           },
                                           "raw": {
                                             "type": "string"

@@ -125,6 +125,10 @@ Example row:
   "tags": { "experiment": "with_skills", "team": "support" },
   "eval_path": "evals/support/refunds.eval.yaml",
   "test_id": "refund-eligibility",
+  "prompt_id": "refund-policy",
+  "prompt_label": "Refund policy prompt",
+  "sample_index": 0,
+  "retry_index": 0,
   "target": "codex-gpt5",
   "variant": "skills-v2",
   "attempt": 1,
@@ -147,9 +151,10 @@ Example row:
 
 Rows can represent repeated attempts, multi-target runs, imported suites,
 manual `prepare`/`grade` attempts, or imported provider sessions. That is why
-`experiment`, `eval_path`, `test_id`, `target`, `variant`, `attempt`, and
-source metadata belong in `index.jsonl`: tools can filter dynamically without
-requiring every run to be pre-split into semantic folders.
+`experiment`, `eval_path`, `test_id`, `prompt_id`, `target`, `variant`,
+`sample_index`, `retry_index`, `attempt`, and source metadata belong in
+`index.jsonl`: tools can filter dynamically without requiring every run to be
+pre-split into semantic folders.
 
 When a run resolves a promptfoo-shaped tags map (from suite `tags`, project
 config `tags`, or `--tag key=value`), the resolved map is emitted as `tags` on

@@ -120,13 +120,14 @@ export function buildEvaluationResultTargetKey(result: EvaluationResult): string
       null,
     suite: stringField(dimensions, 'suite') ?? getSuite(result) ?? null,
     test_id: stringField(dimensions, 'testId') ?? result.testId ?? 'unknown',
+    prompt_id: result.prompt?.id ?? null,
     target: stringField(dimensions, 'target') ?? result.target ?? 'unknown',
     variant: stringField(dimensions, 'variant') ?? result.variant ?? null,
   });
 }
 
 export function buildEvalTestTargetKey(
-  test: Pick<EvalTest, 'id' | 'suite' | 'source'>,
+  test: Pick<EvalTest, 'id' | 'suite' | 'source' | 'prompt'>,
   target?: string,
   variant?: string,
 ): string {
@@ -134,6 +135,7 @@ export function buildEvalTestTargetKey(
     eval_path: evalSourcePath(test.source) ?? null,
     suite: test.suite ?? null,
     test_id: test.id ?? 'unknown',
+    prompt_id: test.prompt?.id ?? null,
     target: target ?? 'unknown',
     variant: variant ?? null,
   });
@@ -352,6 +354,8 @@ export interface GradingArtifact {
 
 export type TrialResultArtifact = {
   readonly attempt: number;
+  readonly sample_index?: number;
+  readonly retry_index?: number;
   readonly run_path?: string;
   readonly score: number;
   readonly verdict: string;
@@ -471,6 +475,10 @@ export interface AggregateGradingArtifact {
 export interface IndexArtifactEntry {
   readonly timestamp: string;
   readonly test_id: string;
+  readonly prompt_id?: string;
+  readonly prompt_label?: string;
+  readonly sample_index?: number;
+  readonly retry_index?: number;
   readonly suite?: string;
   readonly category?: string;
   readonly conversation_id?: string;
@@ -742,6 +750,8 @@ function toTrialArtifacts(
   }
   return trials.map((trial) => ({
     attempt: trial.attempt,
+    sample_index: trial.sampleIndex,
+    retry_index: trial.retryIndex,
     run_path: trial.result ? trialRunDirName(trial.attempt) : undefined,
     score: trial.score,
     verdict: trial.verdict,
@@ -888,6 +898,7 @@ function fallbackRepeatFingerprint(result: EvaluationResult): string {
     .update(
       JSON.stringify({
         test_id: result.testId ?? 'unknown',
+        prompt_id: result.prompt?.id,
         target: result.target ?? 'unknown',
         trial_count: result.trials?.length ?? 0,
         aggregation: result.aggregation,
@@ -986,6 +997,8 @@ function buildAgentVRunResultArtifact(params: {
 function singleRunTrial(result: EvaluationResult): TrialResult {
   return {
     attempt: 0,
+    sampleIndex: result.sampleIndex,
+    retryIndex: result.retryIndex,
     score: result.score,
     verdict:
       result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
@@ -1545,6 +1558,8 @@ function buildRowArtifactHashInput(
   readonly eval_path: string | null;
   readonly suite: string | null;
   readonly test_id: string;
+  readonly prompt_id: string | null;
+  readonly sample_index: number | null;
   readonly target: string;
   readonly variant: string | null;
 } {
@@ -1553,6 +1568,8 @@ function buildRowArtifactHashInput(
     eval_path: dimensions?.evalPath ?? sourceEvalPath(result, sourceTest) ?? null,
     suite: dimensions?.suite ?? getSuite(result) ?? null,
     test_id: dimensions?.testId ?? result.testId ?? 'unknown',
+    prompt_id: result.prompt?.id ?? sourceTest?.prompt?.id ?? null,
+    sample_index: result.sampleIndex ?? null,
     target: dimensions?.target ?? result.target ?? 'unknown',
     variant: dimensions?.variant ?? result.variant ?? null,
   };
@@ -1724,6 +1741,10 @@ export function buildIndexArtifactEntry(
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
+    prompt_id: result.prompt?.id,
+    prompt_label: result.prompt?.label,
+    sample_index: result.sampleIndex,
+    retry_index: result.retryIndex,
     suite: getSuite(result),
     category: result.category,
     conversation_id: result.conversationId,
@@ -1813,6 +1834,10 @@ export function buildResultIndexArtifact(
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
+    prompt_id: result.prompt?.id,
+    prompt_label: result.prompt?.label,
+    sample_index: result.sampleIndex,
+    retry_index: result.retryIndex,
     suite: getSuite(result),
     category: result.category,
     conversation_id: result.conversationId,

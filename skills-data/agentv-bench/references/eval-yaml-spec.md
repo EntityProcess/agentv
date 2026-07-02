@@ -9,15 +9,19 @@ The grader agent uses this to evaluate assertions without the CLI.
 
 - `name` (string, optional) — eval name
 - `description` (string, optional) — description
-- `execution` (object, optional) — `target`, `model`, etc.
+- `target` (string | object, optional) — single system under test
+- `targets` (array, optional) — promptfoo-style target matrix. `id` is provider/backend locator identity; `label` is the display/comparison name.
+- `repeat` (object, optional) — stochastic sample policy with `count`, `strategy`, and optional `early_exit`
 - `workspace` (object, optional) — workspace config (template, repos, hooks)
-- `input` (string | object | Message | Message[], optional) — suite-level input prepended to each test. String/block shorthand expands to a user message.
+- `prompts` (string | Message[] | array, optional) — preferred authored input surface. Prompts combine with `targets`, `tests`, and `repeat.count` into deterministic execution instances.
+- `input` (string | object | Message | Message[], optional) — deprecated compatibility input. Prefer `prompts` plus per-test `vars`.
 - `tests` (array, required) — test cases
 
 ### Per-test fields
 
 - `id` (string, required) — unique test identifier
-- `input` (string | object | Message | Message[], required) — task input. String shorthand expands to `[{role: user, content: "..."}]`; object shorthand preserves structured user content when the object has no top-level `role`. Top-level `role` is reserved for message objects.
+- `vars` (object, optional) — per-test values interpolated into top-level `prompts`, `criteria`, `expected_output`, and conversation turns with `{{name}}` placeholders.
+- `input` (string | object | Message | Message[], deprecated) — legacy task input. Do not use when top-level `prompts` is present.
 - `expected_output` (string | Message[], optional) — passive reference answer. String shorthand expands to `[{role: assistant, content: "..."}]`. It is available to declared graders, but does not add an implicit grader when `assertions` is present.
 - `criteria` (string, optional) — human-readable success criteria
 - `assertions` (array, optional) — grader assertions
