@@ -53,6 +53,22 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 - **Identity = `eval_path` + `test_id`** (uuid-suffixed dir), so overlapping `test_id`s across suites don't collide. `suite`/`name` are **display/grouping metadata, not routing** (ADR-0009).
 - **Categorize by BOTH, orthogonally** (each `index.jsonl` row carries both): **`suite`** (+`eval_path`) = structural origin; **`tags`** (map, incl **`experiment`**) = semantic/campaign grouping. `experiment` = the run/campaign bucket; `suite` = the intra-run structural group; the Dashboard groups by any tag key, and suite is another grouping dimension. Reports filter/group by either axis.
 
+### Full results-tree layout (two levels — no per-run `.indexes`)
+```
+.agentv/results/
+  .indexes/                 # CROSS-RUN derived catalogs (reserved, ADR-0012)
+    runs.jsonl              #   one row per RUN (rebuildable from */summary.json)
+  .cache/                   # CROSS-RUN caches (reserved)
+  <run_id>/                 # one run bundle (one CLI invocation, incl multi-suite)
+    summary.json            #   queryable aggregate (root, human-facing)
+    <test-id>/sample-1/ …   #   per-case detail + repeats (sample-N)
+    .internal/              # PER-RUN machine files
+      index.jsonl           #   one row per CASE (this run) — the per-run index lives HERE
+      progress.json  events.jsonl  bundle.json
+```
+- Per-run index (rows = cases) = `<run_id>/.internal/index.jsonl`; **no separate per-run `.indexes`** — `.internal` already holds it. Cross-run catalog (rows = runs) = `.agentv/results/.indexes/runs.jsonl`. Names signal scope: `.internal` = one bundle; `.indexes`/`.cache` = across runs. Both dot-prefixed (skipped by discovery).
+- **Dashboard default view is sensible, never odd/empty:** because `tags.experiment` is value-defaulted to the eval/suite name (always populated), the default view groups by `experiment` (real names, no "(none)" wall) or a recent-runs list; the grouping key is a user preference they can change, not the absence of a default.
+
 ### Run organization: cross-run index, repeat naming, experiment-as-tag
 - **Cross-run index (rebuildable cache, not source of truth):** keep per-run `index.jsonl` (rows = cases); add a cross-run catalog `.agentv/results/.indexes/runs.jsonl` (already-reserved `.indexes/` namespace) — **one row per run** (run_id, timestamp, targets, `tags` incl experiment, aggregate pass@k). Derived by scanning `*/summary.json`, rebuildable, optional (Dashboard can glob summaries as fallback). JSONL (append per run), **not `index.json`**.
 - **Repeat folder = `sample-N`, not `run-N`.** "run" is overloaded (`run_id` = the whole invocation). Rename `run-${attempt+1}` → `sample-1`, `sample-2`, … (matches margin `samples_per_case`/`sample_index`, pass@k, and AgentV's `repeat`; Inspect's `epoch` is the ML-jargon alt). Keep the metadata split: `sample_index` = repeats, `retry_index` = infra retries.
