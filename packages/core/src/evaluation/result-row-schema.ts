@@ -48,6 +48,7 @@ const RESULT_ROW_ALIASES = {
   tracePath: 'trace_path',
   transcriptPath: 'transcript_path',
   transcriptRawPath: 'transcript_raw_path',
+  transcriptSummary: 'transcript_summary',
   workspacePath: 'workspace_path',
 } as const;
 

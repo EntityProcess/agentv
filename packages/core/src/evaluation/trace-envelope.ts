@@ -8,11 +8,11 @@
  * `gen_ai.operation.name` and `openinference.span.kind` are copied exactly and
  * never case-converted.
  *
- * Derived views such as Provider `Message[]`, `transcript.jsonl`,
+ * Derived views such as Provider `Message[]`, `transcript.json`,
  * `TraceSummary`, compact tool trajectories, replay provider responses, and
- * OTLP JSON export bodies must project from this artifact. Transcript JSONL
- * uses AgentV transcript events on the root span so compatibility rows can
- * include input/system turns without changing replay's assistant-only view.
+ * OTLP JSON export bodies must project from this artifact. Transcript
+ * projections use AgentV transcript events on the root span so compatibility
+ * rows can include input/system turns without changing replay's assistant-only view.
  * Do not introduce a second canonical graph for those compatibility/read
  * models.
  *

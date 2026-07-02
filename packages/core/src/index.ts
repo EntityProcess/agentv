@@ -3,6 +3,7 @@ export * from './evaluation/types.js';
 export * from './evaluation/trace.js';
 export * from './evaluation/trace-envelope.js';
 export * from './evaluation/metrics.js';
+export * from './evaluation/transcript-summary.js';
 export * from './evaluation/dashboard-trace-read-model.js';
 export * from './evaluation/trace-normalization.js';
 export * from './evaluation/external-trace.js';

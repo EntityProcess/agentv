@@ -776,13 +776,13 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(readFileSync(path.join(runDir, 'transcript-raw.jsonl'), 'utf8')).toBe(
       '{"event":"provider-native"}\n',
     );
-    expect(readdirSync(runDir)).toContain('transcript.jsonl');
+    expect(readdirSync(runDir)).toContain('transcript.json');
     expect(readdirSync(outputsDir)).not.toContain('transcript.jsonl');
     expect(readdirSync(outputsDir)).not.toContain('transcript.json');
 
     expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
     expect(indexRows[0]?.trace_path).toBeUndefined();
-    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/run-1/transcript.jsonl`);
+    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/run-1/transcript.json`);
     expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/run-1/transcript-raw.jsonl`);
     expect(existsSync(rawLogPath)).toBe(false);
   });

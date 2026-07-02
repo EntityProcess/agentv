@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
-  traceEnvelopeToNormalizedTranscriptJsonLines,
+  traceEnvelopeToNormalizedTranscriptJson,
   traceEnvelopeToTranscriptJsonLines,
 } from '../import/types.js';
 import { parseEvaluationResultBoundary, toCamelCaseDeep } from './case-conversion.js';
@@ -49,6 +49,7 @@ import {
   traceEnvelopeToTranscriptMessages,
 } from './trace-envelope.js';
 import { type TokenUsage, type TraceSummary, buildTraceFromMessages } from './trace.js';
+import { type TranscriptSummaryWire, buildTranscriptSummary } from './transcript-summary.js';
 import type {
   EvalTest,
   EvaluationResult,
@@ -501,6 +502,7 @@ export interface IndexArtifactEntry {
   readonly answer_path?: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
+  readonly transcript_summary?: TranscriptSummaryWire;
   readonly metrics_path?: string;
   readonly file_changes_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
@@ -557,6 +559,7 @@ export interface AgentVRunResultArtifact {
   readonly file_changes_path?: string;
   readonly transcript_path?: string;
   readonly transcript_raw_path?: string;
+  readonly transcript_summary?: TranscriptSummaryWire;
   readonly o11y: {
     readonly total_turns: number;
     readonly tool_calls: Record<string, number>;
@@ -935,6 +938,20 @@ function toFilePathList(entries: readonly unknown[]): readonly string[] {
     .filter((entry): entry is string => entry !== undefined);
 }
 
+function resultTranscriptProviderId(result: EvaluationResult): string | undefined {
+  const provider = result.trace.metadata?.provider;
+  return typeof provider === 'string' && provider.trim().length > 0 ? provider : result.target;
+}
+
+function buildResultTranscriptSummary(result: EvaluationResult): TranscriptSummaryWire {
+  return buildTranscriptSummary({
+    messages: result.trace.messages ?? [],
+    providerId: resultTranscriptProviderId(result),
+    fileChanges: result.fileChanges,
+    error: result.error,
+  });
+}
+
 function buildAgentVRunResultArtifact(params: {
   readonly trial: TrialResult;
   readonly result: EvaluationResult;
@@ -960,6 +977,9 @@ function buildAgentVRunResultArtifact(params: {
     file_changes_path: fileChangesPath,
     transcript_path: params.hasTranscript ? `./${CANONICAL_TRANSCRIPT_ARTIFACT_PATH}` : undefined,
     transcript_raw_path: params.hasTranscript ? './transcript-raw.jsonl' : undefined,
+    transcript_summary: params.hasTranscript
+      ? buildResultTranscriptSummary(params.result)
+      : undefined,
     o11y: {
       total_turns: metrics.total_turns,
       tool_calls: metrics.tool_calls,
@@ -1063,7 +1083,7 @@ async function writeTrialRunArtifacts(params: {
     await writeFile(fileChangesPath, result.fileChanges, 'utf8');
   }
   if (transcriptPath && transcriptRawPath) {
-    await writeNormalizedTranscriptJsonl(transcriptPath, envelope);
+    await writeNormalizedTranscriptJson(transcriptPath, envelope, result);
     await writeRawTranscriptJsonl(transcriptRawPath, result, envelope);
   }
   const metricsArtifact = await writeMetricsArtifact({
@@ -1767,6 +1787,7 @@ export function buildIndexArtifactEntry(
     transcript_raw_path: options.transcriptRawPath
       ? toRelativeArtifactPath(options.outputDir, options.transcriptRawPath)
       : undefined,
+    transcript_summary: options.transcriptPath ? buildResultTranscriptSummary(result) : undefined,
     metrics_path: options.metricsPath
       ? toRelativeArtifactPath(options.outputDir, options.metricsPath)
       : undefined,
@@ -1855,6 +1876,8 @@ export function buildResultIndexArtifact(
       isSingleRun && hasTranscript
         ? path.posix.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined,
+    transcript_summary:
+      isSingleRun && hasTranscript ? buildResultTranscriptSummary(result) : undefined,
     artifact_pointers: options?.artifactPointers,
     runtime_source: options?.runtimeSource,
     ...extraIndexFields,
@@ -1877,14 +1900,16 @@ function hasTranscriptProjection(result: EvaluationResult, envelope: TraceEnvelo
   return result.output.length > 0 || traceEnvelopeToTranscriptMessages(envelope).length > 0;
 }
 
-async function writeNormalizedTranscriptJsonl(
+async function writeNormalizedTranscriptJson(
   filePath: string,
   envelope: TraceEnvelope,
+  result: EvaluationResult,
 ): Promise<void> {
-  const lines = traceEnvelopeToNormalizedTranscriptJsonLines(envelope);
-  const content =
-    lines.length > 0 ? `${lines.map((line) => JSON.stringify(line)).join('\n')}\n` : '';
-  await writeFile(filePath, content, 'utf8');
+  const transcript = traceEnvelopeToNormalizedTranscriptJson(envelope, {
+    fileChanges: result.fileChanges,
+    error: result.error,
+  });
+  await writeFile(filePath, `${JSON.stringify(transcript, null, 2)}\n`, 'utf8');
 }
 
 async function writeGeneratedRawTranscriptJsonl(

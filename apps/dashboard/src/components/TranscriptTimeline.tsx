@@ -1,10 +1,10 @@
 /**
- * Structured transcript viewer for canonical `transcript.jsonl` files.
+ * Structured transcript viewer for canonical `transcript.json` files.
  *
- * The component intentionally reads only transcript JSONL rows derived from
- * AgentV trace data. It does not parse `response.md` or markdown transcripts;
- * raw transcript/answer artifacts stay available through the Files tab or raw
- * artifact links supplied by the caller.
+ * The component intentionally reads only AgentV-normalized transcript artifacts
+ * derived from trace data. It does not parse `response.md` or markdown
+ * transcripts; raw transcript/answer artifacts stay available through the
+ * Files tab or raw artifact links supplied by the caller.
  */
 
 import { type ReactNode, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
@@ -155,7 +155,12 @@ function normalizeToolUseBlock(block: Record<string, unknown>): Record<string, u
   const metadata = mergeToolMetadata(block.metadata, result?.metadata);
   return {
     id: typeof block.id === 'string' ? block.id : undefined,
-    tool: typeof block.name === 'string' ? block.name : 'tool',
+    tool:
+      typeof block.tool_name === 'string'
+        ? block.tool_name
+        : typeof block.name === 'string'
+          ? block.name
+          : 'tool',
     input: block.input,
     output: result?.output,
     error: result?.error,
@@ -179,6 +184,7 @@ function mergeToolMetadata(blockMetadata: unknown, resultMetadata: unknown): unk
 function normalizedTranscriptLineToTimelineEntry(
   value: Record<string, unknown>,
   messageIndex: number,
+  document?: { testId?: string; target?: string },
 ): TranscriptJsonLine {
   const content = value.content as readonly unknown[];
   const toolCalls = content
@@ -197,8 +203,8 @@ function normalizedTranscriptLineToTimelineEntry(
       : undefined;
 
   return {
-    test_id: '',
-    target: value.agent as string,
+    test_id: document?.testId ?? '',
+    target: document?.target ?? (value.agent as string),
     message_index: messageIndex,
     role: value.type as string,
     agent: value.agent as string,
@@ -218,6 +224,28 @@ function normalizedTranscriptLineToTimelineEntry(
 }
 
 export function parseTranscriptJsonl(rawJsonl: string): TranscriptParseResult {
+  const trimmed = rawJsonl.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (isRecord(parsed) && Array.isArray(parsed.turns)) {
+        const target = typeof parsed.target === 'string' ? parsed.target : undefined;
+        const testId =
+          isRecord(parsed.metadata) && typeof parsed.metadata.test_id === 'string'
+            ? parsed.metadata.test_id
+            : undefined;
+        const entries = parsed.turns.flatMap((turn, index) =>
+          isNormalizedTranscriptLine(turn)
+            ? [normalizedTranscriptLineToTimelineEntry(turn, index, { target, testId })]
+            : [],
+        );
+        return { entries };
+      }
+    } catch {
+      // Fall through to line-oriented parsing so existing error messages stay useful.
+    }
+  }
+
   const entries: TranscriptJsonLine[] = [];
   const lines = rawJsonl.split(/\r?\n/);
 
@@ -281,7 +309,7 @@ function findFilePathBySuffix(
 }
 
 export function findTranscriptPath(nodes: readonly FileNode[]): string | undefined {
-  return findFilePathBySuffix(nodes, ['transcript.jsonl']);
+  return findFilePathBySuffix(nodes, ['transcript.json', 'transcript.jsonl']);
 }
 
 export function findAnswerPath(nodes: readonly FileNode[]): string | undefined {
@@ -890,11 +918,11 @@ export function TranscriptTimeline({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <OpenFileButton path={transcriptPath} onOpenFile={onOpenFile}>
-              Open transcript.jsonl in Files
+              Open transcript.json in Files
             </OpenFileButton>
-            <ActionLink href={transcriptHref}>Open normalized JSONL</ActionLink>
+            <ActionLink href={transcriptHref}>Open normalized JSON</ActionLink>
             <ActionLink href={transcriptDownloadHref} download>
-              Download normalized JSONL
+              Download normalized JSON
             </ActionLink>
           </div>
         </div>

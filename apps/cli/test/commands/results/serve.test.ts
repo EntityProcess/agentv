@@ -2998,7 +2998,7 @@ describe('serve app', () => {
       };
       expect(traceData.schema_version).toBe('agentv.dashboard.trace_artifact.v1');
       expect(traceData.status).toBe('missing');
-      expect(traceData.message).toContain('transcript.jsonl');
+      expect(traceData.message).toContain('transcript.json');
 
       const detailRes = await app.request(`/api/runs/${encodeURIComponent(runId)}`);
       expect(detailRes.status).toBe(200);
@@ -3450,7 +3450,7 @@ describe('serve app', () => {
       expect(res.status).toBe(200);
       const data = (await res.json()) as { status: string; message: string };
       expect(data.status).toBe('missing');
-      expect(data.message).toContain('transcript.jsonl');
+      expect(data.message).toContain('transcript.json');
     });
 
     it('returns a clear dangling state when the transcript pointer cannot be read', async () => {

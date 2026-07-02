@@ -64,8 +64,8 @@ export const structuredTranscriptFiles: FileNode[] = [
             type: 'file',
           },
           {
-            name: 'transcript.jsonl',
-            path: 'final-json-answer__codex/transcript.jsonl',
+            name: 'transcript.json',
+            path: 'final-json-answer__codex/transcript.json',
             type: 'file',
           },
           {

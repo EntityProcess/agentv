@@ -4,7 +4,7 @@
  * This is a derived per-case executor metrics projection over `EvaluationResult`
  * and the internal trace envelope. It aligns with AgentV's case-local `metrics.json`
  * while carrying compact executor observability fields. It is not the
- * canonical trace store; portable transcript detail stays in `transcript.jsonl`, and
+ * canonical trace store; portable transcript detail stays in `transcript.json`, and
  * duration/token/cost usage stays in `timing.json`.
  */
 

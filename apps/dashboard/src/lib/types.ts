@@ -106,6 +106,7 @@ export interface EvalCaseTrial {
   duration_ms?: number;
   total_tool_calls?: number;
   tool_calls?: Record<string, number>;
+  transcript_summary?: TranscriptSummary;
   metrics_path?: string;
   timing_path?: string;
   grading_path?: string;
@@ -248,6 +249,7 @@ export interface EvalResult {
   metrics_path?: string;
   transcript_path?: string;
   transcript_raw_path?: string;
+  transcript_summary?: TranscriptSummary;
   output_path?: string;
   answer_path?: string;
 }
@@ -299,6 +301,17 @@ export interface SuitesResponse {
 
 export interface EvalDetailResponse {
   eval: EvalResult;
+}
+
+export interface TranscriptSummary {
+  total_turns: number;
+  tool_calls: Record<string, number>;
+  files_read: string[];
+  files_modified: string[];
+  shell_commands: string[];
+  web_fetches: string[];
+  errors: Array<Record<string, unknown>>;
+  thinking_blocks: number;
 }
 
 export type TranscriptArtifactStatus = 'ok' | 'missing' | 'dangling' | 'unsupported';
