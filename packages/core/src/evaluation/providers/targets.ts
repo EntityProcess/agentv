@@ -112,7 +112,6 @@ export const CliTargetInputSchema = z
 
     // Common target fields
     grader_target: z.string().optional(),
-    judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
     provider_batching: z.boolean().optional(),
   })
@@ -696,6 +695,15 @@ function assertNoDeprecatedCamelCaseTargetFields(definition: TargetDefinition): 
   );
 }
 
+function assertNoRemovedTargetFields(definition: TargetDefinition): void {
+  const rawDefinition = definition as unknown as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'judge_target')) {
+    throw new Error(
+      `target "${definition.name}".judge_target: field 'judge_target' has been removed. Use 'grader_target' instead.`,
+    );
+  }
+}
+
 export function findDeprecatedCamelCaseTargetWarnings(
   target: unknown,
   location: string,
@@ -810,7 +818,6 @@ const BASE_TARGET_SCHEMA = z
     provider: z.string().optional(),
     use_target: z.string().optional(),
     grader_target: z.string().optional(),
-    judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
     subagent_mode_allowed: z.boolean().optional(),
     fallback_targets: z.array(z.string().min(1)).optional(),
@@ -945,6 +952,7 @@ export function resolveTargetDefinition(
   options?: { readonly emitDeprecationWarnings?: boolean },
 ): ResolvedTarget {
   void options;
+  assertNoRemovedTargetFields(definition);
   assertNoDeprecatedCamelCaseTargetFields(definition);
 
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
@@ -966,7 +974,7 @@ export function resolveTargetDefinition(
   const fallbackTargets = parsed.fallback_targets;
   const base = {
     name: parsed.name,
-    graderTarget: parsed.grader_target ?? parsed.judge_target,
+    graderTarget: parsed.grader_target,
     workers: parsed.workers,
     providerBatching,
     subagentModeAllowed,

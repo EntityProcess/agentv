@@ -151,21 +151,20 @@ export function toScriptConfig(
   hookName: string,
   context: string,
 ): WorkspaceScriptConfig {
-  const command = hook.command ?? hook.script;
+  const command = hook.command;
   if (!command || command.length === 0) {
-    throw new Error(`${hookName} hook in ${context} requires command or script`);
+    throw new Error(`${hookName} hook in ${context} requires command`);
   }
   return {
     command,
     ...(hook.timeout_ms !== undefined && { timeout_ms: hook.timeout_ms }),
     ...(hook.timeoutMs !== undefined && { timeoutMs: hook.timeoutMs }),
     ...(hook.cwd !== undefined && { cwd: hook.cwd }),
-    ...(hook.script !== undefined && { script: hook.script }),
   };
 }
 
 export function hasHookCommand(hook: WorkspaceHookConfig | undefined): hook is WorkspaceHookConfig {
-  return !!((hook?.command && hook.command.length > 0) || (hook?.script && hook.script.length > 0));
+  return !!(hook?.command && hook.command.length > 0);
 }
 
 /**
@@ -338,7 +337,7 @@ export async function resetWorkspaceRoot(
 }
 
 function commandForHook(hook: WorkspaceHookConfig | undefined): readonly string[] | undefined {
-  return hook?.command ?? hook?.script;
+  return hook?.command;
 }
 
 function hookExecution(options: {
@@ -606,7 +605,7 @@ export async function prepareSharedWorkspaceSetup(
     const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
     if (sharedWorkspacePath && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
       const beforeAllHook = suiteBeforeAllHook;
-      const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
+      const beforeAllCommand = (beforeAllHook.command ?? []).join(' ');
       setupLog(
         `running shared before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,
       );
@@ -1029,7 +1028,7 @@ export async function prepareEvalCaseWorkspace(
     const caseBeforeAllHook = evalCase.workspace?.hooks?.before_all;
     if (workspacePath && caseHooksEnabled && hasHookCommand(caseBeforeAllHook)) {
       const beforeAllHook = caseBeforeAllHook;
-      const beforeAllCommand = (beforeAllHook.command ?? beforeAllHook.script ?? []).join(' ');
+      const beforeAllCommand = (beforeAllHook.command ?? []).join(' ');
       if (setupDebug) {
         console.log(
           `[setup] test=${evalCase.id} running before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,

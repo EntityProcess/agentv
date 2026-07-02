@@ -262,6 +262,34 @@ describe('validateTargetsFile', () => {
     }
   });
 
+  it('rejects removed judge_target alias', async () => {
+    const filePath = path.join(tempDir, 'judge-target-alias.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: codex-agent
+    provider: codex
+    model: gpt-5
+    judge_target: grader
+  - name: grader
+    provider: openai
+    model: gpt-5-mini
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].judge_target' &&
+          error.message.includes("'judge_target' field has been removed"),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects azure api_format with a migration error', async () => {
     const filePath = path.join(tempDir, 'azure-api-format.yaml');
     await writeFile(

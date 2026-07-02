@@ -102,6 +102,24 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects removed repo acquisition fields', () => {
+    const result = EvalFileSchema.safeParse({
+      ...baseEval,
+      workspace: {
+        repos: [
+          {
+            path: './repo-a',
+            repo: 'https://github.com/org/repo.git',
+            type: 'git',
+            resolve: 'custom',
+            resolver: 'custom',
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects negative ancestor', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,

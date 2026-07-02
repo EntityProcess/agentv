@@ -293,7 +293,7 @@ async function writeGraderConfigs(
         weight: r.weight ?? 1.0,
         ...(r.score_ranges ? { score_range: r.score_ranges } : {}),
         ...(r.required !== undefined ? { required: r.required } : {}),
-        ...(r.required_min_score !== undefined ? { required_min_score: r.required_min_score } : {}),
+        ...(r.min_score !== undefined ? { min_score: r.min_score } : {}),
       }));
 
       await writeJson(join(llmGradersDir, `${config.name}.json`), {

@@ -285,9 +285,7 @@ function assembleScoreRange(
   for (const rubric of rubrics) {
     const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
     const minScoreLabel =
-      rubric.required_min_score !== undefined
-        ? ` [REQUIRED: min score ${rubric.required_min_score}]`
-        : '';
+      rubric.min_score !== undefined ? ` [REQUIRED: min score ${rubric.min_score}]` : '';
 
     parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 

@@ -1629,6 +1629,50 @@ tests:
       ).toBe(true);
     });
 
+    it('errors when removed repo acquisition fields are set', async () => {
+      const filePath = path.join(tempDir, 'workspace-removed-acquisition-fields-error.yaml');
+      await writeFile(
+        filePath,
+        `workspace:
+  repos:
+    - path: ./repo
+      repo: https://github.com/org/repo.git
+      type: git
+      resolve: custom
+      resolver: custom
+tests:
+  - id: test-1
+    criteria: Goal
+    input: "Query"
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.message.includes('workspace.repos[].type has been removed'),
+        ),
+      ).toBe(true);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.message.includes('workspace.repos[].resolve has been removed'),
+        ),
+      ).toBe(true);
+      expect(
+        result.errors.some(
+          (e) =>
+            e.severity === 'error' &&
+            e.message.includes('workspace.repos[].resolver has been removed'),
+        ),
+      ).toBe(true);
+    });
+
     it('errors when non-Docker repo omits repo identity', async () => {
       const filePath = path.join(tempDir, 'workspace-missing-repo-error.yaml');
       await writeFile(

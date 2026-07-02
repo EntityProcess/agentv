@@ -149,8 +149,8 @@ export interface EvalAssertionInput {
   readonly min_score?: number;
   /** Prompt file for llm_grader */
   readonly prompt?: string;
-  /** Script for code_grader */
-  readonly script?: string | readonly string[];
+  /** Command for code_grader */
+  readonly command?: string | readonly string[];
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
   /** Nested assertions for composite type */

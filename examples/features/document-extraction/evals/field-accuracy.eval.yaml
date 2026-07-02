@@ -9,7 +9,7 @@
 # - Exact matching for invoice numbers and currency codes
 # - Date matching with format normalization
 # - Numeric tolerance for currency amounts
-# - Fuzzy matching via code_grader plugins
+# - Fuzzy matching via code-grader plugins
 # - Line item array validation
 #
 # EXPECTED SCORES:
@@ -47,7 +47,7 @@ assertions:
         weight: 1.0
 
       # Party information
-      # Note: For fuzzy matching (OCR variations), use code_grader with fuzzy_match.ts
+      # Note: For fuzzy matching (OCR variations), use code-grader with fuzzy_match.ts
       - path: supplier.name
         match: exact
         required: true
@@ -199,7 +199,7 @@ tests:
 
   # ============================================
   # Test Case 2: Supplier Name Spacing Variation
-  # Demonstrates fuzzy matching via code_grader with config pass-through
+  # Demonstrates fuzzy matching via code-grader with config pass-through
   # ============================================
   - id: invoice-002
     conversation_id: document-extraction
@@ -208,7 +208,7 @@ tests:
       EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
 
       This simulates OCR output that preserves document formatting.
-      Uses code_grader with config pass-through for multi-field fuzzy matching.
+      Uses code-grader with config pass-through for multi-field fuzzy matching.
     assertions:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy

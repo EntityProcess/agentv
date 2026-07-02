@@ -30,7 +30,7 @@ function unique(values: readonly string[]): readonly string[] {
 
 function targetReferenceNames(target: TargetDefinition): readonly string[] {
   const references: string[] = [];
-  for (const key of ['use_target', 'grader_target', 'judge_target'] as const) {
+  for (const key of ['use_target', 'grader_target'] as const) {
     const value = target[key];
     if (typeof value === 'string' && value.trim().length > 0 && !value.includes('${{')) {
       references.push(value.trim());

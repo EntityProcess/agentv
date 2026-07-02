@@ -273,7 +273,7 @@ describe('EvalFileSchema input shorthand', () => {
   it('rejects lifecycle commands under authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       policy: {
-        setup: [{ script: 'bun install' }],
+        setup: [{ command: 'bun install' }],
         scripts: ['bun test'],
       },
       tests: [baseTest],
@@ -316,7 +316,26 @@ describe('EvalFileSchema input shorthand', () => {
           criteria: 'Goal',
           run: {
             target: 'other-agent',
-            setup: [{ script: 'bun install' }],
+            setup: [{ command: 'bun install' }],
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects removed workspace hook script alias', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          workspace: {
+            hooks: {
+              before_all: {
+                script: ['bun', 'run', 'setup.ts'],
+              },
+            },
           },
         },
       ],

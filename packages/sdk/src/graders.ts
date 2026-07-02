@@ -57,7 +57,6 @@ export interface GraderRubric {
   readonly weight?: number;
   readonly required?: boolean;
   readonly minScore?: number;
-  readonly requiredMinScore?: number;
   readonly scoreRanges?: readonly GraderScoreRange[];
 }
 

@@ -33,7 +33,6 @@ const KNOWN_SNAKE_CASE_KEYS = {
   onDependencyFailure: 'on_dependency_failure',
   onTurnFailure: 'on_turn_failure',
   outputPath: 'output_path',
-  requiredMinScore: 'required_min_score',
   reasoningEffort: 'reasoning_effort',
   scoreRange: 'score_range',
   scoreRanges: 'score_ranges',
@@ -85,7 +84,6 @@ export interface EvalPreprocessor {
 
 export interface EvalWorkspaceHook {
   readonly command?: string | readonly string[];
-  readonly script?: string | readonly string[];
   readonly timeoutMs?: number;
   readonly cwd?: string;
   readonly reset?: 'none' | 'fast' | 'strict';

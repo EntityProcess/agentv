@@ -98,6 +98,15 @@ async function validateWorkspaceObject(
   for (const hookName of ['before_all', 'before_each', 'after_each', 'after_all'] as const) {
     const hook = hooks[hookName];
     if (!isObject(hook)) continue;
+    if ('script' in hook) {
+      errors.push({
+        severity: 'error',
+        filePath: evalFilePath,
+        location: `${location}.hooks.${hookName}.script`,
+        message: "Workspace hook field 'script' has been removed. Use 'command' instead.",
+      });
+      continue;
+    }
 
     // Resolve hook cwd the same way yaml-parser does at parse time:
     //   config.cwd (resolved against baseDir) ?? baseDir
@@ -109,8 +118,7 @@ async function validateWorkspaceObject(
         : path.resolve(baseDir, hookCwdRaw)
       : baseDir;
 
-    // Support both `command` (canonical) and `script` (deprecated alias)
-    const command = hook.command ?? hook.script;
+    const command = hook.command;
     if (!Array.isArray(command)) continue;
 
     for (let i = 0; i < command.length; i++) {

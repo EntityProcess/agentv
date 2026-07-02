@@ -119,13 +119,12 @@ For each materialized repo, AgentV resolves acquisition in this order:
 
 | Order | Source | How it is used |
 |-------|--------|----------------|
-| 1 | Explicit resolver | `workspace.repos[].resolver` names a configured command resolver. If it returns `handled:false`, AgentV fails clearly instead of guessing. |
-| 2 | Pattern resolver | The first non-`default` `repo_resolvers[]` entry whose `repos` pattern matches the repo URL or identity. If it returns `handled:false`, AgentV continues to the default resolver. |
-| 3 | Default resolver | The resolver named `default`, if configured. It must not declare `repos`; it is the unconditional project default. If it returns `handled:false`, AgentV continues to the built-in git resolver. |
-| 4 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV seeds its mirror cache from that local checkout, then clones the cache into the workspace and resets `origin` to the declared repo URL. |
-| 5 | Configured mirror | A path listed under `git_cache.mirrors`. AgentV seeds its mirror cache from that checkout or bare mirror, then clones the cache into the workspace. |
-| 6 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
-| 7 | Remote clone | The normalized clone URL from the eval's `repo` field. |
+| 1 | Pattern resolver | The first non-`default` `repo_resolvers[]` entry whose `repos` pattern matches the repo URL or identity. If it returns `handled:false`, AgentV continues to the default resolver. |
+| 2 | Default resolver | The resolver named `default`, if configured. It must not declare `repos`; it is the unconditional project default. If it returns `handled:false`, AgentV continues to the built-in git resolver. |
+| 3 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV seeds its mirror cache from that local checkout, then clones the cache into the workspace and resets `origin` to the declared repo URL. |
+| 4 | Configured mirror | A path listed under `git_cache.mirrors`. AgentV seeds its mirror cache from that checkout or bare mirror, then clones the cache into the workspace. |
+| 5 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
+| 6 | Remote clone | The normalized clone URL from the eval's `repo` field. |
 
 Workspace clones are independent from user-owned checkouts, configured mirrors,
 and resolver source directories. AgentV does not leave Git alternates pointing

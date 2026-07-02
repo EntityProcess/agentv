@@ -141,7 +141,7 @@ function resolveWholeEnvReference(value: unknown): string | undefined {
 
 function referencedTargetNames(definition: Record<string, unknown>): readonly string[] {
   const names: string[] = [];
-  for (const key of ['use_target', 'grader_target', 'judge_target'] as const) {
+  for (const key of ['use_target', 'grader_target'] as const) {
     const resolved = resolveWholeEnvReference(definition[key]);
     if (resolved && !resolved.includes('${{')) {
       names.push(resolved);

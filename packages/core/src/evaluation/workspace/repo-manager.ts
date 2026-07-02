@@ -638,12 +638,7 @@ export class RepoManager {
     workspacePath: string,
   ): Promise<AcquisitionSource | undefined> {
     const resolvers = this.loadRepoResolvers();
-    if (resolvers.length === 0) {
-      if (repo.resolver) {
-        throw new Error(`workspace.repos[].resolver '${repo.resolver}' is not configured.`);
-      }
-      return undefined;
-    }
+    if (resolvers.length === 0) return undefined;
 
     const originUrl = resolveRepoCloneUrl(repo.repo ?? '');
     const selection = selectRepoResolver(repo, resolvers);
@@ -661,12 +656,6 @@ export class RepoManager {
         sourceUrl: result.source.path,
         originUrl: result.source.origin ?? originUrl,
       };
-    }
-
-    if (selection.kind === 'explicit') {
-      throw new Error(
-        `Repo resolver '${selection.resolver.name}' was selected by workspace.repos[].resolver but returned handled:false.`,
-      );
     }
 
     if (selection.kind === 'pattern') {

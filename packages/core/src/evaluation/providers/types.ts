@@ -370,8 +370,6 @@ export interface TargetDefinition {
   // Supports ${{ ENV_VAR }} syntax (e.g., use_target: ${{ AGENT_TARGET }}).
   readonly use_target?: string | unknown | undefined;
   readonly grader_target?: string | undefined;
-  /** @deprecated Use `grader_target` instead */
-  readonly judge_target?: string | undefined;
   readonly workers?: number | undefined;
   // Provider batching
   readonly provider_batching?: boolean | undefined;

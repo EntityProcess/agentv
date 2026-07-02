@@ -76,7 +76,7 @@ tests:
 
 ## Grader Target
 
-Agent targets that need LLM-based evaluation specify a `grader_target` (also accepts `judge_target` for backward compatibility) — the LLM used to run LLM grader graders:
+Agent targets that need LLM-based evaluation specify a `grader_target` — the LLM used to run LLM grader graders:
 
 ```yaml
 targets:
@@ -171,7 +171,6 @@ workspace:
 |-------|-------------|
 | `repos[].path` | Directory within the workspace to clone into |
 | `repos[].repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
-| `repos[].resolver` | Optional configured `repo_resolvers[].name` override |
 | `repos[].commit` | Branch, tag, or SHA to check out (default: `HEAD`) |
 | `repos[].base_commit` | Alias for `commit`, useful for SWE-bench-style datasets |
 | `repos[].ancestor` | Walk N commits back from the checked-out ref (e.g., `1` for parent) |

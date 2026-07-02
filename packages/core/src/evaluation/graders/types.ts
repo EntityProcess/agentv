@@ -31,8 +31,6 @@ export interface EvaluationContext {
   };
   readonly now: Date;
   readonly graderProvider?: Provider;
-  /** @deprecated Use `graderProvider` instead */
-  readonly judgeProvider?: Provider;
   readonly graderTemplateOverride?: string;
   readonly evaluator?: GraderConfig;
   /** Output messages from agent execution (primary source for tool trajectory) */

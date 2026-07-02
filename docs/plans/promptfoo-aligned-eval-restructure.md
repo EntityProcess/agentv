@@ -109,7 +109,7 @@ Proposed type mapping (this is the crux of conflict 2.c):
 |---|---|---|
 | `contains`/`equals`/`regex`/`is-json`/`icontains`/`starts-with`/`contains-all`/`contains-any` | `contains`/`equals`/`regex`/`is-json` | adopt promptfoo names; add the missing string ops |
 | `javascript` / `python` | `code-grader` | accept promptfoo `javascript`/`python`; keep `code-grader` as AgentV superset |
-| `llm-rubric` / `model-graded-*` / `g-eval` / `factuality` | `llm-grader` / `rubrics` | adopt `llm-rubric` name; keep `llm-grader` (agentic) as extension |
+| `g-eval` / `llm-rubric` / `model-graded-*` / `factuality` | `llm-grader` / `rubrics` | adopt `g-eval` for criteria/rubric scoring; keep `llm-rubric` for free-form rubric text; keep agentic judge behavior as an AgentV extension |
 | `assert-set` | `composite` | adopt `assert-set`; keep `composite` alias or deprecate |
 | `similar` / `similar:*` | *(none)* | **NEW** — needs embeddings provider |
 | `latency` / `cost` / `perplexity` / `word-count` | `latency` / `cost` / `token-usage` | align names |
@@ -168,26 +168,26 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
   - **`python` → subprocess** — unavoidable cross-runtime; JSON args in/out.
   - **`code-grader` → stays the subprocess power tool** for workspace-`cwd` graders (build/test commands), arbitrary languages, and isolation-sensitive cases.
   - **Do NOT desugar `javascript`→`code-grader`** — that would throw away in-process speed. Boundary: *light/pure → in-process `javascript`; heavy/workspace/multi-language → subprocess `code-grader`.* Same trust model both ways (author code is trusted, as in promptfoo).
-- **D — consolidate the three LLM-judge types into one `llm-rubric`** (was §8.1). `rubrics` (multi-criteria, one judge call, operators/`score_ranges`) and `llm-grader` (agentic: `target`, `max_steps`, `preprocessors`) are **removed as type names** and folded into `llm-rubric` as optional fields:
+- **D — split LLM-judge names by semantics, not implementation.** `g-eval` is the criteria/rubric scoring surface. `rubrics` (multi-criteria, one judge flow, operators/`score_ranges`) is removed as a type name and folded into `g-eval` as optional structured fields:
   ```yaml
-  type: llm-rubric
-  value: string | (string | rubric_item)[]   # single (promptfoo) OR multi-criteria (AgentV: ONE judge call)
-  target: <grader_target>                     # optional → agentic evidence-gathering judge (AgentV)
-  max_steps: <int>                             # optional → agentic (AgentV)
+  type: g-eval
+  value: string | string[]                    # promptfoo-compatible criteria
+  rubrics: rubric_item[]                      # AgentV structured extension
   ```
-  One promptfoo-named type; AgentV's better semantics (multi-criteria single call, structured `rubric_item` operators, agentic judge) survive as optional fields.
-  - **Name — RESOLVED (owner Q): `llm-rubric`** (promptfoo's canonical name), not `llm-grader`. It takes a criterion/rubric and returns a verdict — "rubric" fits, and the naming principle prefers promptfoo. `llm-grader` is removed as a type name.
-  - **Default grading behavior change — approved by owner; here's what changes** when the default `llm-rubric` prompt adopts vercel's judge (§5.2): (1) **skeptical stance by default** ("strict judge; when in doubt, fail") → borderline outputs fail more often, so existing suites may show *lower* pass rates; (2) **evidence-by-path** → for agent/workspace tasks the judge reads the transcript/environment from files instead of a stuffed prompt, enabling tool-using investigation and better judgments on large outputs; (3) fixed `{pass, score, reason}` verdict contract. **Opt-out:** authoring an explicit `prompt` overrides the default skeptical prompt, preserving prior behavior. Implementation must diff the exact current `llm-grader-prompt.ts` wording to quantify the shift before flipping the default.
+  `llm-rubric` remains the promptfoo-compatible free-form rubric-text judge. AgentV's agentic/evidence-gathering judge behavior (judge target, workspace/transcript evidence, max steps, preprocessors) remains an AgentV extension instead of being forced into promptfoo's non-agentic `llm-rubric` shape.
+  Artifact rows are generic AgentV grader output, not a `g-eval`-only feature: every grader returns `EvaluationScore.assertions[]`, the orchestrator flattens those rows into the result and `grading.json.assertions[]`, and nested `graders[].assertions[]` preserves the per-grader breakdown. `g-eval`'s structured criteria should use one row per criterion because those criteria are distinct scoring aspects, the same pattern used by field-accuracy fields, execution metrics, and tool-trajectory requirements.
+  - **Name — RESOLVED (owner Q): short-form criteria and structured rubrics use `g-eval`, not `llm-rubric`.** Promptfoo's `g-eval` and DeepEval's `GEval` both model criteria-driven evaluation; DeepEval also has rubric score bands, making it the better home for AgentV `score_ranges`.
+  - **Default grading behavior change — approved by owner; here's what changes** when the default judge adopts vercel's judge (§5.2): (1) **skeptical stance by default** ("strict judge; when in doubt, fail") → borderline outputs fail more often, so existing suites may show *lower* pass rates; (2) **evidence-by-path** → for agent/workspace tasks the judge reads the transcript/environment from files instead of a stuffed prompt, enabling tool-using investigation and better judgments on large outputs; (3) fixed `{pass, score, reason}` verdict contract. **Opt-out:** authoring an explicit `prompt` overrides the default skeptical prompt, preserving prior behavior. Implementation must diff the exact current `llm-grader-prompt.ts` wording to quantify the shift before flipping the default.
 
 ### 2.k `assert` short-form (bare strings → rubric) — how to handle it
 - **AgentV today** (`grader-parser.ts:394`): bare strings in the `assertions` array are collected and unwrapped into **one** `rubrics` grader (`criteria: [strings]`, `weight = N`), evaluated in a single LLM call at equal weight. promptfoo has no bare-string form — every `assert` entry is an object, and multiple criteria are multiple `llm-rubric` asserts (one call each).
 - **Better semantics = AgentV's:** grouping N criteria into one judge call is cheaper and more holistic than N separate calls. Keep the shorthand.
-- **D — keep the bare-string shorthand, retarget it to `llm-rubric`:** bare strings in `assert` desugar to a single grouped `{ type: llm-rubric, value: [strings], weight: N }` (was `rubrics`; same grouping/weight/single-call behavior, now under the consolidated promptfoo-named type). Result:
-  - `assert: ["is polite", "cites a source"]` → one `llm-rubric` with `value: [both]`, `weight: 2`.
-  - `assert: [{type: contains, value: hi}, "is polite"]` → `contains(w=1)` + `llm-rubric(value:["is polite"], w=1)`.
+- **D — keep the bare-string shorthand, retarget it to `g-eval`:** bare strings in `assert` desugar to a single grouped `{ type: g-eval, value: [strings], weight: N }` (was `rubrics`; same grouping/weight/single-flow behavior, now under the criteria-eval type). Result:
+  - `assert: ["is polite", "cites a source"]` → one `g-eval` with `value: [both]`, `weight: 2`.
+  - `assert: [{type: contains, value: hi}, "is polite"]` → `contains(w=1)` + `g-eval(value:["is polite"], w=1)`.
   - promptfoo-style `assert: [{type: llm-rubric, value: "is polite"}]` works unchanged (import parity).
-  This keeps AgentV's terse authoring + single-call economy while making the desugared type a promptfoo name. The explicit form `{ type: llm-rubric, value: [strings] }` is also accepted (same batching), so authors can pick terse or explicit.
-- **This is the superset, not a divergence:** bare-string asserts are an AgentV extension on top of promptfoo. promptfoo ⊆ AgentV holds (every promptfoo `assert` is valid AgentV); AgentV simply accepts more. The only obligation: an "export to promptfoo" path must desugar bare strings to explicit `llm-rubric` objects first.
+  This keeps AgentV's terse authoring + single-flow economy while making the desugared type a promptfoo/DeepEval-aligned name. The explicit form `{ type: g-eval, value: [strings] }` is also accepted, so authors can pick terse or explicit.
+- **This is the superset, not a divergence:** bare-string asserts are an AgentV extension on top of promptfoo. promptfoo ⊆ AgentV holds (every promptfoo `assert` is valid AgentV); AgentV simply accepts more. The only obligation: an "export to promptfoo" path must desugar bare strings to explicit `g-eval` objects first.
 
 ### 2.d Test `id` required vs optional
 - **promptfoo:** `id`/`description` optional.
@@ -235,6 +235,13 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 ### 2.i AgentV-only fields promptfoo lacks (preserve, don't lose)
 `gate` (executable release policy), `imports`/`include`/`select`, multi-turn **evaluation** layer (`turns` per-turn assertions, cross-turn `aggregation`, `on_turn_failure`; execution via promptfoo `_conversation`; `window_size` dropped — §3), `depends_on`/`on_dependency_failure`, `conversation_id`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3). (Workspace, `on_run_complete`, `preprocessors` are handled by 2.l, not kept as-is.)
 
+### 2.m `expected_output` vs `vars.expected_output` — KEEP first-class golden answer
+- **promptfoo:** there is no first-class test-case `expected_output` field. Expected values usually live in `assert[].value`, CSV/XLSX `__expected*` columns that generate assertions, or ordinary vars such as `reference_answer` used by `default_test.assert.value`.
+- **DeepEval:** `LLMTestCase` and `Golden` both carry `expected_output` as the ground-truth/golden answer field.
+- **AgentV today:** `expected_output` is a passive reference answer passed to LLM graders, code graders, field-accuracy, custom assertions, and prompt templates. It also makes a case gradeable without `criteria`; when no `assertions` are declared, the implicit default LLM grader uses the case context including `criteria` and `expected_output`. When `assertions` are present, declared graders are the complete grader list, so `expected_output` remains data and does not add an implicit grader.
+- **D — keep `expected_output` first-class; do not move it wholesale into `vars`.** Golden answers should not be target prompt variables by default because that risks leaking benchmark labels into the system under test. `vars.expected_output` remains an ordinary promptfoo-style variable and never triggers the implicit default grader by itself. The first-class `expected_output` field is the evaluation-context signal: it is available to graders, can satisfy "this case has something to grade," and can drive the default judge only when no explicit `assert`/`assertions` list is present.
+- **Import/conversion rule:** promptfoo `__expected*` columns convert to explicit assertions; promptfoo regular columns such as `reference_answer` or `expected_output` stay in `vars` unless a user or importer intentionally lifts them to AgentV `expected_output`. DeepEval and AgentV-native imports map `expected_output` to the first-class field.
+
 ### 2.l Workspace repos = declarative FIELD (harness-materialized); extensions only for agent-rules/setup
 
 > **REVISED (finalized in ADR-0016 pt10 / ADR-0017).** The text below originally proposed repo materialization via `vars.workspace` + an `agentv:workspace` *extension*. That is **superseded**: **repo provisioning is a declarative `workspace.repos` field the harness materializes BEFORE hooks** (all 4 benchmark frameworks treat provisioning as harness-core; promptfoo has no workspace to align with). Extensions (`beforeAll`/…) are only for **non-provisioning** pluggable setup — `agentv:agent-rules` (skills/hooks/agents staging) + custom `file://` hooks — running after materialization. `isolation` is a `workspace` field, not a hook choice. `on_run_complete`/`preprocessors` still removed → `extensions`.
@@ -264,6 +271,7 @@ These have no promptfoo equivalent and are AgentV's differentiation. Keep them, 
 - **Repo provisioning — a declarative `workspace.repos` field the harness materializes before hooks** (ADR-0016 pt10 / ADR-0017; git repos at pinned commits + resolver backends + mirror cache; `isolation` field). NOT an extension. `agentv:agent-rules` + custom `file://` hooks remain extensions for non-provisioning setup.
 - **Executable `gate`** release policy (`min_test_pass_rate`, `max_execution_errors`, command receiving run JSON).
 - **Agent target providers**: CLI/SDK/codex/copilot/claude/replay/transcript, `use_target` indirection, `fallback_targets`, `grader_target`.
+- **First-class `expected_output`** golden/reference answers (DeepEval-aligned). Keep them distinct from `vars` so gold labels are grader context, not target prompt variables, unless the author explicitly duplicates them into `vars`.
 - **Code-grader SDK** (`@agentv/sdk`): `define_assertion`/`define_code_grader`/`define_workspace_grader`/`define_vitest_workspace_grader`.
 - **Multi-turn — KEEP the evaluation layer, split execution out (has real provenance).** Researched under **agentv#1053** in `agentevals/agentevals-research/research/findings/multiturn-conversation-eval/` against inspect-ai, google-adk, ragas:
   - `on_turn_failure: stop/continue` ← inspect-ai solver `state.completed`; per-turn assertions gating continuation ← inspect-ai `await score(state)`; scripted-vs-LLM-driven turns ← google-adk `conversation` vs `conversation_scenario`.
@@ -329,10 +337,11 @@ assertions: [{ text, passed, evidence? }]    # ≡ agentskills assertion_results
 
 - **Per-assertion: no change.** `{ text, passed, evidence }` already matches agentskills exactly. (Nit: align array key `assertions` → **`assertion_results`** and add the agentskills **`summary`** counts, since agentskills is the source and we're pre-production.)
 - **Overall result: keep a STRING, not a boolean (owner Q resolved).** A boolean `passed` can't express **`skip`** (not-run / dependency-skipped) and doesn't pair with a fractional **`score`**. So keep `verdict: 'pass'|'fail'|'skip'` + `score: number`. `verdict` was an AgentV addition, kept deliberately for the skip state + fractional scoring — this is a "keep AgentV, better semantics" call, not an agentskills field.
-- **`llm-rubric` mapping (the actual risk):** the judge's `{pass, score, reason}` maps as `pass`→per-criterion `passed` (+ rolls up to `verdict`), `score`→`score`, `reason`→ per-criterion **`evidence`**. The judge must emit **one `assertion_result` per rubric criterion** (multi-criteria `llm-rubric` / bare-string batch §2.k → N entries), not one lumped reason.
+- **Assertion rows are generic (the actual risk):** every AgentV grader returns `assertions[]`; the run artifact flattens them into `grading.json.assertions[]` and also keeps `grading.json.graders[].assertions[]` under each grader. A deterministic string assertion usually emits one row, while multi-aspect graders can emit several rows (field-accuracy per field, execution-metrics per configured metric, tool-trajectory per tool/sequence requirement, code-grader per script-emitted assertion). For structured `g-eval`, the judge's `{pass, score, reason}` maps as `pass`→per-criterion `passed` (+ rolls up to `verdict`), `score`→`score`, `reason`→ per-criterion **`evidence`**. Multi-criteria `g-eval` / bare-string batch §2.k must therefore emit **one assertion row per criterion**, not one lumped reason.
+- **Structured rubric inputs stay.** Promptfoo's `g-eval` supports string or string-array criteria and averages aggregate results; DeepEval's `GEval` supports rubric score bands but still stores one metric score/reason. AgentV's `rubrics` shorthand is a structured authoring convenience that unwraps to `g-eval` while preserving per-criterion `weight`, `operator`, `score_ranges`, and `min_score`; do not collapse it to text-only parity. `code-grader` likewise keeps its structured stdin payload and `config`.
 - **Keep `evidence` in `grading.json`.** An SDK comment (`packages/sdk/src/schemas.ts`) nudges evidence toward the trace; override — `grading.json` stays the self-contained verdict record (transcript still in the trace).
 - **Consistency:** define `verdict`/`score`/`passed` derivation once (e.g. `verdict = score >= threshold`; `skip` orthogonal; weighted roll-up via `weight`/`min_score`) + a golden `grading.json` test so they never disagree when the default judge prompt flips.
-- **Net:** the `llm-grader`→`llm-rubric` rename is trivial; the real work is the verdict→`assertion_results[]` mapping + the naming alignment (`assertion_results`/`summary`), on the existing `EvaluationScore` — no new contract.
+- **Net:** the public criteria/rubric rename points to `g-eval`; the real work is the verdict→`assertion_results[]` mapping + the naming alignment (`assertion_results`/`summary`), on the existing `EvaluationScore` — no new contract.
 
 ---
 
@@ -406,9 +415,9 @@ Each phase is a reviewable PR; §2 decisions gate phase 1.
 
 ## 8. Remaining judgment calls
 
-The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.l. Note the owner scoped the superset pragmatically: it holds over the **implemented** promptfoo surface; unimplemented exotic assertion types and `redteam` are an honest documented gap, not silently accepted (items 1–2). The remaining calls, now all resolved:
+The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.m. Note the owner scoped the superset pragmatically: it holds over the **implemented** promptfoo surface; unimplemented exotic assertion types and `redteam` are an honest documented gap, not silently accepted (items 1–2). The remaining calls, now all resolved:
 
-1. **Assertion parity scope — RESOLVED (owner).** Launch-real set: string ops, `javascript`, `python`, `llm-rubric`, `latency`, `cost`, token/execution metrics, `tool-trajectory`, `field-accuracy`, **and `similar`** (requires a configured embeddings provider — new provider config surface). **Do NOT stub the rest** — `context-*`, `moderation`, `guardrails`, `answer-relevance`, `classifier`, `g-eval`, `perplexity` are **future scope** (unimplemented, not silently accepted). Consequence: the schema does NOT accept every promptfoo type; superset holds over the *implemented* surface, and unimplemented types are an honest documented gap (handled by the general unknown-type policy, next item).
+1. **Assertion parity scope — RESOLVED (owner).** Launch-real set: string ops, `javascript`, `python`, `g-eval`, `llm-rubric`, `latency`, `cost`, token/execution metrics, `tool-trajectory`, `field-accuracy`, **and `similar`** (requires a configured embeddings provider — new provider config surface). **Do NOT stub the rest** — `context-*`, `moderation`, `guardrails`, `answer-relevance`, `classifier`, `perplexity` are **future scope** (unimplemented, not silently accepted). Consequence: the schema does NOT accept every promptfoo type; superset holds over the *implemented* surface, and unimplemented types are an honest documented gap (handled by the general unknown-type policy, next item).
 2. **Redteam — RESOLVED (owner): treat like any other unrecognized field.** No special-casing. `redteam:` follows AgentV's general unknown-field policy. NB: the eval-file schema is `.strict()` today (unknown top-level keys are rejected), so a promptfoo `redteam` config errors like a typo unless/until that policy is loosened. Documented superset caveat: **superset excludes redteam** (and other unimplemented exotic types).
 3. **`code-grader` vs `javascript`/`python` — RESOLVED (§2.c):** distinct execution paths — `javascript` in-process, `python` subprocess, `code-grader` the subprocess power tool. Not desugared.
 
@@ -443,7 +452,7 @@ Since this is a major version with nothing in production, **remove** the accumul
 - Legacy grader-provider fields — `graders/llm-grader.ts:95/102` (`resolveGraderProvider`, `graderTargetProvider`), `registry/grader-registry.ts:22/34` (`graderProvider`, `llmGrader`).
 - Legacy rubric gating — `types.ts:480/489-490`, `graders/llm-grader.ts:1316-1325` (0-10 `required_min_score`, `required: true`→`min_score:1.0`). Keep only `min_score` (0-1).
 - `EvalCase` → `EvalTest` alias — `types.ts:1053`. (Ties to `eval_cases`→`tests` removal.)
-- `@deprecated Use expectedOutput` — `evaluate.ts:104/127`.
+- Programmatic snake_case `expected_output` aliases in `evaluate.ts:104/127` — keep the YAML/wire field `expected_output` and SDK field `expectedOutput`; remove or clearly isolate only the TypeScript convenience alias if this Group A cleanup reaches the programmatic API surface.
 - `@deprecated Use Message` — `providers/types.ts:255`.
 - `DEFAULT_SEMANTIC_*`/threshold alias — `graders/scoring.ts:26`.
 - `results_by_project` — `validation/config-validator.ts:108` (already a deprecation error; drop the field entirely).

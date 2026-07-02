@@ -14,8 +14,8 @@
  * Usage in eval YAML:
  *   graders:
  *     - name: tool-selection
- *       type: code_grader
- *       script: ["bun", "run", "scripts/tool-selection-grader.ts"]
+ *       type: code-grader
+ *       command: ["bun", "run", "scripts/tool-selection-grader.ts"]
  */
 import { type Message, defineCodeGrader } from '@agentv/sdk';
 

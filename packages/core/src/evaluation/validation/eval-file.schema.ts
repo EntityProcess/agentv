@@ -58,8 +58,7 @@ const EvaluatorCommonSchema = z.object({
 const PromptSchema = z.union([
   z.string(),
   z.object({
-    command: z.union([z.string(), z.array(z.string())]).optional(),
-    script: z.union([z.string(), z.array(z.string())]).optional(),
+    command: z.union([z.string(), z.array(z.string())]),
     config: z.record(z.unknown()).optional(),
   }),
 ]);
@@ -94,7 +93,6 @@ const RubricCriterionSchema = z.union([z.string().min(1), RubricItemSchema]);
 const CodeGraderSchema = EvaluatorCommonSchema.extend({
   type: z.enum(['code-grader', 'code_grader']),
   command: z.union([z.string(), z.array(z.string())]),
-  script: z.union([z.string(), z.array(z.string())]).optional(),
   cwd: z.string().optional(),
   target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
   config: z.record(z.unknown()).optional(),
@@ -265,12 +263,13 @@ const EvaluatorSchema = z.union([
 // Workspace
 // ---------------------------------------------------------------------------
 
-const WorkspaceScriptSchema = z.object({
-  command: z.union([z.string(), z.array(z.string())]).optional(),
-  script: z.union([z.string(), z.array(z.string())]).optional(),
-  timeout_ms: z.number().min(0).optional(),
-  cwd: z.string().optional(),
-});
+const WorkspaceScriptSchema = z
+  .object({
+    command: z.union([z.string(), z.array(z.string())]).optional(),
+    timeout_ms: z.number().min(0).optional(),
+    cwd: z.string().optional(),
+  })
+  .strict();
 
 // ---------------------------------------------------------------------------
 // Repo lifecycle
@@ -284,29 +283,31 @@ const RepoSchema = z
     base_commit: z.string().min(1).optional(),
     ancestor: z.number().int().min(0).optional(),
     sparse: z.array(z.string()).optional(),
-    resolver: z.string().min(1).optional(),
   })
   .strict()
   .refine((repo) => !repo.commit || !repo.base_commit || repo.commit === repo.base_commit, {
     message: 'commit and base_commit must match when both are set',
   });
 
-const WorkspaceHookSchema = z.object({
-  command: z.union([z.string(), z.array(z.string())]).optional(),
-  script: z.union([z.string(), z.array(z.string())]).optional(),
-  timeout_ms: z.number().optional(),
-  timeoutMs: z.number().optional(),
-  cwd: z.string().optional(),
-  reset: z.enum(['none', 'fast', 'strict']).optional(),
-});
+const WorkspaceHookSchema = z
+  .object({
+    command: z.union([z.string(), z.array(z.string())]).optional(),
+    timeout_ms: z.number().optional(),
+    timeoutMs: z.number().optional(),
+    cwd: z.string().optional(),
+    reset: z.enum(['none', 'fast', 'strict']).optional(),
+  })
+  .strict();
 
-const WorkspaceHooksSchema = z.object({
-  enabled: z.boolean().optional(),
-  before_all: WorkspaceHookSchema.optional(),
-  before_each: WorkspaceHookSchema.optional(),
-  after_each: WorkspaceHookSchema.optional(),
-  after_all: WorkspaceHookSchema.optional(),
-});
+const WorkspaceHooksSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    before_all: WorkspaceHookSchema.optional(),
+    before_each: WorkspaceHookSchema.optional(),
+    after_each: WorkspaceHookSchema.optional(),
+    after_all: WorkspaceHookSchema.optional(),
+  })
+  .strict();
 
 const DockerWorkspaceSchema = z.object({
   image: z.string(),
@@ -337,19 +338,23 @@ const WorkspaceSchema = z
 // Target hooks (eval-level per-target customization)
 // ---------------------------------------------------------------------------
 
-const TargetHooksSchema = z.object({
-  before_all: WorkspaceHookSchema.optional(),
-  before_each: WorkspaceHookSchema.optional(),
-  after_each: WorkspaceHookSchema.optional(),
-  after_all: WorkspaceHookSchema.optional(),
-});
+const TargetHooksSchema = z
+  .object({
+    before_all: WorkspaceHookSchema.optional(),
+    before_each: WorkspaceHookSchema.optional(),
+    after_each: WorkspaceHookSchema.optional(),
+    after_all: WorkspaceHookSchema.optional(),
+  })
+  .strict();
 
 /** Eval target reference: string shorthand or object with hooks */
-const EvalTargetRefSchema = z.object({
-  name: z.string().min(1),
-  use_target: z.string().optional(),
-  hooks: TargetHooksSchema.optional(),
-});
+const EvalTargetRefSchema = z
+  .object({
+    name: z.string().min(1),
+    use_target: z.string().optional(),
+    hooks: TargetHooksSchema.optional(),
+  })
+  .strict();
 
 const EvalLocalTargetSchema = z
   .object({

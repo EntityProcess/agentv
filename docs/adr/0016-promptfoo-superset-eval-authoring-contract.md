@@ -30,10 +30,21 @@ keep AgentV's only where its semantics are genuinely better.**
    Promptfoo type names adopted (`contains`/`equals`/`regex`/`is-json`/`icontains`/
    `contains-all|any`/`starts-with`/`similar`/`latency`/`cost`/`webhook`/`javascript`/
    `python`/`assert-set`). `composite` removed → `assert-set`.
-2. **LLM judge = one `llm-rubric` type** (promptfoo name); AgentV's `rubrics` and
-   agentic `llm-grader` fold in as optional fields (`value: string|array`, optional
-   `target`/`max_steps`). Bare-string `assert` entries desugar to a batched
-   `llm-rubric` (N criteria, one judge call) — an AgentV superset extension.
+2. **LLM judge vocabulary follows semantics.** `g-eval` is the criteria/rubric
+   scoring type; AgentV's `rubrics` and bare-string `assert` entries desugar to a
+   grouped `g-eval` (N criteria, one judge flow) as an AgentV superset extension.
+   `llm-rubric` remains the promptfoo-compatible free-form rubric judge. Agentic
+   evidence-gathering judges stay an AgentV extension rather than being forced into
+   `llm-rubric`. Structured AgentV rubric criteria are preserved, not flattened
+   into a single text blob: criteria objects keep `weight`, `operator`,
+   `score_ranges`, and `min_score` so grading artifacts can emit one assertion
+   result per criterion. Artifact assertion rows are the generic AgentV grader
+   contract, not a `g-eval` special case: each grader returns `assertions[]`, the
+   orchestrator flattens those rows into `grading.json.assertions[]`, and
+   `grading.json.graders[].assertions[]` keeps the per-grader breakdown. Promptfoo's
+   `g-eval` and `llm-rubric` return aggregate assertion results; AgentV's structured
+   `g-eval` extension deliberately populates the same generic assertion rows once per
+   criterion so the Dashboard can show criterion-level evidence.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
    `code-grader` = the subprocess power tool (workspace-`cwd`, arbitrary language) —
    `javascript` is NOT desugared to `code-grader`.
@@ -57,7 +68,9 @@ keep AgentV's only where its semantics are genuinely better.**
 8. **Optional test `id`**, layered identity: content identity = `test_id` (content hash,
    derived when unauthored); governance/trend identity = an author `tag`/`metadata` key
    (Dashboard keys comparison on this); display label = `description` → vars → `Test #n`.
-9. **Keep AgentV where better**: `repeat: { count, strategy, early_exit }` (map promptfoo
+9. **Keep AgentV where better**: first-class `expected_output` as passive golden/reference
+   answer data (DeepEval-aligned; not moved into `vars`, and not sent to target prompts
+   unless the author separately places it in `vars`); `repeat: { count, strategy, early_exit }` (map promptfoo
    `repeat:int` → `count`+`pass_all`); executable `gate` release policy (alongside per-test
    `threshold`); `imports`/`select`; `depends_on`. `experiment` is authored as `tags.experiment` — a plain tag with **no structural privilege** (not a bucket/field/storage path; not a privileged grouping key; tags alphabetical; default compare key is a user preference). `--experiment X` = sugar for `--tag experiment=X`. Its **value** is auto-defaulted to the eval/suite name when unset so runs are always groupable (ADR-0009 derivation) — a default value, not a privileged key (ADR-0017).
 10. **Workspace repo provisioning is a declarative FIELD, not an extension.**
@@ -75,8 +88,9 @@ keep AgentV's only where its semantics are genuinely better.**
     (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
     e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
     Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
-11. **Scope**: `similar` ships with a configured embeddings provider. Exotic promptfoo
-    assertions (`context-*`/`moderation`/`g-eval`/…) and `redteam` are **future scope** —
+11. **Scope**: `similar` ships with a configured embeddings provider, and `g-eval` ships
+    as the structured criteria/rubric judge. Exotic promptfoo assertions
+    (`context-*`/`moderation`/…) and `redteam` are **future scope** —
     treated as unrecognized fields, not stubbed. Superset holds over the *implemented*
     surface.
 

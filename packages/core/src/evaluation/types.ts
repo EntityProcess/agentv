@@ -215,8 +215,6 @@ export type TargetAccessConfig = {
 export type WorkspaceScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "setup.ts"]) */
   readonly command: readonly string[];
-  /** @deprecated Use `command` instead */
-  readonly script?: readonly string[];
   /** Optional timeout in milliseconds (default: 60000 for setup, 30000 for teardown) */
   readonly timeout_ms?: number;
   readonly timeoutMs?: number;
@@ -248,15 +246,11 @@ export type RepoConfig = {
   readonly ancestor?: number;
   /** Optional sparse-checkout paths. */
   readonly sparse?: readonly string[];
-  /** Optional project-configured repo resolver name. */
-  readonly resolver?: string;
 };
 
 export type WorkspaceHookConfig = {
   /** Optional command array to execute (e.g., ["bun", "run", "setup.ts"]) */
   readonly command?: readonly string[];
-  /** @deprecated Use `command` instead */
-  readonly script?: readonly string[];
   /** Optional timeout in milliseconds */
   readonly timeout_ms?: number;
   readonly timeoutMs?: number;
@@ -372,8 +366,6 @@ export type CodeGraderConfig = {
   readonly name: string;
   readonly type: 'code-grader';
   readonly command: readonly string[];
-  /** @deprecated Use `command` instead */
-  readonly script?: readonly string[];
   readonly resolvedScriptPath?: string;
   readonly cwd?: string;
   readonly resolvedCwd?: string;
@@ -398,8 +390,6 @@ export type CodeGraderConfig = {
 export type PromptScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "template.ts"]) */
   readonly command: readonly string[];
-  /** @deprecated Use `command` instead */
-  readonly script?: readonly string[];
   /** Pass-through configuration for the prompt template */
   readonly config?: Record<string, unknown>;
 };
@@ -477,7 +467,7 @@ export type RubricItem = {
   readonly operator?: RubricOperator;
   readonly weight: number;
   /**
-   * Legacy boolean gating (treated as min_score: 1.0 for score-range rubrics).
+   * Binary checklist gating. Score-range rubrics use min_score instead.
    */
   readonly required?: boolean;
   /**
@@ -485,11 +475,6 @@ export type RubricItem = {
    * Internally compared against normalized score (rawScore / 10).
    */
   readonly min_score?: number;
-  /**
-   * @deprecated Use min_score (0-1 scale) instead.
-   * Legacy: minimum score on 0-10 integer scale.
-   */
-  readonly required_min_score?: number;
   /**
    * Score range definitions for analytic rubric scoring.
    * When present, the grader outputs an integer 0-10 score per criterion.

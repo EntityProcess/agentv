@@ -1754,7 +1754,7 @@ function collectSingleGraderSourceReferences(
   const references: EvalSourceReference[] = [];
 
   if (evaluator.type === 'code-grader') {
-    const command = evaluator.command ?? evaluator.script ?? [];
+    const command = evaluator.command ?? [];
     references.push({
       kind: 'code_grader_command',
       displayPath: evaluator.resolvedScriptPath ?? command.join(' '),
@@ -1927,7 +1927,6 @@ function parseCommandArray(source: unknown): string[] | undefined {
 
 /**
  * Parse a WorkspaceScriptConfig from raw YAML value.
- * Accepts both `command` (preferred) and `script` (deprecated alias).
  * Command can be an array of strings or a single string (auto-split on whitespace).
  * Note: string commands are split naively on whitespace. For arguments containing
  * spaces, use the array form: command: ["node", "path with spaces/setup.mjs"]
@@ -1938,12 +1937,11 @@ function parseWorkspaceScriptConfig(
 ): WorkspaceScriptConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
-  // Precedence: command > script (deprecated)
-  if (obj.script !== undefined && obj.command === undefined) {
-    logWarning("'script' is deprecated. Use 'command' instead.");
+  if (obj.script !== undefined) {
+    throw new Error("Workspace hook field 'script' has been removed. Use 'command' instead.");
   }
 
-  const command = parseCommandArray(obj.command ?? obj.script);
+  const command = parseCommandArray(obj.command);
   if (!command) return undefined;
 
   const timeoutMs = typeof obj.timeout_ms === 'number' ? obj.timeout_ms : undefined;
@@ -1966,13 +1964,13 @@ function parseWorkspaceHookConfig(
   evalFileDir: string,
 ): WorkspaceHookConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
-  const script = parseWorkspaceScriptConfig(raw, evalFileDir);
+  const commandConfig = parseWorkspaceScriptConfig(raw, evalFileDir);
   const obj = raw as Record<string, unknown>;
   const reset =
     obj.reset === 'none' || obj.reset === 'fast' || obj.reset === 'strict' ? obj.reset : undefined;
-  if (!script && !reset) return undefined;
+  if (!commandConfig && !reset) return undefined;
   return {
-    ...(script ?? {}),
+    ...(commandConfig ?? {}),
     ...(reset !== undefined && { reset }),
   };
 }

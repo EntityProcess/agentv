@@ -19,8 +19,6 @@ import type { GraderConfig } from '../types.js';
 export interface GraderDispatchContext {
   /** Shared LLM grader provider (resolved at suite level) */
   readonly graderProvider?: Provider;
-  /** @deprecated Use `graderProvider` instead */
-  readonly judgeProvider?: Provider;
   /** Function to resolve target names to providers */
   readonly targetResolver?: TargetResolver;
   /** Available target names for code graders */
@@ -31,8 +29,6 @@ export interface GraderDispatchContext {
   readonly evalFileDir?: string;
   /** Shared LLM grader evaluator instance */
   readonly llmGrader: Grader;
-  /** @deprecated Use `llmGrader` instead */
-  readonly llmJudge?: Grader;
   /** Reference to the registry itself (for composite evaluators that need to create children) */
   readonly registry: GraderRegistry;
 }

@@ -14,8 +14,8 @@
  * Usage in eval YAML:
  *   graders:
  *     - name: pairwise-compare
- *       type: code_grader
- *       script: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
+ *       type: code-grader
+ *       command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  */
 import { type Message, defineCodeGrader } from '@agentv/sdk';
 

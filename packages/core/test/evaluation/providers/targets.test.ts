@@ -253,6 +253,25 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/'api_format' field is no longer supported/i);
   });
 
+  it('rejects removed judge_target alias', () => {
+    const env = {
+      OPENAI_API_KEY: 'secret',
+    } satisfies Record<string, string>;
+
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'openai-with-judge-target',
+          provider: 'openai',
+          api_key: '${{ OPENAI_API_KEY }}',
+          model: 'gpt-5-mini',
+          judge_target: 'grader',
+        } as never,
+        env,
+      ),
+    ).toThrow(/judge_target.*has been removed/i);
+  });
+
   it('defaults azure to api version v1', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',

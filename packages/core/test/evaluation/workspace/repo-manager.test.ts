@@ -398,41 +398,6 @@ describe('RepoManager', () => {
       );
     }, 30_000);
 
-    it('uses an explicit workspace repo resolver even when the resolver has no repos pattern', async () => {
-      const sourceRepo = path.join(tmpDir, 'explicit-source');
-      createTestRepo(sourceRepo, { 'explicit.txt': 'selected explicitly' });
-      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
-      writeResolverScript(scriptPath);
-      const projectDir = path.join(tmpDir, 'project-explicit');
-      const evalDir = path.join(projectDir, 'evals');
-      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
-      mkdirSync(evalDir, { recursive: true });
-      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
-        {
-          name: 'inline_only',
-          command: ['bun', scriptPath],
-          config: { source_path: sourceRepo },
-        },
-      ]);
-
-      const projectManager = new RepoManager(false, {
-        progress: false,
-        projectConfigDir: evalDir,
-      });
-      await projectManager.materialize(
-        {
-          path: './explicit',
-          repo: 'https://github.com/other/repo.git',
-          resolver: 'inline_only',
-        },
-        workspaceDir,
-      );
-
-      expect(readFileSync(path.join(workspaceDir, 'explicit', 'explicit.txt'), 'utf-8')).toBe(
-        'selected explicitly',
-      );
-    }, 30_000);
-
     it('sends the stable stdin protocol and clones from resolver stdout git source', async () => {
       const sourceRepo = path.join(tmpDir, 'protocol-source');
       const firstCommit = createTestRepo(sourceRepo, { 'src/main.ts': 'first' });
@@ -565,62 +530,6 @@ describe('RepoManager', () => {
       expect(readFileSync(path.join(workspaceDir, 'builtin', 'builtin.txt'), 'utf-8')).toBe(
         'from built-in',
       );
-    }, 30_000);
-
-    it('fails when an explicitly selected resolver returns handled:false', async () => {
-      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
-      writeResolverScript(scriptPath);
-      const projectDir = path.join(tmpDir, 'project-explicit-false');
-      const evalDir = path.join(projectDir, 'evals');
-      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
-      mkdirSync(evalDir, { recursive: true });
-      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
-        {
-          name: 'explicit_false',
-          command: ['bun', scriptPath],
-          config: { handled: false },
-        },
-      ]);
-
-      const projectManager = new RepoManager(false, {
-        progress: false,
-        projectConfigDir: evalDir,
-      });
-      await expect(
-        projectManager.materialize(
-          {
-            path: './explicit-false',
-            repo: 'https://github.com/example/explicit-false.git',
-            resolver: 'explicit_false',
-          },
-          workspaceDir,
-        ),
-      ).rejects.toThrow(
-        "Repo resolver 'explicit_false' was selected by workspace.repos[].resolver but returned handled:false.",
-      );
-    }, 30_000);
-
-    it('fails clearly when inline resolver names are unknown', async () => {
-      const projectDir = path.join(tmpDir, 'project-missing-resolver');
-      const evalDir = path.join(projectDir, 'evals');
-      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
-      mkdirSync(evalDir, { recursive: true });
-      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), []);
-
-      const projectManager = new RepoManager(false, {
-        progress: false,
-        projectConfigDir: evalDir,
-      });
-      await expect(
-        projectManager.materialize(
-          {
-            path: './missing',
-            repo: 'https://github.com/example/missing.git',
-            resolver: 'missing',
-          },
-          workspaceDir,
-        ),
-      ).rejects.toThrow("workspace.repos[].resolver 'missing' is not configured.");
     }, 30_000);
 
     it('rejects duplicate resolver names and repos on the default resolver', async () => {

@@ -260,6 +260,48 @@ describe('buildGradingArtifact', () => {
     expect(grading.graders?.[1].score).toBe(0.7);
   });
 
+  it('preserves multi-aspect grader assertions at top level and under the grader', () => {
+    const rubricAssertions = [
+      {
+        text: '[accuracy] Answer matches the reference - Score: 8/10 (strong)',
+        passed: true,
+        evidence: 'The answer includes the expected facts.',
+      },
+      {
+        text: '[citations] Answer cites the source - Score: 4/10 (weak)',
+        passed: false,
+        evidence: 'The answer does not cite a source.',
+      },
+    ];
+    const result = makeResult({
+      assertions: rubricAssertions,
+      scores: [
+        makeEvaluatorResult({
+          name: 'rubric-review',
+          type: 'llm-grader',
+          score: 0.6,
+          assertions: rubricAssertions,
+        }),
+      ],
+    });
+
+    const grading = buildGradingArtifact(result);
+
+    expect(grading.assertions).toEqual(rubricAssertions);
+    expect(grading.summary).toEqual({
+      passed: 1,
+      failed: 1,
+      total: 2,
+      pass_rate: 0.5,
+    });
+    expect(grading.graders?.[0]).toMatchObject({
+      name: 'rubric-review',
+      type: 'llm-grader',
+      score: 0.6,
+      assertions: rubricAssertions,
+    });
+  });
+
   it('keeps grading.json focused on grading evidence', () => {
     const result = makeResult({ error: 'Timeout exceeded' });
     const grading = buildGradingArtifact(result);

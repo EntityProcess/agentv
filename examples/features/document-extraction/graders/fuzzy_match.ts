@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Fuzzy String Matching code_grader Example
+ * Fuzzy String Matching code-grader Example
  *
- * This script demonstrates how to implement fuzzy string matching as a code_grader
+ * This script demonstrates how to implement fuzzy string matching as a code-grader
  * grader. Use this approach for comparing extracted text that may have OCR errors,
  * formatting variations, or minor typos.
  *
@@ -10,8 +10,8 @@
  * ```yaml
  * graders:
  *   - name: vendor_name_fuzzy
- *     type: code_grader
- *     script: ["bun", "run", "../graders/fuzzy_match.ts"]
+ *     type: code-grader
+ *     command: ["bun", "run", "../graders/fuzzy_match.ts"]
  * ```
  *
  * The script reads evaluation context from stdin and outputs a JSON result.

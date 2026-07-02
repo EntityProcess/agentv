@@ -644,9 +644,17 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       validateUnknownSettings(target, provider, absolutePath, location, errors);
     }
 
-    // Optional field: grader_target / judge_target (must be string if present)
-    const graderTarget = target.grader_target ?? target.judge_target;
-    if (graderTarget !== undefined && typeof graderTarget !== 'string') {
+    if (target.judge_target !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.judge_target`,
+        message: "The 'judge_target' field has been removed. Use 'grader_target' instead.",
+      });
+    }
+
+    // Optional field: grader_target (must be string if present)
+    if (target.grader_target !== undefined && typeof target.grader_target !== 'string') {
       errors.push({
         severity: 'error',
         filePath: absolutePath,

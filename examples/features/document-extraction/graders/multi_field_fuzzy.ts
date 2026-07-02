@@ -2,15 +2,15 @@
 /**
  * Multi-Field Fuzzy Matcher
  *
- * A configurable code_grader that compares multiple fields using Levenshtein similarity.
+ * A configurable code-grader that compares multiple fields using Levenshtein similarity.
  * Configuration is passed via YAML properties that become stdin config.
  *
  * Usage in dataset.eval.yaml:
  * ```yaml
  * graders:
  *   - name: party_names_fuzzy
- *     type: code_grader
- *     script: ["bun", "run", "../graders/multi_field_fuzzy.ts"]
+ *     type: code-grader
+ *     command: ["bun", "run", "../graders/multi_field_fuzzy.ts"]
  *     fields:
  *       - path: supplier.name
  *         threshold: 0.85

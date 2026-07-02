@@ -97,8 +97,6 @@ export async function materializeContentForGrader(
 
 export interface CodeGraderOptions {
   readonly command: readonly string[];
-  /** @deprecated Use `command` instead */
-  readonly script?: readonly string[];
   readonly cwd?: string;
   readonly agentTimeoutMs?: number;
   /** Pass-through configuration from YAML (any unrecognized properties) */
@@ -117,7 +115,7 @@ export class CodeGrader implements Grader {
   private readonly target?: TargetAccessConfig;
 
   constructor(options: CodeGraderOptions) {
-    this.command = options.command ?? options.script ?? [];
+    this.command = options.command;
     this.cwd = options.cwd;
     this.agentTimeoutMs = options.agentTimeoutMs;
     this.config = options.config;
@@ -206,10 +204,10 @@ export class CodeGrader implements Grader {
     let proxyShutdown: (() => Promise<void>) | undefined;
     let getProxyUsage: (() => TargetProxyUsageMetadata) | undefined;
 
-    if (this.target !== undefined && context.judgeProvider) {
+    if (this.target !== undefined && context.graderProvider) {
       const maxCalls = this.target.max_calls ?? DEFAULT_MAX_CALLS;
       const proxy = await createTargetProxy({
-        defaultProvider: context.judgeProvider,
+        defaultProvider: context.graderProvider,
         targetResolver: context.targetResolver,
         availableTargets: context.availableTargets,
         maxCalls,

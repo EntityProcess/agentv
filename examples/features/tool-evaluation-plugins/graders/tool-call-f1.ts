@@ -17,7 +17,7 @@
  *   graders:
  *     - name: tool-f1
  *       type: code_grader
- *       script: ["bun", "run", "../graders/tool-call-f1.ts"]
+ *       command: ["bun", "run", "../graders/tool-call-f1.ts"]
  *       expected_tools: ["search", "fetch"]
  */
 import { type CodeGraderInput, defineCodeGrader } from '@agentv/sdk';

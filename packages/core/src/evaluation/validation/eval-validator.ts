@@ -1416,6 +1416,34 @@ function validateWorkspaceRepoConfig(
         });
       }
 
+      if ('type' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'workspace.repos[].type has been removed. Use workspace.repos[].repo.',
+        });
+      }
+
+      if ('resolve' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'workspace.repos[].resolve has been removed. Configure repo_resolvers instead.',
+        });
+      }
+
+      if ('resolver' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message:
+            'workspace.repos[].resolver has been removed. Configure repo_resolvers.repos patterns instead.',
+        });
+      }
+
       if (!repo.repo && !isObject(docker)) {
         errors.push({
           severity: 'error',
