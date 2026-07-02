@@ -64,6 +64,8 @@ interface EvaluationResultLike {
   readonly timestamp: string;
 }
 
+let diagnosticsWriteQueue: Promise<void> = Promise.resolve();
+
 function evalCaseIds(evalCases: ReadonlyArray<unknown> | undefined): readonly string[] {
   if (!Array.isArray(evalCases) || evalCases.length === 0) {
     return ['case-alpha', 'case-beta'];
@@ -171,6 +173,7 @@ async function maybeWriteDiagnostics(
   }
 
   const payload = {
+    testFilePath: options.testFilePath,
     target: options.target?.name,
     targetKind: options.target?.kind,
     targetModel:
@@ -210,17 +213,20 @@ async function maybeWriteDiagnostics(
     resultCount: results.length,
   } satisfies Record<string, unknown>;
 
-  const priorCalls = await readFile(diagnosticsPath, 'utf8')
-    .then((raw) => {
-      const parsed = JSON.parse(raw) as { readonly calls?: unknown };
-      return Array.isArray(parsed.calls) ? parsed.calls : [parsed];
-    })
-    .catch(() => []);
-  await writeFile(
-    diagnosticsPath,
-    JSON.stringify({ ...payload, calls: [...priorCalls, payload] }, null, 2),
-    'utf8',
-  );
+  diagnosticsWriteQueue = diagnosticsWriteQueue.then(async () => {
+    const priorCalls = await readFile(diagnosticsPath, 'utf8')
+      .then((raw) => {
+        const parsed = JSON.parse(raw) as { readonly calls?: unknown };
+        return Array.isArray(parsed.calls) ? parsed.calls : [parsed];
+      })
+      .catch(() => []);
+    await writeFile(
+      diagnosticsPath,
+      JSON.stringify({ ...payload, calls: [...priorCalls, payload] }, null, 2),
+      'utf8',
+    );
+  });
+  await diagnosticsWriteQueue;
 }
 
 async function maybeWritePromptDump(

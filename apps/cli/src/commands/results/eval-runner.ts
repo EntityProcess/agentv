@@ -171,6 +171,9 @@ function validateResumeOptions(req: RunEvalRequest): string | undefined {
   if (modes.length > 1) {
     return `resume, rerun_failed, and retry_errors are mutually exclusive (got: ${modes.join(', ')})`;
   }
+  if (req.rerun_failed && !req.output?.trim()) {
+    return 'rerun_failed requires output to identify the prior run workspace';
+  }
   return undefined;
 }
 
@@ -230,7 +233,7 @@ function buildCliArgs(req: RunEvalRequest, experiment?: string): string[] {
     args.push('--resume');
   }
   if (req.rerun_failed) {
-    args.push('--rerun-failed');
+    args.push('--rerun-failed', req.output?.trim() ?? '');
   }
   if (req.retry_errors?.trim()) {
     args.push('--retry-errors', req.retry_errors.trim());

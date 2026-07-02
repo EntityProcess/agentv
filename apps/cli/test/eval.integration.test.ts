@@ -933,6 +933,241 @@ describe('agentv eval CLI', () => {
     }
   }, 30_000);
 
+  it('reruns only latest failed rows from a canonical run id', async () => {
+    const fixture = await createFixture();
+    try {
+      const priorRunDir = path.join(fixture.suiteDir, '.agentv', 'results', 'prior-run');
+      const first = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--output',
+        priorRunDir,
+        '--threshold',
+        '0.8',
+      ]);
+      expect(first.exitCode).toBe(1);
+      const priorIndexPath = path.join(priorRunDir, 'index.jsonl');
+      const priorRows = (await readJsonLines(priorIndexPath)) as Array<Record<string, unknown>>;
+      const alphaRow = priorRows.find((row) => row.test_id === 'case-alpha');
+      const betaRow = priorRows.find((row) => row.test_id === 'case-beta');
+      if (!alphaRow || !betaRow) {
+        throw new Error('Expected prior rows for case-alpha and case-beta');
+      }
+      await writeFile(
+        priorIndexPath,
+        `${[
+          ...priorRows.map((row) => ({
+            ...row,
+            execution_status: row.test_id === 'case-alpha' ? 'ok' : 'quality_failure',
+          })),
+          { ...alphaRow, execution_status: 'quality_failure' },
+          { ...betaRow, execution_status: 'ok' },
+        ]
+          .map((row) => JSON.stringify(row))
+          .join('\n')}\n`,
+        'utf8',
+      );
+      await writeFile(
+        fixture.testFilePath,
+        `description: CLI integration test
+target: file-target
+
+tests:
+  - id: case-alpha
+    criteria: System responds with alpha
+    input:
+      - role: user
+        content: |
+          Please respond with alpha
+    expected_output:
+      - role: assistant
+        content: "Alpha"
+  - id: case-beta
+    criteria: System responds with beta
+    input:
+      - role: user
+        content: |
+          Please respond with beta
+    expected_output:
+      - role: assistant
+        content: "Beta"
+  - id: case-gamma
+    criteria: System responds with gamma
+    input:
+      - role: user
+        content: |
+          Please respond with gamma
+    expected_output:
+      - role: assistant
+        content: "Gamma"
+`,
+        'utf8',
+      );
+
+      const second = await runCli(fixture, [
+        'eval',
+        fixture.testFilePath,
+        '--rerun-failed',
+        'prior-run',
+        '--threshold',
+        '0.5',
+      ]);
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout).toContain('Rerun-failed: found 4 existing result(s), skipping 1');
+
+      const diagnostics = await readDiagnostics(fixture);
+      const calls = diagnostics.calls as Array<Record<string, unknown>>;
+      expect(calls.at(-1)).toMatchObject({
+        evalCaseIds: ['case-alpha'],
+      });
+
+      const rows = await readJsonLines(priorIndexPath);
+      expect(rows).toHaveLength(5);
+      expect((rows.at(-1) as Record<string, unknown>).test_id).toBe('case-alpha');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('does not use coarse fallback keys for precise rerun-failed identities', async () => {
+    const fixture = await createFixture();
+    try {
+      const firstEvalPath = path.join(fixture.suiteDir, 'collision-a.eval.yaml');
+      const secondEvalPath = path.join(fixture.suiteDir, 'collision-b.eval.yaml');
+      const evalContent = (name: string) => `description: ${name}
+target: file-target
+
+tests:
+  - id: shared-case
+    criteria: System responds
+    input:
+      - role: user
+        content: |
+          Please respond for ${name}
+    expected_output:
+      - role: assistant
+        content: "Shared"
+`;
+      await writeFile(firstEvalPath, evalContent('collision a'), 'utf8');
+      await writeFile(secondEvalPath, evalContent('collision b'), 'utf8');
+
+      const priorRunDir = path.join(fixture.suiteDir, '.agentv', 'results', 'prior-collision');
+      const first = await runCli(fixture, [
+        'eval',
+        firstEvalPath,
+        '--output',
+        priorRunDir,
+        '--threshold',
+        '0.8',
+      ]);
+      expect(first.exitCode).toBe(0);
+
+      const priorIndexPath = path.join(priorRunDir, 'index.jsonl');
+      const priorRows = (await readJsonLines(priorIndexPath)) as Array<Record<string, unknown>>;
+      expect(priorRows).toHaveLength(1);
+      const baseRow = priorRows[0];
+      if (!baseRow) {
+        throw new Error('Expected one prior collision row');
+      }
+      const baseProjection = baseRow.projection_identity as Record<string, unknown>;
+      const baseDimensions = baseProjection.dimensions as Record<string, unknown>;
+      const secondProjection = {
+        ...baseProjection,
+        dimensions: {
+          ...baseDimensions,
+          eval_path: secondEvalPath,
+        },
+      };
+      await writeFile(
+        priorIndexPath,
+        `${[
+          { ...baseRow, execution_status: 'ok' },
+          {
+            ...baseRow,
+            projection_identity: secondProjection,
+            execution_status: 'quality_failure',
+          },
+        ]
+          .map((row) => JSON.stringify(row))
+          .join('\n')}\n`,
+        'utf8',
+      );
+
+      const second = await runCli(fixture, [
+        'eval',
+        firstEvalPath,
+        secondEvalPath,
+        '--rerun-failed',
+        'prior-collision',
+        '--threshold',
+        '0.8',
+      ]);
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout).toContain('Rerun-failed: found 2 existing result(s), skipping 1');
+
+      const diagnostics = await readDiagnostics(fixture);
+      const calls = diagnostics.calls as Array<Record<string, unknown>>;
+      const rerunCalls = calls.slice(1);
+      expect(rerunCalls).toHaveLength(1);
+      const rerunCall = rerunCalls[0];
+      if (!rerunCall) {
+        throw new Error('Expected one rerun diagnostics call');
+      }
+      expect(path.basename(rerunCall.testFilePath as string)).toBe('collision-b.eval.yaml');
+      expect(rerunCall).toMatchObject({
+        evalCaseIds: ['shared-case'],
+      });
+
+      const rows = await readJsonLines(priorIndexPath);
+      expect(rows).toHaveLength(3);
+      expect((rows.at(-1) as Record<string, unknown>).test_id).toBe('shared-case');
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('does not multiply max_concurrency across target matrix selections', async () => {
+    const fixture = await createFixture();
+    try {
+      const evalPath = path.join(fixture.suiteDir, 'target-matrix.eval.yaml');
+      await writeFile(
+        evalPath,
+        [
+          'name: target-matrix',
+          'target: file-target',
+          'tests:',
+          '  - id: first-case',
+          '    input: first',
+          '    criteria: ok',
+          '  - id: second-case',
+          '    input: second',
+          '    criteria: ok',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const { exitCode } = await runCli(fixture, [
+        'eval',
+        evalPath,
+        '--workers',
+        '2',
+        '--target',
+        'file-target',
+        '--target',
+        'cli-target',
+      ]);
+
+      expect(exitCode).toBe(0);
+      const diagnostics = await readDiagnostics(fixture);
+      const calls = diagnostics.calls as Array<Record<string, unknown>>;
+      expect(calls).toHaveLength(2);
+      expect(calls.map((call) => call.maxConcurrency)).toEqual([1, 1]);
+    } finally {
+      await rm(fixture.baseDir, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it('records CLI-named experiment namespace separately from default runtime config', async () => {
     const fixture = await createFixture();
     try {

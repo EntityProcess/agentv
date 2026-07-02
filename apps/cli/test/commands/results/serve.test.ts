@@ -4031,7 +4031,7 @@ describe('serve app', () => {
       });
       expect(res.status).toBe(202);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain('--rerun-failed');
+      expect(data.command).toContain('--rerun-failed .agentv/results/r1');
       expect(data.command).toContain('--output .agentv/results/r1');
     });
 
@@ -4215,7 +4215,7 @@ describe('serve app', () => {
       });
       expect(res.status).toBe(200);
       const data = (await res.json()) as { command: string };
-      expect(data.command).toContain('--rerun-failed');
+      expect(data.command).toContain('--rerun-failed .agentv/results/r1');
       expect(data.command).not.toContain('--resume');
     });
 

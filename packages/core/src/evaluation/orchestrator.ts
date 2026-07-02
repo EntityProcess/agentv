@@ -79,6 +79,7 @@ import type {
   TrialsConfig,
 } from './types.js';
 import { cleanupEvalWorkspaces, cleanupWorkspace } from './workspace/manager.js';
+import type { PoolSlot } from './workspace/pool-manager.js';
 import type { RepoManager } from './workspace/repo-manager.js';
 import {
   type ScriptExecutionContext,
@@ -457,6 +458,8 @@ export interface RunEvalCaseOptions {
   readonly evalFilePath?: string;
   /** Repo root used to serialize replay fixture eval_path as a stable relative path. */
   readonly repoRoot?: string;
+  /** Zero-based sample index produced by repeat.count. */
+  readonly sampleIndex?: number;
 }
 
 export interface ProgressEvent {
@@ -994,6 +997,11 @@ export async function runEvaluation(
     let nextWorkerId = 1;
     const workerIdByEvalId = new Map<string, number>();
     let beforeAllOutputAttached = false;
+    const unavailablePoolSlotPaths = new Set<string>();
+    const poolSlotWaiters: Array<(slot: PoolSlot | undefined) => void> = [];
+    if (poolSlot && availablePoolSlots.length === 0) {
+      availablePoolSlots.push(poolSlot);
+    }
 
     // Suite-level budget tracking
     let cumulativeBudgetCost = 0;
@@ -1055,6 +1063,97 @@ export async function runEvaluation(
         }
       }
       return { ok: allPassed, depResults };
+    }
+
+    function acquirePoolSlot(): Promise<PoolSlot | undefined> {
+      while (availablePoolSlots.length > 0) {
+        const candidate = availablePoolSlots.pop();
+        if (candidate && !unavailablePoolSlotPaths.has(candidate.path)) {
+          return Promise.resolve(candidate);
+        }
+      }
+
+      if (unavailablePoolSlotPaths.size >= poolSlots.length) {
+        return Promise.resolve(undefined);
+      }
+
+      return new Promise((resolve) => {
+        poolSlotWaiters.push(resolve);
+      });
+    }
+
+    function returnPoolSlot(slot: PoolSlot): void {
+      if (unavailablePoolSlotPaths.has(slot.path)) {
+        return;
+      }
+      const waiter = poolSlotWaiters.shift();
+      if (waiter) {
+        waiter(slot);
+      } else {
+        availablePoolSlots.push(slot);
+      }
+    }
+
+    function markPoolSlotUnavailable(slot: PoolSlot): void {
+      unavailablePoolSlotPaths.add(slot.path);
+      if (unavailablePoolSlotPaths.size >= poolSlots.length) {
+        while (poolSlotWaiters.length > 0) {
+          poolSlotWaiters.shift()?.(undefined);
+        }
+      }
+    }
+
+    async function emitSetupErrorResult(
+      evalCase: EvalTest,
+      workerId: number,
+      message: string,
+      failureReasonCode: string,
+    ): Promise<EvaluationResult> {
+      if (failOnError === true) {
+        failOnErrorTriggered = true;
+      }
+      const output = `Error occurred: ${message}`;
+      const result: EvaluationResult = {
+        timestamp: (now ?? (() => new Date()))().toISOString(),
+        testId: authoredResultTestId(evalCase),
+        suite: evalCase.suite,
+        category: evalCase.category,
+        prompt: evalCase.prompt,
+        score: 0,
+        assertions: [{ text: `Error: ${message}`, passed: false }],
+        output,
+        trace: buildTraceFromMessages({
+          input: evalCase.input as readonly Message[],
+          output: [{ role: 'assistant' as const, content: output }],
+          finalOutput: output,
+          target: target.name,
+          testId: authoredResultTestId(evalCase),
+          conversationId: evalCase.conversation_id,
+          error: message,
+        }),
+        target: target.name,
+        error: message,
+        executionStatus: 'execution_error',
+        failureStage: 'setup',
+        failureReasonCode,
+        executionError: { message, stage: 'setup' },
+      };
+
+      if (onProgress) {
+        await onProgress({
+          workerId,
+          testId: evalCase.id,
+          status: 'failed',
+          completedAt: Date.now(),
+          error: result.error,
+          score: result.score,
+          executionStatus: result.executionStatus,
+        });
+      }
+      if (onResult) {
+        await onResult(result);
+      }
+      return result;
     }
 
     function extractEvaluationCostUsd(result: EvaluationResult): number | undefined {
@@ -1234,14 +1333,24 @@ export async function runEvaluation(
       // Per-case isolated cases and raw/no-workspace cases outside the selected
       // shared owner prepare without inheriting a child suite's workspace.
       const usesSharedWorkspace = caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
-      const testPoolSlot =
-        usesSharedWorkspace && availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
+      const pooledWorkspaceRequired = usesSharedWorkspace && poolSlots.length > 0;
+      const testPoolSlot = pooledWorkspaceRequired ? await acquirePoolSlot() : undefined;
+      if (pooledWorkspaceRequired && !testPoolSlot) {
+        return emitSetupErrorResult(
+          evalCase,
+          workerId,
+          'No clean pooled workspace slot is available; prior slot reset failed.',
+          'workspace_pool_unavailable',
+        );
+      }
       const testWorkspacePath = usesSharedWorkspace
-        ? (testPoolSlot?.path ?? sharedWorkspacePath)
+        ? pooledWorkspaceRequired
+          ? testPoolSlot?.path
+          : sharedWorkspacePath
         : undefined;
       const testBaselineCommit = usesSharedWorkspace
         ? testPoolSlot
-          ? poolSlotBaselines.get(testPoolSlot.path)
+          ? (poolSlotBaselines.get(testPoolSlot.path) ?? sharedBaselineCommit)
           : sharedBaselineCommit
         : undefined;
       const testExtensionState = usesSharedWorkspace
@@ -1355,9 +1464,30 @@ export async function runEvaluation(
         }
         throw error;
       } finally {
-        // Return pool slot for reuse by next test
+        // Return pool slot for reuse by next test only after resetting it to
+        // the per-slot baseline. Pooling is a local performance optimization,
+        // not shared state between eval cases.
         if (testPoolSlot) {
-          availablePoolSlots.push(testPoolSlot);
+          const resetMode = workspaceClean === 'full' ? 'strict' : 'fast';
+          let resetSucceeded = true;
+          try {
+            if (repoManager && suiteWorkspace?.repos?.length) {
+              await repoManager.reset(suiteWorkspace.repos, testPoolSlot.path, resetMode);
+            }
+            await resetWorkspaceRoot(testPoolSlot.path, resetMode, testBaselineCommit);
+          } catch (resetError) {
+            resetSucceeded = false;
+            markPoolSlotUnavailable(testPoolSlot);
+            if (verbose) {
+              const message = resetError instanceof Error ? resetError.message : String(resetError);
+              console.warn(
+                `Warning: failed to reset workspace pool slot ${testPoolSlot.index}; leaving it out of reuse: ${message}`,
+              );
+            }
+          }
+          if (resetSucceeded) {
+            returnPoolSlot(testPoolSlot);
+          }
         }
       }
     }
@@ -1716,6 +1846,7 @@ async function runBatchEvaluation(options: {
         promptInputs,
         nowFn,
         attempt: 0,
+        sampleIndex: 0,
         graderProvider: await resolveGraderProvider(target),
         agentTimeoutMs,
         output,
@@ -1757,6 +1888,7 @@ async function runBatchEvaluation(options: {
         'evaluator',
         'evaluator_error',
         verbose,
+        { sampleIndex: 0, retryIndex: 0 },
       );
       results.push(errorResult);
       if (onResult) {
@@ -1867,6 +1999,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     replayRecording,
     evalFilePath,
     repoRoot,
+    sampleIndex = 0,
   } = options;
   const setupDebug = process.env.AGENTV_SETUP_DEBUG === '1';
 
@@ -1912,6 +2045,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       setupError?.failureStage ?? 'setup',
       setupError?.failureReasonCode ?? 'script_error',
       verbose,
+      { sampleIndex },
     );
   }
 
@@ -2049,6 +2183,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       availableTargets,
       evalFilePath,
       metadata: providerMetadata,
+      sampleIndex,
     });
     await runAfterEachHooks();
     conversationResult = {
@@ -2151,6 +2286,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       'agent',
       'provider_error',
       verbose,
+      { sampleIndex, retryIndex: attempt },
     );
     // On error, keep workspace for debugging (unless forceCleanup is set)
     if (workspacePath) {
@@ -2269,6 +2405,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       verbose,
       threshold: evalCase.threshold ?? caseThreshold,
       dependencyResults,
+      sampleIndex,
     });
     await runAfterEachHooks();
 
@@ -2389,6 +2526,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       'evaluator',
       'evaluator_error',
       verbose,
+      { sampleIndex, retryIndex: attempt },
     );
     // On error, keep workspace for debugging (only for per-case workspaces)
     if (workspacePath && !isSharedWorkspace) {
@@ -2428,6 +2566,7 @@ async function runEvalCaseWithTrials(
       keepWorkspaces: isLastDeclaredTrial ? options.keepWorkspaces : false,
       retainOnSuccess: isLastDeclaredTrial ? options.retainOnSuccess : 'cleanup',
       retainOnFailure: isLastDeclaredTrial ? options.retainOnFailure : 'cleanup',
+      sampleIndex: attempt,
     };
 
     const result = await runEvalCase(trialOptions);
@@ -2439,6 +2578,8 @@ async function runEvalCaseWithTrials(
     const trialVerdict = result.executionStatus === 'ok' ? 'pass' : 'fail';
     const trial: TrialResult = {
       attempt,
+      sampleIndex: result.sampleIndex ?? attempt,
+      retryIndex: result.retryIndex,
       score: result.score,
       verdict: trialVerdict,
       scores: result.scores,
@@ -2521,6 +2662,8 @@ async function runEvalCaseWithTrials(
   return {
     ...baseResult,
     score,
+    sampleIndex: undefined,
+    retryIndex: undefined,
     trials: trialResults,
     aggregation,
     costLimited: costLimited || undefined,
@@ -2541,6 +2684,7 @@ async function evaluateCandidate(options: {
   readonly promptInputs: PromptInputs;
   readonly nowFn: () => Date;
   readonly attempt: number;
+  readonly sampleIndex: number;
   readonly graderProvider?: Provider;
   readonly agentTimeoutMs?: number;
   readonly output?: readonly Message[];
@@ -2571,6 +2715,7 @@ async function evaluateCandidate(options: {
     promptInputs,
     nowFn,
     attempt,
+    sampleIndex,
     graderProvider,
     agentTimeoutMs,
     output,
@@ -2674,7 +2819,10 @@ async function evaluateCandidate(options: {
       : undefined;
   return {
     timestamp: completedAt.toISOString(),
-    testId: evalCase.id,
+    testId: authoredResultTestId(evalCase),
+    prompt: evalCase.prompt,
+    sampleIndex,
+    retryIndex: attempt,
     source: evalCase.source,
     suite: evalCase.suite,
     category: evalCase.category,
@@ -3159,6 +3307,7 @@ async function runConversationMode(options: {
   readonly availableTargets?: readonly string[];
   readonly evalFilePath?: string;
   readonly metadata?: JsonObject;
+  readonly sampleIndex?: number;
 }): Promise<EvaluationResult> {
   const {
     evalCase,
@@ -3180,6 +3329,7 @@ async function runConversationMode(options: {
     availableTargets,
     evalFilePath,
     metadata,
+    sampleIndex = 0,
   } = options;
 
   // biome-ignore lint/style/noNonNullAssertion: turns is guaranteed by the caller (conversation mode gate)
@@ -3309,6 +3459,7 @@ async function runConversationMode(options: {
       },
       nowFn,
       attempt: 0,
+      sampleIndex,
       graderProvider,
       agentTimeoutMs,
       output: response.output,
@@ -3371,6 +3522,7 @@ async function runConversationMode(options: {
       },
       nowFn,
       attempt: 0,
+      sampleIndex,
       graderProvider,
       agentTimeoutMs,
       verbose,
@@ -3422,7 +3574,10 @@ async function runConversationMode(options: {
 
   return {
     timestamp: nowFn().toISOString(),
-    testId: evalCase.id,
+    testId: authoredResultTestId(evalCase),
+    prompt: evalCase.prompt,
+    sampleIndex,
+    retryIndex: 0,
     suite: evalCase.suite,
     category: evalCase.category,
     score: finalScore,
@@ -3608,6 +3763,10 @@ function buildErrorResult(
   failureStage: FailureStage,
   failureReasonCode: string,
   verbose?: boolean,
+  identity?: {
+    readonly sampleIndex?: number;
+    readonly retryIndex?: number;
+  },
 ): EvaluationResult {
   const message = extractErrorMessage(error);
 
@@ -3656,6 +3815,8 @@ function buildErrorResult(
     timestamp: timestamp.toISOString(),
     testId: authoredResultTestId(evalCase),
     prompt: evalCase.prompt,
+    sampleIndex: identity?.sampleIndex,
+    retryIndex: identity?.retryIndex,
     suite: evalCase.suite,
     category: evalCase.category,
     conversationId: evalCase.conversation_id,

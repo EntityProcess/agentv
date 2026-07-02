@@ -1180,6 +1180,10 @@ export interface TrialsConfig {
  */
 export interface TrialResult {
   readonly attempt: number;
+  /** Zero-based sample index produced from repeat.count. */
+  readonly sampleIndex?: number;
+  /** Provider retry index for the attempt that produced this trial result. */
+  readonly retryIndex?: number;
   readonly score: number;
   readonly verdict: EvaluationVerdict;
   readonly scores?: readonly GraderResult[];
