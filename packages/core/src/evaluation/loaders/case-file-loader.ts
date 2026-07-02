@@ -14,9 +14,8 @@ const ANSI_RESET = '\u001b[0m';
 
 const FILE_PROTOCOL = 'file://';
 const DATASET_SCRIPT_TIMEOUT_MS = 30_000;
-const DEFAULT_SIMILARITY_THRESHOLD = 0.8;
 const DEFAULT_THRESHOLD = 0.75;
-const THRESHOLD_ASSERTION_TYPES = new Set(['cost', 'latency', 'similar', 'starts-with']);
+const THRESHOLD_ASSERTION_TYPES = new Set(['starts-with']);
 const SUPPORTED_ASSERTION_TYPES = new Set([
   'contains',
   'contains-any',
@@ -31,7 +30,6 @@ const SUPPORTED_ASSERTION_TYPES = new Set([
   'equals',
   'latency',
   'cost',
-  'similar',
 ]);
 
 /**
@@ -211,7 +209,7 @@ function parseCsvRows(content: string, filePath: string): Record<string, string>
   });
 }
 
-function parseAssertionFromString(expected: string): JsonObject {
+function parseAssertionFromString(expected: string, sourceFilePath: string): JsonObject {
   if (expected.startsWith('grade:') || expected.startsWith('llm-rubric:')) {
     const value = expected.slice(expected.startsWith('grade:') ? 6 : 11).trim();
     return {
@@ -233,6 +231,21 @@ function parseAssertionFromString(expected: string): JsonObject {
       command: ['uv', 'run', 'python', expected.slice('python:'.length).trim()],
     };
   }
+  if (expected.startsWith(FILE_PROTOCOL)) {
+    const filePath = stripFileProtocol(expected).trim();
+    if (!filePath.endsWith('.py')) {
+      throw new Error(
+        `Unsupported promptfoo __expected file assertion "${expected}". Only file://*.py code graders are supported.`,
+      );
+    }
+    const commandPath = path.isAbsolute(filePath)
+      ? filePath
+      : path.resolve(path.dirname(sourceFilePath), filePath);
+    return {
+      type: 'code-grader',
+      command: ['uv', 'run', 'python', commandPath],
+    };
+  }
 
   const regexMatch = expected.match(
     /^((?:not-)?[a-z][a-z0-9-]*)(?:\((\d+(?:\.\d+)?)\))?(?::([\s\S]*))?$/,
@@ -247,14 +260,27 @@ function parseAssertionFromString(expected: string): JsonObject {
       parsedThreshold !== undefined && Number.isFinite(parsedThreshold)
         ? parsedThreshold
         : THRESHOLD_ASSERTION_TYPES.has(type)
-          ? type === 'similar'
-            ? DEFAULT_SIMILARITY_THRESHOLD
-            : DEFAULT_THRESHOLD
+          ? DEFAULT_THRESHOLD
           : undefined;
+    if (!SUPPORTED_ASSERTION_TYPES.has(type)) {
+      if (rawValue !== undefined || thresholdText !== undefined) {
+        throw new Error(
+          `Unsupported promptfoo __expected assertion "${type}". Supported assertion types: ${[
+            ...SUPPORTED_ASSERTION_TYPES,
+          ].join(', ')}`,
+        );
+      }
+      return { type: 'equals', value: expected };
+    }
+    if ((type === 'latency' || type === 'cost') && threshold === undefined) {
+      throw new Error(
+        `promptfoo __expected ${type} assertion requires a numeric limit, e.g. ${type}(1)`,
+      );
+    }
     const assertion: Record<string, JsonValue> = {
-      type: SUPPORTED_ASSERTION_TYPES.has(type) ? type : rawType,
+      type,
     };
-    if (negate && SUPPORTED_ASSERTION_TYPES.has(type)) {
+    if (negate) {
       assertion.negate = true;
     }
     if (
@@ -267,7 +293,11 @@ function parseAssertionFromString(expected: string): JsonObject {
     } else if (value !== undefined) {
       assertion.value = value;
     }
-    if (threshold !== undefined) {
+    if (type === 'latency' && threshold !== undefined) {
+      assertion.threshold = threshold;
+    } else if (type === 'cost' && threshold !== undefined) {
+      assertion.budget = threshold;
+    } else if (threshold !== undefined) {
       assertion.min_score = threshold;
     }
     return assertion;
@@ -313,7 +343,7 @@ function parseCsvCases(content: string, filePath: string): JsonObject[] {
         input = value;
       } else if (key.startsWith('__expected')) {
         if (value.trim() !== '') {
-          assertions.push(parseAssertionFromString(value.trim()));
+          assertions.push(parseAssertionFromString(value.trim(), filePath));
         }
       } else if (key === '__prefix') {
         prefix = value;

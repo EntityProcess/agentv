@@ -387,11 +387,19 @@ tests:
 ```
 
 CSV datasets support promptfoo-style magic columns. `__expected` and
-`__expectedN` create assertions using the expected-column mini-DSL,
+`__expectedN` create AgentV assertions using the supported expected-column
+mini-DSL (`contains:*`, `icontains:*`, `contains-any:*`, `contains-all:*`,
+`icontains-any:*`, `icontains-all:*`, `starts-with:*`, `ends-with:*`,
+`regex:*`, `equals:*`, `is-json`, `latency(<ms>)`, `cost(<usd>)`,
+`grade:*`, `llm-rubric:*`, `javascript:*`, `fn:*`, `eval:*`, `python:*`, and
+`file://*.py`; file paths inside CSV cells are resolved relative to the CSV
+file). Unsupported promptfoo assertion forms such as `similar:*` are rejected
+during validation instead of being skipped at runtime.
 `__provider_output` becomes first-class `expected_output`, `__metric` names the
 generated assertions, `__threshold` sets the test threshold,
 `__metadata:<key>` adds metadata, and `__config:__expectedN:threshold` sets an
-assertion `min_score`. Ordinary columns become `vars`.
+assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
+suite-level `input` that interpolates those variables.
 
 String shorthand is raw-case-only. Import reusable task suites through
 `imports.suites`; use `imports.tests` when you want to drop suite context and

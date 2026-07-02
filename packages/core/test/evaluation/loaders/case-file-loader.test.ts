@@ -9,6 +9,7 @@ import {
   loadCasesFromDirectory,
   resolveFileReference,
 } from '../../../src/evaluation/loaders/case-file-loader.js';
+import { parseGraders } from '../../../src/evaluation/loaders/grader-parser.js';
 import { loadTestSuite, loadTests } from '../../../src/evaluation/yaml-parser.js';
 
 describe('isFileReference', () => {
@@ -117,6 +118,44 @@ describe('resolveFileReference', () => {
         { type: 'icontains', value: 'four', metric: 'accuracy', min_score: 0.6 },
       ],
     });
+  });
+
+  it('maps supported promptfoo expected DSL forms to runnable AgentV assertions', async () => {
+    const graderPath = path.join(tempDir, 'cases', 'grader.py');
+    await writeFile(graderPath, 'print("ok")\n');
+    await writeFile(
+      path.join(tempDir, 'cases', 'expected-dsl.csv'),
+      [
+        'id,input,__expected,__expected2,__expected3',
+        'csv-assertions,Hello,latency(1000),cost(0.01),file://grader.py',
+      ].join('\n'),
+    );
+
+    const cases = await resolveFileReference('file://cases/expected-dsl.csv', tempDir);
+
+    expect(cases[0].assertions).toEqual([
+      { type: 'latency', threshold: 1000 },
+      { type: 'cost', budget: 0.01 },
+      { type: 'code-grader', command: ['uv', 'run', 'python', graderPath] },
+    ]);
+
+    const evaluators = await parseGraders(cases[0], undefined, [tempDir], 'csv-assertions');
+    expect(evaluators.map((evaluator) => evaluator.type)).toEqual([
+      'latency',
+      'cost',
+      'code-grader',
+    ]);
+  });
+
+  it('rejects unsupported promptfoo expected DSL forms clearly', async () => {
+    await writeFile(
+      path.join(tempDir, 'cases', 'unsupported-expected.csv'),
+      ['id,input,__expected', 'csv-similar,Hello,similar:hello'].join('\n'),
+    );
+
+    await expect(
+      resolveFileReference('file://cases/unsupported-expected.csv', tempDir),
+    ).rejects.toThrow(/Unsupported promptfoo __expected assertion "similar"/);
   });
 
   it('loads tests from explicit JavaScript function dataset files', async () => {
@@ -511,6 +550,28 @@ tests: file://magic-cases.csv
       type: 'contains',
       value: 'Hi',
     });
+  });
+
+  it('applies suite-level input to promptfoo CSV rows with vars and expected assertions', async () => {
+    await writeFile(
+      path.join(tempDir, 'promptfoo-vars.csv'),
+      ['id,topic,__expected', 'case,refund,contains:refund'].join('\n'),
+    );
+    await writeFile(
+      path.join(tempDir, 'promptfoo-vars-suite.yaml'),
+      `input: Answer about {{ topic }}
+tests: file://promptfoo-vars.csv
+`,
+    );
+
+    const tests = await loadTests(path.join(tempDir, 'promptfoo-vars-suite.yaml'), tempDir);
+
+    expect(tests).toHaveLength(1);
+    expect(tests[0]).toMatchObject({
+      id: 'case',
+      input: [{ role: 'user', content: 'Answer about refund' }],
+    });
+    expect(tests[0].assertions?.[0]).toMatchObject({ type: 'contains', value: 'refund' });
   });
 
   it('resolves relative path against eval file directory', async () => {

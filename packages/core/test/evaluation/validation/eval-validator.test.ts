@@ -1615,6 +1615,51 @@ tests:
       );
       expect(extWarnings).toHaveLength(0);
     });
+
+    it('passes promptfoo CSV rows that rely on suite-level input', async () => {
+      await writeFile(
+        path.join(tempDir, 'suite-input-cases.csv'),
+        'id,topic,__expected\ncase,refund,contains:refund\n',
+      );
+
+      const filePath = path.join(tempDir, 'suite-input-csv.yaml');
+      await writeFile(
+        filePath,
+        `input: Answer about {{ topic }}
+tests: file://suite-input-cases.csv
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('rejects unsupported promptfoo CSV expected DSL forms during validation', async () => {
+      await writeFile(
+        path.join(tempDir, 'unsupported-expected-cases.csv'),
+        'id,input,__expected\ncase,Hello,similar:hello\n',
+      );
+
+      const filePath = path.join(tempDir, 'unsupported-expected-csv.yaml');
+      await writeFile(
+        filePath,
+        `tests: file://unsupported-expected-cases.csv
+`,
+      );
+
+      const result = await validateEvalFile(filePath);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          location: 'tests',
+          message: expect.stringContaining('Unsupported promptfoo __expected assertion "similar"'),
+        }),
+      );
+    });
   });
 
   describe('suite-level input validation', () => {

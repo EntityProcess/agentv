@@ -52,7 +52,13 @@ id,input,__expected,__provider_output,__metric,__threshold,__metadata:source,loc
 csv-test,Reply with a greeting,icontains:hello,Hello there,greeting,0.8,csv,en-US
 ```
 
-`__expected` and `__expectedN` become assertions. `__provider_output` becomes AgentV `expected_output`; ordinary non-magic columns such as `locale` become `vars`.
+`__expected` and `__expectedN` become AgentV assertions for the supported CSV
+mini-DSL. `latency(<ms>)`, `cost(<usd>)`, and `file://*.py` map to runnable
+AgentV graders, with CSV file paths resolved relative to the CSV file;
+unsupported promptfoo forms such as `similar:*` are rejected during validation.
+`__provider_output` becomes AgentV `expected_output`; ordinary non-magic
+columns such as `locale` become `vars` and can be interpolated by suite-level
+`input`.
 
 ## Glob Patterns
 
