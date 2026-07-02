@@ -492,3 +492,20 @@ Not simply "download vs shallow clone". Ordered fastest-first:
 
 The resolver selects 1→2→3 by environment/config. Plain full clone of the 7.3 GB mirror is never the answer.
 
+
+### 11.1 Canonical workspace resolver — provenance vs acquisition (SWE-bench + margin + Harbor + lm-eval)
+Grounded in AgentV research `repo-provisioning-schema-design.md` (compares SWE-bench, Terminal-bench, Margin, lm-eval-harness). Convergent rule: **the case declares WHAT (identity+pin); the harness resolves WHERE-FROM via a selectable backend. Nobody puts acquisition in the task.** SWE-bench's image registry and Margin's suite registry are *acquisition backends*, not identity variants.
+
+**Defect to fix (this supersedes the §11 "acquisition performance" framing):** AgentV's repo entry today tangles identity with acquisition. Split them:
+
+- **Eval declares provenance ONLY:** `repos: [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`. **Remove** `type` (`local` is dead schema), `resolve`, `clone.depth`, `clone.filter`, and the per-repo `resolver` field (→ §10 cleanup).
+- **Acquisition = harness resolver in `$AGENTV_HOME/config.yaml` (NOT the eval), keyed on `repo`**, ordered backends:
+  1. **local checkout auto-adopt** — project whose `git remote origin` matches `repo` → `git clone --reference` (origin-match, no override);
+  2. **bare mirror clone-cache** (`$AGENTV_DATA_DIR/git-cache/<hash(repo)>`) via `--reference` (shared objects);
+  3. **snapshot artifact** (WTG `download-release-deps` reframed as a backend);
+  4. **remote clone** (fallback);
+  5. *(future)* **Docker image** — SWE-bench/margin per-instance image; **same identity key, new backend** → this is how AgentV runs SWE-bench natively.
+- **`--reference` (mirror cache) is the workhorse:** shallow-speed WITH full history, so deep `base_commit` pins never break — **retires the `--depth`/`--filter`/sparse-shallow debate**. Keep `sparse` (content selection) only.
+- **Materialization is declarative harness logic, not a hook.** Hooks (`before_all` etc.) run *after* materialization. Resolver config is machine-local, orthogonal to eval and target YAML. Targets carry no repos.
+
+Net: new acquisition backends (mirror, snapshot, Docker image) plug in without touching the eval schema because all resolve the same `repo`+`commit` pin. This aligns SWE-bench (`base_commit`→`commit`, image registry = backend #5), margin (suite registry = a backend), and Harbor (dataset registry = a backend) under one provenance-only eval contract.
