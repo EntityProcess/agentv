@@ -482,3 +482,13 @@ Both materialize a workspace at a pinned `workspace.repos[].commit`; they differ
 - **Snapshot-download adapter** (CI): port `WTG.AI.Prompts/scripts/eval-config/download-release-deps.ts` — `agentv workspace deps <evals>` → manifest → download pinned **per-year `.git`-only tarballs** from a release (`snapshot/v1.x.0`), one shared `git clone`+`checkout <sha>` per (repo,commit), symlink each workspace to the shared **read-only** checkout, `GIT_LFS_SKIP_SMUDGE=1`. Reproducible, no full mirror.
 
 Unify under the **resolver** abstraction (already fronted by `agentv workspace deps`): the eval file is identical; the resolver picks mirror (local) vs snapshot (CI) by config/env. `av-kfik.14` carries this two-adapter design; `av-kfik.16` depends on it.
+
+### Acquisition performance — pick the cheapest per environment (owner)
+Not simply "download vs shallow clone". Ordered fastest-first:
+
+1. **Local mirror → alternates/reference clone** (dev): `git clone --reference ~/projects/WiseTechGlobal/CargoWise --shared` (or `--local` hardlinks). Near-instant, zero transfer. This is what `git_cache.mirrors` should do — beats both network-clone and download.
+2. **Direct partial + sparse + shallow clone** (CI default, no producer): `git clone --filter=blob:none --sparse --depth 1 <url>` → `sparse-checkout set <paths>` → `checkout <sha>`. Blobless (no upfront blobs), sparse (only the tree subset the eval reads — **exploit `workspace.repos[].sparse`**), shallow (no history). For one pinned commit + a sparse subset this transfers *less* than the WTG per-year `.git` tarball and needs no infra. Caveat: arbitrary-sha fetch needs server support — pin to a tag or `--revision <sha>` (git ≥2.49) to be safe.
+3. **Snapshot-download adapter** (CI fallback): wins when **amortizing across many commits/evals** (download the year's `.git` once via CDN, local-clone many workspaces from it — `download-release-deps.ts`) or when **sha-fetch/LFS blocks a direct clone**. Costs a producer that publishes snapshots.
+
+The resolver selects 1→2→3 by environment/config. Plain full clone of the 7.3 GB mirror is never the answer.
+
