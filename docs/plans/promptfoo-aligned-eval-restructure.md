@@ -16,7 +16,7 @@ Sources analyzed (all cloned locally, read-only):
 
 Two consequences of "superset":
 - **Compatibility is one-way, and that is the design** — promptfoo ⊆ AgentV. AgentV extensions that promptfoo rejects (bare-string asserts, the built-in `agentv:workspace` extension, etc.) are the superset, not a defect.
-- **snake_case caveat.** The superset is over *snake_cased* promptfoo. A literal camelCase promptfoo file needs a mechanical camel→snake transform to run (we ship that transform / importer). This is the one deliberate wire divergence.
+- **Superset is a design property, not a shipped importer.** AgentV's snake_case authoring contract *is* promptfoo's contract (snake_cased) + extensions. New evals are authored in snake_case directly — nothing to import. The superset is over *snake_cased* promptfoo; a literal camelCase promptfoo file (`providers:`, `defaultTest:`) would need a mechanical transform (camelCase→snake_case + `providers`→`targets`), but that's a documented one-off (`yq`/script), optionally a tiny helper if promptfoo-suite migration is ever actually needed — **not** a maintained core feature (YAGNI, same as the consolidated export). Distinct from the **hard-deprecation codemod**, which migrates AgentV's *own* existing eval files across §deprecation and *is* built.
 
 Borrow runner/analytics from margin-lab and transcripts/agentic-graders from vercel-agent-eval.
 
@@ -39,7 +39,7 @@ This is the format we are cloning. Field names are promptfoo's, mechanically sna
 | `description` | `description` | already exists |
 | `tags` (`Record<string,string>`) | `tags` (map) | AgentV already moved here (`tags.experiment`) — **aligned** |
 | `prompts` | `prompts` | **NEW top-level concept** (see 1.2) |
-| `providers` / `targets` | `targets` (canonical); `provider`/`apiId` = backend field | plural matrix axis; top-level promptfoo `providers` is **importer-remapped** to `targets`, NOT a live alias (avoids overloading AgentV's backend `provider`; see 2.a) |
+| `providers` / `targets` | `targets` (canonical); `provider`/`apiId` = backend field | plural matrix axis; top-level promptfoo `providers` is remapped to `targets` **at conversion time** (codemod/one-off), NOT a live alias (avoids overloading AgentV's backend `provider`; see 2.a) |
 | `tests` | `tests` | keep; row shape changes (see 1.4) |
 | `default_test` (`defaultTest`) | `default_test` | widen from threshold-only (see 1.5) |
 | `scenarios` | `scenarios` | **NEW** (see 1.7) |
@@ -143,7 +143,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
   - **`target` / `targets`** = first-class **system under evaluation** (agent/model being tested). Canonical name, and the matrix axis.
   - **`provider`** = the **harness or LLM backend** inside a target (`openai`/`anthropic`/`claude-code`/`cli`/`replay`/…) — never itself a SUT.
 - **D — registry target = promptfoo target schema + AgentV extensions.** `.agentv/targets.yaml` entries adopt promptfoo's target/`ProviderOptions` object shape — `id`, `label`, `config`, `prompts`, `transform`, `delay`, `env` — extended with AgentV fields: `provider` (backend kind), `model`, `use_target`, `fallback_targets`, `grader_target`, `max_budget_usd`, `hooks`. A promptfoo `id: openai:gpt-4o` string decomposes to `{ provider: openai, model: gpt-4o }`.
-- **D — canonical `targets`; do NOT accept a top-level `providers` alias (owner).** AgentV already uses `provider` + `apiId` (a provider + **sub-provider** pair, e.g. `anthropic:claude-sonnet` → `{providerName: 'anthropic', apiId: 'anthropic-messages'}`) as the **backend** vocabulary. Introducing a top-level `providers`-as-SUT alias would overload the word with two meanings — reject it. The **importer** rewrites promptfoo's top-level `providers:` → `targets:` (mechanical, alongside camel→snake), so promptfoo configs still ingest, but AgentV's live schema has exactly one SUT key (`targets`) and `provider`/`apiId`/sub-provider stay unambiguously "backend." A `targets` entry may be a registry name (string) or an inline promptfoo-shaped target object; `use_target`/`fallback_targets`/`max_budget_usd` stay as extensions.
+- **D — canonical `targets`; do NOT accept a top-level `providers` alias (owner).** AgentV already uses `provider` + `apiId` (a provider + **sub-provider** pair, e.g. `anthropic:claude-sonnet` → `{providerName: 'anthropic', apiId: 'anthropic-messages'}`) as the **backend** vocabulary. Introducing a top-level `providers`-as-SUT alias would overload the word with two meanings — reject it. If a raw promptfoo file is ever converted to AgentV, the one-off transform rewrites top-level `providers:` → `targets:` (alongside camelCase→snake_case) — this lives in the conversion/codemod, **not** a runtime alias. AgentV's live schema has exactly one SUT key (`targets`), and `provider`/`apiId`/sub-provider stay unambiguously "backend." A `targets` entry may be a registry name (string) or an inline promptfoo-shaped target object; `use_target`/`fallback_targets`/`max_budget_usd` stay as extensions.
 - **Note vs 1.3:** §1.3 said "promote `providers`/`targets`"; the refinement is that **`targets` is canonical and `provider` is demoted to the backend field**, not a top-level synonym.
 
 ### 2.b Top-level `prompts` vs per-test `input` — SIMPLIFY by collapsing `input`
@@ -231,7 +231,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 - **D — keep both:** adopt promptfoo `threshold` (same concept, per-test score cutoff) **and** keep AgentV `gate` (better semantics for release gating; no promptfoo equivalent). Different levels, both stay.
 
 ### 2.i AgentV-only fields promptfoo lacks (preserve, don't lose)
-`gate` (executable release policy), `imports`/`include`/`select`, multi-turn (`mode: conversation`/`turns`/`aggregation`), `depends_on`/`on_dependency_failure`, `conversation_id`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3). (Workspace, `on_run_complete`, `preprocessors` are handled by 2.l, not kept as-is.)
+`gate` (executable release policy), `imports`/`include`/`select`, multi-turn **evaluation** layer (`turns` per-turn assertions, cross-turn `aggregation`, `on_turn_failure`; execution via promptfoo `_conversation`; `window_size` dropped — §3), `depends_on`/`on_dependency_failure`, `conversation_id`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3). (Workspace, `on_run_complete`, `preprocessors` are handled by 2.l, not kept as-is.)
 
 ### 2.l Workspace is dataset + a built-in extension; NO new top-level concept; `on_run_complete` removed
 - **Principle (owner decision):** don't invent a top-level `workspace:` block, and don't keep AgentV-specific lifecycle keys. Align maximally with promptfoo. Both reference frameworks agree workspace **is part of the dataset** — vercel: a case *is* a fixture dir; margin-lab: a case *is* a Docker image + tests.
@@ -266,7 +266,11 @@ These have no promptfoo equivalent and are AgentV's differentiation. Keep them, 
 - **Executable `gate`** release policy (`min_test_pass_rate`, `max_execution_errors`, command receiving run JSON).
 - **Agent target providers**: CLI/SDK/codex/copilot/claude/replay/transcript, `use_target` indirection, `fallback_targets`, `grader_target`.
 - **Code-grader SDK** (`@agentv/sdk`): `define_assertion`/`define_code_grader`/`define_workspace_grader`/`define_vitest_workspace_grader`.
-- **Multi-turn conversations**, `depends_on` DAG, `imports`/`select` suite composition.
+- **Multi-turn — KEEP the evaluation layer, split execution out (has real provenance).** Researched under **agentv#1053** in `agentevals/agentevals-research/research/findings/multiturn-conversation-eval/` against inspect-ai, google-adk, ragas:
+  - `on_turn_failure: stop/continue` ← inspect-ai solver `state.completed`; per-turn assertions gating continuation ← inspect-ai `await score(state)`; scripted-vs-LLM-driven turns ← google-adk `conversation` vs `conversation_scenario`.
+  - **per-conversation `aggregation` (mean/min/max) is a deliberate AgentV gap-fill** — the research found inspect-ai/ragas/**promptfoo** aggregate only across *epochs/samples*, never within one conversation. Dropping it and relying on promptfoo's `_conversation` would reintroduce that documented gap.
+  - **Decision (per the research's own recommendation): split execution from evaluation.** Conversation *driving* → promptfoo `_conversation` + chat-array prompts + session providers (execution). **Keep** AgentV's *evaluation* layer: per-turn assertions, cross-turn `aggregation`, `on_turn_failure`. **Drop only `window_size`** (no framework pedigree). This is distinct from the trials-axis `repeat`/pass@k reducer (§4/§6) — turn-aggregation and trial-aggregation are different axes.
+- **`depends_on` DAG, `imports`/`select` suite composition.**
 - **Trajectory / execution-metrics / field-accuracy** graders.
 
 Removed (folded into promptfoo `extensions`, see 2.l): top-level `workspace:` block, `workspace.hooks`, `on_run_complete`, `preprocessors`.
