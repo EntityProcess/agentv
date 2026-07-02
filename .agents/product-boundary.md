@@ -80,7 +80,7 @@ Use public reference standards before inventing AgentV-specific contracts:
 - Hugging Face Datasets for dataset, split, record, and portable corpus conventions.
 - OpenInference for trace, span, tool-call, and model-observability semantics.
 
-Research those references from local cloned repositories first when a clone is available, and use DeepWiki MCP for repository-level orientation or cross-repo questions. Broad web search is a fallback, not the default. If current public documentation matters for the decision, use official docs and record the exact source or commit alongside the conclusion.
+Research those references from local cloned repositories first when a clone is available, and use DeepWiki MCP for repository-level orientation or cross-repo questions. In this operator workspace, Promptfoo is available at `/home/entity/projects/promptfoo/promptfoo` with DeepWiki repo `promptfoo/promptfoo`, and DeepEval is available at `/home/entity/projects/confident-ai/deepeval` with DeepWiki repo `confident-ai/deepeval`. Use `rg` and `git` in those clones for exact code evidence, and record the clone commit with conclusions that depend on source behavior. Broad web search is a fallback, not the default. If current public documentation matters for the decision, use official docs and record the exact source URL or commit alongside the conclusion.
 
 Treat these as reference inputs, not dependencies. AgentV should adopt the shared lowest common denominator when it fits the repo-native artifact model, and document any intentional divergence in the relevant plan, ADR, or contract docs.
 
