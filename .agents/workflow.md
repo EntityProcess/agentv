@@ -5,8 +5,10 @@ This file expands [AGENTS.md](../AGENTS.md) for day-to-day repo work: tracker ha
 ## Tracker and Repo Safety
 
 - Treat task-tracking instructions as operator-supplied context. If the prompt provides an external tracker database, path, or environment variable, use that exact tracker for assignment, status, dependencies, handoff notes, decomposition, and resumability.
+- When Beads is the supplied tracker, each Bead is the authoritative work packet for its scope. Keep descriptions, acceptance criteria, and notes self-contained enough that a worker can act from the Bead plus required AGENTS routing docs. Plans, PR comments, and chat decisions can be linked as supporting evidence, but they must not be the only place a live decision exists once Beads have been created.
+- If you discover a Bead conflicts with a plan, ADR, PR comment, or current implementation, stop and update or escalate the Bead before dispatching workers. Do not rely on workers to reconcile stale plan text independently.
 - If no external tracker is supplied, work from the user's prompt and the current branch or PR. Do not create, sync, stage, or commit repo-local tracker state unless the user explicitly requests it.
-- Keep private launcher names, local paths, session aliases, dispatch policy, and operator workspace details outside this public repository.
+- Keep private launcher names, session aliases, dispatch policy, and ad hoc operator workspace details outside this public repository. Do not add local paths except stable operator-provided reference clone paths that AGENTS.md intentionally documents for worker research.
 - GitHub remains the PR, CI, review, and merge surface. Use GitHub Issues or Projects for external collaboration only when the user or operator explicitly asks for that workflow.
 - Do not add repo-local tracker directories, tracker JSONL exports, dispatch logs, cross-repo research records, or operator decision records to AgentV commits unless the user explicitly asks for repository-local tracker artifacts.
 - Do not commit project-local coordination config files.
@@ -51,6 +53,7 @@ bd where
 
 ## Research, Build, and Artifact Reuse
 
+- For peer-framework and external-codebase research, inspect local clones and DeepWiki before using broad web search. Known local reference clones in this operator workspace are Promptfoo at `/home/entity/projects/promptfoo/promptfoo` and DeepEval at `/home/entity/projects/confident-ai/deepeval`; use DeepWiki repos `promptfoo/promptfoo` and `confident-ai/deepeval` for architecture orientation. Verify implementation details with `rg`, `git log`, and source files in the clone, and record the clone commit or official-doc URL behind the conclusion.
 - Research-only workers should inspect files and repository history without running `bun install`, `bun run build`, tests, or evals unless the assigned research explicitly depends on that command. Record the justification when a research worker does run one of those commands.
 - Do not copy mutable build outputs from `main` or another worktree as the default way to avoid local builds. Prefer the commit-addressed CI build artifact when one is available for the exact source state.
 - A prebuilt CI artifact may be reused only when its manifest matches the consumer's commit SHA, `bun.lock` SHA-256, runner OS/architecture, expected Bun version source/value, and required output paths.

@@ -26,7 +26,7 @@ Design guardrails:
 - Document composition patterns before inventing a new feature.
 - Match industry-standard lowest-common-denominator contracts when possible.
 - When designing AgentV contracts, check public reference standards such as Claude Skills, Vercel agent-eval, Hugging Face Datasets, and OpenInference before inventing AgentV-specific shapes. Use their shared lowest common denominator where it fits, and document any intentional divergence.
-- For peer-framework research, prefer local cloned repositories and DeepWiki MCP over broad web search. If a public contract must be checked for currentness, use official docs and record the source or commit behind the conclusion.
+- For peer-framework research, use local cloned repositories and DeepWiki MCP before broad web search. In this operator workspace, Promptfoo is cloned at `/home/entity/projects/promptfoo/promptfoo` and DeepEval is cloned at `/home/entity/projects/confident-ai/deepeval`; use DeepWiki repos `promptfoo/promptfoo` and `confident-ai/deepeval` for architecture-level orientation, then verify exact claims with `rg` and `git` in the local clone. If a public contract must be checked for currentness, use official docs and record the source URL or clone commit behind the conclusion.
 - Apply YAGNI aggressively and solve the current request with the smallest surface that works.
 - Keep extensions non-breaking unless a same-week unreleased surface should be hard-corrected.
 - Design for AI comprehension with self-describing modules, clear extension points, and no dead scaffolding.
@@ -40,6 +40,7 @@ These baseline rules apply to every repo change. They summarize the most common 
 - Start every repo change with `git fetch origin` and `git status --short --branch`.
 - Use `bun` for package and script operations.
 - Use the operator-supplied tracker when present. Do not commit tracker runtime state, local coordination config, or other machine-local artifacts.
+- When Beads are available, treat Beads as the worker-facing source of truth for task scope. Write each Bead description, acceptance criteria, and notes so a worker can execute from the Bead plus required AGENTS routing docs; do not require workers to read a merged or stale plan to discover the current decision. If a plan, PR comment, chat decision, or ADR supersedes earlier guidance, update the Bead before dispatching or continuing work.
 - Do not use `git stash` on shared checkouts. Stage explicit paths only, and never push directly to `main`.
 - Every merge to `main` requires a GitHub pull request with passing GitHub Actions. Do not locally merge feature or integration branches into `main` as a substitute for opening a PR.
 - Prefer the primary checkout only for small, clean, bounded work. Use a dedicated worktree from the latest `origin/main` for non-trivial, risky, long-running, or parallel changes.
