@@ -105,6 +105,137 @@ function shouldSkipExistingResultForResume(
   return result.executionStatus !== 'execution_error';
 }
 
+interface ResumeIdentityEntry {
+  readonly kind: 'precise' | 'legacy';
+  readonly key: string;
+  readonly result: EvaluationResult;
+}
+
+interface ResumeIdentityMatcher {
+  readonly preciseKeys: Set<string>;
+  readonly legacyKeys: Set<string>;
+}
+
+function hasNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function resultProjectionDimensions(result: EvaluationResult): Record<string, unknown> | undefined {
+  const projectionIdentity = objectRecord(
+    (result as unknown as Record<string, unknown>).projectionIdentity,
+  );
+  return objectRecord(projectionIdentity?.dimensions);
+}
+
+function hasCanonicalResultIdentity(result: EvaluationResult): boolean {
+  const source = result.source;
+  const dimensions = resultProjectionDimensions(result);
+  const resultRecord = result as unknown as Record<string, unknown>;
+  return (
+    hasNonEmptyString(dimensions?.evalPath) ||
+    hasNonEmptyString(dimensions?.suite) ||
+    hasNonEmptyString(dimensions?.promptId) ||
+    hasNonEmptyString(resultRecord.evalPath) ||
+    hasNonEmptyString(source?.evalFileRepoPath) ||
+    hasNonEmptyString(source?.evalFilePath) ||
+    hasNonEmptyString(source?.evalFileAbsolutePath) ||
+    hasNonEmptyString(result.suite) ||
+    hasNonEmptyString(result.prompt?.id)
+  );
+}
+
+function resultResumeIdentityEntry(result: EvaluationResult): ResumeIdentityEntry {
+  if (hasCanonicalResultIdentity(result)) {
+    return {
+      kind: 'precise',
+      key: buildEvaluationResultTargetKey(result),
+      result,
+    };
+  }
+  return {
+    kind: 'legacy',
+    key: buildTestTargetKey(result.testId, result.target, result.variant),
+    result,
+  };
+}
+
+function latestResumeIdentityEntries(
+  results: readonly EvaluationResult[],
+): readonly ResumeIdentityEntry[] {
+  const latestByIdentity = new Map<string, ResumeIdentityEntry>();
+  for (const result of results) {
+    const entry = resultResumeIdentityEntry(result);
+    latestByIdentity.set(`${entry.kind}:${entry.key}`, entry);
+  }
+  return Array.from(latestByIdentity.values());
+}
+
+function createResumeIdentityMatcher(): ResumeIdentityMatcher {
+  return { preciseKeys: new Set<string>(), legacyKeys: new Set<string>() };
+}
+
+function addResumeIdentityEntry(matcher: ResumeIdentityMatcher, entry: ResumeIdentityEntry): void {
+  if (entry.kind === 'legacy') {
+    matcher.legacyKeys.add(entry.key);
+    return;
+  }
+  matcher.preciseKeys.add(entry.key);
+}
+
+function uniqueStrings(values: readonly (string | undefined)[]): string[] {
+  return Array.from(new Set(values.filter(hasNonEmptyString)));
+}
+
+function buildPlannedResumeIdentityKeys(
+  test: EvalTest,
+  target: string,
+  variant: string | undefined,
+): readonly string[] {
+  const keys = new Set<string>([buildEvalTestTargetKey(test, target, variant)]);
+  const evalPaths = uniqueStrings([
+    test.source?.evalFileRepoPath,
+    test.source?.evalFilePath,
+    test.source?.evalFileAbsolutePath,
+  ]);
+  const suites = Array.from(new Set<string | null>([test.suite ?? null, null]));
+
+  for (const evalPath of evalPaths) {
+    for (const suite of suites) {
+      keys.add(
+        JSON.stringify({
+          eval_path: evalPath,
+          suite,
+          test_id: test.id ?? 'unknown',
+          prompt_id: test.prompt?.id ?? null,
+          target: target ?? 'unknown',
+          variant: variant ?? null,
+        }),
+      );
+    }
+  }
+
+  return Array.from(keys);
+}
+
+function resumeIdentityMatches(
+  matcher: ResumeIdentityMatcher,
+  test: EvalTest,
+  target: string,
+  variant: string | undefined,
+): boolean {
+  return (
+    buildPlannedResumeIdentityKeys(test, target, variant).some((key) =>
+      matcher.preciseKeys.has(key),
+    ) || matcher.legacyKeys.has(buildTestTargetKey(test.id, target, variant))
+  );
+}
+
 interface RunEvalCommandInput {
   readonly testFiles: readonly string[];
   readonly rawOptions: Record<string, unknown>;
@@ -1869,9 +2000,10 @@ export async function runEvalCommand(
     }
   }
 
-  // --resume / --rerun-failed: skip already-completed tests and append to existing output.
+  // --resume skips completed rows; --rerun-failed includes only latest failed/error rows.
   // IMPORTANT: JSONL must be loaded before the output writer is created (same file).
-  let resumeSkipKeys: Set<string> | undefined;
+  let resumeSkipKeys: ResumeIdentityMatcher | undefined;
+  let rerunIncludeKeys: ResumeIdentityMatcher | undefined;
   let isResumeAppend = false;
   if (options.resume && !options.retryErrors) {
     const sourceRunDir = options.rerunFailedSource
@@ -1888,13 +2020,15 @@ export async function runEvalCommand(
       const resumeIndexPaths = discoverRunManifestPaths(sourceRunDir);
       if (resumeIndexPaths.length > 0) {
         const existingResults = await readExistingResultsFromRunDir(sourceRunDir);
-        resumeSkipKeys = new Set<string>();
+        resumeSkipKeys = createResumeIdentityMatcher();
+        rerunIncludeKeys = options.rerunFailed ? createResumeIdentityMatcher() : undefined;
         let completedResultCount = 0;
-        for (const r of existingResults) {
-          if (shouldSkipExistingResultForResume(r, options.rerunFailed)) {
+        for (const entry of latestResumeIdentityEntries(existingResults)) {
+          if (shouldSkipExistingResultForResume(entry.result, options.rerunFailed)) {
             completedResultCount += 1;
-            resumeSkipKeys.add(buildEvaluationResultTargetKey(r));
-            resumeSkipKeys.add(buildTestTargetKey(r.testId, r.target, r.variant));
+            addResumeIdentityEntry(resumeSkipKeys, entry);
+          } else if (rerunIncludeKeys) {
+            addResumeIdentityEntry(rerunIncludeKeys, entry);
           }
         }
         isResumeAppend =
@@ -1904,6 +2038,9 @@ export async function runEvalCommand(
         console.log(
           `${modeLabel}: found ${existingResults.length} existing result(s), skipping ${completedResultCount} completed.`,
         );
+      } else if (options.rerunFailed) {
+        rerunIncludeKeys = createResumeIdentityMatcher();
+        console.log('Rerun-failed: no existing bundle run manifest found. Nothing to rerun.');
       } else {
         // No existing bundle manifest — behave like a normal run.
         console.log('Resume: no existing bundle run manifest found, starting fresh run.');
@@ -2158,9 +2295,13 @@ export async function runEvalCommand(
       for (const { selection } of meta.selections) {
         const target = selection.targetName;
         const variant = targetVariantForSelection(selection);
-        const key = buildEvalTestTargetKey(test, target, variant);
-        const fallbackKey = buildTestTargetKey(test.id, target, variant);
-        if (resumeSkipKeys?.has(key) || resumeSkipKeys?.has(fallbackKey)) {
+        if (rerunIncludeKeys) {
+          if (resumeIdentityMatches(rerunIncludeKeys, test, target, variant)) {
+            totalEvalCount++;
+          } else {
+            resumeSkippedCount++;
+          }
+        } else if (resumeSkipKeys && resumeIdentityMatches(resumeSkipKeys, test, target, variant)) {
           resumeSkippedCount++;
         } else {
           totalEvalCount++;
@@ -2173,6 +2314,10 @@ export async function runEvalCommand(
     // When using --retry-errors, all tests being filtered means no errors or missing cases remain
     if (options.retryErrors && retryNonErrorResults && retryNonErrorResults.length > 0) {
       console.log('No execution errors or missing cases in the previous run. Nothing to retry.');
+      return;
+    }
+    if (rerunIncludeKeys) {
+      console.log('Nothing to rerun — no failed or errored test(s) matched the current suite.');
       return;
     }
     // When using --resume, all tests being completed means nothing to resume
@@ -2406,16 +2551,22 @@ export async function runEvalCommand(
             const targetName = selection.targetName;
             const applicableTestCases = targetPrep.testCases;
 
-            // --resume / --rerun-failed: skip tests that are already completed
-            const filteredTestCases = resumeSkipKeys
-              ? applicableTestCases.filter((test) => {
-                  const variant = targetVariantForSelection(selection);
-                  return (
-                    !resumeSkipKeys.has(buildEvalTestTargetKey(test, targetName, variant)) &&
-                    !resumeSkipKeys.has(buildTestTargetKey(test.id, targetName, variant))
-                  );
-                })
-              : applicableTestCases;
+            // --resume skips completed tests; --rerun-failed only includes prior failed/error tests.
+            const filteredTestCases = rerunIncludeKeys
+              ? applicableTestCases.filter((test) =>
+                  resumeIdentityMatches(
+                    rerunIncludeKeys,
+                    test,
+                    targetName,
+                    targetVariantForSelection(selection),
+                  ),
+                )
+              : resumeSkipKeys
+                ? applicableTestCases.filter((test) => {
+                    const variant = targetVariantForSelection(selection);
+                    return !resumeIdentityMatches(resumeSkipKeys, test, targetName, variant);
+                  })
+                : applicableTestCases;
 
             if (filteredTestCases.length === 0) {
               return [];
