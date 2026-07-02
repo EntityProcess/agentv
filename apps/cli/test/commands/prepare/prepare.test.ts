@@ -60,7 +60,7 @@ await Bun.write(\`\${payload.workspace_path}/\${step}.txt\`, \`\${payload.test_i
     path.join(root, '.agentv', 'targets.yaml'),
     `
 targets:
-  - name: codex
+  - label: codex
     provider: cli
     command: bun ./scripts/target.ts
 `,
