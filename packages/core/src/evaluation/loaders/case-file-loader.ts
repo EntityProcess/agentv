@@ -434,15 +434,63 @@ async function loadCasesFromPythonFunction(
     'fn = getattr(module, function_name)',
     'print(json.dumps(fn()))',
   ].join('\n');
-  const { stdout, stderr, exitCode } = await execFileWithStdin(
-    ['uv', 'run', 'python', '-c', harness, scriptPath, functionName ?? 'create_tests'],
-    '',
-    { cwd: path.dirname(scriptPath), timeoutMs: DATASET_SCRIPT_TIMEOUT_MS },
+  const { stdout, stderr, exitCode } = await runPythonDatasetHarness(
+    harness,
+    scriptPath,
+    functionName ?? 'create_tests',
   );
   if (exitCode !== 0) {
     throw new Error(`Python dataset function failed: ${scriptPath}\n${stderr.trim()}`);
   }
   return parseJsonCases(stdout, scriptPath);
+}
+
+async function runPythonDatasetHarness(
+  harness: string,
+  scriptPath: string,
+  functionName: string,
+): Promise<{
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number;
+}> {
+  const cwd = path.dirname(scriptPath);
+  const args = ['-c', harness, scriptPath, functionName];
+  const commands = [
+    ['uv', 'run', 'python', ...args],
+    ['python3', ...args],
+    ['python', ...args],
+  ];
+  let lastMissingError: unknown;
+
+  for (const command of commands) {
+    try {
+      return await execFileWithStdin(command, '', {
+        cwd,
+        timeoutMs: DATASET_SCRIPT_TIMEOUT_MS,
+      });
+    } catch (error) {
+      if (!isMissingExecutableError(error)) {
+        throw error;
+      }
+      lastMissingError = error;
+    }
+  }
+
+  const message =
+    lastMissingError instanceof Error ? lastMissingError.message : String(lastMissingError);
+  throw new Error(`Python dataset function failed: no Python runner available\n${message}`);
+}
+
+function isMissingExecutableError(error: unknown): boolean {
+  if (!isJsonObjectLike(error)) {
+    return false;
+  }
+  return error.code === 'ENOENT';
+}
+
+function isJsonObjectLike(value: unknown): value is { readonly [key: string]: unknown } {
+  return typeof value === 'object' && value !== null;
 }
 
 /**
