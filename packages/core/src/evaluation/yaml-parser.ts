@@ -19,7 +19,6 @@ import {
   interpolateEnv,
   interpolateTemplateVars,
 } from './interpolation.js';
-import { loadTestsFromAgentSkills } from './loaders/agent-skills-parser.js';
 import {
   expandFileReferences,
   loadCasesFromDirectory,
@@ -728,19 +727,6 @@ function expandPromptMatrix(
   const sourceTestIdById = new Map<string, string>();
 
   if (!prompts) {
-    if (suite.input !== undefined || suite.input_files !== undefined) {
-      logWarning(
-        "Top-level 'input' and 'input_files' are deprecated. Use top-level 'prompts' plus tests[].vars instead.",
-      );
-    } else if (
-      rawCases.some(
-        (rawCase) =>
-          isJsonObject(rawCase) &&
-          (rawCase.input !== undefined || rawCase.input_files !== undefined),
-      )
-    ) {
-      logWarning("tests[].input is deprecated. Use top-level 'prompts' plus tests[].vars instead.");
-    }
     return { rawCases, promptById, sourceTestIdById };
   }
 
@@ -756,7 +742,7 @@ function expandPromptMatrix(
     }
     if (rawCase.input !== undefined || rawCase.input_files !== undefined) {
       throw new Error(
-        "tests[].input and tests[].input_files have been removed from the preferred prompt contract. Use top-level 'prompts' plus tests[].vars.",
+        "tests[].input and tests[].input_files cannot be combined with top-level 'prompts'. Use tests[].vars for prompt-matrix data, or remove top-level 'prompts' for direct input suites.",
       );
     }
 
@@ -926,9 +912,6 @@ export async function loadTestSuite(
   if (format === 'jsonl') {
     return { tests: await loadTestsFromJsonl(evalFilePath, repoRoot, options) };
   }
-  if (format === 'agent-skills-json') {
-    return { tests: await loadTestsFromAgentSkills(evalFilePath) };
-  }
   if (format === 'typescript') {
     const { loadTsEvalSuite } = await import('./loaders/ts-eval-loader.js');
     return loadTsEvalSuite(evalFilePath, resolveToAbsolutePath(repoRoot), options);
@@ -965,9 +948,6 @@ export async function loadTests(
   const format = detectFormat(evalFilePath);
   if (format === 'jsonl') {
     return loadTestsFromJsonl(evalFilePath, repoRoot, options);
-  }
-  if (format === 'agent-skills-json') {
-    return loadTestsFromAgentSkills(evalFilePath);
   }
   if (format === 'typescript') {
     const { loadTsEvalSuite } = await import('./loaders/ts-eval-loader.js');

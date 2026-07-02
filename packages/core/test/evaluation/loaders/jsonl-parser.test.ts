@@ -22,11 +22,6 @@ describe('detectFormat', () => {
     expect(detectFormat('/path/to/config.yml')).toBe('yaml');
   });
 
-  it('returns agent-skills-json for .json extension', () => {
-    expect(detectFormat('evals.json')).toBe('agent-skills-json');
-    expect(detectFormat('/path/to/evals.json')).toBe('agent-skills-json');
-  });
-
   it('returns typescript for .ts extension', () => {
     expect(detectFormat('greeting.eval.ts')).toBe('typescript');
     expect(detectFormat('/path/to/eval.ts')).toBe('typescript');
@@ -38,6 +33,7 @@ describe('detectFormat', () => {
 
   it('throws for unsupported extensions', () => {
     expect(() => detectFormat('test.txt')).toThrow('Unsupported file format');
+    expect(() => detectFormat('evals.json')).toThrow('Unsupported file format');
     expect(() => detectFormat('test')).toThrow('Unsupported file format');
   });
 });
@@ -446,6 +442,34 @@ describe('loadTests with format detection', () => {
     expect(cases[0].criteria).toBe('');
     expect(cases[0].expected_output[0].content).toBe('Reference answer');
     expect(cases[0].assertions).toBeUndefined();
+  });
+
+  it('accepts direct input shorthand without deprecation warnings', async () => {
+    const yamlPath = path.join(tempDir, 'direct-input-shorthand.yaml');
+    await writeFile(
+      yamlPath,
+      `input: Shared instruction
+tests:
+  - id: direct-input
+    criteria: Answer directly
+    input: Query
+`,
+    );
+    const warn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (message?: unknown) => {
+      warnings.push(String(message));
+    };
+
+    try {
+      const cases = await loadTests(yamlPath, tempDir);
+
+      expect(cases).toHaveLength(1);
+      expect(cases[0].criteria).toBe('Answer directly');
+      expect(warnings).toEqual([]);
+    } finally {
+      console.warn = warn;
+    }
   });
 
   it('routes .yml to YAML parser', async () => {

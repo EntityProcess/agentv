@@ -29,6 +29,7 @@ import {
   ensureVSCodeSubagents,
   loadConfig,
   loadTestSuite,
+  loadTestSuiteFromYamlObject,
   loadTsConfig,
   resolveTargetDefinition,
   shouldEnableCache,
@@ -81,6 +82,10 @@ import {
 import { resolveCachedRunDir, saveRunCache } from './run-cache.js';
 import { findRepoRoot, resolveEvalPaths } from './shared.js';
 import {
+  agentSkillsToAgentVYamlObject,
+  readAgentSkillsEvalsFile,
+} from '../read-adapters/agent-skills-evals.js';
+import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
   formatMatrixSummary,
@@ -94,6 +99,26 @@ const loadCjsModule = createNodeRequire(import.meta.url);
 const micromatch = loadCjsModule('micromatch') as {
   isMatch(id: string, pattern: string): boolean;
 };
+
+type LoadTestSuiteOptions = Parameters<typeof loadTestSuite>[2];
+
+async function loadCliEvalSuite(
+  testFilePath: string,
+  repoRoot: string,
+  options?: LoadTestSuiteOptions,
+): ReturnType<typeof loadTestSuite> {
+  if (path.extname(testFilePath).toLowerCase() === '.json') {
+    const adapterSuite = readAgentSkillsEvalsFile(testFilePath);
+    return loadTestSuiteFromYamlObject(
+      testFilePath,
+      agentSkillsToAgentVYamlObject(adapterSuite),
+      repoRoot,
+      options,
+    );
+  }
+
+  return loadTestSuite(testFilePath, repoRoot, options);
+}
 
 function shouldSkipExistingResultForResume(
   result: Pick<EvaluationResult, 'executionStatus'>,
@@ -1356,7 +1381,7 @@ async function prepareFileMetadata(params: {
   const relativePath = path.relative(cwd, testFilePath);
   const category = deriveCategory(relativePath);
 
-  const suite = await loadTestSuite(testFilePath, repoRoot, {
+  const suite = await loadCliEvalSuite(testFilePath, repoRoot, {
     verbose: options.verbose,
     filter: suiteFilter ?? options.filter,
     category,
@@ -1883,12 +1908,14 @@ export async function runEvalCommand(
     await launchInteractiveWizard();
     return undefined;
   }
-  const resolvedTestFiles = await resolveEvalPaths(evalPathInputs, cwd);
+  const resolvedTestFiles = await resolveEvalPaths(evalPathInputs, cwd, {
+    allowReadAdapters: true,
+  });
   const fallbackResultGroupName =
     resolvedTestFiles.length === 1 ? deriveEvalResultGroupName(resolvedTestFiles[0]) : 'multi-eval';
   const primarySuite =
     resolvedTestFiles.length > 0
-      ? await loadTestSuite(resolvedTestFiles[0], repoRoot, {
+      ? await loadCliEvalSuite(resolvedTestFiles[0], repoRoot, {
           verbose: options.verbose,
           filter: options.filter,
           category: deriveCategory(path.relative(cwd, resolvedTestFiles[0])),
