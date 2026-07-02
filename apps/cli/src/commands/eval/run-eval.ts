@@ -86,6 +86,10 @@ import {
 import { resolveCachedRunDir, saveRunCache } from './run-cache.js';
 import { findRepoRoot, resolveEvalPaths } from './shared.js';
 import {
+  agentSkillsToAgentVYamlObject,
+  readAgentSkillsEvalsFile,
+} from '../read-adapters/agent-skills-evals.js';
+import {
   calculateEvaluationSummary,
   formatEvaluationSummary,
   formatMatrixSummary,
