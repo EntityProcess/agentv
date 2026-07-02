@@ -1897,10 +1897,10 @@ function collectSingleGraderSourceReferences(
 ): readonly EvalSourceReference[] {
   const references: EvalSourceReference[] = [];
 
-  if (evaluator.type === 'code-grader') {
+  if (evaluator.type === 'script' || evaluator.type === 'code-grader') {
     const command = evaluator.command ?? [];
     references.push({
-      kind: 'code_grader_command',
+      kind: 'script_grader_command',
       displayPath: evaluator.resolvedScriptPath ?? command.join(' '),
       ...(evaluator.resolvedScriptPath ? { resolvedPath: evaluator.resolvedScriptPath } : {}),
       graderName: evaluator.name,
@@ -1908,7 +1908,7 @@ function collectSingleGraderSourceReferences(
     });
     if (evaluator.resolvedCwd) {
       references.push({
-        kind: 'code_grader_cwd',
+        kind: 'script_grader_cwd',
         displayPath: evaluator.cwd ?? evaluator.resolvedCwd,
         resolvedPath: evaluator.resolvedCwd,
         graderName: evaluator.name,
@@ -1954,9 +1954,9 @@ function collectSingleGraderSourceReferences(
     for (const member of evaluator.assertions) {
       references.push(...collectSingleGraderSourceReferences(member));
     }
-    if (evaluator.aggregator.type === 'code-grader') {
+    if (evaluator.aggregator.type === 'script' || evaluator.aggregator.type === 'code-grader') {
       references.push({
-        kind: 'code_grader_command',
+        kind: 'script_grader_command',
         displayPath: evaluator.aggregator.path,
         resolvedPath: path.resolve(evaluator.aggregator.cwd ?? '', evaluator.aggregator.path),
         graderName: evaluator.name,

@@ -85,12 +85,12 @@ tests:
     const kinds = source?.references.map((reference) => reference.kind).sort();
     expect(kinds).toEqual([
       'assertion_template',
-      'code_grader_command',
-      'code_grader_cwd',
       'input_file',
       'llm_grader_prompt',
       'preprocessor_command',
       'prompt_script',
+      'script_grader_command',
+      'script_grader_cwd',
     ]);
 
     const promptFile = source?.references.find(
@@ -100,7 +100,7 @@ tests:
     expect(promptFile?.resolvedPath).toBe(path.join(tempDir, 'graders', 'prompt.md'));
 
     const codeCommand = source?.references.find(
-      (reference) => reference.kind === 'code_grader_command',
+      (reference) => reference.kind === 'script_grader_command',
     );
     expect(codeCommand?.command).toEqual(['bun', 'graders/code.ts']);
     expect(codeCommand?.resolvedPath).toBe(path.join(tempDir, 'graders', 'code.ts'));

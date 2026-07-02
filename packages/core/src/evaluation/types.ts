@@ -1004,7 +1004,11 @@ export interface EvalSourceReference {
     | 'input_file'
     | 'llm_grader_prompt'
     | 'prompt_script'
+    | 'script_grader_command'
+    | 'script_grader_cwd'
+    /** @deprecated New eval loads emit script_grader_command. */
     | 'code_grader_command'
+    /** @deprecated New eval loads emit script_grader_cwd. */
     | 'code_grader_cwd'
     | 'assertion_template'
     | 'preprocessor_command';
