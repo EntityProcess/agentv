@@ -121,20 +121,22 @@ export function buildEvaluationResultTargetKey(result: EvaluationResult): string
       null,
     suite: stringField(dimensions, 'suite') ?? getSuite(result) ?? null,
     test_id: stringField(dimensions, 'testId') ?? result.testId ?? 'unknown',
+    prompt_id: stringField(dimensions, 'promptId') ?? result.prompt?.id ?? null,
     target: stringField(dimensions, 'target') ?? result.target ?? 'unknown',
     variant: stringField(dimensions, 'variant') ?? result.variant ?? null,
   });
 }
 
 export function buildEvalTestTargetKey(
-  test: Pick<EvalTest, 'id' | 'suite' | 'source'>,
+  test: Pick<EvalTest, 'id' | 'testId' | 'suite' | 'source' | 'prompt'>,
   target?: string,
   variant?: string,
 ): string {
   return JSON.stringify({
     eval_path: evalSourcePath(test.source) ?? null,
     suite: test.suite ?? null,
-    test_id: test.id ?? 'unknown',
+    test_id: test.testId ?? test.id ?? 'unknown',
+    prompt_id: test.prompt?.id ?? null,
     target: target ?? 'unknown',
     variant: variant ?? null,
   });

@@ -68,6 +68,8 @@ const PromptSchema = z.union([
       id: z.string().optional(),
       label: z.string().optional(),
       raw: z.string().optional(),
+      function: z.string().optional(),
+      function_file: z.string().optional(),
       path: z.string().optional(),
       prefix: z.string().optional(),
       suffix: z.string().optional(),

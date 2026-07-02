@@ -12,6 +12,8 @@ import {
   type GraderResult,
   METRICS_SCHEMA_VERSION,
   MetricsArtifactWireSchema,
+  buildEvalTestTargetKey,
+  buildEvaluationResultTargetKey,
   buildResultIndexArtifact,
   buildTraceFromMessages,
   parseYamlValue,
@@ -1302,6 +1304,31 @@ describe('writeArtifactsFromResults', () => {
     });
     expect(runTwoResult).not.toHaveProperty('status');
     expect(indexEntry?.trials?.[1]?.transcript_summary).toEqual(runTwoResult.transcript_summary);
+  });
+
+  it('keys prompt-expanded resume checks by authored test id plus prompt id', () => {
+    const prompt = { id: 'direct', label: 'Direct prompt', kind: 'string' as const };
+    const completed = makeResult({
+      testId: 'docs',
+      prompt,
+      target: 'mock-target',
+    });
+    const expandedTest = {
+      id: 'docs__prompt_direct',
+      testId: 'docs',
+      prompt,
+      input: [{ role: 'user', content: 'Prompt text' }],
+      expected_output: [],
+      reference_answer: '',
+      file_paths: [],
+      criteria: 'ok',
+      evaluator: 'llm-grader',
+      assertions: [],
+    } as unknown as EvalTest;
+
+    expect(buildEvalTestTargetKey(expandedTest, 'mock-target')).toBe(
+      buildEvaluationResultTargetKey(completed),
+    );
   });
 
   it('handles empty results array', async () => {

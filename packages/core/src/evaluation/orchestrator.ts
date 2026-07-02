@@ -665,7 +665,7 @@ export async function gradePreparedEvalCase(
       finalOutput: candidate,
       provider: provider.kind,
       target: target.name,
-      testId: evalCase.id,
+      testId: authoredResultTestId(evalCase),
       conversationId: evalCase.conversation_id,
     });
 
@@ -710,7 +710,8 @@ export async function gradePreparedEvalCase(
       : classifyQualityStatus(score.score, effectiveThreshold);
     const baseResult = {
       timestamp: timestamp.toISOString(),
-      testId: evalCase.id,
+      testId: authoredResultTestId(evalCase),
+      prompt: evalCase.prompt,
       source: evalCase.source,
       suite: evalCase.suite,
       category: evalCase.category,
@@ -1077,9 +1078,10 @@ export async function runEvaluation(
         const errorMessage = `Run budget exceeded ($${runBudgetTracker.currentCostUsd.toFixed(4)} / $${runBudgetTracker.budgetCapUsd.toFixed(4)})`;
         const budgetResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
-          testId: evalCase.id,
+          testId: authoredResultTestId(evalCase),
           suite: evalCase.suite,
           category: evalCase.category,
+          prompt: evalCase.prompt,
           score: 0,
           assertions: [],
           output: errorMessage,
@@ -1088,7 +1090,7 @@ export async function runEvaluation(
             output: [{ role: 'assistant' as const, content: errorMessage }],
             finalOutput: errorMessage,
             target: target.name,
-            testId: evalCase.id,
+            testId: authoredResultTestId(evalCase),
             conversationId: evalCase.conversation_id,
             error: errorMessage,
           }),
@@ -1126,9 +1128,10 @@ export async function runEvaluation(
         const errorMessage = `Suite budget exceeded ($${cumulativeBudgetCost.toFixed(4)} / $${budgetUsd.toFixed(4)})`;
         const budgetResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
-          testId: evalCase.id,
+          testId: authoredResultTestId(evalCase),
           suite: evalCase.suite,
           category: evalCase.category,
+          prompt: evalCase.prompt,
           score: 0,
           assertions: [],
           output: errorMessage,
@@ -1137,7 +1140,7 @@ export async function runEvaluation(
             output: [{ role: 'assistant' as const, content: errorMessage }],
             finalOutput: errorMessage,
             target: target.name,
-            testId: evalCase.id,
+            testId: authoredResultTestId(evalCase),
             conversationId: evalCase.conversation_id,
             error: errorMessage,
           }),
@@ -1175,9 +1178,10 @@ export async function runEvaluation(
         const errorMsg = 'Halted: execution error encountered with fail_on_error enabled';
         const haltResult: EvaluationResult = {
           timestamp: (now ?? (() => new Date()))().toISOString(),
-          testId: evalCase.id,
+          testId: authoredResultTestId(evalCase),
           suite: evalCase.suite,
           category: evalCase.category,
+          prompt: evalCase.prompt,
           score: 0,
           assertions: [],
           output: errorMsg,
@@ -1186,7 +1190,7 @@ export async function runEvaluation(
             output: [{ role: 'assistant' as const, content: errorMsg }],
             finalOutput: errorMsg,
             target: target.name,
-            testId: evalCase.id,
+            testId: authoredResultTestId(evalCase),
             conversationId: evalCase.conversation_id,
             error: errorMsg,
           }),
@@ -1374,9 +1378,10 @@ export async function runEvaluation(
                 const errorMsg = `${prefix}: dependency failed (${failedDeps.join(', ')})`;
                 const depFailResult: EvaluationResult = {
                   timestamp: (now ?? (() => new Date()))().toISOString(),
-                  testId: evalCase.id,
+                  testId: authoredResultTestId(evalCase),
                   suite: evalCase.suite,
                   category: evalCase.category,
+                  prompt: evalCase.prompt,
                   score: 0,
                   assertions: [],
                   output: errorMsg,
@@ -1385,7 +1390,7 @@ export async function runEvaluation(
                     output: [{ role: 'assistant' as const, content: errorMsg }],
                     finalOutput: errorMsg,
                     target: target.name,
-                    testId: evalCase.id,
+                    testId: authoredResultTestId(evalCase),
                     conversationId: evalCase.conversation_id,
                     error: errorMsg,
                   }),
@@ -2598,7 +2603,7 @@ async function evaluateCandidate(options: {
     endTime,
     provider: provider.kind,
     target: target.name,
-    testId: evalCase.id,
+    testId: authoredResultTestId(evalCase),
     conversationId: evalCase.conversation_id,
   });
 
@@ -3587,6 +3592,10 @@ async function invokeProvider(
   }
 }
 
+function authoredResultTestId(evalCase: Pick<EvalTest, 'id' | 'testId'>): string {
+  return evalCase.testId ?? evalCase.id;
+}
+
 function buildErrorResult(
   evalCase: EvalTest,
   targetName: string,
@@ -3636,14 +3645,15 @@ function buildErrorResult(
     output: [{ role: 'assistant' as const, content: output }],
     finalOutput: output,
     target: targetName,
-    testId: evalCase.id,
+    testId: authoredResultTestId(evalCase),
     conversationId: evalCase.conversation_id,
     error: message,
   });
 
   return {
     timestamp: timestamp.toISOString(),
-    testId: evalCase.id,
+    testId: authoredResultTestId(evalCase),
+    prompt: evalCase.prompt,
     suite: evalCase.suite,
     category: evalCase.category,
     conversationId: evalCase.conversation_id,

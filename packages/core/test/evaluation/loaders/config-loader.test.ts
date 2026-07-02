@@ -622,6 +622,8 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       { name: 'registry-agent' },
       {
         name: 'inline-agent',
+        id: 'mock',
+        label: 'inline-agent',
         definition: expect.objectContaining({
           id: 'mock',
           name: 'inline-agent',

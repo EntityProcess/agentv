@@ -196,6 +196,12 @@
                     "raw": {
                       "type": "string"
                     },
+                    "function": {
+                      "type": "string"
+                    },
+                    "function_file": {
+                      "type": "string"
+                    },
                     "path": {
                       "type": "string"
                     },
@@ -255,6 +261,12 @@
                         "type": "string"
                       },
                       "raw": {
+                        "type": "string"
+                      },
+                      "function": {
+                        "type": "string"
+                      },
+                      "function_file": {
                         "type": "string"
                       },
                       "path": {
@@ -966,6 +978,12 @@
                                           "raw": {
                                             "type": "string"
                                           },
+                                          "function": {
+                                            "type": "string"
+                                          },
+                                          "function_file": {
+                                            "type": "string"
+                                          },
                                           "path": {
                                             "type": "string"
                                           },
@@ -1025,6 +1043,12 @@
                                               "type": "string"
                                             },
                                             "raw": {
+                                              "type": "string"
+                                            },
+                                            "function": {
+                                              "type": "string"
+                                            },
+                                            "function_file": {
                                               "type": "string"
                                             },
                                             "path": {
@@ -1292,6 +1316,12 @@
                                               "raw": {
                                                 "type": "string"
                                               },
+                                              "function": {
+                                                "type": "string"
+                                              },
+                                              "function_file": {
+                                                "type": "string"
+                                              },
                                               "path": {
                                                 "type": "string"
                                               },
@@ -1351,6 +1381,12 @@
                                                   "type": "string"
                                                 },
                                                 "raw": {
+                                                  "type": "string"
+                                                },
+                                                "function": {
+                                                  "type": "string"
+                                                },
+                                                "function_file": {
                                                   "type": "string"
                                                 },
                                                 "path": {
@@ -1618,6 +1654,12 @@
                                                 "raw": {
                                                   "type": "string"
                                                 },
+                                                "function": {
+                                                  "type": "string"
+                                                },
+                                                "function_file": {
+                                                  "type": "string"
+                                                },
                                                 "path": {
                                                   "type": "string"
                                                 },
@@ -1677,6 +1719,12 @@
                                                     "type": "string"
                                                   },
                                                   "raw": {
+                                                    "type": "string"
+                                                  },
+                                                  "function": {
+                                                    "type": "string"
+                                                  },
+                                                  "function_file": {
                                                     "type": "string"
                                                   },
                                                   "path": {
@@ -1913,6 +1961,12 @@
                                   "raw": {
                                     "type": "string"
                                   },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
+                                    "type": "string"
+                                  },
                                   "path": {
                                     "type": "string"
                                   },
@@ -1972,6 +2026,12 @@
                                       "type": "string"
                                     },
                                     "raw": {
+                                      "type": "string"
+                                    },
+                                    "function": {
+                                      "type": "string"
+                                    },
+                                    "function_file": {
                                       "type": "string"
                                     },
                                     "path": {
@@ -2432,6 +2492,12 @@
                                           "type": "string"
                                         },
                                         "raw": {
+                                          "type": "string"
+                                        },
+                                        "function": {
+                                          "type": "string"
+                                        },
+                                        "function_file": {
                                           "type": "string"
                                         },
                                         "path": {
@@ -3818,6 +3884,12 @@
                                               "type": "string"
                                             },
                                             "raw": {
+                                              "type": "string"
+                                            },
+                                            "function": {
+                                              "type": "string"
+                                            },
+                                            "function_file": {
                                               "type": "string"
                                             },
                                             "path": {
@@ -5709,6 +5781,12 @@
                                           "raw": {
                                             "type": "string"
                                           },
+                                          "function": {
+                                            "type": "string"
+                                          },
+                                          "function_file": {
+                                            "type": "string"
+                                          },
                                           "path": {
                                             "type": "string"
                                           },
@@ -5768,6 +5846,12 @@
                                               "type": "string"
                                             },
                                             "raw": {
+                                              "type": "string"
+                                            },
+                                            "function": {
+                                              "type": "string"
+                                            },
+                                            "function_file": {
                                               "type": "string"
                                             },
                                             "path": {
@@ -6035,6 +6119,12 @@
                                               "raw": {
                                                 "type": "string"
                                               },
+                                              "function": {
+                                                "type": "string"
+                                              },
+                                              "function_file": {
+                                                "type": "string"
+                                              },
                                               "path": {
                                                 "type": "string"
                                               },
@@ -6094,6 +6184,12 @@
                                                   "type": "string"
                                                 },
                                                 "raw": {
+                                                  "type": "string"
+                                                },
+                                                "function": {
+                                                  "type": "string"
+                                                },
+                                                "function_file": {
                                                   "type": "string"
                                                 },
                                                 "path": {
@@ -6361,6 +6457,12 @@
                                                 "raw": {
                                                   "type": "string"
                                                 },
+                                                "function": {
+                                                  "type": "string"
+                                                },
+                                                "function_file": {
+                                                  "type": "string"
+                                                },
                                                 "path": {
                                                   "type": "string"
                                                 },
@@ -6420,6 +6522,12 @@
                                                     "type": "string"
                                                   },
                                                   "raw": {
+                                                    "type": "string"
+                                                  },
+                                                  "function": {
+                                                    "type": "string"
+                                                  },
+                                                  "function_file": {
                                                     "type": "string"
                                                   },
                                                   "path": {
@@ -6656,6 +6764,12 @@
                                   "raw": {
                                     "type": "string"
                                   },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
+                                    "type": "string"
+                                  },
                                   "path": {
                                     "type": "string"
                                   },
@@ -6715,6 +6829,12 @@
                                       "type": "string"
                                     },
                                     "raw": {
+                                      "type": "string"
+                                    },
+                                    "function": {
+                                      "type": "string"
+                                    },
+                                    "function_file": {
                                       "type": "string"
                                     },
                                     "path": {
@@ -7175,6 +7295,12 @@
                                           "type": "string"
                                         },
                                         "raw": {
+                                          "type": "string"
+                                        },
+                                        "function": {
+                                          "type": "string"
+                                        },
+                                        "function_file": {
                                           "type": "string"
                                         },
                                         "path": {
@@ -8561,6 +8687,12 @@
                                               "type": "string"
                                             },
                                             "raw": {
+                                              "type": "string"
+                                            },
+                                            "function": {
+                                              "type": "string"
+                                            },
+                                            "function_file": {
                                               "type": "string"
                                             },
                                             "path": {
@@ -10431,6 +10563,12 @@
                             "raw": {
                               "type": "string"
                             },
+                            "function": {
+                              "type": "string"
+                            },
+                            "function_file": {
+                              "type": "string"
+                            },
                             "path": {
                               "type": "string"
                             },
@@ -10490,6 +10628,12 @@
                                 "type": "string"
                               },
                               "raw": {
+                                "type": "string"
+                              },
+                              "function": {
+                                "type": "string"
+                              },
+                              "function_file": {
                                 "type": "string"
                               },
                               "path": {
@@ -10757,6 +10901,12 @@
                                 "raw": {
                                   "type": "string"
                                 },
+                                "function": {
+                                  "type": "string"
+                                },
+                                "function_file": {
+                                  "type": "string"
+                                },
                                 "path": {
                                   "type": "string"
                                 },
@@ -10816,6 +10966,12 @@
                                     "type": "string"
                                   },
                                   "raw": {
+                                    "type": "string"
+                                  },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
                                     "type": "string"
                                   },
                                   "path": {
@@ -11083,6 +11239,12 @@
                                   "raw": {
                                     "type": "string"
                                   },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
+                                    "type": "string"
+                                  },
                                   "path": {
                                     "type": "string"
                                   },
@@ -11142,6 +11304,12 @@
                                       "type": "string"
                                     },
                                     "raw": {
+                                      "type": "string"
+                                    },
+                                    "function": {
+                                      "type": "string"
+                                    },
+                                    "function_file": {
                                       "type": "string"
                                     },
                                     "path": {
@@ -11567,6 +11735,12 @@
                                 "raw": {
                                   "type": "string"
                                 },
+                                "function": {
+                                  "type": "string"
+                                },
+                                "function_file": {
+                                  "type": "string"
+                                },
                                 "path": {
                                   "type": "string"
                                 },
@@ -11626,6 +11800,12 @@
                                     "type": "string"
                                   },
                                   "raw": {
+                                    "type": "string"
+                                  },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
                                     "type": "string"
                                   },
                                   "path": {
@@ -11893,6 +12073,12 @@
                                     "raw": {
                                       "type": "string"
                                     },
+                                    "function": {
+                                      "type": "string"
+                                    },
+                                    "function_file": {
+                                      "type": "string"
+                                    },
                                     "path": {
                                       "type": "string"
                                     },
@@ -11952,6 +12138,12 @@
                                         "type": "string"
                                       },
                                       "raw": {
+                                        "type": "string"
+                                      },
+                                      "function": {
+                                        "type": "string"
+                                      },
+                                      "function_file": {
                                         "type": "string"
                                       },
                                       "path": {
@@ -12219,6 +12411,12 @@
                                       "raw": {
                                         "type": "string"
                                       },
+                                      "function": {
+                                        "type": "string"
+                                      },
+                                      "function_file": {
+                                        "type": "string"
+                                      },
                                       "path": {
                                         "type": "string"
                                       },
@@ -12278,6 +12476,12 @@
                                           "type": "string"
                                         },
                                         "raw": {
+                                          "type": "string"
+                                        },
+                                        "function": {
+                                          "type": "string"
+                                        },
+                                        "function_file": {
                                           "type": "string"
                                         },
                                         "path": {
@@ -12514,6 +12718,12 @@
                         "raw": {
                           "type": "string"
                         },
+                        "function": {
+                          "type": "string"
+                        },
+                        "function_file": {
+                          "type": "string"
+                        },
                         "path": {
                           "type": "string"
                         },
@@ -12573,6 +12783,12 @@
                             "type": "string"
                           },
                           "raw": {
+                            "type": "string"
+                          },
+                          "function": {
+                            "type": "string"
+                          },
+                          "function_file": {
                             "type": "string"
                           },
                           "path": {
@@ -12861,6 +13077,12 @@
                                         "raw": {
                                           "type": "string"
                                         },
+                                        "function": {
+                                          "type": "string"
+                                        },
+                                        "function_file": {
+                                          "type": "string"
+                                        },
                                         "path": {
                                           "type": "string"
                                         },
@@ -12920,6 +13142,12 @@
                                             "type": "string"
                                           },
                                           "raw": {
+                                            "type": "string"
+                                          },
+                                          "function": {
+                                            "type": "string"
+                                          },
+                                          "function_file": {
                                             "type": "string"
                                           },
                                           "path": {
@@ -13187,6 +13415,12 @@
                                             "raw": {
                                               "type": "string"
                                             },
+                                            "function": {
+                                              "type": "string"
+                                            },
+                                            "function_file": {
+                                              "type": "string"
+                                            },
                                             "path": {
                                               "type": "string"
                                             },
@@ -13246,6 +13480,12 @@
                                                 "type": "string"
                                               },
                                               "raw": {
+                                                "type": "string"
+                                              },
+                                              "function": {
+                                                "type": "string"
+                                              },
+                                              "function_file": {
                                                 "type": "string"
                                               },
                                               "path": {
@@ -13513,6 +13753,12 @@
                                               "raw": {
                                                 "type": "string"
                                               },
+                                              "function": {
+                                                "type": "string"
+                                              },
+                                              "function_file": {
+                                                "type": "string"
+                                              },
                                               "path": {
                                                 "type": "string"
                                               },
@@ -13572,6 +13818,12 @@
                                                   "type": "string"
                                                 },
                                                 "raw": {
+                                                  "type": "string"
+                                                },
+                                                "function": {
+                                                  "type": "string"
+                                                },
+                                                "function_file": {
                                                   "type": "string"
                                                 },
                                                 "path": {
@@ -13808,6 +14060,12 @@
                                 "raw": {
                                   "type": "string"
                                 },
+                                "function": {
+                                  "type": "string"
+                                },
+                                "function_file": {
+                                  "type": "string"
+                                },
                                 "path": {
                                   "type": "string"
                                 },
@@ -13867,6 +14125,12 @@
                                     "type": "string"
                                   },
                                   "raw": {
+                                    "type": "string"
+                                  },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
                                     "type": "string"
                                   },
                                   "path": {
@@ -14087,6 +14351,12 @@
                                         "raw": {
                                           "type": "string"
                                         },
+                                        "function": {
+                                          "type": "string"
+                                        },
+                                        "function_file": {
+                                          "type": "string"
+                                        },
                                         "path": {
                                           "type": "string"
                                         },
@@ -14146,6 +14416,12 @@
                                             "type": "string"
                                           },
                                           "raw": {
+                                            "type": "string"
+                                          },
+                                          "function": {
+                                            "type": "string"
+                                          },
+                                          "function_file": {
                                             "type": "string"
                                           },
                                           "path": {
@@ -14413,6 +14689,12 @@
                                             "raw": {
                                               "type": "string"
                                             },
+                                            "function": {
+                                              "type": "string"
+                                            },
+                                            "function_file": {
+                                              "type": "string"
+                                            },
                                             "path": {
                                               "type": "string"
                                             },
@@ -14472,6 +14754,12 @@
                                                 "type": "string"
                                               },
                                               "raw": {
+                                                "type": "string"
+                                              },
+                                              "function": {
+                                                "type": "string"
+                                              },
+                                              "function_file": {
                                                 "type": "string"
                                               },
                                               "path": {
@@ -14739,6 +15027,12 @@
                                               "raw": {
                                                 "type": "string"
                                               },
+                                              "function": {
+                                                "type": "string"
+                                              },
+                                              "function_file": {
+                                                "type": "string"
+                                              },
                                               "path": {
                                                 "type": "string"
                                               },
@@ -14798,6 +15092,12 @@
                                                   "type": "string"
                                                 },
                                                 "raw": {
+                                                  "type": "string"
+                                                },
+                                                "function": {
+                                                  "type": "string"
+                                                },
+                                                "function_file": {
                                                   "type": "string"
                                                 },
                                                 "path": {
@@ -15034,6 +15334,12 @@
                                 "raw": {
                                   "type": "string"
                                 },
+                                "function": {
+                                  "type": "string"
+                                },
+                                "function_file": {
+                                  "type": "string"
+                                },
                                 "path": {
                                   "type": "string"
                                 },
@@ -15093,6 +15399,12 @@
                                     "type": "string"
                                   },
                                   "raw": {
+                                    "type": "string"
+                                  },
+                                  "function": {
+                                    "type": "string"
+                                  },
+                                  "function_file": {
                                     "type": "string"
                                   },
                                   "path": {
@@ -15553,6 +15865,12 @@
                                         "type": "string"
                                       },
                                       "raw": {
+                                        "type": "string"
+                                      },
+                                      "function": {
+                                        "type": "string"
+                                      },
+                                      "function_file": {
                                         "type": "string"
                                       },
                                       "path": {
@@ -16939,6 +17257,12 @@
                                             "type": "string"
                                           },
                                           "raw": {
+                                            "type": "string"
+                                          },
+                                          "function": {
+                                            "type": "string"
+                                          },
+                                          "function_file": {
                                             "type": "string"
                                           },
                                           "path": {
