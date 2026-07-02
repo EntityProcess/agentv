@@ -56,8 +56,9 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
 ### Full results-tree layout (two levels — no per-run `.indexes`)
 ```
 .agentv/results/
-  .indexes/                 # CROSS-RUN derived catalogs (reserved, ADR-0012)
-    runs.jsonl              #   one row per RUN (rebuildable from */summary.json)
+  .indexes/                 # CROSS-RUN derived catalogs (reserved, ADR-0012; rebuildable, not source of truth)
+    runs.jsonl              #   one row per RUN         (run-level filtering/listing)
+    cases.jsonl             #   one row per (RUN x CASE) (case-level cross-run filter/trend)
   .cache/                   # CROSS-RUN caches (reserved)
   <run_id>/                 # one run bundle (one CLI invocation, incl multi-suite)
     summary.json            #   queryable aggregate (root, human-facing)
@@ -67,6 +68,8 @@ Confirms ADR-0009 + ADR-0012 (not a new decision):
       progress.json  events.jsonl  bundle.json
 ```
 - Per-run index (rows = cases) = `<run_id>/.internal/index.jsonl`; **no separate per-run `.indexes`** — `.internal` already holds it. Cross-run catalog (rows = runs) = `.agentv/results/.indexes/runs.jsonl`. Names signal scope: `.internal` = one bundle; `.indexes`/`.cache` = across runs. Both dot-prefixed (skipped by discovery).
+- **Cross-run filtering needs `cases.jsonl`, not just `runs.jsonl`.** `runs.jsonl` (one row/run) answers "which runs match"; **case-level cross-run** queries ("every `fizzbuzz` across runs", "failing cases with tag X over last 10 runs", "trend of `test_id` T") need one row per (run x case) → `.indexes/cases.jsonl`, rebuilt by concatenating every `<run_id>/.internal/index.jsonl` + run metadata. Join key for trends = the layered identity (content-hash `test_id` + author governance tag, ADR-0016 pt8). Both catalogs are derived/rebuildable; if JSONL scanning outgrows laptop scale, a rebuildable SQLite **view** is the escape hatch (optional adapter, never core — exploitbench pattern, Phoenix boundary intact).
+- **margin-lab consistency:** matches on substance — top-level queryable aggregate (`results.json`=`summary.json`), `internal/` machine folder (we dot-prefix `.internal/`), per-execution-unit dirs, no DB, one pure `Build()` for pass@k, `instance_key = test_id#sample_index`. Deliberate divergences: hierarchical `<test-id>/sample-N/` vs margin's flat `instances/<case>#<sample>/` (ours is more browsable, same identity); `timing`→`metrics` merge.
 - **Dashboard default view is sensible, never odd/empty:** because `tags.experiment` is value-defaulted to the eval/suite name (always populated), the default view groups by `experiment` (real names, no "(none)" wall) or a recent-runs list; the grouping key is a user preference they can change, not the absence of a default.
 
 ### Run organization: cross-run index, repeat naming, experiment-as-tag
