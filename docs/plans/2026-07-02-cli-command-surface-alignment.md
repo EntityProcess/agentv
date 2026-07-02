@@ -27,17 +27,17 @@ No broad web search was used. Peer research used local clones first, with DeepWi
 
 | Project | Local clone | Commit | Working tree status used for this report |
 | --- | --- | --- | --- |
-| Promptfoo | `/home/entity/projects/promptfoo/promptfoo` | `6bfc5a0c7f16f9c4717ac731d276b578e63d0769` | `main...origin/main`, clean |
+| Promptfoo | `/home/entity/projects/promptfoo/promptfoo` | `9a337ab3bc479b1bd7cb3a67c6fc00220390a703` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main` |
 | Margin evals | `/home/entity/projects/Margin-Lab/evals` | `53fb2fd080689efaf7934573d8759d14fc1043e4` | `main...origin/main`, clean |
-| DeepEval | `/home/entity/projects/confident-ai/deepeval` | `324355e8982bf9ee52c192215b06b4267aafa58e` | `main...origin/main`, clean |
-| Vercel agent-eval | `/home/entity/projects/vercel-labs/agent-eval` | `a9dcc9a8c53dbc22ececc967ded7ab3963f18e67` | `main...origin/main [behind 8]`, clean |
+| DeepEval | `/home/entity/projects/confident-ai/deepeval` | `55ad7910e70e3af6cd9d8b12030efb44b356ed3f` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main` |
+| Vercel agent-eval | `/home/entity/projects/vercel-labs/agent-eval` | `6ebfe82f39dddb9614add9bebf14a843658ef058` (`origin/main`) | local worktree clean; claims verified against fetched `origin/main` |
 | AgentV baseline | this worktree | branch `research/av-ap2w-cli-command-surface` | clean before this report |
 
 DeepWiki usage:
 
 - Asked a multi-repo command-surface question for `promptfoo/promptfoo`, `Margin-Lab/evals`, `confident-ai/deepeval`, and `vercel-labs/agent-eval`.
 - Asked a focused `vercel-labs/agent-eval` command-surface question.
-- DeepWiki was useful for orientation, but its Vercel answer was stale relative to the local clone: local source has `run-all`, `playground`, fingerprint reuse, and failure classification. This report uses local source as authoritative.
+- DeepWiki was useful for orientation, but exact command claims below use fetched local source as authoritative. The current Vercel source has `run`, `status`, `refingerprint`, `playground`, fingerprint reuse, and failure classification; bare `agent-eval` shows status and lets TTY users choose experiments instead of auto-running everything.
 
 Primary local files inspected:
 
@@ -52,12 +52,12 @@ Primary local files inspected:
 | Flow | Promptfoo | Margin evals | DeepEval | Vercel agent-eval | Takeaway for AgentV |
 | --- | --- | --- | --- | --- | --- |
 | Init/config authoring | `promptfoo init [directory]`; `config get/set/unset`; `redteam init/setup`; examples can be fetched during init. | Small explicit resources: `margin init suite`, `case`, `agent-definition`, `agent-config`, `eval-config`; run config is passed as paths. | No project init in the same sense; config is Python tests plus provider settings through `login`, `settings`, and many `set-*`/`unset-*` commands. | `agent-eval init <name>` scaffolds an opinionated project with `experiments/`, `evals/`, `.env.example`, and examples. | Keep AgentV `init` for bootstrap and `create` for individual scaffolds, but make first-run authoring discoverable from one path. |
-| Run/eval execution | `promptfoo eval` is the central command and accepts config, prompt/provider/test overrides, filtering, repeat, share, resume, retry, output, and watch flags. | `margin run --suite --agent-config --eval`; explicit inputs, small command count, TUI by default. | `deepeval test run <file-or-dir>` delegates to pytest and accepts pytest passthrough args; evals are code-first. | Default no-arg command runs all experiments; `agent-eval <config>` runs one; `run-all` is explicit; `--dry`, `--smoke`, `--force`. | AgentV should keep `agentv eval <paths>` as the everyday command and make `eval run` the explicit form, not force new users through deeper command depth. |
+| Run/eval execution | `promptfoo eval` is the central command and accepts config, prompt/provider/test overrides, filtering, repeat, share, resume, retry, output, and watch flags. | `margin run --suite --agent-config --eval`; explicit inputs, small command count, TUI by default. | `deepeval test run <file-or-dir>` delegates to pytest and accepts pytest passthrough args; evals are code-first. | `agent-eval run <experiment...>` runs named new/changed evals; bare `agent-eval` shows status and lets TTY users choose experiments; a direct config/name still runs one experiment for compatibility; `--dry`, `--smoke`, `--force`. | AgentV should keep `agentv eval <paths>` as the everyday command and make `eval run` the explicit form, not force new users through deeper command depth. |
 | Result viewing/reporting | `view [directory]` starts local UI; `show` drills into eval/prompt/dataset; `redteam report`. | Interactive Mission Control stays open after run unless `--exit-on-complete`; plain mode available. | `inspect [PATH]` opens a TUI over saved test runs; `view` uploads/opens Confident AI report. | `playground` launches local results viewer; README emphasizes files under `results/`. | AgentV's `dashboard` is the right primary inspection noun; CLI reports should be grouped under `results`. |
-| Cache/resume/rerun | `eval --no-cache`; `cache clear`; `eval --resume [evalId]`; `eval --retry-errors`; standalone `retry <evalId>`. | Remote suites cached and pinned until `suite pull`; `run --resume-from`; `--resume-mode resume|retry-failed`. | `test run --use-cache`; cache disabled when `--repeat` is used; no prominent CLI resume/rerun flow in inspected source. | Fingerprint reuse skips matching eval/config results; `--force` bypasses reuse; failure classification can remove non-model failures unless `--ack-failures`. | AgentV should expose resume/rerun in one place with run-bundle nouns: `eval --resume`, `eval --rerun-failed`, and `runs rerun` for captured bundles. |
+| Cache/resume/rerun | `eval --no-cache`; `cache clear`; `eval --resume [evalId]`; `eval --retry-errors`; standalone `retry <evalId>`. | Remote suites cached and pinned until `suite pull`; `run --resume-from`; `--resume-mode resume|retry-failed`. | `test run --use-cache`; cache disabled when `--repeat` is used; no prominent CLI resume/rerun flow in inspected source. Current CLI also adds `gate` and `test run --official` for Confident AI governance/baseline workflows. | Fingerprint reuse skips matching eval/config results; `status` reports new/changed evals, `refingerprint` carries config-only changes forward, `--force` bypasses reuse, and failure classification can remove non-model failures unless `--ack-failures`. | AgentV should expose resume/rerun in one place with run-bundle nouns: `eval --resume`, `eval --rerun-failed`, and `runs rerun` for captured bundles. |
 | Dataset/test management | `generate dataset`, `generate assertions`, `list evals/prompts/datasets`, `show dataset`. | Suites and cases are first-class: `init suite`, `init case`, remote suite pull. | Synthetic goldens via `generate --method ...`; datasets are code/API constructs in README. | Fixtures are directories under `evals/` containing `PROMPT.md`, `EVAL.ts(x)`, `package.json`. | AgentV should keep `create eval` and `import huggingface`; avoid building a generic dataset platform into CLI core. |
-| Compare/export/share | `share [id]`, `export eval`, `export logs`, `view`. | No explicit compare/export/share command found in inspected CLI docs/source. | `view` uploads/opens Confident AI; platform owns richer sharing. | Local playground and result files; no broad export/share CLI in inspected source. | AgentV should preserve local/Git-backed `results export`, `compare`, `trend`, and `dashboard`; do not adopt hosted share as a default primitive. |
-| Naming/depth | Broad, mostly flat top-level commands with grouped areas (`auth`, `cache`, `generate`, `list`, `redteam`, `validate`, `export`). | Minimal top-level commands: `check`, `init`, `run`, `suite`, `update`; two-level depth for resources. | Mixed: `test run` is good; provider setup is many top-level `set-*` commands. | Very shallow: default run, `init`, `playground`, `run-all`. | AgentV needs fewer top-level inspection nouns and a clearer "common path first, advanced groups second" help surface. |
+| Compare/export/share | `share [id]`, `export eval`, `export logs`, `view`. | No explicit compare/export/share command found in inspected CLI docs/source. | `view` uploads/opens Confident AI; platform owns richer sharing. | Local playground includes side-by-side comparison; result files stay local. No broad export/share CLI in inspected source. | AgentV should keep local/Git-backed `dashboard` plus `results export`, `results compare`, and `results trend`; do not adopt hosted share as a default primitive. |
+| Naming/depth | Broad, mostly flat top-level commands with grouped areas (`auth`, `cache`, `generate`, `list`, `redteam`, `validate`, `export`). | Minimal top-level commands: `check`, `init`, `run`, `suite`, `update`; two-level depth for resources. | Mixed: `test run` is good; provider setup is many top-level `set-*` commands. | Shallow but explicit: `run`, `status`, `refingerprint`, `playground`, and direct single-config compatibility. | AgentV needs fewer top-level inspection nouns and a clearer "common path first, advanced groups second" help surface. |
 
 ## AgentV Baseline
 
@@ -76,13 +76,13 @@ Main friction:
 - `eval run` command metadata sets `name: 'eval'` inside the `eval` group, which makes help and mental models muddy even though preprocessing keeps old invocations working.
 - Inspection is split across `dashboard`, `results`, `inspect`, `compare`, `trend`, and `runs`. Each is defensible, but the top-level help does not communicate a single post-run path.
 - `inspect` overlaps semantically with `results`, especially for `list`, `show`, `filter`, `search`, `stats`, and `score` over existing results/traces.
-- `compare` and `trend` are useful primary workflows, but they read like isolated top-level tools rather than post-run analysis actions.
+- `compare` and `trend` are useful workflows, but they should read as post-run result analysis actions rather than isolated top-level tools.
 - `serve` and `dashboard` are aliases to the same command, and `studio` is still handled as a deprecated hidden alias. This adds vocabulary without adding capability.
 - Cache/resume/rerun flags are powerful but distributed: provider cache is on `eval`, resume and rerun-failed are on `eval`, captured rerun is under `runs`, and result combination/deletion is under `results`.
 
 ## What AgentV Should Adopt
 
-- Adopt Vercel's shallow happy path: `agentv init`, `agentv eval`, `agentv dashboard`. The common path should be visible in top-level help and docs before advanced groups.
+- Adopt Vercel's explicit status-before-run posture, but keep AgentV's happy path as `agentv init`, `agentv eval`, `agentv dashboard`. The common path should be visible in top-level help and docs before advanced groups.
 - Adopt Margin's explicit resource naming where it prevents ambiguity. AgentV has distinct projects, runs, traces, experiments, benchmarks, targets, workspaces, and results; the CLI should not collapse those nouns.
 - Adopt Promptfoo's task-oriented discoverability for generation, listing, viewing, retrying, and exporting, but not its large top-level sprawl.
 - Adopt Vercel and Margin's clear dry/smoke/preflight patterns, but map them to AgentV primitives: `validate`, `prepare`, and future small smoke workflows rather than provider-specific hidden behavior.
@@ -92,7 +92,7 @@ Main friction:
 
 - Avoid DeepEval-style provider setup sprawl (`set-openai`, `unset-openai`, `set-gemini`, etc.) as top-level commands. AgentV should keep provider configuration in YAML/env and use `doctor` for diagnostics.
 - Avoid Promptfoo's hosted `share` default. Sharing in AgentV should stay Git-backed/private-evidence friendly unless a narrow adapter is explicitly added later.
-- Avoid Vercel's implicit result reuse semantics as a hidden CLI policy. AgentV cache/resume/rerun behavior should be explicit in config, flags, and artifacts.
+- Avoid Vercel's fingerprint reuse semantics as a hidden CLI policy. AgentV cache/resume/rerun behavior should be explicit in config, flags, and artifacts.
 - Avoid making `dataset` a new broad core command group. AgentV can import from Hugging Face and scaffold evals without becoming a dataset registry.
 - Avoid moving Phoenix, Confident AI, or other hosted viewers into the primary inspection path. External systems can remain adapters or link-outs.
 
@@ -114,12 +114,12 @@ Goal: make the existing surface easier to understand without changing behavior.
   - `agentv create eval <name>`
   - `agentv eval <eval-paths> --target <target>`
   - `agentv dashboard`
-  - `agentv results summary|failures|report|export <run>`
+  - `agentv results summary|failures|report|export|compare|trend <run>`
 - In top-level help and public docs, present commands in workflow groups:
   - Author: `init`, `create`, `import`, `validate`
   - Run: `eval`, `prepare`, `grade`
   - Inspect: `dashboard`, `results`
-  - Analyze: `compare`, `trend`
+  - Analyze: `results compare`, `results trend`
   - Manage: `runs`, `workspace`, `doctor`, `self`, `skills`
   - Compatibility/advanced: `convert`, `transpile`, `pipeline`, `trim`
 - Update command descriptions so "result", "run", "trace", and "project" are used consistently.
@@ -133,6 +133,7 @@ Goal: reduce command-depth surprises while preserving compatibility.
 - Add explicit, documented aliases only where they match the common mental model:
   - `agentv run <eval-paths>` as an alias for `agentv eval <eval-paths>` only if the team wants a Margin/Vercel-style verb. This should be optional; `eval` is already strong and familiar.
   - `agentv report <run>` as a short alias for `agentv results report <run>` only if top-level help remains uncluttered.
+- Do not add or retain stable top-level analysis commands for `compare` or `trend`. Existing top-level `compare` and `trend` should become compatibility aliases for `agentv results compare` and `agentv results trend`, then be hidden from primary help before removal.
 - Keep `serve` as a hidden/deprecated alias for `dashboard`, and remove it from primary docs if it is currently visible.
 - Keep `studio` deprecated and do not introduce more UI nouns.
 
@@ -145,7 +146,10 @@ Goal: make `results` the CLI home for local artifact operations and `dashboard` 
   - `inspect show` -> `results show`
   - `inspect filter/search/stats/score` -> `results filter/search/stats/score` if they operate on run bundles
 - Keep `inspect` only if it means trace-specific post-hoc inspection that is materially different from result artifact inspection. If retained, rename descriptions to "trace inspection" rather than generic "Inspect and analyze evaluation results."
-- Teach `compare` and `trend` to advertise run-directory/index inputs consistently and cross-link from `results summary`.
+- Move top-level `compare` and `trend` under `results` as canonical subcommands:
+  - `compare <runs...>` -> `results compare <runs...>`
+  - `trend <runs...>` -> `results trend <runs...>`
+- Teach `results compare` and `results trend` to advertise run-directory/index inputs consistently and cross-link from `results summary`.
 
 ### Phase 4: Clarify Resume, Retry, and Cache
 
@@ -187,9 +191,7 @@ Recommended stable top-level groups:
 | `agentv eval <paths>` | Primary run command; shorthand for `agentv eval run <paths>`. |
 | `agentv prepare <eval> --test-id ...` | Materialize one test workspace without executing a target. |
 | `agentv dashboard` | Local web inspection over AgentV projects and run bundles. |
-| `agentv results <summary|failures|show|report|export|combine|delete|validate>` | CLI operations over completed run bundles. |
-| `agentv compare <runs...>` | Compare completed run bundles. |
-| `agentv trend <runs...>` | Analyze score movement across completed run bundles. |
+| `agentv results <summary|failures|show|report|export|compare|trend|combine|delete|validate>` | CLI operations over completed run bundles, including comparison and score movement analysis. |
 | `agentv runs rerun <run>` | Replay captured test bundles with replacement targets. |
 | `agentv doctor` | Check dependencies and environment readiness. |
 | `agentv workspace <list|deps|clean>` | Manage workspace pools and dependencies. |
@@ -198,15 +200,16 @@ Commands to hide, de-emphasize, or reconsider:
 
 - `serve`: keep only as a compatibility alias to `dashboard`, not a primary noun.
 - `inspect`: either make trace-specific or gradually alias into `results`.
+- `compare` and `trend`: move to `results compare` and `results trend`; keep any current top-level commands only as hidden/deprecated compatibility aliases.
 - `pipeline`, `trim`, `transpile`, `convert`: keep as advanced/compatibility commands and keep them out of the first-run path.
 
 ## Implementation Follow-Up Plan
 
 1. Open a follow-up Bead for Phase 1 documentation/help grouping. Acceptance: no behavior changes; public docs and top-level command descriptions show the common path.
 2. Open a follow-up Bead for `eval run` help cleanup. Acceptance: `agentv eval --help`, `agentv eval run --help`, and `agentv eval <path>` remain compatible and clearer.
-3. Open a follow-up Bead for post-run command consolidation design. Acceptance: decide whether `inspect` survives as trace-specific or becomes aliases under `results`.
+3. Open a follow-up Bead for post-run command consolidation design. Acceptance: `results compare` and `results trend` are canonical, top-level `compare`/`trend` are hidden compatibility aliases or removed under the allowed compatibility policy, and `inspect` either survives as trace-specific or becomes aliases under `results`.
 4. Open a follow-up Bead for resume/cache/rerun docs and examples. Acceptance: one page explains the four behaviors with commands and artifact expectations.
-5. Only after docs/help converge, consider optional top-level aliases such as `agentv report` or `agentv run`. Acceptance: aliases are additive, hidden from advanced help if they clutter discoverability, and covered by CLI tests.
+5. Only after docs/help converge, consider optional top-level aliases such as `agentv report` or `agentv run`. Acceptance: aliases are additive, hidden from advanced help if they clutter discoverability, and covered by CLI tests. Do not add top-level aliases for `compare` or `trend`.
 
 ## Validation Performed For This Plan
 
