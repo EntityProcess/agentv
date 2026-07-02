@@ -21,7 +21,9 @@ This plan is the **extensions/workspace implementation slice** of the wider prom
 - **A5. ADR sequencing.** The proposed ADR 0014 must note that a broader superseding ADR (reversing parts of ADR-0013: `assert`, grader-type names, removal of `tests[].input`) is incoming, so 0014 does not re-entrench `input`/`assertions`.
 - **A6. Rename the skills extension → `agent-rules` (U5).** It stages more than skills — **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename: built-in `agentv:agent-rules`, package `packages/extensions/agent-rules`, provider context `agent_rules_paths` (typed map covering skills/hooks/agents), not `skill_paths`. `skills` becomes one *kind* of agent rule, not the extension name. Update all U5 files/tests accordingly.
 
-The rest of the plan (Promptfoo `file://path:function` refs, four hook names, hard-remove core `workspace`, typed outputs instead of env-var side channels, JS-in-process/Python-subprocess, canonical run bundle, the agent-rules extension) stands as written.
+- **A7. Repo provisioning is a declarative `workspace.repos` FIELD, not an extension (finalized in ADR-0016 pt10 / ADR-0017).** This narrows this PR's scope: **do NOT move repo materialization into an extension.** Repo acquisition stays harness-core — a declarative `workspace.repos` field (provenance) the harness materializes (resolver backends) BEFORE hooks. Extensions here are only for **non-provisioning** setup: `agentv:agent-rules` (skills/hooks/agents staging) and custom `file://` lifecycle hooks. `isolation` is a `workspace` field, not a hook choice. The broader superseding ADR referenced in A5 is **ADR-0016** (authoring) + **ADR-0017** (output/resolver).
+
+The rest of the plan (Promptfoo `file://path:function` refs, four hook names, typed outputs instead of env-var side channels, JS-in-process/Python-subprocess, canonical run bundle, the agent-rules extension) stands as written — EXCEPT the removal of core `workspace`: repo provisioning is retained as a declarative field per A7 (only `workspace.hooks` moves to extensions).
 
 ## Goal Capsule
 
