@@ -1997,6 +1997,13 @@ function indexRecordReplacementKey(record: unknown): string | undefined {
   return projectionIdentityRecordKey(record) ?? indexRecordKey(record);
 }
 
+function indexRecordReplacementKeys(record: unknown): readonly string[] {
+  const keys = [projectionIdentityRecordKey(record), indexRecordKey(record)].filter(
+    (key): key is string => typeof key === 'string' && key.length > 0,
+  );
+  return Array.from(new Set(keys));
+}
+
 function projectionIdentityRecordKey(record: unknown): string | undefined {
   if (!isRecord(record) || !isRecord(record.projection_identity)) {
     return undefined;
@@ -2086,10 +2093,9 @@ async function rewriteExistingIndexRecords(
   }
 
   const replacementsByKey = new Map(
-    replacements.flatMap((record) => {
-      const key = indexRecordReplacementKey(record);
-      return key ? [[key, record] as const] : [];
-    }),
+    replacements.flatMap((record) =>
+      indexRecordReplacementKeys(record).map((key) => [key, record] as const),
+    ),
   );
   const seen = new Set<string>();
   const records: unknown[] = [];
@@ -2103,7 +2109,9 @@ async function rewriteExistingIndexRecords(
       const replacement = key ? replacementsByKey.get(key) : undefined;
       if (key && replacement) {
         records.push(replacement);
-        seen.add(key);
+        for (const replacementKey of indexRecordReplacementKeys(replacement)) {
+          seen.add(replacementKey);
+        }
       } else {
         records.push(parsed);
       }
@@ -2111,8 +2119,8 @@ async function rewriteExistingIndexRecords(
   }
 
   for (const replacement of replacements) {
-    const key = indexRecordReplacementKey(replacement);
-    if (!key || !seen.has(key)) {
+    const keys = indexRecordReplacementKeys(replacement);
+    if (keys.length === 0 || keys.every((key) => !seen.has(key))) {
       records.push(replacement);
     }
   }

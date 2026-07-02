@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import { createRequire as createNodeRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import pLimit from 'p-limit';
 
 import {
   DEFAULT_THRESHOLD,
@@ -54,6 +55,7 @@ import {
   aggregateRunDir,
   buildEvalTestTargetKey,
   buildEvaluationResultTargetKey,
+  buildTestTargetKey,
   deduplicateByTestIdTarget,
   parseJsonlResults,
   writeArtifactsFromResults,
@@ -135,6 +137,7 @@ interface NormalizedOptions {
   readonly retryErrors?: string;
   readonly resume: boolean;
   readonly rerunFailed: boolean;
+  readonly rerunFailedSource?: string;
   readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
   readonly keepWorkspaces: boolean;
@@ -609,8 +612,10 @@ function normalizeOptions(
     otelGroupTurns:
       normalizeBoolean(rawOptions.otelGroupTurns) || yamlExecution?.otel_group_turns === true,
     retryErrors: normalizeString(rawOptions.retryErrors),
-    resume: normalizeBoolean(rawOptions.resume) || normalizeBoolean(rawOptions.rerunFailed),
-    rerunFailed: normalizeBoolean(rawOptions.rerunFailed),
+    resume:
+      normalizeBoolean(rawOptions.resume) || normalizeString(rawOptions.rerunFailed) !== undefined,
+    rerunFailed: normalizeString(rawOptions.rerunFailed) !== undefined,
+    rerunFailedSource: normalizeString(rawOptions.rerunFailed),
     workspaceMode,
     workspacePath,
     // Precedence: CLI > YAML config > TS config
@@ -1162,6 +1167,27 @@ async function readExistingResultsFromRunDir(runDir: string): Promise<Evaluation
     results.push(...parseJsonlResults(content));
   }
   return results;
+}
+
+async function resolveRerunFailedRunDir(cwd: string, source: string): Promise<string> {
+  const trimmed = source.trim();
+  if (!trimmed) {
+    throw new Error('--rerun-failed requires a run ID, run workspace, or index.jsonl path.');
+  }
+
+  const candidate = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
+  if (existsSync(candidate)) {
+    return path.basename(candidate) === RESULT_INDEX_FILENAME ? path.dirname(candidate) : candidate;
+  }
+
+  const runIdCandidate = path.join(cwd, '.agentv', 'results', trimmed);
+  if (existsSync(runIdCandidate)) {
+    return runIdCandidate;
+  }
+
+  throw new Error(
+    `Run not found for --rerun-failed: ${source}. Expected a run ID under .agentv/results, a run workspace, or an index.jsonl path.`,
+  );
 }
 
 async function prepareFileMetadata(params: {
@@ -1825,17 +1851,16 @@ export async function runEvalCommand(
     }
   }
 
-  // --resume / --rerun-failed without an explicit --output: default to the
+  // --resume without an explicit --output: default to the
   // last-known run dir for this cwd from .agentv/cache.json. Matches promptfoo's
   // `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default"
   // convention. The cache pointer is written by saveRunCache after every eval.
-  if (options.resume && !options.retryErrors && !options.outputDir) {
+  if (options.resume && !options.rerunFailedSource && !options.retryErrors && !options.outputDir) {
     const cachedDir = await resolveCachedRunDir(cwd);
     if (cachedDir) {
       options = { ...options, outputDir: cachedDir };
-      const flagLabel = options.rerunFailed ? 'rerun-failed' : 'resume';
       const displayDir = path.relative(cwd, cachedDir) || cachedDir;
-      console.log(`Auto-detected last run dir for --${flagLabel}: ${displayDir}`);
+      console.log(`Auto-detected last run dir for --resume: ${displayDir}`);
     }
   }
 
@@ -1844,22 +1869,35 @@ export async function runEvalCommand(
   let resumeSkipKeys: Set<string> | undefined;
   let isResumeAppend = false;
   if (options.resume && !options.retryErrors) {
-    const explicitResumeDir = options.outputDir;
-    if (explicitResumeDir) {
-      const resumeDir = path.resolve(explicitResumeDir);
-      const resumeIndexPaths = discoverRunManifestPaths(resumeDir);
+    const sourceRunDir = options.rerunFailedSource
+      ? await resolveRerunFailedRunDir(cwd, options.rerunFailedSource)
+      : options.outputDir
+        ? path.resolve(options.outputDir)
+        : undefined;
+
+    if (sourceRunDir) {
+      if (options.rerunFailedSource && !options.outputDir) {
+        options = { ...options, outputDir: sourceRunDir };
+      }
+
+      const resumeIndexPaths = discoverRunManifestPaths(sourceRunDir);
       if (resumeIndexPaths.length > 0) {
-        const existingResults = await readExistingResultsFromRunDir(resumeDir);
+        const existingResults = await readExistingResultsFromRunDir(sourceRunDir);
         resumeSkipKeys = new Set<string>();
+        let completedResultCount = 0;
         for (const r of existingResults) {
           if (shouldSkipExistingResultForResume(r, options.rerunFailed)) {
+            completedResultCount += 1;
             resumeSkipKeys.add(buildEvaluationResultTargetKey(r));
+            resumeSkipKeys.add(buildTestTargetKey(r.testId, r.target, r.variant));
           }
         }
-        isResumeAppend = true;
+        isResumeAppend =
+          options.outputDir !== undefined &&
+          path.resolve(options.outputDir) === path.resolve(sourceRunDir);
         const modeLabel = options.rerunFailed ? 'Rerun-failed' : 'Resume';
         console.log(
-          `${modeLabel}: found ${existingResults.length} existing result(s), skipping ${resumeSkipKeys.size} completed.`,
+          `${modeLabel}: found ${existingResults.length} existing result(s), skipping ${completedResultCount} completed.`,
         );
       } else {
         // No existing bundle manifest — behave like a normal run.
@@ -2116,7 +2154,8 @@ export async function runEvalCommand(
         const target = selection.targetName;
         const variant = targetVariantForSelection(selection);
         const key = buildEvalTestTargetKey(test, target, variant);
-        if (resumeSkipKeys?.has(key)) {
+        const fallbackKey = buildTestTargetKey(test.id, target, variant);
+        if (resumeSkipKeys?.has(key) || resumeSkipKeys?.has(fallbackKey)) {
           resumeSkippedCount++;
         } else {
           totalEvalCount++;
@@ -2339,126 +2378,142 @@ export async function runEvalCommand(
         continue;
       }
 
-      // Run all targets concurrently (each target has its own worker limit)
+      const fileWorkerLimit = Math.max(1, fileOptions.workers ?? DEFAULT_WORKERS);
+      const targetConcurrency =
+        targetPrep.selections.length > 1
+          ? Math.min(fileWorkerLimit, targetPrep.selections.length)
+          : 1;
+      const perTargetWorkers =
+        targetPrep.selections.length > 1
+          ? Math.max(1, Math.floor(fileWorkerLimit / targetConcurrency))
+          : fileWorkerLimit;
+      const limitTarget = pLimit(targetConcurrency);
+
+      // Run target matrix selections through a bounded pool. Each active target
+      // receives a slice of the worker budget so total in-process case execution
+      // never multiplies past max_concurrency.
       const targetResults = await Promise.all(
-        targetPrep.selections.map(async ({ selection, inlineTargetLabel }) => {
-          // Target selection is suite/experiment/CLI runtime policy; every selected
-          // target runs every filtered test case for this eval file.
-          const targetName = selection.targetName;
-          const applicableTestCases = targetPrep.testCases;
+        targetPrep.selections.map(({ selection, inlineTargetLabel }) =>
+          limitTarget(async () => {
+            // Target selection is suite/experiment/CLI runtime policy; every selected
+            // target runs every filtered test case for this eval file.
+            const targetName = selection.targetName;
+            const applicableTestCases = targetPrep.testCases;
 
-          // --resume / --rerun-failed: skip tests that are already completed
-          const filteredTestCases = resumeSkipKeys
-            ? applicableTestCases.filter(
-                (test) =>
-                  !resumeSkipKeys.has(
-                    buildEvalTestTargetKey(test, targetName, targetVariantForSelection(selection)),
-                  ),
-              )
-            : applicableTestCases;
+            // --resume / --rerun-failed: skip tests that are already completed
+            const filteredTestCases = resumeSkipKeys
+              ? applicableTestCases.filter((test) => {
+                  const variant = targetVariantForSelection(selection);
+                  return (
+                    !resumeSkipKeys.has(buildEvalTestTargetKey(test, targetName, variant)) &&
+                    !resumeSkipKeys.has(buildTestTargetKey(test.id, targetName, variant))
+                  );
+                })
+              : applicableTestCases;
 
-          if (filteredTestCases.length === 0) {
-            return [];
-          }
+            if (filteredTestCases.length === 0) {
+              return [];
+            }
 
-          try {
-            const runGroups = groupTestsByRunPolicy({
-              tests: filteredTestCases,
-              options: fileOptions,
-              defaultTrialsConfig: fileOptions.transcript ? undefined : targetPrep.trialsConfig,
-              defaultThreshold: targetPrep.threshold ?? fileOptions.threshold,
-              defaultTimeoutSeconds: fileOptions.agentTimeoutSeconds,
-              defaultBudgetUsd: targetPrep.budgetUsd,
-            });
-            const groupResults: EvaluationResult[] = [];
-            for (const group of runGroups) {
-              hasScopedRunPolicies ||= group.policy.hasScopedOverride;
-              const result = await runSingleEvalFile({
-                testFilePath,
-                cwd,
-                repoRoot,
+            try {
+              const runGroups = groupTestsByRunPolicy({
+                tests: filteredTestCases,
                 options: fileOptions,
-                outputWriter,
-                otelExporter,
-                cache,
-                evaluationRunner,
-                workersOverride: fileOptions.workers,
-                progressReporter,
-                seenTestCases,
-                displayIdTracker,
-                selection,
-                inlineTargetLabel,
-                testCases: group.tests,
-                trialsConfig: fileOptions.transcript ? undefined : group.policy.trialsConfig,
-                agentTimeoutSeconds: group.policy.timeoutSeconds,
-                matrixMode: targetPrep.selections.length > 1,
-                budgetUsd: group.policy.budgetUsd,
-                runBudgetTracker: fileBudgetTracker,
-                failOnError: targetPrep.failOnError,
-                threshold: group.policy.threshold,
-                providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
+                defaultTrialsConfig: fileOptions.transcript ? undefined : targetPrep.trialsConfig,
+                defaultThreshold: targetPrep.threshold ?? fileOptions.threshold,
+                defaultTimeoutSeconds: fileOptions.agentTimeoutSeconds,
+                defaultBudgetUsd: targetPrep.budgetUsd,
               });
-              groupResults.push(...result.results);
-            }
-            const evalFile = path.relative(cwd, testFilePath);
-            const existingSummary = remoteEvalSummaries.find(
-              (summary) => summary.evalFile === evalFile,
-            );
-            if (existingSummary) {
-              existingSummary.results.push(...groupResults);
-            } else {
-              remoteEvalSummaries.push({
-                evalFile,
-                results: [...groupResults],
-              });
-            }
+              const groupResults: EvaluationResult[] = [];
+              for (const group of runGroups) {
+                hasScopedRunPolicies ||= group.policy.hasScopedOverride;
+                const result = await runSingleEvalFile({
+                  testFilePath,
+                  cwd,
+                  repoRoot,
+                  options: fileOptions,
+                  outputWriter,
+                  otelExporter,
+                  cache,
+                  evaluationRunner,
+                  workersOverride: perTargetWorkers,
+                  progressReporter,
+                  seenTestCases,
+                  displayIdTracker,
+                  selection,
+                  inlineTargetLabel,
+                  testCases: group.tests,
+                  trialsConfig: fileOptions.transcript ? undefined : group.policy.trialsConfig,
+                  agentTimeoutSeconds: group.policy.timeoutSeconds,
+                  matrixMode: targetPrep.selections.length > 1,
+                  budgetUsd: group.policy.budgetUsd,
+                  runBudgetTracker: fileBudgetTracker,
+                  failOnError: targetPrep.failOnError,
+                  threshold: group.policy.threshold,
+                  providerFactory: transcriptProviderFactory ?? targetPrep.providerFactory,
+                });
+                groupResults.push(...result.results);
+              }
+              const evalFile = path.relative(cwd, testFilePath);
+              const existingSummary = remoteEvalSummaries.find(
+                (summary) => summary.evalFile === evalFile,
+              );
+              if (existingSummary) {
+                existingSummary.results.push(...groupResults);
+              } else {
+                remoteEvalSummaries.push({
+                  evalFile,
+                  results: [...groupResults],
+                });
+              }
 
-            return groupResults;
-          } catch (fileError) {
-            // before_all or other setup failures should not abort the entire run.
-            // Mark all tests in this file as errors and continue with other files.
-            const message = fileError instanceof Error ? fileError.message : String(fileError);
-            console.error(
-              `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
-            );
-            const explicitVariant = targetVariantForSelection(selection);
-            const errorResults: EvaluationResult[] = filteredTestCases.map((testCase) =>
-              withSourceMetadata(
-                {
-                  timestamp: new Date().toISOString(),
-                  testId: testCase.id,
-                  score: 0,
-                  assertions: [],
-                  output: message,
-                  trace: buildTraceFromMessages({
-                    input: testCase.input as EvaluationResult['input'],
-                    output: [{ role: 'assistant' as const, content: message }],
-                    finalOutput: message,
-                    target: selection.targetName,
+              return groupResults;
+            } catch (fileError) {
+              // before_all or other setup failures should not abort the entire run.
+              // Mark all tests in this file as errors and continue with other files.
+              const message = fileError instanceof Error ? fileError.message : String(fileError);
+              console.error(
+                `\n[ERROR] ⚠ Eval file failed: ${path.basename(testFilePath)} — ${message}\n`,
+              );
+              const explicitVariant = targetVariantForSelection(selection);
+              const errorResults: EvaluationResult[] = filteredTestCases.map((testCase) =>
+                withSourceMetadata(
+                  {
+                    timestamp: new Date().toISOString(),
                     testId: testCase.id,
-                    conversationId: testCase.conversation_id,
+                    score: 0,
+                    assertions: [],
+                    output: message,
+                    trace: buildTraceFromMessages({
+                      input: testCase.input as EvaluationResult['input'],
+                      output: [{ role: 'assistant' as const, content: message }],
+                      finalOutput: message,
+                      target: selection.targetName,
+                      testId: testCase.id,
+                      conversationId: testCase.conversation_id,
+                      error: message,
+                    }),
+                    scores: [],
                     error: message,
-                  }),
-                  scores: [],
-                  error: message,
-                  executionStatus: 'execution_error' as const,
-                  failureStage: 'setup' as const,
-                  failureReasonCode: 'setup_error' as const,
-                  durationMs: 0,
-                  tokenUsage: { input: 0, output: 0 },
-                  target: selection.targetName,
-                  variant: explicitVariant,
-                },
-                testFilePath,
-                fileOptions,
-              ),
-            );
-            for (const errResult of errorResults) {
-              await outputWriter.append(errResult);
+                    executionStatus: 'execution_error' as const,
+                    failureStage: 'setup' as const,
+                    failureReasonCode: 'setup_error' as const,
+                    durationMs: 0,
+                    tokenUsage: { input: 0, output: 0 },
+                    target: selection.targetName,
+                    variant: explicitVariant,
+                  },
+                  testFilePath,
+                  fileOptions,
+                ),
+              );
+              for (const errResult of errorResults) {
+                await outputWriter.append(errResult);
+              }
+              return errorResults;
             }
-            return errorResults;
-          }
-        }),
+          }),
+        ),
       );
       for (const results of targetResults) {
         allResults.push(...results);
@@ -2646,7 +2701,7 @@ export async function runEvalCommand(
       const relativeRunDir = path.relative(cwd, runDir);
       console.log(
         `\nTip: ${summary.executionErrorCount} execution error(s) detected. Re-run failed tests with:\n` +
-          `  agentv eval run ${evalFileArgs}${targetFlag} --output ${relativeRunDir} --rerun-failed`,
+          `  agentv eval run ${evalFileArgs}${targetFlag} --rerun-failed ${relativeRunDir}`,
       );
     }
 

@@ -296,7 +296,7 @@ agentv eval evals/my-eval.yaml --export-otel
 
 ### Parallelism
 
-The `--workers N` flag controls how many **test cases run in parallel within each eval file** (default: 3). Eval files always run sequentially — one file completes before the next starts.
+The `--workers N` flag controls the in-process worker pool for a single eval file (default: 3). Eval files always run sequentially — one file completes before the next starts. In target-matrix runs, selected targets share that worker budget instead of each target creating its own full pool.
 
 ```bash
 agentv eval evals/my-eval.yaml --workers 4
@@ -304,6 +304,9 @@ agentv eval evals/my-eval.yaml --workers 4
 
 agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
 # Files run one at a time; within each file, up to 3 test cases run in parallel
+
+agentv eval evals/my-eval.yaml --target gpt --target claude --workers 4
+# The target matrix shares the same 4-worker budget
 ```
 
 This matches the standard model used by eval frameworks (promptfoo, deepeval, OpenAI Evals) and avoids cross-file workspace races without any special configuration.
@@ -353,10 +356,10 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 | Flag | What it skips | What it re-runs | Use when |
 |------|---------------|-----------------|----------|
 | `--resume` | Anything that finished without an `execution_error` (passes, fails, threshold misses) | Errors and missing cases | The run was interrupted (Ctrl-C, crash, OOM) and you just want it to finish |
-| `--rerun-failed` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
+| `--rerun-failed <run_id>` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
 | `--retry-errors <path>` | Anything that completed without an `execution_error` (same set as `--resume`) | Errors and missing cases | You want to point at an arbitrary prior run/manifest by path, instead of resuming the run dir you're currently writing to |
 
-`--resume` and `--rerun-failed` both append to the existing `index.jsonl`. When `--output <dir>` is given they target that directory; when omitted they default to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. This matches promptfoo's `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default" convention. `--retry-errors` takes the prior run's path directly (a directory or an `index.jsonl`).
+`--resume` appends to the existing `index.jsonl` in `--output <dir>`; when omitted it defaults to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. `--rerun-failed <run_id>` reads a specific canonical run bundle from `.agentv/results/<run_id>` and, when `--output` is omitted, appends replacement rows to that same bundle. You can also pass a run workspace path or `index.jsonl` path instead of a bare run ID. `--retry-errors` takes the prior run's path directly and re-runs only execution errors or missing cases.
 
 ```bash
 # Resume the last run — no args needed; AgentV finds it from .agentv/cache.json
@@ -365,8 +368,8 @@ agentv eval evals/my-eval.yaml --resume
 # Or target a specific run dir explicitly
 agentv eval evals/my-eval.yaml --output .agentv/results/<run_id> --resume
 
-# Re-run errors AND failed cases against the last run dir
-agentv eval evals/my-eval.yaml --rerun-failed
+# Re-run errors AND failed cases from a specific canonical run
+agentv eval evals/my-eval.yaml --rerun-failed <run_id>
 
 # Re-run only execution errors from any prior run by path
 agentv eval evals/my-eval.yaml --retry-errors .agentv/results/<run_id>/index.jsonl

@@ -1209,13 +1209,17 @@ export async function runEvaluation(
       // shared owner prepare without inheriting a child suite's workspace.
       const usesSharedWorkspace = caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
       const testPoolSlot =
-        usesSharedWorkspace && availablePoolSlots.length > 0 ? availablePoolSlots.pop() : undefined;
+        usesSharedWorkspace && availablePoolSlots.length > 0
+          ? availablePoolSlots.pop()
+          : usesSharedWorkspace
+            ? poolSlot
+            : undefined;
       const testWorkspacePath = usesSharedWorkspace
         ? (testPoolSlot?.path ?? sharedWorkspacePath)
         : undefined;
       const testBaselineCommit = usesSharedWorkspace
         ? testPoolSlot
-          ? poolSlotBaselines.get(testPoolSlot.path)
+          ? (poolSlotBaselines.get(testPoolSlot.path) ?? sharedBaselineCommit)
           : sharedBaselineCommit
         : undefined;
 
@@ -1323,9 +1327,30 @@ export async function runEvaluation(
         }
         throw error;
       } finally {
-        // Return pool slot for reuse by next test
+        // Return pool slot for reuse by next test only after resetting it to
+        // the per-slot baseline. Pooling is a local performance optimization,
+        // not shared state between eval cases.
         if (testPoolSlot) {
-          availablePoolSlots.push(testPoolSlot);
+          const shouldReturnPoolSlot = testPoolSlot !== poolSlot;
+          const resetMode = workspaceClean === 'full' ? 'strict' : 'fast';
+          let resetSucceeded = true;
+          try {
+            if (repoManager && suiteWorkspace?.repos?.length) {
+              await repoManager.reset(suiteWorkspace.repos, testPoolSlot.path, resetMode);
+            }
+            await resetWorkspaceRoot(testPoolSlot.path, resetMode, testBaselineCommit);
+          } catch (resetError) {
+            resetSucceeded = false;
+            if (verbose) {
+              const message = resetError instanceof Error ? resetError.message : String(resetError);
+              console.warn(
+                `Warning: failed to reset workspace pool slot ${testPoolSlot.index}; leaving it out of reuse: ${message}`,
+              );
+            }
+          }
+          if (resetSucceeded && shouldReturnPoolSlot) {
+            availablePoolSlots.push(testPoolSlot);
+          }
         }
       }
     }
