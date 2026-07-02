@@ -103,25 +103,6 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
 ] as const;
 
 /**
- * Provider aliases that are accepted in target definitions.
- * These map to the canonical ProviderKind values.
- */
-export const PROVIDER_ALIASES: readonly string[] = [
-  'azure-openai', // alias for "azure"
-  'google', // alias for "gemini"
-  'google-gemini', // alias for "gemini"
-  'codex-cli', // alias for "codex"
-  'copilot', // alias for "copilot-cli" (default copilot experience)
-  'copilot_sdk', // alias for "copilot-sdk" (underscore variant)
-
-  'pi', // alias for "pi-coding-agent"
-  'claude-code', // alias for "claude" (legacy)
-  'cc-mirror', // alias for "claude-cli" (auto-discovers binary from ~/.cc-mirror/<variant>/)
-  'bedrock', // legacy/future support
-  'vertex', // legacy/future support
-] as const;
-
-/**
  * Schema identifier for targets.yaml files (version 2).
  */
 export const TARGETS_SCHEMA_V2 = 'agentv-targets-v2.2';

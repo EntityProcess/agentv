@@ -460,7 +460,7 @@ describe('resolveTargetDefinition', () => {
     const target = resolveTargetDefinition(
       {
         name: 'gemini-flash',
-        provider: 'google-gemini',
+        provider: 'gemini',
         api_key: '${{ GOOGLE_API_KEY }}',
         model: 'gemini-1.5-flash',
       },
@@ -719,16 +719,21 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
   });
 
-  it('resolves copilot alias to copilot-cli', () => {
+  it('does not canonicalize removed provider aliases to built-ins', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'copilot-alias',
+        name: 'copilot-alias-removed',
         provider: 'copilot',
       },
       {},
     );
 
-    expect(target.kind).toBe('copilot-cli');
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected discovered cli target');
+    }
+
+    expect(target.config.command).toBe('bun run .agentv/providers/copilot.ts {PROMPT}');
   });
 
   it('claude-cli defaults executable to claude', () => {
@@ -764,43 +769,6 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('claude-zai');
-  });
-
-  it('cc-mirror with explicit executable resolves to claude-cli kind', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'claude-zai',
-        provider: 'cc-mirror',
-        executable: '/usr/local/bin/claude-zai',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('claude-cli');
-    if (target.kind !== 'claude-cli') {
-      throw new Error('expected claude-cli target');
-    }
-
-    expect(target.config.executable).toBe('/usr/local/bin/claude-zai');
-  });
-
-  it('cc-mirror with explicit variant and executable', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'my-mirror',
-        provider: 'cc-mirror',
-        variant: 'claude-zai',
-        executable: '/opt/bin/zai',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('claude-cli');
-    if (target.kind !== 'claude-cli') {
-      throw new Error('expected claude-cli target');
-    }
-
-    expect(target.config.executable).toBe('/opt/bin/zai');
   });
 
   it('resolves copilot-cli as its own provider kind', () => {

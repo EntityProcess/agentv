@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 
@@ -995,7 +993,6 @@ export function resolveTargetDefinition(
         config: resolveOpenRouterConfig(parsed, env),
       };
     case 'azure':
-    case 'azure-openai':
       return {
         kind: 'azure',
         ...base,
@@ -1008,28 +1005,23 @@ export function resolveTargetDefinition(
         config: resolveAnthropicConfig(parsed, env),
       };
     case 'gemini':
-    case 'google':
-    case 'google-gemini':
       return {
         kind: 'gemini',
         ...base,
         config: resolveGeminiConfig(parsed, env),
       };
     case 'codex':
-    case 'codex-cli':
       return {
         kind: 'codex',
         ...base,
         config: resolveCodexConfig(parsed, env, evalFilePath),
       };
     case 'copilot-sdk':
-    case 'copilot_sdk':
       return {
         kind: 'copilot-sdk',
         ...base,
         config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
       };
-    case 'copilot':
     case 'copilot-cli':
       return {
         kind: 'copilot-cli',
@@ -1042,7 +1034,6 @@ export function resolveTargetDefinition(
         ...base,
         config: resolveCopilotLogConfig(parsed, env),
       };
-    case 'pi':
     case 'pi-coding-agent':
       return {
         kind: 'pi-coding-agent',
@@ -1055,24 +1046,7 @@ export function resolveTargetDefinition(
         ...base,
         config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
-    case 'cc-mirror': {
-      const variantName =
-        resolveOptionalString(parsed.variant, env, `${parsed.name} cc-mirror variant`, {
-          allowLiteral: true,
-          optionalEnv: true,
-        }) ?? parsed.name;
-      // If executable is explicitly set, use it; otherwise auto-discover from variant.json
-      if (!parsed.executable) {
-        parsed.executable = resolveCcMirrorBinaryPath(variantName);
-      }
-      return {
-        kind: 'claude-cli',
-        ...base,
-        config: resolveClaudeConfig(parsed, env, evalFilePath),
-      };
-    }
     case 'claude':
-    case 'claude-code':
     case 'claude-cli':
       return {
         kind: 'claude-cli',
@@ -2088,33 +2062,6 @@ function resolveClaudeConfig(
     streamLog: streamLogResult.streamLog,
     bypassPermissions,
   };
-}
-
-/**
- * Resolve the binary path for a cc-mirror variant.
- * Reads ~/.cc-mirror/<variant>/variant.json → binaryPath.
- */
-function resolveCcMirrorBinaryPath(variant: string): string {
-  const variantJsonPath = path.join(homedir(), '.cc-mirror', variant, 'variant.json');
-  if (!existsSync(variantJsonPath)) {
-    throw new Error(
-      `cc-mirror variant "${variant}": ${variantJsonPath} not found. Install the variant or set "executable" explicitly.`,
-    );
-  }
-  let parsed: { binaryPath?: string };
-  try {
-    parsed = JSON.parse(readFileSync(variantJsonPath, 'utf8'));
-  } catch (e) {
-    throw new Error(
-      `cc-mirror variant "${variant}": failed to parse ${variantJsonPath}: ${(e as Error).message}`,
-    );
-  }
-  if (typeof parsed.binaryPath !== 'string' || parsed.binaryPath.trim().length === 0) {
-    throw new Error(
-      `cc-mirror variant "${variant}": ${variantJsonPath} missing "binaryPath" field`,
-    );
-  }
-  return parsed.binaryPath;
 }
 
 function normalizeClaudeLogFormat(value: unknown): 'summary' | 'json' | undefined {

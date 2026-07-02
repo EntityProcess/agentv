@@ -7,7 +7,7 @@ import {
   COMMON_TARGET_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
 } from '../providers/targets.js';
-import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
+import { KNOWN_PROVIDERS } from '../providers/types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -216,8 +216,6 @@ const CLAUDE_SETTINGS = new Set([
   'max_budget_usd',
 ]);
 
-const CC_MIRROR_SETTINGS = new Set([...CLAUDE_SETTINGS, 'variant']);
-
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
   switch (normalizedProvider) {
@@ -226,27 +224,18 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'openrouter':
       return OPENROUTER_SETTINGS;
     case 'azure':
-    case 'azure-openai':
       return AZURE_SETTINGS;
     case 'anthropic':
       return ANTHROPIC_SETTINGS;
     case 'gemini':
-    case 'google':
-    case 'google-gemini':
       return GEMINI_SETTINGS;
     case 'codex':
-    case 'codex-cli':
       return CODEX_SETTINGS;
     case 'copilot-sdk':
-    case 'copilot_sdk':
       return COPILOT_SDK_SETTINGS;
-    case 'copilot':
     case 'copilot-cli':
       return COPILOT_CLI_SETTINGS;
-    case 'cc-mirror':
-      return CC_MIRROR_SETTINGS;
     case 'claude':
-    case 'claude-code':
     case 'claude-cli':
     case 'claude-sdk':
       return CLAUDE_SETTINGS;
@@ -303,16 +292,6 @@ function validateUnknownSettings(
       ],
     ]),
     codex: new Map([
-      [
-        'log_format',
-        "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
-      ],
-      [
-        'log_output_format',
-        "The 'log_output_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
-      ],
-    ]),
-    'codex-cli': new Map([
       [
         'log_format',
         "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
@@ -548,7 +527,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   }
 
   // Validate each target definition
-  const knownProviders = [...KNOWN_PROVIDERS, ...PROVIDER_ALIASES];
+  const knownProviders: readonly string[] = [...KNOWN_PROVIDERS];
 
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];
