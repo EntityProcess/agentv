@@ -15,7 +15,7 @@ Sources analyzed (all cloned locally, read-only):
 > **Any promptfoo config, mechanically snake_cased, is a valid AgentV eval that runs with equivalent semantics.** AgentV additionally accepts more (bare-string asserts, repo/fixture materialization via a built-in extension, `gate`, agentic judges, multi-turn, …) — all through promptfoo-native surfaces (`vars`, `extensions`), not new top-level concepts.
 
 Two consequences of "superset":
-- **Compatibility is one-way, and that is the design** — promptfoo ⊆ AgentV. AgentV extensions that promptfoo rejects (bare-string asserts, the built-in `agentv:workspace` extension, etc.) are the superset, not a defect.
+- **Compatibility is one-way, and that is the design** — promptfoo ⊆ AgentV. AgentV extensions that promptfoo lacks (bare-string asserts, the repo-native `workspace.repos` field, agentic judges, etc.) are the superset, not a defect.
 - **Superset is a design property, not a shipped importer.** AgentV's snake_case authoring contract *is* promptfoo's contract (snake_cased) + extensions. New evals are authored in snake_case directly — nothing to import. The superset is over *snake_cased* promptfoo; a literal camelCase promptfoo file (`providers:`, `defaultTest:`) would need a mechanical transform (camelCase→snake_case + `providers`→`targets`), but that's a documented one-off (`yq`/script), optionally a tiny helper if promptfoo-suite migration is ever actually needed — **not** a maintained core feature (YAGNI, same as the consolidated export). Distinct from the **hard-deprecation codemod**, which migrates AgentV's *own* existing eval files across §deprecation and *is* built.
 
 Borrow runner/analytics from margin-lab and transcripts/agentic-graders from vercel-agent-eval.
@@ -235,7 +235,9 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 ### 2.i AgentV-only fields promptfoo lacks (preserve, don't lose)
 `gate` (executable release policy), `imports`/`include`/`select`, multi-turn **evaluation** layer (`turns` per-turn assertions, cross-turn `aggregation`, `on_turn_failure`; execution via promptfoo `_conversation`; `window_size` dropped — §3), `depends_on`/`on_dependency_failure`, `conversation_id`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3). (Workspace, `on_run_complete`, `preprocessors` are handled by 2.l, not kept as-is.)
 
-### 2.l Workspace is dataset + a built-in extension; NO new top-level concept; `on_run_complete` removed
+### 2.l Workspace repos = declarative FIELD (harness-materialized); extensions only for agent-rules/setup
+
+> **REVISED (finalized in ADR-0016 pt10 / ADR-0017).** The text below originally proposed repo materialization via `vars.workspace` + an `agentv:workspace` *extension*. That is **superseded**: **repo provisioning is a declarative `workspace.repos` field the harness materializes BEFORE hooks** (all 4 benchmark frameworks treat provisioning as harness-core; promptfoo has no workspace to align with). Extensions (`beforeAll`/…) are only for **non-provisioning** pluggable setup — `agentv:agent-rules` (skills/hooks/agents staging) + custom `file://` hooks — running after materialization. `isolation` is a `workspace` field, not a hook choice. `on_run_complete`/`preprocessors` still removed → `extensions`.
 - **Principle (owner decision):** don't invent a top-level `workspace:` block, and don't keep AgentV-specific lifecycle keys. Align maximally with promptfoo. Both reference frameworks agree workspace **is part of the dataset** — vercel: a case *is* a fixture dir; margin-lab: a case *is* a Docker image + tests.
 - **D — one lifecycle surface: promptfoo `extensions`.** `beforeAll`/`afterAll`/`beforeEach`/`afterEach`. **Remove** `on_run_complete` (= `afterAll`), `preprocessors`, and `workspace.hooks` — they collapse into `extensions` (hard, major version).
 - **D — workspace spec = dataset data (`vars`), not a schema block.** The repo/fixture spec rides as a `var` (per-test or `default_test`, `file://`-loadable). This is literally what your promptfoo parity example does (`workspace.yaml` + `vars`). No new concept; matches vercel (fixture=case) and margin (image=case).
@@ -264,7 +266,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 
 These have no promptfoo equivalent and are AgentV's differentiation. Keep them, document them as extensions layered above the promptfoo-compatible core:
 
-- **Repo/fixture materialization — via dataset `vars` + the built-in `agentv:workspace` extension, NOT a top-level `workspace:` block** (see 2.l). The materialization capability (git repos at pinned commits + mirror cache, docker isolation, per-case fixture copy) is preserved; only the *authoring surface* changes — it rides promptfoo's `vars` + `extensions`.
+- **Repo provisioning — a declarative `workspace.repos` field the harness materializes before hooks** (ADR-0016 pt10 / ADR-0017; git repos at pinned commits + resolver backends + mirror cache; `isolation` field). NOT an extension. `agentv:agent-rules` + custom `file://` hooks remain extensions for non-provisioning setup.
 - **Executable `gate`** release policy (`min_test_pass_rate`, `max_execution_errors`, command receiving run JSON).
 - **Agent target providers**: CLI/SDK/codex/copilot/claude/replay/transcript, `use_target` indirection, `fallback_targets`, `grader_target`.
 - **Code-grader SDK** (`@agentv/sdk`): `define_assertion`/`define_code_grader`/`define_workspace_grader`/`define_vitest_workspace_grader`.

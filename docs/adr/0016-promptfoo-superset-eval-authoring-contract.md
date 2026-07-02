@@ -4,7 +4,7 @@ Date: 2026-07-02
 
 ## Status
 
-Proposed. Anchor decision for the eval-authoring restructure — see
+Accepted (2026-07-02). Anchor decision for the eval-authoring restructure — see
 `docs/plans/promptfoo-aligned-eval-restructure.md` §1–§2, §11.1. **Supersedes the
 eval-authoring portions of [ADR 0013 (stabilize eval authoring)](0013-stabilize-eval-authoring-contract.md)
 and [ADR 0013 (experiment as tags.experiment)](0013-experiment-is-metadata-expressed-as-tags-experiment.md)**;
@@ -60,20 +60,29 @@ keep AgentV's only where its semantics are genuinely better.**
 9. **Keep AgentV where better**: `repeat: { count, strategy, early_exit }` (map promptfoo
    `repeat:int` → `count`+`pass_all`); executable `gate` release policy (alongside per-test
    `threshold`); `imports`/`select`; `depends_on`. `experiment` authored as `tags.experiment`.
-10. **Workspace provenance is dataset data** (`vars.workspace.repos: [{ path, repo, commit
-    (base_commit alias), sparse?, ancestor? }]`) — see ADR 0017 for the provenance-vs-
-    acquisition split and the resolver. Lifecycle uses promptfoo `extensions`
-    (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`); `on_run_complete`/`preprocessors`/
-    top-level `workspace` block removed. Built-in auto-registered `agentv:workspace` /
-    `agentv:agent-rules` extensions (kebab identifiers).
+10. **Workspace repo provisioning is a declarative FIELD, not an extension.**
+    `workspace.repos: [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]` is
+    declared per-test (overridable) / at suite level, and the **harness materializes it
+    (harness-owned resolver, ADR 0017) BEFORE any hook or the target runs** — it is not a
+    user hook, because it must precede hooks and acquisition is harness-owned. (All four
+    reference frameworks treat provisioning as harness-core; promptfoo has no workspace
+    concept, so its `extensions` bolt-on is not a model.) **This reverses the earlier
+    "workspace-as-extension" direction.** `isolation` (shared/pooled/fresh) is a
+    `workspace` config field, not a hook choice.
+    **Extensions are for pluggable non-provisioning setup only**: promptfoo lifecycle
+    (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
+    e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
+    Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
 11. **Scope**: `similar` ships with a configured embeddings provider. Exotic promptfoo
     assertions (`context-*`/`moderation`/`g-eval`/…) and `redteam` are **future scope** —
     treated as unrecognized fields, not stubbed. Superset holds over the *implemented*
     surface.
 
-Removed (hard): `assertions`, `composite`, `eval_cases`, `tests[].input`, top-level
-`workspace`, `on_run_complete`, `preprocessors`, `${{ ENV }}`, top-level `budget_usd`,
-scalar top-level `threshold`, grader `name`-as-metric, the `z.never()` rejection stubs.
+Removed (hard): `assertions`, `composite`, `eval_cases`, `tests[].input`,
+`workspace.hooks` (→ `extensions`), `on_run_complete`, `preprocessors`, `${{ ENV }}`,
+top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, the
+`z.never()` rejection stubs. **Kept** as declarative fields: `workspace.repos` (provenance),
+`workspace.isolation`, `workspace.docker`, `workspace.template`.
 
 ## Consequences
 

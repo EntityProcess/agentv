@@ -4,7 +4,7 @@ Date: 2026-07-02
 
 ## Status
 
-Proposed. Part of the promptfoo-superset eval restructure — see
+Accepted (2026-07-02). Part of the promptfoo-superset eval restructure — see
 `docs/plans/promptfoo-aligned-eval-restructure.md` §3. Records a decision that
 had no prior ADR (the `mode: conversation` contract lived only in code and in
 issue #1053).

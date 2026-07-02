@@ -4,7 +4,7 @@ Date: 2026-07-02
 
 ## Status
 
-Proposed. Part of the eval-authoring restructure — see
+Accepted (2026-07-02). Part of the eval-authoring restructure — see
 `docs/plans/promptfoo-aligned-eval-restructure.md` §6, §11. **Refines/supersedes
 [ADR 0011 (result output artifact contract)](0011-result-output-artifact-contract.md)
 and [ADR 0012 (finalize run artifact layout)](0012-finalize-run-artifact-layout.md)**;
@@ -53,9 +53,12 @@ Cross-framework convergent rule (SWE-bench, Terminal-bench, margin, lm-eval, Ins
 **the case declares WHAT (identity + pin); the harness resolves WHERE-FROM via a
 selectable backend. Nobody puts acquisition in the task.**
 
-1. **Eval declares provenance ONLY**: `vars.workspace.repos: [{ path, repo, commit
-   (base_commit alias), sparse?, ancestor? }]`. Remove the tangled acquisition fields
-   (`type`/`local`, `resolve`, `clone.depth`, `clone.filter`, per-repo `resolver`).
+1. **Eval declares provenance ONLY, in a declarative `workspace.repos` field** (per-test
+   overridable / suite-level; NOT a `vars` blob and NOT an extension): `workspace.repos:
+   [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`, plus `workspace.isolation`
+   (shared/pooled/fresh). Remove the tangled acquisition fields (`type`/`local`, `resolve`,
+   `clone.depth`, `clone.filter`, per-repo `resolver`). The harness materializes this
+   **before hooks** (ADR 0016 pt10).
 2. **Acquisition = harness resolver in machine config (`$AGENTV_HOME/config.yaml`),
    keyed on `repo`**, ordered backends: (1) local checkout auto-adopt via origin-match
    → `git clone --reference`; (2) bare mirror clone-cache (`--reference`, shared objects);
