@@ -358,6 +358,97 @@ describe('LlmGrader (llm-grader)', () => {
     expect(result.graderRawRequest?.systemPrompt).not.toContain(customPrompt);
   });
 
+  it('does not inject skeptical guidance into explicit custom rubric prompts', async () => {
+    const customPrompt = 'Custom rubric prompt: decide using my policy for {{output}}';
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            checks: [{ id: 'quality', satisfied: true, reasoning: 'Matches the custom policy.' }],
+            overall_reasoning: 'Accepted',
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+      graderTemplate: customPrompt,
+    });
+
+    await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'rubric',
+        type: 'llm-grader',
+        rubrics: [{ id: 'quality', outcome: 'Answer follows the policy', weight: 1 }],
+      },
+    });
+
+    expect(graderProvider.lastRequest?.question).toContain('Custom rubric prompt');
+    expect(graderProvider.lastRequest?.systemPrompt).toContain(
+      'You must return a valid JSON object matching this schema',
+    );
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain('Be skeptical');
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain('concrete evidence supports');
+  });
+
+  it('does not inject skeptical guidance into explicit custom score-range prompts', async () => {
+    const customPrompt = 'Custom score prompt: score {{output}} with my rubric';
+    const graderProvider = new CapturingProvider({
+      output: [
+        {
+          role: 'assistant',
+          content: JSON.stringify({
+            checks: [{ id: 'quality', score: 8, reasoning: 'Fits the requested range.' }],
+            overall_reasoning: 'Strong',
+          }),
+        },
+      ],
+    });
+
+    const evaluator = new LlmGrader({
+      resolveGraderProvider: async () => graderProvider,
+      graderTemplate: customPrompt,
+    });
+
+    await evaluator.evaluate({
+      evalCase: baseTestCase,
+      candidate: 'Answer',
+      target: baseTarget,
+      provider: graderProvider,
+      attempt: 0,
+      promptInputs: { question: '' },
+      now: new Date(),
+      evaluator: {
+        name: 'score-range',
+        type: 'llm-grader',
+        rubrics: [
+          {
+            id: 'quality',
+            outcome: 'Answer quality',
+            weight: 1,
+            score_ranges: [{ score_range: [0, 10], outcome: 'Any valid score' }],
+          },
+        ],
+      },
+    });
+
+    expect(graderProvider.lastRequest?.question).toContain('Custom score prompt');
+    expect(graderProvider.lastRequest?.systemPrompt).toContain(
+      'The "score" must be an integer from 0 to 10',
+    );
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain('Be skeptical');
+    expect(graderProvider.lastRequest?.systemPrompt).not.toContain('award credit only');
+  });
+
   it('uses evaluator target overrides when configured', async () => {
     const defaultGraderProvider = new CapturingProvider(
       textResponse(
@@ -597,6 +688,34 @@ describe('LlmGrader (llm-grader)', () => {
 
     expect(prompt.userPrompt).toContain('(operator: contradiction)');
     expect(prompt.userPrompt).toContain('Contradiction guard');
+  });
+
+  it('uses format-only schema instructions for custom rubric prompt assembly', () => {
+    const prompt = assembleLlmGraderPrompt({
+      evalCase: baseTestCase,
+      candidate: 'Revenue did not decline.',
+      promptInputs: { question: '' },
+      graderTemplateOverride: 'Custom rubric prompt for {{output}}',
+      evaluatorConfig: {
+        name: 'rubric',
+        type: 'llm-grader',
+        rubrics: [
+          {
+            id: 'quality',
+            outcome: 'Answer follows the requested policy',
+            weight: 1.0,
+            required: true,
+          },
+        ],
+      },
+    });
+
+    expect(prompt.userPrompt).toContain('Custom rubric prompt');
+    expect(prompt.systemPrompt).toContain(
+      'You must return a valid JSON object matching this schema',
+    );
+    expect(prompt.systemPrompt).not.toContain('Be skeptical');
+    expect(prompt.systemPrompt).not.toContain('concrete evidence supports');
   });
 
   it('passes multi-turn role markers through to evaluator prompts', async () => {

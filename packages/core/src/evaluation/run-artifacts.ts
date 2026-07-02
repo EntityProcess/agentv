@@ -24,7 +24,7 @@ import {
   omitExternalTraceMetadataKeys,
   toExternalTraceMetadataWire,
 } from './external-trace.js';
-import { DEFAULT_THRESHOLD } from './graders/scoring.js';
+import { DEFAULT_THRESHOLD, clampScore } from './graders/scoring.js';
 import { buildMetricsArtifact } from './metrics.js';
 import {
   type ExportDuplicatePolicy,
@@ -321,10 +321,14 @@ function isRunRuntimeSourceMetadata(value: unknown): value is RunRuntimeSourceMe
 }
 
 export interface GradingArtifact {
-  readonly assertions: readonly {
+  readonly score: number;
+  readonly verdict: 'pass' | 'fail' | 'skip';
+  readonly assertion_results: readonly {
     readonly text: string;
     readonly passed: boolean;
     readonly evidence: string;
+    readonly score: number;
+    readonly verdict: 'pass' | 'fail';
   }[];
   readonly summary: {
     readonly passed: number;
@@ -337,6 +341,7 @@ export interface GradingArtifact {
     readonly type: string;
     readonly score: number;
     readonly reasoning: string;
+    readonly assertion_results: readonly GradingAssertionResult[];
     readonly [key: string]: unknown;
   }[];
   readonly workspace_changes?: {
@@ -458,11 +463,15 @@ export interface RunSummaryArtifact {
 }
 
 export interface AggregateGradingArtifact {
-  readonly assertions: readonly {
+  readonly score: number;
+  readonly verdict: 'pass' | 'fail' | 'skip';
+  readonly assertion_results: readonly {
     readonly test_id: string;
     readonly text: string;
     readonly passed: boolean;
     readonly evidence: string;
+    readonly score: number;
+    readonly verdict: 'pass' | 'fail';
   }[];
   readonly summary: {
     readonly passed: number;
@@ -471,6 +480,8 @@ export interface AggregateGradingArtifact {
     readonly pass_rate: number;
   };
 }
+
+type GradingAssertionResult = GradingArtifact['assertion_results'][number];
 
 export interface IndexArtifactEntry {
   readonly timestamp: string;
@@ -672,13 +683,30 @@ function parseWorkspaceChanges(
   };
 }
 
-function buildAssertions(result: EvaluationResult): GradingArtifact['assertions'] {
-  if (!result.assertions) return [];
-  return result.assertions.map((a) => ({
-    text: a.text,
-    passed: a.passed,
-    evidence: a.evidence ?? '',
-  }));
+function assertionResultFromAssertion(assertion: EvaluationResult['assertions'][number]) {
+  const passed = assertion.passed;
+  return {
+    text: assertion.text,
+    passed,
+    evidence: assertion.evidence ?? '',
+    score: passed ? 1 : 0,
+    verdict: passed ? ('pass' as const) : ('fail' as const),
+  };
+}
+
+function buildAssertionResults(result: EvaluationResult): GradingArtifact['assertion_results'] {
+  return (result.assertions ?? []).map(assertionResultFromAssertion);
+}
+
+function resultVerdict(result: EvaluationResult): GradingArtifact['verdict'] {
+  const scores = result.scores ?? [];
+  if (scores.length > 0 && scores.every((score) => score.verdict === 'skip')) {
+    return 'skip';
+  }
+  if (result.executionStatus === 'ok') {
+    return 'pass';
+  }
+  return 'fail';
 }
 
 function buildEvaluators(scores: readonly GraderResult[] | undefined): GradingArtifact['graders'] {
@@ -693,8 +721,9 @@ function buildEvaluators(scores: readonly GraderResult[] | undefined): GradingAr
     reasoning: '',
     weight: s.weight,
     verdict: s.verdict,
-    assertions: s.assertions,
+    assertion_results: (s.assertions ?? []).map(assertionResultFromAssertion),
     details: s.details,
+    scores: buildEvaluators(s.scores),
   }));
 }
 
@@ -920,7 +949,7 @@ function buildRepeatCaseSummaryArtifact(
   const passedRuns =
     trials.length > 0
       ? trials.filter((trial) => trial.verdict === 'pass').length
-      : result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
+      : resultVerdict(result) === 'pass'
         ? 1
         : 0;
   const fallbackMeanMs = totalRuns > 0 ? roundMillis(timing.duration_ms / totalRuns) : 0;
@@ -1018,10 +1047,7 @@ function singleRunTrial(result: EvaluationResult): TrialResult {
   return {
     attempt: 0,
     score: result.score,
-    verdict:
-      result.executionStatus !== 'execution_error' && result.score >= DEFAULT_THRESHOLD
-        ? 'pass'
-        : 'fail',
+    verdict: resultVerdict(result),
     scores: result.scores,
     error: result.error,
     costUsd: result.costUsd,
@@ -1198,14 +1224,16 @@ export function buildGradingArtifact(
   result: EvaluationResult,
   options?: { includeTrials?: boolean },
 ): GradingArtifact {
-  const assertions = buildAssertions(result);
-  const passed = assertions.filter((e) => e.passed).length;
-  const failed = assertions.filter((e) => !e.passed).length;
-  const total = assertions.length;
+  const assertionResults = buildAssertionResults(result);
+  const passed = assertionResults.filter((e) => e.passed).length;
+  const failed = assertionResults.filter((e) => !e.passed).length;
+  const total = assertionResults.length;
   const includeTrials = options?.includeTrials ?? true;
 
   return {
-    assertions,
+    score: clampScore(result.score),
+    verdict: resultVerdict(result),
+    assertion_results: assertionResults,
     summary: {
       passed,
       failed,
@@ -1504,26 +1532,42 @@ export async function writeInitialRunSummaryArtifact(
 export function buildAggregateGradingArtifact(
   results: readonly EvaluationResult[],
 ): AggregateGradingArtifact {
-  const assertions: AggregateGradingArtifact['assertions'][number][] = [];
+  const assertionResults: AggregateGradingArtifact['assertion_results'][number][] = [];
+  const qualityResults = results.filter((r) => !isExecutionError(r));
 
-  for (const result of results.filter((r) => !isExecutionError(r))) {
+  for (const result of qualityResults) {
     const testId = result.testId ?? 'unknown';
     for (const assertion of result.assertions ?? []) {
-      assertions.push({
+      assertionResults.push({
         test_id: testId,
-        text: assertion.text,
-        passed: assertion.passed,
-        evidence: assertion.evidence ?? '',
+        ...assertionResultFromAssertion(assertion),
       });
     }
   }
 
-  const passed = assertions.filter((a) => a.passed).length;
-  const failed = assertions.filter((a) => !a.passed).length;
-  const total = assertions.length;
+  const passed = assertionResults.filter((a) => a.passed).length;
+  const failed = assertionResults.filter((a) => !a.passed).length;
+  const total = assertionResults.length;
+  const score =
+    qualityResults.length > 0
+      ? Math.round(
+          (qualityResults.reduce((sum, result) => sum + clampScore(result.score), 0) /
+            qualityResults.length) *
+            1000,
+        ) / 1000
+      : 0;
+  const verdict =
+    results.length === 0
+      ? 'skip'
+      : qualityResults.length > 0 &&
+          qualityResults.every((result) => resultVerdict(result) === 'pass')
+        ? 'pass'
+        : 'fail';
 
   return {
-    assertions,
+    score,
+    verdict,
+    assertion_results: assertionResults,
     summary: {
       passed,
       failed,

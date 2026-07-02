@@ -284,6 +284,80 @@ describe('results shared source resolution', () => {
     expect(results[0].trace.toolCalls).toEqual({});
   });
 
+  it('hydrates nested grader rows recursively from grading artifacts', () => {
+    const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
+    mkdirSync(path.join(runDir, 'nested-graders'), { recursive: true });
+    writeFileSync(
+      path.join(runDir, 'nested-graders/grading.json'),
+      `${JSON.stringify({
+        score: 1,
+        verdict: 'pass',
+        assertion_results: [{ text: 'top-level', passed: true, evidence: 'top evidence' }],
+        summary: { passed: 1, failed: 0, total: 1, pass_rate: 1 },
+        graders: [
+          {
+            name: 'parent',
+            type: 'assert-set',
+            score: 1,
+            assertion_results: [
+              { text: 'parent assertion', passed: true, evidence: 'parent evidence' },
+            ],
+            scores: [
+              {
+                name: 'child',
+                type: 'contains',
+                score: 1,
+                assertion_results: [
+                  { text: 'child assertion', passed: true, evidence: 'child evidence' },
+                ],
+                scores: [
+                  {
+                    name: 'legacy-grandchild',
+                    type: 'regex',
+                    score: 0,
+                    assertions: [
+                      {
+                        text: 'legacy grandchild assertion',
+                        passed: false,
+                        evidence: 'legacy child evidence',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })}\n`,
+    );
+    const indexPath = path.join(runDir, 'index.jsonl');
+    writeFileSync(
+      indexPath,
+      `${JSON.stringify({
+        timestamp: '2026-03-25T10:00:00.000Z',
+        test_id: 'nested-graders',
+        target: 'codex',
+        score: 1,
+        grading_path: 'nested-graders/grading.json',
+      })}\n`,
+    );
+
+    const results = loadManifestResults(indexPath);
+
+    expect(results[0].assertions).toEqual([
+      { text: 'top-level', passed: true, evidence: 'top evidence' },
+    ]);
+    expect(results[0].scores?.[0]?.assertions).toEqual([
+      { text: 'parent assertion', passed: true, evidence: 'parent evidence' },
+    ]);
+    expect(results[0].scores?.[0]?.scores?.[0]?.assertions).toEqual([
+      { text: 'child assertion', passed: true, evidence: 'child evidence' },
+    ]);
+    expect(results[0].scores?.[0]?.scores?.[0]?.scores?.[0]?.assertions).toEqual([
+      { text: 'legacy grandchild assertion', passed: false, evidence: 'legacy child evidence' },
+    ]);
+  });
+
   it('rejects eval-case-only rows with migration guidance', () => {
     const runDir = path.join(tempDir, '.agentv', 'results', 'default', '2026-03-25T10-00-00-000Z');
     mkdirSync(runDir, { recursive: true });

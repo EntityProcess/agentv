@@ -5,7 +5,9 @@ import type { PromptInputs } from '../yaml-parser.js';
 import {
   DEFAULT_GRADER_TEMPLATE,
   buildOutputSchema,
+  buildRubricFormatInstructions,
   buildRubricOutputSchema,
+  buildScoreRangeFormatInstructions,
   buildScoreRangeOutputSchema,
   substituteVariables,
 } from './llm-grader.js';
@@ -151,7 +153,9 @@ function assembleCustom(
   graderTemplateOverride: string,
 ): LlmGraderPromptAssembly {
   const hasScoreRanges = rubrics.some((r) => r.score_ranges && r.score_ranges.length > 0);
-  const systemPrompt = hasScoreRanges ? buildScoreRangeOutputSchema() : buildRubricOutputSchema();
+  const systemPrompt = hasScoreRanges
+    ? buildScoreRangeFormatInstructions()
+    : buildRubricFormatInstructions();
   const userPrompt = substituteVariables(
     graderTemplateOverride,
     buildTemplateVariables({
@@ -187,6 +191,8 @@ function assembleChecklist(
 
   const parts: string[] = [
     'You are an expert grader. Evaluate the candidate answer against each rubric item below.',
+    'Be skeptical: mark a rubric satisfied only when the answer, file changes, tool calls, or concrete workspace paths support it.',
+    'Cite paths, diffs, tool calls, or answer excerpts in reasoning whenever they are available.',
     '',
     '[[ ## question ## ]]',
     formattedQuestion,
@@ -257,6 +263,8 @@ function assembleScoreRange(
   const parts: string[] = [
     'You are an expert grader. Score the candidate answer on each criterion below using the provided score ranges.',
     'For each criterion, output an integer score from 0 to 10 based on which score range best matches the answer.',
+    'Be skeptical: award credit only for evidence supported by the answer, file changes, tool calls, or concrete workspace paths.',
+    'Cite paths, diffs, tool calls, or answer excerpts in reasoning whenever they are available.',
     '',
     '[[ ## question ## ]]',
     formattedQuestion,

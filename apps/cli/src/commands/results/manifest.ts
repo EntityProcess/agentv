@@ -95,6 +95,74 @@ export interface ManifestHydrationOptions {
   readonly hydrateTranscriptTrace?: boolean;
 }
 
+type HydratedScore = NonNullable<EvaluationResult['scores']>[number];
+
+function mapGradingAssertions(
+  value: unknown,
+): NonNullable<EvaluationResult['assertions']> | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.map((assertion) => {
+    const record = assertion as Record<string, unknown>;
+    return {
+      text: String(record.text ?? ''),
+      passed: Boolean(record.passed),
+      evidence: typeof record.evidence === 'string' ? record.evidence : undefined,
+    };
+  });
+}
+
+function readGradingAssertionResults(
+  record: Record<string, unknown>,
+): NonNullable<EvaluationResult['assertions']> | undefined {
+  return mapGradingAssertions(
+    Array.isArray(record.assertion_results) ? record.assertion_results : record.assertions,
+  );
+}
+
+function readNestedGradingScores(record: Record<string, unknown>): unknown {
+  if (Array.isArray(record.scores)) {
+    return record.scores;
+  }
+  if (Array.isArray(record.graders)) {
+    return record.graders;
+  }
+  if (Array.isArray(record.evaluators)) {
+    return record.evaluators;
+  }
+  return undefined;
+}
+
+function mapGradingEvaluator(evaluator: Record<string, unknown>): HydratedScore {
+  const verdict =
+    evaluator.verdict === 'pass' || evaluator.verdict === 'fail' || evaluator.verdict === 'skip'
+      ? evaluator.verdict
+      : undefined;
+  const details =
+    evaluator.details && typeof evaluator.details === 'object' && !Array.isArray(evaluator.details)
+      ? (evaluator.details as HydratedScore['details'])
+      : undefined;
+
+  return {
+    name: String(evaluator.name ?? ''),
+    type: String(evaluator.type ?? '') as HydratedScore['type'],
+    score: typeof evaluator.score === 'number' ? evaluator.score : 0,
+    assertions: readGradingAssertionResults(evaluator) ?? [],
+    scores: mapGradingEvaluators(readNestedGradingScores(evaluator)),
+    weight: typeof evaluator.weight === 'number' ? evaluator.weight : undefined,
+    verdict,
+    details,
+  };
+}
+
+function mapGradingEvaluators(value: unknown): EvaluationResult['scores'] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.map((evaluator) => mapGradingEvaluator(evaluator as Record<string, unknown>));
+}
+
 function parseResultRows(content: string, sourceLabel?: string): ResultManifestRecord[] {
   return content
     .split(/\r?\n/)
@@ -238,6 +306,14 @@ function hydrateManifestRecord(
   const grading = readOptionalJson<GradingArtifact>(baseDir, record.grading_path);
   const timing = readOptionalJson<TimingArtifact>(baseDir, record.timing_path);
   const testId = record.test_id ?? 'unknown';
+  const gradingAssertions = grading
+    ? readGradingAssertionResults(grading as unknown as Record<string, unknown>)
+    : undefined;
+  const gradingScores = mapGradingEvaluators(
+    grading?.graders ??
+      (grading as (GradingArtifact & { evaluators?: GradingArtifact['graders'] }) | undefined)
+        ?.evaluators,
+  );
 
   return {
     timestamp: record.timestamp,
@@ -249,7 +325,7 @@ function hydrateManifestRecord(
     score: record.score,
     executionStatus: record.execution_status,
     error: record.error,
-    assertions: grading?.assertions.map((assertion) => ({
+    assertions: gradingAssertions?.map((assertion) => ({
       text: assertion.text,
       passed: assertion.passed,
       evidence: assertion.evidence,
@@ -257,28 +333,7 @@ function hydrateManifestRecord(
     scores:
       // `evaluators` was renamed to `graders` in v4.13 — read both for backwards compat with old artifacts.
       // TODO: remove `evaluators` fallback once old run directories are no longer in use.
-      (
-        grading?.graders ??
-        (grading as (GradingArtifact & { evaluators?: GradingArtifact['graders'] }) | undefined)
-          ?.evaluators
-      )?.map((evaluator) => ({
-        name: evaluator.name,
-        type: evaluator.type,
-        score: evaluator.score,
-        assertions: Array.isArray(evaluator.assertions)
-          ? evaluator.assertions.map((assertion) => ({
-              text: String((assertion as Record<string, unknown>).text ?? ''),
-              passed: Boolean((assertion as Record<string, unknown>).passed),
-              evidence:
-                typeof (assertion as Record<string, unknown>).evidence === 'string'
-                  ? String((assertion as Record<string, unknown>).evidence)
-                  : undefined,
-            }))
-          : undefined,
-        weight: typeof evaluator.weight === 'number' ? evaluator.weight : undefined,
-        verdict: typeof evaluator.verdict === 'string' ? evaluator.verdict : undefined,
-        details: evaluator.details,
-      })) ?? (record.scores as EvaluationResult['scores']),
+      gradingScores ?? (record.scores as EvaluationResult['scores']),
     tokenUsage: timing?.token_usage
       ? {
           input: timing.token_usage.input,

@@ -26,6 +26,16 @@ interface EvaluatorScore {
   readonly assertions: readonly { text: string; passed: boolean; evidence?: string }[];
 }
 
+function toAssertionResult(assertion: { text: string; passed: boolean; evidence?: string }) {
+  return {
+    text: assertion.text,
+    passed: assertion.passed,
+    evidence: assertion.evidence ?? '',
+    score: assertion.passed ? 1 : 0,
+    verdict: assertion.passed ? 'pass' : 'fail',
+  };
+}
+
 export const evalBenchCommand = command({
   name: 'bench',
   description: 'Merge grader scores and produce benchmark artifacts',
@@ -130,14 +140,18 @@ export const evalBenchCommand = command({
 
       // Write grading.json
       const grading = {
-        assertions: allAssertions,
+        score: Math.round(weightedScore * 1000) / 1000,
+        verdict: weightedScore >= DEFAULT_THRESHOLD ? 'pass' : 'fail',
+        assertion_results: allAssertions.map(toAssertionResult),
         summary: { passed, failed, total: allAssertions.length, pass_rate: passRate },
         graders: evaluators.map((e) => ({
           name: e.name,
           type: e.type,
           score: e.score,
+          verdict: e.score >= DEFAULT_THRESHOLD ? 'pass' : 'fail',
           reasoning: '',
           weight: e.weight,
+          assertion_results: e.assertions.map(toAssertionResult),
         })),
       };
       await writeFile(

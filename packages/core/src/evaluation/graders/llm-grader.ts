@@ -74,6 +74,8 @@ export const DEFAULT_GRADER_TEMPLATE = `You are an expert grader. Your goal is t
 
 Use the reference_answer as a gold standard for a high-quality response (if provided). The reference_answer may be a simple text response, or it may contain a sequence of expected agent messages including tool calls. When it contains multiple messages, the last message represents the final expected answer. The answer does not need to match it verbatim, but should capture the key points and follow the same spirit.
 
+Be skeptical. Award credit only for behavior supported by the answer, file_changes, tool_calls, or referenced workspace paths. When evaluating repo or file work, cite concrete paths, diffs, tool calls, or answer excerpts in each assertion's evidence whenever they are available. Do not infer hidden work from intent or plausible next steps.
+
 Be concise and focused in your evaluation. Provide succinct, specific feedback rather than verbose explanations.
 
 [[ ## criteria ## ]]
@@ -390,7 +392,10 @@ export class LlmGrader implements Grader {
       context.graderTemplateOverride || this.graderTemplate
         ? this.buildCustomPrompt(context)
         : this.buildRubricPrompt(context, rubrics);
-    const systemPrompt = buildRubricOutputSchema();
+    const systemPrompt =
+      context.graderTemplateOverride || this.graderTemplate
+        ? buildRubricFormatInstructions()
+        : buildRubricOutputSchema();
 
     const graderRawRequest: JsonObject = {
       userPrompt: prompt,
@@ -449,7 +454,10 @@ export class LlmGrader implements Grader {
       context.graderTemplateOverride || this.graderTemplate
         ? this.buildCustomPrompt(context)
         : this.buildScoreRangePrompt(context, rubrics);
-    const systemPrompt = buildScoreRangeOutputSchema();
+    const systemPrompt =
+      context.graderTemplateOverride || this.graderTemplate
+        ? buildScoreRangeFormatInstructions()
+        : buildScoreRangeOutputSchema();
 
     const graderRawRequest: JsonObject = {
       userPrompt: prompt,
@@ -691,6 +699,8 @@ export class LlmGrader implements Grader {
       'You are an expert grader with access to the workspace filesystem.',
       'Use the provided tools to investigate the workspace and verify the criteria are met.',
       'Thoroughly examine relevant files before making your assessment.',
+      'Be skeptical: award credit only for evidence you can support with the answer, file changes, tool calls, or concrete workspace paths.',
+      'Each assertion evidence should cite paths, diffs, tool calls, or answer excerpts when available.',
       '',
     ];
 
@@ -725,6 +735,7 @@ export class LlmGrader implements Grader {
 
     const parts: string[] = [
       'Evaluate the candidate answer by investigating the workspace.',
+      'Be skeptical: verify claims against concrete workspace paths, file changes, tool calls, or answer excerpts.',
       '',
       '[[ ## question ## ]]',
       formattedQuestion,
@@ -786,14 +797,21 @@ export class LlmGrader implements Grader {
       const variables = buildTemplateVariables(context);
       const customPrompt = substituteVariables(template, variables);
 
+      const hasScoreRanges = rubrics?.some((r) => r.score_ranges && r.score_ranges.length > 0);
       const outputSchema =
-        rubrics && rubrics.length > 0 ? buildRubricOutputSchema() : buildOutputSchema();
+        rubrics && rubrics.length > 0
+          ? hasScoreRanges
+            ? buildScoreRangeFormatInstructions()
+            : buildRubricFormatInstructions()
+          : buildOutputSchema();
 
       return `${customPrompt}\n\n${outputSchema}`;
     }
 
     const parts: string[] = [
       'You are an expert grader. Investigate the workspace to verify the criteria are met.',
+      'Be skeptical: award credit only for evidence you can support with the answer, file changes, tool calls, or concrete workspace paths.',
+      'Each assertion evidence should cite paths, diffs, tool calls, or answer excerpts when available.',
       '',
       '[[ ## question ## ]]',
       formattedQuestion,
@@ -920,6 +938,8 @@ export class LlmGrader implements Grader {
     const parts: string[] = [
       'You are an expert grader. Score the candidate answer on each criterion below using the provided score ranges.',
       'For each criterion, output an integer score from 0 to 10 based on which score range best matches the answer.',
+      'Be skeptical: award credit only for evidence supported by the answer, file changes, tool calls, or concrete workspace paths.',
+      'Cite paths, diffs, tool calls, or answer excerpts in reasoning whenever they are available.',
       '',
       '[[ ## question ## ]]',
       formattedQuestion,
@@ -996,6 +1016,8 @@ export class LlmGrader implements Grader {
 
     const parts: string[] = [
       'You are an expert grader. Evaluate the candidate answer against each rubric item below.',
+      'Be skeptical: mark a rubric satisfied only when the answer, file changes, tool calls, or concrete workspace paths support it.',
+      'Cite paths, diffs, tool calls, or answer excerpts in reasoning whenever they are available.',
       '',
       '[[ ## question ## ]]',
       formattedQuestion,
@@ -1202,9 +1224,8 @@ function sumTokenUsage(
   };
 }
 
-export function buildRubricOutputSchema(): string {
-  return `You are an expert grader. Evaluate the candidate answer against each rubric item.
-You must return a valid JSON object matching this schema:
+export function buildRubricFormatInstructions(): string {
+  return `You must return a valid JSON object matching this schema:
 {
   "checks": [
     {
@@ -1215,6 +1236,14 @@ You must return a valid JSON object matching this schema:
   ],
   "overall_reasoning": "string (summary)"
 }`;
+}
+
+export function buildRubricOutputSchema(): string {
+  return [
+    'You are an expert grader. Evaluate the candidate answer against each rubric item.',
+    'Be skeptical: mark a rubric satisfied only when concrete evidence supports it, and cite paths, diffs, tool calls, or answer excerpts in reasoning when available.',
+    buildRubricFormatInstructions(),
+  ].join('\n');
 }
 
 export function substituteVariables(template: string, variables: Record<string, string>): string {
@@ -1266,9 +1295,8 @@ export function calculateRubricScore(
 /**
  * Build the output schema for score-range rubric evaluation.
  */
-export function buildScoreRangeOutputSchema(): string {
-  return `You are an expert grader. Score the candidate answer on each criterion.
-You must return a valid JSON object matching this schema:
+export function buildScoreRangeFormatInstructions(): string {
+  return `You must return a valid JSON object matching this schema:
 {
   "checks": [
     {
@@ -1281,6 +1309,14 @@ You must return a valid JSON object matching this schema:
 }
 
 Important: The "score" must be an integer from 0 to 10 that falls within one of the defined score ranges for that criterion.`;
+}
+
+export function buildScoreRangeOutputSchema(): string {
+  return [
+    'You are an expert grader. Score the candidate answer on each criterion.',
+    'Be skeptical: award credit only for concrete evidence, and cite paths, diffs, tool calls, or answer excerpts in reasoning when available.',
+    buildScoreRangeFormatInstructions(),
+  ].join('\n');
 }
 
 /**

@@ -500,9 +500,14 @@ describe('export e2e — multi-provider metrics verification', () => {
         ),
       );
 
-      expect(grading.assertions).toHaveLength(2);
-      expect(grading.assertions[0].text).toBe('Correct answer');
-      expect(grading.assertions[0].evidence).toBe('Matched expected output');
+      expect(grading).not.toHaveProperty('assertions');
+      expect(grading.score).toBe(1);
+      expect(grading.verdict).toBe('pass');
+      expect(grading.assertion_results).toHaveLength(2);
+      expect(grading.assertion_results[0].text).toBe('Correct answer');
+      expect(grading.assertion_results[0].evidence).toBe('Matched expected output');
+      expect(grading.assertion_results[0].score).toBe(1);
+      expect(grading.assertion_results[0].verdict).toBe('pass');
       expect(grading.summary.passed).toBe(2);
       expect(grading.summary.failed).toBe(0);
       expect(grading.summary.pass_rate).toBe(1.0);
