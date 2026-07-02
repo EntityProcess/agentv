@@ -36,6 +36,19 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
   if ('clone' in obj) {
     throw new Error('workspace.repos[].clone has been removed. Use top-level sparse if needed.');
   }
+  if ('type' in obj) {
+    throw new Error('workspace.repos[].type has been removed. Use workspace.repos[].repo.');
+  }
+  if ('resolve' in obj) {
+    throw new Error(
+      'workspace.repos[].resolve has been removed. Configure repo_resolvers instead.',
+    );
+  }
+  if ('resolver' in obj) {
+    throw new Error(
+      'workspace.repos[].resolver has been removed. Configure repo_resolvers.repos patterns instead.',
+    );
+  }
 
   const repoPath = readString(obj, 'path');
   const repo = readString(obj, 'repo');
@@ -43,21 +56,12 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
   const baseCommit = readString(obj, 'base_commit');
   const ancestor = typeof obj.ancestor === 'number' ? obj.ancestor : undefined;
   const sparse = readStringArray(obj, 'sparse');
-  const resolver = readString(obj, 'resolver');
 
   if (commit !== undefined && baseCommit !== undefined && commit !== baseCommit) {
     throw new Error('workspace.repos[].commit and workspace.repos[].base_commit must match.');
   }
 
-  if (
-    !repoPath &&
-    !repo &&
-    !commit &&
-    !baseCommit &&
-    ancestor === undefined &&
-    !sparse &&
-    !resolver
-  ) {
+  if (!repoPath && !repo && !commit && !baseCommit && ancestor === undefined && !sparse) {
     return undefined;
   }
 
@@ -68,6 +72,5 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
     ...(baseCommit !== undefined && { base_commit: baseCommit }),
     ...(ancestor !== undefined && { ancestor }),
     ...(sparse !== undefined && { sparse }),
-    ...(resolver !== undefined && { resolver }),
   };
 }

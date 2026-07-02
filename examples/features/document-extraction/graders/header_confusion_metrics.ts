@@ -2,7 +2,7 @@
 /**
  * Header Field Confusion Metrics Grader
  *
- * A code_grader that compares header fields and classifies them as TP/TN/FP/FN
+ * A code-grader that compares header fields and classifies them as TP/TN/FP/FN
  * based on empty vs non-empty expected/parsed values.
  *
  * Classification rules (per attribute):
@@ -16,8 +16,8 @@
  * ```yaml
  * graders:
  *   - name: header_confusion
- *     type: code_grader
- *     script: ["bun", "run", "../graders/header_confusion_metrics.ts"]
+ *     type: code-grader
+ *     command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
  *     fields:
  *       - path: invoice_number
  *       - path: supplier.name

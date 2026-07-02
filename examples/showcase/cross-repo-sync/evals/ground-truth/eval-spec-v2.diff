@@ -203,7 +203,7 @@ index e1a4bc4..22bf3e9 100644
 +| Value | Behavior |
 +|-------|----------|
 +| `required: true` | Must score >= 0.8 (default threshold) |
-+| `required: 0.6` | Must score >= custom threshold (0-1) |
++| `required: true` + `min_score: 0.6` | Must score >= custom threshold (0-1) |
  
  ```yaml
 -rubrics:
@@ -215,7 +215,8 @@ index e1a4bc4..22bf3e9 100644
 +    value: "DENIED"
 +    required: true          # Must pass (>= 0.8)
 +  - type: rubrics
-+    required: 0.6           # Must score at least 0.6
++    required: true
++    min_score: 0.6          # Must score at least 0.6
 +    criteria:
 +      - id: quality
 +        outcome: Response is well-structured

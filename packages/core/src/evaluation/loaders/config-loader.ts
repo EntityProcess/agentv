@@ -376,17 +376,15 @@ export function extractTargetsFromSuite(suite: JsonObject): readonly string[] | 
 function parseHookConfig(raw: unknown): WorkspaceHookConfig | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const obj = raw as Record<string, unknown>;
+  if (obj.script !== undefined) {
+    throw new Error("Workspace hook field 'script' has been removed. Use 'command' instead.");
+  }
 
-  // Accept command as string (shell command) or array
   let command: readonly string[] | undefined;
   if (typeof obj.command === 'string') {
     command = ['sh', '-c', obj.command];
   } else if (Array.isArray(obj.command)) {
     command = obj.command.filter((s): s is string => typeof s === 'string');
-  } else if (typeof obj.script === 'string') {
-    command = ['sh', '-c', obj.script];
-  } else if (Array.isArray(obj.script)) {
-    command = obj.script.filter((s): s is string => typeof s === 'string');
   }
 
   if (!command || command.length === 0) return undefined;

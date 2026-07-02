@@ -80,7 +80,7 @@ export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
  */
 export const llmGraderFactory: GraderFactoryFn = (config, context) => {
   const c = config as LlmGraderConfig;
-  const { llmGrader, graderProvider, judgeProvider, targetResolver, agentTimeoutMs } = context;
+  const { llmGrader, graderProvider, targetResolver, agentTimeoutMs } = context;
 
   let evaluator = llmGrader;
   if (c.target) {
@@ -102,7 +102,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
       resolveGraderProvider: async (evalContext) => {
         if (graderTargetProvider) return graderTargetProvider;
         if (evalContext.graderProvider) return evalContext.graderProvider;
-        return graderProvider ?? judgeProvider;
+        return graderProvider;
       },
       maxSteps: c.max_steps,
       temperature: c.temperature,
@@ -169,7 +169,7 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
 export const codeFactory: GraderFactoryFn = (config, context) => {
   const c = config as CodeGraderConfig;
   return new CodeGrader({
-    command: c.command ?? c.script ?? [],
+    command: c.command,
     cwd: c.resolvedCwd ?? c.cwd,
     agentTimeoutMs: context.agentTimeoutMs,
     config: c.config,

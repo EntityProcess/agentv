@@ -306,7 +306,6 @@ workspace:
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
-      resolver: custom
       commit: main
       ancestor: 1
       sparse:
@@ -323,10 +322,32 @@ tests:
     expect(workspace?.repos).toHaveLength(1);
     expect(workspace?.repos?.[0].path).toBe('./repo-a');
     expect(workspace?.repos?.[0].repo).toBe('https://github.com/org/repo.git');
-    expect(workspace?.repos?.[0].resolver).toBe('custom');
     expect(workspace?.repos?.[0].commit).toBe('main');
     expect(workspace?.repos?.[0].ancestor).toBe(1);
     expect(workspace?.repos?.[0].sparse).toEqual(['src/**']);
+  });
+
+  it('rejects removed workspace repo resolver field', async () => {
+    const evalFile = path.join(testDir, 'workspace-repos-resolver.yaml');
+    await writeFile(
+      evalFile,
+      `
+description: test
+workspace:
+  repos:
+    - path: ./repo-a
+      repo: https://github.com/org/repo.git
+      resolver: custom
+tests:
+  - id: test-1
+    input: "hello"
+    criteria: "world"
+`,
+    );
+
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      'workspace.repos[].resolver has been removed',
+    );
   });
 
   it('parses workspace hooks after_each reset config', async () => {

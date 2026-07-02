@@ -231,7 +231,7 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.version).toBe('2024-08-01-preview');
   });
 
-  it('rejects azure api_format with a migration error', () => {
+  it('rejects azure api_format with a removed-field error', () => {
     const env = {
       AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
       AZURE_OPENAI_API_KEY: 'secret',
@@ -250,7 +250,97 @@ describe('resolveTargetDefinition', () => {
         },
         env,
       ),
-    ).toThrow(/'api_format' field is no longer supported/i);
+    ).toThrow(/'api_format' field has been removed/i);
+  });
+
+  it('rejects removed judge_target alias', () => {
+    const env = {
+      OPENAI_API_KEY: 'secret',
+    } satisfies Record<string, string>;
+
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'openai-with-judge-target',
+          provider: 'openai',
+          api_key: '${{ OPENAI_API_KEY }}',
+          model: 'gpt-5-mini',
+          judge_target: 'grader',
+        } as never,
+        env,
+      ),
+    ).toThrow(/judge_target.*has been removed/i);
+  });
+
+  it('rejects removed log_format target aliases', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'copilot-log-format',
+          provider: 'copilot-cli',
+          log_format: 'json',
+        } as never,
+        {},
+      ),
+    ).toThrow(/log_format.*has been removed.*stream_log/i);
+
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'claude-log-output-format',
+          provider: 'claude',
+          log_output_format: 'summary',
+        } as never,
+        {},
+      ),
+    ).toThrow(/log_output_format.*has been removed.*stream_log/i);
+  });
+
+  it('maps canonical stream_log values to agent logger config', () => {
+    const raw = resolveTargetDefinition(
+      {
+        name: 'copilot-raw-log',
+        provider: 'copilot-cli',
+        stream_log: 'raw',
+      },
+      {},
+    );
+    expect(raw.kind).toBe('copilot-cli');
+    if (raw.kind !== 'copilot-cli') {
+      throw new Error('expected copilot-cli target');
+    }
+    expect(raw.config.streamLog).toBe('raw');
+    expect(raw.config.logFormat).toBe('json');
+
+    const summary = resolveTargetDefinition(
+      {
+        name: 'claude-summary-log',
+        provider: 'claude',
+        stream_log: 'summary',
+      },
+      {},
+    );
+    expect(summary.kind).toBe('claude-cli');
+    if (summary.kind !== 'claude-cli') {
+      throw new Error('expected claude-cli target');
+    }
+    expect(summary.config.streamLog).toBe('summary');
+    expect(summary.config.logFormat).toBe('summary');
+
+    const disabled = resolveTargetDefinition(
+      {
+        name: 'pi-disabled-log',
+        provider: 'pi-cli',
+        stream_log: false,
+      },
+      {},
+    );
+    expect(disabled.kind).toBe('pi-cli');
+    if (disabled.kind !== 'pi-cli') {
+      throw new Error('expected pi-cli target');
+    }
+    expect(disabled.config.streamLog).toBe(false);
+    expect(disabled.config.logFormat).toBeUndefined();
   });
 
   it('defaults azure to api version v1', () => {
@@ -441,7 +531,7 @@ describe('resolveTargetDefinition', () => {
     const target = resolveTargetDefinition(
       {
         name: 'gemini-flash',
-        provider: 'google-gemini',
+        provider: 'gemini',
         api_key: '${{ GOOGLE_API_KEY }}',
         model: 'gemini-1.5-flash',
       },
@@ -700,16 +790,21 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
   });
 
-  it('resolves copilot alias to copilot-cli', () => {
+  it('does not canonicalize removed provider aliases to built-ins', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'copilot-alias',
+        name: 'copilot-alias-removed',
         provider: 'copilot',
       },
       {},
     );
 
-    expect(target.kind).toBe('copilot-cli');
+    expect(target.kind).toBe('cli');
+    if (target.kind !== 'cli') {
+      throw new Error('expected discovered cli target');
+    }
+
+    expect(target.config.command).toBe('bun run .agentv/providers/copilot.ts {PROMPT}');
   });
 
   it('claude-cli defaults executable to claude', () => {
@@ -745,43 +840,6 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('claude-zai');
-  });
-
-  it('cc-mirror with explicit executable resolves to claude-cli kind', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'claude-zai',
-        provider: 'cc-mirror',
-        executable: '/usr/local/bin/claude-zai',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('claude-cli');
-    if (target.kind !== 'claude-cli') {
-      throw new Error('expected claude-cli target');
-    }
-
-    expect(target.config.executable).toBe('/usr/local/bin/claude-zai');
-  });
-
-  it('cc-mirror with explicit variant and executable', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'my-mirror',
-        provider: 'cc-mirror',
-        variant: 'claude-zai',
-        executable: '/opt/bin/zai',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('claude-cli');
-    if (target.kind !== 'claude-cli') {
-      throw new Error('expected claude-cli target');
-    }
-
-    expect(target.config.executable).toBe('/opt/bin/zai');
   });
 
   it('resolves copilot-cli as its own provider kind', () => {

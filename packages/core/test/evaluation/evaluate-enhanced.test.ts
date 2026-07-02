@@ -127,18 +127,24 @@ describe('evaluate() — enhanced features', () => {
     expect(summary.passed).toBe(2);
   });
 
-  it('supports legacy expected_output for backwards compatibility', async () => {
-    const { summary } = await evaluate({
-      tests: [
-        {
-          id: 'legacy',
-          input: 'hello',
-          expected_output: 'world',
-          assertions: [{ type: 'equals', value: 'world' }],
-        },
-      ],
-      target: { name: 'default', provider: 'mock', response: 'world' },
-    });
-    expect(summary.passed).toBe(1);
+  it('rejects removed expected_output in inline tests', async () => {
+    const removedKey = ['expected', 'output'].join('_');
+    const removedAliasTest: {
+      readonly id: string;
+      readonly input: string;
+      readonly assertions: readonly { readonly type: string; readonly value: string }[];
+      readonly [key: string]: unknown;
+    } = {
+      id: 'removed-expected-output',
+      input: 'hello',
+      [removedKey]: 'world',
+      assertions: [{ type: 'equals', value: 'world' }],
+    };
+    await expect(
+      evaluate({
+        tests: [removedAliasTest],
+        target: { name: 'default', provider: 'mock', response: 'world' },
+      }),
+    ).rejects.toThrow("'expected_output' has been removed");
   });
 });

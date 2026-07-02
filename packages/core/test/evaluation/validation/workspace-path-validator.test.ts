@@ -214,7 +214,7 @@ describe('validateWorkspacePaths', () => {
     expect(errors.some((e) => e.message.includes('missing-after-all.mjs'))).toBe(true);
   });
 
-  it('supports deprecated script alias', async () => {
+  it('reports removed script alias', async () => {
     const evalFilePath = path.join(tempDir, 'eval-script-alias.yaml');
     await writeFile(
       evalFilePath,
@@ -229,6 +229,7 @@ describe('validateWorkspacePaths', () => {
 
     const errors = await validateWorkspacePaths(evalFilePath);
     expect(errors).toHaveLength(1);
-    expect(errors[0]?.message).toContain('missing-via-alias.mjs');
+    expect(errors[0]?.location).toBe('workspace.hooks.before_all.script');
+    expect(errors[0]?.message).toContain("field 'script' has been removed");
   });
 });

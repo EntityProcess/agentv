@@ -44,14 +44,14 @@ describe('YAML-aligned eval authoring helpers', () => {
           workspace: {
             hooks: {
               beforeEach: {
-                script: 'git reset --hard',
+                command: 'git reset --hard',
                 timeoutMs: 5_000,
               },
               afterEach: {
                 command: ['git', 'status'],
               },
               afterAll: {
-                script: ['echo', 'done'],
+                command: ['echo', 'done'],
               },
             },
           },
@@ -130,14 +130,14 @@ describe('YAML-aligned eval authoring helpers', () => {
           workspace: {
             hooks: {
               before_each: {
-                script: 'git reset --hard',
+                command: 'git reset --hard',
                 timeout_ms: 5_000,
               },
               after_each: {
                 command: ['git', 'status'],
               },
               after_all: {
-                script: ['echo', 'done'],
+                command: ['echo', 'done'],
               },
             },
           },

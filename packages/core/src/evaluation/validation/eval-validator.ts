@@ -44,6 +44,17 @@ const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
   'icontains-any',
   'icontains-all',
 ]);
+const PROMPTFOO_ASSERTION_TYPES = new Set([
+  'assert-set',
+  'g-eval',
+  'llm-rubric',
+  'javascript',
+  'python',
+  'webhook',
+  'similar',
+  'select-best',
+  'human',
+]);
 
 /** Valid file extensions for external test files. */
 const VALID_TEST_FILE_EXTENSIONS = new Set(['.yaml', '.yml', '.jsonl']);
@@ -61,9 +72,11 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'requires',
   'input',
   'input_files',
+  'prompts',
   'imports',
   'tests',
   'target',
+  'targets',
   'model',
   'policy',
   'experiment',
@@ -76,6 +89,13 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'budget_usd',
   'threshold',
   'default_test',
+  'assert',
+  'scenarios',
+  'derived_metrics',
+  'output_path',
+  'env',
+  'nunjucks_filters',
+  'extensions',
   'on_run_complete',
   'assertions',
   'evaluators',
@@ -89,9 +109,35 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
 const KNOWN_INCLUDE_FIELDS = new Set(['include', 'type', 'select', 'run']);
 const KNOWN_IMPORT_FIELDS = new Set(['path', 'select', 'run']);
 const KNOWN_RUN_OVERRIDE_FIELDS = new Set(['threshold', 'repeat', 'timeout_seconds', 'budget_usd']);
+const KNOWN_DEFAULT_TEST_FIELDS = new Set([
+  'vars',
+  'provider',
+  'providers',
+  'prompts',
+  'provider_output',
+  'expected_output',
+  'assert',
+  'assertions',
+  'assert_scoring_function',
+  'options',
+  'threshold',
+  'metadata',
+]);
+const KNOWN_EVALUATE_OPTION_FIELDS = new Set([
+  'budget_usd',
+  'max_concurrency',
+  'cache',
+  'delay',
+  'generate_suggestions',
+  'repeat',
+  'timeout_ms',
+  'max_eval_time_ms',
+  'filter_range',
+]);
 const KNOWN_REPEAT_FIELDS = new Set(['count', 'strategy', 'early_exit', 'cost_limit_usd']);
 const KNOWN_REPEAT_STRATEGIES = new Set(['pass_any', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
+  'assert',
   'assertions',
   'evaluators',
   'skip_defaults',
@@ -107,7 +153,6 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 
 /** Removed top-level fields with migration hints. */
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
-  ['assert', "'assert' has been removed. Use 'assertions' instead."],
   [
     'workers',
     "'workers' has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.",
@@ -135,12 +180,21 @@ const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
 /** Known fields at the test level. */
 const KNOWN_TEST_FIELDS = new Set([
   'id',
+  'description',
   'vars',
   'criteria',
+  'provider',
+  'providers',
+  'prompts',
+  'provider_output',
   'input',
   'input_files',
   'expected_output',
+  'assert',
   'assertions',
+  'assert_scoring_function',
+  'options',
+  'threshold',
   'evaluators',
   'rubrics',
   'execution',
@@ -159,9 +213,7 @@ const KNOWN_TEST_FIELDS = new Set([
 ]);
 
 /** Removed test-level fields with migration hints. */
-const REMOVED_TEST_FIELDS = new Map<string, string>([
-  ['assert', "'assert' has been removed. Use 'assertions' instead."],
-]);
+const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 
 /** Deprecated test-level fields with migration hints. */
 const DEPRECATED_TEST_FIELDS = new Map<string, string>([
@@ -336,11 +388,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateAuthoredWorkers(parsed, absolutePath, errors);
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateRepeatOverride(parsed.repeat, 'repeat', absolutePath, errors);
-  validateDefaultTest(parsed.default_test, absolutePath, errors);
+  validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
+  validateAssertArray(parsed.assertions, 'assertions', absolutePath, errors, customAssertionTypes);
+  validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
   await validateImportsField(parsed.imports, absolutePath, errors);
 
   const cases: JsonValue | undefined = parsed.tests;
   const hasImports = collectImportEntries(parsed).length > 0;
+  const hasScenarios = Array.isArray(parsed.scenarios);
 
   // tests can be a string path (external file/directory reference) or an array
   if (typeof cases === 'string') {
@@ -356,7 +411,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     };
   }
 
-  if (cases === undefined && hasImports) {
+  if (cases === undefined && (hasImports || hasScenarios)) {
     await validateCompositionDiagnostics(absolutePath, parsed, errors);
     await validateSuiteImportCycles(absolutePath, parsed, errors);
     return {
@@ -439,14 +494,14 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       }
     }
 
-    // Required fields: id, input
+    // Optional id. Promptfoo-style rows can omit id and receive a derived content id later.
     const id = evalCase.id;
-    if (typeof id !== 'string' || id.trim().length === 0) {
+    if (id !== undefined && (typeof id !== 'string' || id.trim().length === 0)) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.id`,
-        message: "Missing or invalid 'id' field (must be a non-empty string)",
+        message: "Invalid 'id' field (must be a non-empty string when provided)",
       });
     }
 
@@ -484,7 +539,11 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
           })) !== undefined
         : false;
     validateInputField(evalCase.input, `${location}.input`, absolutePath, errors, {
-      required: !hasPromptMdFallback,
+      required:
+        !hasPromptMdFallback &&
+        evalCase.prompts === undefined &&
+        parsed.prompts === undefined &&
+        evalCase.provider_output === undefined,
     });
 
     // expected_output field (string/object shorthand or message array)
@@ -519,11 +578,20 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       }
     }
 
-    // assertions field (array of assertion objects)
-    const assertField = evalCase.assertions;
-    if (assertField !== undefined) {
-      validateAssertArray(assertField, location, absolutePath, errors, customAssertionTypes);
-    }
+    validateAssertArray(
+      evalCase.assert,
+      `${location}.assert`,
+      absolutePath,
+      errors,
+      customAssertionTypes,
+    );
+    validateAssertArray(
+      evalCase.assertions,
+      `${location}.assertions`,
+      absolutePath,
+      errors,
+      customAssertionTypes,
+    );
 
     validateRunOverride(evalCase.run, `${location}.run`, absolutePath, errors);
 
@@ -1059,6 +1127,7 @@ function validateDefaultTest(
   defaultTest: JsonValue | undefined,
   filePath: string,
   errors: ValidationError[],
+  customAssertionTypes: ReadonlySet<string>,
 ): void {
   if (defaultTest === undefined) {
     return;
@@ -1074,15 +1143,31 @@ function validateDefaultTest(
   }
 
   for (const key of Object.keys(defaultTest)) {
-    if (key !== 'threshold') {
+    if (!KNOWN_DEFAULT_TEST_FIELDS.has(key)) {
       errors.push({
         severity: 'error',
         filePath,
         location: `default_test.${key}`,
-        message: 'Invalid default_test field. Supported fields: threshold.',
+        message:
+          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, expected_output, assert, assertions, assert_scoring_function, options, threshold, metadata.',
       });
     }
   }
+
+  validateAssertArray(
+    defaultTest.assert,
+    'default_test.assert',
+    filePath,
+    errors,
+    customAssertionTypes,
+  );
+  validateAssertArray(
+    defaultTest.assertions,
+    'default_test.assertions',
+    filePath,
+    errors,
+    customAssertionTypes,
+  );
 
   const threshold = defaultTest.threshold;
   if (
@@ -1118,7 +1203,7 @@ function validateEvaluateOptions(
   }
 
   for (const key of Object.keys(evaluateOptions)) {
-    if (key !== 'budget_usd' && key !== 'max_concurrency') {
+    if (!KNOWN_EVALUATE_OPTION_FIELDS.has(key)) {
       errors.push({
         severity: 'warning',
         filePath,
@@ -1151,6 +1236,95 @@ function validateEvaluateOptions(
       filePath,
       location: `${location}.max_concurrency`,
       message: "Invalid 'max_concurrency' field (must be an integer between 1 and 50)",
+    });
+  }
+
+  validateNonNegativeNumber(evaluateOptions.delay, `${location}.delay`, filePath, errors);
+  validatePositiveNumber(evaluateOptions.timeout_ms, `${location}.timeout_ms`, filePath, errors);
+  validatePositiveNumber(
+    evaluateOptions.max_eval_time_ms,
+    `${location}.max_eval_time_ms`,
+    filePath,
+    errors,
+  );
+  validateEvaluateOptionsRepeat(evaluateOptions.repeat, `${location}.repeat`, filePath, errors);
+  validateFilterRange(evaluateOptions.filter_range, `${location}.filter_range`, filePath, errors);
+}
+
+function validatePositiveNumber(
+  value: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (value !== undefined && (typeof value !== 'number' || value <= 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Invalid '${location}' field (must be a positive number)`,
+    });
+  }
+}
+
+function validateNonNegativeNumber(
+  value: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (value !== undefined && (typeof value !== 'number' || value < 0)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: `Invalid '${location}' field (must be a non-negative number)`,
+    });
+  }
+}
+
+function validateEvaluateOptionsRepeat(
+  repeat: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (repeat === undefined) {
+    return;
+  }
+  if (typeof repeat === 'number') {
+    if (!Number.isInteger(repeat) || repeat < 1) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location,
+        message: "Invalid 'evaluate_options.repeat' field (must be a positive integer)",
+      });
+    }
+    return;
+  }
+  validateRepeatOverride(repeat, location, filePath, errors);
+}
+
+function validateFilterRange(
+  filterRange: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (filterRange === undefined || typeof filterRange === 'string') {
+    return;
+  }
+  if (
+    !Array.isArray(filterRange) ||
+    filterRange.length !== 2 ||
+    filterRange.some((value) => typeof value !== 'number')
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'evaluate_options.filter_range' field (must be a two-number array)",
     });
   }
 }
@@ -1413,6 +1587,34 @@ function validateWorkspaceRepoConfig(
           filePath,
           location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message: 'workspace.repos[].clone has been removed. Use top-level sparse if needed.',
+        });
+      }
+
+      if ('type' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'workspace.repos[].type has been removed. Use workspace.repos[].repo.',
+        });
+      }
+
+      if ('resolve' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message: 'workspace.repos[].resolve has been removed. Configure repo_resolvers instead.',
+        });
+      }
+
+      if ('resolver' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message:
+            'workspace.repos[].resolver has been removed. Configure repo_resolvers.repos patterns instead.',
         });
       }
 
@@ -1796,18 +1998,21 @@ async function validateSuiteImportCyclesFromParsed(
 }
 
 function validateAssertArray(
-  assertField: JsonValue,
-  parentLocation: string,
+  assertField: JsonValue | undefined,
+  location: string,
   filePath: string,
   errors: ValidationError[],
   customAssertionTypes: ReadonlySet<string> = new Set(),
 ): void {
+  if (assertField === undefined) {
+    return;
+  }
   if (!Array.isArray(assertField)) {
     errors.push({
       severity: 'warning',
       filePath,
-      location: `${parentLocation}.assertions`,
-      message: "'assertions' must be an array of assertion objects.",
+      location,
+      message: `'${location}' must be an array of assertion objects.`,
     });
     return;
   }
@@ -1822,7 +2027,7 @@ function validateAssertArray(
         errors.push({
           severity: 'warning',
           filePath,
-          location: `${parentLocation}.assertions[${i}]`,
+          location: `${location}[${i}]`,
           message: 'Empty string assertion item will be ignored.',
         });
       }
@@ -1832,7 +2037,7 @@ function validateAssertArray(
       errors.push({
         severity: 'warning',
         filePath,
-        location: `${parentLocation}.assertions[${i}]`,
+        location: `${location}[${i}]`,
         message: 'Assertion item must be a string or an object with a type field.',
       });
       continue;
@@ -1841,7 +2046,7 @@ function validateAssertArray(
   }
 
   for (const { item, index } of objectItems) {
-    const location = `${parentLocation}.assertions[${index}]`;
+    const itemLocation = `${location}[${index}]`;
 
     // Validate type field
     const rawTypeValue = item.type;
@@ -1849,7 +2054,7 @@ function validateAssertArray(
       errors.push({
         severity: 'warning',
         filePath,
-        location: `${location}.type`,
+        location: `${itemLocation}.type`,
         message: "Assertion item is missing a 'type' field.",
       });
       continue;
@@ -1858,11 +2063,15 @@ function validateAssertArray(
     // Normalize snake_case to kebab-case for backward compatibility
     const typeValue = rawTypeValue.replace(/_/g, '-');
 
-    if (!isGraderKind(typeValue) && !customAssertionTypes.has(typeValue)) {
+    if (
+      !isGraderKind(typeValue) &&
+      !PROMPTFOO_ASSERTION_TYPES.has(typeValue) &&
+      !customAssertionTypes.has(typeValue)
+    ) {
       errors.push({
         severity: 'warning',
         filePath,
-        location: `${location}.type`,
+        location: `${itemLocation}.type`,
         message: `Unknown assertion type '${rawTypeValue}'.`,
       });
       continue;
@@ -1875,7 +2084,7 @@ function validateAssertArray(
         errors.push({
           severity: 'warning',
           filePath,
-          location: `${location}.value`,
+          location: `${itemLocation}.value`,
           message: `Assertion type '${typeValue}' requires a 'value' field (string).`,
         });
         continue;
@@ -1889,7 +2098,7 @@ function validateAssertArray(
           errors.push({
             severity: 'warning',
             filePath,
-            location: `${location}.value`,
+            location: `${itemLocation}.value`,
             message: `Invalid regex pattern '${value}': not a valid regular expression.`,
           });
         }
@@ -1899,11 +2108,15 @@ function validateAssertArray(
     // Validate value field for types that require a string array value
     if (ASSERTION_TYPES_WITH_ARRAY_VALUE.has(typeValue)) {
       const value = item.value;
-      if (!Array.isArray(value) || value.length === 0) {
+      if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        value.some((entry) => typeof entry !== 'string')
+      ) {
         errors.push({
           severity: 'warning',
           filePath,
-          location: `${location}.value`,
+          location: `${itemLocation}.value`,
           message: `Assertion type '${typeValue}' requires a 'value' field (non-empty string array).`,
         });
         continue;
@@ -1913,7 +2126,7 @@ function validateAssertArray(
     // Validate required field if present
     const required = item.required;
     if (required !== undefined) {
-      validateRequiredField(required, location, filePath, errors);
+      validateRequiredField(required, itemLocation, filePath, errors);
     }
   }
 }
@@ -1928,21 +2141,19 @@ function validateRequiredField(
     return; // Valid
   }
   if (typeof required === 'number') {
-    if (required <= 0 || required > 1) {
-      errors.push({
-        severity: 'warning',
-        filePath,
-        location: `${parentLocation}.required`,
-        message: `Invalid 'required' value ${required}. When a number, it must be between 0 (exclusive) and 1 (inclusive).`,
-      });
-    }
+    errors.push({
+      severity: 'warning',
+      filePath,
+      location: `${parentLocation}.required`,
+      message: `Numeric 'required: ${required}' has been removed. Use 'required: true' and 'min_score: ${required}' instead.`,
+    });
     return;
   }
   errors.push({
     severity: 'warning',
     filePath,
     location: `${parentLocation}.required`,
-    message: `Invalid 'required' value. Must be a boolean or a number between 0 (exclusive) and 1 (inclusive).`,
+    message: `Invalid 'required' value. Must be a boolean. Use 'min_score' for custom score thresholds.`,
   });
 }
 

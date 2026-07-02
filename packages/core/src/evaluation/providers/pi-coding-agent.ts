@@ -567,6 +567,9 @@ export class PiCodingAgentProvider implements Provider {
   }
 
   private resolveLogDirectory(request: ProviderRequest): string | undefined {
+    if (this.config.streamLog === false) {
+      return undefined;
+    }
     if (this.config.logDir) {
       return path.resolve(this.config.logDir);
     }

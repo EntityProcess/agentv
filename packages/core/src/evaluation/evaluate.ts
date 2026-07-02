@@ -99,10 +99,8 @@ export interface EvalTestInput {
   readonly criteria?: string;
   /** Input to the agent (string or message array). Omit when using turns[]. */
   readonly input?: string | readonly { role: string; content: string }[];
-  /** Expected reference output (camelCase preferred) */
+  /** Expected reference output */
   readonly expectedOutput?: string;
-  /** @deprecated Use `expectedOutput` instead */
-  readonly expected_output?: string;
   /** Assertion graders — accepts factory functions, config objects, or inline functions */
   readonly assertions?: readonly AssertEntry[];
   /** Arbitrary metadata */
@@ -124,8 +122,6 @@ export interface ConversationTurnInput {
   readonly input: string | readonly { role: string; content: string }[];
   /** Expected reference output for this turn */
   readonly expectedOutput?: string;
-  /** @deprecated Use `expectedOutput` instead */
-  readonly expected_output?: string;
   /** Per-turn assertions (string criteria or grader config) */
   readonly assertions?: readonly AssertEntry[];
 }
@@ -144,13 +140,13 @@ export interface EvalAssertionInput {
   /** Weight for scoring */
   readonly weight?: number;
   /** Whether this assertion is required to pass */
-  readonly required?: boolean | number;
+  readonly required?: boolean;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
   /** Prompt file for llm_grader */
   readonly prompt?: string;
-  /** Script for code_grader */
-  readonly script?: string | readonly string[];
+  /** Command for code_grader */
+  readonly command?: string | readonly string[];
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
   /** Nested assertions for composite type */
@@ -487,6 +483,7 @@ function toBeforeAllHook(beforeAll: string | readonly string[]): WorkspaceHookCo
 }
 
 const REMOVED_ASSERT_KEY = 'assert';
+const REMOVED_EXPECTED_OUTPUT_KEY = 'expected_output';
 
 function rejectRemovedAssertKey(value: unknown, location: string): void {
   if (
@@ -495,6 +492,18 @@ function rejectRemovedAssertKey(value: unknown, location: string): void {
     Object.prototype.hasOwnProperty.call(value, REMOVED_ASSERT_KEY)
   ) {
     throw new Error(`${location}: 'assert' has been removed. Use 'assertions' instead.`);
+  }
+}
+
+function rejectRemovedProgrammaticExpectedOutputKey(value: unknown, location: string): void {
+  if (
+    value &&
+    typeof value === 'object' &&
+    Object.prototype.hasOwnProperty.call(value, REMOVED_EXPECTED_OUTPUT_KEY)
+  ) {
+    throw new Error(
+      `${location}: 'expected_output' has been removed. Use 'expectedOutput' instead.`,
+    );
   }
 }
 
@@ -559,6 +568,7 @@ function buildInlineEvalTests(
     .filter((test) => !options.filter || matchesFilter(test.id, options.filter))
     .map((test): EvalTest => {
       rejectRemovedAssertKey(test, `Test '${test.id}'`);
+      rejectRemovedProgrammaticExpectedOutputKey(test, `Test '${test.id}'`);
       const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
 
       if (!isConversation && !test.input) {
@@ -573,7 +583,7 @@ function buildInlineEvalTests(
         ? extractQuestion(test.turns?.[0]?.input ?? '')
         : extractQuestion(test.input ?? '');
 
-      const expectedOutputValue = test.expectedOutput ?? test.expected_output;
+      const expectedOutputValue = test.expectedOutput;
       const expectedOutput = expectedOutputValue
         ? ([
             { role: 'assistant' as const, content: expectedOutputValue },
@@ -584,7 +594,8 @@ function buildInlineEvalTests(
       const assertConfigs = convertAssertions(allAssertions, `Test '${test.id}'.assertions`);
       const turns: ConversationTurn[] | undefined = test.turns?.map((turn) => {
         rejectRemovedAssertKey(turn, `Test '${test.id}'.turns[]`);
-        const turnExpected = turn.expectedOutput ?? turn.expected_output;
+        rejectRemovedProgrammaticExpectedOutputKey(turn, `Test '${test.id}'.turns[]`);
+        const turnExpected = turn.expectedOutput;
         return {
           input: turn.input as ConversationTurn['input'],
           ...(turnExpected !== undefined && {

@@ -2799,7 +2799,7 @@ async function runEvaluatorList(options: {
     readonly name: string;
     readonly type: string;
     readonly weight?: number;
-    readonly required?: boolean | number;
+    readonly required?: boolean;
     readonly min_score?: number;
   }> = [];
   const scores: GraderResult[] = [];
@@ -2939,8 +2939,7 @@ async function runEvaluatorList(options: {
   const effectiveThreshold = options.threshold ?? DEFAULT_THRESHOLD;
   const hasRequiredFailure = scored.some((entry) => {
     if (!entry.required) return false;
-    const minScore =
-      entry.min_score ?? (typeof entry.required === 'number' ? entry.required : effectiveThreshold);
+    const minScore = entry.min_score ?? effectiveThreshold;
     return entry.score.score < minScore;
   });
 

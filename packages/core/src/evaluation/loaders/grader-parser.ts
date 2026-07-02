@@ -516,13 +516,12 @@ async function parseGraderList(
 
     if (typeValue === 'code-grader') {
       let command: string[] | undefined;
-      // Precedence: command > script (deprecated alias)
-      if (rawEvaluator.script !== undefined && rawEvaluator.command === undefined) {
-        console.warn(
-          `${ANSI_YELLOW}Warning: 'script' is deprecated in evaluator '${name}' in '${evalId}'. Use 'command' instead.${ANSI_RESET}`,
+      if (rawEvaluator.script !== undefined) {
+        throw new Error(
+          `Grader '${name}' in '${evalId}': 'script' has been removed. Use 'command' instead.`,
         );
       }
-      const rawCommand = rawEvaluator.command ?? rawEvaluator.script;
+      const rawCommand = rawEvaluator.command;
 
       if (typeof rawCommand === 'string') {
         const trimmed = rawCommand.trim();
@@ -603,7 +602,6 @@ async function parseGraderList(
         'name',
         'type',
         'command',
-        'script',
         'cwd',
         'weight',
         'target',
@@ -1578,14 +1576,13 @@ async function parseGraderList(
 
     if (isJsonObject(rawPrompt)) {
       // Executable prompt template: { command: [...], config: {...} }
-      // Precedence: command > script (deprecated alias)
-      if (rawPrompt.script !== undefined && rawPrompt.command === undefined) {
-        console.warn(
-          `${ANSI_YELLOW}Warning: 'prompt.script' is deprecated in evaluator '${name}' in '${evalId}'. Use 'prompt.command' instead.${ANSI_RESET}`,
+      if (rawPrompt.script !== undefined) {
+        throw new Error(
+          `Grader '${name}' in '${evalId}': 'prompt.script' has been removed. Use 'prompt.command' instead.`,
         );
       }
       const commandArray = asStringArray(
-        rawPrompt.command ?? rawPrompt.script,
+        rawPrompt.command,
         `prompt.command for evaluator '${name}' in '${evalId}'`,
       );
 
@@ -2004,31 +2001,19 @@ function logWarning(message: string, details?: readonly string[]): void {
 }
 
 /**
- * Parse a `required` value from raw evaluator config.
- * Accepts `true` (uses default 0.8 threshold) or a number in (0, 1] range.
- * Returns undefined for falsy/invalid values.
- */
-function parseRequired(value: JsonValue | undefined): boolean | number | undefined {
-  if (value === true) return true;
-  if (typeof value === 'number' && value > 0 && value <= 1) return value;
-  return undefined;
-}
-
-/**
- * Parse `required` and `min_score` from raw evaluator config, handling deprecated `required: number`.
+ * Parse `required` and `min_score` from raw evaluator config.
  *
  * - `required: true` → `{ required: true }`
- * - `required: 0.7` (deprecated) → `{ required: true, min_score: 0.7 }` + deprecation warning
  * - `min_score: 0.7` → `{ min_score: 0.7 }`
- * - Explicit `min_score` takes priority over `required: number`
+ * - Numeric `required` has been removed; use `required: true` + `min_score`.
  */
 function parseRequiredAndMinScore(
   rawRequired: JsonValue | undefined,
   rawMinScore: JsonValue | undefined,
   evaluatorName: string,
   evalId: string,
-): { required?: boolean | number; min_score?: number } {
-  const result: { required?: boolean | number; min_score?: number } = {};
+): { required?: boolean; min_score?: number } {
+  const result: { required?: boolean; min_score?: number } = {};
 
   // Parse min_score (explicit field, takes priority)
   if (typeof rawMinScore === 'number' && rawMinScore > 0 && rawMinScore <= 1) {
@@ -2038,15 +2023,9 @@ function parseRequiredAndMinScore(
   // Parse required
   if (rawRequired === true) {
     result.required = true;
-  } else if (typeof rawRequired === 'number' && rawRequired > 0 && rawRequired <= 1) {
-    // Deprecated: required: number → required: true + min_score
-    if (result.min_score === undefined) {
-      result.min_score = rawRequired;
-    }
-    // Keep numeric required for backward compat (orchestrator reads min_score preferentially)
-    result.required = rawRequired;
-    logWarning(
-      `Grader '${evaluatorName}' in '${evalId}': 'required: ${rawRequired}' is deprecated. ` +
+  } else if (typeof rawRequired === 'number') {
+    throw new Error(
+      `Grader '${evaluatorName}' in '${evalId}': numeric 'required: ${rawRequired}' has been removed. ` +
         `Use 'required: true' + 'min_score: ${rawRequired}' instead.`,
     );
   }
@@ -2149,13 +2128,17 @@ function parseRubricItems(
     const operator = parseRubricOperator(rawRubric.operator, id, evaluatorName, evalId);
     const weight = typeof rawRubric.weight === 'number' ? rawRubric.weight : 1.0;
 
-    // Parse min_score (0-1 scale), required_min_score (deprecated 0-10 scale), and required
+    if (rawRubric.required_min_score !== undefined) {
+      throw new Error(
+        `Rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': 'required_min_score' has been removed. Use 'min_score' (0-1 scale) instead.`,
+      );
+    }
+
+    // Parse min_score (0-1 scale) and checklist required
     let minScore: number | undefined;
-    let requiredMinScore: number | undefined;
     let required: boolean | undefined;
 
     if (typeof rawRubric.min_score === 'number') {
-      // New field: 0-1 scale
       const ms = rawRubric.min_score as number;
       if (ms <= 0 || ms > 1) {
         throw new Error(
@@ -2163,22 +2146,6 @@ function parseRubricItems(
         );
       }
       minScore = ms;
-      // Compute legacy required_min_score for backward compat with llm-grader internals
-      requiredMinScore = Math.round(ms * 10);
-    } else if (typeof rawRubric.required_min_score === 'number') {
-      // Deprecated: 0-10 integer scale
-      const rms = rawRubric.required_min_score as number;
-      if (!Number.isInteger(rms) || rms < 0 || rms > 10) {
-        throw new Error(
-          `Invalid required_min_score for rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': must be an integer 0-10 (got ${rms})`,
-        );
-      }
-      requiredMinScore = rms;
-      minScore = rms / 10;
-      logWarning(
-        `Rubric '${id}' in evaluator '${evaluatorName}' in '${evalId}': 'required_min_score: ${rms}' is deprecated. ` +
-          `Use 'min_score: ${rms / 10}' (0-1 scale) instead.`,
-      );
     }
 
     if (typeof rawRubric.required === 'boolean') {
@@ -2205,9 +2172,7 @@ function parseRubricItems(
         weight,
         ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
         ...(operator !== undefined ? { operator } : {}),
-        ...(required !== undefined ? { required } : {}),
         ...(minScore !== undefined ? { min_score: minScore } : {}),
-        ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
         score_ranges: scoreRanges,
       });
     } else {
@@ -2227,7 +2192,6 @@ function parseRubricItems(
         // Default to required: true if not specified (backward compatibility)
         required: required ?? true,
         ...(minScore !== undefined ? { min_score: minScore } : {}),
-        ...(requiredMinScore !== undefined ? { required_min_score: requiredMinScore } : {}),
       });
     }
   }
@@ -2405,7 +2369,7 @@ function parseScoreRanges(
  * Parse inline rubrics field (syntactic sugar at eval case level).
  * Supports:
  * - String shorthand: "Must be polite" -> { id: "rubric-1", outcome: "Must be polite", weight: 1.0, required: true }
- * - Object form with outcome, weight, required, score_ranges, required_min_score
+ * - Object form with outcome, weight, required, score_ranges, min_score
  *
  * Returns an LlmGraderConfig to prepend to evaluators, or undefined if no valid rubrics.
  */
@@ -2451,15 +2415,16 @@ export function parseInlineRubrics(
         weight: typeof rubric.weight === 'number' ? rubric.weight : 1.0,
       };
 
-      // Parse min_score (0-1) or required_min_score (deprecated 0-10)
+      if (rubric.required_min_score !== undefined) {
+        throw new Error(
+          `Inline rubric '${id}': 'required_min_score' has been removed. Use 'min_score' (0-1 scale) instead.`,
+        );
+      }
+
+      // Parse min_score (0-1)
       let inlineMinScore: number | undefined;
-      let inlineRequiredMinScore: number | undefined;
       if (typeof rubric.min_score === 'number') {
         inlineMinScore = rubric.min_score as number;
-        inlineRequiredMinScore = Math.round(inlineMinScore * 10);
-      } else if (typeof rubric.required_min_score === 'number') {
-        inlineRequiredMinScore = rubric.required_min_score as number;
-        inlineMinScore = inlineRequiredMinScore / 10;
       }
 
       // For score_ranges rubrics, outcome at rubric level is optional
@@ -2467,11 +2432,7 @@ export function parseInlineRubrics(
         return {
           ...baseRubric,
           ...(expectedOutcome.length > 0 ? { outcome: expectedOutcome } : {}),
-          ...(typeof rubric.required === 'boolean' ? { required: rubric.required } : {}),
           ...(inlineMinScore !== undefined ? { min_score: inlineMinScore } : {}),
-          ...(inlineRequiredMinScore !== undefined
-            ? { required_min_score: inlineRequiredMinScore }
-            : {}),
           score_ranges: scoreRanges,
         };
       }
@@ -2482,9 +2443,6 @@ export function parseInlineRubrics(
         outcome: expectedOutcome,
         required: typeof rubric.required === 'boolean' ? rubric.required : true,
         ...(inlineMinScore !== undefined ? { min_score: inlineMinScore } : {}),
-        ...(inlineRequiredMinScore !== undefined
-          ? { required_min_score: inlineRequiredMinScore }
-          : {}),
       };
     })
     // Filter: must have outcome OR score_ranges

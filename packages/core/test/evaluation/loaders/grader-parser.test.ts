@@ -467,7 +467,7 @@ describe('parseGraders - code-grader config pass-through', () => {
         {
           name: 'fuzzy-matcher',
           type: 'code-grader',
-          script: ['bun', 'run', './test_script.ts'],
+          command: ['bun', 'run', './test_script.ts'],
           fields: [
             { path: 'supplier.name', threshold: 0.85 },
             { path: 'importer.name', threshold: 0.9 },
@@ -500,7 +500,7 @@ describe('parseGraders - code-grader config pass-through', () => {
         {
           name: 'simple-grader',
           type: 'code-grader',
-          script: ['bun', 'run', './test_script.ts'],
+          command: ['bun', 'run', './test_script.ts'],
         },
       ],
     };
@@ -519,7 +519,7 @@ describe('parseGraders - code-grader config pass-through', () => {
         {
           name: 'with-weight',
           type: 'code-grader',
-          script: ['bun', 'run', './test_script.ts'],
+          command: ['bun', 'run', './test_script.ts'],
           cwd: tempDir,
           weight: 2.0,
           required: true,
@@ -545,13 +545,13 @@ describe('parseGraders - code-grader config pass-through', () => {
     expect(config.config).toEqual({ threshold: 0.9, algorithm: 'levenshtein' });
   });
 
-  it('converts string scripts into argv using a shell', async () => {
+  it('converts string commands into argv using a shell', async () => {
     const rawEvalCase = {
       evaluators: [
         {
-          name: 'legacy-script',
+          name: 'shell-command',
           type: 'code-grader',
-          script: './test_script.ts',
+          command: './test_script.ts',
         },
       ],
     };
@@ -565,6 +565,25 @@ describe('parseGraders - code-grader config pass-through', () => {
     } else {
       expect(config.command).toEqual(['sh', '-lc', './test_script.ts']);
     }
+  });
+
+  it('rejects removed code-grader script alias', async () => {
+    await expect(
+      parseGraders(
+        {
+          evaluators: [
+            {
+              name: 'legacy-script',
+              type: 'code-grader',
+              script: './test_script.ts',
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-case',
+      ),
+    ).rejects.toThrow(/'script' has been removed.*command/);
   });
 });
 
@@ -596,7 +615,7 @@ describe('parseGraders - kebab-case type normalization', () => {
         {
           name: 'kebab-code',
           type: 'code-grader',
-          script: ['bun', 'run', './test_script.ts'],
+          command: ['bun', 'run', './test_script.ts'],
         },
       ],
     };
@@ -709,9 +728,35 @@ describe('parseGraders - score_ranges rubrics', () => {
       expect(rubric?.id).toBe('accuracy');
       expect(rubric?.weight).toBe(2.0);
       expect(rubric?.min_score).toBe(0.7);
-      expect(rubric?.required_min_score).toBe(7);
       expect(rubric?.score_ranges).toHaveLength(4);
     }
+  });
+
+  it('rejects removed required_min_score', async () => {
+    const rawEvalCase = {
+      evaluators: [
+        {
+          name: 'correctness',
+          type: 'llm-grader',
+          rubrics: [
+            {
+              id: 'accuracy',
+              required_min_score: 7,
+              score_ranges: [
+                { score_range: [0, 3], outcome: 'Incorrect' },
+                { score_range: [4, 6], outcome: 'Partially correct' },
+                { score_range: [7, 9], outcome: 'Mostly correct' },
+                { score_range: [10, 10], outcome: 'Fully correct' },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    await expect(
+      parseGraders(rawEvalCase, undefined, [process.cwd()], 'test-case'),
+    ).rejects.toThrow(/required_min_score.*has been removed/i);
   });
 
   it('throws on overlapping score_ranges', async () => {
@@ -828,7 +873,6 @@ describe('parseGraders - score_ranges shorthand map', () => {
       const rubric = config.rubrics?.[0];
       expect(rubric?.id).toBe('accuracy');
       expect(rubric?.min_score).toBe(0.7);
-      expect(rubric?.required_min_score).toBe(7);
       expect(rubric?.score_ranges).toHaveLength(4);
       expect(rubric?.score_ranges?.[0]).toEqual({
         score_range: [0, 2],
@@ -1759,6 +1803,44 @@ describe('parseGraders - type: rubrics with criteria', () => {
     expect(evaluators).toHaveLength(1);
     expect((evaluators?.[0] as LlmGraderConfig).rubrics).toHaveLength(2);
   });
+
+  it('preserves score_ranges in rubrics assertion criteria', async () => {
+    const evaluators = await parseGraders(
+      {
+        assertions: [
+          {
+            type: 'rubrics',
+            criteria: [
+              {
+                id: 'quality',
+                outcome: 'Answer quality',
+                min_score: 0.8,
+                score_ranges: [
+                  { score_range: [0, 4], outcome: 'Weak' },
+                  { score_range: [5, 7], outcome: 'Adequate' },
+                  { score_range: [8, 10], outcome: 'Strong' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    const config = evaluators?.[0] as LlmGraderConfig;
+    expect(config.name).toBe('rubrics');
+    expect(config.type).toBe('llm-grader');
+    expect(config.rubrics?.[0]?.min_score).toBe(0.8);
+    expect(config.rubrics?.[0]?.score_ranges).toEqual([
+      { score_range: [0, 4], outcome: 'Weak' },
+      { score_range: [5, 7], outcome: 'Adequate' },
+      { score_range: [8, 10], outcome: 'Strong' },
+    ]);
+  });
 });
 
 describe('parseGraders - required field', () => {
@@ -1788,10 +1870,31 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required: 0.6 (numeric threshold) on contains evaluator', async () => {
+  it('rejects required: 0.6 numeric threshold on contains evaluator', async () => {
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0.6 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: 0\.6' has been removed/i);
+  });
+
+  it('parses required: true with min_score on contains evaluator', async () => {
     const evaluators = await parseGraders(
       {
-        evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0.6 }],
+        evaluators: [
+          {
+            name: 'check',
+            type: 'contains',
+            value: 'DENIED',
+            required: true,
+            min_score: 0.6,
+          },
+        ],
       },
       undefined,
       [tempDir],
@@ -1799,7 +1902,8 @@ describe('parseGraders - required field', () => {
     );
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as ContainsGraderConfig;
-    expect(config.required).toBe(0.6);
+    expect(config.required).toBe(true);
+    expect(config.min_score).toBe(0.6);
   });
 
   it('ignores required: false', async () => {
@@ -1837,7 +1941,7 @@ describe('parseGraders - required field', () => {
           {
             name: 'code-check',
             type: 'code-grader',
-            script: ['bun', 'run', './test_script.ts'],
+            command: ['bun', 'run', './test_script.ts'],
             required: true,
           },
         ],
@@ -1851,10 +1955,10 @@ describe('parseGraders - required field', () => {
     expect(config.required).toBe(true);
   });
 
-  it('parses required on llm-grader evaluator', async () => {
+  it('parses required with min_score on llm-grader evaluator', async () => {
     const evaluators = await parseGraders(
       {
-        evaluators: [{ name: 'grader', type: 'llm-grader', required: 0.7 }],
+        evaluators: [{ name: 'grader', type: 'llm-grader', required: true, min_score: 0.7 }],
       },
       undefined,
       [tempDir],
@@ -1862,25 +1966,55 @@ describe('parseGraders - required field', () => {
     );
     expect(evaluators).toHaveLength(1);
     const config = evaluators?.[0] as LlmGraderConfig;
-    expect(config.required).toBe(0.7);
+    expect(config.required).toBe(true);
+    expect(config.min_score).toBe(0.7);
   });
 
-  it('ignores invalid required values (string, negative, > 1)', async () => {
+  it('rejects numeric required values', async () => {
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 0 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: 0' has been removed/i);
+
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: 1.5 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: 1\.5' has been removed/i);
+
+    await expect(
+      parseGraders(
+        {
+          evaluators: [{ name: 'check', type: 'contains', value: 'DENIED', required: -0.5 }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(/numeric 'required: -0\.5' has been removed/i);
+  });
+
+  it('ignores non-numeric invalid required values', async () => {
     const evaluators = await parseGraders(
       {
-        evaluators: [
-          { name: 'c1', type: 'contains', value: 'A', required: 'yes' },
-          { name: 'c2', type: 'contains', value: 'B', required: -0.5 },
-          { name: 'c3', type: 'contains', value: 'C', required: 1.5 },
-          { name: 'c4', type: 'contains', value: 'D', required: 0 },
-        ],
+        evaluators: [{ name: 'c1', type: 'contains', value: 'A', required: 'yes' }],
       },
       undefined,
       [tempDir],
       'test-1',
     );
-    expect(evaluators).toHaveLength(4);
-    // All invalid required values should be dropped (undefined)
+    expect(evaluators).toHaveLength(1);
     for (const config of evaluators ?? []) {
       expect((config as ContainsGraderConfig).required).toBeUndefined();
     }

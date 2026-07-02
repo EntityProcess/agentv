@@ -1,0 +1,521 @@
+# Plan (DRAFT): Restructure AgentV eval authoring to clone promptfoo
+
+Status: draft for review. Not started. No code changed.
+
+Sources analyzed (all cloned locally, read-only):
+- promptfoo v0.121.17 — `/home/christso/projects/promptfoo-clone` (authoring format — the thing we clone)
+- Margin-Lab/evals — `/home/christso/projects/margin-lab-evals` (runner, I/O contracts, workspace, analytics)
+- vercel-labs/agent-eval — `/home/christso/projects/vercel-agent-eval` (transcripts, agentic LLM graders, output JSON)
+- AgentV today — `packages/core/src/evaluation/**`, `packages/sdk/**`, `docs/adr/**`
+
+## 0. Goal, scope, non-goals
+
+**Goal — AgentV's eval contract is a strict SUPERSET of promptfoo.** Adopt promptfoo's `promptfooconfig.yaml` authoring surface verbatim (field names + semantics), then layer AgentV's repo/agent value-adds on top. The success property is:
+
+> **Any promptfoo config, mechanically snake_cased, is a valid AgentV eval that runs with equivalent semantics.** AgentV additionally accepts more (bare-string asserts, repo/fixture materialization via a built-in extension, `gate`, agentic judges, multi-turn, …) — all through promptfoo-native surfaces (`vars`, `extensions`), not new top-level concepts.
+
+Two consequences of "superset":
+- **Compatibility is one-way, and that is the design** — promptfoo ⊆ AgentV. AgentV extensions that promptfoo lacks (bare-string asserts, the repo-native `workspace.repos` field, agentic judges, etc.) are the superset, not a defect.
+- **Superset is a design property, not a shipped importer.** AgentV's snake_case authoring contract *is* promptfoo's contract (snake_cased) + extensions. New evals are authored in snake_case directly — nothing to import. The superset is over *snake_cased* promptfoo; a literal camelCase promptfoo file (`providers:`, `defaultTest:`) would need a mechanical transform (camelCase→snake_case + `providers`→`targets`), but that's a documented one-off (`yq`/script), optionally a tiny helper if promptfoo-suite migration is ever actually needed — **not** a maintained core feature (YAGNI, same as the consolidated export). Distinct from the **hard-deprecation codemod**, which migrates AgentV's *own* existing eval files across §deprecation and *is* built.
+
+Borrow runner/analytics from margin-lab and transcripts/agentic-graders from vercel-agent-eval.
+
+**In scope.** The eval-file schema (`eval-file.schema.ts`), the parser/config layer, the assertion/grader vocabulary, the templating engine, the run/execution model, transcript normalization, and the output/analytics contract.
+
+**Non-goals (this plan).** promptfoo `redteam`, promptfoo cloud `sharing`, and promptfoo's SQLite results DB. AgentV keeps the local `.agentv/results/<run_id>/` bundle + Dashboard per the Phoenix product boundary.
+
+**Hard constraint.** Every conflict below is a reversal of an existing shipped AgentV decision (several are ADR-0013 decisions made within the last week). Each needs an explicit keep/replace call — that is section 2, and it's the part that needs your sign-off before any code moves.
+
+---
+
+## 1. Target authoring format — promptfoo, snake_cased
+
+This is the format we are cloning. Field names are promptfoo's, mechanically snake_cased.
+
+### 1.1 Top-level keys
+
+| promptfoo (camelCase) | AgentV target (snake_case) | Notes |
+|---|---|---|
+| `description` | `description` | already exists |
+| `tags` (`Record<string,string>`) | `tags` (map) | AgentV already moved here (`tags.experiment`) — **aligned** |
+| `prompts` | `prompts` | **NEW top-level concept** (see 1.2) |
+| `providers` / `targets` | `targets` (canonical); `provider`/`apiId` = backend field | plural matrix axis; top-level promptfoo `providers` is remapped to `targets` **at conversion time** (codemod/one-off), NOT a live alias (avoids overloading AgentV's backend `provider`; see 2.a) |
+| `tests` | `tests` | keep; row shape changes (see 1.4) |
+| `default_test` (`defaultTest`) | `default_test` | widen from threshold-only (see 1.5) |
+| `scenarios` | `scenarios` | **NEW** (see 1.7) |
+| `derived_metrics` (`derivedMetrics`) | `derived_metrics` | **NEW** (see 1.7) |
+| `output_path` (`outputPath`) | *(map to fixed bundle)* | AgentV writes `.agentv/results/` — keep bundle, accept `output_path` as an extra export sink |
+| `env` | `env` | provider env overrides |
+| `nunjucks_filters` (`nunjucksFilters`) | `nunjucks_filters` | depends on templating decision (2.f) |
+| `extensions` | `extensions` | **canonical lifecycle surface** (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`). `on_run_complete`, `preprocessors`, `workspace.hooks` are REMOVED and fold into this (see 2.l) |
+| `metadata` | `metadata` | exists |
+| `evaluate_options` (`evaluateOptions`) | `evaluate_options` | widen (see 1.6) |
+| `sharing`, `redteam`, `tracing` | — | out of scope / Phoenix boundary |
+
+### 1.2 `prompts` (NEW — the biggest addition)
+
+promptfoo separates **prompt templates** (top-level `prompts`) from **data rows** (`tests[].vars`). One test row is rendered through every prompt × every provider. AgentV today has no top-level prompt list — it puts a full message array in each `tests[].input`.
+
+Forms to support (snake_cased where object keys appear):
+- inline string with nunjucks: `"Convert to {{language}}: {{input}}"`
+- file ref: `file://prompts.txt` (`---` separates multiple), `file://p.json`, `file://p.yaml`
+- file + label: `{ id: file://prompts.txt, label: content_generation }`
+- function prompt: `file://prompt.js:func` / `file://prompt.py:func`
+- chat array: `[{ role, content }]`
+- map form: `{ id: template }`
+
+### 1.3 `providers` / `targets` (plural matrix)
+
+promptfoo: `providers` is an **array**; the eval is the matrix `prompts × providers × tests`. `targets` is an accepted alias (promptfoo enforces exactly one of the two and normalizes `targets`→`providers`).
+
+Forms: string id (`openai:chat:gpt-4o`), object `{ id, label, config, prompts, transform, delay, env }`, map form, function, and protocol providers (`http`, `exec:`, `file://…`, `python:`, `websocket:`, `echo`).
+
+AgentV already has a rich target provider set (CLI/SDK/codex/copilot/claude/replay/transcript) and per-execution `targets: []`. The work is promoting `providers`/`targets` to a **top-level plural matrix axis** and reconciling with AgentV's `.agentv/targets.yaml` named-target registry (see 2.a).
+
+### 1.4 `tests` / test case
+
+promptfoo test row fields → snake_case:
+`description`, `vars`, `provider`, `providers`, `prompts`, `provider_output` (`providerOutput`), `assert`, `assert_scoring_function` (`assertScoringFunction`), `options`, `threshold`, `metadata`.
+
+Key shape changes vs AgentV today:
+- add `vars` as the row's data (AgentV has `vars` already, but it's secondary to `input`)
+- add `assert` as the canonical grader key (AgentV renamed this to `assertions` — conflict 2.c)
+- `provider_output` short-circuits the provider call and grades a fixed output — AgentV has no equivalent
+- promptfoo test `id`/`description` is optional; AgentV requires `id` (conflict 2.d)
+
+### 1.5 `default_test` (widen)
+
+promptfoo `default_test` is a full test-case-minus-description whose `vars`/`assert`/`options`/`threshold`/`metadata` merge into every row (and `file://` loadable). AgentV's `default_test` today is `{ threshold }` only. Widen it to the full promptfoo merge semantics, plus `options.disable_default_asserts` opt-out.
+
+### 1.6 `evaluate_options` (widen)
+
+promptfoo: `cache`, `delay`, `generate_suggestions`, `max_concurrency`, `repeat`, `timeout_ms` (per test), `max_eval_time_ms` (whole run), `filter_range`. AgentV has `{ budget_usd, max_concurrency }`. Superset them; reconcile `repeat` with AgentV's `repeat: { count, strategy, early_exit }` block and margin-lab's `samples_per_case` (conflict 2.g).
+
+### 1.7 `scenarios`, `derived_metrics`, named metrics
+
+- `scenarios`: `[{ description, config: [partialTest…], tests: [test…] }]` — cartesian of config groups × tests. **NEW** to AgentV.
+- `derived_metrics`: `[{ name, value }]` where `value` is a math expression over named scores or a function. **NEW**.
+- **named metrics**: promptfoo's `assert[].metric` (nunjucks-templated) feeds `named_scores`; `assert-set` groups sub-asserts under one metric. AgentV graders use `name` — conflict 2.e.
+
+### 1.8 Assertions (`assert`)
+
+Per-assertion fields → snake_case: `type`, `value`, `config`, `threshold`, `weight`, `provider`, `rubric_prompt` (`rubricPrompt`), `metric`, `transform`, `context_transform`.
+
+promptfoo assertion **type** catalogue is large and flat, each with a `not-` variant, plus `assert-set`, `select-best`, `human`, `max-score`. AgentV has a smaller typed set (`contains`/`equals`/`regex`/`is-json`/`rubrics`/`llm-grader`/`code-grader`/`composite`/`tool-trajectory`/`field-accuracy`/`latency`/`cost`/`token-usage`/`execution-metrics`/`include`).
+
+Proposed type mapping (this is the crux of conflict 2.c):
+
+| promptfoo type | AgentV today | Plan |
+|---|---|---|
+| `contains`/`equals`/`regex`/`is-json`/`icontains`/`starts-with`/`contains-all`/`contains-any` | `contains`/`equals`/`regex`/`is-json` | adopt promptfoo names; add the missing string ops |
+| `javascript` / `python` | `code-grader` | accept promptfoo `javascript`/`python`; keep `code-grader` as AgentV superset |
+| `g-eval` / `llm-rubric` / `model-graded-*` / `factuality` | `llm-grader` / `rubrics` | adopt `g-eval` for criteria/rubric scoring; keep `llm-rubric` for free-form rubric text; keep agentic judge behavior as an AgentV extension |
+| `assert-set` | `composite` | adopt `assert-set`; keep `composite` alias or deprecate |
+| `similar` / `similar:*` | *(none)* | **NEW** — needs embeddings provider |
+| `latency` / `cost` / `perplexity` / `word-count` | `latency` / `cost` / `token-usage` | align names |
+| `trajectory:tool-used` / `:tool-sequence` / `:step-count` / `:goal-success` | `tool-trajectory` | map AgentV's single typed grader onto promptfoo's `trajectory:*` family |
+| `webhook` / `classifier` / `moderation` / `guardrails` / `answer-relevance` / `context-*` | *(none)* | evaluate per-need; most are optional |
+| — | `field-accuracy`, `execution-metrics`, `include` | AgentV-only extensions to preserve |
+
+### 1.9 Datasets / CSV
+
+promptfoo `tests: file://tests.csv` with magic columns (`__expected`, `__expectedN`, `__prefix`, `__suffix`, `__description`, `__provider_output`, `__metric`, `__threshold`, `__metadata:key`, `__config:…`) and the `assertionFromString` mini-DSL. AgentV has `imports`/`include`/`select` instead. Plan: support `file://…csv|json|jsonl|yaml|py:func` row loading + the `__expected` column DSL as the promptfoo-compatible dataset path; keep AgentV `imports`/`select` as the suite-composition path.
+
+### 1.10 Templating
+
+promptfoo renders `{{var}}` via **nunjucks** into prompt `raw`, `assert.value`, and `assert.metric`; array vars auto-expand into multiple rows; `_conversation` var auto-injected; custom filters via `nunjucks_filters`. AgentV uses `${{ ENV }}` substitution only. This is conflict 2.f — adopting nunjucks (for vars **and** env via `{{ env.VAR }}`) is required for true format parity.
+
+---
+
+## 2. Conflicts — RESOLVED by the naming principle
+
+**Governing principle (owner decision).** Where a feature is functionally equivalent and semantically the same, **use promptfoo's name/shape** (e.g. `assert`, not `assertions`; `metric`, not `name`). **Keep AgentV's form only where its semantics are genuinely better** — e.g. AgentV's executable `gate` over promptfoo's scalar `threshold`, and AgentV's `repeat: { count, strategy, early_exit }` block over promptfoo's `repeat: <int>`.
+
+**Deprecation policy: HARD (owner decision).** This ships as a **major version**. Renamed/replaced keys are *removed*, not aliased — no back-compat shims, no soft-deprecation window. `assertions` → removed (use `assert`); `composite` → removed (use `assert-set`); grader `name`-as-metric → removed (use `metric`); `eval_cases` → removed; `tests[].input` / suite `input` → removed (use `prompts`+`vars`, §2.b); `workspace`/`on_run_complete`/`preprocessors` → removed (use `extensions`, §2.l); `${{ ENV }}` → removed (use nunjucks `{{ env.VAR }}`, §2.f). A one-shot codemod migrates existing eval files; the parser hard-errors on removed keys with a message pointing at the new name. **Owner note: the churn is acceptable because all of this was introduced recently and is not yet in production** — no external users to migrate, so a clean break beats carrying aliases.
+
+Applying that principle, the decisions are below (D = decided, ▸ = still a judgment call, tracked in §8).
+
+### 2.a `targets` first-class SUT; `provider` = harness/backend — SEMANTIC DEPARTURE
+- **promptfoo (verified against source + history):** `providers` is the **original, canonical** field. `targets` is a **strict alias added 2024-05-09** (commit `102804f0`, the red-team feature) — `UnifiedConfigSchema` enforces "exactly one of `targets`/`providers`," then `transform`/`readConfig` do `providers = targets; delete targets`. So in promptfoo `targets` ≡ `providers` exactly; the "system-under-test" connotation is *conventional* (redteam domain), not schema-enforced.
+- **AgentV's move is a deliberate re-canonicalization, not a mirror.** promptfoo's canonical is `providers` (LLM-endpoint framing). AgentV's domain (evaluating agents/apps) matches the red-team *"target = thing under test"* framing far better, so AgentV elevates `targets` to first-class canonical and demotes `provider`/`apiId` to the "backend kind" vocabulary. Superset holds because the **importer** rewrites promptfoo's top-level `providers:` → `targets:` — NOT via a live alias (a top-level `providers` key would collide with AgentV's existing backend `provider`/sub-provider meaning). Net: we adopt promptfoo's target/`ProviderOptions` object *shape*, keep exactly one live SUT key (`targets`), and re-canonicalize on the name that fits agent-eval.
+- **AgentV today:** top-level `target` (singular) is the SUT; `.agentv/targets.yaml` is a named registry; a target has a `provider` field naming the backend kind.
+- **AgentV's better semantics (keep, and this is a deliberate departure):** do **not** treat `provider`==`target`. Layer them:
+  - **`target` / `targets`** = first-class **system under evaluation** (agent/model being tested). Canonical name, and the matrix axis.
+  - **`provider`** = the **harness or LLM backend** inside a target (`openai`/`anthropic`/`claude-code`/`cli`/`replay`/…) — never itself a SUT.
+- **D — registry target = promptfoo target schema + AgentV extensions.** `.agentv/targets.yaml` entries adopt promptfoo's target/`ProviderOptions` object shape — `id`, `label`, `config`, `prompts`, `transform`, `delay`, `env` — extended with AgentV fields: `provider` (backend kind), `model`, `use_target`, `fallback_targets`, `grader_target`, `max_budget_usd`, `hooks`. A promptfoo `id: openai:gpt-4o` string decomposes to `{ provider: openai, model: gpt-4o }`.
+- **D — canonical `targets`; do NOT accept a top-level `providers` alias (owner).** AgentV already uses `provider` + `apiId` (a provider + **sub-provider** pair, e.g. `anthropic:claude-sonnet` → `{providerName: 'anthropic', apiId: 'anthropic-messages'}`) as the **backend** vocabulary. Introducing a top-level `providers`-as-SUT alias would overload the word with two meanings — reject it. If a raw promptfoo file is ever converted to AgentV, the one-off transform rewrites top-level `providers:` → `targets:` (alongside camelCase→snake_case) — this lives in the conversion/codemod, **not** a runtime alias. AgentV's live schema has exactly one SUT key (`targets`), and `provider`/`apiId`/sub-provider stay unambiguously "backend." A `targets` entry may be a registry name (string) or an inline promptfoo-shaped target object; `use_target`/`fallback_targets`/`max_budget_usd` stay as extensions.
+- **Note vs 1.3:** §1.3 said "promote `providers`/`targets`"; the refinement is that **`targets` is canonical and `provider` is demoted to the backend field**, not a top-level synonym.
+
+### 2.b Top-level `prompts` vs per-test `input` — SIMPLIFY by collapsing `input`
+- **promptfoo:** prompt templates are top-level and shared; test rows carry only `vars`. A prompt can be a string OR a chat array `[{role, content}]`, both with `{{var}}`.
+- **AgentV today:** each `tests[].input` is a full message array; no shared prompt list. This is a *second* way to express "the messages sent to the target," parallel to promptfoo's `prompts`.
+- **D — collapse `input` into `prompts` + `vars` (owner: "agentv can be simplified"):** there should be ONE way to express what's sent to the target. A promptfoo chat-array prompt already covers everything `input` did (multi-turn, roles, `{{var}}`). So:
+  - Shared/benchmark case → top-level `prompts` (string or chat array) × `tests[].vars`.
+  - "Each test is unique" (agent tasks) → a passthrough prompt (e.g. `"{{task}}"`) + `vars: { task: … }`, or a per-test prompt override. No bespoke `input` field.
+  - `input_files`/attachments (file/image content) survive as a **prompt-content** convenience (part of the prompt/vars), not a separate top-level concept.
+  - **Removes a concept** (hard, major version): `tests[].input` and suite-level `input` go away; codemod rewrites `input:` message arrays into a per-test prompt.
+- **Concurrency/workspace model (owner):** workers either **share one workspace** or draw from a **workspace pool**, where a checked-out workspace is **reset to original** between uses (git clean / snapshot restore). This is the reset-based pool, not container-per-instance — see §4.
+
+### 2.c `assert` vs `assertions`, and grader type names — NAMING (reverses ADR-0013)
+- **promptfoo:** key is `assert`; types are `llm-rubric`, `javascript`, `python`, `assert-set`, `model-graded-*`.
+- **AgentV today:** commit `d5514b9a` **removed** the `assert` alias and requires `assertions`; types are `llm-grader`, `code-grader`, `composite`, `rubrics`. ADR-0013 explicitly says it does NOT rename `grader`.
+- **Conflict:** direct naming collision; functionally equivalent → principle says promptfoo wins.
+- **D — `assert` is canonical; `assertions` REMOVED** (hard). Reverses ADR-0013; needs a superseding ADR.
+- **D — adopt promptfoo type names where equivalent:** `javascript`/`python`, `assert-set` (over `composite`, removed), the string ops (`contains`/`equals`/`regex`/`is-json`/`icontains`/`contains-all`/`contains-any`/`starts-with`), `similar`, `latency`, `cost`, `webhook`.
+- **D — keep AgentV grader types that have better/extra semantics** as first-class extension types (no promptfoo equivalent, or strictly richer): `code-grader` (workspace/`cwd`-aware, arbitrary-language subprocess power tool), `tool-trajectory`, `execution-metrics`, `field-accuracy`, `include`.
+- **D — execution model (verified against promptfoo; corrects the old §8.3):** promptfoo runs `javascript` **in-process** (`new Function` for inline, dynamic `import()` for `file://`) and shells out **only** for `python` (`PythonShell` subprocess). AgentV matches this:
+  - **`javascript` → in-process** — live `output`/`context` objects by reference, ~zero overhead. On Bun this is *easier* than Node (Bun `import()`s `.ts` directly, no transpile step).
+  - **`python` → subprocess** — unavoidable cross-runtime; JSON args in/out.
+  - **`code-grader` → stays the subprocess power tool** for workspace-`cwd` graders (build/test commands), arbitrary languages, and isolation-sensitive cases.
+  - **Do NOT desugar `javascript`→`code-grader`** — that would throw away in-process speed. Boundary: *light/pure → in-process `javascript`; heavy/workspace/multi-language → subprocess `code-grader`.* Same trust model both ways (author code is trusted, as in promptfoo).
+- **D — split LLM-judge names by semantics, not implementation.** `g-eval` is the criteria/rubric scoring surface. `rubrics` (multi-criteria, one judge flow, operators/`score_ranges`) is removed as a type name and folded into `g-eval` as optional structured fields:
+  ```yaml
+  type: g-eval
+  value: string | string[]                    # promptfoo-compatible criteria
+  rubrics: rubric_item[]                      # AgentV structured extension
+  ```
+  `llm-rubric` remains the promptfoo-compatible free-form rubric-text judge. AgentV's agentic/evidence-gathering judge behavior (judge target, workspace/transcript evidence, max steps, preprocessors) remains an AgentV extension instead of being forced into promptfoo's non-agentic `llm-rubric` shape.
+  Artifact rows are generic AgentV grader output, not a `g-eval`-only feature: every grader returns `EvaluationScore.assertions[]`, the orchestrator flattens those rows into the result and `grading.json.assertions[]`, and nested `graders[].assertions[]` preserves the per-grader breakdown. Deterministic graders usually emit one row; multi-aspect graders emit one row per authored check or result unit. `g-eval`'s structured criteria should use one row per criterion because those criteria are distinct scoring aspects, the same pattern used by field-accuracy fields, execution metrics, and tool-trajectory requirements.
+  - **Name — RESOLVED (owner Q): short-form criteria and structured rubrics use `g-eval`, not `llm-rubric`.** Promptfoo's `g-eval` and DeepEval's `GEval` both model criteria-driven evaluation; DeepEval also has rubric score bands, making it the better home for AgentV `score_ranges`.
+  - **Default grading behavior change — approved by owner; here's what changes** when the default judge adopts vercel's judge (§5.2): (1) **skeptical stance by default** ("strict judge; when in doubt, fail") → borderline outputs fail more often, so existing suites may show *lower* pass rates; (2) **evidence-by-path** → for agent/workspace tasks the judge reads the transcript/environment from files instead of a stuffed prompt, enabling tool-using investigation and better judgments on large outputs; (3) fixed `{pass, score, reason}` verdict contract. **Opt-out:** authoring an explicit `prompt` overrides the default skeptical prompt, preserving prior behavior. Implementation must diff the exact current `llm-grader-prompt.ts` wording to quantify the shift before flipping the default.
+
+### 2.k `assert` short-form (bare strings → rubric) — how to handle it
+- **AgentV today** (`grader-parser.ts:394`): bare strings in the `assertions` array are collected and unwrapped into **one** `rubrics` grader (`criteria: [strings]`, `weight = N`), evaluated in a single LLM call at equal weight. promptfoo has no bare-string form — every `assert` entry is an object, and multiple criteria are multiple `llm-rubric` asserts (one call each).
+- **Better semantics = AgentV's:** grouping N criteria into one judge call is cheaper and more holistic than N separate calls. Keep the shorthand.
+- **D — keep the bare-string shorthand, retarget it to `g-eval`:** bare strings in `assert` desugar to a single grouped `{ type: g-eval, value: [strings], weight: N }` (was `rubrics`; same grouping/weight/single-flow behavior, now under the criteria-eval type). Result:
+  - `assert: ["is polite", "cites a source"]` → one `g-eval` with `value: [both]`, `weight: 2`.
+  - `assert: [{type: contains, value: hi}, "is polite"]` → `contains(w=1)` + `g-eval(value:["is polite"], w=1)`.
+  - promptfoo-style `assert: [{type: llm-rubric, value: "is polite"}]` works unchanged (import parity).
+  This keeps AgentV's terse authoring + single-flow economy while making the desugared type a promptfoo/DeepEval-aligned name. The explicit form `{ type: g-eval, value: [strings] }` is also accepted, so authors can pick terse or explicit.
+- **This is the superset, not a divergence:** bare-string asserts are an AgentV extension on top of promptfoo. promptfoo ⊆ AgentV holds (every promptfoo `assert` is valid AgentV); AgentV simply accepts more. The only obligation: an "export to promptfoo" path must desugar bare strings to explicit `g-eval` objects first.
+
+### 2.d Test `id` required vs optional
+- **promptfoo:** `id`/`description` optional.
+- **AgentV today:** `tests[].id` required; it's the flattened `test_id` result identity and `--test-id` CLI filter (ADR-0013).
+- **Fact:** promptfoo has **no durable per-test id** — internally it keys on `testIdx` (ordinal) and shows `description`. Run-to-run comparison is fragile (breaks on reorder/edit).
+- **D — layer identity into three distinct roles (owner's governance point):** don't overload one field.
+  - **Content identity — `test_id`** = short content hash of `(prompt + vars + assert)`. Answers "did the content change?"; drives artifact dirs, dedup, drift detection. Changes when you edit the case — correct for *content*.
+  - **Governance/trend identity — an author-set `tag`/`metadata` key** (e.g. `metadata.case_id` or `tags.case`). Durable across BOTH reorder AND edits — the human declares "this is the same logical test." **This is what the Dashboard keys trend-lines/comparison on** (best practice: stable identity lives in governance metadata, not derived content). Falls back to `test_id`/ordinal when absent.
+  - **Display label** — precedence `description` → `vars` (e.g. `language=French`) → `Test #<index>`.
+  - So: content-hash = "is it the same bytes," metadata/tag = "is it the same logical test," description/vars = "what a human reads." A promptfoo file with none still renders + filters; governance stability is opt-in via a tag/metadata key.
+
+### 2.e Named metrics: `metric` vs grader `name`
+- **promptfoo:** `assert[].metric` (nunjucks-templated) names a score; `derived_metrics` computes over them; `assert-set` groups.
+- **AgentV today:** graders carry `name`; no `derived_metrics`; aggregation via `weight`/`required`/`min_score`.
+- **D — prefer promptfoo `metric`:** `metric` is the named-score field (nunjucks-templated); `name` becomes display-only/alias. Add `named_scores` + `derived_metrics` to the result contract. Keep `weight`/`required`/`min_score` as AgentV extensions (richer aggregation).
+
+### 2.f Templating engine: nunjucks for BOTH vars and env (promptfoo-native), replacing `${{ ENV }}`
+- **promptfoo:** nunjucks `{{ }}` everywhere + array-var row expansion + custom filters. **Env vars too** — `{{ env.VAR }}`, rendered at **config-load time before validation** (`load.ts:336`, `providers/index.ts:94`, docs `modular-configs.md`), so env works in paths/configs. NOT a `${ }` sigil.
+- **AgentV today:** `${{ ENV_VAR }}` env substitution in target configs only.
+- **Conflict:** different delimiters; nunjucks is the shared standard → principle says promptfoo wins for env *and* vars.
+- **D — one engine (nunjucks), phase-separated by render pass + namespace (owner: adopt promptfoo-native env):**
+  - **`{{ var }}`** — **eval-time** template vars, for `prompts`/`vars`/`assert.value`/`assert.metric`, + array-var row expansion + `nunjucks_filters`.
+  - **`{{ env.VAR }}`** — **config-time** env, rendered at **load-time before validation** (promptfoo-native), usable in target configs/paths. Defaults via `{{ env.VAR | default('x') }}` (replaces `${ENV:-default}`).
+  - **No `${ENV}` sigil** (reversed earlier decision): promptfoo uses `{{ env.X }}`, so adopting it keeps **one templating engine**, superset-compat (promptfoo env configs run unchanged), and the config-time/eval-time split is handled by *when* each is rendered + the `env` namespace — not a second sigil.
+  - **Key correctness win (owner insight): `{{ env.VAR }}` does not collide with runtime shell `${VAR}`.** CLI targets run shell commands whose `command` may contain `${VAR}`/`$VAR` that must reach the **shell at runtime in the subprocess**, untouched. A `${ENV}` config sigil would clobber those (ambiguous: resolve-now vs expand-later). With `{{ env.VAR }}`, AgentV resolves its own env at load-time and passes `${VAR}` through verbatim for the shell to expand — two non-overlapping namespaces.
+  - Codemod rewrites `${{ X }}` → `{{ env.X }}`.
+  - Inline mixing is nunjucks' primary mode: `--flag {{ myvar }}` (eval var), `--key {{ env.MY_KEY }}` (AgentV env), while `$SHELL_VAR` in a command stays for the runtime shell.
+
+### 2.g `repeat` block vs `samples_per_case` vs promptfoo `repeat:int`
+- **promptfoo:** `evaluate_options.repeat` = integer (naive re-run).
+- **AgentV today:** `repeat: { count, strategy: pass_any|pass_all|mean|confidence_interval, early_exit, cost_limit_usd }`.
+- **margin-lab:** `samples_per_case` (int) → expands to N independent instances; pass@k computed in analytics.
+- **D — keep AgentV `repeat` block (better semantics):** it is strictly more expressive than `repeat: <int>`. Map promptfoo's `repeat: <int>` → `repeat.count` with `strategy: pass_all`. Implement via margin-lab-style **instance expansion** (§4). This is an explicit "AgentV wins" case under the principle.
+
+### 2.h Output store: bundle vs promptfoo SQLite
+- **promptfoo:** SQLite `~/.promptfoo/promptfoo.db` + optional `output_path` file.
+- **AgentV today:** `.agentv/results/<run_id>/` bundle (ADR-0011/0012) + Dashboard.
+- **D — keep AgentV bundle as the single source of truth (better semantics + product boundary):** aligns with margin-lab's on-disk `results.json` + per-instance dirs and the Phoenix boundary. Do not adopt the SQLite DB, and do **not** maintain a consolidated single-file export (§6.0, YAGNI). promptfoo `output_path` (json/jsonl/csv/yaml) can be produced *on demand* from the bundle if a user asks, but is not a first-class artifact.
+
+### 2.j `threshold` (per-test) + `gate` (release policy)
+- **promptfoo:** scalar per-test/`default_test` `threshold` only; no release gate.
+- **AgentV today:** per-test/`default_test` `threshold` **and** an executable `gate` (`min_test_pass_rate`, `max_execution_errors`, command over run JSON).
+- **D — keep both:** adopt promptfoo `threshold` (same concept, per-test score cutoff) **and** keep AgentV `gate` (better semantics for release gating; no promptfoo equivalent). Different levels, both stay.
+
+### 2.i AgentV-only fields promptfoo lacks (preserve, don't lose)
+`gate` (executable release policy), `imports`/`include`/`select`, multi-turn **evaluation** layer (`turns` per-turn assertions, cross-turn `aggregation`, `on_turn_failure`; execution via promptfoo `_conversation`; `window_size` dropped — §3), `depends_on`/`on_dependency_failure`, `conversation_id`, `requires`, replay/transcript providers, code-grader SDK. **All preserved as documented AgentV extensions** (section 3). (Workspace, `on_run_complete`, `preprocessors` are handled by 2.l, not kept as-is.)
+
+### 2.m `expected_output` vs `vars.expected_output` — KEEP first-class golden answer
+- **promptfoo:** there is no first-class test-case `expected_output` field. Expected values usually live in `assert[].value`, CSV/XLSX `__expected*` columns that generate assertions, or ordinary vars such as `reference_answer` used by `default_test.assert.value`.
+- **DeepEval:** `LLMTestCase` and `Golden` both carry `expected_output` as the ground-truth/golden answer field.
+- **AgentV today:** `expected_output` is a passive reference answer passed to LLM graders, code graders, field-accuracy, custom assertions, and prompt templates. It also makes a case gradeable without `criteria`; when no `assertions` are declared, the implicit default LLM grader uses the case context including `criteria` and `expected_output`. When `assertions` are present, declared graders are the complete grader list, so `expected_output` remains data and does not add an implicit grader.
+- **D — keep `expected_output` first-class; do not move it wholesale into `vars`.** Golden answers should not be target prompt variables by default because that risks leaking benchmark labels into the system under test. `vars.expected_output` remains an ordinary promptfoo-style variable and never triggers the implicit default grader by itself. The first-class `expected_output` field is the evaluation-context signal: it is available to graders, can satisfy "this case has something to grade," and can drive the default judge only when no explicit `assert`/`assertions` list is present.
+- **Import/conversion rule:** promptfoo `__expected*` columns convert to explicit assertions; promptfoo regular columns such as `reference_answer` or `expected_output` stay in `vars` unless a user or importer intentionally lifts them to AgentV `expected_output`. DeepEval and AgentV-native imports map `expected_output` to the first-class field.
+
+### 2.l Workspace repos = declarative FIELD (harness-materialized); extensions only for agent-rules/setup
+
+> **REVISED (finalized in ADR-0016 pt10 / ADR-0017).** The text below originally proposed repo materialization via `vars.workspace` + an `agentv:workspace` *extension*. That is **superseded**: **repo provisioning is a declarative `workspace.repos` field the harness materializes BEFORE hooks** (all 4 benchmark frameworks treat provisioning as harness-core; promptfoo has no workspace to align with). Extensions (`beforeAll`/…) are only for **non-provisioning** pluggable setup — `agentv:agent-rules` (skills/hooks/agents staging) + custom `file://` hooks — running after materialization. `isolation` is a `workspace` field, not a hook choice. `on_run_complete`/`preprocessors` still removed → `extensions`.
+- **Principle (owner decision):** don't invent a top-level `workspace:` block, and don't keep AgentV-specific lifecycle keys. Align maximally with promptfoo. Both reference frameworks agree workspace **is part of the dataset** — vercel: a case *is* a fixture dir; margin-lab: a case *is* a Docker image + tests.
+- **D — one lifecycle surface: promptfoo `extensions`.** `beforeAll`/`afterAll`/`beforeEach`/`afterEach`. **Remove** `on_run_complete` (= `afterAll`), `preprocessors`, and `workspace.hooks` — they collapse into `extensions` (hard, major version).
+- **FINAL (ADR-0016 pt10 / ADR-0017):** repo provisioning is a declarative **`workspace` field** (durable name — CI-standard `GITHUB_WORKSPACE`, margin, git/Cargo/Bazel; not `sandbox`/`environment`/`testbed`), suite-level default + per-test override. Provenance only; acquisition is a pluggable harness resolver (machine config, keyed on `repo`); hooks → `extensions`.
+  ```yaml
+  targets: file://targets/reviewer.yaml
+  workspace:                    # suite default; tests[].workspace overrides per case
+    repos:
+      - path: ./CargoWise
+        repo: https://github.com/WiseTechGlobal/CargoWise.git
+        commit: 953adb9         # immutable SHA (base_commit input alias); sparse/ancestor optional
+    isolation: fresh            # fresh (default) | pooled | shared
+  extensions:                   # non-provisioning setup only
+    - agentv:agent-rules:beforeAll
+  tests: file://cases.yaml
+  ```
+- **Never in the schema:** acquisition (resolver/backends → machine config) and hooks (→ extensions) — keeping them out is what makes the schema durable. Custom acquisition = a registered resolver backend or a `beforeAll` escape hatch (ADR-0017 pt5).
+
+---
+
+## 3. AgentV-only features to preserve as extensions
+
+These have no promptfoo equivalent and are AgentV's differentiation. Keep them, document them as extensions layered above the promptfoo-compatible core:
+
+- **Repo provisioning — a declarative `workspace.repos` field the harness materializes before hooks** (ADR-0016 pt10 / ADR-0017; git repos at pinned commits + resolver backends + mirror cache; `isolation` field). NOT an extension. `agentv:agent-rules` + custom `file://` hooks remain extensions for non-provisioning setup.
+- **Executable `gate`** release policy (`min_test_pass_rate`, `max_execution_errors`, command receiving run JSON).
+- **Agent target providers**: CLI/SDK/codex/copilot/claude/replay/transcript, `use_target` indirection, `fallback_targets`, `grader_target`.
+- **First-class `expected_output`** golden/reference answers (DeepEval-aligned). Keep them distinct from `vars` so gold labels are grader context, not target prompt variables, unless the author explicitly duplicates them into `vars`.
+- **Code-grader SDK** (`@agentv/sdk`): `define_assertion`/`define_code_grader`/`define_workspace_grader`/`define_vitest_workspace_grader`.
+- **Multi-turn — KEEP the evaluation layer, split execution out (has real provenance).** Researched under **agentv#1053** in `agentevals/agentevals-research/research/findings/multiturn-conversation-eval/` against inspect-ai, google-adk, ragas:
+  - `on_turn_failure: stop/continue` ← inspect-ai solver `state.completed`; per-turn assertions gating continuation ← inspect-ai `await score(state)`; scripted-vs-LLM-driven turns ← google-adk `conversation` vs `conversation_scenario`.
+  - **per-conversation `aggregation` (mean/min/max) is a deliberate AgentV gap-fill** — the research found inspect-ai/ragas/**promptfoo** aggregate only across *epochs/samples*, never within one conversation. Dropping it and relying on promptfoo's `_conversation` would reintroduce that documented gap.
+  - **Decision (per the research's own recommendation): split execution from evaluation.** Conversation *driving* → promptfoo `_conversation` + chat-array prompts + session providers (execution). **Keep** AgentV's *evaluation* layer: per-turn assertions, cross-turn `aggregation`, `on_turn_failure`. **Drop `window_size`**: it kept system + the last N turns of history per turn (context/cost control) — but in the `_conversation` model the author controls history windowing directly in the prompt template (slice `_conversation`), so a dedicated field is redundant (also no framework pedigree). This is distinct from the trials-axis `repeat`/pass@k reducer (§4/§6) — turn-aggregation and trial-aggregation are different axes. **Documented in ADR-0015.**
+- **`depends_on` DAG, `imports`/`select` suite composition.**
+- **Trajectory / execution-metrics / field-accuracy** graders.
+
+Removed (folded into promptfoo `extensions`, see 2.l): top-level `workspace:` block, `workspace.hooks`, `on_run_complete`, `preprocessors`.
+
+---
+
+## 4. Runner & execution model — borrow margin-lab's *ideas*, stay laptop-first
+
+**Owner decision: laptop-first, no persistent store.** Borrow margin-lab's *concepts* (instance expansion, pass@k, infra-only retry) but NOT its DB-backed lease/heartbeat/reaper scheduler — that machinery exists for margin's Postgres/distributed target and would violate AgentV's "zero-infra local to CI" guardrail.
+
+- **Instance = unit of work.** Expand `(prompt × target × test × sample)` into flat **instances** at compile time. `samples_per_case`/`repeat.count` → `instance_key = "<test_id>#<sample_index>"` (margin-lab's `BuildInstanceKey`). Subsumes AgentV's current repeat handling and gives pass@k for free.
+- **Simple in-process worker pool**, `max_concurrency` = worker count. No lease/heartbeat/store.
+- **Resumability via the run-index JSON, not a store (owner):** each instance's status is tracked in `index.jsonl` as it completes. "Rerun failed" = read the run index, filter failed/errored `test_id`s, re-run just those into the same/new bundle (`--rerun-failed <run_id>`). Cheap, laptop-native, no DB.
+- **Workspace: separate *materialization* from *reuse/pooling* (owner clarification, ties to §2.b/§2.l).**
+  - **Materialization = always-on core (local + CI):** acquire repo(s) via a resolver + **git-mirror cache** (parity example's `git_cache.mirrors`), then check out into the workspace. Mirror caching makes even a *fresh* workspace fast — so **clone speed is decoupled from reuse**.
+  - **Pooling = reuse a workspace + quick-reset between cases** (git clean / snapshot restore). Needed *only* when reusing. It's a **performance optimization** that amortizes expensive *setup* (checkout + setup scripts + installed state), **mainly for local evals** (fast iteration, limited parallelism, large repos). CI usually prefers fresh-per-case for correctness and relies on the mirror cache for speed. Trade-off: pooling risks state leakage if reset is imperfect (isolation-safety vs speed).
+  - **Three isolation levels:** `shared` (one workspace for all cases) · **pooled** (N reused, reset between) · **fresh per-case** (new each time, margin-lab style).
+  - The `agentv:workspace` extension owns materialization + reset; `beforeAll` = shared, `beforeEach` = per-case (fresh, or pooled+reset).
+- **Retry = infra-only.** Test failures are valid graded outcomes; only infra failures requeue (`retry_count`). Adopt margin's `domain.NextRunState` state machine (run `completed` unless `infra_failed > 0`).
+- **Per-instance hard timeout** covering setup+agent+grade (`instance_timeout_seconds`).
+- **Caveat:** margin-lab's `fail_fast` is declared-but-inert — if we want fail-fast, implement it (don't copy the dead field).
+
+Borrow the *instance model + state machine + analytics*, not the store or the in-container agent-server HTTP host (AgentV already has CLI/SDK providers).
+
+---
+
+## 5. Transcripts & agentic graders — borrow vercel-agent-eval
+
+### 5.1 Two-layer transcript (aligns with AgentV ADR-0008)
+- Keep **raw** agent-native transcript (`transcript-raw.jsonl`) AND a **normalized** `transcript.json` with a canonical cross-agent **`tool_name` enum** (`file_read`/`file_write`/`file_edit`/`shell`/`web_fetch`/`web_search`/`glob`/`grep`/`list_dir`/`agent_task`/`unknown`) and a precomputed **`transcript_summary`** (`total_turns`, `tool_calls` map, `files_read`/`files_modified`, `shell_commands`, `web_fetches`, `errors`, `thinking_blocks`).
+- **Inline the summary** into per-instance `result.json` for cheap trajectory assertions (feeds AgentV's `tool-trajectory`/`execution-metrics` graders directly).
+- Per-agent parsers routed by agent id (vercel's `AGENT_PARSERS`).
+
+### 5.2 Agentic LLM judge (evidence-by-path)
+Borrow vercel's judge model, which is stronger than a prompt-stuffed rubric:
+- The judge is a **re-invoked agent in the same workspace** that reads evidence **by path** (transcript file / final environment) rather than having the transcript stuffed into the prompt. Maps onto AgentV's existing `llm-grader`/`code-grader` with `target` + `max_steps`.
+- Two **subjects**: `environment` (inspect final workspace state) and `transcript` (read the transcript) — matches AgentV workspace vs trace grading.
+- **Framework-owned skeptical prompt**, tiny verdict contract `{ pass, score?, reason }` (author supplies only a criterion string). Adopt this as the default `llm-grader` prompt.
+- **Judge pinning** knob: `grader_target` = `{ agent?, model }` with self-grade default. AgentV already has `grader_target`; formalize the `{model}`-required pinning for apples-to-apples comparison.
+- **Gap to fix vs vercel:** they capture no token/cost — AgentV already does; keep it.
+
+### 5.3 `grading.json` contract — reconciled with agentskills (owner-flagged main risk)
+The output contract originates from agentskills' [evaluating-skills](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx). Its `grading.json` is:
+```json
+{ "assertion_results": [ { "text": "…", "passed": true, "evidence": "…" } ],
+  "summary": { "passed": 3, "failed": 1, "total": 4, "pass_rate": 0.75 } }
+```
+i.e. **per-assertion `passed` (boolean) + `evidence`, and a top-level `summary` of counts. There is NO overall `verdict` in agentskills.**
+
+AgentV's current `grading.json` = `EvaluationScore` (`graders/types.ts`) is a **superset**:
+```
+score: number (0-1)                          # fractional (weighted / rubric) — AgentV addition over agentskills' binary
+verdict: 'pass' | 'fail' | 'skip'            # AgentV addition (NOT in agentskills)
+assertions: [{ text, passed, evidence? }]    # ≡ agentskills assertion_results — exact match
++ scores? (child graders), details?, graderRawRequest?, tokenUsage?, graderTarget?
+```
+
+- **Per-assertion: no change.** `{ text, passed, evidence }` already matches agentskills exactly. (Nit: align array key `assertions` → **`assertion_results`** and add the agentskills **`summary`** counts, since agentskills is the source and we're pre-production.)
+- **Overall result: keep a STRING, not a boolean (owner Q resolved).** A boolean `passed` can't express **`skip`** (not-run / dependency-skipped) and doesn't pair with a fractional **`score`**. So keep `verdict: 'pass'|'fail'|'skip'` + `score: number`. `verdict` was an AgentV addition, kept deliberately for the skip state + fractional scoring — this is a "keep AgentV, better semantics" call, not an agentskills field.
+- **Assertion rows are generic (the actual risk):** every AgentV grader returns `assertions[]`; the run artifact flattens them into `grading.json.assertions[]` and also keeps `grading.json.graders[].assertions[]` under each grader. A deterministic string assertion usually emits one row, while multi-aspect graders can emit several rows (field-accuracy per field, execution-metrics per configured metric, tool-trajectory per tool/sequence requirement, code-grader per script-emitted assertion). For structured `g-eval`, the judge's `{pass, score, reason}` maps as `pass`→per-criterion `passed` (+ rolls up to `verdict`), `score`→`score`, `reason`→ per-criterion **`evidence`**. Multi-criteria `g-eval` / bare-string batch §2.k must therefore emit **one assertion row per criterion** as an instance of the generic grader assertion-row contract, not one lumped reason.
+- **Structured rubric inputs stay.** Promptfoo's `g-eval` supports string or string-array criteria and averages aggregate results; DeepEval's `GEval` supports rubric score bands but still stores one metric score/reason. AgentV's `rubrics` shorthand is a structured authoring convenience that unwraps to `g-eval` while preserving per-criterion `weight`, `operator`, `score_ranges`, and `min_score`; do not collapse it to text-only parity. `code-grader` likewise keeps its structured stdin payload and `config`.
+- **Keep `evidence` in `grading.json`.** An SDK comment (`packages/sdk/src/schemas.ts`) nudges evidence toward the trace; override — `grading.json` stays the self-contained verdict record (transcript still in the trace).
+- **Consistency:** define `verdict`/`score`/`passed` derivation once (e.g. `verdict = score >= threshold`; `skip` orthogonal; weighted roll-up via `weight`/`min_score`) + a golden `grading.json` test so they never disagree when the default judge prompt flips.
+- **Net:** the public criteria/rubric rename points to `g-eval`; the real work is the verdict→`assertion_results[]` mapping + the naming alignment (`assertion_results`/`summary`), on the existing `EvaluationScore` — no new contract.
+
+---
+
+## 6. Output artifacts & analytics
+
+### 6.0 Canonical output format — reviewed across all four frameworks (owner Q)
+The subagents reviewed every reference's output format. Verdict: **split artifacts + a top-level aggregate is the canonical, cleanest, most expressive shape — NOT one giant `results.json`.**
+
+| Framework | Shape | Aggregate |
+|---|---|---|
+| **promptfoo** | consolidated: SQLite DB + one export file (`EvaluateSummaryV3`) | in the single file |
+| **margin-lab** | **split**: per-instance `instances/<id>/result.json` + trajectory + logs | top-level `results.json` (`Summary`) |
+| **vercel-agent-eval** | **split**: per-run `result.json` + `transcript.json` + `transcript-raw.jsonl` + `outputs/` (transcript by path, summary inlined) | per-eval `summary.json` |
+| **agentskills** | **split**: per-case `grading.json` + `timing.json` | `benchmark.json` (counts) |
+| **AgentV today** | **split**: `run-N/{grading.json, timing.json}`, transcript by path, `outputs/answer.md`, `file_changes` | run-root `summary.json` + `index.jsonl` |
+
+**Decision (owner): best-of-each hybrid — split bundle, queryable-on-the-filesystem, no DB.** Each part comes from the framework that does it best:
+
+- **Aggregate + queryability ← margin-lab (owner's pick).** The top-level **`summary.json` is a rich, self-contained, `jq`-queryable `Summary`** in margin-lab's shape — `run_id`, `status` breakdown, per-case **pass@k** (`pass_count`/`pass_rate`), per-instance summaries, `usage`, infra-failure taxonomy. You can query the whole run from one file with no database (margin-lab's key strength). Plus **`index.jsonl`** (one row per case) for streaming/line-wise queries (`jq`/`grep` per line) that scale better than a single fat file. AgentV's current top-level `summary.json` must be *widened* to margin's `Summary` richness so it's genuinely queryable, not just a manifest.
+- **Transcript + tool calls + metrics ← vercel (owner's pick).** Two-layer transcript (raw + normalized), canonical **`tool_name` enum**, and a precomputed **`transcript_summary`** (tool_calls, files_read/modified, shell_commands, web_fetches, thinking) — **inlined into each result row** so `tool-trajectory`/`execution-metrics`/pass@k read metrics cheaply without parsing the transcript. Transcript itself referenced **by path** (§5.1). This is where AgentV's trajectory/metrics graders get their signal.
+- **Per-assertion grading ← agentskills.** `grading.json` = `assertion_results[{text, passed, evidence}]` + `summary` counts, plus AgentV's `verdict`/`score` superset (§5.3).
+- **No maintained consolidated single-file export (owner: YAGNI).** Since the split bundle is the source of truth, we do **not** ship or maintain a promptfoo `EvaluateSummaryV3` file. If some external tool ever needs it, it can be **generated on demand** from the bundle — but it's not a first-class artifact. (We still adopt promptfoo-shaped `named_scores`/`derived_metrics` *inside* the split rows, because those feed the Dashboard — that's not a consolidated file.)
+
+So: **split detail** (per-case/per-attempt dirs, transcript by path) + a **margin-style queryable aggregate** (`summary.json`) + **row-per-case `index.jsonl`** + **vercel transcript/metrics** + **agentskills grading**. No DB, no maintained consolidated file; the filesystem is the query surface.
+
+- **Don't over-split.** Keep the agentskills-aligned split (`grading.json`, `timing.json`), transcript-by-path, and the inlined `transcript_summary`; don't add more sidecars. Remove deprecated/duplicate artifact paths (see §10, e.g. `isDeprecatedTraceArtifactPath`).
+
+### 6.0.1 Bundle layout & naming — resolve the index/manifest drift (ADR-0012 refinement)
+Current drift (verified): the per-case index file is `index.jsonl` (`RESULT_INDEX_FILENAME`) but `summary.json` references it as **`manifest_path`** and the resolver is `resolveExistingResultManifestPath()` — "index" and "manifest" name the *same* file. Fix by giving three distinct roles distinct names, and adopt margin-lab's `internal/` folder (dot-prefixed to match AgentV's "dot = skip discovery" convention):
+
+```
+.agentv/results/<run_id>/
+  summary.json          # run-level queryable aggregate (margin `results.json` role) — root, human-facing
+  <test-id>/…           # per-case detail dirs (the discoverable children)
+  .internal/            # machine-coordination (margin's internal/ + AgentV dot-prefix skip)
+    index.jsonl         # row-per-case pointer table (moved off the root)
+    progress.json       # live progress
+    events.jsonl        # state/event stream
+    bundle.json         # frozen resolved config (optional; the "manifest")
+```
+Decisions:
+- **`index.jsonl` stays JSONL** (append-as-you-go for live progress + `--rerun-failed`; streamable; line-queryable). NOT `index.json` (would force whole-file rewrites, not streamable).
+- **Filename considered:** `index.jsonl` (kept) vs `rows.jsonl` vs `manifest.jsonl`. `manifest.jsonl` **rejected** — "manifest" is reserved for the frozen `bundle.json`, and margin uses `manifest.json` for run metadata (reusing it re-creates the drift we're fixing). `index` is precise (each line is a *pointer* into per-case detail — the queryable entry point). `rows.jsonl` is the only acceptable fallback if the singular-file `index.jsonl` vs plural-folder cross-run `.indexes/` overlap is deemed confusing.
+- **Rename the reference `manifest_path` → `index_path`** (+ `resolveExistingResultIndexPath`) so file and field agree. Reserve **"manifest"/`bundle.json`** for the frozen-config file only.
+- **`summary.json`** = the queryable aggregate (do not call it a manifest).
+- Move machine files (`index.jsonl`, `progress.json`, `events.jsonl`, `bundle.json`) into per-run **`.internal/`**; keep the run root clean (`summary.json` + per-case dirs). Cross-run `.indexes/`/`.cache/` at the results root are a separate scope and stay.
+- **Merge `timing.json` into `metrics.json` (owner Q; fixes a real duplication).** Prior discussion: ADR-0011 & ADR-0012 both defined `metrics.json` *and* `timing.json` as separate per-attempt sidecars (`metrics_path` + `timing_path`), and both are written today. But the split is muddy — `timing.json` (`TimingArtifact`) already carries `total_tokens`, `cost_usd`, `token_usage`, `usage_sources` (perf metrics, not just timing), while `metrics.json` carries trace-derived execution/trajectory metrics. **No reference splits them** (agentskills folds tokens+duration into one `timing.json`; vercel/margin keep one per-attempt metrics/result blob). **Decision: one `metrics.json`** per attempt with sections — `duration` (timing), `tokens`, `cost` (always present), and `execution`/trajectory tool-call metrics (present when a trace exists). Drop `timing.json` and the `timing_path` field; keep a single `metrics_path`. The output-contract ADR supersedes the 0011/0012 timing+metrics split.
+
+- **Keep** `.agentv/results/<run_id>/` bundle (ADR-0011/0012). Reconcile field names with margin-lab's `results.json` `Summary` where useful.
+- **Analytics = one pure function** (margin-lab's `runresults.Build`): given instances+results, produce a deterministic `Summary` with per-case **pass@k** (`pass_count`/`pass_rate` over samples), `status` breakdown, `usage` aggregation, and infra-failure taxonomy. AgentV currently lacks pass@k/variance — this fills it.
+- Add promptfoo-shaped **`named_scores`** + **`derived_metrics`** to per-result rows (feeds Dashboard Tags/metrics tabs).
+- Reference transcripts **by relative path** in the result row (vercel), never inline the full transcript.
+- **No maintained consolidated export** — the split bundle is the single source of truth; a promptfoo-shaped single file can be generated on demand if ever needed, but is not shipped (§6.0).
+
+---
+
+## 7. Phasing
+
+1. **Schema spike** — write the snake_cased promptfoo Zod schema alongside the existing one; land conflict decisions from §2 as an ADR (supersede/annotate ADR-0013). *No behavior change.*
+2. **Templating** — introduce nunjucks + array-var expansion behind the new schema.
+3. **Prompts × providers matrix + instance expansion** — compile step producing flat instances; adopt lease-based scheduler (§4).
+4. **Assertion vocabulary** — promptfoo types + `assert`/`assert-set`/`metric`; keep AgentV graders as extensions; add `similar` (embeddings) if wanted.
+5. **Transcript normalization + agentic judge** — canonical `tool_name` enum, `transcript_summary`, evidence-by-path judge, judge pinning (§5).
+6. **Analytics** — pure `Build` summary with pass@k, `named_scores`, `derived_metrics` (§6).
+7. **Datasets/CSV** — `file://…csv` + `__expected` DSL.
+8. **Docs + migration** — dual-format support window; codemod old `assertions`→`assert` etc.; dogfood with live provider + real LLM grader (per `.agents/verification.md`).
+
+Each phase is a reviewable PR; §2 decisions gate phase 1.
+
+---
+
+## 8. Remaining judgment calls
+
+The naming principle + hard-deprecation + the **superset goal** resolve 2.a–2.m. Note the owner scoped the superset pragmatically: it holds over the **implemented** promptfoo surface; unimplemented exotic assertion types and `redteam` are an honest documented gap, not silently accepted (items 1–2). The remaining calls, now all resolved:
+
+1. **Assertion parity scope — RESOLVED (owner).** Launch-real set: string ops, `javascript`, `python`, `g-eval`, `llm-rubric`, `latency`, `cost`, token/execution metrics, `tool-trajectory`, `field-accuracy`, **and `similar`** (requires a configured embeddings provider — new provider config surface). **Do NOT stub the rest** — `context-*`, `moderation`, `guardrails`, `answer-relevance`, `classifier`, `perplexity` are **future scope** (unimplemented, not silently accepted). Consequence: the schema does NOT accept every promptfoo type; superset holds over the *implemented* surface, and unimplemented types are an honest documented gap (handled by the general unknown-type policy, next item).
+2. **Redteam — RESOLVED (owner): treat like any other unrecognized field.** No special-casing. `redteam:` follows AgentV's general unknown-field policy. NB: the eval-file schema is `.strict()` today (unknown top-level keys are rejected), so a promptfoo `redteam` config errors like a typo unless/until that policy is loosened. Documented superset caveat: **superset excludes redteam** (and other unimplemented exotic types).
+3. **`code-grader` vs `javascript`/`python` — RESOLVED (§2.c):** distinct execution paths — `javascript` in-process, `python` subprocess, `code-grader` the subprocess power tool. Not desugared.
+
+**All §8 items are now resolved.** Phase 1 (schema + superseding ADR + codemod + camel→snake importer) can start. The extensions/workspace slice already has an implementation-ready plan in **PR #1592** (see §9).
+
+---
+
+## 9. Reconciliation with PR #1592 (extensions/workspace slice)
+
+PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.md`) is an implementation-ready plan for the **extensions + workspace-removal** slice. It is well-structured and **largely consistent** with this plan — treat it as the **first implementation slice** of §2.l/§4, not a competing design. Confirmed-aligned: promptfoo `file://path:function` extension refs + four hook names (U2); hook-name selects phase; remove core `workspace`, hard (KTD5, AE4); typed extension outputs instead of env-var side channels (KTD3); JS/TS in-process first, Python via code-grader subprocess discipline (KTD4); canonical AgentV run bundle preserved (R8); snake_case docs (U7); adds a skills extension (U5) — a good addition this plan didn't cover, **renamed to `agent-rules`** (see amendment 5 below).
+
+**Amendments needed to align #1592 with the decisions above:**
+
+1. **Workspace spec location — the main divergence.** #1592 routes workspace config through dedicated `extensions/workspace.config.yaml` files (extension-owned config). This plan's §2.b/§2.l decision (owner: "workspace is part of the dataset") puts the per-case spec in **`vars.workspace`** (dataset data), consumed by the extension. Reconcile: **global/shared config in a config file is fine; the per-case spec should be expressible as `vars.workspace`** so it rides the dataset (and `beforeEach` reads it from test context). Amend #1592 U2/U4 to consume `vars.workspace`, not only a config file.
+2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:agent-rules`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
+5. **Rename `skills` → `agent-rules` (owner).** The staging extension isn't skills-only — it stages **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename the built-in to **`agentv:agent-rules`** (kebab — identifier token, like grader types `llm-rubric`/`tool-trajectory`; NOT snake_case), the package to `packages/extensions/agent-rules`, and the provider context field from `skill_paths` to `agent_rules_paths` (snake_case — this IS a data field). `skills` survives only as one *kind* of agent rule, not the extension name.
+   - **Naming convention (general):** identifier/reference tokens are **kebab-case** (`agentv:agent-rules`, `llm-rubric`, `is-json`, `assert-set`); data fields/keys are **snake_case** (`agent_rules_paths`, `vars.workspace`, `max_budget_usd`); npm packages are kebab.
+3. **Isolation model.** #1592 treats `isolation: per_case` as extension config returned by the workspace extension. This plan derives shared-vs-per-case from **which hook** (`beforeAll` vs `beforeEach`) and uses a **reset-based workspace pool** (§4). Reconcile the two: hook selects shared/per-case; pool+reset is the mechanism; `isolation` config, if kept, must not contradict the hook.
+4. **Sequencing vs the wider restructure.** #1592 cites ADR-0013 as authority and proposes ADR-0014. This plan *reverses* parts of ADR-0013 (`assert`, grader names, `input` removal — §2.c/§2.b). #1592 doesn't touch those, so no direct conflict, but ADR-0014 should note the broader superseding ADR is coming so it doesn't re-entrench `input`/`assertions`.
+
+**Verdict:** reasonable and mergeable as the extensions/workspace slice. **Amended (2026-07-02)** — an "Amendments (agreed)" section was added to the #1592 doc capturing A1–A6: hook-derived isolation + reset-based workspace pool (drop the `isolation` config knob), per-case spec in `vars.workspace`, built-in auto-registered `agentv:workspace`/`agentv:agent-rules` scheme alongside `file://`, grading contract unchanged (`EvaluationScore`), ADR-0014 sequencing note, and **rename `skills`→`agent-rules`** (stages skills + hooks + agents + rules). No rewrite required.
+
+---
+
+## 10. Simplification / dead-code cleanup (hard deprecation — no back-compat)
+
+Since this is a major version with nothing in production, **remove** the accumulated `@deprecated` aliases and legacy shims rather than carry them. Verified inventory (grep across `packages/core/src`, `packages/sdk/src`, `apps/cli/src`), grouped by how to handle it.
+
+**A. Pure deprecated aliases / shims — delete now (safe, self-contained, not entangled with the restructure):**
+- `script` alias for `command` in workspace hooks/scripts — `types.ts:218/258/375/401`, `workspace/script-executor.ts:66-69` (runtime warning), `validation/workspace-path-validator.ts:112`. Keep only `command`.
+- `judge_target` → `grader_target` — `providers/types.ts:373`. Remove alias.
+- Legacy grader-provider fields — `graders/llm-grader.ts:95/102` (`resolveGraderProvider`, `graderTargetProvider`), `registry/grader-registry.ts:22/34` (`graderProvider`, `llmGrader`).
+- Legacy rubric gating — `types.ts:480/489-490`, `graders/llm-grader.ts:1316-1325` (0-10 `required_min_score`, numeric `required` thresholds). Keep boolean `required` for hard gates and `min_score` (0-1) for custom thresholds.
+- `EvalCase` → `EvalTest` alias — `types.ts:1053`. (Ties to `eval_cases`→`tests` removal.)
+- Programmatic snake_case `expected_output` aliases in `evaluate.ts:104/127` — keep the YAML/wire field `expected_output` and SDK field `expectedOutput`; remove or clearly isolate only the TypeScript convenience alias if this Group A cleanup reaches the programmatic API surface.
+- `@deprecated Use Message` — `providers/types.ts:255`.
+- `DEFAULT_SEMANTIC_*`/threshold alias — `graders/scoring.ts:26`.
+- `results_by_project` — `validation/config-validator.ts:108` (already a deprecation error; drop the field entirely).
+- Deprecated trace artifact paths — `results-repo.ts:3013/3214` (`isDeprecatedTraceArtifactPath`), `trace.ts:951` legacy persistence path.
+- Backward-compat home/config alias — `paths.ts:20`.
+- Unsupported-field rejection messages that no longer need to exist post-major — `targets-validator.ts:299/308` (`api_format`, `log_format`).
+- **Provider-kind alias sprawl** — `providers/types.ts:110-121`: `azure-openai`, `google`, `google-gemini`, `codex-cli`, `copilot`, `copilot_sdk`, `pi`, `claude-code`, `cc-mirror`, plus `bedrock`/`vertex` ("legacy/future support", currently dead). Keep one canonical name per provider; drop the rest (or keep a *small* documented set). `bedrock`/`vertex` are dead scaffolding → remove until actually implemented.
+
+**B. Removed by the restructure itself (don't double-handle — fold into the relevant phase):**
+- `assertions`/`composite`/`eval_cases`/`experiment`(top-level)/`tests[].input`/`workspace`/`on_run_complete`/`preprocessors`/`${{ ENV }}`/`budget_usd`(top-level, `config-loader.ts:468`)/scalar `threshold`(`config-loader.ts:502`) — all removed as part of §2/§2.l; the `z.never()` rejection stubs (`runs`/`early_exit`/`policy`/`execution`/`model`/`trials`/`workers`) can drop once the new schema lands.
+- The **two conflicting ADR-0013 files** (`0013-stabilize-eval-authoring-contract.md` vs `0013-experiment-is-metadata-expressed-as-tags-experiment.md`) — resolve into the single superseding ADR; don't leave both.
+- Schema/runtime drift: `eval-file.schema.ts` `experiment`/`tags` lag the runtime `metadata.ts` tag-map union — the new schema removes the drift.
+
+**C. Duplicate types to consolidate (judgment, not blind delete):**
+- `EvaluationScore` vs `ChildGraderResult` (`graders/types.ts`) are near-identical (`score`/`verdict`/`assertions`/`graderRawRequest`/`scores`/`details`/`tokenUsage`). Consider one recursive type.
+- **`timing.json` + `metrics.json` → one `metrics.json`** (see §6.0.1). `timing.json` already holds tokens/cost, overlapping `metrics.json`; merge into sections, drop `timing_path`. Supersedes the ADR-0011/0012 split.
+- `orchestrator.ts:495` "legacy workspace pooling toggle" (`workspaceMode`) — reconcile with §4's reset-based pool (one pooling model, not two).
+
+**Sequencing:** land **group A** as its own small, tested, dogfooded cleanup PR *now* (independent of the schema work — pure removal of dead aliases, shrinks the surface the restructure must touch). Handle **group B** inside the restructure phases (they need the new schema first). Do **group C** as targeted refactors with tests. Every deletion needs a green test run + a live dogfood per `.agents/verification.md` before merge.
+
+---
+
+## 11. Quality gate & live dogfood (CargoWise PR-679)
+
+Layered gate (matches `.agents/verification.md`):
+
+1. **Deterministic CI = authoritative merge gate (every bead PR):** `agentv validate`, `bun test` (unit + schema-sync), `typecheck`, `lint`, `build`, Validate Evals. No live provider.
+2. **Live eval dogfood = blocking before ready-for-review:** the **PR-679 CargoWise scenario** with a **live provider + real LLM grader**, producing canonical `.agentv/results/<run_id>/`, evidence to `agentv-private`. Chosen because it exercises the whole restructure at once: repo materialization, the `agentv:workspace` extension, `llm-rubric` agentic judge, transcript/`tool_name`, `grading.json`, output bundle, targets. This is `av-kfik.16`.
+3. **Superset-parity check (recommended):** run PR-679 in **both** promptfoo (the parity example) and AgentV (new format) and diff — proves "snake_cased promptfoo ⊆ AgentV" end-to-end.
+
+### Workspace acquisition — two resolver adapters (= `av-w5cw` → `av-kfik.14`)
+Both materialize a workspace at a pinned `workspace.repos[].commit`; they differ only in source:
+
+- **Local git-mirror path** (default for dev): clone/checkout from the local mirror (`~/projects/WiseTechGlobal/CargoWise`, ~7.3 GB). Offline, fast. The parity example's `git_cache.mirrors`. Not usable in CI (size + private + no LFS creds).
+- **Snapshot-download adapter** (CI): port `WTG.AI.Prompts/scripts/eval-config/download-release-deps.ts` — `agentv workspace deps <evals>` → manifest → download pinned **per-year `.git`-only tarballs** from a release (`snapshot/v1.x.0`), one shared `git clone`+`checkout <sha>` per (repo,commit), symlink each workspace to the shared **read-only** checkout, `GIT_LFS_SKIP_SMUDGE=1`. Reproducible, no full mirror.
+
+Unify under the **resolver** abstraction (already fronted by `agentv workspace deps`): the eval file is identical; the resolver picks mirror (local) vs snapshot (CI) by config/env. `av-kfik.14` carries this two-adapter design; `av-kfik.16` depends on it.
+
+### Acquisition performance — pick the cheapest per environment (owner)
+Not simply "download vs shallow clone". Ordered fastest-first:
+
+1. **Local mirror → alternates/reference clone** (dev): `git clone --reference ~/projects/WiseTechGlobal/CargoWise --shared` (or `--local` hardlinks). Near-instant, zero transfer. This is what `git_cache.mirrors` should do — beats both network-clone and download.
+2. **Direct partial + sparse + shallow clone** (CI default, no producer): `git clone --filter=blob:none --sparse --depth 1 <url>` → `sparse-checkout set <paths>` → `checkout <sha>`. Blobless (no upfront blobs), sparse (only the tree subset the eval reads — **exploit `workspace.repos[].sparse`**), shallow (no history). For one pinned commit + a sparse subset this transfers *less* than the WTG per-year `.git` tarball and needs no infra. Caveat: arbitrary-sha fetch needs server support — pin to a tag or `--revision <sha>` (git ≥2.49) to be safe.
+3. **Snapshot-download adapter** (CI fallback): wins when **amortizing across many commits/evals** (download the year's `.git` once via CDN, local-clone many workspaces from it — `download-release-deps.ts`) or when **sha-fetch/LFS blocks a direct clone**. Costs a producer that publishes snapshots.
+
+The resolver selects 1→2→3 by environment/config. Plain full clone of the 7.3 GB mirror is never the answer.
+
+
+### 11.1 Canonical workspace resolver — provenance vs acquisition (SWE-bench + margin + Harbor + lm-eval)
+Grounded in AgentV research `repo-provisioning-schema-design.md` (compares SWE-bench, Terminal-bench, Margin, lm-eval-harness). Convergent rule: **the case declares WHAT (identity+pin); the harness resolves WHERE-FROM via a selectable backend. Nobody puts acquisition in the task.** SWE-bench's image registry and Margin's suite registry are *acquisition backends*, not identity variants.
+
+**Defect to fix (this supersedes the §11 "acquisition performance" framing):** AgentV's repo entry today tangles identity with acquisition. Split them:
+
+- **Eval declares provenance ONLY:** `repos: [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`. **Remove** `type` (`local` is dead schema), `resolve`, `clone.depth`, `clone.filter`, and the per-repo `resolver` field (→ §10 cleanup).
+- **Acquisition = harness resolver in `$AGENTV_HOME/config.yaml` (NOT the eval), keyed on `repo`**, ordered backends:
+  1. **local checkout auto-adopt** — project whose `git remote origin` matches `repo` → `git clone --reference` (origin-match, no override);
+  2. **bare mirror clone-cache** (`$AGENTV_DATA_DIR/git-cache/<hash(repo)>`) via `--reference` (shared objects);
+  3. **snapshot artifact** (WTG `download-release-deps` reframed as a backend);
+  4. **remote clone** (fallback);
+  5. *(future)* **Docker image** — SWE-bench/margin per-instance image; **same identity key, new backend** → this is how AgentV runs SWE-bench natively.
+- **`--reference` (mirror cache) is the workhorse:** shallow-speed WITH full history, so deep `base_commit` pins never break — **retires the `--depth`/`--filter`/sparse-shallow debate**. Keep `sparse` (content selection) only.
+- **Materialization is declarative harness logic, not a hook.** Hooks (`before_all` etc.) run *after* materialization. Resolver config is machine-local, orthogonal to eval and target YAML. Targets carry no repos.
+
+Net: new acquisition backends (mirror, snapshot, Docker image) plug in without touching the eval schema because all resolve the same `repo`+`commit` pin. This aligns SWE-bench (`base_commit`→`commit`, image registry = backend #5), margin (suite registry = a backend), and Harbor (dataset registry = a backend) under one provenance-only eval contract.
+
+**Inspect AI (4th confirmation, via deepwiki):** Task declares the sandbox (`Dockerfile` to build, or `image:` to pull); the harness owns acquisition in `task_init` (build/pull **once per unique config**, cached). SWE-bench = pull prebuilt image from a registry unless `build`/`x-local: true`. Two ideas to borrow for AgentV's Docker-image backend: the **`image` / `build` / `x-local`** distinction (pull vs build-locally vs local-only) and **per-unique-config init caching** (the same prebuild-once-reuse-many as SWE-bench layered images and our mirror cache). Confirms: provenance in the task, acquisition harness-owned + amortized.

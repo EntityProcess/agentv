@@ -9,7 +9,7 @@
  *   graders:
  *     - name: metrics-present
  *       type: code_grader
- *       script: ["bun", "run", "../scripts/check-metrics-present.ts"]
+ *       command: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
 import { defineCodeGrader } from '@agentv/sdk';
 

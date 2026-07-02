@@ -52,7 +52,6 @@ export interface RepoResolverUnhandledResult {
 export type RepoResolverResult = RepoResolverHandledResult | RepoResolverUnhandledResult;
 
 export type RepoResolverSelection =
-  | { readonly kind: 'explicit'; readonly resolver: RepoResolverConfig }
   | { readonly kind: 'pattern'; readonly resolver: RepoResolverConfig }
   | { readonly kind: 'default'; readonly resolver: RepoResolverConfig };
 
@@ -99,14 +98,6 @@ export function selectRepoResolver(
   repo: RepoConfig,
   resolvers: readonly RepoResolverConfig[],
 ): RepoResolverSelection | undefined {
-  if (repo.resolver) {
-    const resolver = resolvers.find((candidate) => candidate.name === repo.resolver);
-    if (!resolver) {
-      throw new Error(`workspace.repos[].resolver '${repo.resolver}' is not configured.`);
-    }
-    return { kind: 'explicit', resolver };
-  }
-
   const patternResolver = resolvers.find(
     (resolver) => resolver.name !== 'default' && matchesRepoPatterns(repo, resolver.repos),
   );

@@ -345,7 +345,7 @@ Any grader in `assertions` can be marked as `required`. When a required grader f
 | Value | Behavior |
 |-------|----------|
 | `required: true` | Must score >= 0.8 (default threshold) to pass |
-| `required: 0.6` | Must score >= 0.6 to pass (custom threshold between 0 and 1) |
+| `required: true` + `min_score: 0.6` | Must score >= 0.6 to pass (custom threshold between 0 and 1) |
 
 ```yaml
 assertions:
@@ -353,7 +353,8 @@ assertions:
     value: "DENIED"
     required: true          # must pass (>= 0.8)
   - type: rubrics
-    required: 0.6           # must score at least 0.6
+    required: true
+    min_score: 0.6          # must score at least 0.6
     criteria:
       - id: quality
         outcome: Response is well-structured

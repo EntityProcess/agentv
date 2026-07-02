@@ -209,6 +209,9 @@ export class ClaudeCliProvider implements Provider {
   }
 
   private resolveLogDirectory(request: ProviderRequest): string | undefined {
+    if (this.config.streamLog === false) {
+      return undefined;
+    }
     const disabled = isClaudeCliLogStreamingDisabled();
     if (disabled) {
       return undefined;

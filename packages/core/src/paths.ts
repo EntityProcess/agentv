@@ -17,15 +17,6 @@ export function getAgentvConfigDir(): string {
 }
 
 /**
- * Backward-compatible alias for AgentV's home/config directory.
- * Prefer getAgentvConfigDir() for lightweight config files and
- * getAgentvDataDir() for heavy runtime data.
- */
-export function getAgentvHome(): string {
-  return getAgentvConfigDir();
-}
-
-/**
  * AgentV's heavy runtime data directory. Stores workspaces, workspace pool,
  * subagents, trace state, caches, downloaded dependencies, and results clones.
  * AGENTV_DATA_DIR can separate this large data from AGENTV_HOME; when unset it

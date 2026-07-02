@@ -63,14 +63,7 @@ export async function executeWorkspaceScript(
   const timeoutMs = config.timeout_ms ?? (failureMode === 'fatal' ? 60000 : 30000);
   const cwd = config.cwd ?? context.workspaceFileDir ?? context.evalDir;
 
-  // Support both command (canonical) and script (deprecated alias)
-  if (config.script !== undefined && config.command === undefined) {
-    console.warn(
-      "\u001b[33mWarning: 'script' is deprecated in workspace config. Use 'command' instead.\u001b[0m",
-    );
-  }
-  const rawCommand = config.command ?? config.script ?? [];
-  const commandArray = interpolateArgs(rawCommand, context);
+  const commandArray = interpolateArgs(config.command, context);
 
   const result = await execFileWithStdin(commandArray, stdin, {
     timeoutMs,

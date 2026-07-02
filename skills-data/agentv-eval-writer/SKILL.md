@@ -327,7 +327,8 @@ assertions:
     value: "DENIED"
     required: true          # must score >= 0.8 (default)
   - type: rubrics
-    required: 0.6           # must score >= 0.6 (custom threshold)
+    required: true
+    min_score: 0.6          # must score >= 0.6 (custom threshold)
     criteria:
       - id: accuracy
         outcome: Identifies the denied party

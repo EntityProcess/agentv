@@ -162,6 +162,97 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts a snake_cased promptfoo-shaped eval config', () => {
+    const result = EvalFileSchema.safeParse({
+      description: 'Promptfoo-compatible authoring shape',
+      tags: {
+        suite: 'smoke',
+      },
+      prompts: [
+        {
+          label: 'reviewer',
+          raw: 'Review {{ vars.diff }}',
+        },
+      ],
+      targets: [
+        {
+          id: 'local-agent',
+          provider: 'codex',
+          config: {
+            model: 'gpt-5.4-mini',
+          },
+        },
+      ],
+      default_test: {
+        vars: {
+          tone: 'concise',
+        },
+        assert: ['Mentions the highest-risk issue'],
+        options: {
+          disable_default_asserts: true,
+        },
+        threshold: 0.7,
+        metadata: {
+          priority: 'p0',
+        },
+      },
+      tests: [
+        {
+          description: 'grades a fixed provider output',
+          vars: {
+            diff: 'change',
+          },
+          provider_output: 'Looks safe.',
+          assert: [
+            {
+              type: 'contains',
+              value: 'safe',
+              metric: 'safety_text',
+              threshold: 0.5,
+            },
+            {
+              type: 'g-eval',
+              value: ['Identifies user impact', 'Avoids unsupported claims'],
+              score_ranges: [{ score_range: [0, 10], outcome: 'overall quality' }],
+            },
+          ],
+        },
+      ],
+      scenarios: [
+        {
+          description: 'severity variants',
+          config: [{ vars: { severity: 'high' } }],
+          tests: [
+            {
+              vars: { diff: 'critical fix' },
+              assert: [{ type: 'llm-rubric', value: 'Flags the risk clearly' }],
+            },
+          ],
+        },
+      ],
+      derived_metrics: [{ name: 'weighted_quality', value: 'safety_text * 0.5' }],
+      output_path: 'results.json',
+      env: {
+        EVAL_MODE: 'local',
+      },
+      nunjucks_filters: {
+        slug: './filters/slug.ts',
+      },
+      extensions: ['agentv:agent-rules'],
+      evaluate_options: {
+        cache: true,
+        delay: 100,
+        generate_suggestions: false,
+        repeat: 2,
+        timeout_ms: 30_000,
+        max_eval_time_ms: 120_000,
+        filter_range: [0, 10],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('rejects invalid default_test values', () => {
     const invalidThreshold = EvalFileSchema.safeParse({
       default_test: {
@@ -172,7 +263,7 @@ describe('EvalFileSchema input shorthand', () => {
     const unknownDefault = EvalFileSchema.safeParse({
       default_test: {
         threshold: 0.6,
-        assertions: [],
+        unsupported: true,
       },
       tests: [baseTest],
     });
@@ -273,7 +364,7 @@ describe('EvalFileSchema input shorthand', () => {
   it('rejects lifecycle commands under authored policy blocks', () => {
     const result = EvalFileSchema.safeParse({
       policy: {
-        setup: [{ script: 'bun install' }],
+        setup: [{ command: 'bun install' }],
         scripts: ['bun test'],
       },
       tests: [baseTest],
@@ -316,7 +407,26 @@ describe('EvalFileSchema input shorthand', () => {
           criteria: 'Goal',
           run: {
             target: 'other-agent',
-            setup: [{ script: 'bun install' }],
+            setup: [{ command: 'bun install' }],
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects removed workspace hook script alias', () => {
+    const result = EvalFileSchema.safeParse({
+      tests: [
+        {
+          ...baseTest,
+          workspace: {
+            hooks: {
+              before_all: {
+                script: ['bun', 'run', 'setup.ts'],
+              },
+            },
           },
         },
       ],

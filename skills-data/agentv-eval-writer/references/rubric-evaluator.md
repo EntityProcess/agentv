@@ -20,7 +20,6 @@ Rubrics are defined as `assertions` entries with `type: rubrics`. They support b
 | `weight` | number | 1.0 | Relative importance |
 | `required` | boolean | true | Failing forces verdict to 'fail' (checklist mode) |
 | `min_score` | number | - | Minimum score (0–1) to pass this criterion |
-| `required_min_score` | integer | - | **Deprecated.** Use `min_score` instead. Legacy 0–10 scale. |
 | `score_ranges` | map or array | - | Score range definitions for analytic scoring |
 
 ## String Shorthand (Recommended)

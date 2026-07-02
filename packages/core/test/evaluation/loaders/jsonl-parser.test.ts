@@ -230,6 +230,50 @@ describe('loadTestsFromJsonl', () => {
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });
 
+  it('supports inline rubrics field with score_ranges', async () => {
+    const jsonlPath = path.join(tempDir, 'with-score-range-rubrics.jsonl');
+    await writeFile(
+      jsonlPath,
+      `${JSON.stringify({
+        id: 'test-1',
+        criteria: 'Goal',
+        input: [{ role: 'user', content: 'Query' }],
+        rubrics: [
+          {
+            id: 'quality',
+            outcome: 'Answer quality',
+            min_score: 0.8,
+            score_ranges: [
+              { score_range: [0, 4], outcome: 'Weak' },
+              { score_range: [5, 7], outcome: 'Adequate' },
+              { score_range: [8, 10], outcome: 'Strong' },
+            ],
+          },
+        ],
+      })}\n`,
+    );
+
+    const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
+
+    expect(cases).toHaveLength(1);
+    expect(cases[0].assertions).toHaveLength(1);
+    expect(cases[0].assertions?.[0]).toMatchObject({
+      name: 'rubrics',
+      type: 'llm-grader',
+      rubrics: [
+        {
+          id: 'quality',
+          min_score: 0.8,
+          score_ranges: [
+            { score_range: [0, 4], outcome: 'Weak' },
+            { score_range: [5, 7], outcome: 'Adequate' },
+            { score_range: [8, 10], outcome: 'Strong' },
+          ],
+        },
+      ],
+    });
+  });
+
   it('filters by pattern (exact match)', async () => {
     const jsonlPath = path.join(tempDir, 'filter.jsonl');
     await writeFile(

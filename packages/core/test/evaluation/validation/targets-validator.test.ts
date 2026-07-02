@@ -40,6 +40,62 @@ describe('validateTargetsFile', () => {
     ).toBe(false);
   });
 
+  it('warns on removed built-in provider aliases', async () => {
+    const filePath = path.join(tempDir, 'removed-provider-aliases.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: azure-alias
+    provider: azure-openai
+  - name: google-alias
+    provider: google
+  - name: google-gemini-alias
+    provider: google-gemini
+  - name: codex-cli-alias
+    provider: codex-cli
+  - name: copilot-alias
+    provider: copilot
+  - name: copilot-sdk-alias
+    provider: copilot_sdk
+  - name: pi-alias
+    provider: pi
+  - name: claude-code-alias
+    provider: claude-code
+  - name: cc-mirror-alias
+    provider: cc-mirror
+  - name: bedrock-future
+    provider: bedrock
+  - name: vertex-future
+    provider: vertex
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    for (const provider of [
+      'azure-openai',
+      'google',
+      'google-gemini',
+      'codex-cli',
+      'copilot',
+      'copilot_sdk',
+      'pi',
+      'claude-code',
+      'cc-mirror',
+      'bedrock',
+      'vertex',
+    ]) {
+      expect(
+        result.errors.some(
+          (error) =>
+            error.severity === 'warning' &&
+            error.location.endsWith('.provider') &&
+            error.message.includes(`Unknown provider '${provider}'`),
+        ),
+      ).toBe(true);
+    }
+  });
+
   it('rejects camelCase target aliases', async () => {
     const filePath = path.join(tempDir, 'camel-case-aliases.yaml');
     await writeFile(
@@ -262,7 +318,70 @@ describe('validateTargetsFile', () => {
     }
   });
 
-  it('rejects azure api_format with a migration error', async () => {
+  it('rejects removed judge_target alias', async () => {
+    const filePath = path.join(tempDir, 'judge-target-alias.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: codex-agent
+    provider: codex
+    model: gpt-5
+    judge_target: grader
+  - name: grader
+    provider: openai
+    model: gpt-5-mini
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].judge_target' &&
+          error.message.includes("'judge_target' field has been removed"),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects removed log_format target aliases', async () => {
+    const filePath = path.join(tempDir, 'log-format-aliases.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - name: copilot-agent
+    provider: copilot-cli
+    log_format: json
+  - name: claude-agent
+    provider: claude
+    log_output_format: summary
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].log_format' &&
+          error.message.includes("Use 'stream_log: raw'"),
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[1].log_output_format' &&
+          error.message.includes("Use 'stream_log: raw'"),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects azure api_format with a removed-field error', async () => {
     const filePath = path.join(tempDir, 'azure-api-format.yaml');
     await writeFile(
       filePath,
@@ -283,7 +402,7 @@ describe('validateTargetsFile', () => {
         (error) =>
           error.severity === 'error' &&
           error.location === 'targets[0].api_format' &&
-          /'api_format' field is no longer supported/i.test(error.message),
+          /'api_format' field has been removed/i.test(error.message),
       ),
     ).toBe(true);
   });

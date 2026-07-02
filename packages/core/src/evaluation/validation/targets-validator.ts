@@ -7,7 +7,7 @@ import {
   COMMON_TARGET_SETTINGS,
   findDeprecatedCamelCaseTargetWarnings,
 } from '../providers/targets.js';
-import { KNOWN_PROVIDERS, PROVIDER_ALIASES } from '../providers/types.js';
+import { KNOWN_PROVIDERS } from '../providers/types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -133,7 +133,6 @@ const COPILOT_SDK_SETTINGS = new Set([
   'cwd',
   'timeout_seconds',
   'log_dir',
-  'log_format',
   'stream_log',
   'system_prompt',
   'subprovider',
@@ -157,7 +156,6 @@ const COPILOT_CLI_SETTINGS = new Set([
   'cwd',
   'timeout_seconds',
   'log_dir',
-  'log_format',
   'stream_log',
   'system_prompt',
   'subprovider',
@@ -208,15 +206,11 @@ const CLAUDE_SETTINGS = new Set([
   'timeout_seconds',
   'log_dir',
   'log_directory',
-  'log_format',
-  'log_output_format',
   'stream_log',
   'system_prompt',
   'max_turns',
   'max_budget_usd',
 ]);
-
-const CC_MIRROR_SETTINGS = new Set([...CLAUDE_SETTINGS, 'variant']);
 
 function getKnownSettings(provider: string): Set<string> | null {
   const normalizedProvider = provider.toLowerCase();
@@ -226,27 +220,18 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'openrouter':
       return OPENROUTER_SETTINGS;
     case 'azure':
-    case 'azure-openai':
       return AZURE_SETTINGS;
     case 'anthropic':
       return ANTHROPIC_SETTINGS;
     case 'gemini':
-    case 'google':
-    case 'google-gemini':
       return GEMINI_SETTINGS;
     case 'codex':
-    case 'codex-cli':
       return CODEX_SETTINGS;
     case 'copilot-sdk':
-    case 'copilot_sdk':
       return COPILOT_SDK_SETTINGS;
-    case 'copilot':
     case 'copilot-cli':
       return COPILOT_CLI_SETTINGS;
-    case 'cc-mirror':
-      return CC_MIRROR_SETTINGS;
     case 'claude':
-    case 'claude-code':
     case 'claude-cli':
     case 'claude-sdk':
       return CLAUDE_SETTINGS;
@@ -296,30 +281,10 @@ function validateUnknownSettings(
     azure: new Map([
       [
         'api_format',
-        "The 'api_format' field is no longer supported on Azure targets. " +
+        "The 'api_format' field has been removed from Azure targets. " +
           "AgentV always uses Azure's Responses API (`/openai/v1/responses`). " +
           "If your deployment only exposes /chat/completions, use 'provider: openai' " +
           "with a deployment-scoped 'base_url' instead.",
-      ],
-    ]),
-    codex: new Map([
-      [
-        'log_format',
-        "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
-      ],
-      [
-        'log_output_format',
-        "The 'log_output_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
-      ],
-    ]),
-    'codex-cli': new Map([
-      [
-        'log_format',
-        "The 'log_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
-      ],
-      [
-        'log_output_format',
-        "The 'log_output_format' field is no longer supported on Codex targets. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.",
       ],
     ]),
   };
@@ -333,6 +298,15 @@ function validateUnknownSettings(
         location: `${location}.${key}`,
         message:
           'workspace_template has been removed from targets. Use eval-level workspace.template instead.',
+      });
+      continue;
+    }
+    if (key === 'log_format' || key === 'log_output_format') {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message: `The '${key}' field has been removed. Use 'stream_log: raw' for per-event logs or 'stream_log: summary' for consolidated logs.`,
       });
       continue;
     }
@@ -548,7 +522,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
   }
 
   // Validate each target definition
-  const knownProviders = [...KNOWN_PROVIDERS, ...PROVIDER_ALIASES];
+  const knownProviders: readonly string[] = [...KNOWN_PROVIDERS];
 
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];
@@ -644,9 +618,17 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       validateUnknownSettings(target, provider, absolutePath, location, errors);
     }
 
-    // Optional field: grader_target / judge_target (must be string if present)
-    const graderTarget = target.grader_target ?? target.judge_target;
-    if (graderTarget !== undefined && typeof graderTarget !== 'string') {
+    if (target.judge_target !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.judge_target`,
+        message: "The 'judge_target' field has been removed. Use 'grader_target' instead.",
+      });
+    }
+
+    // Optional field: grader_target (must be string if present)
+    if (target.grader_target !== undefined && typeof target.grader_target !== 'string') {
       errors.push({
         severity: 'error',
         filePath: absolutePath,

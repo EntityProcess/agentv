@@ -5,7 +5,7 @@ export type GraderCommand = string | readonly string[];
 export interface GraderHelperOptions {
   readonly name?: string;
   readonly weight?: number;
-  readonly required?: boolean | number;
+  readonly required?: boolean;
   readonly minScore?: number;
   readonly negate?: boolean;
 }
@@ -13,7 +13,7 @@ export interface GraderHelperOptions {
 export interface GraderCommonConfig {
   readonly name?: string;
   readonly weight?: number;
-  readonly required?: boolean | number;
+  readonly required?: boolean;
   readonly minScore?: number;
   readonly negate?: boolean;
 }
@@ -57,7 +57,6 @@ export interface GraderRubric {
   readonly weight?: number;
   readonly required?: boolean;
   readonly minScore?: number;
-  readonly requiredMinScore?: number;
   readonly scoreRanges?: readonly GraderScoreRange[];
 }
 

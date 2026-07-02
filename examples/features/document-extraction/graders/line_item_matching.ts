@@ -2,7 +2,7 @@
 /**
  * Line Item Matching Grader
  *
- * A code_grader that matches expected line items to parsed line items using
+ * A code-grader that matches expected line items to parsed line items using
  * greedy matching before scoring. This handles reordered and duplicate items.
  *
  * Matching strategy (greedy):
@@ -15,8 +15,8 @@
  * ```yaml
  * graders:
  *   - name: line_items_matched
- *     type: code_grader
- *     script: ["bun", "run", "../graders/line_item_matching.ts"]
+ *     type: code-grader
+ *     command: ["bun", "run", "../graders/line_item_matching.ts"]
  *     match_fields: ["description"]  # Fields used for matching
  *     score_fields: ["description", "quantity", "line_total"]  # Fields to score
  *     threshold: 0.8  # Similarity threshold for matching

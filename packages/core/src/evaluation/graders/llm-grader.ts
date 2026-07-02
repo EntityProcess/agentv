@@ -92,15 +92,11 @@ type GraderProviderResolver = (context: EvaluationContext) => Promise<Provider |
 
 export interface LlmGraderOptions {
   readonly resolveGraderProvider: GraderProviderResolver;
-  /** @deprecated Use `resolveGraderProvider` instead. */
-  readonly resolveJudgeProvider?: GraderProviderResolver;
   readonly maxOutputTokens?: number;
   readonly temperature?: number;
   readonly graderTemplate?: string;
   readonly maxSteps?: number;
   readonly graderTargetProvider?: Provider;
-  /** @deprecated Use `graderTargetProvider` instead. */
-  readonly judgeTargetProvider?: Provider;
 }
 
 const freeformEvaluationSchema = z.object({
@@ -213,13 +209,12 @@ export class LlmGrader implements Grader {
   private readonly graderTargetProvider?: Provider;
 
   constructor(options: LlmGraderOptions) {
-    this.resolveGraderProvider = (options.resolveGraderProvider ??
-      options.resolveJudgeProvider) as NonNullable<typeof options.resolveGraderProvider>;
+    this.resolveGraderProvider = options.resolveGraderProvider;
     this.maxOutputTokens = options.maxOutputTokens;
     this.temperature = options.temperature;
     this.graderTemplate = options.graderTemplate;
     this.maxSteps = Math.min(options.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_LIMIT);
-    this.graderTargetProvider = options.graderTargetProvider ?? options.judgeTargetProvider;
+    this.graderTargetProvider = options.graderTargetProvider;
   }
 
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
@@ -937,11 +932,7 @@ export class LlmGrader implements Grader {
     for (const rubric of rubrics) {
       const weightLabel = rubric.weight !== 1.0 ? ` (weight: ${rubric.weight})` : '';
       const minScoreLabel =
-        rubric.min_score !== undefined
-          ? ` [REQUIRED: min score ${rubric.min_score}]`
-          : rubric.required_min_score !== undefined
-            ? ` [REQUIRED: min score ${rubric.required_min_score}]`
-            : '';
+        rubric.min_score !== undefined ? ` [REQUIRED: min score ${rubric.min_score}]` : '';
 
       parts.push('', `### Criterion: ${rubric.id}${weightLabel}${minScoreLabel}`);
 
@@ -1280,7 +1271,7 @@ Important: The "score" must be an integer from 0 to 10 that falls within one of 
  * Calculate score from score-range rubric evaluation results.
  * - Normalizes each criterion score (0-10) to 0-1 by dividing by 10
  * - Computes weighted average across criteria
- * - Applies required_min_score gating (force fail if below threshold)
+ * - Applies min_score gating (force fail if below threshold)
  */
 function calculateScoreRangeResult(
   result: z.infer<typeof scoreRangeEvaluationSchema>,
@@ -1311,19 +1302,7 @@ function calculateScoreRangeResult(
     totalWeight += rubric.weight;
     weightedScoreSum += normalizedScore * rubric.weight;
 
-    // Determine required minimum score (as normalized 0-1):
-    // - If min_score is set (0-1), use directly
-    // - If required_min_score is set (legacy 0-10), normalize to 0-1
-    // - If required is true (legacy), treat as min_score: 1.0
-    // - Otherwise, no gating
-    let minScoreThreshold: number | undefined;
-    if (rubric.min_score !== undefined) {
-      minScoreThreshold = rubric.min_score;
-    } else if (rubric.required_min_score !== undefined) {
-      minScoreThreshold = rubric.required_min_score / 10;
-    } else if (rubric.required === true) {
-      minScoreThreshold = 1.0; // Legacy: required: true means must score 10/10
-    }
+    const minScoreThreshold = rubric.min_score;
 
     // Find the matching score range description for reporting
     const matchingRange = rubric.score_ranges?.find(

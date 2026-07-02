@@ -79,7 +79,7 @@ describe('inline experiment config', () => {
     expect(() => normalizeExperimentConfig({ repeat: { count: 2, costLimitUsd: 1 } })).toThrow(
       /repeat.costLimitUsd/,
     );
-    expect(() => normalizeExperimentConfig({ setup: [{ script: 'bun install' }] })).toThrow(
+    expect(() => normalizeExperimentConfig({ setup: [{ command: 'bun install' }] })).toThrow(
       /setup is not supported/,
     );
     expect(() => normalizeExperimentConfig({ scripts: ['bun test'] })).toThrow(

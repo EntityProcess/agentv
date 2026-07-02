@@ -103,25 +103,6 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
 ] as const;
 
 /**
- * Provider aliases that are accepted in target definitions.
- * These map to the canonical ProviderKind values.
- */
-export const PROVIDER_ALIASES: readonly string[] = [
-  'azure-openai', // alias for "azure"
-  'google', // alias for "gemini"
-  'google-gemini', // alias for "gemini"
-  'codex-cli', // alias for "codex"
-  'copilot', // alias for "copilot-cli" (default copilot experience)
-  'copilot_sdk', // alias for "copilot-sdk" (underscore variant)
-
-  'pi', // alias for "pi-coding-agent"
-  'claude-code', // alias for "claude" (legacy)
-  'cc-mirror', // alias for "claude-cli" (auto-discovers binary from ~/.cc-mirror/<variant>/)
-  'bedrock', // legacy/future support
-  'vertex', // legacy/future support
-] as const;
-
-/**
  * Schema identifier for targets.yaml files (version 2).
  */
 export const TARGETS_SCHEMA_V2 = 'agentv-targets-v2.2';
@@ -252,9 +233,6 @@ export interface Message {
   readonly tokenUsage?: ProviderTokenUsage;
 }
 
-/** @deprecated Use Message instead */
-export type OutputMessage = Message;
-
 /**
  * Token usage metrics reported by provider.
  */
@@ -370,8 +348,6 @@ export interface TargetDefinition {
   // Supports ${{ ENV_VAR }} syntax (e.g., use_target: ${{ AGENT_TARGET }}).
   readonly use_target?: string | unknown | undefined;
   readonly grader_target?: string | undefined;
-  /** @deprecated Use `grader_target` instead */
-  readonly judge_target?: string | undefined;
   readonly workers?: number | undefined;
   // Provider batching
   readonly provider_batching?: boolean | undefined;
@@ -409,9 +385,7 @@ export interface TargetDefinition {
   readonly timeout_seconds?: number | unknown | undefined;
   readonly log_dir?: string | unknown | undefined;
   readonly log_directory?: string | unknown | undefined;
-  readonly log_format?: string | unknown | undefined;
-  readonly log_output_format?: string | unknown | undefined;
-  /** New stream_log field — replaces log_format. false=no stream log, 'raw'=per-event, 'summary'=consolidated. */
+  /** false=no stream log, 'raw'=per-event, 'summary'=consolidated. */
   readonly stream_log?: string | boolean | unknown | undefined;
   // System prompt (codex, copilot, claude, pi-coding-agent)
   readonly system_prompt?: string | unknown | undefined;

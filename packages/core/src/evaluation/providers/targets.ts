@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 
@@ -112,7 +110,6 @@ export const CliTargetInputSchema = z
 
     // Common target fields
     grader_target: z.string().optional(),
-    judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
     provider_batching: z.boolean().optional(),
   })
@@ -597,8 +594,8 @@ const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
   ['timeoutSeconds', 'timeout_seconds'],
   ['logDir', 'log_dir'],
   ['logDirectory', 'log_directory'],
-  ['logFormat', 'log_format'],
-  ['logOutputFormat', 'log_output_format'],
+  ['logFormat', 'stream_log'],
+  ['logOutputFormat', 'stream_log'],
   ['systemPrompt', 'system_prompt'],
   ['maxTurns', 'max_turns'],
   ['maxBudgetUsd', 'max_budget_usd'],
@@ -694,6 +691,25 @@ function assertNoDeprecatedCamelCaseTargetFields(definition: TargetDefinition): 
   throw new Error(
     `${warning.location}: camelCase field '${field}' is no longer supported in targets.yaml. Use '${replacement}' instead.`,
   );
+}
+
+function assertNoRemovedTargetFields(definition: TargetDefinition): void {
+  const rawDefinition = definition as unknown as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'judge_target')) {
+    throw new Error(
+      `target "${definition.name}".judge_target: field 'judge_target' has been removed. Use 'grader_target' instead.`,
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'log_format')) {
+    throw new Error(
+      `target "${definition.name}".log_format: field 'log_format' has been removed. Use 'stream_log' instead.`,
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'log_output_format')) {
+    throw new Error(
+      `target "${definition.name}".log_output_format: field 'log_output_format' has been removed. Use 'stream_log' instead.`,
+    );
+  }
 }
 
 export function findDeprecatedCamelCaseTargetWarnings(
@@ -810,7 +826,6 @@ const BASE_TARGET_SCHEMA = z
     provider: z.string().optional(),
     use_target: z.string().optional(),
     grader_target: z.string().optional(),
-    judge_target: z.string().optional(), // backward compat
     workers: z.number().int().min(1).optional(),
     subagent_mode_allowed: z.boolean().optional(),
     fallback_targets: z.array(z.string().min(1)).optional(),
@@ -945,6 +960,7 @@ export function resolveTargetDefinition(
   options?: { readonly emitDeprecationWarnings?: boolean },
 ): ResolvedTarget {
   void options;
+  assertNoRemovedTargetFields(definition);
   assertNoDeprecatedCamelCaseTargetFields(definition);
 
   const parsed = BASE_TARGET_SCHEMA.parse(definition);
@@ -966,7 +982,7 @@ export function resolveTargetDefinition(
   const fallbackTargets = parsed.fallback_targets;
   const base = {
     name: parsed.name,
-    graderTarget: parsed.grader_target ?? parsed.judge_target,
+    graderTarget: parsed.grader_target,
     workers: parsed.workers,
     providerBatching,
     subagentModeAllowed,
@@ -987,7 +1003,6 @@ export function resolveTargetDefinition(
         config: resolveOpenRouterConfig(parsed, env),
       };
     case 'azure':
-    case 'azure-openai':
       return {
         kind: 'azure',
         ...base,
@@ -1000,28 +1015,23 @@ export function resolveTargetDefinition(
         config: resolveAnthropicConfig(parsed, env),
       };
     case 'gemini':
-    case 'google':
-    case 'google-gemini':
       return {
         kind: 'gemini',
         ...base,
         config: resolveGeminiConfig(parsed, env),
       };
     case 'codex':
-    case 'codex-cli':
       return {
         kind: 'codex',
         ...base,
         config: resolveCodexConfig(parsed, env, evalFilePath),
       };
     case 'copilot-sdk':
-    case 'copilot_sdk':
       return {
         kind: 'copilot-sdk',
         ...base,
         config: resolveCopilotSdkConfig(parsed, env, evalFilePath),
       };
-    case 'copilot':
     case 'copilot-cli':
       return {
         kind: 'copilot-cli',
@@ -1034,7 +1044,6 @@ export function resolveTargetDefinition(
         ...base,
         config: resolveCopilotLogConfig(parsed, env),
       };
-    case 'pi':
     case 'pi-coding-agent':
       return {
         kind: 'pi-coding-agent',
@@ -1047,24 +1056,7 @@ export function resolveTargetDefinition(
         ...base,
         config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
-    case 'cc-mirror': {
-      const variantName =
-        resolveOptionalString(parsed.variant, env, `${parsed.name} cc-mirror variant`, {
-          allowLiteral: true,
-          optionalEnv: true,
-        }) ?? parsed.name;
-      // If executable is explicitly set, use it; otherwise auto-discover from variant.json
-      if (!parsed.executable) {
-        parsed.executable = resolveCcMirrorBinaryPath(variantName);
-      }
-      return {
-        kind: 'claude-cli',
-        ...base,
-        config: resolveClaudeConfig(parsed, env, evalFilePath),
-      };
-    }
     case 'claude':
-    case 'claude-code':
     case 'claude-cli':
       return {
         kind: 'claude-cli',
@@ -1159,7 +1151,7 @@ function resolveAzureConfig(
   // documented escape hatch instead of silently 400-ing on every call.
   if (target.api_format !== undefined) {
     throw new Error(
-      `The 'api_format' field is no longer supported on Azure targets ('${target.name}'). AgentV always uses Azure's Responses API. If your deployment only exposes /chat/completions, use 'provider: openai' with a deployment-scoped 'base_url' instead. See docs/targets/llm-providers for details.`,
+      `The 'api_format' field has been removed from Azure targets ('${target.name}'). AgentV always uses Azure's Responses API. If your deployment only exposes /chat/completions, use 'provider: openai' with a deployment-scoped 'base_url' instead. See docs/targets/llm-providers for details.`,
     );
   }
 
@@ -1333,11 +1325,6 @@ function resolveCodexConfig(
   const logDirSource = target.log_dir ?? target.log_directory;
   const systemPromptSource = target.system_prompt;
 
-  if (target.log_format !== undefined || target.log_output_format !== undefined) {
-    throw new Error(
-      `${target.name}: log_format is no longer supported for codex targets. Use stream_log instead.`,
-    );
-  }
   const streamLogResult = resolveStreamLog({ name: target.name, stream_log: target.stream_log });
 
   const model = resolveOptionalString(modelSource, env, `${target.name} codex model`, {
@@ -1493,26 +1480,11 @@ function normalizeCodexApprovalPolicy(value: string | undefined): CodexApprovalP
   );
 }
 
-/**
- * Resolve the stream_log config field, falling back to log_format with a
- * deprecation warning.
- *
- * Resolution order:
- *   1. stream_log (new canonical field)
- *   2. log_format / log_output_format (deprecated, mapped to stream_log equivalent)
- *   3. environment variable fallback (optional)
- *
- * Mapping: log_format 'json' → 'raw', log_format 'summary' → 'summary'.
- */
-function resolveStreamLog(
-  target: { stream_log?: unknown; log_format?: unknown; log_output_format?: unknown; name: string },
-  envFallback?: unknown,
-): {
+/** Resolve canonical stream_log config and the legacy logger format it implies. */
+function resolveStreamLog(target: { stream_log?: unknown; name: string }): {
   streamLog: false | 'raw' | 'summary' | undefined;
   logFormat: 'summary' | 'json' | undefined;
-  deprecationWarning?: string;
 } {
-  // 1. New stream_log field takes precedence
   if (target.stream_log !== undefined && target.stream_log !== null) {
     const val = target.stream_log;
     if (val === false || val === 'false') {
@@ -1527,27 +1499,7 @@ function resolveStreamLog(
     throw new Error(`${target.name}: stream_log must be false, 'raw', or 'summary'`);
   }
 
-  // 2. Fall back to log_format (deprecated)
-  const logFormatRaw = target.log_format ?? target.log_output_format ?? envFallback;
-  if (logFormatRaw === undefined || logFormatRaw === null) {
-    return { streamLog: undefined, logFormat: undefined };
-  }
-
-  if (typeof logFormatRaw !== 'string') {
-    throw new Error(`${target.name}: log_format must be 'summary' or 'json'`);
-  }
-
-  const normalized = logFormatRaw.trim().toLowerCase();
-  if (normalized !== 'json' && normalized !== 'summary') {
-    throw new Error(`${target.name}: log_format must be 'summary' or 'json'`);
-  }
-
-  const streamLogEquivalent = normalized === 'json' ? 'raw' : 'summary';
-  return {
-    streamLog: streamLogEquivalent,
-    logFormat: normalized as 'json' | 'summary',
-    deprecationWarning: `${target.name}: 'log_format' is deprecated and will be removed in v4.16. Use 'stream_log: ${streamLogEquivalent}' instead (log_format: '${normalized}' → stream_log: '${streamLogEquivalent}').`,
-  };
+  return { streamLog: undefined, logFormat: undefined };
 }
 
 function resolveCopilotSdkConfig(
@@ -1563,13 +1515,9 @@ function resolveCopilotSdkConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const cliUrl = resolveOptionalString(cliUrlSource, env, `${target.name} copilot-sdk cli URL`, {
     allowLiteral: true,
@@ -1615,8 +1563,6 @@ function resolveCopilotSdkConfig(
     },
   );
 
-  const logFormat = normalizeCopilotLogFormat(logFormatSource);
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1633,7 +1579,7 @@ function resolveCopilotSdkConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
     ...(customProvider ? { customProvider } : {}),
@@ -1730,13 +1676,9 @@ function resolveCopilotCliConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} copilot-cli executable`, {
@@ -1768,8 +1710,6 @@ function resolveCopilotCliConfig(
     },
   );
 
-  const logFormat = normalizeCopilotLogFormat(logFormatSource);
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1783,19 +1723,11 @@ function resolveCopilotCliConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
     ...(customProvider ? { customProvider } : {}),
   };
-}
-
-function normalizeCopilotLogFormat(value: unknown): 'summary' | 'json' | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'string') throw new Error("copilot log format must be 'summary' or 'json'");
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'json' || normalized === 'summary') return normalized;
-  throw new Error("copilot log format must be 'summary' or 'json'");
 }
 
 function resolvePiCodingAgentConfig(
@@ -1811,13 +1743,9 @@ function resolvePiCodingAgentConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -1867,9 +1795,6 @@ function resolvePiCodingAgentConfig(
     optionalEnv: true,
   });
 
-  const logFormat =
-    logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1885,7 +1810,7 @@ function resolvePiCodingAgentConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
@@ -1905,13 +1830,9 @@ function resolvePiCliConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource = target.log_format;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
@@ -1968,9 +1889,6 @@ function resolvePiCliConfig(
     optionalEnv: true,
   });
 
-  const logFormat =
-    logFormatSource === 'json' || logFormatSource === 'summary' ? logFormatSource : undefined;
-
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
       ? systemPromptSource.trim()
@@ -1988,7 +1906,7 @@ function resolvePiCliConfig(
     cwd,
     timeoutMs,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
@@ -2018,14 +1936,9 @@ function resolveClaudeConfig(
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
-  const logFormatSource =
-    target.log_format ?? target.log_output_format ?? env.AGENTV_CLAUDE_LOG_FORMAT;
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-  if (streamLogResult.deprecationWarning) {
-    process.stderr.write(`[agentv] ⚠ ${streamLogResult.deprecationWarning}\n`);
-  }
 
   const executable =
     resolveOptionalString(executableSource, env, `${target.name} claude-cli executable`, {
@@ -2049,8 +1962,6 @@ function resolveClaudeConfig(
     allowLiteral: true,
     optionalEnv: true,
   });
-
-  const logFormat = normalizeClaudeLogFormat(logFormatSource);
 
   const systemPrompt =
     typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
@@ -2076,51 +1987,10 @@ function resolveClaudeConfig(
     maxTurns,
     maxBudgetUsd,
     logDir,
-    logFormat,
+    logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     bypassPermissions,
   };
-}
-
-/**
- * Resolve the binary path for a cc-mirror variant.
- * Reads ~/.cc-mirror/<variant>/variant.json → binaryPath.
- */
-function resolveCcMirrorBinaryPath(variant: string): string {
-  const variantJsonPath = path.join(homedir(), '.cc-mirror', variant, 'variant.json');
-  if (!existsSync(variantJsonPath)) {
-    throw new Error(
-      `cc-mirror variant "${variant}": ${variantJsonPath} not found. Install the variant or set "executable" explicitly.`,
-    );
-  }
-  let parsed: { binaryPath?: string };
-  try {
-    parsed = JSON.parse(readFileSync(variantJsonPath, 'utf8'));
-  } catch (e) {
-    throw new Error(
-      `cc-mirror variant "${variant}": failed to parse ${variantJsonPath}: ${(e as Error).message}`,
-    );
-  }
-  if (typeof parsed.binaryPath !== 'string' || parsed.binaryPath.trim().length === 0) {
-    throw new Error(
-      `cc-mirror variant "${variant}": ${variantJsonPath} missing "binaryPath" field`,
-    );
-  }
-  return parsed.binaryPath;
-}
-
-function normalizeClaudeLogFormat(value: unknown): 'summary' | 'json' | undefined {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (typeof value !== 'string') {
-    throw new Error("claude log format must be 'summary' or 'json'");
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'json' || normalized === 'summary') {
-    return normalized;
-  }
-  throw new Error("claude log format must be 'summary' or 'json'");
 }
 
 function resolveMockConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): MockResolvedConfig {

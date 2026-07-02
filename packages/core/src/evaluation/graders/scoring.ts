@@ -23,9 +23,6 @@ import type { EvaluationScore } from './types.js';
 /** Default score threshold for pass verdict (0-1). Scores below this are fail. */
 export const DEFAULT_THRESHOLD = 0.8;
 
-/** @deprecated Use DEFAULT_THRESHOLD instead. */
-export const PASS_THRESHOLD = DEFAULT_THRESHOLD;
-
 export function scoreToVerdict(score: number, threshold = DEFAULT_THRESHOLD): EvaluationVerdict {
   return score >= threshold ? 'pass' : 'fail';
 }

@@ -108,7 +108,7 @@ describe('grader helper config builders', () => {
                 {
                   id: 'useful',
                   outcome: 'The answer is useful.',
-                  requiredMinScore: 8,
+                  minScore: 0.8,
                 },
               ],
             }),
@@ -157,7 +157,7 @@ describe('grader helper config builders', () => {
           {
             id: 'useful',
             outcome: 'The answer is useful.',
-            required_min_score: 8,
+            min_score: 0.8,
           },
         ],
       },
@@ -177,11 +177,12 @@ describe('grader helper config builders', () => {
     expect(yaml).toContain('type: code-grader');
     expect(yaml).toContain('max_steps: 2');
     expect(yaml).toContain('max_calls: 2');
-    expect(yaml).toContain('required_min_score: 8');
+    expect(yaml).toContain('min_score: 0.8');
     expect(yaml).toContain('score_range:');
     expect(yaml).not.toContain('maxSteps');
     expect(yaml).not.toContain('maxCalls');
     expect(yaml).not.toContain('requiredMinScore');
+    expect(yaml).not.toContain('required_min_score');
     expect(yaml).not.toContain('scoreRange');
   });
 });
