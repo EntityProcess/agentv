@@ -6,12 +6,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+const VERSION_SLUG_PATTERN = /^(v\d+\.\d+\.\d+|next)$/;
+
 const version = process.argv[2];
 const sourceRef = process.argv[3] ?? version;
 const execFile = promisify(execFileWithCallback);
 
-if (!version || !/^v\d+\.\d+\.\d+$/.test(version)) {
-  console.error('Usage: node scripts/snapshot-docs-version.mjs vX.Y.Z [source-ref]');
+if (!version || !VERSION_SLUG_PATTERN.test(version)) {
+  console.error('Usage: node scripts/snapshot-docs-version.mjs <vX.Y.Z|next> [source-ref]');
   process.exit(1);
 }
 
@@ -48,7 +50,7 @@ try {
 const docsEntries = await readdir(extractedDocsRoot, { withFileTypes: true });
 for (const entry of docsEntries) {
   if (ignoredTopLevel.has(entry.name)) continue;
-  if (/^v\d+\.\d+\.\d+$/.test(entry.name)) continue;
+  if (VERSION_SLUG_PATTERN.test(entry.name)) continue;
   await cp(path.join(extractedDocsRoot, entry.name), path.join(snapshotRoot, entry.name), {
     recursive: true,
   });

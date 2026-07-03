@@ -1,0 +1,83 @@
+---
+title: Quick Start
+description: Create and run your first evaluation
+sidebar:
+  order: 3
+slug: docs/next/getting-started/quickstart
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+Follow these steps to create and run your first evaluation.
+
+## 1. Install AgentV plugin
+
+```bash
+npx allagents plugin marketplace add EntityProcess/agentv
+npx allagents plugin install agentv-dev@agentv
+```
+
+## 2. Ask Claude to bootstrap AgentV in this repo
+
+```text
+Set up AgentV in this repo.
+```
+
+The onboarding skill ensures CLI/setup prerequisites and runs:
+
+```bash
+agentv init
+```
+
+## 3. Configure environment variables
+
+The init command creates a `.env.example` file in your project root. You can either export these
+variables in your shell/CI environment directly or copy `.env.example` to `.env` for local
+development.
+
+1. Copy `.env.example` to `.env`
+2. Fill in your API keys, endpoints, and other configuration values
+3. Update the environment variable names in `.agentv/targets.yaml` to match the variables you
+   exported or defined in `.env`
+
+## 4. Create an eval
+
+Create `./evals/example.yaml`:
+
+```yaml
+description: Math problem solving evaluation
+execution:
+  target: default
+
+tests:
+  - id: addition
+    criteria: Correctly calculates 15 + 27 = 42
+
+    input: What is 15 + 27?
+
+    expected_output: "42"
+
+    assertions:
+      - name: math_check
+        type: code-grader
+        command: [./validators/check_math.py]
+```
+
+## 5. Run the eval
+
+```bash
+agentv eval ./evals/example.yaml
+```
+
+Results appear in `.agentv/results/default/<timestamp>/index.jsonl` with scores, reasoning, and execution traces.
+
+## Next Steps
+
+- Learn about [eval file formats](/docs/next/evaluation/eval-files/)
+- Configure [targets](/docs/next/targets/configuration/) for different providers
+- Create [custom graders](/docs/next/graders/custom-graders/)
+- If setup drifts, rerun: `agentv init`

@@ -1,0 +1,90 @@
+---
+title: Ecosystem
+description: How AgentV fits into the AI agent lifecycle alongside complementary tools.
+slug: docs/next/reference/comparison
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+AgentV is the **evaluation layer** in the AI agent lifecycle. It works alongside runtime governance and observability tools — each handles a different concern with zero overlap.
+
+## The Three Layers
+
+| Layer | Tool | Question it answers |
+|-------|------|-------------------|
+| **Evaluate** (pre-production) | [AgentV](https://github.com/EntityProcess/agentv) | "Is this agent good enough to deploy?" |
+| **Govern** (runtime) | [Agent Control](https://github.com/agentcontrol/agent-control) | "Should this action be allowed?" |
+| **Observe** (runtime) | [Langfuse](https://github.com/langfuse/langfuse) | "What is the agent doing in production?" |
+
+### AgentV — Evaluate
+
+Offline evaluation and testing. Run eval cases against agents, score with deterministic code graders + LLM judges, detect regressions, gate CI/CD pipelines. Everything lives in Git.
+
+```
+agentv eval evals/my-agent.yaml
+```
+
+### Agent Control — Govern
+
+Runtime guardrails. Intercepts agent actions (tool calls, API requests) and evaluates them against configurable policies. Deny, steer, warn, or log — without changing agent code. Pluggable graders with confidence scoring.
+
+### Langfuse — Observe
+
+Production observability. Traces agent execution with explicit Tool/LLM/Retrieval observation types, ingests evaluation scores, and provides dashboards for debugging and monitoring. Self-hostable.
+
+## How They Connect
+
+```
+Define evals (YAML in Git)
+    |
+    v
+Run evals locally or in CI (AgentV)
+    |
+    v
+Deploy agent to production
+    |
+    v
+Enforce policies on tool calls (Agent Control)
+    |                          |
+    v                          v
+Trace execution (Langfuse)   Log violations (Agent Control)
+    |
+    v
+Feed production traces back into evals (AgentV)
+```
+
+The feedback loop is key: Langfuse traces surface real-world failures that become new AgentV eval cases. Agent Control deny/steer events identify safety gaps that become new test scenarios.
+
+## Traditional Software Analogy
+
+This maps to how traditional software works:
+
+| Traditional | AI Agent Equivalent |
+|------------|-------------------|
+| Test suite (Jest, pytest) | **AgentV** |
+| WAF / auth middleware | **Agent Control** |
+| APM / logging (Datadog) | **Langfuse** |
+
+## When to Use What
+
+**AgentV** handles:
+- Eval definition and execution
+- Code + LLM graders
+- Regression detection and CI/CD gating
+- Multi-provider A/B comparison
+
+**Agent Control** handles:
+- Runtime policy enforcement (deny/steer/warn/log)
+- Pre/post execution evaluation of agent actions
+- Pluggable graders (regex, JSON, SQL, LLM-based)
+- Centralized control plane with dashboard
+
+**Langfuse** handles:
+- Production tracing with agent-native observation types
+- Live evaluation automation on trace ingestion
+- Score ingestion from external graders
+- Team dashboards and debugging

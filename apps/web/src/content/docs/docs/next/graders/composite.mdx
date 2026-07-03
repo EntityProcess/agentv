@@ -1,0 +1,245 @@
+---
+title: Composite Graders
+description: Combine multiple graders with aggregation strategies for multi-criteria evaluation.
+sidebar:
+  order: 4
+slug: docs/next/graders/composite
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+Composite graders combine multiple graders and aggregate their results into a single score. This enables sophisticated evaluation patterns like safety gates, weighted scoring, and conflict resolution.
+
+## Basic Structure
+
+A composite grader wraps two or more sub-graders and an aggregator that determines the final score:
+
+```yaml
+assertions:
+  - name: my_composite
+    type: composite
+    assertions:
+      - name: evaluator_1
+        type: llm-grader
+        prompt: ./prompts/check1.md
+      - name: evaluator_2
+        type: code-grader
+        command: [uv, run, check2.py]
+    aggregator:
+      type: weighted_average
+      weights:
+        evaluator_1: 0.6
+        evaluator_2: 0.4
+```
+
+Each sub-grader runs independently, then the aggregator combines their results.
+Use `assertions` for composite members. `graders` is still accepted for backward compatibility.
+
+If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `code_grader`, `llm_grader`) or nested grader groups.
+
+## Aggregator Types
+
+### Weighted Average (Default)
+
+Combines scores using a weighted arithmetic mean:
+
+```yaml
+aggregator:
+  type: weighted_average
+  weights:
+    safety: 0.3      # 30% weight
+    quality: 0.7     # 70% weight
+```
+
+If weights are omitted, all graders receive equal weight (1.0).
+This is equivalent to averaging all member scores.
+
+The score is calculated as:
+
+```
+final_score = sum(score_i * weight_i) / sum(weight_i)
+```
+
+### Code Grader Aggregator
+
+Run a custom command to decide the final score based on all grader results:
+
+```yaml
+aggregator:
+  type: code-grader
+  path: node ./scripts/safety-gate.js
+  cwd: ./graders  # optional working directory
+```
+
+The command receives the grader results on stdin and must print a result to stdout.
+
+**Input (stdin):**
+```json
+{
+  "results": {
+    "safety": { "score": 0.9, "assertions": [{ "text": "...", "passed": true }] },
+    "quality": { "score": 0.85, "assertions": [{ "text": "...", "passed": true }] }
+  }
+}
+```
+
+**Output (stdout):**
+```json
+{
+  "score": 0.87,
+  "verdict": "pass",
+  "assertions": [{ "text": "Combined check passed", "passed": true }],
+  "reasoning": "Safety gate passed, quality acceptable"
+}
+```
+
+### LLM Grader Aggregator
+
+Use an LLM to resolve conflicts or make nuanced decisions across grader results:
+
+```yaml
+aggregator:
+  type: llm-grader
+  prompt: ./prompts/conflict-resolution.md
+```
+
+Inside the prompt file, use the `{{EVALUATOR_RESULTS_JSON}}` variable to inject the JSON results from all child graders.
+
+## Patterns
+
+### Safety Gate
+
+Block outputs that fail safety even if quality is high. A code grader aggregator can enforce hard gates:
+
+```yaml
+tests:
+  - id: safety-gated-response
+    criteria: Safe and accurate response
+
+    input: Explain quantum computing
+
+    assertions:
+      - name: safety_gate
+        type: composite
+        assertions:
+          - name: safety
+            type: llm-grader
+            prompt: ./prompts/safety-check.md
+          - name: quality
+            type: llm-grader
+            prompt: ./prompts/quality-check.md
+        aggregator:
+          type: code-grader
+          path: ./scripts/safety-gate.js
+```
+
+The `safety-gate.js` command can return a score of 0.0 whenever the safety grader fails, regardless of the quality score.
+
+### Multi-Criteria Weighted
+
+Assign different importance to each evaluation dimension:
+
+```yaml
+- name: release_readiness
+  type: composite
+  assertions:
+    - name: correctness
+      type: llm-grader
+      prompt: ./prompts/correctness.md
+    - name: style
+      type: code-grader
+      command: [uv, run, style_checker.py]
+    - name: security
+      type: llm-grader
+      prompt: ./prompts/security.md
+  aggregator:
+    type: weighted_average
+    weights:
+      correctness: 0.5
+      style: 0.2
+      security: 0.3
+```
+
+### Nested Composites
+
+Composites can contain other composites for hierarchical evaluation:
+
+```yaml
+- name: comprehensive_eval
+  type: composite
+  assertions:
+    - name: content_quality
+      type: composite
+      assertions:
+        - name: accuracy
+          type: llm-grader
+          prompt: ./prompts/accuracy.md
+        - name: clarity
+          type: llm-grader
+          prompt: ./prompts/clarity.md
+      aggregator:
+        type: weighted_average
+        weights:
+          accuracy: 0.6
+          clarity: 0.4
+    - name: safety
+      type: llm-grader
+      prompt: ./prompts/safety.md
+  aggregator:
+    type: weighted_average
+    weights:
+      content_quality: 0.7
+      safety: 0.3
+```
+
+## Result Structure
+
+Composite graders return nested `scores`, giving full visibility into each sub-grader:
+
+```json
+{
+  "score": 0.85,
+  "verdict": "pass",
+  "assertions": [
+    { "text": "[safety] No harmful content", "passed": true },
+    { "text": "[quality] Clear explanation", "passed": true },
+    { "text": "[quality] Could use more examples", "passed": false }
+  ],
+  "reasoning": "safety: Passed all checks; quality: Good but could improve",
+  "scores": [
+    {
+      "name": "safety",
+      "type": "llm_grader",
+      "score": 0.95,
+      "verdict": "pass",
+      "assertions": [
+        { "text": "No harmful content", "passed": true }
+      ]
+    },
+    {
+      "name": "quality",
+      "type": "llm_grader",
+      "score": 0.8,
+      "verdict": "pass",
+      "assertions": [
+        { "text": "Clear explanation", "passed": true },
+        { "text": "Could use more examples", "passed": false }
+      ]
+    }
+  ]
+}
+```
+
+Assertions from sub-graders are prefixed with the grader name (e.g., `[safety]`) in the top-level `assertions` array.
+
+## Best Practices
+
+1. **Name graders clearly** -- names appear in results and debugging output, so use descriptive labels like `safety` or `correctness` rather than `eval_1`.
+2. **Use safety gates for critical checks** -- do not let high quality scores override safety failures. A code grader aggregator can enforce hard gates.
+3. **Balance weights thoughtfully** -- consider which aspects matter most for your use case and assign weights accordingly.
+4. **Keep nesting shallow** -- deep nesting makes debugging harder. Two levels of composites is usually sufficient.
+5. **Test aggregators independently** -- verify custom aggregation logic with unit tests before wiring it into a composite grader.

@@ -1,0 +1,197 @@
+---
+title: Enterprise Governance
+description: A Git-native pattern for inventorying and reviewing the AI systems in your organisation, using a `.ai-register.yaml` per repo and a GitHub Action to aggregate them.
+sidebar:
+  order: 9
+slug: docs/next/guides/enterprise-governance
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+This guide describes a lightweight convention for keeping a documented
+**AI system inventory** — the thing every modern AI-governance framework
+asks for — without adopting a governance platform.
+
+You should be able to read this in under ten minutes and have something
+running by the end.
+
+## Why a manifest
+
+Every modern AI-governance framework expects a documented inventory of AI
+systems:
+
+- **NIST AI RMF GOVERN-1.3** — documented AI system inventory.
+- **ISO/IEC 42001:2023 Clause 7** — AI system documentation.
+- **EU AI Act Annex IV** — technical documentation per high-risk system.
+
+Large enterprises typically answer this with governance platforms (Credo AI,
+OneTrust AI Governance, ServiceNow AI Control Tower, IBM watsonx.governance).
+Smaller teams, open-source projects, or orgs that haven't invested in a
+platform need a lighter pattern that still satisfies an auditor.
+
+A Git-native manifest per repo, aggregated nightly via a GitHub Action,
+gets you audit-grade inventory at zero infra cost. If you later adopt a
+governance platform, **the same manifests become its import source** —
+nothing has to be re-keyed.
+
+## What it looks like
+
+In the **repo root** of each AI system, commit a `.ai-register.yaml`:
+
+```yaml
+system:
+  id: example-support-agent
+  name: Example Customer Support Agent
+  owner: support-platform-team
+  risk_tier: high                    # EU AI Act vocabulary
+  deployment: production
+  data_classification: restricted
+  description: Answers customer-support questions over chat.
+  models:
+    - provider: anthropic
+      model: claude-opus-4-7
+  evals:
+    path: evals/
+    runs_in_ci: true
+  controls:                          # <FRAMEWORK>-<VERSION>:<ID>
+    - NIST-AI-RMF-1.0:GOVERN-1.3
+    - ISO-42001-2023:Clause-7
+    - EU-AI-ACT-2024:Art.55
+    - INTERNAL-AI-POLICY-1.0:CTRL-CUSTOMER-ISOLATION
+  last_reviewed: 2026-04-24
+```
+
+The full example, including comments, is in the agentv repo at
+`examples/governance/ai-register/.ai-register.yaml`.
+
+### Why these fields
+
+- **`risk_tier`** — EU AI Act vocabulary (`prohibited | high | limited | minimal`).
+  Other vocabularies (e.g. NIST 800-30) work too; pick one and stick with it.
+- **`controls`** — same string format as the eval-level `governance` schema
+  documented [below](#eval-level-governance). That overlap is intentional: a
+  control declared on a system can be cross-referenced against the controls
+  exercised by its evals.
+- **`last_reviewed`** — a date. Aggregators flag entries older than
+  whatever cadence your governance team works to.
+- **`evals.path`** — a pointer to the agentv evals that exercise this
+  system. The aggregator does not run them; it just records that they exist.
+
+## Aggregating across the org
+
+In a dedicated `ai-register` repo (or your existing governance repo), drop
+`.github/workflows/aggregate.yml` from `examples/governance/ai-register/`.
+The workflow:
+
+1. Searches the org via `gh api search/code` for every `.ai-register.yaml`.
+2. Fetches each one via `gh api repos/.../contents`.
+3. Aggregates them with a small Python script into `register.csv` and a
+   self-contained `register.html` table.
+4. Surfaces stale entries (`last_reviewed` > 90 days) on the workflow
+   summary and uploads the CSV + HTML as workflow artifacts.
+
+Required secret: **`GH_AGGREGATE_TOKEN`** with `repo` (or `read:org`)
+scope, scoped to the org you want to enumerate. For public repos the
+default `GITHUB_TOKEN` is sufficient.
+
+The workflow is fewer than 150 lines of YAML, runs in a single job, and
+has no third-party dependencies beyond `gh` (preinstalled on
+`ubuntu-latest`) and `PyYAML`.
+
+## Day-2 operations
+
+A useful starting cadence:
+
+- Engineers update `.ai-register.yaml` whenever a system enters or leaves
+  production, or its model / scope changes materially.
+- The aggregator runs weekly via cron.
+- The workflow summary is the source of truth for stale entries; if your
+  team prefers a Slack ping, add one extra step that posts to a webhook.
+- Quarterly, the governance team walks the CSV and updates `last_reviewed`
+  on the systems they signed off on.
+
+That's the whole loop.
+
+## Relationship to evaluation
+
+agentv does not parse `.ai-register.yaml`. The convention is **orthogonal**:
+
+- The manifest documents **which AI systems exist**, who owns them, and
+  which controls they are accountable for.
+- The eval YAML documents **which behaviour a given system was tested
+  against**.
+
+Both files use the same `<FRAMEWORK>-<VERSION>:<ID>` control format, so a
+script can intersect "manifest claims this system is covered by
+NIST-AI-RMF-1.0:MEASURE-2.7" with "eval results show 14 cases tagged
+NIST-AI-RMF-1.0:MEASURE-2.7 ran this quarter."
+
+## Migration to a governance platform
+
+When and if your org adopts Credo AI / OneTrust AI Governance /
+ServiceNow AI Control Tower / IBM watsonx.governance:
+
+- Each platform accepts CSV / JSON imports keyed on system identifiers.
+- Your `register.csv` artifact already has the per-system row each
+  importer expects.
+- The `controls` column maps directly onto the framework-control fields
+  the platform exposes — there is nothing to re-key.
+
+You don't have to rip out the manifest convention either. Most teams keep
+the Git-native artifact as the **canonical source** and the platform as
+the **operations surface**, syncing one direction.
+
+## Eval-level governance
+
+Individual eval suites can carry their own `governance:` block that records
+which risks the suite exercises. The block is passed through verbatim to the
+JSONL results file, making it queryable by downstream tools.
+
+### YAML shape
+
+```yaml
+governance:
+  schema_version: "1.0"                    # optional — schema version
+  owasp_llm_top_10_2025: [LLM01]           # OWASP LLM Top 10 v2025 IDs
+  owasp_agentic_top_10_2025: [T01, T06]    # OWASP Agentic AI Top 10 v2025 IDs
+  mitre_atlas: [AML.T0051]                 # MITRE ATLAS technique IDs
+  controls:                                # <FRAMEWORK>-<VERSION>:<ID> strings
+    - NIST-AI-RMF-1.0:MEASURE-2.7
+    - EU-AI-ACT-2024:Art.55
+  risk_tier: high                          # EU AI Act tier: prohibited | high | limited | minimal
+  owner: security-team                     # owning team or person
+```
+
+All fields are optional. Blocks can appear at suite level (top-level `governance:` key,
+merged into every test case) or on individual test cases under `metadata.governance`.
+When both are present, arrays are concatenated and deduplicated; scalar fields on the
+case win over the suite.
+
+### agentv-governance skill
+
+The `agentv-governance` Claude Code skill teaches an AI agent how to author and lint
+`governance:` blocks. Load it alongside `agentv-eval-writer` when building red-team or
+compliance suites:
+
+```
+/load agentv-governance
+```
+
+The skill operates in two modes:
+
+- **Authoring** — provides valid IDs from OWASP LLM, OWASP Agentic, MITRE ATLAS, and EU
+  AI Act, and validates your block before you commit.
+- **Linting (CI)** — invoked from a GitHub Action, it lints each changed `*.eval.yaml`
+  against a set of vocabulary rules and returns a structured JSON violation report.
+
+### Compliance-lint GitHub Action
+
+`examples/governance/compliance-lint/` contains a ready-to-copy GitHub Action that runs
+the agentv-governance skill on every pull request and fails the check if any governance
+block contains unknown keys, malformed IDs, or invalid `risk_tier` values. See the
+[README](https://github.com/EntityProcess/agentv/blob/main/examples/governance/compliance-lint/README.md)
+in that directory for setup instructions.

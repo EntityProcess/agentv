@@ -1,21 +1,23 @@
 ---
 const versions = [
   { label: 'Canary', base: '/docs' },
+  { label: 'Next', base: '/docs/next' },
   { label: 'v4.42.4', base: '/docs/v4.42.4' },
 ];
+
+// Longest base first so an archived version (e.g. /docs/next) matches before
+// falling through to Canary's base (/docs), which is a prefix of every path.
+const versionsByBaseLength = [...versions].sort((a, b) => b.base.length - a.base.length);
 
 const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 
 function getCurrentVersion(path) {
-  if (path === '/docs/v4.42.4' || path.startsWith('/docs/v4.42.4/')) return versions[1];
-  return versions[0];
+  return versionsByBaseLength.find((version) => path === version.base || path.startsWith(`${version.base}/`)) ?? versions[0];
 }
 
 function getVersionSuffix(path) {
-  if (path === '/docs' || path === '/docs/v4.42.4') return '';
-  if (path.startsWith('/docs/v4.42.4/')) return path.slice('/docs/v4.42.4'.length);
-  if (path.startsWith('/docs/')) return path.slice('/docs'.length);
-  return '';
+  const current = getCurrentVersion(path);
+  return path === current.base ? '' : path.slice(current.base.length);
 }
 
 function withTrailingSlash(path) {
