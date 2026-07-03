@@ -3,13 +3,13 @@ import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
 import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
 import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
 import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
-import nextRoutes from '../data/docs-next-routes.json';
 import v4Routes from '../data/docs-v4.42.4-routes.json';
 
-const ARCHIVED_VERSIONS = [
-  { slug: 'next', routes: nextRoutes },
-  { slug: 'v4.42.4', routes: v4Routes },
-];
+// The Starlight sidebar config autogenerates from docs/next/*, so the base
+// sidebar's hrefs already point at the live /docs/next/ tree unmodified.
+// Only genuinely archived versions below need their hrefs remapped.
+const LIVE_PREFIX = '/docs/next/';
+const ARCHIVED_VERSIONS = [{ slug: 'v4.42.4', routes: v4Routes }];
 
 const { sidebar } = Astro.locals.starlightRoute;
 const pathname = withTrailingSlash(Astro.url.pathname);
@@ -50,8 +50,8 @@ function toArchiveSidebar(
 
 function toArchiveHref(href: string, slug: string) {
   const archivePrefix = `/docs/${slug}/`;
-  if (!href.startsWith('/docs/') || href.startsWith(archivePrefix)) return href;
-  return href.replace('/docs/', archivePrefix);
+  if (!href.startsWith(LIVE_PREFIX) || href.startsWith(archivePrefix)) return href;
+  return href.replace(LIVE_PREFIX, archivePrefix);
 }
 
 function withTrailingSlash(path: string) {

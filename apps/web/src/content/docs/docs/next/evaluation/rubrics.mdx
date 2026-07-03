@@ -3,13 +3,6 @@ title: Rubrics
 description: Structured evaluation criteria with weights
 sidebar:
   order: 3
-slug: docs/next/evaluation/rubrics
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 Rubrics are defined with `assertions` entries and support binary checklist grading and score-range analytic grading.
@@ -29,11 +22,11 @@ tests:
       - States time complexity
 ```
 
-All strings are collected into a single rubrics grader automatically.
+All strings are collected into a single g-eval grader automatically.
 
 ### Full form for advanced options
 
-Use `type: rubrics` explicitly when you need weights, required flags, or score ranges:
+Use `type: g-eval` explicitly when you need weights, required flags, or score ranges:
 
 ```yaml
 tests:
@@ -41,7 +34,7 @@ tests:
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
     assertions:
-      - type: rubrics
+      - type: g-eval
         criteria:
           - Mentions divide-and-conquer approach
           - Explains partition step
@@ -54,7 +47,7 @@ For fine-grained control, use rubric objects with weights and requirements:
 
 ```yaml
 assertions:
-  - type: rubrics
+  - type: g-eval
     criteria:
       - id: core-concept
         outcome: Explains divide-and-conquer
@@ -81,7 +74,7 @@ assertions:
 | `score_ranges` | — | Score range definitions (analytic mode) |
 
 :::note
-`required_min_score` (0–10 integer scale) is deprecated. Use `min_score` (0–1 scale) instead. For example, `required_min_score: 8` becomes `min_score: 0.8`.
+Use `min_score` for analytic rubric gating. The only 0–10 values in authored g-eval are `score_ranges` bands and grader outputs.
 :::
 
 ### Criterion Operators
@@ -90,7 +83,7 @@ Use `operator` when the criterion outcome should be interpreted with a specific 
 
 ```yaml
 assertions:
-  - type: rubrics
+  - type: g-eval
     criteria:
       - id: supported-revenue
         operator: correctness
@@ -110,7 +103,7 @@ For quality gradients instead of binary pass/fail, use score ranges:
 
 ```yaml
 assertions:
-  - type: rubrics
+  - type: g-eval
     criteria:
       - id: accuracy
         outcome: Provides correct answer
@@ -177,12 +170,12 @@ tests:
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function
     assertions:
-      - type: rubrics
+      - type: g-eval
         criteria:
           - Returns correct values for n=0,1,2,10
           - Uses meaningful variable names
           - Includes docstring
       - name: syntax_check
-        type: code-grader
+        type: script
         command: [./validators/check_python.py]
 ```

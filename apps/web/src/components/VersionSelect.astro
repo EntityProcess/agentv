@@ -1,12 +1,10 @@
 ---
 const versions = [
-  { label: 'Canary', base: '/docs' },
   { label: 'Next', base: '/docs/next' },
   { label: 'v4.42.4', base: '/docs/v4.42.4' },
 ];
 
-// Longest base first so an archived version (e.g. /docs/next) matches before
-// falling through to Canary's base (/docs), which is a prefix of every path.
+// Longest base first so more specific versions match before shorter prefixes.
 const versionsByBaseLength = [...versions].sort((a, b) => b.base.length - a.base.length);
 
 const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';

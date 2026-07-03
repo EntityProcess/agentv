@@ -1,15 +1,8 @@
 ---
 title: Autoevals Integration
-description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as code-grader graders in AgentV.
+description: Use Braintrust's open-source autoevals scorers (Factuality, Faithfulness, etc.) as script graders in AgentV.
 sidebar:
   order: 3
-slug: docs/next/integrations/autoevals-integration
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 ## Overview
@@ -20,7 +13,7 @@ banner:
 
 - Works standalone — no Braintrust platform account required
 - Uses any OpenAI-compatible endpoint for LLM-based scorers
-- Integrates with AgentV via the `code-grader` type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
+- Integrates with AgentV via the `script` grader type: wrap any autoevals scorer in a command that reads stdin and writes the AgentV grader result to stdout
 
 ## Installation
 
@@ -57,7 +50,7 @@ All LLM-based scorers return a `score` (0–1) and `metadata.rationale` explaini
 
 ## TypeScript Example
 
-Use the `Factuality` scorer as an AgentV `code-grader` to verify answer correctness.
+Use the `Factuality` scorer as an AgentV `script` grader to verify answer correctness.
 
 **EVAL.yaml:**
 
@@ -70,7 +63,7 @@ tests:
     expected_output: "Paris is the capital of France."
     assertions:
       - name: factuality
-        type: code-grader
+        type: script
         command: ["bun", "run", "graders/factuality.ts"]
 ```
 
@@ -108,7 +101,7 @@ console.log(
 );
 ```
 
-The code grader reads the canonical AgentV stdin payload (`input`, `expected_output`, `output`), maps those fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format (with `assertions` array) to stdout.
+The script grader reads the canonical AgentV stdin payload (`input`, `expected_output`, `output`), maps those fields to autoevals parameters (`input`, `output`, `expected`), runs the scorer, and writes the AgentV result format (with `assertions` array) to stdout.
 
 ## Python Example
 
@@ -125,7 +118,7 @@ tests:
     expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
     assertions:
       - name: faithfulness
-        type: code-grader
+        type: script
         command: ["python", "graders/faithfulness.py"]
 ```
 
@@ -209,7 +202,7 @@ const result = await Factuality({
 
 ## RAG Evaluation Suite
 
-Combine multiple autoevals scorers in a single code grader for comprehensive RAG evaluation.
+Combine multiple autoevals scorers in a single script grader for comprehensive RAG evaluation.
 
 **EVAL.yaml:**
 
@@ -222,7 +215,7 @@ tests:
     expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
     assertions:
       - name: rag-quality
-        type: code-grader
+        type: script
         command: ["bun", "run", "graders/rag-suite.ts"]
         weight: 1.0
 ```

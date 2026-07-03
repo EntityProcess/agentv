@@ -3,13 +3,6 @@ title: Prepare
 description: Prepare one eval case for a human or external agent, then grade the finished workspace.
 sidebar:
   order: 4
-slug: docs/next/tools/prepare
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 `agentv prepare` materializes one eval case without launching the target provider. Use it when a human, a separate agent process, or another harness should attempt the task in the same workspace state AgentV would have provided immediately before target execution.
@@ -24,12 +17,12 @@ The prepared directory contains:
 
 ```text
 /tmp/agentv-case-1/
-  workspace/              # materialized template/repos/hooks state
+  workspace/              # materialized template/repos/extensions state
   prompt.md               # safe task prompt for the human or external agent
   agentv_prepare.json     # snake_case manifest for audit and later grading
 ```
 
-`prepare` runs setup only: workspace `before_all`, target `before_all`, workspace `before_each`, and target `before_each`. It does not launch the agent, run graders, mark an eval complete, or expose hidden expected outputs and grader internals in `prompt.md`.
+`prepare` runs setup only: workspace materialization, extension `beforeAll`, target `before_all`, extension `beforeEach`, and target `before_each`. It does not launch the agent, run graders, mark an eval complete, or expose hidden expected outputs and grader internals in `prompt.md`.
 
 ## Grade the Attempt
 
@@ -68,10 +61,10 @@ Supported `--trace` inputs:
 
 | Format | Typical source |
 |--------|----------------|
-| `agentv.trace.v1` JSON or JSONL | `trace.json` from an AgentV run or replay/export workflow |
+| `agentv.trace.v1` JSON or JSONL | Explicit trace replay/export files |
 | AgentV transcript JSONL | `agentv import claude`, `agentv import codex`, or `agentv import copilot` output |
 
-Single-record trace files are accepted directly. Multi-record files are matched by `test_id` and target. The selected trace is projected into AgentV's normal `trace` and `messages` grader context, so `tool-trajectory`, execution-metrics, and code graders receive the same shape they see during eval runs.
+Single-record trace files are accepted directly. Multi-record files are matched by `test_id` and target. The selected trace is projected into AgentV's normal `trace` and `messages` grader context, so `tool-trajectory`, execution-metrics, and script graders receive the same shape they see during eval runs.
 
 Use `--response` when the final answer text should be graded independently of the trace. If `--response` is omitted and the trace contains an assistant message with content, AgentV uses the last assistant message as the candidate answer.
 

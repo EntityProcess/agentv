@@ -3,13 +3,6 @@ title: CLI Provider
 description: Wrap any shell command as an evaluation target
 sidebar:
   order: 4
-slug: docs/next/targets/cli-provider
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 The `cli` provider runs an arbitrary shell command per test case and captures its output as the target's response. It's the escape hatch that lets you evaluate *anything* that exposes a command-line entry point — your own agent, a third-party CLI, a stub that prints a fixed answer, a script that calls an in-house microservice, etc.
@@ -21,7 +14,7 @@ Because the contract is "we invoke a command and read a file," almost any useful
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my_agent
+  - label: my_agent
     provider: cli
     command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
     grader_target: azure-base   # required if your evals use LLM graders
@@ -77,7 +70,7 @@ echo "Hello, world!" > {OUTPUT_FILE}
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `name` | string | yes | — | Target identifier used in eval configs. |
+| `label` | string | yes | — | AgentV target name used by eval `target`, CLI `--target`, and comparisons. |
 | `provider` | literal `"cli"` | yes | — | Selects this provider. |
 | `command` | string | yes | — | Shell command template. |
 | `timeout_seconds` | number | no | — | Kill the process if it runs longer than this. |
@@ -87,18 +80,18 @@ echo "Hello, world!" > {OUTPUT_FILE}
 | `keep_temp_files` | boolean | no | `false` | Preserve `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run — handy while iterating on your command. |
 | `healthcheck` | object | no | — | Pre-run health check (HTTP or command); the eval aborts if it fails. |
 | `workers` | number | no | — | Concurrent test-case executions against this target. |
-| `provider_batching` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
+| `batch_requests` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
 | `grader_target` | string | no | — | LLM target used by this target's LLM graders. Required if your evals use LLM-based graders. |
 
 ## Batching
 
-For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `provider_batching: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
+For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `batch_requests: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
 
 ```yaml
 targets:
-  - name: batched_agent
+  - label: batched_agent
     provider: cli
-    provider_batching: true
+    batch_requests: true
     command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
 ```
 
@@ -113,12 +106,12 @@ AgentV has no dedicated "oracle" feature because the `cli` provider already comp
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my_agent
+  - label: my_agent
     provider: cli
     command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
     grader_target: azure-base
 
-  - name: oracle
+  - label: oracle
     provider: cli
     command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
     grader_target: azure-base
@@ -141,6 +134,11 @@ A few practical notes:
 - The same composition works for other meta-tests: a "deliberately wrong" target that should score 0, a "mostly right" target pinned at a known partial score, etc.
 
 The pattern needs no special config field, no directory convention, and no flag — it's just a second target that happens to know the answer.
+
+Use this pattern instead of eval mock dry-run for grader validation. Mock
+execution was removed because fake candidate answers produced misleading
+quality failures; a reference target gives deterministic output while exercising
+the real grader path.
 
 ## Debugging
 

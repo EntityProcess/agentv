@@ -3,16 +3,9 @@ title: Coding Agents
 description: Evaluate coding agent targets
 sidebar:
   order: 3
-slug: docs/next/targets/coding-agents
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
-Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `grader_target` (also accepts `judge_target` for backward compatibility) to run LLM-based graders.
+Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `grader_target` to run LLM-based graders.
 
 ## Prompt format
 
@@ -27,7 +20,7 @@ When an eval test includes `type: file` inputs, agent providers do **not** recei
 
 The agent is expected to read the files itself using its filesystem tools.
 
-This differs from [LLM providers](/docs/next/targets/llm-providers/), which receive file content embedded directly in the prompt as XML:
+This differs from [LLM providers](/docs/targets/llm-providers), which receive file content embedded directly in the prompt as XML:
 
 ```xml
 <file path="src/example.ts">
@@ -69,7 +62,7 @@ The preread block instructs the agent to read input files before processing the 
 
 ```yaml
 targets:
-  - name: claude_agent
+  - label: claude_agent
     provider: claude
     grader_target: azure-base
 ```
@@ -80,48 +73,40 @@ targets:
 | `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
-## cc-mirror
+### cc-mirror variants
 
-[cc-mirror](https://github.com/numman-ali/cc-mirror) creates isolated Claude Code variants that route through alternative providers (Z.ai, Kimi, MiniMax, OpenRouter, etc.). The `cc-mirror` provider alias resolves to `claude-cli` and auto-discovers the binary path from `~/.cc-mirror/<variant>/variant.json`.
+[cc-mirror](https://github.com/numman-ali/cc-mirror) creates Claude Code
+variant binaries that route through alternative providers such as Z.ai, Kimi,
+MiniMax, or OpenRouter. In AgentV, configure those variants as Claude targets
+with an explicit `executable`:
 
 ```yaml
 targets:
-  # Explicit variant with known executable
   - name: claude-zai
-    provider: cc-mirror
+    provider: claude
     executable: claude-zai
-    grader_target: azure-base
-
-  # Auto-discover binary from variant.json
-  - name: my-kimi
-    provider: cc-mirror
     grader_target: azure-base
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `executable` | No | CLI binary name or path. When set, used directly (skips variant.json lookup). |
-| `variant` | No | Variant name (directory under `~/.cc-mirror/`). Defaults to target `name`. Used to locate `variant.json` when `executable` is not set. |
-| `cwd` | No | Working directory |
-| `grader_target` | Yes | LLM target for evaluation |
-
-Setup a variant first, then reference it by name:
+Create the variant first, then reference the generated binary name:
 
 ```bash
 npx cc-mirror quick --provider zai --name claude-zai --api-key "$Z_AI_API_KEY"
 ```
 
-Since `cc-mirror` resolves to `claude-cli`, all Claude target fields (model, system_prompt, timeout_seconds, etc.) are also supported.
+Use `provider: claude` or `provider: claude-cli` for these targets. The old
+`provider: cc-mirror` alias and automatic `variant.json` lookup are no longer
+part of the canonical target schema.
 
 ## Codex CLI
 
 ```yaml
 targets:
-  - name: codex_target
+  - label: codex_target
     provider: codex
     executable: codex-eng
     model: ${{ CODEX_MODEL }}
-    model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
+    reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
     grader_target: azure-base
 ```
 
@@ -129,7 +114,7 @@ targets:
 |-------|----------|-------------|
 | `executable` | No | Codex binary or profile shim to run, such as `codex-eng` |
 | `model` | No | Model to use |
-| `model_reasoning_effort` | No | Codex SDK reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
+| `reasoning_effort` | No | Codex SDK reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
 | `cwd` | No | Working directory |
 | `grader_target` | Yes | LLM target for evaluation |
 
@@ -137,8 +122,8 @@ targets:
 
 ```yaml
 targets:
-  - name: copilot
-    provider: copilot
+  - label: copilot
+    provider: copilot-cli
     model: gpt-5-mini
     grader_target: azure-base
 ```
@@ -147,7 +132,7 @@ targets:
 |-------|----------|-------------|
 | `model` | No | Model to use (defaults to copilot's default) |
 | `cwd` | No | Working directory |
-| `subprovider` | No | OpenAI-compatible provider type for `copilot`, `copilot-cli`, or `copilot-sdk`, such as `openai` or `azure` |
+| `subprovider` | No | OpenAI-compatible provider type for `copilot-cli` or `copilot-sdk`, such as `openai` or `azure` |
 | `base_url` | No | Provider base URL or Azure resource URL/name |
 | `api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. |
 | `bearer_token` | No | Provider bearer token. Prefer `${{ ENV_VAR }}` references. Takes precedence over `api_key` when set. |
@@ -159,7 +144,7 @@ Route Copilot through an OpenAI-compatible endpoint:
 
 ```yaml
 targets:
-  - name: copilot-openai
+  - label: copilot-openai
     provider: copilot-cli
     subprovider: openai
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -174,7 +159,7 @@ Values can come from environment variables through `${{ ... }}` interpolation. F
 
 ```yaml
 targets:
-  - name: pi_target
+  - label: pi_target
     provider: pi-coding-agent
     subprovider: openai-codex
     model: gpt-5.5
@@ -199,7 +184,7 @@ configuration. This works for OpenAI-compatible endpoints:
 
 ```yaml
 targets:
-  - name: pi-sdk-openai
+  - label: pi-sdk-openai
     provider: pi-coding-agent
     subprovider: openai
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -225,7 +210,7 @@ is compatible with Azure OpenAI Responses:
 
 ```yaml
 targets:
-  - name: pi-cli-gateway
+  - label: pi-cli-gateway
     provider: pi-cli
     subprovider: azure
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -238,7 +223,7 @@ targets:
 
 ```yaml
 targets:
-  - name: vscode_dev
+  - label: vscode_dev
     provider: vscode
     grader_target: azure-base
 ```
@@ -252,7 +237,7 @@ Using a custom executable path:
 
 ```yaml
 targets:
-  - name: vscode_dev
+  - label: vscode_dev
     provider: vscode
     executable: ${{ VSCODE_CMD }}
     grader_target: azure-base
@@ -262,7 +247,7 @@ targets:
 
 ```yaml
 targets:
-  - name: vscode_insiders
+  - label: vscode_insiders
     provider: vscode-insiders
     grader_target: azure-base
 ```
@@ -275,7 +260,7 @@ Evaluate any command-line agent:
 
 ```yaml
 targets:
-  - name: local_agent
+  - label: local_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
     grader_target: azure-base
@@ -293,7 +278,7 @@ For testing the evaluation harness without calling real providers:
 
 ```yaml
 targets:
-  - name: mock_target
+  - label: mock_target
     provider: mock
 ```
 
@@ -314,8 +299,8 @@ The VS Code provider uses a **subagent file-messaging architecture**. AgentV pro
 
 ```yaml
 targets:
-  - name: copilot
-    provider: copilot
+  - label: copilot
+    provider: copilot-cli
     executable: ${{ COPILOT_EXE }}
     grader_target: azure-base
 ```

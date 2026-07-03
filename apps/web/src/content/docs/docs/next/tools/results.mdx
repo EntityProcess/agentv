@@ -3,13 +3,6 @@ title: Results
 description: Inspect, export, and share AgentV result workspaces from the CLI.
 sidebar:
   order: 6
-slug: docs/next/tools/results
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 import { Image } from 'astro:assets';
@@ -18,7 +11,10 @@ import resultsReportDetails from '../../../../../assets/screenshots/results-repo
 
 The `results` command family works on existing local AgentV run workspaces and `index.jsonl` manifests. Use it after an eval run to inspect failures, validate manifests, export artifact layouts, combine/delete local run workspaces, or generate a shareable HTML report.
 
-Remote result repository exchange is intentionally not part of `agentv results`. New eval runs publish completed artifacts to a configured results repo or branch; `sync.auto_push: true` additionally pushes that branch to the remote. Manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/next/tools/dashboard/#remote-results) for configuration and sync behavior, and [WIP checkpoints](/docs/next/tools/wip-checkpoints/) for recovering in-progress runs before final publish.
+Remote result repository exchange is intentionally not part of `agentv results`. New eval runs publish completed artifacts to a configured results repo or branch; `auto_push: true` additionally pushes that branch to the remote. Manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/tools/dashboard/#remote-results) for configuration and sync behavior, and [WIP checkpoints](/docs/tools/wip-checkpoints/) for recovering in-progress runs before final publish.
+
+For the canonical run output structure, file roles, and integration contract,
+start with [Result Artifact Contract](/docs/reference/result-artifacts/).
 
 ## Subcommands
 
@@ -33,7 +29,7 @@ Remote result repository exchange is intentionally not part of `agentv results`.
 | `results show` | Display case-level rows from a run workspace |
 | `results validate` | Validate that a workspace or manifest resolves correctly |
 
-`results combine` writes the new run under the source experiment when every selected source run belongs to the same experiment, including `default`. If the source runs span multiple experiments, pass `--experiment <name>` for the new combined run; AgentV does not silently write mixed-experiment combines under a `combined` namespace.
+`results combine` writes a new direct run workspace under `.agentv/results/<run_id>/` and records the selected experiment label in `summary.json` and `index.jsonl` metadata. If the source runs span multiple experiments, pass `--experiment <name>` for the new combined run; AgentV does not silently invent a mixed-experiment label.
 
 ## `results report`
 
@@ -49,10 +45,10 @@ Examples:
 
 ```bash
 # Generate report.html next to the run manifest
-agentv results report .agentv/results/default/2026-03-14T10-32-00_claude
+agentv results report .agentv/results/2026-03-14T10-32-00_claude
 
 # Use an explicit output path
-agentv results report .agentv/results/default/2026-03-14T10-32-00_claude/index.jsonl \
+agentv results report .agentv/results/2026-03-14T10-32-00_claude/index.jsonl \
   --out ./reports/human-review.html
 ```
 
@@ -103,7 +99,12 @@ Use `results export` when you need the artifact workspace layout itself rather t
 agentv results export <run-workspace-or-index.jsonl> [--out <dir>] [--duplicate-policy update]
 ```
 
-This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving. The run workspace is also where generated task bundles live: `index.jsonl` rows may point to per-result `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` entries. Keep those generated artifacts with the run when sharing or auditing results.
+This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving. The run workspace is also where generated test bundles live: `index.jsonl` rows may point to per-result `test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` entries. Keep those generated artifacts with the run when sharing or auditing results.
+
+The export source is still the canonical run bundle described in the
+[Result Artifact Contract](/docs/reference/result-artifacts/): `summary.json`
+for aggregate run facts, the row manifest for row discovery, and sidecars for
+detailed payloads.
 
 Each exported trace sidecar and `index.jsonl` row includes a stable `projection_identity` derived from AgentV-owned fields: `run_id`, `suite` or `eval_path`, `test_id`, `target`, `source_target`, `attempt`, `variant`, `envelope_id`, `trace_id`, `root_span_id`, and the projection format/version. Retrying the same completed run keeps the same projection ID even when you choose a different `--out` directory, because `run_id` comes from the source run directory or source manifest name rather than the export destination.
 
@@ -126,28 +127,41 @@ It is the compact executor behavior summary for dashboards, comparison exports,
 and metric-style graders; it is not canonical trace storage and does not carry
 token/cost usage.
 
-Every case uses aggregate `summary.json`, then stores attempt details under
-`run-N/`. Each `run-N/` contains a compact per-attempt manifest `result.json`,
-`grading.json`, `metrics.json`, `timing.json`, `transcript.json`,
-`transcript-raw.jsonl`, and `outputs/answer.md`. The `result.json` file carries
-`grading_path`, transcript/output paths, and embedded timing/o11y metrics.
+Every case uses aggregate `summary.json`, then stores execution artifact details
+under `attempt-N/`. Each `attempt-N/` contains a compact per-attempt manifest
+`result.json`, `grading.json`, `metrics.json`, `timing.json`,
+`transcript.json`, `transcript-raw.jsonl`, `outputs/answer.md`, and
+`outputs/file_changes.diff` when workspace changes were captured. The
+`result.json` file carries AgentV `execution_status` and `verdict` fields plus
+`grading_path`, `metrics_path`, transcript, output, and `file_changes_path`
+paths. Treat `attempt-N/` as an artifact attempt folder, not as a comparison
+dimension; stochastic samples and infrastructure retries should be represented
+with explicit sample/retry metadata rather than inferred from folder names.
 
-`transcript-raw.jsonl` remains the ordered conversational/log compatibility
-projection. Full trace detail stays in `trace.json` (`agentv.trace.v1`) when
-emitted. `summary.json` remains the run-level aggregate summary, and
-`index.jsonl` carries lightweight explicit paths such as `metrics_path` plus
-the trace/transcript artifact pointers used for detached payload publishing.
+`transcript-raw.jsonl` preserves native provider or harness transcript bytes
+when they are available, while `transcript.json` is the normalized
+conversation transcript with canonical `tool_name` values, joined
+`tool_use.result` blocks, and a precomputed `transcript_summary`. AgentV does not
+persist a public `trace.json` sidecar in run bundles; external observability
+systems can be linked through safe `external_trace` metadata when available.
+`summary.json` remains the run-level aggregate summary. `index.jsonl` is the
+canonical row index for the run: one row per result, attempt, or case, carrying
+lightweight explicit paths such as `transcript_path`, `transcript_raw_path`,
+`file_changes_path`, and `metrics_path` plus artifact pointers only when
+detached payload publishing needs them. Dashboard search indexes, SQLite
+indexes, and other read models are derived projections over these run artifacts,
+not replacements for `index.jsonl`.
 Duration, token, and cost usage remains in `timing.json`, including source
 labels such as `provider_reported`, `token_estimated`, `aggregate`, or
 `unavailable`.
 
 The `metrics` section aligns with Claude Agent Skills `metrics.json`
-while adding AgentV/Vercel-style detail:
+while adding AgentV executor detail:
 
 | Field group | Purpose |
 |-------------|---------|
-| `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created` | Agent Skills-compatible executor metrics |
-| `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV/Vercel-style behavior summary when source data includes it |
+| `tool_calls`, `total_tool_calls`, `total_steps`, `errors_encountered`, `output_chars`, `transcript_chars`, `files_created`, `files_deleted` | Agent Skills-compatible executor metrics |
+| `tool_call_events`, `tool_call_counts`, `tool_category_counts`, `shell_commands`, `files_read`, `files_modified`, `web_fetches`, `errors`, `reasoning_blocks`, `thinking_blocks`, `total_turns` | AgentV behavior summary when source data includes it |
 
 Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 
@@ -159,7 +173,7 @@ Vercel `@vercel/agent-eval` `results.o11y` maps into AgentV like this:
 | `toolCalls` | `metrics.tool_call_events`, `metrics.tool_calls`, and `metrics.tool_call_counts` | `metrics.json`; compact counts can also appear in `summary.json.run_summary[*].tool_calls` |
 | `totalToolCalls` | `metrics.total_tool_calls` | `metrics.json` |
 | `webFetches` | `metrics.web_fetches` | `metrics.json` |
-| `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational rows remain in `transcript.jsonl` |
+| `totalTurns` | `metrics.total_turns` | `metrics.json`; conversational turns remain in `transcript.json` |
 | `errors` | `metrics.errors` | `metrics.json` |
 | `thinkingBlocks` | `metrics.reasoning_blocks` and `thinking_blocks` | `metrics.json` |
 
@@ -167,13 +181,13 @@ Agent Skills eval artifacts map into AgentV like this:
 
 | Agent Skills pattern | AgentV field | Artifact location |
 |----------------------|--------------|-------------------|
-| Authored `evals/evals.json` cases | AgentV eval cases and task bundle paths | Eval source plus optional `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
-| Per-case answer | Generated target output artifact | `run-N/outputs/answer.md` |
-| Per-attempt sidecars | Trace, transcript, metrics, and raw provider evidence | `run-N/transcript.json`, `run-N/transcript-raw.jsonl`, `run-N/metrics.json`, `provider.log` when present |
-| Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `run-N/timing.json` |
-| Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `run-N/grading.json`; summary fields can reference the same trace/result facts |
+| Converted Agent Skills cases | AgentV eval cases and test bundle paths | Converted EVAL YAML plus optional `test_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` in `index.jsonl` |
+| Per-case answer | Generated target output artifact | `attempt-N/outputs/answer.md` |
+| Per-attempt sidecars | Normalized transcript, metrics, and raw provider evidence | `attempt-N/transcript.json`, `attempt-N/transcript-raw.jsonl`, `attempt-N/metrics.json` |
+| Per-attempt `timing.json` | Duration, token totals, cost, and usage source labels | `attempt-N/timing.json` |
+| Per-attempt `grading.json` | Assertions, graders, execution metrics, workspace changes | `attempt-N/grading.json`; summary fields can reference the same trace/result facts |
 | Iteration-level `summary.json` | Pass rate, time, tokens, tool calls, cost aggregates | Run-level `summary.json` |
-| Transcript/log outlier analysis | Ordered transcript and canonical trace | `transcript.jsonl` for log compatibility; `trace.json` for full detail |
+| Transcript/log outlier analysis | Normalized transcript, raw evidence, metrics, and optional external trace link | `transcript.json` for portable review; `transcript-raw.jsonl` for native evidence; `metrics.json` for behavior summaries; `external_trace` for link-out correlation |
 | Aggregate pass rate/time/tokens/delta | Run summaries and comparison tooling | `summary.json`, result comparisons, and projection bundles |
 
 ### Vendor-neutral projection bundle
@@ -211,9 +225,8 @@ export `index.jsonl` and use `artifact_refs.status: "emitted"`.
 
 Raw prompt text, final output, and tool arguments/results are excluded by
 default, and raw-bearing artifact refs such as `grading_path`, `input_path`,
-`answer_path`, `transcript_path`, and `trace_path` are omitted from
-metadata-only bundles. To include raw payloads and raw-bearing refs in the
-bundle, opt in explicitly:
+`answer_path`, and `transcript_path` are omitted from metadata-only bundles. To
+include raw payloads and raw-bearing refs in the bundle, opt in explicitly:
 
 ```bash
 agentv results export <run-workspace-or-index.jsonl> --dry-run --include-raw-content
@@ -230,13 +243,13 @@ policy so downstream processing is auditable.
 For lightweight terminal workflows:
 
 ```bash
-agentv results summary .agentv/results/default/<timestamp>
-agentv results failures .agentv/results/default/<timestamp>
-agentv results show .agentv/results/default/<timestamp> --test-id my-case
-agentv results validate .agentv/results/default/<timestamp>
+agentv results summary .agentv/results/<run_id>
+agentv results failures .agentv/results/<run_id>
+agentv results show .agentv/results/<run_id> --test-id my-case
+agentv results validate .agentv/results/<run_id>
 ```
 
-For a review-centric workflow built around these artifacts, see [Human Review Checkpoint](/docs/next/guides/human-review/).
+For a review-centric workflow built around these artifacts, see [Human Review Checkpoint](/docs/guides/human-review/).
 
 ## Remote results sync/status
 
@@ -244,7 +257,7 @@ The CLI contract is deliberately narrow: `agentv results` manages local result a
 
 Use these supported remote workflows instead:
 
-- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo.remote` with `repo.path: .` and `repo.branch: agentv/results/v1` to store primary result records on a dedicated branch of the source repo. AgentV never adds or rewrites remotes in an existing checkout; that checkout's `origin` must already point at the repository you want to fetch and push. AgentV reserves `agentv/results/v1` for primary results and `agentv/artifacts/v1` for heavy artifact payloads. When `index.jsonl` rows point trace or transcript payloads at `agentv/artifacts/v1`, automatic publishing stores those bytes on that artifact branch in the same remote and publishes pointer keys such as `runs/<run-path>/<pointer.path>`. The configured results branch remains the metadata/control plane (`index.jsonl`, `summary.json`, tags, and pointers) instead of duplicating canonical trace/transcript payload bodies. Local pre-publish run workspaces can still contain those files beside the manifest so local tools keep working. Mutable run tags are stored as `tags.json` with a `tag_revision`; there is no tag event log in the normal results layout. `results.repo.path` without `results.repo.remote` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. Non-fast-forward result branch pushes never force-push: AgentV auto-merges concurrent remote writes with artifact-aware Git merge drivers (a union driver for the append-only `index.jsonl`, a JSON-union driver for tag and feedback overlays) and pushes the merge as a fast-forward, and routes a genuine overlay conflict to a timestamped `agentv/results-sync/...` branch plus a GitHub compare/PR link for a human merge. The removed `sync.push_conflict_policy: backup_and_force_push` value is rejected with migration guidance; remove the field or set it to `block`. While an eval is still running, [WIP checkpoints](/docs/next/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
+- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `results.repo` with `results.path` pointing at the source checkout and `results.branch: agentv/results/v1` to store primary result records on a dedicated branch of the source repo. AgentV never adds or rewrites remotes in an existing checkout; that checkout's `origin` must already point at the repository you want to fetch and push. AgentV reserves `agentv/results/v1` for primary results and `agentv/artifacts/v1` for heavy artifact payloads. When `index.jsonl` rows point trace or transcript payloads at `agentv/artifacts/v1`, automatic publishing stores those bytes on that artifact branch in the same remote and publishes pointer keys such as `runs/<run_id>/<pointer.path>`. The configured results branch remains the metadata/control plane (`index.jsonl`, `summary.json`, tags, and pointers) instead of duplicating canonical trace/transcript payload bodies. Local pre-publish run workspaces can still contain those files beside the manifest so local tools keep working. Mutable run tags are stored as `tags.json` with a `tag_revision`; there is no tag event log in the normal results layout. `results.path` without `results.repo` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. Set `auto_push: true` to push after publish. In CI, use `agentv eval run --results-require-push` when push failures should fail that invocation after local artifacts are written. Non-fast-forward result branch pushes never force-push: AgentV auto-merges concurrent remote writes with artifact-aware Git merge drivers (a union driver for the append-only `index.jsonl`, a JSON-union driver for tag and feedback overlays) and pushes the merge as a fast-forward, and routes a genuine overlay conflict to a timestamped `agentv/results-sync/...` branch plus a GitHub compare/PR link for a human merge. While an eval is still running, [WIP checkpoints](/docs/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
 - **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
 - **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
-- **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.repo.path` clone with `git` directly, then sync again.
+- **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.path` clone with `git` directly, then sync again.

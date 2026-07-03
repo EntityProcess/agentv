@@ -3,13 +3,6 @@ title: Custom Assertions
 description: Build reusable assertion types with defineAssertion() and convention-based discovery
 sidebar:
   order: 7
-slug: docs/next/graders/custom-assertions
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 Custom assertions let you add evaluation logic that goes beyond built-in types. Define a TypeScript function, drop it in `.agentv/assertions/`, and reference it by name in your YAML eval files.
@@ -21,11 +14,11 @@ AgentV provides two SDK functions for custom evaluation logic:
 | Function | Best For | Discovery |
 |----------|----------|-----------|
 | `defineAssertion()` | Pass/fail checks, reusable assertion types | Convention-based (`.agentv/assertions/`) |
-| `defineCodeGrader()` | Full scoring control with explicit assertions array | Referenced via `type: code-grader` + `command:` |
+| `defineCodeGrader()` | Full scoring control with explicit assertions array | Referenced via `type: script` + `command:` |
 
 **Use `defineAssertion()`** when you want a named assertion type that can be referenced across eval files without specifying a command path. It uses a simplified result contract focused on `pass` and optional `score`.
 
-**Use `defineCodeGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the grader is a one-off grader tied to a specific eval. See [Code Graders](/docs/next/graders/code-graders/) for details.
+**Use `defineCodeGrader()`** when you need full control over scoring with explicit `assertions` arrays, or when the grader is a one-off grader tied to a specific eval. See [Script Graders](/docs/graders/code-graders/) for details.
 
 Both functions handle stdin/stdout JSON parsing, snake_case-to-camelCase conversion, Zod validation, and error handling automatically.
 
@@ -118,7 +111,7 @@ The handler must return an `AssertionScore` object:
 
 ## Context Available to Assertions
 
-The handler receives an `AssertionContext` with the same fields as a code grader:
+The handler receives an `AssertionContext` with the same fields as a script grader:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -227,24 +220,23 @@ export default defineAssertion(({ output }) => {
 name: custom-assertion-demo
 description: Demonstrates custom assertions with convention discovery
 
-execution:
-  target: default
+target: default
 
 tests:
   - id: greeting-response
-    criteria: Agent gives a multi-word greeting
     input: "Say hello and introduce yourself"
     expected_output: "Hello! I'm an AI assistant here to help you."
     assertions:
+      - Agent gives a multi-word greeting
       - type: contains
         value: "Hello"
       - type: word-count
 
   - id: short-answer
-    criteria: Agent gives a short but valid response
     input: "What is 2+2?"
     expected_output: "The answer is 4."
     assertions:
+      - Agent gives a short but valid response
       - type: contains
         value: "4"
       - type: word-count

@@ -3,13 +3,6 @@ title: Retry Configuration
 description: Configure automatic retry with exponential backoff
 sidebar:
   order: 5
-slug: docs/next/targets/retry
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 Configure automatic retry with exponential backoff for transient failures.
@@ -20,7 +13,7 @@ Add retry fields to any target:
 
 ```yaml
 targets:
-  - name: azure-base
+  - label: azure-base
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}

@@ -3,19 +3,12 @@ title: Autoresearch
 description: Run an unattended eval-improve loop that iteratively optimizes agent skills
 sidebar:
   order: 5
-slug: docs/next/guides/autoresearch
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 import { Image } from 'astro:assets';
 import trajectoryChart from '../../../../../assets/screenshots/autoresearch-trajectory.png';
 
-Autoresearch is an unattended optimization loop that **automatically improves your agent skills** through repeated eval cycles. It runs the same evaluate → analyze → improve loop described in the [Skill Improvement Workflow](/docs/next/guides/skill-improvement-workflow/), but does it hands-free — no human review between cycles.
+Autoresearch is an unattended optimization loop that **automatically improves your agent skills** through repeated eval cycles. It runs the same evaluate → analyze → improve loop described in the [Skill Improvement Workflow](/docs/guides/skill-improvement-workflow/), but does it hands-free — no human review between cycles.
 
 <Image src={trajectoryChart} alt="Autoresearch trajectory chart showing score improvement from 0.48 to 0.90 over 9 cycles" />
 
@@ -58,12 +51,12 @@ Any file or directory artifact: SKILL.md, prompt template, agent config, system 
 
 ## Prerequisites
 
-- An eval file (EVAL.yaml or evals.json) that covers the behavior you care about
+- An AgentV eval file (`EVAL.yaml`, `.eval.yaml`, JSONL, or TypeScript) that covers the behavior you care about, or an Agent Skills `evals.json` file handled by the built-in read adapter.
 - The artifact must be a file or directory within a git repository (autoresearch uses git for versioning)
 - Run at least one manual eval cycle first to validate your test cases
 
 :::tip
-Autoresearch is only as good as your eval. If your assertions don't catch the failures you care about, the optimizer won't fix them. Start with the [manual improvement loop](/docs/next/guides/skill-improvement-workflow/) to build confidence in your eval quality before going unattended.
+Autoresearch is only as good as your eval. If your assertions don't catch the failures you care about, the optimizer won't fix them. Start with the [manual improvement loop](/docs/guides/skill-improvement-workflow/) to build confidence in your eval quality before going unattended.
 :::
 
 ## Triggering Autoresearch
@@ -211,4 +204,4 @@ You can override both limits when triggering autoresearch:
 | Best for | Building eval intuition | Scaling optimization |
 | Trajectory chart | Not included | Auto-generated with live refresh |
 
-Start with the [manual loop](/docs/next/guides/skill-improvement-workflow/) to understand the workflow, then use autoresearch to scale it.
+Start with the [manual loop](/docs/guides/skill-improvement-workflow/) to understand the workflow, then use autoresearch to scale it.

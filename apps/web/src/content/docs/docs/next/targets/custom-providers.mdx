@@ -3,13 +3,6 @@ title: Custom Providers (SDK)
 description: Implement native TypeScript providers using the ProviderRegistry API
 sidebar:
   order: 6
-slug: docs/next/targets/custom-providers
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 Custom providers let you implement evaluation targets in TypeScript instead of shelling out to a CLI command. This is useful when you want to call an HTTP API, use an SDK, or implement custom logic that goes beyond what the CLI provider supports.
@@ -184,7 +177,7 @@ Then reference it in your targets file:
 ```yaml
 # .agentv/targets.yaml
 targets:
-  - name: my_http_agent
+  - label: my_http_agent
     provider: http-agent
     grader_target: azure-base
 ```
@@ -215,7 +208,7 @@ Use `provider: cli` when:
 
 ```yaml
 targets:
-  - name: python_agent
+  - label: python_agent
     provider: cli
     command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
 ```

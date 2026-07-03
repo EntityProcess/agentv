@@ -3,40 +3,109 @@ title: Eval Files
 description: YAML and JSONL evaluation file formats
 sidebar:
   order: 1
-slug: docs/next/evaluation/eval-files
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
-Evaluation files define the test cases and graders for an evaluation run. Runtime choices such as target matrices, setup, scripts, and repeat runs belong in [experiments](/docs/next/evaluation/experiments/). AgentV supports two eval formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. The reserved `tags.experiment` key is the run/result grouping label, top-level `target` identifies the system under test, and fields such as `evaluate_options.repeat`, `threshold`, `timeout_seconds`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency` control repeated attempts and gates. Workspace reuse belongs under `workspace.isolation`; repository provenance belongs under `workspace.repos`; Docker/container binding belongs under `workspace.docker`. Non-provisioning setup commands belong in top-level `extensions`; reset policy stays under `workspace.hooks.after_each.reset`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
+Eval files describe the task, target binding, and run controls. Use `evaluate_options.max_concurrency` for authored suite concurrency. Operators can still override concurrency with `--workers` or set defaults with `execution.workers` in `agentv.config.*` / `.agentv/config.yaml`; do not author legacy `workers` fields in eval YAML.
 
-## Suites
+## Authoring Shapes
 
-An eval file is a **suite**: it binds test cases to task context, assertions, and reusable fixtures. Runtime choices such as target matrices, setup, and run counts belong in experiments. Test cases can be inline or loaded from an external file via `tests: ./cases.yaml` for reuse across suites.
+Eval YAML is AgentV's composable and runnable authoring primitive. Use ordinary
+`*.eval.yaml` files for direct task suites and for wrapper evals that compose
+other suites. Raw case files are reusable data inputs, not a second runnable
+experiment format.
+
+- A **task suite** is eval YAML that owns task context: `workspace`, shared
+  `input`, shared `assertions`, fixtures, graders, and test cases. It can run
+  directly or be imported through `imports.suites`.
+- A **raw case file** is a YAML, JSON, JSONL, CSV, script-backed dataset,
+  directory, or glob of cases. Import it with `imports.tests`,
+  `tests: ./cases.yaml`, `tests: file://cases.csv`, or string shorthand; parent
+  suite context applies because raw cases do not carry their own suite context.
+- A **wrapper eval** is eval YAML that imports one or more suites with
+  `imports.suites` and binds run controls with top-level `target`, `threshold`,
+  `timeout_seconds`, and `evaluate_options`.
+  Wrapper evals can live anywhere in the repo. A wrapper that imports suites
+  with `imports.suites` must not define parent `workspace`; imported suites own
+  task environment. Machine-local existing workspace paths belong in CLI flags
+  or `config.local.yaml`, not eval YAML.
+
+For example, a reusable task suite can keep the task contract in one file:
+
+```yaml
+# evals/suites/refunds.eval.yaml
+suite: refunds
+workspace:
+  repos:
+    - path: ./support-app
+      repo: acme/support-app
+      commit: main
+input: Answer using the refund policy in the workspace.
+assertions:
+  - Applies the refund policy correctly
+tests:
+  - id: missing-receipt
+    input: Can this customer get a refund without a receipt?
+```
+
+Raw cases are just case data:
+
+```yaml
+# evals/cases/refund-smoke.cases.yaml
+- id: damaged-item
+  input: The item arrived damaged. What should support do?
+  expected_output: Offer a replacement or refund path.
+```
+
+A wrapper eval stays ordinary eval YAML while choosing a target and run controls:
+
+```yaml
+# experiments/refunds-codex.eval.yaml
+name: refunds-codex
+target: codex-gpt5
+evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+
+imports:
+  suites:
+    - path: ../evals/suites/refunds.eval.yaml
+  tests:
+    - path: ../evals/cases/refund-smoke.cases.yaml
+
+tests:
+  - id: local-edge-case
+    input: Can a final-sale item be refunded after damage in transit?
+    expected_output: Explain the final-sale exception for damaged transit.
+```
+
+The `experiments/` directory in that example is optional and user-owned. AgentV
+does not infer behavior from the path; the wrapper runs because it is eval YAML
+with tests or imports. The wrapper owns target selection and run controls. Put
+workspace setup in imported child suites. Parent workspace-affecting fields,
+including top-level `workspace`, are for parent-owned raw cases, including
+cases imported with `imports.tests`. Runtime workspace path overrides belong in
+CLI flags or `.agentv/config.local.yaml`; repos, hooks, templates, Docker
+config, env checks, and isolation belong in top-level or case-level
+`workspace`.
 
 ## YAML Format
 
-The primary format. A single file contains metadata, execution config, and tests:
+The primary format. A single file contains metadata, inline runtime config, and tests:
 
 ```yaml
 description: Math problem solving evaluation
-execution:
-  target: default
+target: default
 
 assertions:
-  - name: correctness
-    type: llm-grader
-    prompt: ./graders/correctness.md
+  - Correctly calculates the answer
+  - Explains the calculation briefly
 
 tests:
   - id: addition
-    criteria: Correctly calculates 15 + 27 = 42
     input: What is 15 + 27?
     expected_output: "42"
 ```
@@ -47,11 +116,109 @@ tests:
 |-------|-------------|
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
-| `execution` | Default execution config (`target`, `fail_on_error`, `threshold`, etc.) |
-| `workspace` | Suite-level workspace config — inline object or string path to an [external workspace file](/docs/next/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/next/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
-| `tests` | Array of individual tests, or a string path to an external file or directory |
+| `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
+| `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
+| `tags` | Optional promptfoo-style metadata map. Use `tags.experiment` as the run/result grouping label. |
+| `prompts` | Optional top-level prompt matrix. Entries can be strings, chat message arrays, files, or generated prompt functions. |
+| `targets` | Optional target matrix. Entries reference target labels or inline target objects. |
+| `evaluate_options.repeat` | Optional repeat policy as a positive integer shorthand or object with `count`, `strategy`, `early_exit`, and `cost_limit_usd` |
+| `timeout_seconds` | Optional per-case timeout |
+| `evaluate_options` | Optional evaluation runtime options such as `budget_usd` and `max_concurrency` |
+| `threshold` | Optional suite quality threshold |
+| `workspace` | Suite-level task environment — inline object or string path to an [external workspace file](/docs/guides/workspace-pool/#external-workspace-config). Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
+| `extensions` | Promptfoo-style lifecycle hooks: `file://path/to/hooks.mjs:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, plus the built-in `agentv:agent-rules`. Hooks run after `workspace.repos` materializes. |
+| `imports` | Optional import groups. `imports.suites` imports full child eval suites with their task context. `imports.tests` imports raw test rows into this file's context. Import entries may use scoped `run:` overrides for `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`. |
+| `tests` | Inline raw tests or a string path to an external raw-case file or directory. Legacy `tests[].include` entries still load with a migration warning; prefer `imports.suites` or `imports.tests`. |
 | `assertions` | Suite-level graders appended to each test unless `execution.skip_defaults: true` is set on the test |
 | `input` | Suite-level input messages prepended to each test's input unless `execution.skip_defaults: true` is set on the test |
+
+`workspace` is what the agent can inspect or modify through tools, not prompt
+input. Put instructions in `input`; put repos, templates, Docker config, env
+checks, isolation, and repo provenance in `workspace`. Put lifecycle setup that
+does not acquire repos in `extensions`.
+
+For historical or repo-state evals, put the checkout under
+`workspace.repos[].commit` or `workspace.repos[].base_commit`. A commit SHA in
+the prompt or metadata is useful context, but it does not materialize a repo for
+the agent to inspect.
+
+### Prompts, Vars, and Target Expansion
+
+Use top-level `prompts` when you want promptfoo-style prompt variants. AgentV
+renders each prompt with each test's `vars`, then expands the run as
+`prompts x targets x tests x repeat` before execution. Each expanded row keeps
+the original `test_id` plus prompt and target identity for Dashboard filtering,
+reruns, and comparisons.
+
+```yaml
+description: Release-note summarization
+tags:
+  experiment: prompt-matrix
+
+prompts:
+  - id: direct
+    label: Direct
+    prompt: "Summarize {{ vars.topic }}."
+  - id: terse
+    label: Terse
+    prompt: "In one sentence, summarize {{ vars.topic }}."
+
+targets:
+  - label: local-mini
+    id: openai:gpt-5.4-mini
+  - label: local-codex
+    id: codex-auto-review
+
+tests:
+  - id: release-notes
+    vars:
+      topic: the July release notes
+    expected_output: concise release-note summary
+    assertions:
+      - Identifies the most important change
+      - Avoids unsupported details
+```
+
+If `prompts` is present, put per-case data in `tests[].vars` rather than
+`tests[].input`. For direct task suites, `input` remains the supported shorthand
+for the target task and can be a string, object, or message array. Use
+`prompts` only when you want a prompt matrix rendered from `tests[].vars`.
+
+### Lifecycle Extensions
+
+`extensions` uses Promptfoo-compatible lifecycle names. File hooks are local
+JavaScript or TypeScript modules resolved relative to the eval file:
+
+```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+  - file://scripts/setup.mjs:beforeEach
+  - file://scripts/setup.mjs:afterEach
+  - file://scripts/setup.mjs:afterAll
+```
+
+Each exported function receives a context object with snake_case keys such as
+`workspace_path`, `test_id`, `eval_run_id`, `case_input`, and `case_metadata`.
+Setup hook failures (`beforeAll`, `beforeEach`) fail the affected run; teardown
+hook failures (`afterEach`, `afterAll`) are non-fatal.
+
+`agentv:agent-rules` is the only built-in extension in this slice. It runs after
+workspace materialization and exposes staged rule paths to providers and result
+metadata as `agent_rules_paths`:
+
+```yaml
+extensions:
+  - id: agentv:agent-rules
+    hook: beforeAll
+    skills: agent-rules/skills
+    hooks: agent-rules/hooks
+    agents: agent-rules/agents
+    rules: agent-rules/AGENTS.md
+```
+
+If `agentv:agent-rules` is authored as a string, it defaults to `beforeAll` and
+discovers conventional rule locations already present in the materialized
+workspace. It does not clone repositories or replace `workspace.repos`.
 
 ### Metadata Fields
 
@@ -83,9 +250,23 @@ tests:
     input: Screen "Acme Corp" against denied parties list
 ```
 
+When `category` is omitted, AgentV derives it from the eval file path. Generic
+filenames do not add a leaf: `security/eval.yaml` becomes `security`, and
+`security/network/dataset.eval.yaml` becomes `security/network`. A meaningful
+named eval file contributes a leaf, so `security/network.eval.yaml` becomes
+`security/network`. Existing flat category strings remain valid one-node
+category paths.
+
 ### Suite-level Assertions
 
 The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `execution.skip_defaults: true`.
+For semantic or agent-behavior checks, prefer plain assertion strings first;
+AgentV treats them as rubric criteria. Use deterministic assertions or script
+graders when the expected output is exact or requires programmatic inspection.
+If the assertion strings already state the grading contract, omit a duplicate
+`criteria` field on each test. Use explicit `type: llm-grader` entries only
+when you need a custom prompt, a custom grader target, or a deliberately
+separate grader panel.
 
 ```yaml
 description: API response validation
@@ -94,14 +275,18 @@ assertions:
     required: true
   - type: contains
     value: "status"
+  - Correctly answers the user's question
+  - Explains the reasoning clearly
 
 tests:
   - id: health-check
-    criteria: Returns health status
     input: Check API health
 ```
 
-`assertions` supports all grader types, including deterministic assertion types (`contains`, `regex`, `is_json`, `equals`) and `rubrics`. See [Tests](/docs/next/evaluation/eval-cases/#per-test-assertions) for per-test assertions usage.
+`assertions` supports rubric shorthand strings, deterministic assertion types
+(`contains`, `regex`, `is-json`, `equals`), `g-eval`, LLM graders, and script
+graders. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for
+per-test assertions usage.
 
 ### Assertion Includes
 
@@ -195,8 +380,8 @@ Per-test `input_files` overrides the suite-level value (it does not merge). To o
 
 ### PROMPT.md Fallback
 
-For Vercel-style eval directories, a test may omit `input` and keep the task
-prompt in Markdown instead. AgentV resolves the prompt in this order:
+For directory-style evals, a test may omit `input` and keep the task prompt in
+Markdown instead. AgentV resolves the prompt in this order:
 
 1. If the effective `input_files` contains a file named exactly `PROMPT.md`, that file becomes the test prompt.
 2. Otherwise, if a `PROMPT.md` exists beside the `EVAL.yaml`, that file becomes the test prompt.
@@ -222,21 +407,65 @@ Use explicit `input` when the prompt is short or generated from YAML variables.
 Use `PROMPT.md` when the task text is long enough that duplicating it inside
 YAML would make the eval hard to review.
 
-### Tests as String Path
+### Raw Cases as String Paths
 
-Instead of inlining tests in the same file, you can point `tests` to an external YAML or JSONL file. This is the inverse of the sidecar pattern — the metadata file references the test data:
+Instead of inlining tests in the same file, you can point `tests` to an external YAML or JSONL file of raw cases. This is the inverse of the sidecar pattern — the metadata file references the test data:
 
 ```yaml
 name: my-eval
 description: My evaluation suite
-execution:
-  target: default
+target: default
 tests: ./cases.yaml
 ```
 
-The path is resolved relative to the eval file's directory. The external file should contain a YAML array of test objects or a JSONL file with one test per line.
+The path is resolved relative to the eval file's directory. The external raw
+case file can be a YAML or JSON array of test objects, a JSONL file with one
+test per line, a promptfoo-compatible CSV file, or an explicit JavaScript or
+Python dataset function such as `file://generate-tests.mjs:createTests` or
+`file://generate_tests.py:create_tests`. String entries inside a `tests:` list
+work the same way and may use direct paths, `file://` paths, directories, or
+globs:
 
-### Tests as Directory Path
+```yaml
+tests:
+  - ./cases/*.cases.yaml
+```
+
+CSV datasets support promptfoo-style magic columns. `__expected` and
+`__expectedN` create AgentV assertions using the supported expected-column
+mini-DSL (`contains:*`, `icontains:*`, `contains-any:*`, `contains-all:*`,
+`icontains-any:*`, `icontains-all:*`, `starts-with:*`, `ends-with:*`,
+`regex:*`, `equals:*`, `is-json`, `latency(<ms>)`, `cost(<usd>)`,
+`grade:*`, `llm-rubric:*`, `javascript:*`, `fn:*`, `eval:*`, `python:*`, and
+`file://*.py`; file paths inside CSV cells are resolved relative to the CSV
+file). Unsupported promptfoo assertion forms such as `similar:*` are rejected
+during validation instead of being skipped at runtime.
+`__provider_output` becomes first-class `expected_output` reference data,
+`__metric` names the generated assertions, `__threshold` sets the test threshold,
+`__metadata:<key>` adds metadata, and `__config:__expectedN:threshold` sets an
+assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
+suite-level `input` that interpolates those variables.
+
+String shorthand is raw-case-only. Import reusable task suites through
+`imports.suites`; use `imports.tests` when you want to drop suite context and
+import only raw cases into the parent context:
+
+```yaml
+imports:
+  suites:
+    - path: ./suites/*.eval.yaml
+  tests:
+    - path: ./cases/regression.jsonl
+
+tests:
+  - id: local-edge-case
+    input: ...
+```
+
+Legacy `tests[].include` entries still load with a migration warning for older
+eval files, but new evals should use `imports.suites` or `imports.tests`.
+
+### Raw Cases as Directory Paths
 
 When `tests` points to a directory, AgentV auto-discovers test cases from subdirectories. Each subdirectory containing a `case.yaml` (or `case.yml`) becomes a test case:
 
@@ -272,34 +501,34 @@ input: Fix the null check bug in parser.ts
 - **Alphabetical ordering:** Subdirectories are sorted alphabetically for deterministic order
 - **Per-case workspace:** A `workspace/` subdirectory inside the case directory automatically sets `workspace.template` to that path, unless the case already defines a `workspace` field
 - **Skipped directories:** Subdirectories without `case.yaml` are skipped with a warning
-- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, and `execution` still apply to directory-discovered cases
+- **Suite-level config applies:** Suite-level `assertions`, `input`, `workspace`, `target`, and top-level run controls still apply to directory-discovered cases
 
 This pattern is useful for benchmarks with many cases, where each case benefits from its own directory for workspace templates, supporting files, or documentation.
 For guidance on keeping provenance metadata, patches, oracle files, and generated
-dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/next/guides/benchmark-provenance/).
+dataset rows out of oversized inline YAML, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 
 ## Environment Variable Interpolation
 
-All string fields in eval files support `${{ VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
+All string fields in eval files support `{{ env.VAR }}` syntax for environment variable interpolation. This enables portable eval configs that work across machines and CI environments without hardcoded paths.
 
 ```yaml
 workspace:
   repos:
     - path: ./RepoA
-      repo: "${{ REPO_A_URL }}"
-      commit: "${{ REPO_A_COMMIT }}"
+      repo: "{{ env.REPO_A_URL }}"
+      commit: "{{ env.REPO_A_COMMIT }}"
 
 tests:
   - id: test-1
-    input: "Evaluate the code in ${{ PROJECT_NAME }}"
-    criteria: "${{ EVAL_CRITERIA }}"
+    input: "Evaluate the code in {{ env.PROJECT_NAME }}"
+    criteria: "{{ env.EVAL_CRITERIA }}"
 ```
 
 ### Behavior
 
-- **Syntax:** `${{ VARIABLE_NAME }}` with optional whitespace around the name
+- **Syntax:** `{{ env.VARIABLE_NAME }}` with optional whitespace around the name
 - **Missing variables** resolve to an empty string
-- **Partial interpolation** is supported: `${{ HOME }}/repos/${{ PROJECT }}` becomes `/home/user/repos/myproject`
+- **Partial interpolation** is supported: `{{ env.HOME }}/repos/{{ env.PROJECT }}` becomes `/home/user/repos/myproject`
 - **Non-string values** (numbers, booleans) are not affected
 - Interpolation is applied recursively to all nested objects and arrays
 - Works in YAML eval files, external YAML/JSONL case files, and external workspace config files
@@ -311,8 +540,8 @@ tests:
 # workspace.yaml — works on any machine
 repos:
   - path: ./my-repo
-    repo: "${{ MY_REPO_URL }}"
-    commit: "${{ MY_REPO_COMMIT }}"
+    repo: "{{ env.MY_REPO_URL }}"
+    commit: "{{ env.MY_REPO_COMMIT }}"
 ```
 
 ```bash
@@ -323,31 +552,31 @@ MY_REPO_COMMIT=main
 
 ## Per-Test Template Variables
 
-Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{name}}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
+Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{ vars.name }}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
 
 ```yaml
-input: "Answer clearly: {{question}}"
+input: "Answer clearly: {{ vars.question }}"
 
 tests:
   - id: capital
     vars:
       question: What is the capital of France?
       expected_answer: Paris
-    criteria: "Answers {{question}} correctly"
+    criteria: "Answers {{ vars.question }} correctly"
     input:
       - role: user
-        content: "Question: {{question}}"
-    expected_output: "{{expected_answer}}"
+        content: "Question: {{ vars.question }}"
+    expected_output: "{{ vars.expected_answer }}"
 ```
 
 ### Behavior
 
 - `vars` is defined per test as an object
-- `{{name}}` and dotted paths like `{{ user.name }}` are supported
-- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, and conversation turn `input` / `expected_output`
+- `{{ vars.name }}` and dotted paths like `{{ vars.user.name }}` are supported
+- Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
 - When the whole string is a single placeholder, the original JSON value is preserved
-- Missing variables are left unchanged, so unrelated template syntax is not silently blanked out
-- `vars` interpolation is separate from environment interpolation: `{{question}}` uses test data, `${{ PROJECT_NAME }}` uses environment variables
+- Missing variables render as empty strings following Nunjucks semantics
+- `vars` interpolation is separate from environment interpolation: `{{ vars.question }}` uses test data, `{{ env.PROJECT_NAME }}` uses environment variables
 
 ## JSONL Format
 
@@ -367,8 +596,7 @@ An optional YAML sidecar file provides metadata and execution config. Place it a
 ```yaml
 description: Math evaluation dataset
 suite: math-tests
-execution:
-  target: azure-base
+target: azure-base
 assertions:
   - name: correctness
     type: llm-grader

@@ -3,13 +3,6 @@ title: Validate
 description: Validate evaluation file definitions
 sidebar:
   order: 4
-slug: docs/next/tools/validate
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 The `validate` command checks evaluation files for schema errors without running them.
@@ -29,7 +22,7 @@ agentv validate evals/**/*.yaml
 ## What It Checks
 
 - YAML/JSONL syntax
-- Required fields (id, input, criteria)
+- Required fields: `id`, `input`, and at least one of `criteria`, `expected_output`, `assertions`, or `turns`
 - Grader references (command paths, prompt files)
 - Target references match entries in `targets.yaml`
 - Rubric structure and field types
@@ -39,3 +32,9 @@ agentv validate evals/**/*.yaml
 - Before running evaluations to catch config errors early
 - In CI/CD pipelines as a pre-check
 - After editing eval files to verify correctness
+
+`agentv validate` replaces the old eval mock dry-run use case for schema and
+configuration checks. It does not execute targets and does not produce quality
+scores. When you need no-live-LLM quality validation, run against an
+oracle/reference target or use frozen transcript/replay fixtures so graders see
+real candidate output.

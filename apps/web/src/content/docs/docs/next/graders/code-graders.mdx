@@ -1,29 +1,21 @@
 ---
-title: Code Graders
-description: Deterministic code graders in Python or TypeScript
+title: Script Graders
+description: Deterministic script graders in Python or TypeScript
 sidebar:
   order: 1
-slug: docs/next/graders/code-graders
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
-Code graders are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
+Script graders are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
 
 ## Contract
 
-Code graders receive eval context via stdin JSON and return a result via stdout.
+Script graders receive eval context via stdin JSON and return a result via stdout.
 
 **Input (stdin, raw wire format):**
 ```json
 {
   "input": [{ "role": "user", "content": "What is 15 + 27?" }],
   "input_files": [],
-  "criteria": "Correctly calculates 15 + 27 = 42",
   "output": "The answer is 42.",
   "expected_output": [{ "role": "assistant", "content": "42" }],
   "messages": [{ "role": "assistant", "content": "The answer is 42." }],
@@ -93,7 +85,7 @@ fi
 
 ```yaml
 assertions:
-  - type: code-grader
+  - type: script
     command: [bash, scripts/check-pages.sh]
 ```
 
@@ -101,7 +93,7 @@ Silent one-liners work too — stdout is optional:
 
 ```yaml
 assertions:
-  - type: code-grader
+  - type: script
     command: ["bash", "-c", "[ $(wc -l < output.txt) -ge 10 ]"]
 ```
 
@@ -136,7 +128,7 @@ print(json.dumps({
 The repo-local helper in `examples/features/sdk-python/` wraps the same contract for that example checkout:
 
 ```python
-from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
+from agentv_py.grader import Assertion, CodeGraderResult, define_script
 
 
 def evaluate(context):
@@ -153,7 +145,7 @@ def evaluate(context):
     )
 
 if __name__ == "__main__":
-    define_code_grader(evaluate)
+    define_script(evaluate)
 ```
 
 Deprecated wire aliases like `output_text`, `input_text`, `reference_answer`, and `expected_output_text` are not accepted by the Python helper.
@@ -188,7 +180,7 @@ console.log(JSON.stringify({
 ```yaml
 assertions:
   - name: my_validator
-    type: code-grader
+    type: script
     command: [./validators/check_answer.py]
 ```
 
@@ -245,12 +237,12 @@ describe('welcome banner', () => {
 });
 ```
 
-Then use AgentV's built-in Vitest adapter as the `code-grader` command. The adapter copies verifier files into a temporary workspace-local path when needed, runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
+Then use AgentV's built-in Vitest adapter as the `script` command. The adapter copies verifier files into a temporary workspace-local path when needed, runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
 
 ```yaml
 assertions:
   - name: vitest-welcome-banner
-    type: code-grader
+    type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
@@ -278,7 +270,7 @@ Prefer Vitest verifiers when the checks naturally fit `expect(...)`. Use `define
 
 ## Target Access
 
-Code graders can call an LLM through a target proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
+Script graders can call an LLM through a target proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
 
 ### Configuration
 
@@ -287,7 +279,7 @@ Add a `target` block to the grader config:
 ```yaml
 assertions:
   - name: contextual-precision
-    type: code-grader
+    type: script
     command: [bun, scripts/contextual-precision.ts]
     target:
       max_calls: 10  # Default: 50
@@ -331,7 +323,7 @@ Use `target.invokeBatch(requests)` for multiple calls in parallel.
 
 ## Advanced Input Fields
 
-Beyond the basic fields (`input`, `output`, `expected_output`, `criteria`), code graders receive additional structured context:
+Beyond the basic fields (`input`, `output`, `expected_output`), script graders receive additional structured context:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -373,7 +365,7 @@ Use `expected_output` for reference answers and `output` for the actual final an
 
 ## Workspace Access
 
-When `workspace` is configured in the eval YAML (via `workspace.template`, `workspace.path`, or `workspace.repos`), code graders receive the workspace path in two ways:
+When `workspace` is configured in the eval YAML (via `workspace.template`, `workspace.repos`, or lifecycle hooks), script graders receive the prepared workspace path in two ways:
 
 1. **JSON payload**: `workspace_path` field in the stdin input
 2. **Environment variable**: `AGENTV_WORKSPACE_PATH`
@@ -429,16 +421,15 @@ console.log(JSON.stringify({
 workspace:
   template: ./workspace-template   # copied into a temp dir before each run
 
-execution:
-  target: my_agent
+target: my_agent
 
 tests:
   - id: implement-feature
-    criteria: Agent implements the feature correctly
     input: "Implement the TODO functions in src/index.ts"
     assertions:
+      - Agent implements the feature correctly
       - name: functional-check
-        type: code-grader
+        type: script
         command: [bun, scripts/functional-check.ts]
 ```
 
@@ -473,7 +464,7 @@ The command:
 3. Prints the grader's JSON result to stdout
 4. Exits 0 if score >= 0.5, exit 1 otherwise
 
-This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `agentv eval assert` instructions for code graders so external grading agents can run them directly.
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `agentv eval assert` instructions for script graders so external grading agents can run them directly.
 
 ### With stdin pipe
 

@@ -3,13 +3,6 @@ title: Execution Metrics
 description: Threshold-based checks on execution metrics
 sidebar:
   order: 5
-slug: docs/next/graders/execution-metrics
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 AgentV provides built-in graders for checking execution metrics against thresholds. These are useful for enforcing efficiency constraints without writing custom code.
@@ -119,7 +112,7 @@ Fails if total token usage exceeds the threshold.
 |----------|----------------------|
 | Check multiple metrics at once | `execution_metrics` |
 | Simple single-threshold check | `latency`, `cost`, or `token_usage` |
-| Complex custom formulas | `code_grader` with custom command |
+| Complex custom formulas | `script` with custom command |
 
 ## Combining with Other Graders
 

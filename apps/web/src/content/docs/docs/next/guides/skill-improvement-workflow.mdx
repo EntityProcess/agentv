@@ -3,20 +3,13 @@ title: Skill Improvement Workflow
 description: Iteratively evaluate and improve agent skills using AgentV
 sidebar:
   order: 4
-slug: docs/next/guides/skill-improvement-workflow
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 ## Introduction
 
 AgentV supports a full evaluation-driven improvement loop for skills and agents. Instead of guessing whether a change makes things better, you run structured evaluations before and after, then compare.
 
-This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [Autoresearch](/docs/next/guides/autoresearch/).
+This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [Autoresearch](/docs/guides/autoresearch/).
 
 ## The Core Loop
 
@@ -58,7 +51,7 @@ Every skill improvement follows the same cycle:
 
 ## Step 1: Write Test Scenarios
 
-Start with `evals.json` for quick iteration. It's the simplest format and works directly with AgentV — no conversion needed.
+Start with AgentV `EVAL.yaml` for runs you want AgentV to own. If you already have an Agent Skills `evals.json`, run it directly through the read adapter or convert it when you want editable YAML:
 
 ```json
 {
@@ -98,6 +91,9 @@ Run the evaluation **without** the skill loaded to establish a baseline:
 
 ```bash
 agentv eval evals.json --target baseline
+
+agentv convert evals.json --out EVAL.yaml
+agentv eval EVAL.yaml --target baseline
 ```
 
 This produces a results file (e.g., `results-baseline.jsonl`) showing how the agent performs on its own.
@@ -115,7 +111,7 @@ drafts/
     SKILL.md
 
 # Baseline run won't pick it up
-agentv eval evals.json --target baseline
+agentv eval EVAL.yaml --target baseline
 ```
 
 ## Step 3: Run Candidate Evaluation
@@ -123,7 +119,7 @@ agentv eval evals.json --target baseline
 Run the same evaluation **with** the skill loaded:
 
 ```bash
-agentv eval evals.json --target candidate
+agentv eval EVAL.yaml --target candidate
 ```
 
 Or grade existing sessions offline (no API keys required):
@@ -134,7 +130,7 @@ agentv import claude --list
 agentv import claude --session-id <uuid>
 
 # Run deterministic graders against the imported transcript
-agentv eval evals.json --target copilot-log
+agentv eval EVAL.yaml --target copilot-log
 ```
 
 Offline grading is useful when you want to evaluate skills with agents that don't have a direct API integration — import the session transcript and run deterministic graders.
@@ -202,7 +198,7 @@ Loop back to Step 3 with the improved skill:
 
 ```bash
 # Run the improved candidate
-agentv eval evals.json --target candidate
+agentv eval EVAL.yaml --target candidate
 
 # Compare against the previous baseline
 agentv compare results-baseline.jsonl results-candidate.jsonl
@@ -219,27 +215,38 @@ Keep your baseline stable across iterations. Only re-run the baseline when the t
 
 ## Graduating to EVAL.yaml
 
-When `evals.json` becomes limiting — you need workspace isolation, code graders, tool trajectory checks, or multi-turn conversations — graduate to EVAL.yaml:
+When `evals.json` is your starting point, you can run it directly for quick checks. Convert it to EVAL.yaml before using AgentV's workspace isolation, script graders, tool trajectory checks, or multi-turn conversations:
 
 ```bash
-agentv convert evals.json -o eval.yaml
+agentv eval evals.json --target claude
+agentv convert evals.json -o EVAL.yaml
 ```
 
 The generated YAML preserves all your existing test cases and adds comments showing AgentV features you can use:
 
 ```yaml
 # Converted from Agent Skills evals.json
+# Agent Skills expected_output is treated as expected outcome/rubric context,
+# not as AgentV expected_output reference data.
+tags:
+  skill: "code-reviewer"
+metadata:
+  source_adapter: "agent-skills-evals-json"
 tests:
   - id: "1"
     criteria: |-
       The function should handle division by zero.
-    input:
-      - role: user
-        content: "Review this Python function for bugs:..."
+    input: "Review this Python function for bugs:..."
     assertions:
-      - name: assertion-1
-        type: llm-grader
-        prompt: "Identifies the division by zero risk"
+      - name: agent-skills-criteria
+        type: g-eval
+        criteria:
+          - id: expected-outcome
+            outcome: "The function should handle division by zero."
+            required: true
+          - id: assertion-1
+            outcome: "Identifies the division by zero risk"
+            required: true
       # Replace with type: contains for deterministic checks:
       # - type: contains
       #   value: "ZeroDivisionError"
@@ -248,26 +255,27 @@ tests:
 After converting, you can:
 - Replace `llm-grader` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
 - Add `workspace` configuration for file-system isolation
-- Use `code-grader` for custom scoring logic
+- Use `script` for custom scoring logic
 - Define `tool-trajectory` assertions to check tool usage patterns
 
-See [Skill Evals (evals.json)](/docs/next/integrations/agent-skills-evals/) for the full field mapping and side-by-side comparison.
+See [Agent Skills evals.json Adapter](/docs/integrations/agent-skills-evals/) for the full field mapping and side-by-side comparison.
 
 ## Migration from Skill-Creator
 
-If you've been using the Agent Skills skill-creator workflow, AgentV reads your existing files directly — no rewrite needed.
+If you've been using the Agent Skills skill-creator workflow, keep `evals.json` as the external source and run it through the AgentV read adapter. Convert it at the boundary when you want to own the YAML.
 
 | Skill-Creator | AgentV | Notes |
 |--------------|--------|-------|
-| `evals.json` | `agentv eval evals.json` | Direct — no conversion needed |
-| `claude -p "prompt"` | `agentv eval evals.json --target claude` | Same eval, richer engine |
+| `evals.json` | `agentv eval evals.json --target claude` | Built-in read adapter for Agent Skills datasets |
+| `evals.json` | `agentv convert evals.json --out EVAL.yaml` | Adapter conversion into editable AgentV YAML |
+| `claude -p "prompt"` | `agentv eval EVAL.yaml --target claude` | Same cases, richer engine after conversion |
 | `grading.json` (read) | `<test-id>/grading.json` (write) | Same per-test schema, AgentV writes one grading file per test case |
 | `summary.json` (read) | `<output>/summary.json` (write) | AgentV writes the canonical run summary; convert it in a wrapper if another tool needs a narrower compatibility shape |
 | n/a | `index.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
 | with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
-| Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code graders, etc. |
+| Native AgentV authoring | EVAL.yaml | Adds workspace, script graders, targets, repeat runs, and artifacts |
 
-**Key takeaway:** You do not need to rewrite your `evals.json`. AgentV reads it directly and adds a richer evaluation engine on top.
+**Key takeaway:** You do not need to hand-rewrite `evals.json`. AgentV can run it through a read adapter, and conversion is available when you want editable AgentV YAML.
 
 ## Using Experiments for Baseline vs Candidate
 
@@ -305,7 +313,7 @@ my-skill/
   SKILL.md           # ✅ distribute
   evals/             # ❌ exclude from distribution
     evals.json
-    eval.yaml
+    EVAL.yaml
     results/
 ```
 
@@ -315,9 +323,9 @@ Evals are development-time artifacts. End users don't need them, and including t
 
 Start simple and add complexity only when the evaluation results demand it:
 
-1. **Start with `evals.json`** — 5-10 test cases, natural-language assertions
+1. **Start with EVAL.yaml** — 5-10 test cases, natural-language assertions
 2. **Add deterministic checks** — when you find assertions that can be exact (`contains`, `regex`)
-3. **Graduate to EVAL.yaml** — when you need workspace isolation or code graders
+3. **Run or convert existing `evals.json`** — when Agent Skills tooling owns the source file
 4. **Add tool trajectory checks** — when tool usage patterns matter
 5. **Use rubrics** — when you need weighted, structured scoring criteria
 
@@ -333,4 +341,4 @@ Autoresearch uses the same `agentv eval` and `agentv compare` primitives describ
 
 One command starts the loop. It runs until the optimizer converges (3 consecutive no-improvement cycles) or hits the cycle limit. Typical runs: 5–10 cycles, under $0.05 total cost.
 
-See the full guide: [Autoresearch](/docs/next/guides/autoresearch/)
+See the full guide: [Autoresearch](/docs/guides/autoresearch/)

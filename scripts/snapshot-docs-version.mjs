@@ -6,14 +6,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
-const VERSION_SLUG_PATTERN = /^(v\d+\.\d+\.\d+|next)$/;
+const VERSION_SLUG_PATTERN = /^v\d+\.\d+\.\d+$/;
+const LIVE_SUBDIR = 'next';
 
 const version = process.argv[2];
 const sourceRef = process.argv[3] ?? version;
 const execFile = promisify(execFileWithCallback);
 
 if (!version || !VERSION_SLUG_PATTERN.test(version)) {
-  console.error('Usage: node scripts/snapshot-docs-version.mjs <vX.Y.Z|next> [source-ref]');
+  console.error('Usage: node scripts/snapshot-docs-version.mjs vX.Y.Z [source-ref]');
   process.exit(1);
 }
 
@@ -22,7 +23,6 @@ const docsRoot = path.join(repoRoot, 'apps/web/src/content/docs/docs');
 const snapshotRoot = path.join(docsRoot, version);
 const routeManifestPath = path.join(repoRoot, `apps/web/src/data/docs-${version}-routes.json`);
 const docsTreePath = 'apps/web/src/content/docs/docs';
-const ignoredTopLevel = new Set([version]);
 
 const tempRoot = await mkdtemp(path.join(tmpdir(), 'agentv-docs-snapshot-'));
 const archivePath = path.join(tempRoot, 'docs.tar');
@@ -33,8 +33,12 @@ await rm(snapshotRoot, { recursive: true, force: true });
 await mkdir(snapshotRoot, { recursive: true });
 await mkdir(sourceRoot, { recursive: true });
 
+const liveRoot = path.join(extractedDocsRoot, LIVE_SUBDIR);
+
 try {
-  await execFile('git', ['cat-file', '-e', `${sourceRef}:${docsTreePath}`], { cwd: repoRoot });
+  await execFile('git', ['cat-file', '-e', `${sourceRef}:${docsTreePath}/${LIVE_SUBDIR}`], {
+    cwd: repoRoot,
+  });
   const { stdout } = await execFile('git', ['archive', '--format=tar', sourceRef, docsTreePath], {
     cwd: repoRoot,
     encoding: 'buffer',
@@ -44,14 +48,16 @@ try {
   await execFile('tar', ['-xf', archivePath, '-C', sourceRoot]);
 } catch (error) {
   await rm(tempRoot, { recursive: true, force: true });
-  throw error;
+  throw new Error(
+    `'${sourceRef}' has no live docs at ${docsTreePath}/${LIVE_SUBDIR}. Snapshots are cut from the live 'next' tree.`,
+    { cause: error },
+  );
 }
 
-const docsEntries = await readdir(extractedDocsRoot, { withFileTypes: true });
-for (const entry of docsEntries) {
-  if (ignoredTopLevel.has(entry.name)) continue;
+const liveEntries = await readdir(liveRoot, { withFileTypes: true });
+for (const entry of liveEntries) {
   if (VERSION_SLUG_PATTERN.test(entry.name)) continue;
-  await cp(path.join(extractedDocsRoot, entry.name), path.join(snapshotRoot, entry.name), {
+  await cp(path.join(liveRoot, entry.name), path.join(snapshotRoot, entry.name), {
     recursive: true,
   });
 }
@@ -121,10 +127,7 @@ function rewriteSnapshotContent(source, version, slug, archiveRouteSet) {
     .replace(/href='\/docs\/([^'#]*)(#[^']+)?'/g, (match, targetPath, hash = '') => {
       const archiveHref = toArchiveHref(version, targetPath, hash);
       return archiveRouteSet.has(stripHash(archiveHref)) ? `href='${archiveHref}'` : match;
-    })
-    .replaceAll("from '../../../../assets/", "from '../../../../../assets/")
-    .replaceAll('from "../../../../assets/', 'from "../../../../../assets/')
-    .replaceAll('](../../../../examples/', '](../../../../../examples/');
+    });
 
   return upsertFrontmatter(rewritten, {
     slug: [`slug: ${slug}`],
@@ -133,7 +136,7 @@ function rewriteSnapshotContent(source, version, slug, archiveRouteSet) {
     banner: [
       'banner:',
       '  content: |',
-      `    You are viewing the frozen ${version} docs. Use <a href="/docs/">Canary docs</a> for the current development version.`,
+      `    You are viewing the frozen ${version} docs. Use <a href="/docs/next/">Next docs</a> for the current development version.`,
     ],
   });
 }

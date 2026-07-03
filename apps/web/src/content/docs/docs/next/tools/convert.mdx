@@ -3,13 +3,6 @@ title: Convert
 description: Convert between evaluation file formats
 sidebar:
   order: 2
-slug: docs/next/tools/convert
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 The `convert` command converts evaluation files between formats: YAML ↔ JSONL, and Agent Skills `evals.json` → AgentV EVAL YAML.
@@ -38,18 +31,21 @@ Outputs a `.eval.yaml` file alongside the input.
 agentv convert evals.json
 ```
 
-Converts an [Agent Skills `evals.json`](/docs/next/integrations/agent-skills-evals/) file into an AgentV EVAL YAML file. The converter:
+Converts an [Agent Skills `evals.json`](/docs/integrations/agent-skills-evals) file into an AgentV EVAL YAML file. The converter:
 
-- Maps `prompt` → `input` message array
-- Maps `expected_output` → `expected_output`
-- Maps `assertions` → `assertions` graders (llm-grader)
-- Resolves `files[]` paths relative to the evals.json directory
-- Adds TODO comments for AgentV-specific features (workspace setup, code graders, rubrics)
+- Maps `prompt` → `input` prompt text
+- Maps `expected_output` → expected-outcome rubric criteria, not AgentV `expected_output`
+- Maps `assertions[]` and `expectations[]` → `g-eval` rubric criteria
+- Maps `files[]` → `input_files`
+- Maps `skill_name` → `tags.skill` and records adapter provenance metadata
+- Adds TODO comments for AgentV-specific features (workspace setup, script graders, rubrics)
 
-This is a one-way conversion — use it as a starting point, then enhance the generated YAML with AgentV features.
+AgentV can run detected Agent Skills `evals.json` files directly through the
+built-in read adapter. Use `convert` to import the definition into an editable
+AgentV YAML file without running a target.
 
 ## When to Use
 
-- **evals.json → YAML** to onboard Agent Skills evaluations into AgentV with full feature access
+- **evals.json → YAML** to onboard Agent Skills evaluations into editable AgentV YAML
 - **YAML → JSONL** for large-scale evaluations, programmatic processing, or compatibility with other tools
 - **JSONL → YAML** for human editing, adding execution config, or better readability

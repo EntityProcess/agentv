@@ -3,20 +3,13 @@ title: TypeScript SDK
 description: Programmatic API for evaluations, custom assertions, and typed configuration
 sidebar:
   order: 6
-slug: docs/next/evaluation/sdk
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 YAML remains AgentV's canonical, portable eval format. The SDK surfaces below are for cases where you want to generate YAML-shaped definitions in code, embed eval runs inside another application, or write executable graders and prompt templates. For authoring helpers, `@agentv/sdk` is AgentV's public lightweight SDK package.
 
 AgentV currently provides two npm packages for programmatic use:
 
-- **`@agentv/sdk`** — user-facing SDK for `evaluate()`, YAML-aligned eval authoring, custom assertions, and code graders
+- **`@agentv/sdk`** — user-facing SDK for `evaluate()`, YAML-aligned eval authoring, custom assertions, and script graders
 - **`@agentv/core`** — core implementation package and typed configuration
 
 ## Installation
@@ -51,7 +44,7 @@ Use the simplest surface that matches the job:
 - **YAML / JSONL first** for portable eval specs you want to run from the CLI, check into a repo, or share across TypeScript and Python workflows.
 - **`defineEval()` / `evalSuite()`** when you want a `.eval.ts` file that mirrors YAML concepts and lowers back to the canonical snake_case contract.
 - **`evaluate({ specFile })`** when you want library control around an existing YAML suite.
-- **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput` and `assert`.
+- **Inline `evaluate({ tests })`** when the eval definition truly belongs inside application code. The programmatic API mirrors YAML, but uses current TypeScript naming such as `expectedOutput`.
 - **`defineAssertion` / `defineCodeGrader`** when the grading logic itself must execute code.
 - **`agentv eval <verifier.test.ts>`** for deterministic workspace checks that fit normal Vitest `expect(...)` tests.
 
@@ -102,9 +95,7 @@ import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'hello-suite',
-  execution: {
-    targets: ['mock-sdk'],
-  },
+  target: 'mock-sdk',
   workspace: {
     hooks: {
       beforeAll: {
@@ -149,7 +140,7 @@ export default defineEval({
         graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
-        graders.rubrics(['Greets the user'], { name: 'rubric-review' }),
+        graders.g-eval(['Greets the user'], { name: 'rubric-review' }),
         graders.llmGrader({
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
@@ -162,7 +153,7 @@ export default defineEval({
 });
 ```
 
-The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `rubrics`, `llm-grader`, and `code-grader`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `g-eval`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## AgentV-Native Helper Factories
 
@@ -271,7 +262,7 @@ assertions:
     value: "Hello"
 ```
 
-## Code Graders
+## Script Graders
 
 Use `defineCodeGrader` from `@agentv/sdk` for full control over scoring with an explicit assertions array:
 
@@ -303,7 +294,7 @@ it('links to the dashboard', () => {
 ```yaml
 assertions:
   - name: vitest-welcome-banner
-    type: code-grader
+    type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
@@ -320,9 +311,9 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 ]);
 ```
 
-`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` custom scripts are referenced in YAML with `type: code-grader` and `command: [bun, run, grader.ts]`. Plain Vitest verifier files can use `command: [agentv, eval, graders/check.test.ts]` without a custom wrapper; use `agentv eval vitest` when you need adapter flags. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
+`defineCodeGrader`, `defineVitestWorkspaceGrader`, and `defineWorkspaceGrader` custom scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest verifier files can use `command: [agentv, eval, graders/check.test.ts]` without a custom wrapper; use `agentv eval vitest` when you need adapter flags. `defineAssertion` uses convention-based discovery instead — just place in `.agentv/assertions/` and reference by name.
 
-For detailed patterns, input/output contracts, and language-agnostic examples, see [Code Graders](/docs/next/graders/code-graders/).
+For detailed patterns, input/output contracts, and language-agnostic examples, see [Script Graders](/docs/graders/code-graders/).
 
 ## Wire Format vs SDK Format
 
@@ -355,9 +346,35 @@ const { results, summary } = await evaluate({
       id: 'greeting',
       input: 'Say hello',
       expectedOutput: 'Hello there!',
-      assert: [{ type: 'contains', value: 'Hello' }],
+      assertions: [{ type: 'contains', value: 'Hello' }],
     },
   ],
+});
+
+console.log(`${summary.passed}/${summary.total} passed`);
+```
+
+A strict OR is easy with inline assertion handlers:
+
+```typescript
+import { evaluate } from '@agentv/sdk';
+
+const { summary } = await evaluate({
+  tests: [
+    {
+      id: 'capital',
+      input: 'What is the capital of France?',
+      expectedOutput: 'Paris',
+      assertions: [
+        ({ output }) => ({
+          name: 'capital-or-phrase',
+          score: ((output ?? '').includes('Paris') || /capital of france/i.test(output ?? '')) ? 1 : 0,
+        }),
+      ],
+    },
+  ],
+  task: async (input) => `Agent: ${input}`,
+  threshold: 0.8,
 });
 
 console.log(`${summary.passed}/${summary.total} passed`);

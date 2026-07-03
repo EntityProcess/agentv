@@ -3,13 +3,6 @@ title: Running Evaluations
 description: CLI commands for running and managing evaluations
 sidebar:
   order: 4
-slug: docs/next/evaluation/running-evals
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 ## Run an Evaluation
@@ -18,7 +11,14 @@ banner:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/<experiment>/<timestamp>/index.jsonl`. When no experiment is defined, AgentV uses `.agentv/results/default/<timestamp>/index.jsonl`. Each line is a JSON object with one result per test case, and the run workspace also stores the manifest and related artifacts. Use this generated run folder as the portable audit surface: copy or sync the run directory, not a hand-authored parallel bundle.
+Results are written to `.agentv/results/<run_id>/index.jsonl`. Each CLI
+invocation writes one run bundle. The experiment label is stored in
+`summary.json` and row metadata. Each line is a JSON object with one result per
+test case, and the run workspace also stores the summary and related artifacts.
+Use this generated run folder as the portable audit surface: copy or sync the
+run directory, not a hand-authored parallel bundle. See the
+[Result Artifact Contract](/docs/reference/result-artifacts/) for the complete
+run layout and reader rules.
 
 Each `scores[]` entry includes per-grader timing:
 
@@ -42,7 +42,7 @@ Each `scores[]` entry includes per-grader timing:
 }
 ```
 
-The `duration_ms`, `started_at`, and `ended_at` fields are present on every grader result (including `code-grader`), enabling per-grader bottleneck analysis.
+The `duration_ms`, `started_at`, and `ended_at` fields are present on every grader result (including `script`), enabling per-grader bottleneck analysis.
 
 ## Common Options
 
@@ -56,14 +56,18 @@ agentv eval --target my-target evals/**/*.yaml
 
 ### Experiment Label
 
-Tag a pipeline run with an experiment name to track different conditions (e.g. with vs without skills):
+Tag a run with an experiment name to track different conditions (e.g. with vs without skills):
 
 ```bash
-agentv pipeline run evals/my-eval.yaml --experiment with_skills
-agentv pipeline run evals/my-eval.yaml --experiment without_skills
+agentv eval evals/my-eval.yaml --experiment with_skills
+agentv eval evals/my-eval.yaml --experiment without_skills
 ```
 
-The experiment label is written to `manifest.json` and propagated to each entry in `index.jsonl` by `pipeline bench`. The eval file stays the same across experiments — what changes is the environment. Dashboards can filter and compare results by experiment.
+The experiment label chooses the result bucket and is propagated to each entry
+in `index.jsonl`. CLI `--experiment` wins over `experiment.name` in the eval
+file. If neither is set, AgentV writes to the `default` bucket. The eval file
+stays the same across experiments; what changes is the runtime condition.
+Dashboards can filter and compare results by experiment.
 
 ### Run Specific Test
 
@@ -73,16 +77,23 @@ Run a single test by ID:
 agentv eval --test-id case-123 evals/my-eval.yaml
 ```
 
-### Dry Run
+### Validate Without Running
 
-Test the harness flow with mock responses (does not call real providers):
+Use `agentv validate` when you want a cheap schema and config check without
+executing targets or graders:
 
 ```bash
-agentv eval --dry-run evals/my-eval.yaml
+agentv validate evals/my-eval.yaml
 ```
 
 :::note
-Dry-run returns mock responses that don't match grader output schemas. Use it only for testing harness flow, not grader logic.
+Eval execution no longer has a `--dry-run` mock-target mode. That mode produced
+normal quality failures against fake candidate answers, which made cheap
+validation look like a grader or agent result. For no-live-LLM quality
+validation, run the eval against an oracle/reference target or a replayed/frozen
+transcript so graders see real candidate output. Dry-run preview flags on other
+commands, such as `agentv results export --dry-run` and import preview flows,
+are unchanged.
 :::
 
 ### Custom Output Directory
@@ -94,9 +105,10 @@ agentv eval evals/my-eval.yaml --output ./my-results
 ```
 
 `--output` is a run directory, not a file path. The canonical manifest is always
-`<output>/index.jsonl`.
+`<output>/index.jsonl`; the aggregate summary is
+`<output>/summary.json`.
 
-### Read Results from the Run Index
+### Read Results from the Run Manifest
 
 The run directory is the complete artifact boundary. Use `<output>/index.jsonl` for scripts, CI summaries, and downstream tools:
 
@@ -105,9 +117,9 @@ agentv eval evals/my-eval.yaml --output ./my-results
 cat ./my-results/index.jsonl
 ```
 
-### Generated Task Bundles
+### Generated Test Bundles
 
-Each result can also include a generated task bundle inside its per-test artifact
+Each result can also include a generated test bundle inside its per-test result
 directory. The bundle captures the eval slice and target settings that produced
 that row, so reviewers and rerun tooling can inspect the exact run-local source
 instead of relying on a mutable checkout.
@@ -120,7 +132,7 @@ my-results/
   summary.json
   <test-id>/
     summary.json
-    run-1/
+    attempt-1/
       result.json
       grading.json
       metrics.json
@@ -128,7 +140,8 @@ my-results/
       transcript.json
       transcript-raw.jsonl
       outputs/answer.md
-    task/
+      outputs/file_changes.diff  # when workspace changes are captured
+    test/
       EVAL.yaml
       targets.yaml
       files/      # copied input files when the case references them
@@ -136,16 +149,23 @@ my-results/
 ```
 
 The `index.jsonl` row links to these generated paths with snake_case fields such
-as `artifact_dir`, `task_dir`, `eval_path`, `targets_path`, `files_path`, and
-`graders_path`. Treat those paths as relative to the run directory. When you need
-a portable artifact for audit, review, Dashboard inspection, or rerun workflows,
-share the generated run directory and its `index.jsonl` manifest. Source-side
-case directories are still useful for organizing bulky prompts, fixtures, or
-tests while authoring an eval, but they are optional input organization rather
-than a separate artifact schema.
+as `result_dir`, `test_dir`, `eval_path`, `targets_path`, `files_path`,
+`file_changes_path`, and `graders_path`. Treat those paths as relative to the
+run directory. When you need a portable artifact for audit, review, Dashboard
+inspection, or rerun workflows, share the generated run directory and its
+`index.jsonl` manifest. Source-side case directories are still useful for
+organizing bulky prompts, fixtures, or tests while authoring an eval, but they
+are optional input organization rather than a separate artifact schema.
+
+For the full root layout, per-attempt sidecars, pointer rules, and integration
+guidance, use the [Result Artifact Contract](/docs/reference/result-artifacts/).
+
+Use repo-relative `eval_path`, `test_id`, and `target` as the source identity
+for a result row. `suite` and `name` are display metadata only; do not use them
+to infer storage paths or pick a Dashboard detail row.
 
 If the source eval uses the `PROMPT.md` fallback instead of inline `input`,
-AgentV records the generated task bundle metadata when source artifacts are
+AgentV records the generated test bundle metadata when source artifacts are
 available. It no longer emits a generated prompt sidecar for result rows.
 
 ### Manual or External-Agent Attempts
@@ -154,7 +174,7 @@ Use `agentv prepare` when you want AgentV to set up one eval case but a human,
 external agent, or separate harness should perform the work. The workflow is:
 prepare the workspace and prompt, run the external attempt in that workspace,
 then grade the final state with `agentv grade --prepared` without rerunning the
-target provider. See [Prepare](/docs/next/tools/prepare/) for the full workflow,
+target provider. See [Prepare](/docs/tools/prepare/) for the full workflow,
 manifest shape, and optional trace/session input with `--trace`.
 
 ### Trace Persistence
@@ -166,7 +186,7 @@ result-oriented workflows. For full-fidelity span inspection, export OTLP JSON e
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv inspect stats .agentv/results/default/<timestamp>/index.jsonl
+agentv inspect stats .agentv/results/<run_id>/index.jsonl
 
 # Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
 agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
@@ -276,7 +296,7 @@ agentv eval evals/my-eval.yaml --export-otel
 
 ### Parallelism
 
-The `--workers N` flag controls how many **test cases run in parallel within each eval file** (default: 3). Eval files always run sequentially — one file completes before the next starts.
+The `--workers N` flag controls the in-process worker pool for a single eval file (default: 3). Eval files always run sequentially — one file completes before the next starts. In target-matrix runs, selected targets share that worker budget instead of each target creating its own full pool.
 
 ```bash
 agentv eval evals/my-eval.yaml --workers 4
@@ -284,20 +304,23 @@ agentv eval evals/my-eval.yaml --workers 4
 
 agentv eval evals/file1.yaml evals/file2.yaml evals/file3.yaml --workers 3
 # Files run one at a time; within each file, up to 3 test cases run in parallel
+
+agentv eval evals/my-eval.yaml --target gpt --target claude --workers 4
+# The target matrix shares the same 4-worker budget
 ```
 
 This matches the standard model used by eval frameworks (promptfoo, deepeval, OpenAI Evals) and avoids cross-file workspace races without any special configuration.
 
 ### Workspace Modes and Finish Policy
 
-Use workspace mode and finish policies instead of multiple conflicting booleans:
+Use runtime workspace flags and finish policies instead of multiple conflicting booleans:
 
 ```bash
-# Mode: pooled | temp | static
+# Mode: temp (default) | pooled | static
 agentv eval evals/my-eval.yaml --workspace-mode pooled
 
-# Static mode path
-agentv eval evals/my-eval.yaml --workspace-mode static --workspace-path /path/to/workspace
+# Existing local workspace path for this run
+agentv eval evals/my-eval.yaml --workspace-path /path/to/workspace
 
 # Pooled reset policy override: standard | full (CLI override)
 agentv eval evals/my-eval.yaml --workspace-clean full
@@ -306,23 +329,26 @@ agentv eval evals/my-eval.yaml --workspace-clean full
 agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
 ```
 
-Equivalent eval YAML:
+Portable eval YAML keeps workspace intent under templates, repos, env, Docker,
+and folder isolation. Use top-level extensions for executable setup:
 
 ```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+
 workspace:
-  mode: pooled           # pooled | temp | static
-  path: null             # workspace path for mode=static; auto-materialised when empty/missing
+  isolation: shared      # shared | per_case
   hooks:
-    enabled: true        # set false to skip all hooks
     after_each:
       reset: fast        # none | fast | strict
 ```
 
 Notes:
-- Pooling is default for shared workspaces with repos when mode is not specified.
-- `mode: static` (or `--workspace-mode static`) uses `path` / `--workspace-path`. When the path is empty or missing, the workspace is auto-materialised (template copied + repos cloned). Populated directories are reused as-is.
-- Static mode is incompatible with `isolation: per_test`.
-- `hooks.enabled: false` skips all lifecycle hooks (setup, teardown, reset).
+- Temp workspace materialization is the default for shared workspaces with repos.
+- Pooled mode is an explicit machine-local optimization.
+- `--workspace-path` uses an existing machine-local directory as-is and implies static runtime mode.
+- Runtime static mode is incompatible with `isolation: per_case`.
+- `workspace.hooks.after_each.reset` resets file state after each case.
 - Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Resume an Interrupted Run
@@ -332,45 +358,28 @@ AgentV ships three flags for picking up a partial run. They differ only in **whi
 | Flag | What it skips | What it re-runs | Use when |
 |------|---------------|-----------------|----------|
 | `--resume` | Anything that finished without an `execution_error` (passes, fails, threshold misses) | Errors and missing cases | The run was interrupted (Ctrl-C, crash, OOM) and you just want it to finish |
-| `--rerun-failed` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
+| `--rerun-failed <run_id>` | Only cases with `executionStatus === 'ok'` | Errors **and** test failures (assertion misses, threshold misses) | A grader change or model swap means you want to re-grade everything that wasn't already passing |
 | `--retry-errors <path>` | Anything that completed without an `execution_error` (same set as `--resume`) | Errors and missing cases | You want to point at an arbitrary prior run/manifest by path, instead of resuming the run dir you're currently writing to |
 
-`--resume` and `--rerun-failed` both append to the existing `index.jsonl`. When `--output <dir>` is given they target that directory; when omitted they default to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. This matches promptfoo's `--resume [evalId]` and OpenCompass's `-r [timestamp]` "latest by default" convention. `--retry-errors` takes the prior run's path directly (a directory or an `index.jsonl`).
+`--resume` appends to the existing `index.jsonl` in `--output <dir>`; when omitted it defaults to the **last run dir for the current cwd**, recorded in `.agentv/cache.json` and updated after every eval. `--rerun-failed <run_id>` reads a specific canonical run bundle from `.agentv/results/<run_id>` and, when `--output` is omitted, appends replacement rows to that same bundle. You can also pass a run workspace path or `index.jsonl` path instead of a bare run ID. `--retry-errors` takes the prior run's path directly and re-runs only execution errors or missing cases.
 
 ```bash
 # Resume the last run — no args needed; AgentV finds it from .agentv/cache.json
 agentv eval evals/my-eval.yaml --resume
 
 # Or target a specific run dir explicitly
-agentv eval evals/my-eval.yaml --output .agentv/results/default/<timestamp> --resume
+agentv eval evals/my-eval.yaml --output .agentv/results/<run_id> --resume
 
-# Re-run errors AND failed cases against the last run dir
-agentv eval evals/my-eval.yaml --rerun-failed
+# Re-run errors AND failed cases from a specific canonical run
+agentv eval evals/my-eval.yaml --rerun-failed <run_id>
 
 # Re-run only execution errors from any prior run by path
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/default/<timestamp>/index.jsonl
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/<run_id>/index.jsonl
 ```
 
-After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/next/tools/wip-checkpoints/) first, then use the same `--resume` flow.
+After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
 
-The interactive wizard (`agentv eval` with no arguments) remembers the last run's artifact directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
-
-### Execution Error Tolerance
-
-Control whether the eval run halts on execution errors using `execution.fail_on_error` in the eval YAML:
-
-```yaml
-execution:
-  fail_on_error: false    # never halt on errors (default)
-  # fail_on_error: true   # halt on first execution error
-```
-
-| Value | Behavior |
-|-------|----------|
-| `true` | Halt immediately on first execution error |
-| `false` | Continue despite errors (default) |
-
-When halted, remaining tests are recorded with `failureReasonCode: 'error_threshold_exceeded'`. With concurrency > 1, a few additional tests may complete before halting takes effect.
+The interactive wizard (`agentv eval` with no arguments) remembers the last run directory and surfaces a **"Resume last run"** entry in the main menu when one exists.
 
 ### Suite-Level Quality Threshold
 
@@ -385,8 +394,7 @@ agentv eval evals/ --threshold 0.8
 **YAML config:**
 
 ```yaml
-execution:
-  threshold: 0.8
+threshold: 0.8
 ```
 
 The CLI `--threshold` flag overrides the YAML value. The threshold is a number between 0 and 1 (default: 0.8). Execution errors are excluded from the count.
@@ -407,9 +415,14 @@ Check eval files for schema errors without executing:
 agentv validate evals/my-eval.yaml
 ```
 
+Validation catches schema, target-reference, and grader configuration problems.
+It does not produce quality scores. To validate grader quality behavior without
+calling a live agent, use a reference target, imported transcript, or replay
+fixture so AgentV still runs graders against real or frozen candidate output.
+
 ## Run a Single Assertion
 
-Run a code-grader assertion in isolation without executing a full eval suite:
+Run a script assertion in isolation without executing a full eval suite:
 
 ```bash
 agentv eval assert <name> --agent-output <text> --agent-input <text>
@@ -431,7 +444,7 @@ The `--file` option reads a JSON file with `{ "output": "...", "input": "..." }`
 
 **Exit codes:** 0 if score >= 0.5 (pass), 1 if score < 0.5 (fail).
 
-This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assertions` instructions for code graders so external grading agents can execute them directly.
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `assertions` instructions for script graders so external grading agents can execute them directly.
 
 ## Offline Grading
 
@@ -446,22 +459,23 @@ agentv import claude --session-id <uuid>
 agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-<id>.jsonl
 ```
 
-See the [Import tool docs](/docs/next/tools/import/) for all providers and options.
+See the [Import tool docs](/docs/tools/import/) for all providers and options.
 
-## Transcript And Trace Artifacts
+## Transcript And Result Artifacts
 
-Each result row's `artifact_dir` is a case-local folder under the timestamped
-run bundle. It can include `trace.json`, `transcript.jsonl`, `provider.log`,
-`grading.json`, `timing.json`, `metrics.json`, and generated outputs under
-`outputs/`. The run root does not contain a mixed transcript artifact; use each
-index row's `transcript_path` to find the per-result transcript.
+Each result row's `result_dir` is an allocated folder under the timestamped run
+bundle, usually with a readable test-id prefix plus a short hash suffix. It can
+include `transcript.json`, `transcript-raw.jsonl`, `grading.json`,
+`timing.json`, `metrics.json`, and generated outputs under `outputs/`. The run
+root does not contain target, model, or `cases/` folders, and it does not contain
+a mixed transcript artifact; use each index row's `transcript_path` to find the
+per-result transcript.
 
 Rows also include `artifact_pointers` for AgentV-owned artifact storage. Pointer
-entries such as `artifact_pointers.trace` and `artifact_pointers.transcript`
-carry the storage `ref`, artifact `key`, canonical run-relative `path`,
-`object_version`, `sha256`, `size`, `schema_version`, and `media_type` so
-viewers and exports can migrate from git refs to object storage without changing
-the run record contract.
+entries such as `artifact_pointers.transcript` carry the storage `ref`, artifact
+`key`, canonical run-relative `path`, `object_version`, `sha256`, `size`,
+`schema_version`, and `media_type` so viewers and exports can migrate from git
+refs to object storage without changing the run record contract.
 
 When automatic remote publishing sees pointers whose `ref` is
 `agentv/artifacts/v1`, it also pushes those payload bytes to the
@@ -469,31 +483,30 @@ When automatic remote publishing sees pointers whose `ref` is
 `runs/<run-path>/<pointer.path>` and rewrites the published pointer `key` to
 that backend object key. The configured results branch is the metadata/control
 plane for `index.jsonl`, `summary.json`, tags, and pointers; it does not
-duplicate canonical trace/transcript payload bodies when those rows name
-`agentv/artifacts/v1`. Local pre-publish run workspaces can still contain the
-files beside the manifest, and Dashboard resolves the published pointers lazily
-when a transcript or trace view requests the payload. AgentV keeps this explicit
-pointer/backend contract instead of using Git LFS as the core abstraction so
-S3, B2, or other object stores can use the same `key`, `object_version`,
-`sha256`, `size`, `media_type`, and `schema_version` fields later.
+duplicate canonical transcript payload bodies when those rows name
+`agentv/artifacts/v1`. Dashboard resolves the published pointers lazily when a
+transcript view requests the payload. AgentV keeps this explicit pointer/backend
+contract instead of using Git LFS as the core abstraction so S3, B2, or other
+object stores can use the same `key`, `object_version`, `sha256`, `size`,
+`media_type`, and `schema_version` fields later.
 
-`trace.json` is the full-fidelity `agentv.trace.v1` sidecar.
-It stores the canonical span graph, source metadata, capture/redaction policy,
-conversion warnings, score provenance, and opaque evidence references.
+AgentV does not persist a public `trace.json` sidecar in run bundles. Use
+`external_trace` metadata for link-out correlation when another observability
+system already owns spans.
 
-`transcript.jsonl` is the canonical AgentV transcript/timeline artifact.
-It uses provider-neutral `agentv.transcript.v1` rows with stable top-level fields
-for message order, role/content, tool calls and paired results, timing, token
-usage, cost, source metadata, capture state, and trace pointers.
+`transcript.json` is the canonical AgentV transcript/timeline artifact.
+It uses provider-neutral `agentv.normalized_transcript.v1` data with stable
+fields for message order, role/content, canonical `tool_name` values, paired
+tool results, and `transcript_summary`.
 Provider-native payloads can appear only inside opaque nested fields such as
 `metadata`, `source.metadata`, tool `input`, or tool `output`.
 
-When an agent provider captures a native stream or session log, the result row
-may also include `raw_provider_log_path`, pointing at
-`provider.log`. That file is raw evidence copied byte-for-byte from
-the provider log and is not parsed, normalized, or required for replay, import,
-Agent Skills conversion, or grading. AgentV does not write or maintain a
-parallel `outputs/transcript.json` source of truth.
+When an agent provider captures a native stream or session log, AgentV writes
+that byte-for-byte evidence to `transcript-raw.jsonl` and records it with
+`transcript_raw_path`. New eval runs do not also copy the same stream to
+`provider.log`; `raw_provider_log_path` is only a legacy/imported pointer when
+older bundles or external sources already provide one. AgentV does not write or
+maintain a parallel `outputs/transcript.json` source of truth.
 
 Use the transcript when you need a compact portable message/event projection
 over the trace, including exports to role/content arrays for chat-template or
@@ -557,6 +570,9 @@ Example local overlay:
 ```yaml
 execution:
   keep_workspaces: true
+  # Machine-local existing workspace binding. Do not commit this file.
+  workspace_path: /home/user/workspaces/my-eval
+  workspace_mode: static
 eval_patterns:
   - "local-evals/**/*.eval.yaml"
 ```
@@ -565,6 +581,8 @@ eval_patterns:
 |-------|---------------|------|---------|-------------|
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
+| `workspace_path` | `--workspace-path` | string | none | Machine-local existing workspace directory |
+| `workspace_mode` | `--workspace-mode` | `pooled` / `temp` / `static` | none | Machine-local workspace preparation override |
 | `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
 
 ### TypeScript config (`agentv.config.ts`)
@@ -594,14 +612,6 @@ agentv eval evals/dataset.eval.yaml --cache
 agentv eval evals/dataset.eval.yaml --cache-path .agentv/response-cache
 ```
 
-Eval YAML can enable the same cache per suite:
-
-```yaml
-execution:
-  cache: true
-  cache_path: .agentv/response-cache
-```
-
 Project TypeScript config can set the project default:
 
 ```typescript
@@ -615,7 +625,7 @@ export default defineConfig({
 });
 ```
 
-`--no-cache` disables response caching regardless of CLI, eval YAML, or TypeScript config. Cache path precedence is `--cache-path` > eval YAML `execution.cache_path` > TypeScript config `cache.path` > `.agentv/cache`.
+`--no-cache` disables response caching regardless of CLI or TypeScript config. Cache path precedence is `--cache-path` > TypeScript config `cache.path` > `.agentv/cache`.
 
 Response cache and replay are separate concepts. The response cache is an iteration aid for repeated live provider calls. Transcript or fixture replay is target substitution from curated artifacts, and graders still run fresh against the replayed output.
 
@@ -635,12 +645,12 @@ Then add a replay target alias in `.agentv/targets.yaml`:
 
 ```yaml
 targets:
-  - name: live_coding_agent
+  - label: live_coding_agent
     provider: codex
     model: gpt-5
     grader_target: grader_gpt_5_mini
 
-  - name: replay_coding_agent
+  - label: replay_coding_agent
     provider: replay
     fixtures: ../fixtures/legal-review-target-output.jsonl
     source_target: live_coding_agent
@@ -681,13 +691,10 @@ For local workspaces, put portable registry defaults in `$AGENTV_HOME/config.yam
 ```yaml
 projects:
   - id: agentv
-    name: AgentV
-    repo:
-      path: /home/user/projects/agentv
+    path: /home/user/projects/agentv
     results:
-      repo:
-        path: /home/user/agentv-results
-        branch: agentv/results/v1
+      path: /home/user/agentv-results
+      branch: agentv/results/v1
 ```
 
 When running AgentV from a worktree that needs environment from a primary checkout, load the primary `.env` through the runtime instead of shell-sourcing it:

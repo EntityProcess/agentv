@@ -3,13 +3,6 @@ title: Batch CLI Evaluation
 description: Evaluate external tools that process all tests in a single invocation
 sidebar:
   order: 5
-slug: docs/next/evaluation/batch-cli
-editUrl: false
-pagefind: false
-banner:
-  content: |
-    You are viewing the frozen next docs. Use <a href="/docs/">Canary docs</a> for the current development version.
-
 ---
 
 Batch CLI evaluation handles tools that process multiple inputs at once — bulk classifiers, screening engines, or any runner that reads all tests and outputs results in one pass.
@@ -34,8 +27,7 @@ Use batch CLI evaluation when:
 
 ```yaml
 description: Batch CLI demo using structured input
-execution:
-  target: batch_cli
+target: batch_cli
 
 tests:
   - id: case-001
@@ -62,7 +54,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: [bun, run, ./scripts/check-output.ts]
         cwd: .
 
@@ -90,7 +82,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: [bun, run, ./scripts/check-output.ts]
         cwd: .
 ```
@@ -149,7 +141,7 @@ AgentV extracts tool calls directly from `output[].tool_calls[]` for `tool_traje
 
 ## Grader Implementation
 
-Each test has its own grader that validates the batch runner output. The grader receives the standard `code_grader` input via stdin.
+Each test has its own grader that validates the batch runner output. The grader receives the standard `script` input via stdin.
 
 **Input (stdin):**
 ```json
@@ -252,7 +244,7 @@ targets:
   batch_cli:
     provider: cli
     command: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
-    provider_batching: true
+    batch_requests: true
 ```
 
 Key settings:
@@ -260,7 +252,7 @@ Key settings:
 | Setting | Description |
 |---------|-------------|
 | `provider: cli` | Use the CLI provider |
-| `provider_batching: true` | Run once for all tests instead of per-test |
+| `batch_requests: true` | Run once for all tests instead of per-test |
 | `{EVAL_FILE}` | Placeholder replaced with the eval file path |
 | `{OUTPUT_FILE}` | Placeholder replaced with the JSONL output path |
 
