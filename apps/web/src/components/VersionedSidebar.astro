@@ -3,18 +3,28 @@ import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
 import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
 import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
 import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
-import archiveRoutes from '../data/docs-v4.42.4-routes.json';
+import v4Routes from '../data/docs-v4.42.4-routes.json';
 
-const ARCHIVE_PREFIX = '/docs/v4.42.4/';
+// The Starlight sidebar config autogenerates from docs/next/*, so the base
+// sidebar's hrefs already point at the live /docs/next/ tree unmodified.
+// Only genuinely archived versions below need their hrefs remapped.
+const LIVE_PREFIX = '/docs/next/';
+const ARCHIVED_VERSIONS = [{ slug: 'v4.42.4', routes: v4Routes }];
+
 const { sidebar } = Astro.locals.starlightRoute;
 const pathname = withTrailingSlash(Astro.url.pathname);
-const routeSet = new Set(archiveRoutes);
-const renderedSidebar = isArchivePath(pathname) ? toArchiveSidebar(sidebar) : sidebar;
+const archiveVersion = ARCHIVED_VERSIONS.find((version) => isArchivePath(pathname, version.slug));
+const renderedSidebar = archiveVersion ? toArchiveSidebar(sidebar, archiveVersion) : sidebar;
 
-function toArchiveSidebar(entries: SidebarEntry[]): SidebarEntry[] {
+function toArchiveSidebar(
+  entries: SidebarEntry[],
+  archiveVersion: (typeof ARCHIVED_VERSIONS)[number],
+): SidebarEntry[] {
+  const routeSet = new Set(archiveVersion.routes);
+
   return entries.flatMap((entry) => {
     if (entry.type === 'link') {
-      const archiveHref = toArchiveHref(entry.href);
+      const archiveHref = toArchiveHref(entry.href, archiveVersion.slug);
       if (!routeSet.has(stripHash(archiveHref))) return [];
 
       return [
@@ -26,7 +36,7 @@ function toArchiveSidebar(entries: SidebarEntry[]): SidebarEntry[] {
       ];
     }
 
-    const childEntries = toArchiveSidebar(entry.entries);
+    const childEntries = toArchiveSidebar(entry.entries, archiveVersion);
     if (!childEntries.length) return [];
 
     return [
@@ -38,17 +48,19 @@ function toArchiveSidebar(entries: SidebarEntry[]): SidebarEntry[] {
   });
 }
 
-function toArchiveHref(href: string) {
-  if (!href.startsWith('/docs/') || href.startsWith(ARCHIVE_PREFIX)) return href;
-  return href.replace('/docs/', ARCHIVE_PREFIX);
+function toArchiveHref(href: string, slug: string) {
+  const archivePrefix = `/docs/${slug}/`;
+  if (!href.startsWith(LIVE_PREFIX) || href.startsWith(archivePrefix)) return href;
+  return href.replace(LIVE_PREFIX, archivePrefix);
 }
 
 function withTrailingSlash(path: string) {
   return path.endsWith('/') ? path : `${path}/`;
 }
 
-function isArchivePath(path: string) {
-  return path === ARCHIVE_PREFIX || path.startsWith(ARCHIVE_PREFIX);
+function isArchivePath(path: string, slug: string) {
+  const archivePrefix = `/docs/${slug}/`;
+  return path === archivePrefix || path.startsWith(archivePrefix);
 }
 
 function stripHash(href: string) {

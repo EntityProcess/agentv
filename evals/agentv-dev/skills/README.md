@@ -14,7 +14,7 @@ live repo content directly:
   catalog and command surface
 - `skills-data/*/SKILL.md` for the actual bundled skill bodies shipped by the
   CLI
-- `apps/web/src/content/docs/docs/getting-started/installation.mdx` for the
+- `apps/web/src/content/docs/docs/next/getting-started/installation.mdx` for the
   live CLI usage examples
 
 That keeps the suite aligned with the current repo instead of stale snapshots.
