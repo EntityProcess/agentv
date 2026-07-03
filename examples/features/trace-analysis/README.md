@@ -11,7 +11,7 @@ bun agentv trace list
 # Show summary trace details from the run manifest
 bun agentv trace show .agentv/results/default/<timestamp>/index.jsonl
 
-# Show hierarchical trace tree from an OTLP export
+# Show hierarchical trace tree from an external OTLP export
 bun agentv trace show traces/eval.otlp.json --tree
 
 # Filter to a specific test
@@ -30,8 +30,8 @@ bun agentv trace stats .agentv/results/default/<timestamp>/index.jsonl --format 
 ## What's in the Example Data
 
 The sample run workspace contains 5 test results from a multi-agent evaluation. `trace` accepts the
-workspace directory directly for summary fallback. For full tool-call inspection, export OTLP JSON
-and inspect that file instead.
+workspace directory directly for summary fallback. For full external span inspection, instrument the
+system under test or provider to emit OTLP JSON and inspect that file instead.
 
 | Test ID | Score | Target | Trace |
 |---|---|---|---|

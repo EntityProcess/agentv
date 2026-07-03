@@ -14,15 +14,7 @@ export default defineConfig({
   },
   target: 'node20',
   tsconfig: './tsconfig.build.json',
-  external: [
-    '@opentelemetry/api',
-    '@opentelemetry/exporter-trace-otlp-http',
-    '@opentelemetry/resources',
-    '@opentelemetry/sdk-trace-node',
-    '@opentelemetry/semantic-conventions',
-    '@earendil-works/pi-coding-agent',
-    '@earendil-works/pi-ai',
-  ],
+  external: ['@earendil-works/pi-coding-agent', '@earendil-works/pi-ai'],
   outExtension({ format }) {
     return {
       js: format === 'cjs' ? '.cjs' : '.js',

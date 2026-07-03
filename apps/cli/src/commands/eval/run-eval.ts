@@ -16,7 +16,6 @@ import {
   type ExperimentArtifactMetadata,
   type ExperimentConfig,
   type FailOnError,
-  type OtelTraceExporter as OtelTraceExporterType,
   type ResolvedTarget,
   ResponseCache,
   RunBudgetTracker,
@@ -67,7 +66,6 @@ import {
   writeInitialRunSummaryArtifact,
 } from './artifact-writer.js';
 import { loadEnvFromHierarchy } from './env.js';
-import { resolveOtelBackend } from './otel-backends.js';
 import { type OutputWriter, createOutputWriter } from './output-writer.js';
 import { ProgressDisplay, type Verdict, type WorkerProgress } from './progress-display.js';
 import {
@@ -285,11 +283,6 @@ interface NormalizedOptions {
   readonly tsConfigCache?: boolean;
   readonly tsConfigCachePath?: string;
   readonly verbose: boolean;
-  readonly otelFile?: string;
-  readonly exportOtel: boolean;
-  readonly otelBackend?: string;
-  readonly otelCaptureContent: boolean;
-  readonly otelGroupTurns: boolean;
   readonly retryErrors?: string;
   readonly resume: boolean;
   readonly rerunFailed: boolean;
@@ -356,14 +349,6 @@ function resultsRepoOverride(
     return { repo_path: value === 'current' ? '.' : value };
   }
   return { repo: value };
-}
-
-export function resolveTimestampPlaceholder(value: string): string {
-  if (!value.includes('{timestamp}')) {
-    return value;
-  }
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return value.replaceAll('{timestamp}', timestamp);
 }
 
 function normalizeOptionalNumber(value: unknown): number | undefined {
@@ -732,22 +717,6 @@ function normalizeOptions(
       normalizeBoolean(rawOptions.verbose) ||
       yamlExecution?.verbose === true ||
       config?.execution?.verbose === true,
-    // Precedence: CLI > YAML config > TS config
-    otelFile:
-      normalizeString(rawOptions.otelFile) ??
-      (yamlExecution?.otel_file
-        ? resolveTimestampPlaceholder(yamlExecution.otel_file)
-        : undefined) ??
-      (config?.execution?.otelFile
-        ? resolveTimestampPlaceholder(config.execution.otelFile)
-        : undefined),
-    exportOtel: normalizeBoolean(rawOptions.exportOtel) || yamlExecution?.export_otel === true,
-    otelBackend: normalizeString(rawOptions.otelBackend) ?? yamlExecution?.otel_backend,
-    otelCaptureContent:
-      normalizeBoolean(rawOptions.otelCaptureContent) ||
-      yamlExecution?.otel_capture_content === true,
-    otelGroupTurns:
-      normalizeBoolean(rawOptions.otelGroupTurns) || yamlExecution?.otel_group_turns === true,
     retryErrors: normalizeString(rawOptions.retryErrors),
     resume:
       normalizeBoolean(rawOptions.resume) || normalizeString(rawOptions.rerunFailed) !== undefined,
@@ -1594,7 +1563,6 @@ async function runSingleEvalFile(params: {
   readonly repoRoot: string;
   readonly options: NormalizedOptions;
   readonly outputWriter: OutputWriter;
-  readonly otelExporter?: OtelTraceExporterType | null;
   readonly cache?: EvaluationCache;
   readonly evaluationRunner: typeof defaultRunEvaluation;
   readonly workersOverride?: number;
@@ -1621,7 +1589,6 @@ async function runSingleEvalFile(params: {
     repoRoot,
     options,
     outputWriter,
-    otelExporter,
     cache,
     evaluationRunner,
     workersOverride,
@@ -1705,13 +1672,6 @@ async function runSingleEvalFile(params: {
     });
   }
 
-  // Use streaming spans only for live remote export. File exports should use
-  // post-hoc exportResult(result), which has the complete EvaluationResult and
-  // avoids cross-test interleaving issues under parallel execution.
-  const useStreamingObserver = !!(otelExporter && options.exportOtel);
-  const streamingObserver = useStreamingObserver
-    ? (otelExporter?.createStreamingObserver() ?? null)
-    : null;
   const results = await evaluationRunner({
     testFilePath,
     repoRoot,
@@ -1750,36 +1710,14 @@ async function runSingleEvalFile(params: {
     targetHooks: resolvedTargetSelection.targetHooks,
     replayRecording,
     providerFactory,
-    streamCallbacks: streamingObserver?.getStreamCallbacks(),
     onResult: async (result: EvaluationResult) => {
-      (
-        streamingObserver as { completeFromResult?: (result: EvaluationResult) => void } | null
-      )?.completeFromResult?.(result);
-      // Finalize the streaming observer span with score.
-      streamingObserver?.finalizeEvalCase(result.score, result.error);
-
       // Trim output messages for results JSONL based on --output-messages.
       // Each message is trimmed to { role, content } only (no toolCalls, startTime, etc.).
-      // Full output with tool calls goes to OTel.
       const resultWithVariant =
         explicitVariant && !result.variant ? { ...result, variant: explicitVariant } : result;
       const resultWithMetadata = withSourceMetadata(resultWithVariant, testFilePath, options);
       const trimmedResult = prepareResultForJsonl(resultWithMetadata, options);
       await outputWriter.append(trimmedResult);
-
-      // Export to OTel if exporter is configured (skip batch export when streaming is active)
-      if (otelExporter && !streamingObserver) {
-        try {
-          await otelExporter.exportResult(result);
-        } catch (err) {
-          // Export failures don't fail the evaluation
-          if (options.verbose) {
-            console.warn(
-              `OTel export warning: ${err instanceof Error ? err.message : String(err)}`,
-            );
-          }
-        }
-      }
     },
     onProgress: async (event) => {
       const testCaseKeyId = matrixMode ? `${event.testId}@${targetName}` : event.testId;
@@ -1789,11 +1727,6 @@ async function runSingleEvalFile(params: {
         progressReporter.setTotal(seenTestCases.size);
       }
       const displayId = displayIdTracker.getOrAssign(testCaseKey);
-
-      // Start streaming observer when eval case begins execution
-      if (event.status === 'running' && streamingObserver) {
-        streamingObserver.startEvalCase(event.testId, targetName, testFilePath);
-      }
 
       // Map executionStatus to verdict for display
       let verdict: Verdict | undefined;
@@ -2107,78 +2040,7 @@ export async function runEvalCommand(
   }
   process.env.AGENTV_RUN_DIR = runDir;
 
-  // Initialize OTel exporter if --export-otel or --otel-file is set
-  let otelExporter: OtelTraceExporterType | null = null;
-  const useFileExport = !!options.otelFile;
-
-  if (options.exportOtel || useFileExport) {
-    try {
-      const { OtelTraceExporter } = await import('@agentv/core');
-
-      // Resolve endpoint and headers
-      let endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-      let headers: Record<string, string> = {};
-      let resourceAttributes: Record<string, string | number | boolean> = {};
-
-      if (options.otelBackend) {
-        const resolvedBackend = await resolveOtelBackend(options.otelBackend, {
-          env: process.env,
-          cwd,
-        });
-
-        if (resolvedBackend) {
-          endpoint = resolvedBackend.endpoint;
-          headers = { ...headers, ...resolvedBackend.headers };
-          resourceAttributes = { ...resourceAttributes, ...resolvedBackend.resourceAttributes };
-          for (const warning of resolvedBackend.warnings ?? []) {
-            console.warn(warning);
-          }
-        } else {
-          console.warn(`Unknown OTel backend resolver: ${options.otelBackend}`);
-        }
-      }
-
-      // Parse OTEL_EXPORTER_OTLP_HEADERS env var
-      if (process.env.OTEL_EXPORTER_OTLP_HEADERS) {
-        for (const pair of process.env.OTEL_EXPORTER_OTLP_HEADERS.split(',')) {
-          const [key, ...rest] = pair.split('=');
-          if (key) headers[key.trim()] = rest.join('=').trim();
-        }
-      }
-
-      const captureContent =
-        options.otelCaptureContent || process.env.AGENTV_OTEL_CAPTURE_CONTENT === 'true';
-
-      otelExporter = new OtelTraceExporter({
-        endpoint,
-        headers,
-        resourceAttributes,
-        captureContent,
-        groupTurns: options.otelGroupTurns,
-        otlpFilePath: options.otelFile ? path.resolve(options.otelFile) : undefined,
-      });
-
-      const initialized = await otelExporter.init();
-      if (!initialized) {
-        console.warn(
-          'OTel export requested but @opentelemetry packages not available. Install them to enable export.',
-        );
-        otelExporter = null;
-      }
-    } catch (err) {
-      console.warn(
-        `OTel export initialization failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      otelExporter = null;
-    }
-  }
-
   console.log(`Artifact directory: ${runDir}`);
-
-  // Log file export paths
-  if (options.otelFile) {
-    console.log(`OTLP JSON file: ${path.resolve(options.otelFile)}`);
-  }
 
   // Determine cache state after loading file metadata (need YAML config)
   // We defer cache creation until after file metadata is loaded
@@ -2594,7 +2456,6 @@ export async function runEvalCommand(
                   repoRoot,
                   options: fileOptions,
                   outputWriter,
-                  otelExporter,
                   cache,
                   evaluationRunner,
                   workersOverride: perTargetWorkers,
@@ -2904,13 +2765,6 @@ export async function runEvalCommand(
     unsubscribeCopilotSdkLogs();
     unsubscribeCopilotCliLogs();
     await outputWriter.close().catch(() => undefined);
-    if (otelExporter) {
-      try {
-        await otelExporter.shutdown();
-      } catch {
-        // Silently ignore shutdown errors
-      }
-    }
   }
 }
 

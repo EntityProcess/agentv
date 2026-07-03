@@ -41,11 +41,6 @@ export type ExecutionDefaults = {
   readonly verbose?: boolean;
   readonly keep_workspaces?: boolean;
   readonly workspace_path?: string;
-  readonly otel_file?: string;
-  readonly export_otel?: boolean;
-  readonly otel_backend?: string;
-  readonly otel_capture_content?: boolean;
-  readonly otel_group_turns?: boolean;
 };
 
 export type ResultPushConflictPolicy = 'block';
@@ -213,7 +208,11 @@ function parseConfigObject(
       ...(tags && { tags }),
     };
   } catch (error) {
-    logWarning(`Could not parse AgentV config at ${configPath}: ${(error as Error).message}`);
+    const message = (error as Error).message;
+    if (message.includes('execution.otel_') || message.includes('execution.export_otel')) {
+      throw new Error(`Invalid AgentV config at ${configPath}: ${message}`);
+    }
+    logWarning(`Could not parse AgentV config at ${configPath}: ${message}`);
     return null;
   }
 }
@@ -720,37 +719,7 @@ export function parseExecutionDefaults(
     logWarning(`Invalid execution.workspace_path in ${configPath}, expected non-empty string`);
   }
 
-  const otelFile = obj.otel_file;
-  if (typeof otelFile === 'string' && otelFile.trim().length > 0) {
-    result.otel_file = otelFile.trim();
-  } else if (otelFile !== undefined) {
-    logWarning(`Invalid execution.otel_file in ${configPath}, expected non-empty string`);
-  }
-
-  if (typeof obj.export_otel === 'boolean') {
-    result.export_otel = obj.export_otel;
-  } else if (obj.export_otel !== undefined) {
-    logWarning(`Invalid execution.export_otel in ${configPath}, expected boolean`);
-  }
-
-  const otelBackend = obj.otel_backend;
-  if (typeof otelBackend === 'string' && otelBackend.trim().length > 0) {
-    result.otel_backend = otelBackend.trim();
-  } else if (otelBackend !== undefined) {
-    logWarning(`Invalid execution.otel_backend in ${configPath}, expected non-empty string`);
-  }
-
-  if (typeof obj.otel_capture_content === 'boolean') {
-    result.otel_capture_content = obj.otel_capture_content;
-  } else if (obj.otel_capture_content !== undefined) {
-    logWarning(`Invalid execution.otel_capture_content in ${configPath}, expected boolean`);
-  }
-
-  if (typeof obj.otel_group_turns === 'boolean') {
-    result.otel_group_turns = obj.otel_group_turns;
-  } else if (obj.otel_group_turns !== undefined) {
-    logWarning(`Invalid execution.otel_group_turns in ${configPath}, expected boolean`);
-  }
+  rejectRemovedOtelExecutionDefaults(obj, configPath);
 
   if (obj.pool_workspaces !== undefined) {
     logWarning(
@@ -765,6 +734,29 @@ export function parseExecutionDefaults(
   }
 
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
+}
+
+function rejectRemovedOtelExecutionDefaults(
+  obj: Record<string, unknown>,
+  configPath: string,
+): void {
+  const removedFields = [
+    'otel_file',
+    'export_otel',
+    'otel_backend',
+    'otel_capture_content',
+    'otel_group_turns',
+  ].filter((field) => obj[field] !== undefined);
+  if (removedFields.length === 0) {
+    return;
+  }
+  throw new Error(
+    `${removedFields
+      .map((field) => `execution.${field}`)
+      .join(
+        ', ',
+      )} in ${configPath} ${removedFields.length === 1 ? 'has' : 'have'} been removed. The system under test or provider should emit OpenTelemetry/OpenInference traces directly; use AgentV run artifacts and external_trace metadata for correlation.`,
+  );
 }
 
 export function parseResultsConfig(raw: unknown, configPath: string): ResultsConfig | undefined {

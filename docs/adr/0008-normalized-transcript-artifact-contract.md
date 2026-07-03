@@ -108,9 +108,11 @@ advertise a public `trace.json`/`trace_path` sidecar; external observability
 systems can be correlated through `external_trace` link metadata when available.
 
 AgentV may derive additional event-oriented projections from `transcript.jsonl`
-for Dashboard queries, tool-trajectory scoring, OpenTelemetry/OpenInference
-mapping, or export adapters. Those projections are secondary indexes. They do
-not replace `transcript.jsonl` as the portable transcript contract.
+for Dashboard queries, tool-trajectory scoring, or trace import/evaluation
+adapters. Those projections are secondary indexes. They do not replace
+`transcript.jsonl` as the portable transcript contract, and AgentV does not use
+completed transcript-to-OTLP conversion as the primary path for external
+observability backends.
 
 ## Consequences
 
@@ -145,9 +147,10 @@ not replace `transcript.jsonl` as the portable transcript contract.
   lists, files read/modified, errors, timing, and token rollups are derived
   metrics and belong in `metrics.json` or result metadata.
 - **Make OpenTelemetry/Phoenix spans the transcript contract.** Rejected.
-  OpenTelemetry/OpenInference mapping is valuable as an adapter/export
-  projection, but AgentV-owned run bundles remain the source of truth and do not
-  project completed transcripts into Phoenix.
+  OpenTelemetry/OpenInference mapping is valuable for imported or received
+  external traces, but AgentV-owned run bundles remain the source of truth and do
+  not project completed transcripts into Phoenix or synthesize OTLP as the
+  primary observability path.
 
 ## Non-Goals
 

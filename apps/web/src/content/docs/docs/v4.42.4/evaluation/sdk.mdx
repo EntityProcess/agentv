@@ -353,7 +353,6 @@ export default defineConfig({
     workers: 5,
     maxRetries: 2,
     verbose: true,
-    otelFile: '.agentv/results/otel-{timestamp}.json',
   },
   output: { dir: './results' },
   limits: { maxCostUsd: 10.0 },
@@ -362,14 +361,13 @@ export default defineConfig({
 
 The config file is auto-discovered by the CLI from your project root and validated with Zod at startup.
 
-## Observability Export
+## Trace Correlation
 
-AgentV's observability surface is OpenTelemetry. For post-run workflows:
-
-- Use `agentv eval ... --otel-file traces/eval.otlp.json` to write OTLP JSON you can import into systems such as Opik.
-- Use `agentv eval ... --export-otel --otel-backend <name>` for live export when a built-in or local resolver exists.
-
-AgentV does not currently ship a dedicated Opik authoring facade or built-in `opik` backend resolver. Keep the eval definition in YAML and route observability through OTLP export.
+AgentV stores eval-native run bundles, transcript sidecars, metrics, grading
+artifacts, and summaries. For OpenTelemetry/OpenInference traces, instrument the
+system under test or provider wrapper to emit spans directly to the external
+backend, then correlate AgentV cases to those traces with safe `external_trace`
+IDs or UI URLs when available.
 
 ## Scaffold Commands
 

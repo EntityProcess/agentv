@@ -107,7 +107,7 @@ export interface RawTraceSpan {
  * Supported sources:
  * - Run workspace directories / run manifests
  * - Standalone trace JSONL files for trace-only workflows
- * - OTLP JSON trace files written via --otel-file
+ * - External OTLP JSON trace files
  */
 export function loadResultFile(filePath: string): RawResult[] {
   const resolvedFilePath = resolveTraceResultPath(filePath);

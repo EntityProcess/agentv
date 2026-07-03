@@ -26,27 +26,44 @@
 
 import { z } from 'zod';
 
+const ExecutionConfigSchema = z
+  .object({
+    /** Number of parallel workers (default: 3) */
+    workers: z.number().int().min(1).max(50).optional(),
+    /** Maximum retries on failure (default: 2) */
+    maxRetries: z.number().int().min(0).optional(),
+    /** Agent timeout in milliseconds. No timeout if not set. */
+    agentTimeoutMs: z.number().int().min(0).optional(),
+    /** Enable verbose logging */
+    verbose: z.boolean().optional(),
+    /** Always keep temp workspaces after eval */
+    keepWorkspaces: z.boolean().optional(),
+  })
+  .passthrough()
+  .superRefine((value, ctx) => {
+    if ('otelFile' in value) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['otelFile'],
+        message:
+          'execution.otelFile has been removed. Emit OpenTelemetry/OpenInference traces from the system under test or provider and correlate AgentV run artifacts with external_trace metadata.',
+      });
+    }
+  })
+  .transform(({ workers, maxRetries, agentTimeoutMs, verbose, keepWorkspaces }) => ({
+    ...(workers !== undefined && { workers }),
+    ...(maxRetries !== undefined && { maxRetries }),
+    ...(agentTimeoutMs !== undefined && { agentTimeoutMs }),
+    ...(verbose !== undefined && { verbose }),
+    ...(keepWorkspaces !== undefined && { keepWorkspaces }),
+  }));
+
 /**
  * Schema for AgentV project-level configuration.
  */
 const AgentVConfigSchema = z.object({
   /** Default execution settings */
-  execution: z
-    .object({
-      /** Number of parallel workers (default: 3) */
-      workers: z.number().int().min(1).max(50).optional(),
-      /** Maximum retries on failure (default: 2) */
-      maxRetries: z.number().int().min(0).optional(),
-      /** Agent timeout in milliseconds. No timeout if not set. */
-      agentTimeoutMs: z.number().int().min(0).optional(),
-      /** Enable verbose logging */
-      verbose: z.boolean().optional(),
-      /** Always keep temp workspaces after eval */
-      keepWorkspaces: z.boolean().optional(),
-      /** Write OTLP JSON trace to this path (supports {timestamp} placeholder) */
-      otelFile: z.string().optional(),
-    })
-    .optional(),
+  execution: ExecutionConfigSchema.optional(),
 
   /** Output settings */
   output: z
