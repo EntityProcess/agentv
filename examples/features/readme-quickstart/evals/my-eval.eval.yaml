@@ -2,8 +2,8 @@ description: Code generation quality
 tags:
   experiment: with-skills
 target: local-openai
-execution:
-  max_concurrency: 1
+evaluate_options:
+  max_concurrency: 2
 
 default_test: file://./default-test.yaml
 

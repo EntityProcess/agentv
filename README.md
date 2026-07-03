@@ -19,7 +19,7 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target` by configured target `id` or with an eval-local target object.
 - **Tags** are run/result grouping labels. `tags.experiment` is the default experiment namespace, such as `with-skills` or `without-skills`; keep suite/category and target/model names out of that tag.
-- **Execution** configures runner-level behavior such as general suite concurrency with `execution.max_concurrency`; `evaluate_options` holds eval behaviors such as repeat policy and budgets.
+- **Evaluate options** configure eval run behavior such as `max_concurrency`, repeat policy, and budgets.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
 - **Run** is one concrete execution of a tagged eval against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
@@ -58,7 +58,7 @@ defaults:
   grader: local-openai-grader
 ```
 
-**3. Create shared test defaults** in `evals/default-test.yaml`. This is a promptfoo-style partial test config that AgentV applies to each test:
+**3. Create shared test defaults** in `evals/default-test.yaml`. This is a partial test config that AgentV applies to each test:
 
 ```yaml
 threshold: 0.8
@@ -83,8 +83,8 @@ description: Code generation quality
 tags:
   experiment: with-skills
 target: local-openai
-execution:
-  max_concurrency: 1
+evaluate_options:
+  max_concurrency: 2
 
 default_test: file://./default-test.yaml
 
@@ -109,8 +109,8 @@ Plain assertion strings are short-form rubric criteria: AgentV groups them into
 `llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
 Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
 `score_ranges`, or when you need a custom grader prompt, grader target, or
-preprocessing; use string `value` for promptfoo-compatible free-form rubric
-checks. Executable graders use `type: script`.
+preprocessing; use string `value` for free-form rubric checks. Executable
+graders use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:
 
@@ -142,7 +142,7 @@ tests:
 
 `target: local-openai` resolves the configured target id from `.agentv/config.yaml` and uses its provider, model, hooks, and provider settings. The object form above defines a full eval-local target and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
-Use `default_test.threshold` for the inherited per-test pass cutoff. `default_test` can also point at a shared file, matching promptfoo's external defaults pattern:
+Use `default_test.threshold` for the inherited per-test pass cutoff. `default_test` can also point at a shared file:
 
 ```yaml
 default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
