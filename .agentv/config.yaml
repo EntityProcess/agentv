@@ -20,7 +20,6 @@ results:
 # Execution defaults (overridden by CLI flags)
 execution:
   verbose: false
-  trace_file: .agentv/results/trace-{timestamp}.jsonl
   keep_workspaces: false
   otel_file: .agentv/results/otel-{timestamp}.json
   # OTel live export (set credentials in .env)
