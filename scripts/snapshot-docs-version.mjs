@@ -133,11 +133,6 @@ function rewriteSnapshotContent(source, version, slug, archiveRouteSet) {
     slug: [`slug: ${slug}`],
     editUrl: ['editUrl: false'],
     pagefind: ['pagefind: false'],
-    banner: [
-      'banner:',
-      '  content: |',
-      `    You are viewing the frozen ${version} docs. Use <a href="/docs/next/">Next docs</a> for the current development version.`,
-    ],
   });
 }
 
