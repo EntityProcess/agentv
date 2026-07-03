@@ -7,7 +7,7 @@ This example demonstrates using TypeScript files for custom LLM grader prompts u
 - **Type-safe prompt generation**: Full TypeScript support with autocomplete for context fields
 - **Conditional logic**: Use JavaScript/TypeScript conditionals for dynamic prompts
 - **Config pass-through**: Access custom config from YAML in your prompt template
-- **Same pattern as code graders**: Follows the familiar subprocess pattern
+- **Same pattern as script graders**: Follows the familiar subprocess pattern
 
 ## How It Works
 

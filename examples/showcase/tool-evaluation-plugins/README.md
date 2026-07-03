@@ -1,6 +1,6 @@
 # Tool Evaluation Plugin Patterns
 
-This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` grader. These patterns are intentionally implemented as plugins (code graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
+This showcase demonstrates **plugin-based tool evaluation patterns** that complement AgentV's built-in `tool_trajectory` grader. These patterns are intentionally implemented as plugins (script graders) rather than built-ins because they involve domain-specific logic or semantic evaluation.
 
 ## When to Use Plugins vs Built-ins
 
@@ -61,7 +61,7 @@ npx agentv eval examples/showcase/tool-evaluation-plugins/tool-eval-demo.eval.ya
 
 ## Input Contract
 
-All code graders receive a JSON object on stdin with:
+All script graders receive a JSON object on stdin with:
 
 ```json
 {
@@ -99,7 +99,7 @@ All code graders receive a JSON object on stdin with:
 
 ## Output Contract
 
-Code graders must output JSON with:
+script graders must output JSON with:
 
 ```json
 {

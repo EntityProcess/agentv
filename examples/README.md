@@ -41,7 +41,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 - [composite](features/composite/) - Composite grader patterns
 - [weighted-graders](features/weighted-graders/) - Weighted graders
 - [execution-metrics](features/execution-metrics/) - Metrics tracking (tokens, cost, latency)
-- [code-grader-with-llm-calls](features/code-grader-with-llm-calls/) - Code graders with target proxy for LLM calls
+- [script-grader-with-llm-calls](features/script-grader-with-llm-calls/) - script graders with target proxy for LLM calls
 - [batch-cli](features/batch-cli/) - Batch CLI evaluation
 - [document-extraction](features/document-extraction/) - Document data extraction
 - [local-cli](features/local-cli/) - Local CLI targets
@@ -52,7 +52,7 @@ Focused demonstrations of specific AgentV capabilities. Each example includes it
 
 ### SDK
 
-- [code-grader-sdk](features/code-grader-sdk/) - TypeScript SDK for code graders using `defineCodeGrader()`
+- [script-grader-sdk](features/script-grader-sdk/) - TypeScript SDK for script graders using `defineScriptGrader()`
 - [vitest-workspace-grader](features/vitest-workspace-grader/) - Built-in AgentV adapter for Vitest workspace verifier files
 - [sdk-custom-assertion](features/sdk-custom-assertion/) - Custom assertion types using `defineAssertion()`
 - [sdk-programmatic-api](features/sdk-programmatic-api/) - Programmatic evaluation using `evaluate()`
@@ -81,7 +81,7 @@ Each example follows this structure:
 example-name/
 ├── evals/
 │   ├── suite.yaml     # Primary eval file
-│   ├── *.ts or *.py          # Code graders (optional)
+│   ├── *.ts or *.py          # script graders (optional)
 │   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)
 ├── .agentv/
@@ -92,7 +92,7 @@ example-name/
 
 ### Using `@agentv/sdk`
 
-For TypeScript code graders, add a `package.json`:
+For TypeScript script graders, add a `package.json`:
 
 ```json
 {
@@ -105,14 +105,14 @@ For TypeScript code graders, add a `package.json`:
 }
 ```
 
-Then write type-safe code graders:
+Then write type-safe script graders:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output }) => ({
+export default defineScriptGrader(({ output }) => ({
   score: (output ?? '').includes('expected') ? 1.0 : 0.0,
-  assertions: [{ text: 'Found expected content', passed: (output ?? '').includes('expected') }],
+  assert: [{ text: 'Found expected content', passed: (output ?? '').includes('expected') }],
 }));
 ```

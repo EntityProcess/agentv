@@ -53,14 +53,14 @@
 ```typescript
 import {
   createTargetClient,
-  defineCodeGrader,
+  defineScriptGrader,
   defineEval,
   definePromptTemplate,
   graders,
 } from '@agentv/sdk';
 ```
 
-- `defineCodeGrader(fn)` - Wraps evaluation function with stdin/stdout handling
+- `defineScriptGrader(fn)` - Wraps evaluation function with stdin/stdout handling
 - `defineEval(definition)` - Defines a YAML-aligned `.eval.ts` suite
 - `graders` - Helper catalog that returns ordinary AgentV `assert` entries
 - `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
@@ -119,7 +119,7 @@ assert:
 
 ```python
 #!/usr/bin/env python3
-from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
+from agentv_py.grader import Assertion, ScriptGraderResult, define_script_grader
 
 
 def evaluate(context):
@@ -128,23 +128,23 @@ def evaluate(context):
     for kw in ["async", "await"]:
         assertions.append(Assertion(text=f"Keyword '{kw}'", passed=kw in candidate))
     passed = sum(1 for item in assertions if item.passed)
-    return CodeGraderResult(
+    return ScriptGraderResult(
         score=passed / max(len(assertions), 1),
         assertions=assertions,
     )
 
 
 if __name__ == "__main__":
-    define_code_grader(evaluate)
+    define_script_grader(evaluate)
 ```
 
 ## TypeScript Example
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, expectedOutput }) => {
+export default defineScriptGrader(({ output, expectedOutput }) => {
   const candidate = output ?? '';
   const expected = expectedOutput
     ?.map((message) => (typeof message.content === 'string' ? message.content : ''))

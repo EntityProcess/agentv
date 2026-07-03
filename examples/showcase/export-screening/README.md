@@ -14,7 +14,7 @@ Trade compliance teams screen shipments to identify potential dual-use goods req
 
 1. **Multi-class classification** (Low/Medium/High)
 2. **Structured JSON output** with reasoning
-3. **Code grader** for format validation and accuracy checking
+3. **script grader** for format validation and accuracy checking
 4. **Wrapper-based metrics** (confusion matrix + precision/recall/F1 + policy-weighted overall)
 5. **Multi-sample CI gating** — run eval N times, aggregate results, and gate on aggregated metrics
 
@@ -83,7 +83,7 @@ Each case contains:
 - **Expected output**: Expert risk assessment (`riskLevel: High|Medium|Low`)
 - **Outcome description**: Explanation for human reviewers
 
-### 2. Code Grader (`validate_risk_output.ts`)
+### 2. script grader (`validate_risk_output.ts`)
 
 The grader:
 1. Validates JSON format and required fields

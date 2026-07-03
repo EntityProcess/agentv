@@ -1,19 +1,19 @@
 /**
- * Code grader for cross-repo sync validation.
+ * script grader for cross-repo sync validation.
  *
  * Compares the agent's fileChanges against the ground truth diff:
  * - File-level overlap: which expected files were modified
  * - Keyword matching: key terms that should appear in modifications
  *
- * Pass-through config (from assertions block in YAML):
+ * Pass-through config (from assert block in YAML):
  *   - expected_files_modified: string[] — paths that should appear in fileChanges
  *   - expected_keywords: string[] — terms that should appear in the diff
  *   - ground_truth: string — path to the ground truth diff file (from metadata)
  */
 
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-defineCodeGrader(({ fileChanges, config }) => {
+defineScriptGrader(({ fileChanges, config }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Config keys are camelCased by the SDK runtime (expected_files_modified → expectedFilesModified)

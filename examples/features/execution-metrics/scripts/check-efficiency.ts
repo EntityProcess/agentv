@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Efficiency Check - Code Grader for Execution Metrics
+ * Efficiency Check - script grader for Execution Metrics
  *
  * Demonstrates how to evaluate agent efficiency using execution metrics
  * available in the trace payload.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 // Configurable thresholds
 const THRESHOLDS = {
@@ -15,7 +15,7 @@ const THRESHOLDS = {
   maxDurationMs: 10000,
 };
 
-export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
+export default defineScriptGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (!trace) {

@@ -16,8 +16,8 @@ Use it when the user wants Python-based custom graders or wants to emit AgentV Y
 
 - `agentv_py.grader`
   - `load_grader_input()`
-  - `run_code_grader(handler)`
-  - `define_code_grader(handler)`
+  - `run_script_grader(handler)`
+  - `define_script_grader(handler)`
   - `TargetClient.from_env()`
 - `agentv_py.evals`
   - `EvalDefinition`
@@ -30,21 +30,21 @@ Use it when the user wants Python-based custom graders or wants to emit AgentV Y
 ## Example
 
 ```python
-from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
+from agentv_py.grader import Assertion, ScriptGraderResult, define_script_grader
 
 
 def evaluate(context):
     actual = context.output or ""
     expected = context.expected_output[0]["content"]
     passed = actual.strip() == expected.strip()
-    return CodeGraderResult(
+    return ScriptGraderResult(
         score=1.0 if passed else 0.0,
         assertions=[Assertion(text="Exact match", passed=passed)],
     )
 
 
 if __name__ == "__main__":
-    define_code_grader(evaluate)
+    define_script_grader(evaluate)
 ```
 
 ## YAML helper example

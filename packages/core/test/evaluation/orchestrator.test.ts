@@ -1687,7 +1687,7 @@ Reference: \${ref}\`);
             {
               name: 'ts-prompt-eval',
               type: 'llm-grader',
-              // Use explicit script array (matches code-grader pattern)
+              // Use explicit script array (matches script grader pattern)
               resolvedPromptScript: ['bun', 'run', promptPath],
             },
           ],

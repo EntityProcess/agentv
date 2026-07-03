@@ -39,7 +39,7 @@ export function normalizeGraderType(type: string): string {
 
 function removedGraderReplacement(type: string): string | undefined {
   const replacements: Record<string, string> = {
-    'code-grader': 'script',
+    'script-grader': 'script',
     'code-judge': 'script',
     'g-eval': 'llm-rubric',
     rubrics: 'llm-rubric with value',

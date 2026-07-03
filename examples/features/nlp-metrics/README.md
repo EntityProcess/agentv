@@ -1,6 +1,6 @@
 # NLP Metrics Examples
 
-Demonstrates how to implement common NLP evaluation metrics as AgentV `code_grader` graders — no external dependencies required.
+Demonstrates how to implement common NLP evaluation metrics as AgentV `script_grader` graders — no external dependencies required.
 
 ## Graders
 
@@ -11,7 +11,7 @@ Demonstrates how to implement common NLP evaluation metrics as AgentV `code_grad
 | `graders/similarity.ts` | Cosine + Jaccard | Paraphrasing — token-overlap similarity |
 | `graders/levenshtein.ts` | Levenshtein distance | Extraction — character-level edit distance |
 
-Each grader is a standalone TypeScript file that uses `defineCodeGrader` from `@agentv/sdk`. Scores are normalised to the 0–1 range expected by AgentV.
+Each grader is a standalone TypeScript file that uses `defineScriptGrader` from `@agentv/sdk`. Scores are normalised to the 0–1 range expected by AgentV.
 
 ## Running
 
@@ -38,7 +38,7 @@ bun agentv eval prompt eval --grading-brief \
 
 ## How It Works
 
-Each grader receives the candidate answer and reference text via the `defineCodeGrader` handler, computes the relevant metric from scratch, and returns a `CodeGraderResult` with:
+Each grader receives the candidate answer and reference text via the `defineScriptGrader` handler, computes the relevant metric from scratch, and returns a `ScriptGraderResult` with:
 
 - **score** — normalised 0–1 value
 - **hits / misses** — threshold checks for quick pass/fail

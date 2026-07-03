@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "agentv-example-code-grader-sdk",
+      "name": "agentv-example-script-grader-sdk",
       "dependencies": {
         "@agentv/sdk": "file:../../../packages/sdk",
       },

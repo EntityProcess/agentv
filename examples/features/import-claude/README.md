@@ -4,7 +4,7 @@ Demonstrates importing a Claude Code session transcript and grading it
 offline with deterministic graders. **No LLM API key needed.**
 
 Graders used:
-- `code-grader` — custom TypeScript grader inspecting the full `Message[]` with tool calls
+- `script-grader` — custom TypeScript grader inspecting the full `Message[]` with tool calls
 
 ## Setup
 
@@ -38,7 +38,7 @@ agentv eval evals/transcript-check.EVAL.yaml
 ~/.claude/projects/<encoded-path>/<uuid>.jsonl
   ↓ agentv import claude (reads from disk, converts to Message[])
 .agentv/transcripts/claude-<short-id>.jsonl
-  ↓ code-grader (deterministic)
+  ↓ script-grader (deterministic)
 pass/fail
 ```
 
@@ -51,9 +51,9 @@ The import pipeline:
 
 ## Graders
 
-### transcript-quality (code-grader)
+### transcript-quality (script-grader)
 
-Custom grader using `defineCodeGrader` from `@agentv/sdk`. Validates:
+Custom grader using `defineScriptGrader` from `@agentv/sdk`. Validates:
 1. Transcript contains at least one assistant message
 2. Tool calls were recorded with outputs
 3. No empty assistant messages

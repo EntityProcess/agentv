@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Tool Efficiency Scorer - Code Grader Plugin
+ * Tool Efficiency Scorer - script grader Plugin
  *
  * Evaluates agent efficiency based on execution metrics:
  * - Token usage relative to task complexity
@@ -19,7 +19,7 @@
  *       type: script
  *       command: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
-import { type TraceSummary, defineCodeGrader } from '@agentv/sdk';
+import { type TraceSummary, defineScriptGrader } from '@agentv/sdk';
 
 // Configurable thresholds (customize for your domain)
 const THRESHOLDS = {
@@ -77,7 +77,7 @@ function calculateExplorationRatio(trace: TraceSummary): number {
   return explorationCount / total;
 }
 
-export default defineCodeGrader(({ trace, criteria, tokenUsage, costUsd }) => {
+export default defineScriptGrader(({ trace, criteria, tokenUsage, costUsd }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
   const scores: number[] = [];
 

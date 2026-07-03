@@ -7,7 +7,6 @@
  */
 
 import {
-  CodeGrader,
   CompositeGrader,
   CostGrader,
   ExecutionMetricsGrader,
@@ -15,6 +14,7 @@ import {
   type Grader,
   LatencyGrader,
   LlmGrader,
+  ScriptGrader,
   SkillTriggerGrader,
   TokenUsageGrader,
   ToolTrajectoryGrader,
@@ -43,7 +43,6 @@ import { isAgentProvider } from '../providers/types.js';
 import type { Provider } from '../providers/types.js';
 import type { ToolTrajectoryGraderConfig } from '../trace.js';
 import type {
-  CodeGraderConfig,
   CompositeGraderConfig,
   ContainsAllGraderConfig,
   ContainsAnyGraderConfig,
@@ -188,9 +187,9 @@ export const llmRubricFactory: GraderFactoryFn = (config, context) =>
   llmGraderFactory(config as LlmRubricGraderConfig, context);
 
 /** Factory for subprocess-backed script evaluators. */
-export const codeFactory: GraderFactoryFn = (config, context) => {
-  const c = config as ScriptGraderConfig | CodeGraderConfig;
-  return new CodeGrader({
+export const scriptFactory: GraderFactoryFn = (config, context) => {
+  const c = config as ScriptGraderConfig;
+  return new ScriptGrader({
     command: c.command,
     cwd: c.resolvedCwd ?? c.cwd,
     agentTimeoutMs: context.agentTimeoutMs,
@@ -448,7 +447,7 @@ export function createBuiltinRegistry(): GraderRegistry {
   registry
     .register('llm-grader', llmGraderFactory)
     .register('llm-rubric', llmRubricFactory)
-    .register('script', codeFactory)
+    .register('script', scriptFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)
     .register('field-accuracy', fieldAccuracyFactory)

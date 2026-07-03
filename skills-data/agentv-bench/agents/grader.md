@@ -3,7 +3,7 @@ name: grader
 description: >-
   Grade a candidate response for an AgentV evaluation test case. Evaluates all
   assertion types natively — deterministic checks via string operations, LLM grading
-  via Claude's own reasoning, code-grader via Bash script execution. Zero CLI dependency.
+  via Claude's own reasoning, script-grader via Bash script execution. Zero CLI dependency.
   Dispatch this agent after a candidate completes a test case.
 model: inherit
 color: yellow
@@ -72,7 +72,7 @@ For LLM-graded types: be rigorous and fair. Score based on substance, not exact 
 
 | Type | How to evaluate |
 |------|----------------|
-| `code-grader` | Run: `bun <script-path>` or `python <script-path>`. Pass response via file. Parse stdout JSON: `{"score": N, "reason": "..."}` |
+| `script-grader` | Run: `bun <script-path>` or `python <script-path>`. Pass response via file. Parse stdout JSON: `{"score": N, "reason": "..."}` |
 
 **Composite assertions** — evaluate sub-assertions, then aggregate per the configured mode (weighted_average, min, max, all_pass).
 

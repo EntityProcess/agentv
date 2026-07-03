@@ -36,7 +36,7 @@ describe('eval pipeline e2e', () => {
       await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', outDir]);
       const gradeResult = JSON.parse(
         await readFile(
-          join(outDir, 'input-test', 'test-01', 'code_grader_results', 'contains_hello.json'),
+          join(outDir, 'input-test', 'test-01', 'script_grader_results', 'contains_hello.json'),
           'utf8',
         ),
       );

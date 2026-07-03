@@ -681,12 +681,12 @@ export default defineAssertion(({ output, trace }) => {
 
 Assertions support both `pass: boolean` and `score: number` (0-1). If only `pass` is given, score is 1 (pass) or 0 (fail).
 
-### defineCodeGrader (full control)
+### defineScriptGrader (full control)
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, trace }) => {
+export default defineScriptGrader(({ output, trace }) => {
   const finalOutput = output ?? '';
   return {
     score: finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
@@ -698,7 +698,7 @@ export default defineCodeGrader(({ output, trace }) => {
 });
 ```
 
-`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineCodeGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
+`defineAssertion()` files go in `.agentv/assertions/` and are referenced by filename as `type: <name>`. `defineScriptGrader()` scripts are referenced in YAML with `type: script` and `command: [bun, run, grader.ts]`. Plain Vitest workspace verifier files can use `command: [agentv, eval, graders/check.test.ts]`.
 
 ### Convention-Based Discovery
 

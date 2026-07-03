@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CodeGrader } from '../../src/evaluation/graders/code-grader.js';
+import { ScriptGrader } from '../../src/evaluation/graders/script-grader.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
@@ -16,7 +16,7 @@ const baseTestCase: EvalTest = {
   reference_answer: 'Expected answer',
   file_paths: [],
   criteria: 'Test criteria',
-  evaluator: 'code-grader',
+  evaluator: 'script',
 };
 
 /** Create a grader script that echoes the received stdin payload. */
@@ -73,7 +73,7 @@ console.log(JSON.stringify({
   return [process.execPath, script];
 }
 
-describe('CodeGrader file-backed output', () => {
+describe('ScriptGrader file-backed output', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -88,7 +88,7 @@ describe('CodeGrader file-backed output', () => {
     const command = await createEchoGrader(tmpDir);
     const smallOutput = [{ role: 'assistant' as const, content: 'short response' }];
 
-    const evaluator = new CodeGrader({ command });
+    const evaluator = new ScriptGrader({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -105,7 +105,7 @@ describe('CodeGrader file-backed output', () => {
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
-    const evaluator = new CodeGrader({ command });
+    const evaluator = new ScriptGrader({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -126,7 +126,7 @@ describe('CodeGrader file-backed output', () => {
     const largeContent = 'x'.repeat(60_000);
     const largeOutput = [{ role: 'assistant' as const, content: largeContent }];
 
-    const evaluator = new CodeGrader({ command });
+    const evaluator = new ScriptGrader({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -141,7 +141,7 @@ describe('CodeGrader file-backed output', () => {
   it('preserves structured expected_output, input, and config in stdin', async () => {
     const command = await createPayloadShapeGrader(tmpDir);
 
-    const evaluator = new CodeGrader({ command, config: { mode: 'strict' } });
+    const evaluator = new ScriptGrader({ command, config: { mode: 'strict' } });
     const result = await evaluator.evaluate({
       evalCase: {
         ...baseTestCase,

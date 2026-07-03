@@ -128,13 +128,13 @@ print(json.dumps({
 The repo-local helper in `examples/features/sdk-python/` wraps the same contract for that example checkout:
 
 ```python
-from agentv_py.grader import Assertion, CodeGraderResult, define_script
+from agentv_py.grader import Assertion, ScriptGraderResult, define_script
 
 
 def evaluate(context):
     candidate = context.output or ""
     passed = "42" in candidate
-    return CodeGraderResult(
+    return ScriptGraderResult(
         score=1.0 if passed else 0.0,
         assertions=[
             Assertion(
@@ -186,13 +186,13 @@ assert:
 
 ## TypeScript SDK
 
-The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` to skip protocol boilerplate:
+The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineScriptGrader` to skip protocol boilerplate:
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, criteria }) => {
+export default defineScriptGrader(({ output, criteria }) => {
   const outputText = output ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
@@ -266,7 +266,7 @@ export default defineWorkspaceGrader(async ({ workspace }) => [
 
 Prefer Vitest verifiers when the checks naturally fit `expect(...)`. Use `defineWorkspaceGrader` when you need a very small custom script, custom weighting, or details that do not map cleanly to individual test outcomes.
 
-**SDK exports:** `defineCodeGrader`, `defineVitestWorkspaceGrader`, `defineWorkspaceGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`, `Workspace`, `WorkspaceAssertion`
+**SDK exports:** `defineScriptGrader`, `defineVitestWorkspaceGrader`, `defineWorkspaceGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `ScriptGraderInput`, `ScriptGraderResult`, `Workspace`, `WorkspaceAssertion`
 
 ## Target Access
 
@@ -291,9 +291,9 @@ Use `createTargetClient` from the SDK:
 
 ```typescript
 #!/usr/bin/env bun
-import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(async ({ input, output }) => {
+export default defineScriptGrader(async ({ input, output }) => {
   const inputText = input
     .filter((message) => message.role === 'user')
     .map((message) => typeof message.content === 'string' ? message.content : '')

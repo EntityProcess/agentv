@@ -1,5 +1,5 @@
 # Default Graders Example
-# Demonstrates root-level assertionsions that apply to all tests
+# Demonstrates root-level assertions that apply to all tests
 
 name: default-graders-example
 description: Root-level graders that automatically apply to every test

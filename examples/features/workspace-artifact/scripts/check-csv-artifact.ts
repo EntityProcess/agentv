@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Code grader: checks that file_changes contains outputs/report.csv
+ * script grader: checks that file_changes contains outputs/report.csv
  * with a header row and at least one data row.
  *
  * This grader is intentionally self-contained — no LLM required.

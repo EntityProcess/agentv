@@ -58,7 +58,7 @@ const REMOVED_ASSERTION_TYPE_REPLACEMENTS = new Map<string, string>([
   ['g-eval', 'llm-rubric'],
   ['rubrics', 'llm-rubric with value'],
   ['rubric', 'llm-rubric with value'],
-  ['code-grader', 'script'],
+  ['script-grader', 'script'],
   ['code-judge', 'script'],
   ['llm-judge', 'llm-grader'],
 ]);

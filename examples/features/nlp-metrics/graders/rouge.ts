@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * ROUGE-N Code Grader
+ * ROUGE-N script grader
  *
  * Computes ROUGE-1 and ROUGE-2 F1 scores between candidate and reference text.
  * ROUGE (Recall-Oriented Understudy for Gisting Evaluation) measures n-gram
  * overlap, commonly used for summarisation evaluation.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function tokenize(text: string): string[] {
   return text
@@ -66,7 +66,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, expectedOutput }) => {
+export default defineScriptGrader(({ output, expectedOutput }) => {
   const outputText = getMessageText(output ?? []);
   const reference = getMessageText(expectedOutput);
 

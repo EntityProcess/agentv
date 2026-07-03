@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Tool Selection Grader - Code Grader Plugin
+ * Tool Selection Grader - script grader Plugin
  *
  * Evaluates whether the agent selected the RIGHT tools for the task.
  * This is a semantic evaluation that requires understanding task requirements
@@ -17,7 +17,7 @@
  *       type: script
  *       command: ["bun", "run", "scripts/tool-selection-grader.ts"]
  */
-import { type Message, defineCodeGrader } from '@agentv/sdk';
+import { type Message, defineScriptGrader } from '@agentv/sdk';
 
 interface ExtractedToolCall {
   tool: string;
@@ -68,7 +68,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ input, criteria, output }) => {
+export default defineScriptGrader(({ input, criteria, output }) => {
   const inputText = getMessageText(input, 'user');
   const assertions: Array<{ text: string; passed: boolean }> = [];
 

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CodeGraderInputSchema } from '../src/schemas.js';
+import { ScriptGraderInputSchema } from '../src/schemas.js';
 import {
   createWorkspace,
   normalizeWorkspaceGraderResult,
@@ -11,7 +11,7 @@ import {
 } from '../src/workspace.js';
 
 function buildInput(overrides?: Record<string, unknown>) {
-  return CodeGraderInputSchema.parse({
+  return ScriptGraderInputSchema.parse({
     criteria: 'Verify the workspace',
     expectedOutput: [],
     inputFiles: [],
@@ -122,7 +122,7 @@ describe('workspace grader helpers', () => {
     expect(result.assertions[0].evidence).toContain('inside the workspace');
   });
 
-  it('passes through explicit CodeGraderResult objects', async () => {
+  it('passes through explicit ScriptGraderResult objects', async () => {
     const result = await runWorkspaceGrader(
       () => ({
         score: 0.75,

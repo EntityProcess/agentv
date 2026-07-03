@@ -1,6 +1,6 @@
 import { command, flag, number, option, optional, restPositionals, string } from 'cmd-ts';
 
-import { runCodeGrader, runVitestWorkspaceGrader } from '@agentv/sdk';
+import { runScriptGrader, runVitestWorkspaceGrader } from '@agentv/sdk';
 
 function parseCommand(value: string | undefined): readonly string[] | undefined {
   const trimmed = value?.trim();
@@ -42,7 +42,7 @@ export const evalVitestCommand = command({
     }),
   },
   handler: async ({ testFiles, cwd, vitestCommand, timeoutMs, inWorkspace, passWithNoTests }) => {
-    await runCodeGrader((input) => {
+    await runScriptGrader((input) => {
       if (testFiles.length === 0) {
         throw new Error('Provide at least one Vitest verifier file.');
       }

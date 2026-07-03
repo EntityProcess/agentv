@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Deterministic code grader for the release contract eval.
+ * Deterministic script grader for the release contract eval.
  *
  * It verifies that AgentV created a workspace from the local template and
  * exposed the workspace path to graders. This keeps the release gate public

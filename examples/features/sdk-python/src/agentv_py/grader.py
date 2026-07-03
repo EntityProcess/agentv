@@ -1,4 +1,4 @@
-"""Helpers for Python code-graders over AgentV's canonical stdin/stdout contract."""
+"""Helpers for Python script-graders over AgentV's canonical stdin/stdout contract."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class Assertion:
 
 
 @dataclass(frozen=True)
-class CodeGraderResult:
+class ScriptGraderResult:
     score: float
     assertions: list[Assertion] = field(default_factory=list)
     details: Mapping[str, Any] | None = None
@@ -67,7 +67,7 @@ class CodeGraderResult:
 
 
 @dataclass
-class CodeGraderContext:
+class ScriptGraderContext:
     criteria: str
     expected_output: list[Any]
     output: str | None
@@ -88,7 +88,7 @@ class CodeGraderContext:
     config: Mapping[str, Any] | None
 
     @classmethod
-    def from_wire(cls, payload: Mapping[str, Any]) -> "CodeGraderContext":
+    def from_wire(cls, payload: Mapping[str, Any]) -> "ScriptGraderContext":
         forbidden = sorted(_FORBIDDEN_WIRE_FIELDS.intersection(payload.keys()))
         if forbidden:
             names = ", ".join(forbidden)
@@ -163,13 +163,13 @@ class CodeGraderContext:
         )
 
 
-def load_grader_input(stdin_text: str | None = None) -> CodeGraderContext:
+def load_grader_input(stdin_text: str | None = None) -> ScriptGraderContext:
     raw_text = stdin_text if stdin_text is not None else sys.stdin.read()
     payload = json.loads(raw_text)
-    return CodeGraderContext.from_wire(_require_mapping(payload, "stdin payload"))
+    return ScriptGraderContext.from_wire(_require_mapping(payload, "stdin payload"))
 
 
-def emit_grader_result(result: CodeGraderResult) -> None:
+def emit_grader_result(result: ScriptGraderResult) -> None:
     sys.stdout.write(f"{json.dumps(result.to_wire(), indent=2)}\n")
 
 
@@ -240,17 +240,17 @@ class TargetClient:
         return self._request("GET", "/info")
 
 
-CodeGraderHandler = Callable[[CodeGraderContext], CodeGraderResult]
+ScriptGraderHandler = Callable[[ScriptGraderContext], ScriptGraderResult]
 
 
-def run_code_grader(handler: CodeGraderHandler, stdin_text: str | None = None) -> int:
+def run_script_grader(handler: ScriptGraderHandler, stdin_text: str | None = None) -> int:
     try:
         context = load_grader_input(stdin_text=stdin_text)
         emit_grader_result(handler(context))
         return 0
     except Exception as error:
         emit_grader_result(
-            CodeGraderResult(
+            ScriptGraderResult(
                 score=0.0,
                 assertions=[Assertion(text=f"Evaluation failed: {error}", passed=False)],
             )
@@ -258,5 +258,12 @@ def run_code_grader(handler: CodeGraderHandler, stdin_text: str | None = None) -
         return 1
 
 
-def define_code_grader(handler: CodeGraderHandler) -> None:
-    raise SystemExit(run_code_grader(handler))
+def define_script_grader(handler: ScriptGraderHandler) -> None:
+    raise SystemExit(run_script_grader(handler))
+
+
+CodeGraderContext = ScriptGraderContext
+ScriptGraderResult = ScriptGraderResult
+CodeGraderHandler = ScriptGraderHandler
+run_script_grader = run_script_grader
+define_script_grader = define_script_grader

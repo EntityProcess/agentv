@@ -16,7 +16,7 @@ tests:
     input: |
       Review the deploy-auto plugin in this repo for completeness.
       Check that every skill has a corresponding eval file.
-    assertions:
+    assert:
       - type: skill-trigger
         skill: agent-plugin-review
       - type: contains
@@ -30,7 +30,7 @@ tests:
     criteria: Identifies eval files using bare .yaml instead of .eval.yaml
     input: |
       Review the eval files under evals/deploy-auto/ for naming convention issues.
-    assertions:
+    assert:
       - type: contains
         value: .eval.yaml
       - type: rubrics
@@ -44,7 +44,7 @@ tests:
     input: |
       Review evals/deploy-auto/deploy-plan.yaml for eval quality issues.
       Check assertion coverage and expected_output format.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Flags that no assertions are defined in deploy-plan.yaml
@@ -55,7 +55,7 @@ tests:
     criteria: Identifies eval file paths missing leading slash
     input: |
       Review evals/deploy-auto/deploy-plan.yaml for file path formatting issues.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Flags that file paths are missing a leading slash
@@ -66,7 +66,7 @@ tests:
     input: |
       Review evals/deploy-auto/deploy-plan.yaml for structural improvements.
       Look at how inputs are organized across test cases.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Identifies the repeated SKILL.md file input across all 3 tests
@@ -77,7 +77,7 @@ tests:
     input: |
       Review the deploy-auto plugin's workflow architecture.
       Check whether phases enforce prerequisites before proceeding.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Flags that deploy-execute does not check for deploy-plan.md before starting
@@ -89,7 +89,7 @@ tests:
     input: |
       Review evals/deploy-auto/deploy-execute.eval.yaml for factual accuracy.
       Cross-check expected outputs against what the skills actually document.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Flags the contradiction between pytest (skill) and python -m unittest (eval)
@@ -100,7 +100,7 @@ tests:
     input: |
       Review plugins/deploy-auto/skills/deploy-plan/SKILL.md for cross-reference issues.
       Check that referenced commands and skills actually exist.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Flags that /deploy-execute is referenced but does not exist as a slash command
@@ -111,7 +111,7 @@ tests:
     criteria: Identifies hardcoded local paths in deploy-execute skill
     input: |
       Review plugins/deploy-auto/skills/deploy-execute/SKILL.md for portability issues.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Flags the hardcoded path C:\Users\admin\.kube\config

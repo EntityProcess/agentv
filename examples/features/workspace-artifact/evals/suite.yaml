@@ -8,7 +8,7 @@
 #   directly into workspace_path (the temp workspace created from the
 #   template). AgentV takes a baseline snapshot before the agent runs and
 #   diffs it afterwards, populating file_changes with the new CSV content.
-#   A code grader then checks the CSV is present via {{file_changes}}.
+#   A script grader then checks the CSV is present via {{file_changes}}.
 #
 # RED (before fix): Without workspace configured, agents like Copilot that
 #   save artifacts to their session-state path can't be evaluated because

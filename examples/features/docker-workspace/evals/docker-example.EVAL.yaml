@@ -1,5 +1,5 @@
 # Docker Workspace Example
-# Demonstrates running a code-grader inside a Docker container.
+# Demonstrates running a script-grader inside a Docker container.
 #
 # This eval sends a coding prompt to an agent, then grades the agent's output
 # inside a Docker container that has the target repository and test environment.

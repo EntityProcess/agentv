@@ -1,7 +1,7 @@
 {
-  "name": "agentv-example-code-grader-sdk",
-  "private": true,
+  "name": "script-grader-with-llm-calls-example",
   "type": "module",
+  "private": true,
   "dependencies": {
     "@agentv/sdk": "file:../../../packages/sdk"
   }

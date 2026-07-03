@@ -3,14 +3,14 @@
 This folder demonstrates two evaluation patterns for document extraction:
 
 1. **`field_accuracy`** (built-in) - Per-test-case scoring with pass/fail per field
-2. **`code-grader`** (custom) - TP/TN/FP/FN metrics for cross-document aggregation
+2. **`script-grader`** (custom) - TP/TN/FP/FN metrics for cross-document aggregation
 
 ## When to Use Each Pattern
 
 | Pattern | Use Case | Output |
 |---------|----------|--------|
 | `field_accuracy` | Simple pass/fail scoring per test case | Score (0-1) per test case |
-| `code-grader` with `details.metrics` | Aggregate precision/recall across documents | TP/TN/FP/FN per field |
+| `script-grader` with `details.metrics` | Aggregate precision/recall across documents | TP/TN/FP/FN per field |
 
 ## Quick Start
 
@@ -53,7 +53,7 @@ graders:
 
 ## Pattern 2: Confusion Metrics (`confusion-metrics.eval.yaml`)
 
-Uses a custom `code-grader` that emits `details.metrics` with TP/TN/FP/FN per field:
+Uses a custom `script-grader` that emits `details.metrics` with TP/TN/FP/FN per field:
 
 ```yaml
 graders:

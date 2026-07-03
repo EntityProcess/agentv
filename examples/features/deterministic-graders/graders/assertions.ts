@@ -2,7 +2,7 @@
 /**
  * Parameterized assertion grader.
  *
- * A single code grader that handles common deterministic checks
+ * A single script grader that handles common deterministic checks
  * (contains, regex, JSON validation, etc.) driven by YAML config.
  *
  * Config fields (passed via grader `config` in YAML):
@@ -10,7 +10,7 @@
  *   value   – expected substring, pattern, or prefix (not used for is-json)
  *   negated – when true, inverts the assertion (default: false)
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 type AssertionType = 'contains' | 'icontains' | 'equals' | 'regex' | 'starts-with' | 'is-json';
 
@@ -55,7 +55,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, criteria, config }) => {
+export default defineScriptGrader(({ output, criteria, config }) => {
   const outputText = getMessageText(output ?? []);
   const type = (config?.type as AssertionType) ?? 'contains';
   const value = config?.value as string | undefined;

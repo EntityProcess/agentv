@@ -22,8 +22,8 @@ export {
 } from './scoring.js';
 
 // Graders
-export { CodeGrader, executeScript } from './code-grader.js';
-export type { CodeGraderOptions } from './code-grader.js';
+export { ScriptGrader, executeScript } from './script-grader.js';
+export type { ScriptGraderOptions } from './script-grader.js';
 
 export { CompositeGrader } from './composite.js';
 export type { CompositeGraderOptions } from './composite.js';

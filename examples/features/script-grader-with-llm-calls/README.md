@@ -1,6 +1,6 @@
-# Code Grader with LLM Calls
+# script grader with LLM Calls
 
-This example demonstrates how code grader graders can make LLM calls through a secure local proxy without needing direct API credentials.
+This example demonstrates how script grader graders can make LLM calls through a secure local proxy without needing direct API credentials.
 
 This example implements two RAG metrics:
 - **Contextual Precision**: Evaluates whether relevant documents are ranked higher
@@ -117,7 +117,7 @@ This produces: `["Node A", "Node B", "Node C"]`
 
 **Potential Solutions:**
 
-All solutions below can be implemented entirely in the code grader - no core AgentV changes required. The code grader receives the full `expectedOutput` structure:
+All solutions below can be implemented entirely in the script grader - no core AgentV changes required. The script grader receives the full `expectedOutput` structure:
 
 ```typescript
 // Available in input.expectedOutput
@@ -149,7 +149,7 @@ The target proxy is designed with security in mind:
 
 ## Configuration
 
-Enable target access by adding a `target` block to your `code_grader` grader:
+Enable target access by adding a `target` block to your `script_grader` grader:
 
 ```yaml
 graders:
@@ -168,9 +168,9 @@ graders:
 ## Usage in Code
 
 ```typescript
-import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(async ({ question, config }) => {
+export default defineScriptGrader(async ({ question, config }) => {
   const target = createTargetClient();
   const retrievalContext = config?.retrieval_context ?? [];
 
@@ -231,10 +231,10 @@ The `createTargetClient()` function reads these automatically.
 # From the agentv monorepo root:
 
 # Run contextual precision evaluation
-agentv eval examples/features/code-grader-with-llm-calls/evals/contextual-precision.eval.yaml --target gemini-llm
+agentv eval examples/features/script-grader-with-llm-calls/evals/contextual-precision.eval.yaml --target gemini-llm
 
 # Run contextual recall evaluation
-agentv eval examples/features/code-grader-with-llm-calls/evals/contextual-recall.eval.yaml --target gemini-llm
+agentv eval examples/features/script-grader-with-llm-calls/evals/contextual-recall.eval.yaml --target gemini-llm
 ```
 
 ### Expected Results

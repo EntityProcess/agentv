@@ -1,8 +1,8 @@
-# Copilot Log evaluation example — deterministic + code-grader assertions.
+# Copilot Log evaluation example — deterministic + script-grader assertions.
 #
 # Reads a Copilot CLI session transcript from disk and evaluates it with:
 #   1. skill-trigger  — deterministic check for skill invocation
-#   2. code-grader    — custom TypeScript grader inspecting full Message[]
+#   2. script-grader    — custom TypeScript grader inspecting full Message[]
 #
 # No LLM API key needed — all graders are deterministic.
 #

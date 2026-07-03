@@ -12,7 +12,7 @@ import {
   normalizeExperimentConfig,
   normalizeExperimentRunOverride,
 } from './experiment.js';
-import { executeScript } from './graders/code-grader.js';
+import { executeScript } from './graders/script-grader.js';
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import {
   type NunjucksFilterMap,

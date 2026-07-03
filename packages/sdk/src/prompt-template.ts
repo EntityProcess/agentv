@@ -6,13 +6,13 @@ import { readFileSync } from 'node:fs';
 import { toCamelCaseDeep } from '@agentv/core';
 
 import { enrichInput } from './deprecation.js';
-import { type CodeGraderInput, PromptTemplateInputSchema } from './schemas.js';
+import { PromptTemplateInputSchema, type ScriptGraderInput } from './schemas.js';
 
 /**
  * Handler function type for prompt templates.
  * Returns the prompt string to use for evaluation.
  */
-export type PromptTemplateHandler = (input: CodeGraderInput) => string | Promise<string>;
+export type PromptTemplateHandler = (input: ScriptGraderInput) => string | Promise<string>;
 
 /**
  * Read stdin synchronously (works in both Node.js and Bun).
@@ -68,9 +68,9 @@ export async function runPromptTemplate(handler: PromptTemplateHandler): Promise
  *
  * @example
  * ```typescript
- * import { definePromptTemplate, type CodeGraderInput } from '@agentv/sdk';
+ * import { definePromptTemplate, type ScriptGraderInput } from '@agentv/sdk';
  *
- * export default definePromptTemplate((ctx: CodeGraderInput) => {
+ * export default definePromptTemplate((ctx: ScriptGraderInput) => {
  *   const question = ctx.input
  *     .filter((message) => message.role === 'user')
  *     .map((message) => typeof message.content === 'string' ? message.content : '')

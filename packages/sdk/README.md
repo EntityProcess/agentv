@@ -18,7 +18,7 @@ npm install @agentv/sdk
 ```
 
 ```typescript
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 ```
 
 `@agentv/eval` was a temporary deprecated compatibility package for this SDK. It is no longer published from this repository. Use `@agentv/sdk` directly.
@@ -71,13 +71,13 @@ export default defineAssertion(({ output }) => ({
 
 Checks support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
 
-### defineCodeGrader (full control)
+### defineScriptGrader (full control)
 
 ```typescript
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, traceSummary }) => ({
+export default defineScriptGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 ? 1.0 : 0.0,
   assert: [
     { text: 'Output received', passed: (output ?? '').length > 0 },
@@ -103,7 +103,7 @@ it('links to the dashboard', () => {
 });
 ```
 
-Then reference the verifier directly from eval YAML through AgentV's built-in code-grader adapter:
+Then reference the verifier directly from eval YAML through AgentV's built-in script-grader adapter:
 
 ```yaml
 assert:
@@ -112,7 +112,7 @@ assert:
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
-The command reads the normal code-grader stdin payload, runs Vitest in `workspace_path`, maps each Vitest test to an AgentV assertion, and computes score as `passed / total`.
+The command reads the normal script-grader stdin payload, runs Vitest in `workspace_path`, maps each Vitest test to an AgentV assertion, and computes score as `passed / total`.
 
 Use the explicit `agentv eval vitest` subcommand when you need adapter options such as `--cwd`, `--in-workspace`, or `--vitest-command`. Use `defineVitestWorkspaceGrader` when embedding this adapter in a custom script:
 
@@ -189,7 +189,7 @@ export default defineEval({
           prompt: 'Grade whether the answer is useful.',
           target: 'grader-target',
         }),
-        graders.codeGrader(['bun', 'run', 'graders/check.ts'], { metric: 'scripted-check' }),
+        graders.scriptGrader(['bun', 'run', 'graders/check.ts'], { metric: 'scripted-check' }),
       ],
     },
   ],
@@ -223,15 +223,15 @@ export default defineEval({
 });
 ```
 
-Python workflows should emit canonical YAML/JSONL or implement code graders over the stdin/stdout contract. The repo-local helper under `examples/features/sdk-python/` is an example, not a promised published Python package.
+Python workflows should emit canonical YAML/JSONL or implement script graders over the stdin/stdout contract. The repo-local helper under `examples/features/sdk-python/` is an example, not a promised published Python package.
 
 ## Exports
 
 - `evaluate(config)` - Run evaluations programmatically from inline tests or an eval spec file
 - `defineAssertion(handler)` - Define a custom assertion (pass/fail + optional score)
-- `defineCodeGrader(handler)` - Define a code grader (full score control)
+- `defineScriptGrader(handler)` - Define a script grader (full score control)
 - `defineVitestWorkspaceGrader(options)` - Embed the Vitest workspace verifier adapter in a custom script
-- `defineWorkspaceGrader(handler)` - Define a workspace-aware code grader with file assertion helpers
+- `defineWorkspaceGrader(handler)` - Define a workspace-aware script grader with file assertion helpers
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite
 - `graders` - Catalog of built-in AgentV grader config helpers
@@ -239,7 +239,7 @@ Python workflows should emit canonical YAML/JSONL or implement code graders over
 - `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
 - `EvalConfig`, `EvalRunResult`, `EvalSummary`, `EvalTestInput`, `EvalAssertionInput` - Programmatic evaluation types
 - `AssertionContext`, `AssertionScore` - Assertion types
-- `CodeGraderInput`, `CodeGraderResult`, `Workspace`, `WorkspaceAssertion` - Grader types
+- `ScriptGraderInput`, `ScriptGraderResult`, `Workspace`, `WorkspaceAssertion` - Grader types
 - `TraceSummary`, `Message`, `ToolCall` - Trace data types
 - `createTargetClient()` - LLM target proxy for graders
 - `z` - Re-exported Zod for custom config schemas

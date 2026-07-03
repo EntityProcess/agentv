@@ -2,9 +2,9 @@
 /**
  * Verifies that an agent inspected required repo guidance files from the
  * prepared workspace. This is intentionally suite-local: the general primitive
- * is code-grader, while this file encodes AgentV self-eval expectations.
+ * is script-grader, while this file encodes AgentV self-eval expectations.
  */
-import { type Message, type ToolCall, type TraceEvent, defineCodeGrader } from '@agentv/sdk';
+import { type Message, type ToolCall, type TraceEvent, defineScriptGrader } from '@agentv/sdk';
 
 type Assertion = { text: string; passed: boolean; evidence?: string };
 
@@ -141,7 +141,7 @@ function evidenceForRequiredFile(call: ToolCall, expectedFile: string): string |
   return undefined;
 }
 
-export default defineCodeGrader(({ config, messages, trace }) => {
+export default defineScriptGrader(({ config, messages, trace }) => {
   const requiredFiles = stringArray(config?.requiredFiles ?? config?.required_files);
 
   if (requiredFiles.length === 0) {

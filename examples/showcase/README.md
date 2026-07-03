@@ -27,7 +27,7 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 
 | Example | Description |
 |---------|-------------|
-| [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool selection correctness, efficiency scoring, and pairwise comparison as code-grader plugins — includes a decision table for when to use plugins vs the built-in `tool-trajectory` grader |
+| [tool-evaluation-plugins](tool-evaluation-plugins/) | Tool selection correctness, efficiency scoring, and pairwise comparison as script-grader plugins — includes a decision table for when to use plugins vs the built-in `tool-trajectory` grader |
 | [trace-evaluation](trace-evaluation/) | Replay-first coding-agent trace fixtures with target substitution, fresh deterministic graders, and an imported Codex transcript fixture |
 
 ---

@@ -3,11 +3,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  CodeGrader,
   CostGrader,
   FieldAccuracyGrader,
   LatencyGrader,
   LlmGrader,
+  ScriptGrader,
   TokenUsageGrader,
 } from '../../src/evaluation/graders.js';
 import { assembleLlmGraderPrompt } from '../../src/evaluation/graders/llm-grader-prompt.js';
@@ -1097,8 +1097,8 @@ describe('LlmGrader (llm-grader)', () => {
   });
 });
 
-describe('CodeGrader', () => {
-  it('passes required fields to code-grader scripts', async () => {
+describe('ScriptGrader', () => {
+  it('passes required fields to script grader scripts', async () => {
     const graderProvider = new StubProvider(textResponse('{}'));
 
     const evalCaseWithExpectedMessages: EvalTest = {
@@ -1112,7 +1112,7 @@ describe('CodeGrader', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-grader.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: evalCaseWithExpectedMessages,
@@ -1139,7 +1139,7 @@ describe('CodeGrader', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-grader-error.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
@@ -1157,13 +1157,13 @@ describe('CodeGrader', () => {
     expect(failedAssertions[0].text).toContain('test-error');
   });
 
-  it('works with code grader stdin/stdout contract', async () => {
+  it('works with script grader stdin/stdout contract', async () => {
     const graderProvider = new StubProvider(textResponse('Logging improvements applied'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['bun', 'run', join(__dirname, '../fixtures/test-define-grader.ts')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
@@ -1181,13 +1181,13 @@ describe('CodeGrader', () => {
     expect(result.assertions.filter((a) => a.passed).length).toBeGreaterThan(0);
   });
 
-  it('captures optional details from code grader output', async () => {
+  it('captures optional details from script grader output', async () => {
     const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-grader-with-details.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: {
@@ -1212,13 +1212,13 @@ describe('CodeGrader', () => {
     expect(result.details?.f1).toBeCloseTo(0.769);
   });
 
-  it('passes workspace_path to code grader via payload and env var', async () => {
+  it('passes workspace_path to script grader via payload and env var', async () => {
     const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-grader-workspace.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
@@ -1239,13 +1239,13 @@ describe('CodeGrader', () => {
     expect(passedTexts2).toContain('payload and env var match');
   });
 
-  it('omits details when not returned by code grader', async () => {
+  it('omits details when not returned by script grader', async () => {
     const graderProvider = new StubProvider(textResponse('{}'));
 
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-grader.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: {

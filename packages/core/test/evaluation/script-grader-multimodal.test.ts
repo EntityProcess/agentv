@@ -4,8 +4,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { materializeContentForGrader } from '../../src/evaluation/graders/code-grader.js';
-import { CodeGrader } from '../../src/evaluation/graders/code-grader.js';
+import { materializeContentForGrader } from '../../src/evaluation/graders/script-grader.js';
+import { ScriptGrader } from '../../src/evaluation/graders/script-grader.js';
 import type { EvalTest } from '../../src/evaluation/types.js';
 
 const baseTestCase: EvalTest = {
@@ -17,7 +17,7 @@ const baseTestCase: EvalTest = {
   reference_answer: 'A chart',
   file_paths: [],
   criteria: 'Describes the image correctly',
-  evaluator: 'code-grader',
+  evaluator: 'script',
 };
 
 /** Encode a string as base64 data URI. */
@@ -244,7 +244,7 @@ describe('materializeContentForGrader', () => {
   });
 });
 
-describe('CodeGrader multimodal integration', () => {
+describe('ScriptGrader multimodal integration', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -259,7 +259,7 @@ describe('CodeGrader multimodal integration', () => {
     const command = await createPayloadEchoGrader(tmpDir);
     const output = [{ role: 'assistant' as const, content: 'Hello world' }];
 
-    const evaluator = new CodeGrader({ command });
+    const evaluator = new ScriptGrader({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -290,7 +290,7 @@ describe('CodeGrader multimodal integration', () => {
       },
     ];
 
-    const evaluator = new CodeGrader({ command });
+    const evaluator = new ScriptGrader({ command });
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',
@@ -327,7 +327,7 @@ describe('CodeGrader multimodal integration', () => {
       },
     ];
 
-    const evaluator = new CodeGrader({ command });
+    const evaluator = new ScriptGrader({ command });
     await evaluator.evaluate({
       evalCase: baseTestCase,
       candidate: 'answer',

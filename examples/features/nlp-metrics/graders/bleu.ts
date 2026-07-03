@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * BLEU Code Grader
+ * BLEU script grader
  *
  * Computes a BLEU-like score between candidate and reference text.
  * BLEU (Bilingual Evaluation Understudy) measures n-gram precision with a
  * brevity penalty, commonly used for translation evaluation.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function tokenize(text: string): string[] {
   return text
@@ -84,7 +84,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, expectedOutput }) => {
+export default defineScriptGrader(({ output, expectedOutput }) => {
   const outputText = getMessageText(output ?? []);
   const reference = getMessageText(expectedOutput);
 

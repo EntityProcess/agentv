@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from agentv_py.grader import Assertion, CodeGraderContext, CodeGraderResult, load_grader_input, run_code_grader
+from agentv_py.grader import Assertion, ScriptGraderContext, ScriptGraderResult, load_grader_input, run_script_grader
 
 
 def canonical_payload() -> dict:
@@ -44,7 +44,7 @@ def test_load_grader_input_rejects_deprecated_wire_aliases() -> None:
     payload["output_text"] = payload["output"]
 
     with pytest.raises(ValueError, match="Deprecated wire fields"):
-        CodeGraderContext.from_wire(payload)
+        ScriptGraderContext.from_wire(payload)
 
 
 def test_load_grader_input_reads_output_path(tmp_path: Path) -> None:
@@ -59,15 +59,15 @@ def test_load_grader_input_reads_output_path(tmp_path: Path) -> None:
     assert context.output == "loaded from file"
 
 
-def test_run_code_grader_emits_canonical_result(capsys: pytest.CaptureFixture[str]) -> None:
-    def handler(_: CodeGraderContext) -> CodeGraderResult:
-        return CodeGraderResult(
+def test_run_script_grader_emits_canonical_result(capsys: pytest.CaptureFixture[str]) -> None:
+    def handler(_: ScriptGraderContext) -> ScriptGraderResult:
+        return ScriptGraderResult(
             score=1.0,
             assertions=[Assertion(text="Exact match", passed=True)],
             details={"source": "pytest"},
         )
 
-    exit_code = run_code_grader(handler, stdin_text=json.dumps(canonical_payload()))
+    exit_code = run_script_grader(handler, stdin_text=json.dumps(canonical_payload()))
 
     assert exit_code == 0
     emitted = json.loads(capsys.readouterr().out)

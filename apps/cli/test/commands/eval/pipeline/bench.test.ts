@@ -8,14 +8,14 @@ const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 describe('pipeline bench', () => {
   beforeEach(async () => {
     const testDir = join(OUT_DIR, 'test-01');
-    const codeResultsDir = join(testDir, 'code_grader_results');
+    const codeResultsDir = join(testDir, 'script_grader_results');
     const llmGradersDir = join(testDir, 'llm_graders');
     const llmResultsDir = join(testDir, 'llm_grader_results');
-    const codeGradersDir = join(testDir, 'code_graders');
+    const scriptGradersDir = join(testDir, 'script_graders');
     await mkdir(codeResultsDir, { recursive: true });
     await mkdir(llmGradersDir, { recursive: true });
     await mkdir(llmResultsDir, { recursive: true });
-    await mkdir(codeGradersDir, { recursive: true });
+    await mkdir(scriptGradersDir, { recursive: true });
 
     await writeFile(
       join(OUT_DIR, 'manifest.json'),
@@ -46,7 +46,7 @@ describe('pipeline bench', () => {
       }),
     );
     await writeFile(
-      join(codeGradersDir, 'contains.json'),
+      join(scriptGradersDir, 'contains.json'),
       JSON.stringify({
         name: 'contains',
         command: ['echo'],

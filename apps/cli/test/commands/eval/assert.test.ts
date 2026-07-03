@@ -156,7 +156,7 @@ describe('agentv eval assert', () => {
     }
   }, 30_000);
 
-  it('sends only canonical wire fields to code graders', async () => {
+  it('sends only canonical wire fields to script graders', async () => {
     const { baseDir } = await createGraderFixture();
     try {
       const result = await execa(

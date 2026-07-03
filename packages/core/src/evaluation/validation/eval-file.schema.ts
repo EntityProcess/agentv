@@ -104,7 +104,7 @@ const RubricItemSchema = z.object({
 
 // --- Type-specific evaluator schemas ---
 
-const CodeGraderSchema = EvaluatorCommonSchema.extend({
+const ScriptGraderSchema = EvaluatorCommonSchema.extend({
   type: z.literal('script'),
   command: z.union([z.string(), z.array(z.string())]),
   cwd: z.string().optional(),
@@ -283,7 +283,7 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
 
 /** Union of all grader types */
 const EvaluatorSchema = z.union([
-  CodeGraderSchema,
+  ScriptGraderSchema,
   LlmGraderSchema,
   PromptfooAssertionSchema,
   IncludeSchema,

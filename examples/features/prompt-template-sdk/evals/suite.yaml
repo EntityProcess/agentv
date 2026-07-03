@@ -1,6 +1,6 @@
 # Prompt Template SDK Demo
 # Demonstrates using TypeScript/JavaScript files for custom grader prompts.
-# Uses the same explicit script pattern as code_grader for consistency.
+# Uses the same explicit script pattern as script_grader for consistency.
 
 description: Demonstrates TypeScript prompt templates for custom LLM grader prompts
 
@@ -24,7 +24,7 @@ tests:
     assert:
       - metric: custom-prompt-eval
         type: llm-rubric
-        # Executable prompt template using explicit script array (matches code_grader pattern)
+        # Executable prompt template using explicit script array.
         prompt:
           command: [ bun, run, ../prompts/custom-grader.ts ]
       - The CLI provides a clear answer about TypeScript benefits.

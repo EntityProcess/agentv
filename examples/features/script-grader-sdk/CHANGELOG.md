@@ -1,4 +1,4 @@
-# @agentv-examples/code-grader-sdk
+# @agentv-examples/script-grader-sdk
 
 ## 0.0.2
 

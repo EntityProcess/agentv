@@ -1,9 +1,9 @@
 # Eval Assert Demo
-# Demonstrates code graders with `agentv eval assert` CLI integration.
-# Each code-grader assertion can also be run standalone:
+# Demonstrates script graders with `agentv eval assert` CLI integration.
+# Each script-grader assertion can also be run standalone:
 #   agentv eval assert keyword-check --agent-output "..." --agent-input "..."
 
-description: Code graders with eval assert CLI integration
+description: script graders with eval assert CLI integration
 
 target: llm
 

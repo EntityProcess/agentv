@@ -2,7 +2,7 @@
  * Vitest workspace verifier adapter.
  *
  * This module keeps deterministic workspace verification in familiar Vitest
- * tests while translating the JSON reporter output into AgentV's code-grader
+ * tests while translating the JSON reporter output into AgentV's script-grader
  * result contract.
  */
 import { spawn } from 'node:child_process';
@@ -10,8 +10,12 @@ import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { runCodeGrader } from './runtime.js';
-import { type CodeGraderInput, type CodeGraderResult, CodeGraderResultSchema } from './schemas.js';
+import { runScriptGrader } from './runtime.js';
+import {
+  type ScriptGraderInput,
+  type ScriptGraderResult,
+  ScriptGraderResultSchema,
+} from './schemas.js';
 
 export interface VitestWorkspaceGraderOptions {
   /**
@@ -84,7 +88,7 @@ interface VitestJsonReport {
   readonly testResults?: readonly VitestFileResult[];
 }
 
-function workspacePathFrom(input: CodeGraderInput): string | undefined {
+function workspacePathFrom(input: ScriptGraderInput): string | undefined {
   const workspacePath = input.workspacePath ?? process.env.AGENTV_WORKSPACE_PATH;
   return workspacePath?.trim() ? workspacePath : undefined;
 }
@@ -181,10 +185,10 @@ function assertionText(file: VitestFileResult, assertion: VitestAssertionResult)
   return title || file.name || 'Vitest assertion';
 }
 
-export function vitestReportToCodeGraderResult(
+export function vitestReportToScriptGraderResult(
   report: VitestJsonReport,
   options: Pick<VitestWorkspaceGraderOptions, 'passWithNoTests'> = {},
-): CodeGraderResult {
+): ScriptGraderResult {
   const assertions = (report.testResults ?? []).flatMap((file) =>
     (file.assertionResults ?? []).map((item) => {
       const passed = item.status === 'passed';
@@ -202,7 +206,7 @@ export function vitestReportToCodeGraderResult(
 
   if (assertions.length === 0) {
     const passed = options.passWithNoTests === true;
-    return CodeGraderResultSchema.parse({
+    return ScriptGraderResultSchema.parse({
       score: passed ? 1 : 0,
       assertions: [{ text: 'Vitest reported no tests', passed }],
       details: {
@@ -217,7 +221,7 @@ export function vitestReportToCodeGraderResult(
   }
 
   const passedCount = assertions.filter((item) => item.passed).length;
-  return CodeGraderResultSchema.parse({
+  return ScriptGraderResultSchema.parse({
     score: passedCount / assertions.length,
     assertions,
     details: {
@@ -230,6 +234,9 @@ export function vitestReportToCodeGraderResult(
     },
   });
 }
+
+/** @deprecated Use vitestReportToScriptGraderResult. */
+export const vitestReportToCodeGraderResult = vitestReportToScriptGraderResult;
 
 function runCommand(
   command: readonly string[],
@@ -330,8 +337,8 @@ async function readVitestReport(
 
 export async function runVitestWorkspaceGrader(
   options: VitestWorkspaceGraderOptions,
-  input: CodeGraderInput,
-): Promise<CodeGraderResult> {
+  input: ScriptGraderInput,
+): Promise<ScriptGraderResult> {
   const workspacePath = workspacePathFrom(input);
   if (!workspacePath) {
     return {
@@ -384,7 +391,7 @@ export async function runVitestWorkspaceGrader(
     });
 
     const report = await readVitestReport(result, outputFile);
-    return vitestReportToCodeGraderResult(report, options);
+    return vitestReportToScriptGraderResult(report, options);
   } catch (error) {
     return {
       score: 0,
@@ -404,5 +411,5 @@ export async function runVitestWorkspaceGrader(
 }
 
 export function defineVitestWorkspaceGrader(options: VitestWorkspaceGraderOptions): void {
-  runCodeGrader((input) => runVitestWorkspaceGrader(options, input));
+  runScriptGrader((input) => runVitestWorkspaceGrader(options, input));
 }

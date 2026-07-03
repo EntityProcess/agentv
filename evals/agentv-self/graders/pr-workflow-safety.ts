@@ -8,7 +8,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { type Message, type ToolCall, type TraceEvent, defineCodeGrader } from '@agentv/sdk';
+import { type Message, type ToolCall, type TraceEvent, defineScriptGrader } from '@agentv/sdk';
 
 type Assertion = { text: string; passed: boolean; evidence?: string };
 
@@ -209,7 +209,7 @@ function fixtureManifestAssertion(workspacePath: string | null | undefined): Ass
   };
 }
 
-export default defineCodeGrader(({ output, messages, trace, workspacePath }) => {
+export default defineScriptGrader(({ output, messages, trace, workspacePath }) => {
   const response = outputText(output, messages);
   const normalizedResponse = normalizeText(response);
   const lines = outputLines(response);

@@ -6,7 +6,6 @@ import path from 'node:path';
 import { parseGraders } from '../../../src/evaluation/loaders/grader-parser.js';
 import type { ToolTrajectoryGraderConfig } from '../../../src/evaluation/trace.js';
 import type {
-  CodeGraderConfig,
   CompositeGraderConfig,
   ContainsGraderConfig,
   EqualsGraderConfig,
@@ -15,6 +14,7 @@ import type {
   LlmGraderConfig,
   LlmRubricGraderConfig,
   RegexGraderConfig,
+  ScriptGraderConfig,
 } from '../../../src/evaluation/types.js';
 
 describe('parseGraders - deterministic assertion types', () => {
@@ -657,7 +657,7 @@ describe('parseGraders - script config pass-through', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as CodeGraderConfig;
+    const config = evaluators?.[0] as ScriptGraderConfig;
     expect(config.type).toBe('script');
     expect(config.name).toBe('fuzzy-matcher');
     expect(config.config).toEqual({
@@ -684,7 +684,7 @@ describe('parseGraders - script config pass-through', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as CodeGraderConfig;
+    const config = evaluators?.[0] as ScriptGraderConfig;
     expect(config.type).toBe('script');
     expect(config.config).toBeUndefined();
   });
@@ -713,7 +713,7 @@ describe('parseGraders - script config pass-through', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as CodeGraderConfig;
+    const config = evaluators?.[0] as ScriptGraderConfig;
     expect(config.weight).toBe(2.0);
     expect(config.required).toBe(true);
     expect(config.min_score).toBe(0.75);
@@ -735,7 +735,7 @@ describe('parseGraders - script config pass-through', () => {
     const evaluators = await parseGraders(rawEvalCase, undefined, [tempDir], 'test-case');
 
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as CodeGraderConfig;
+    const config = evaluators?.[0] as ScriptGraderConfig;
     if (process.platform === 'win32') {
       expect(config.command).toEqual(['cmd.exe', '/c', './test_script.ts']);
     } else {
@@ -743,7 +743,7 @@ describe('parseGraders - script config pass-through', () => {
     }
   });
 
-  it('rejects removed code-grader script alias', async () => {
+  it('rejects removed script-grader script alias', async () => {
     await expect(
       parseGraders(
         {
@@ -785,19 +785,19 @@ describe('parseGraders - kebab-case type normalization', () => {
     expect((evaluators?.[0] as LlmGraderConfig).target).toBe('grader-low-cost-a');
   });
 
-  it('rejects removed code-grader type', async () => {
+  it('rejects removed script-grader type', async () => {
     const rawEvalCase = {
       assert: [
         {
           metric: 'kebab-code',
-          type: 'code-grader',
+          type: 'script-grader',
           command: ['bun', 'run', './test_script.ts'],
         },
       ],
     };
 
     await expect(parseGraders(rawEvalCase, undefined, [tempDir], 'test-case')).rejects.toThrow(
-      /Unsupported grader 'code-grader'.*Use 'script'/,
+      /Unsupported grader 'script-grader'.*Use 'script'/,
     );
   });
 
@@ -816,7 +816,7 @@ describe('parseGraders - kebab-case type normalization', () => {
 
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('script');
-    expect((evaluators?.[0] as CodeGraderConfig).command).toEqual([
+    expect((evaluators?.[0] as ScriptGraderConfig).command).toEqual([
       'bun',
       'run',
       './test_script.ts',
@@ -2121,7 +2121,7 @@ describe('parseGraders - required field', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as CodeGraderConfig;
+    const config = evaluators?.[0] as ScriptGraderConfig;
     expect(config.required).toBe(true);
   });
 

@@ -24,8 +24,7 @@ You are the Blind Comparator for AgentV's evaluation workflow. Your job is to co
 You will receive:
 - `outputs`: Array of evaluation outputs to compare. Each contains:
   - `target_id`: The provider/configuration identifier (DO NOT read this during scoring)
-  - `answer`: The candidate response text
-  - `evaluator_results`: Array of grader scores and details (code-grader, tool-trajectory, llm-rubric, deterministic)
+  - `evaluator_results`: Array of grader scores and details (script, tool-trajectory, llm-rubric, deterministic)
   - `workspace_changes`: File changes made during workspace evaluation (if applicable)
   - `tool_calls`: Tool invocations and results from multi-turn conversations (if applicable)
   - `conversation`: Full multi-turn conversation history (if applicable)
@@ -91,7 +90,7 @@ For each content criterion, define:
 
 **Grader-Specific Scoring** — when grader results are present:
 
-- **code-grader**: Factor in pass/fail results, test coverage, assertion hit rates
+- **script-grader**: Factor in pass/fail results, test coverage, assertion hit rates
 - **tool-trajectory**: Factor in tool call accuracy, sequence correctness, unnecessary tool calls
 - **llm-rubric**: Factor in existing LLM grader scores as a reference signal (not as ground truth)
 - **deterministic**: Factor in exact match / keyword hit rates
@@ -236,7 +235,7 @@ Also produce a human-readable markdown summary:
 - **Be evidence-based**: Every score must cite specific evidence from the output.
 - **Evaluate substance over style**: Correct, complete answers with rough formatting score higher than polished but incorrect answers.
 - **Handle missing data gracefully**: If an output lacks workspace changes or tool calls but others have them, score what is present — do not penalize for data the target wasn't expected to produce.
-- **Respect grader signals**: When code-grader or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
+- **Respect grader signals**: When script-grader or tool-trajectory results exist, they represent objective ground truth. Weight these heavily.
 
 ## Edge Cases
 

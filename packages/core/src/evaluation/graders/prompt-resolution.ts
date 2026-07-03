@@ -19,7 +19,7 @@ import type { Message } from '../providers/types.js';
 import { VALID_TEMPLATE_VARIABLES } from '../template-variables.js';
 import type { Trace } from '../trace.js';
 import type { EvalTest, PromptScriptConfig } from '../types.js';
-import { executeScript } from './code-grader.js';
+import { executeScript } from './script-grader.js';
 
 export interface ResolveCustomPromptContext {
   readonly evalCase: EvalTest;

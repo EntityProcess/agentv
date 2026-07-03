@@ -25,7 +25,7 @@ tests:
     input: |
       Task: I have a YAML eval file and I need to run it against an LLM target
       and see the pass rate. Which skill?
-    assertions:
+    assert:
       - type: contains
         value: agentv-bench
       - type: rubrics
@@ -38,7 +38,7 @@ tests:
     input: |
       Task: I want to author a brand-new `.eval.yaml` file for my custom skill
       from scratch. Which skill should I load?
-    assertions:
+    assert:
       - type: contains
         value: agentv-eval-writer
       - type: rubrics
@@ -52,7 +52,7 @@ tests:
       Task: I already wrote my `.eval.yaml` and want a second pair of eyes to
       audit it for missing assertions, bad rubric phrasing, and structural
       issues. Which skill?
-    assertions:
+    assert:
       - type: contains
         value: agentv-eval-review
       - type: rubrics
@@ -65,7 +65,7 @@ tests:
     input: |
       Task: I'm building a red-team eval and need to add a `governance:` block
       with OWASP and MITRE coverage metadata. Which skill?
-    assertions:
+    assert:
       - type: contains
         value: agentv-governance
       - type: rubrics
@@ -78,7 +78,7 @@ tests:
     input: |
       Task: I already wrote the `governance:` block in my `.eval.yaml` and want
       to lint it against the supported vocabulary before CI runs. Which skill?
-    assertions:
+    assert:
       - type: contains
         value: agentv-governance
       - type: rubrics
@@ -92,7 +92,7 @@ tests:
       Task: My eval run produced an `index.jsonl` with several failing rows.
       I want to dig into the per-test traces and figure out what went wrong.
       Which skill?
-    assertions:
+    assert:
       - type: contains
         value: agentv-trace-analyst
       - type: rubrics
@@ -105,7 +105,7 @@ tests:
     input: |
       Task: I'm starting a new eval project. I'll need to author the `.eval.yaml`
       from scratch *and* run it against a target. Which skill or skills?
-    assertions:
+    assert:
       - type: contains
         value: agentv-eval-writer
       - type: contains
@@ -120,7 +120,7 @@ tests:
     input: |
       Task: I want to deploy my Node.js app to a Kubernetes cluster. Which
       agentv skill should I load?
-    assertions:
+    assert:
       - type: equals
         value: none
       - type: rubrics

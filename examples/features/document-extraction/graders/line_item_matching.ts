@@ -2,7 +2,7 @@
 /**
  * Line Item Matching Grader
  *
- * A code-grader that matches expected line items to parsed line items using
+ * A script-grader that matches expected line items to parsed line items using
  * greedy matching before scoring. This handles reordered and duplicate items.
  *
  * Matching strategy (greedy):

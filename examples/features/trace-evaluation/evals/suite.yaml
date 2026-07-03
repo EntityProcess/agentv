@@ -1,12 +1,12 @@
 # Trace-Based Evaluation Examples
 #
 # Demonstrates how to evaluate agent internals (LLM calls, tool executions,
-# errors, and durations) using code graders that inspect trace.
+# errors, and durations) using script graders that inspect trace.
 #
 # Validate with:
 #   bun agentv validate examples/features/trace-evaluation/evals/suite.yaml
 
-description: Trace-based evaluation of agent internals using code graders
+description: Trace-based evaluation of agent internals using script graders
 
 target: llm
 

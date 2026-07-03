@@ -15,7 +15,7 @@
  * Requires `target: { max_calls: N }` in the grader YAML config,
  * where N >= number of retrieval context nodes to evaluate.
  */
-import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
 import { extractRetrievalContext } from './utils.js';
 
 interface RelevanceResult {
@@ -42,7 +42,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(async (input) => {
+export default defineScriptGrader(async (input) => {
   const { input: inputMessages, criteria, expectedOutput } = input;
   const inputText = getMessageText(inputMessages, 'user');
 
