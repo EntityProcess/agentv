@@ -6,7 +6,7 @@ import path from 'node:path';
 import micromatch from 'micromatch';
 
 import { getAgentvDataDir } from '../../paths.js';
-import type { JsonObject, JsonValue, RepoConfig } from '../types.js';
+import type { JsonObject, RepoConfig } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { getRepoCheckoutRef } from './repo-checkout.js';
 import { normalizeRepoIdentity, resolveRepoCloneUrl } from './repo-identity.js';
@@ -34,19 +34,13 @@ export interface RepoResolverRequest {
   readonly config: JsonObject;
 }
 
-export interface RepoResolverGitSource {
-  readonly type: 'git';
-  readonly path: string;
-  readonly origin?: string;
-}
-
 export interface RepoResolverHandledResult {
-  readonly handled: true;
-  readonly source: RepoResolverGitSource;
+  readonly status: 'handled';
+  readonly path: string;
 }
 
 export interface RepoResolverUnhandledResult {
-  readonly handled: false;
+  readonly status: 'skip';
 }
 
 export type RepoResolverResult = RepoResolverHandledResult | RepoResolverUnhandledResult;
@@ -308,35 +302,22 @@ function parseRepoResolverOutput(stdout: string, resolverName: string): RepoReso
     throw new Error(`Repo resolver '${resolverName}' stdout must be a JSON object.`);
   }
 
-  const output = parsed as Record<string, JsonValue>;
-  if (output.handled === false) {
-    return { handled: false };
+  const output = parsed as Record<string, unknown>;
+  if (output.status === 'skip') {
+    return { status: 'skip' };
   }
-  if (output.handled !== true) {
-    throw new Error(`Repo resolver '${resolverName}' stdout must set handled to true or false.`);
-  }
-
-  if (!isJsonObject(output.source)) {
-    throw new Error(`Repo resolver '${resolverName}' handled the repo but did not return source.`);
+  if (output.status !== 'handled') {
+    throw new Error(
+      `Repo resolver '${resolverName}' stdout must set status to 'handled' or 'skip'.`,
+    );
   }
 
-  const source = output.source as Record<string, JsonValue>;
-  if (source.type !== 'git') {
-    throw new Error(`Repo resolver '${resolverName}' returned unsupported source.type.`);
-  }
-  if (typeof source.path !== 'string' || source.path.trim().length === 0) {
-    throw new Error(`Repo resolver '${resolverName}' source.path must be a non-empty string.`);
-  }
-  if (source.origin !== undefined && typeof source.origin !== 'string') {
-    throw new Error(`Repo resolver '${resolverName}' source.origin must be a string when set.`);
+  if (typeof output.path !== 'string' || output.path.trim().length === 0) {
+    throw new Error(`Repo resolver '${resolverName}' path must be a non-empty string.`);
   }
 
   return {
-    handled: true,
-    source: {
-      type: 'git',
-      path: source.path,
-      ...(typeof source.origin === 'string' && { origin: source.origin }),
-    },
+    status: 'handled',
+    path: output.path,
   };
 }

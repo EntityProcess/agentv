@@ -105,16 +105,15 @@ function writeResolverScript(scriptPath: string): void {
       'if (request.config.request_log) {',
       '  appendFileSync(request.config.request_log, `${JSON.stringify(request)}\\n`);',
       '}',
-      'if (request.config.handled === false) {',
-      '  process.stdout.write(JSON.stringify({ handled: false }));',
+      'if (request.config.raw_stdout !== undefined) {',
+      '  process.stdout.write(String(request.config.raw_stdout));',
+      '} else ',
+      "if (request.config.status === 'skip') {",
+      "  process.stdout.write(JSON.stringify({ status: 'skip' }));",
       '} else {',
       '  process.stdout.write(JSON.stringify({',
-      '    handled: true,',
-      '    source: {',
-      "      type: 'git',",
+      "    status: 'handled',",
       '      path: request.config.source_path,',
-      '      origin: request.config.origin,',
-      '    },',
       '  }));',
       '}',
       '',
@@ -393,7 +392,7 @@ describe('RepoManager', () => {
 
       const targetDir = path.join(workspaceDir, 'resolved');
       expect(readFileSync(path.join(targetDir, 'resolved.txt'), 'utf-8')).toBe('from resolver');
-      expect(gitExec('git remote get-url origin', targetDir)).toBe(
+      expect(gitExec('git remote get-url origin', targetDir)).not.toBe(
         'https://github.com/example/unreachable.git',
       );
     }, 30_000);
@@ -458,7 +457,7 @@ describe('RepoManager', () => {
       expect(existsSync(path.join(targetDir, 'src', 'main.ts'))).toBe(true);
     }, 30_000);
 
-    it('continues from handled:false pattern resolvers to the default resolver', async () => {
+    it('continues from status:skip pattern resolvers to the default resolver', async () => {
       const defaultSource = path.join(tmpDir, 'default-source');
       createTestRepo(defaultSource, { 'default.txt': 'from default' });
       const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
@@ -472,7 +471,7 @@ describe('RepoManager', () => {
           name: 'pattern',
           repos: ['https://github.com/example/*'],
           command: ['bun', scriptPath],
-          config: { handled: false },
+          config: { status: 'skip' },
         },
         {
           name: 'default',
@@ -498,7 +497,7 @@ describe('RepoManager', () => {
       );
     }, 30_000);
 
-    it('falls back to built-in git acquisition when the default resolver returns handled:false', async () => {
+    it('falls back to built-in git acquisition when the default resolver returns status:skip', async () => {
       const sourceRepo = path.join(tmpDir, 'builtin-source');
       createTestRepo(sourceRepo, { 'builtin.txt': 'from built-in' });
       const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
@@ -511,7 +510,7 @@ describe('RepoManager', () => {
         {
           name: 'default',
           command: ['bun', scriptPath],
-          config: { handled: false },
+          config: { status: 'skip' },
         },
       ]);
 
@@ -530,6 +529,102 @@ describe('RepoManager', () => {
       expect(readFileSync(path.join(workspaceDir, 'builtin', 'builtin.txt'), 'utf-8')).toBe(
         'from built-in',
       );
+    }, 30_000);
+
+    it('rejects invalid resolver stdout without accepting the old handled/source shape', async () => {
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-invalid-stdout');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'invalid_stdout',
+          repos: ['https://github.com/example/*'],
+          command: ['bun', scriptPath],
+          config: {
+            raw_stdout: JSON.stringify({
+              handled: true,
+              source: { type: 'git', path: path.join(tmpDir, 'old-source') },
+            }),
+          },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await expect(
+        projectManager.materialize(
+          {
+            path: './invalid',
+            repo: 'https://github.com/example/invalid.git',
+          },
+          workspaceDir,
+        ),
+      ).rejects.toThrow("stdout must set status to 'handled' or 'skip'");
+    }, 30_000);
+
+    it('copies non-git resolver directory snapshots and restores them on reset', async () => {
+      const snapshotDir = path.join(tmpDir, 'static-snapshot');
+      mkdirSync(path.join(snapshotDir, 'src'), { recursive: true });
+      writeFileSync(path.join(snapshotDir, 'src', 'main.ts'), 'snapshot');
+      writeFileSync(path.join(snapshotDir, 'README.md'), 'static');
+      const scriptPath = path.join(tmpDir, 'scripts', 'resolver.ts');
+      writeResolverScript(scriptPath);
+      const projectDir = path.join(tmpDir, 'project-static');
+      const evalDir = path.join(projectDir, 'evals');
+      mkdirSync(path.join(projectDir, '.git'), { recursive: true });
+      mkdirSync(evalDir, { recursive: true });
+      writeRepoResolversConfig(path.join(projectDir, '.agentv', 'config.yaml'), [
+        {
+          name: 'static',
+          repos: ['https://github.com/example/*'],
+          command: ['bun', scriptPath],
+          config: { source_path: snapshotDir },
+        },
+      ]);
+
+      const projectManager = new RepoManager(false, {
+        progress: false,
+        projectConfigDir: evalDir,
+      });
+      await projectManager.materialize(
+        {
+          path: './static',
+          repo: 'https://github.com/example/static.git',
+          commit: 'missing-commit',
+          ancestor: 3,
+          sparse: ['only-this-path'],
+        },
+        workspaceDir,
+      );
+
+      const targetDir = path.join(workspaceDir, 'static');
+      expect(readFileSync(path.join(targetDir, 'src', 'main.ts'), 'utf-8')).toBe('snapshot');
+      expect(readFileSync(path.join(targetDir, 'README.md'), 'utf-8')).toBe('static');
+      expect(existsSync(path.join(targetDir, '.git'))).toBe(false);
+
+      writeFileSync(path.join(targetDir, 'src', 'main.ts'), 'mutated');
+      writeFileSync(path.join(targetDir, 'generated.txt'), 'generated');
+      await projectManager.reset(
+        [
+          {
+            path: './static',
+            repo: 'https://github.com/example/static.git',
+            commit: 'missing-commit',
+            ancestor: 3,
+            sparse: ['only-this-path'],
+          },
+        ],
+        workspaceDir,
+        'strict',
+      );
+
+      expect(readFileSync(path.join(targetDir, 'src', 'main.ts'), 'utf-8')).toBe('snapshot');
+      expect(existsSync(path.join(targetDir, 'generated.txt'))).toBe(false);
     }, 30_000);
 
     it('rejects duplicate resolver names and repos on the default resolver', async () => {

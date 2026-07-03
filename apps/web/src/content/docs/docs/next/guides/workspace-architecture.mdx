@@ -37,8 +37,8 @@ eval start
 +---------------------------+
 | 3. Repo materialization   |  For each workspace.repos entry:
 |    a. resolve acquisition |    - registered project, configured mirror,
-|    b. git clone/fetch     |      AgentV cache, or remote fallback
-|    c. git checkout <ref>  |    - check out commit or HEAD
+|    b. materialize bytes   |      resolver source, AgentV cache, or remote fallback
+|    c. checkout if Git     |    - check out commit or HEAD for Git sources
 +---------------------------+
   |
   v
@@ -120,8 +120,8 @@ For each materialized repo, AgentV resolves acquisition in this order:
 
 | Order | Source | How it is used |
 |-------|--------|----------------|
-| 1 | Pattern resolver | The first non-`default` `repo_resolvers[]` entry whose `repos` pattern matches the repo URL or identity. If it returns `handled:false`, AgentV continues to the default resolver. |
-| 2 | Default resolver | The resolver named `default`, if configured. It must not declare `repos`; it is the unconditional project default. If it returns `handled:false`, AgentV continues to the built-in git resolver. |
+| 1 | Pattern resolver | The first non-`default` `repo_resolvers[]` entry whose `repos` pattern matches the repo URL or identity. If it returns `status: "skip"`, AgentV continues to the default resolver. |
+| 2 | Default resolver | The resolver named `default`, if configured. It must not declare `repos`; it is the unconditional project default. If it returns `status: "skip"`, AgentV continues to the built-in git resolver. |
 | 3 | Registered project | A project in `$AGENTV_HOME/projects.yaml` whose `origin` matches the repo identity. AgentV seeds its mirror cache from that local checkout, then clones the cache into the workspace and resets `origin` to the declared repo URL. |
 | 4 | Configured mirror | A path listed under `git_cache.mirrors`. AgentV seeds its mirror cache from that checkout or bare mirror, then clones the cache into the workspace. |
 | 5 | Mirror cache | An AgentV-owned bare cache under `$AGENTV_DATA_DIR/git-cache/<hash>`. Cache population is locked, cloned into a temporary path, verified, and atomically renamed before use. |
@@ -136,8 +136,7 @@ local checkout is moved, deleted, or garbage-collected.
 
 Use `repo_resolvers` when repo bytes come from a project-specific source that
 AgentV core should not understand, such as an internal snapshot bundle. Put that
-logic in a resolver script and return a local git source for AgentV to clone and
-check out normally:
+logic in a resolver script and return a local acquisition path:
 
 ```yaml
 # .agentv/config.yaml
@@ -163,18 +162,26 @@ resolver writes JSON on stdout:
 
 ```json
 {
-  "handled": true,
-  "source": {
-    "type": "git",
-    "path": "/tmp/source.git",
-    "origin": "https://github.com/example/repo.git"
-  }
+  "status": "handled",
+  "path": "/tmp/source.git"
 }
 ```
 
-Only `source.type: "git"` is supported. Resolver scripts should prepare or
-locate source directories independently from the final workspace; AgentV still
-materializes the repo into every suite or attempt workspace it creates.
+Return `{ "status": "skip" }` when the resolver does not own that repo.
+`path` can point at a Git source or a plain directory snapshot. AgentV
+classifies the path at runtime.
+
+For Git sources, AgentV clones from `path`, applies `sparse` when present,
+resolves `commit`, walks `ancestor`, and checks out the resulting commit.
+Resolver stdout does not set or override `origin`; the resolver chooses
+acquisition bytes only.
+
+For plain directory snapshots, AgentV copies the directory contents into
+`workspace.repos[].path` without requiring `.git`. Because the snapshot has no
+Git history, `commit`, `ancestor`, and `sparse` are ignored for that repo.
+Workspace resets restore the snapshot by copying the same resolver directory
+source again. Targets and graders see a normal filesystem directory at the
+configured workspace path.
 
 ### Configured mirrors
 

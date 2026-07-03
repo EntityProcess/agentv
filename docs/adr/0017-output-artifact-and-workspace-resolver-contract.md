@@ -134,8 +134,9 @@ new acquisition technology plugs in without touching it. `commit` is an immutabl
    **before hooks** (ADR 0016 pt10).
 2. **Acquisition = harness resolver in machine config (`$AGENTV_HOME/config.yaml`),
    keyed on `repo`**, ordered backends: (1) local checkout auto-adopt via origin-match
-   → `git clone --reference`; (2) bare mirror clone-cache (`--reference`, shared objects);
-   (3) snapshot artifact (WTG `download-release-deps` reframed); (4) remote clone;
+   → mirror cache; (2) configured local mirror; (3) custom command resolver returning
+   a flat `{status,path}` acquisition source, including Git sources or static directory
+   snapshots; (4) AgentV mirror cache and remote clone;
    (5) *future* Docker image (SWE-bench/margin/Inspect — same identity key, new backend;
    adopt Inspect's `image`/`build`/`x-local` distinction + per-config init caching).
 3. **`--reference` (mirror cache) is the workhorse**: shallow-speed WITH full history, so
