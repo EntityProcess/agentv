@@ -74,6 +74,7 @@ import {
   createRunDirName,
   discoverRunManifestPaths,
   normalizeExperimentName,
+  resolveRunIndexPath,
 } from './result-layout.js';
 import {
   buildExclusionFilter,
@@ -1236,7 +1237,7 @@ class RunOutputWriter implements OutputWriter {
     private readonly invocationDir: string,
     private readonly appendMode: boolean,
   ) {
-    this.indexPath = path.join(invocationDir, RESULT_INDEX_FILENAME);
+    this.indexPath = resolveRunIndexPath(invocationDir);
   }
 
   async append(result: EvaluationResult): Promise<void> {
@@ -1280,7 +1281,11 @@ async function resolveRerunFailedRunDir(cwd: string, source: string): Promise<st
 
   const candidate = path.isAbsolute(trimmed) ? trimmed : path.resolve(cwd, trimmed);
   if (existsSync(candidate)) {
-    return path.basename(candidate) === RESULT_INDEX_FILENAME ? path.dirname(candidate) : candidate;
+    if (path.basename(candidate) !== RESULT_INDEX_FILENAME) {
+      return candidate;
+    }
+    const manifestDir = path.dirname(candidate);
+    return path.basename(manifestDir) === '.internal' ? path.dirname(manifestDir) : manifestDir;
   }
 
   const runIdCandidate = path.join(cwd, '.agentv', 'results', trimmed);
@@ -2622,7 +2627,7 @@ export async function runEvalCommand(
           runtimeSource: runtimeSourceMetadata,
           tags: emittedTags,
         });
-        const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
+        const indexPath = resolveRunIndexPath(runDir);
         console.log(`Artifact bundle updated: ${runDir}`);
         console.log(`  Run manifest: ${indexPath}`);
         console.log(`  Per-test artifacts: ${runDir} (${allResults.length} new test directories)`);

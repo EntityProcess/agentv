@@ -26,11 +26,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Workspace** — The task environment an eval prepares for the agent: repositories, templates, fixture files, and lifecycle hooks. It is not prompt input; use `input` for instructions and `workspace.repos[]` for multi-repo workspaces the agent can inspect or modify through tools.
 
-**Run bundle** — A committed local result directory at `.agentv/results/<run_id>/`. `summary.json` records run metadata such as `run_id` and `experiment`; `index.jsonl` records per-case rows.
+**Run bundle** — A committed local result directory at `.agentv/results/<run_id>/`. `summary.json` records run metadata such as `run_id` and `experiment`; `.internal/index.jsonl` records per-case rows.
 
 **Run manifest** — The root `summary.json` file in a run bundle. It owns aggregate run metadata and rollups such as `run_id`, `experiment`, timestamps, planned/completed counts, pass rate, score summaries, duration, tokens, and cost.
 
-**Result index** — The root `index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `test_dir`, `summary_path`, and `grading_path`.
+**Result index** — The `.internal/index.jsonl` file in a run bundle. It is the dashboard and tooling loading contract for per-case result rows and artifact locations, including fields such as `result_dir`, `test_dir`, `summary_path`, `grading_path`, and `metrics_path`.
 
 **Result source identity** — The stable source identity for a result row: repo-relative `eval_path`, `test_id`, and `target`. `suite` and `name` are display metadata, not storage or routing identity.
 
@@ -38,7 +38,7 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 **Artifact sidecar** — A file beside or below a result directory that provides evidence for a result, such as `summary.json`, `grading.json`, `result.json`, transcripts, logs, or outputs. Sidecars are evidence, not the primary discovery mechanism for a run.
 
-**Artifact attempt folder** — A per-case `attempt-N/` folder under a result directory. It stores one materialized execution's sidecars and outputs. It is not the primary comparison dimension: stochastic samples and infrastructure retries should be represented with explicit sample/retry metadata rather than inferred from `attempt-1`, `attempt-2`, and so on.
+**Artifact sample folder** — A per-case `sample-N/` folder under a result directory. It stores one materialized execution's sidecars and outputs. It is not the primary comparison dimension: stochastic samples and infrastructure retries are represented with explicit `sample_index` and `retry_index` metadata rather than inferred from folder position.
 
 ## Evaluation Reliability
 

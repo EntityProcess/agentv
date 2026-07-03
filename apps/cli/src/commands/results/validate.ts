@@ -39,9 +39,18 @@ interface IndexEntry {
   readonly summary_path?: string;
   readonly grading_path?: string;
   readonly timing_path?: string;
+  readonly metrics_path?: string;
   readonly result_dir?: string;
-  readonly attempts?: readonly { readonly attempt_path?: string; readonly run_path?: string }[];
-  readonly trials?: readonly { readonly attempt_path?: string; readonly run_path?: string }[];
+  readonly attempts?: readonly {
+    readonly attempt_path?: string;
+    readonly sample_path?: string;
+    readonly run_path?: string;
+  }[];
+  readonly trials?: readonly {
+    readonly attempt_path?: string;
+    readonly sample_path?: string;
+    readonly run_path?: string;
+  }[];
   readonly [key: string]: unknown;
 }
 
@@ -304,13 +313,13 @@ function checkArtifactFiles(runDir: string, entries: IndexEntry[]): Diagnostic[]
       }
     }
 
-    // Check timing.json
-    if (entry.timing_path) {
-      const timingPath = path.join(runDir, entry.timing_path);
-      if (!existsSync(timingPath)) {
+    // Check metrics.json. Legacy timing_path is tolerated for old bundles.
+    if (entry.metrics_path) {
+      const metricsPath = path.join(runDir, entry.metrics_path);
+      if (!existsSync(metricsPath)) {
         diagnostics.push({
           severity: 'warning',
-          message: `${testId}: timing.json not found at '${entry.timing_path}'`,
+          message: `${testId}: metrics.json not found at '${entry.metrics_path}'`,
         });
       }
     }

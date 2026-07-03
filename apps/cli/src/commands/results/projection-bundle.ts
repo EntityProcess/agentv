@@ -69,7 +69,7 @@ export interface ProjectionBundleEntry {
     readonly result_score: number;
     readonly execution_status?: string;
     readonly grading_path?: string;
-    readonly timing_path?: string;
+    readonly metrics_path?: string;
     readonly assertion_count: number;
     readonly scores?: readonly TraceEnvelopeScoreWire[];
   };
@@ -88,7 +88,7 @@ export type ProjectionBundleArtifactRefs = Partial<
     | 'result_dir'
     | 'summary_path'
     | 'grading_path'
-    | 'timing_path'
+    | 'metrics_path'
     | 'input_path'
     | 'output_path'
     | 'answer_path'
@@ -156,7 +156,7 @@ function artifactRefs(
 ): ProjectionBundleArtifactRefs {
   const metadataRefs = dropUndefined({
     status: options.status,
-    timing_path: indexEntry.timing_path,
+    metrics_path: indexEntry.metrics_path,
   });
 
   if (!options.includeRawContent) {
@@ -310,7 +310,7 @@ function buildEntry(
     result_score: result.score,
     execution_status: result.executionStatus,
     grading_path: refs.grading_path,
-    timing_path: refs.timing_path,
+    metrics_path: refs.metrics_path,
     assertion_count: result.assertions?.length ?? 0,
     scores,
   });

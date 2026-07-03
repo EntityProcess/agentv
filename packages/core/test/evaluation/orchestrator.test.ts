@@ -825,13 +825,13 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     const outputDir = path.join(tempDir, 'artifacts');
     await writeArtifactsFromResults([result], outputDir);
 
-    const indexRows = readFileSync(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8')
+    const indexRows = readFileSync(path.join(outputDir, '.internal', RESULT_INDEX_FILENAME), 'utf8')
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, string | undefined>);
     const resultDir = indexRows[0]?.result_dir;
     expect(resultDir).toMatch(/^case-1--[a-f0-9]{12}$/);
-    const runDir = path.join(outputDir, resultDir ?? '', 'attempt-1');
+    const runDir = path.join(outputDir, resultDir ?? '', 'sample-1');
     const outputsDir = path.join(runDir, 'outputs');
     expect(readdirSync(runDir)).not.toContain('provider.log');
     expect(readdirSync(runDir)).toContain('transcript-raw.jsonl');
@@ -844,8 +844,8 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
 
     expect(indexRows[0]?.raw_provider_log_path).toBeUndefined();
     expect(indexRows[0]?.trace_path).toBeUndefined();
-    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/attempt-1/transcript.json`);
-    expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/attempt-1/transcript-raw.jsonl`);
+    expect(indexRows[0]?.transcript_path).toBe(`${resultDir}/sample-1/transcript.json`);
+    expect(indexRows[0]?.transcript_raw_path).toBe(`${resultDir}/sample-1/transcript-raw.jsonl`);
     expect(existsSync(rawLogPath)).toBe(false);
   });
 

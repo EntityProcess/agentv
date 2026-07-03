@@ -76,7 +76,7 @@ describe('pipeline bench', () => {
     expect(grading.assertion_results.length).toBeGreaterThan(0);
     expect(grading.graders).toHaveLength(2);
 
-    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
+    const indexContent = await readFile(join(OUT_DIR, '.internal', 'index.jsonl'), 'utf8');
     const lines = indexContent
       .trim()
       .split('\n')
@@ -106,7 +106,7 @@ describe('pipeline bench', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
-    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
+    const indexContent = await readFile(join(OUT_DIR, '.internal', 'index.jsonl'), 'utf8');
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
     expect(entry.experiment).toBe('without_skills');
 
@@ -118,7 +118,7 @@ describe('pipeline bench', () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'bench', OUT_DIR]);
 
-    const indexContent = await readFile(join(OUT_DIR, 'index.jsonl'), 'utf8');
+    const indexContent = await readFile(join(OUT_DIR, '.internal', 'index.jsonl'), 'utf8');
     const entry = JSON.parse(indexContent.trim().split('\n')[0]);
     expect(entry.experiment).toBeUndefined();
 

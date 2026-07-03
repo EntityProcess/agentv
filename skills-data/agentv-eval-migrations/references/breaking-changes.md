@@ -911,6 +911,13 @@ v4.42.4 docs described local run workspaces under
 workspaces under `.agentv/results/<run_id>/`, with experiment metadata stored
 in `summary.json` / rows rather than inferred from the path.
 
+Within each run bundle, the per-run index is `.internal/index.jsonl` and
+`summary.json` points to it with `index_path`. Per-sample execution folders are
+named `sample-N`; use row fields such as `sample_index` and `retry_index` for
+semantics. New writers emit `metrics.json` for duration, tokens, cost,
+execution, and trajectory data; they do not emit `timing.json`, `timing_path`,
+or nested `metrics.timing`.
+
 Do not edit eval YAML just to chase result artifact path changes. Migrate only
 authored fields that the eval parser reads. Use:
 

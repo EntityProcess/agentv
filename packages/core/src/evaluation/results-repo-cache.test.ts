@@ -148,7 +148,7 @@ describe('git results filesystem index cache', () => {
               run_id: 'sentinel',
               experiment: 'default',
               timestamp: '2026-06-28T01-00-00-000Z',
-              manifest_path: 'sentinel/.internal/index.jsonl',
+              index_path: 'sentinel/.internal/index.jsonl',
               display_name: 'from cache',
               test_count: 1,
               avg_score: 0.5,

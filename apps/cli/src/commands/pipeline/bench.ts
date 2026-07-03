@@ -6,11 +6,11 @@
  *
  * Writes:
  *   - <test-id>/grading.json  (per-test grading breakdown)
- *   - index.jsonl      (one line per test)
+ *   - .internal/index.jsonl  (one line per test)
  *   - summary.json            (aggregate statistics)
  */
 import { existsSync } from 'node:fs';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { command, positional, string } from 'cmd-ts';
@@ -174,17 +174,17 @@ export const evalBenchCommand = command({
         })),
       }));
 
-      // Read execution_status from timing.json (written by pipeline run)
+      // Read execution_status from metrics.json (written by pipeline run)
       let executionStatus = 'ok';
-      const timingPath = join(testDir, 'timing.json');
-      if (existsSync(timingPath)) {
+      const metricsPath = join(testDir, 'metrics.json');
+      if (existsSync(metricsPath)) {
         try {
-          const timing = JSON.parse(await readFile(timingPath, 'utf8'));
-          if (typeof timing.execution_status === 'string') {
-            executionStatus = timing.execution_status;
+          const metrics = JSON.parse(await readFile(metricsPath, 'utf8'));
+          if (typeof metrics.execution?.status === 'string') {
+            executionStatus = metrics.execution.status;
           }
         } catch {
-          // Fall back to 'ok' if timing.json is unreadable
+          // Fall back to 'ok' if metrics.json is unreadable
         }
       }
 
@@ -200,23 +200,21 @@ export const evalBenchCommand = command({
           scores,
           execution_status: executionStatus,
           grading_path: `${artifactSubdir}/grading.json`,
-          timing_path: `${artifactSubdir}/timing.json`,
+          metrics_path: `${artifactSubdir}/metrics.json`,
           response_path: hasResponse ? `${artifactSubdir}/response.md` : undefined,
         }),
       );
     }
 
     // Write row-level run manifest.
-    await writeFile(
-      join(exportDir, RESULT_INDEX_FILENAME),
-      indexLines.length > 0 ? `${indexLines.join('\n')}\n` : '',
-      'utf8',
-    );
+    const indexPath = join(exportDir, '.internal', RESULT_INDEX_FILENAME);
+    await mkdir(join(exportDir, '.internal'), { recursive: true });
+    await writeFile(indexPath, indexLines.length > 0 ? `${indexLines.join('\n')}\n` : '', 'utf8');
 
     // Write summary.json
     const passRateStats = computeStats(allPassRates);
     const summary = {
-      manifest_path: RESULT_INDEX_FILENAME,
+      index_path: `.internal/${RESULT_INDEX_FILENAME}`,
       metadata: {
         eval_file: manifest.eval_file,
         timestamp: manifest.timestamp,

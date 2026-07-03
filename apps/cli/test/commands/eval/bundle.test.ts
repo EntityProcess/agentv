@@ -166,7 +166,7 @@ tests: ../data/cases.yaml
 
     expect(run.exitCode).toBe(0);
     expect(run.stdout).toContain('RESULT: PASS');
-    await expectFileExists(path.join(bundleDir, 'run', 'index.jsonl'));
+    await expectFileExists(path.join(bundleDir, 'run', '.internal', 'index.jsonl'));
   }, 60_000);
 
   it('preserves inline eval target object definitions in the bundled target graph', async () => {

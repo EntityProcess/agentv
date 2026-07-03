@@ -11,7 +11,7 @@ sidebar:
 agentv eval evals/my-eval.yaml
 ```
 
-Results are written to `.agentv/results/<run_id>/index.jsonl`. Each CLI
+Results are written to `.agentv/results/<run_id>/.internal/index.jsonl`. Each CLI
 invocation writes one run bundle. The experiment label is stored in
 `summary.json` and row metadata. Each line is a JSON object with one result per
 test case, and the run workspace also stores the summary and related artifacts.
@@ -98,23 +98,23 @@ are unchanged.
 
 ### Custom Output Directory
 
-Write all artifacts (index.jsonl, summary.json, per-test grading/timing) to a specific directory:
+Write all artifacts (`.internal/index.jsonl`, `summary.json`, per-test grading, metrics, and transcripts) to a specific directory:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./my-results
 ```
 
 `--output` is a run directory, not a file path. The canonical manifest is always
-`<output>/index.jsonl`; the aggregate summary is
+`<output>/.internal/index.jsonl`; the aggregate summary is
 `<output>/summary.json`.
 
 ### Read Results from the Run Manifest
 
-The run directory is the complete artifact boundary. Use `<output>/index.jsonl` for scripts, CI summaries, and downstream tools:
+The run directory is the complete artifact boundary. Use `<output>/.internal/index.jsonl` for scripts, CI summaries, and downstream tools:
 
 ```bash
 agentv eval evals/my-eval.yaml --output ./my-results
-cat ./my-results/index.jsonl
+cat ./my-results/.internal/index.jsonl
 ```
 
 ### Generated Test Bundles
@@ -128,15 +128,15 @@ Typical layout:
 
 ```text
 my-results/
-  index.jsonl
   summary.json
+  .internal/
+    index.jsonl
   <test-id>/
     summary.json
-    attempt-1/
+    sample-1/
       result.json
       grading.json
       metrics.json
-      timing.json
       transcript.json
       transcript-raw.jsonl
       outputs/answer.md
@@ -187,7 +187,7 @@ OpenTelemetry/OpenInference spans directly to that backend during execution.
 
 ```bash
 # Summary-level inspection from the run manifest
-agentv inspect stats .agentv/results/<run_id>/index.jsonl
+agentv inspect stats .agentv/results/<run_id>/.internal/index.jsonl
 
 # Inspect AgentV-owned per-case artifacts and transcript sidecars
 agentv inspect show .agentv/results/<run_id>/index.jsonl --tree
@@ -275,7 +275,7 @@ agentv eval evals/my-eval.yaml --output .agentv/results/<run_id> --resume
 agentv eval evals/my-eval.yaml --rerun-failed <run_id>
 
 # Re-run only execution errors from any prior run by path
-agentv eval evals/my-eval.yaml --retry-errors .agentv/results/<run_id>/index.jsonl
+agentv eval evals/my-eval.yaml --retry-errors .agentv/results/<run_id>/.internal/index.jsonl
 ```
 
 After any failing run, the CLI prints the exact `--rerun-failed` command for the run dir that just completed — copy/paste it. If the process or pod disappeared before you could access the local run directory and results auto-push was enabled, recover the partial run from [WIP checkpoints](/docs/tools/wip-checkpoints/) first, then use the same `--resume` flow.
@@ -367,7 +367,7 @@ See the [Import tool docs](/docs/tools/import/) for all providers and options.
 Each result row's `result_dir` is an allocated folder under the timestamped run
 bundle, usually with a readable test-id prefix plus a short hash suffix. It can
 include `transcript.json`, `transcript-raw.jsonl`, `grading.json`,
-`timing.json`, `metrics.json`, and generated outputs under `outputs/`. The run
+``metrics.json`, and generated outputs under `outputs/`. The run
 root does not contain target, model, or `cases/` folders, and it does not contain
 a mixed transcript artifact; use each index row's `transcript_path` to find the
 per-result transcript.

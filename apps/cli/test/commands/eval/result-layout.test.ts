@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import {
   RESULT_INDEX_FILENAME,
+  RUN_INTERNAL_DIRNAME,
   buildDefaultRunDir,
   buildDefaultRunDirFromName,
   discoverRunManifestPaths,
@@ -51,7 +52,8 @@ describe('result layout', () => {
   it('resolves the canonical index.jsonl file in a run directory', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-layout-test-'));
     try {
-      const indexPath = path.join(tempDir, RESULT_INDEX_FILENAME);
+      const indexPath = path.join(tempDir, RUN_INTERNAL_DIRNAME, RESULT_INDEX_FILENAME);
+      mkdirSync(path.dirname(indexPath), { recursive: true });
       writeFileSync(indexPath, '{"test_id":"case"}\n');
 
       expect(resolveExistingRunPrimaryPath(tempDir)).toBe(indexPath);
@@ -76,12 +78,13 @@ describe('result layout', () => {
     }
   });
 
-  it('treats the root index.jsonl as authoritative when legacy nested bundles also exist', () => {
+  it('treats the internal index.jsonl as authoritative when legacy nested bundles also exist', () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-layout-test-'));
     try {
       const nestedBundleDir = path.join(tempDir, 'target-a');
       mkdirSync(nestedBundleDir, { recursive: true });
-      const rootIndexPath = path.join(tempDir, RESULT_INDEX_FILENAME);
+      const rootIndexPath = path.join(tempDir, RUN_INTERNAL_DIRNAME, RESULT_INDEX_FILENAME);
+      mkdirSync(path.dirname(rootIndexPath), { recursive: true });
       writeFileSync(rootIndexPath, '{"test_id":"root"}\n');
       writeFileSync(path.join(nestedBundleDir, RESULT_INDEX_FILENAME), '{"test_id":"legacy"}\n');
 
