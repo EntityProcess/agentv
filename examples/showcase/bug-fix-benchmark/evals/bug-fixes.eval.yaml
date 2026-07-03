@@ -35,7 +35,7 @@ tags: [ coding, bugfix, benchmark, swe-bench ]
 
 tests:
   # Issue #912: CLI provider retries don't preserve workspace cwd
-  # A real bug from the agentv repo. The fix is in packages/core/src/evaluation/providers/cli.ts
+  # A real bug from the AgentV repo. The fix is in packages/core/src/evaluation/providers/cli.ts
   # where invokeBatch() uses this.config.cwd instead of request.cwd.
   #
   # This is the same task that was used in the hivespec session:

@@ -51,16 +51,16 @@ manifest and the aggregator workflow file.
 | `limitations` | NIST RMF MEASURE-1.1; EU AI Act Annex IV §2 | Known failure modes and out-of-scope uses |
 | `human_oversight` | EU AI Act Art. 14; NIST RMF GOVERN-4 | Required for `risk_tier: high`. Document override authority and escalation triggers |
 | `models[]` | — | Versioned model identifiers so auditors can reconstruct which model was running at any point in time |
-| `evals.path` | — | Path to agentv evals that exercise this system |
+| `evals.path` | — | Path to AgentV evals that exercise this system |
 | `controls[]` | — | `<FRAMEWORK>-<VERSION>:<ID>` strings; same format as eval result JSONL |
 | `last_reviewed` | NIST RMF GOVERN-1.3; ISO 42001 Clause 7 | Aggregators flag entries older than your governance cadence (90 days typical) |
 
-## Why this stays out of agentv core
+## Why this stays out of AgentV core
 
-agentv does not parse `.ai-register.yaml`. The convention is deliberately
+AgentV does not parse `.ai-register.yaml`. The convention is deliberately
 free-standing: if you later adopt a governance platform (Credo AI, OneTrust,
 ServiceNow AI Control Tower, IBM watsonx.governance), these manifests are
 your import source — not a thing you need to migrate away from.
 
 If the convention grows, that growth happens in conversation between teams
-adopting it; agentv stays lightweight.
+adopting it; AgentV stays lightweight.

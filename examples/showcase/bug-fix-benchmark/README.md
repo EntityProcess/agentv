@@ -53,7 +53,7 @@ agentv results compare \
 
 ## Test Case: Issue #912
 
-The eval includes a real bug from the agentv repo:
+The eval includes a real bug from the AgentV repo:
 
 - **Issue**: [#912 — CLI provider retries don't preserve workspace cwd](https://github.com/EntityProcess/agentv/issues/912)
 - **Base commit**: `6e446b72` (before the fix)

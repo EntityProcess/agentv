@@ -11,7 +11,7 @@ export function BrandName({ appName }: { appName: string }) {
         A
       </span>
       <span className="av-brand-name__middle" aria-hidden="true">
-        GENT
+        gent
       </span>
       <span className="av-brand-name__letter" aria-hidden="true">
         V

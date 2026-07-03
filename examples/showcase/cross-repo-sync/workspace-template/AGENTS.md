@@ -14,7 +14,7 @@ Key docs paths:
 
 ### agentv/ (EntityProcess/agentv)
 TypeScript/Bun evaluation framework. Reference implementation of the agentevals spec.
-Source of truth — when agentv ships features, the agentevals spec must be updated.
+Source of truth — when AgentV ships features, the agentevals spec must be updated.
 
 Key source paths:
 - `packages/core/src/evaluation/types.ts`

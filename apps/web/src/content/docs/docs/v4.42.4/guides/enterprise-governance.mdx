@@ -61,7 +61,7 @@ system:
   last_reviewed: 2026-04-24
 ```
 
-The full example, including comments, is in the agentv repo at
+The full example, including comments, is in the AgentV repo at
 `examples/governance/ai-register/.ai-register.yaml`.
 
 ### Why these fields
@@ -74,7 +74,7 @@ The full example, including comments, is in the agentv repo at
   exercised by its evals.
 - **`last_reviewed`** — a date. Aggregators flag entries older than
   whatever cadence your governance team works to.
-- **`evals.path`** — a pointer to the agentv evals that exercise this
+- **`evals.path`** — a pointer to the AgentV evals that exercise this
   system. The aggregator does not run them; it just records that they exist.
 
 ## Aggregating across the org
@@ -114,7 +114,7 @@ That's the whole loop.
 
 ## Relationship to evaluation
 
-agentv does not parse `.ai-register.yaml`. The convention is **orthogonal**:
+AgentV does not parse `.ai-register.yaml`. The convention is **orthogonal**:
 
 - The manifest documents **which AI systems exist**, who owns them, and
   which controls they are accountable for.

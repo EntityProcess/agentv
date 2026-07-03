@@ -30,7 +30,7 @@ describe('loadStudioConfig', () => {
   it('returns defaults when no config.yaml exists', () => {
     const config = loadStudioConfig(tempDir);
     expect(config.threshold).toBe(DEFAULT_THRESHOLD);
-    expect(config.appName).toBe('agentv');
+    expect(config.appName).toBe('AgentV');
   });
 
   it.each([
@@ -69,7 +69,7 @@ describe('loadStudioConfig', () => {
 
   it('ignores blank dashboard.app_name', () => {
     writeFileSync(path.join(tempDir, 'config.yaml'), 'dashboard:\n  app_name: "  "\n');
-    expect(loadStudioConfig(tempDir).appName).toBe('agentv');
+    expect(loadStudioConfig(tempDir).appName).toBe('AgentV');
   });
 
   it('falls back to global config.yaml for dashboard settings', () => {
@@ -196,7 +196,7 @@ describe('saveStudioConfig', () => {
       path.join(tempDir, 'config.yaml'),
       'required_version: ">=4.2.0"\npass_threshold: 0.8\ndashboard:\n  pass_threshold: 0.6\nstudio:\n  theme: dark\n  pass_threshold: 0.5\n',
     );
-    saveStudioConfig(tempDir, { threshold: 0.7, appName: 'agentv' });
+    saveStudioConfig(tempDir, { threshold: 0.7, appName: 'AgentV' });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
@@ -207,12 +207,12 @@ describe('saveStudioConfig', () => {
     expect(dashboard.theme).toBe('dark');
     expect(dashboard.pass_threshold).toBeUndefined();
     expect(dashboard.threshold).toBe(0.7);
-    expect(dashboard.app_name).toBe('agentv');
+    expect(dashboard.app_name).toBe('AgentV');
     expect(dashboard.appName).toBeUndefined();
   });
 
   it('creates config.yaml when it does not exist', () => {
-    saveStudioConfig(tempDir, { threshold: 0.6, appName: 'agentv' });
+    saveStudioConfig(tempDir, { threshold: 0.6, appName: 'AgentV' });
 
     const raw = readFileSync(path.join(tempDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
@@ -221,7 +221,7 @@ describe('saveStudioConfig', () => {
 
   it('creates directory if it does not exist', () => {
     const nestedDir = path.join(tempDir, 'nested', '.agentv');
-    saveStudioConfig(nestedDir, { threshold: 0.5, appName: 'agentv' });
+    saveStudioConfig(nestedDir, { threshold: 0.5, appName: 'AgentV' });
 
     const raw = readFileSync(path.join(nestedDir, 'config.yaml'), 'utf-8');
     const parsed = parseYaml(raw) as Record<string, unknown>;
