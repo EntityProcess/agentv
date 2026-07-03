@@ -1,0 +1,8 @@
+targets:
+  - label: live-openai
+    provider: openai
+    model: ${{ OPENAI_MODEL }}
+    config:
+      api_format: chat
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}

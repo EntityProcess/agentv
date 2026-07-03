@@ -1,0 +1,57 @@
+target: live-openai
+tests:
+  - id: fizzbuzz
+    input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz". Return only one Python code block.
+    assert:
+      - metric: contains-fizz
+        type: contains
+        value: fizz
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: |
+          You are an expert grader. Evaluate the candidate answer against each rubric item.
+          Award credit only when the answer directly supports the criterion.
+
+          [[ ## question ## ]]
+          {{ input }}
+
+          [[ ## rubric ## ]]
+          {{ rubrics }}
+
+          [[ ## answer ## ]]
+          {{ output }}
+        rubrics:
+          - id: rubric-1
+            outcome: Implements correct FizzBuzz logic for multiples of 3, 5, and 15
+            weight: 1
+            required: true
+        weight: 1
+      - metric: script
+        type: script
+        command:
+          - python3
+          - ../validators/check_syntax.py
+        cwd: undefined
+      - metric: llm-rubric
+        type: llm-rubric
+        prompt: |
+          You are an expert grader. Evaluate the candidate answer against each rubric item.
+          Award credit only when the answer directly supports the criterion.
+
+          [[ ## question ## ]]
+          {{ input }}
+
+          [[ ## rubric ## ]]
+          {{ rubrics }}
+
+          [[ ## answer ## ]]
+          {{ output }}
+        rubrics:
+          - id: rubric-1
+            outcome: Solution is simple and idiomatic Python
+            weight: 0.5
+            required: true
+          - id: rubric-2
+            outcome: Handles the 3, 5, and 15 branches correctly
+            weight: 1.5
+            required: true
