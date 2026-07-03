@@ -524,7 +524,6 @@ describe('agentv eval CLI', () => {
       expect(result.exitCode).toBe(0);
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
-        workspaceMode: 'static',
         workspacePath,
         resultCount: 2,
       });
@@ -549,7 +548,6 @@ describe('agentv eval CLI', () => {
       expect(result.exitCode).toBe(0);
       const diagnostics = await readDiagnostics(fixture);
       expect(diagnostics).toMatchObject({
-        workspaceMode: 'static',
         workspacePath,
         resultCount: 2,
       });
@@ -639,8 +637,8 @@ describe('agentv eval CLI', () => {
           '  model: gpt-5-codex',
           'timeout_seconds: 12',
           'threshold: 0.8',
-          'budget_usd: 3',
           'evaluate_options:',
+          '  budget_usd: 3',
           '  repeat:',
           '    count: 2',
           '    strategy: pass_any',
@@ -825,7 +823,8 @@ describe('agentv eval CLI', () => {
           'name: first',
           'target: cli-target',
           'timeout_seconds: 11',
-          'budget_usd: 0.11',
+          'evaluate_options:',
+          '  budget_usd: 0.11',
           'tests:',
           '  - id: first-case',
           '    input: first',
@@ -840,7 +839,8 @@ describe('agentv eval CLI', () => {
           'name: second',
           'target: file-target',
           'timeout_seconds: 22',
-          'budget_usd: 0.22',
+          'evaluate_options:',
+          '  budget_usd: 0.22',
           'tests:',
           '  - id: second-case',
           '    input: second',

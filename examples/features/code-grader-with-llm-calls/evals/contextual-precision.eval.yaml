@@ -17,9 +17,9 @@
 #   mixed-ranking: ~0.833 (2 relevant nodes with 1 irrelevant between)
 #   relevant-node-last: ~0.333 (relevant node ranked last — worst case)
 
-assertions:
-  - name: contextual_precision
-    type: code-grader
+assert:
+  - metric: contextual_precision
+    type: script
     command: [bun, run, ../scripts/contextual-precision.ts]
     # Target access config - allows script to invoke configured targets
     # max_calls should be >= number of retrieval context nodes

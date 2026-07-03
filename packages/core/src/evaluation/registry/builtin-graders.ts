@@ -53,7 +53,6 @@ import type {
   EqualsGraderConfig,
   ExecutionMetricsGraderConfig,
   FieldAccuracyGraderConfig,
-  GEvalGraderConfig,
   GraderConfig,
   IcontainsAllGraderConfig,
   IcontainsAnyGraderConfig,
@@ -80,6 +79,10 @@ import {
 
 /** Symbol for attaching inline AssertFn to GraderConfig objects */
 export const INLINE_ASSERT_FN = Symbol.for('agentv.inline-assert-fn');
+
+function formatRubricValue(value: unknown): string {
+  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+}
 
 /**
  * Factory for `llm-grader` evaluators.
@@ -159,8 +162,8 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
 
       let graderTemplateOverride: string | undefined;
       let evalCase = evalContext.evalCase;
-      if (c.type === 'llm-rubric' && c.value && !customPrompt) {
-        evalCase = { ...evalCase, criteria: c.value };
+      if (c.type === 'llm-rubric' && c.value !== undefined && !customPrompt) {
+        evalCase = { ...evalCase, criteria: formatRubricValue(c.value) };
       }
       if (customPrompt) {
         if (!isFromInlinePrompt || containsTemplateVariables(customPrompt)) {
@@ -180,9 +183,6 @@ export const llmGraderFactory: GraderFactoryFn = (config, context) => {
     },
   };
 };
-
-export const gEvalFactory: GraderFactoryFn = (config, context) =>
-  llmGraderFactory(config as GEvalGraderConfig, context);
 
 export const llmRubricFactory: GraderFactoryFn = (config, context) =>
   llmGraderFactory(config as LlmRubricGraderConfig, context);
@@ -447,9 +447,7 @@ export function createBuiltinRegistry(): GraderRegistry {
 
   registry
     .register('llm-grader', llmGraderFactory)
-    .register('g-eval', gEvalFactory)
     .register('llm-rubric', llmRubricFactory)
-    .register('code-grader', codeFactory)
     .register('script', codeFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)

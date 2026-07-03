@@ -11,7 +11,7 @@
  * - `Content[]` — array of typed content blocks for multimodal messages
  *
  * Binary data (images, files) is referenced by URL/base64 string or filesystem
- * path — never raw bytes. This keeps payloads serializable and lets code graders
+ * path -- never raw bytes. This keeps payloads serializable and lets script graders
  * access files via path without decoding.
  *
  * ## How to extend

@@ -8,7 +8,7 @@ Use it when the user wants Python-based custom graders or wants to emit AgentV Y
 
 - Prefer canonical AgentV wire and YAML fields.
 - Do not accept deprecated wire aliases like `output_text`, `input_text`, or `reference_answer`.
-- Keep Python eval authoring YAML-shaped. Mirror `execution`, `tests`, `assertions`, `expected_output`, and related AgentV keys directly.
+- Keep Python eval authoring YAML-shaped. Mirror `execution`, `tests`, `assert`, `expected_output`, and related AgentV keys directly.
 - Run evals through the AgentV CLI, not through a separate Python runtime.
 - If adapting Braintrust or DeepEval patterns, write Python functions that return ordinary AgentV assertion dictionaries rather than new terms like `scores`.
 
@@ -69,7 +69,7 @@ write_jsonl(
             id="grounded-answer",
             input=[{"role": "user", "content": "Answer using context."}],
             expected_output=[{"role": "assistant", "content": "Answer cites context."}],
-            extra={"assertions": [rag_faithfulness()]},
+            extra={"assert": [rag_faithfulness()]},
         )
     ],
 )

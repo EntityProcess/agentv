@@ -278,7 +278,7 @@ describe('buildGradingArtifact', () => {
   it('includes evaluators list with AgentV extensions', () => {
     const result = makeResult({
       scores: [
-        makeEvaluatorResult({ name: 'format-check', type: 'code-grader', score: 1.0 }),
+        makeEvaluatorResult({ name: 'format-check', type: 'script', score: 1.0 }),
         makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0.7 }),
       ],
     });
@@ -287,7 +287,7 @@ describe('buildGradingArtifact', () => {
 
     expect(grading.graders).toHaveLength(2);
     expect(grading.graders?.[0].name).toBe('format-check');
-    expect(grading.graders?.[0].type).toBe('code-grader');
+    expect(grading.graders?.[0].type).toBe('script');
     expect(grading.graders?.[1].score).toBe(0.7);
   });
 
@@ -2404,7 +2404,7 @@ describe('writeArtifactsFromResults', () => {
 
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
-    const [assertion] = testCase.assertions as Record<string, unknown>[];
+    const [assertion] = testCase.assert as Record<string, unknown>[];
     expect(parsedEval.target).toBe('gpt-4o');
     expect(testCase.input).toBe('file://files/src/input.txt');
     expect(assertion.prompt).toBe('file://graders/src/grader.md');

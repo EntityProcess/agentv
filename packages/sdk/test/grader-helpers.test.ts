@@ -10,8 +10,8 @@ import {
   isJsonGrader,
   jsonGrader,
   llmGrader,
+  llmRubricGrader,
   regexGrader,
-  rubricsGrader,
   scriptGrader,
   serializeEvalYaml,
   toEvalYamlObject,
@@ -20,36 +20,36 @@ import {
 describe('grader helper config builders', () => {
   it('returns existing AgentV assertion/evaluator config shapes', () => {
     expect(containsGrader('Hello')).toEqual({ type: 'contains', value: 'Hello' });
-    expect(equalsGrader('exact answer', { name: 'exact-answer', minScore: 1 })).toEqual({
-      name: 'exact-answer',
+    expect(equalsGrader('exact answer', { metric: 'exact-answer', minScore: 1 })).toEqual({
+      metric: 'exact-answer',
       type: 'equals',
       value: 'exact answer',
       minScore: 1,
     });
     expect(exactGrader('same answer')).toEqual({ type: 'equals', value: 'same answer' });
-    expect(regexGrader(/hello\s+world/i, { name: 'hello-pattern' })).toEqual({
-      name: 'hello-pattern',
+    expect(regexGrader(/hello\s+world/i, { metric: 'hello-pattern' })).toEqual({
+      metric: 'hello-pattern',
       type: 'regex',
       value: 'hello\\s+world',
       flags: 'i',
     });
     expect(isJsonGrader({ required: true })).toEqual({ type: 'is-json', required: true });
     expect(jsonGrader()).toEqual({ type: 'is-json' });
-    expect(rubricsGrader(['Mentions the greeting'], { weight: 2 })).toEqual({
-      type: 'rubrics',
-      criteria: ['Mentions the greeting'],
+    expect(llmRubricGrader(['Mentions the greeting'], { weight: 2 })).toEqual({
+      type: 'llm-rubric',
+      value: ['Mentions the greeting'],
       weight: 2,
     });
     expect(
       llmGrader({
-        name: 'tone-review',
+        metric: 'tone-review',
         prompt: 'Grade the answer for tone.',
         target: 'grader-target',
         maxSteps: 3,
         temperature: 0,
       }),
     ).toEqual({
-      name: 'tone-review',
+      metric: 'tone-review',
       type: 'llm-grader',
       prompt: 'Grade the answer for tone.',
       target: 'grader-target',
@@ -58,13 +58,13 @@ describe('grader helper config builders', () => {
     });
     expect(
       codeGrader(['bun', 'run', 'graders/check.ts'], {
-        name: 'scripted-check',
+        metric: 'scripted-check',
         cwd: 'graders',
         target: { maxCalls: 2 },
         config: { mode: 'strict' },
       }),
     ).toEqual({
-      name: 'scripted-check',
+      metric: 'scripted-check',
       type: 'script',
       command: ['bun', 'run', 'graders/check.ts'],
       cwd: 'graders',
@@ -77,19 +77,19 @@ describe('grader helper config builders', () => {
     });
   });
 
-  it('composes inside defineEval and serializes to canonical AgentV YAML assertions', () => {
+  it('composes inside defineEval and serializes to canonical AgentV YAML assert entries', () => {
     const suite = defineEval({
       name: 'grader-helper-suite',
       tests: [
         {
           id: 'helper-output',
           input: 'Return a JSON greeting.',
-          assertions: [
-            graders.contains('Hello', { name: 'mentions-hello' }),
-            graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
-            graders.regex(/"message"\s*:/, { name: 'message-key' }),
-            graders.json({ name: 'valid-json', required: true }),
-            graders.rubrics(
+          assert: [
+            graders.contains('Hello', { metric: 'mentions-hello' }),
+            graders.exact('{"message":"Hello"}', { metric: 'exact-json', minScore: 1 }),
+            graders.regex(/"message"\s*:/, { metric: 'message-key' }),
+            graders.json({ metric: 'valid-json', required: true }),
+            graders.llmRubric(
               [
                 'Greets the user',
                 {
@@ -102,10 +102,10 @@ describe('grader helper config builders', () => {
                   ],
                 },
               ],
-              { name: 'rubric-review' },
+              { metric: 'rubric-review' },
             ),
             graders.llmGrader({
-              name: 'llm-review',
+              metric: 'llm-review',
               prompt: 'Grade whether the answer is useful.',
               target: 'grader-target',
               maxSteps: 2,
@@ -118,7 +118,7 @@ describe('grader helper config builders', () => {
               ],
             }),
             graders.script(['bun', 'run', 'graders/check.ts'], {
-              name: 'scripted-check',
+              metric: 'scripted-check',
               target: { maxCalls: 2 },
               minScore: 0.5,
             }),
@@ -128,18 +128,18 @@ describe('grader helper config builders', () => {
     });
 
     const lowered = toEvalYamlObject(suite) as {
-      tests: readonly [{ assertions: readonly Record<string, unknown>[] }];
+      tests: readonly [{ assert: readonly Record<string, unknown>[] }];
     };
 
-    expect(lowered.tests[0].assertions).toEqual([
-      { name: 'mentions-hello', type: 'contains', value: 'Hello' },
-      { name: 'exact-json', type: 'equals', value: '{"message":"Hello"}', min_score: 1 },
-      { name: 'message-key', type: 'regex', value: '"message"\\s*:' },
-      { name: 'valid-json', type: 'is-json', required: true },
+    expect(lowered.tests[0].assert).toEqual([
+      { metric: 'mentions-hello', type: 'contains', value: 'Hello' },
+      { metric: 'exact-json', type: 'equals', value: '{"message":"Hello"}', min_score: 1 },
+      { metric: 'message-key', type: 'regex', value: '"message"\\s*:' },
+      { metric: 'valid-json', type: 'is-json', required: true },
       {
-        name: 'rubric-review',
-        type: 'rubrics',
-        criteria: [
+        metric: 'rubric-review',
+        type: 'llm-rubric',
+        value: [
           'Greets the user',
           {
             id: 'quality',
@@ -153,7 +153,7 @@ describe('grader helper config builders', () => {
         ],
       },
       {
-        name: 'llm-review',
+        metric: 'llm-review',
         type: 'llm-grader',
         prompt: 'Grade whether the answer is useful.',
         target: 'grader-target',
@@ -167,7 +167,7 @@ describe('grader helper config builders', () => {
         ],
       },
       {
-        name: 'scripted-check',
+        metric: 'scripted-check',
         type: 'script',
         command: ['bun', 'run', 'graders/check.ts'],
         target: { max_calls: 2 },
@@ -177,7 +177,8 @@ describe('grader helper config builders', () => {
 
     const yaml = serializeEvalYaml(suite);
 
-    expect(yaml).toContain('assertions:');
+    expect(yaml).toContain('assert:');
+    expect(yaml).toContain('metric: mentions-hello');
     expect(yaml).toContain('type: llm-grader');
     expect(yaml).toContain('type: script');
     expect(yaml).toContain('max_steps: 2');

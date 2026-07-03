@@ -90,6 +90,9 @@ const AgentVConfigSchema = z.object({
       beforeSession: z.string().optional(),
     })
     .optional(),
+
+  /** Project-local reusable references for fields that support ref://name */
+  refs: z.record(z.string().min(1)).optional(),
 });
 
 /**

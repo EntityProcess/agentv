@@ -72,7 +72,6 @@ export class CompositeGrader implements Grader {
 
     switch (aggregator.type) {
       case 'script':
-      case 'code-grader':
         return this.runCodeAggregator(results, aggregator.path, aggregator.cwd ?? this.cwd);
       case 'llm-grader':
         return this.runLlmAggregator(results, context, aggregator);
@@ -278,7 +277,7 @@ export class CompositeGrader implements Grader {
         assertions,
         expectedAspectCount: assertions.length || 1,
         graderRawRequest: {
-          aggregator: 'code-grader',
+          aggregator: 'script',
           script: scriptPath,
         },
         scores,
@@ -288,10 +287,10 @@ export class CompositeGrader implements Grader {
       return {
         score: 0,
         verdict: 'fail',
-        assertions: [{ text: `Code aggregator failed: ${message}`, passed: false }],
+        assertions: [{ text: `Script aggregator failed: ${message}`, passed: false }],
         expectedAspectCount: 1,
         graderRawRequest: {
-          aggregator: 'code-grader',
+          aggregator: 'script',
           script: scriptPath,
           error: message,
         },

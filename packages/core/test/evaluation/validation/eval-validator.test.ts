@@ -123,6 +123,85 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('rejects default_test.assertions in favor of default_test.assert', async () => {
+    const filePath = path.join(tempDir, 'default-test-assertions.yaml');
+    await writeFile(
+      filePath,
+      `default_test:
+  assertions:
+    - type: contains
+      value: ok
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'default_test.assertions' }),
+    );
+  });
+
+  it('validates string default_test references', async () => {
+    const filePath = path.join(tempDir, 'default-test-reference.yaml');
+    await writeFile(
+      filePath,
+      `default_test: file://.agentv/default-test.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates ref default_test references', async () => {
+    const filePath = path.join(tempDir, 'default-test-ref-reference.yaml');
+    await writeFile(
+      filePath,
+      `default_test: ref://global-default
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects bare default_test reference names', async () => {
+    const filePath = path.join(tempDir, 'default-test-bare-reference.yaml');
+    await writeFile(
+      filePath,
+      `default_test: global-default
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'default_test' }),
+    );
+  });
+
   it('rejects invalid default_test threshold values and unsupported default fields', async () => {
     const filePath = path.join(tempDir, 'invalid-default-test-threshold.yaml');
     await writeFile(
@@ -193,7 +272,7 @@ tests:
       - type: contains
         value: safe
         metric: safety_text
-      - type: g-eval
+      - type: llm-rubric
         value:
           - Identifies user impact
           - Avoids unsupported claims
@@ -652,7 +731,7 @@ tests:
       `workspace:
   template: ./child-workspace
 input: child suite input
-assertions:
+assert:
   - type: contains
     value: child
 tests:
@@ -1031,9 +1110,9 @@ tests:
   - id: finance-summary
     criteria: Keep supported facts and avoid contradictions
     input: Summarize the finance note
-    assertions:
-      - type: rubrics
-        criteria:
+    assert:
+      - type: llm-rubric
+        value:
           - id: supported-revenue
             operator: correctness
             outcome: States revenue increased to $10M
@@ -1124,15 +1203,15 @@ tests:
     expect(warnings).toHaveLength(0);
   });
 
-  describe('assertions field validation', () => {
-    it('validates assertions array items have type field', async () => {
+  describe('assert field validation', () => {
+    it('validates assert array items have type field', async () => {
       const filePath = path.join(tempDir, 'assert-missing-type.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - value: test
 `,
       );
@@ -1150,7 +1229,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: invalid_evaluator
         value: test
 `,
@@ -1169,7 +1248,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
 `,
       );
@@ -1187,7 +1266,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: equals
 `,
       );
@@ -1205,7 +1284,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: regex
         value: "[invalid"
 `,
@@ -1224,7 +1303,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: regex
 `,
       );
@@ -1242,8 +1321,8 @@ tests:
         `tests:
   - id: test-1
     input: "Return JSON"
-    assertions:
-      - type: is_json
+    assert:
+      - type: is-json
 `,
       );
 
@@ -1261,7 +1340,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: true
@@ -1282,7 +1361,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: 0.8
@@ -1302,7 +1381,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: "yes"
@@ -1322,7 +1401,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: 0
@@ -1342,7 +1421,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: 1.5
@@ -1355,31 +1434,31 @@ tests:
       expect(warnings.some((e) => e.message.includes("Numeric 'required: 1.5'"))).toBe(true);
     });
 
-    it('warns when assertions is not an array', async () => {
+    it('warns when assert is not an array', async () => {
       const filePath = path.join(tempDir, 'assert-not-array.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions: "contains"
+    assert: "contains"
 `,
       );
 
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('assertions'))).toBe(true);
+      expect(warnings.some((e) => e.message.includes('assert'))).toBe(true);
     });
 
-    it('accepts string shorthand in assertions array', async () => {
+    it('accepts string shorthand in assert array', async () => {
       const filePath = path.join(tempDir, 'assert-string-shorthand.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "Explain quicksort"
-    assertions:
+    assert:
       - Mentions divide-and-conquer approach
       - Explains partition step
       - States time complexity correctly
@@ -1399,7 +1478,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - 42
 `,
       );
@@ -1410,17 +1489,17 @@ tests:
       expect(warnings.some((e) => e.message.includes('string or an object'))).toBe(true);
     });
 
-    it('passes valid assertions array', async () => {
+    it('passes valid assert array', async () => {
       const filePath = path.join(tempDir, 'assert-valid.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "Is this entity sanctioned?"
-    assertions:
+    assert:
       - type: contains
         value: DENIED
-      - type: is_json
+      - type: is-json
       - type: regex
         value: "\\\\d+"
 `,
@@ -2003,7 +2082,7 @@ tests:
   });
 
   describe('unknown field detection', () => {
-    it('warns on unknown test-level fields', async () => {
+    it('errors on unknown test-level fields', async () => {
       const filePath = path.join(tempDir, 'unknown-test-field.yaml');
       await writeFile(
         filePath,
@@ -2019,11 +2098,11 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'asserts'"))).toBe(true);
+      const errors = result.errors.filter((e) => e.severity === 'error');
+      expect(errors.some((e) => e.message.includes("Unknown test field 'asserts'"))).toBe(true);
     });
 
-    it('warns on unknown top-level fields', async () => {
+    it('errors on unknown top-level fields', async () => {
       const filePath = path.join(tempDir, 'unknown-top-field.yaml');
       await writeFile(
         filePath,
@@ -2037,8 +2116,10 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'provider'"))).toBe(true);
+      const errors = result.errors.filter((e) => e.severity === 'error');
+      expect(errors.some((e) => e.message.includes("Unknown top-level field 'provider'"))).toBe(
+        true,
+      );
     });
 
     it('does not warn on known test-level fields', async () => {
@@ -2050,7 +2131,7 @@ tests:
     input: "Hello"
     criteria: Some criteria
     expected_output: "World"
-    assertions:
+    assert:
       - type: contains
         value: "world"
     metadata:
@@ -2088,7 +2169,7 @@ tests:
       expect(unknownWarnings).toHaveLength(0);
     });
 
-    it('warns on multiple unknown fields in one test', async () => {
+    it('errors on multiple unknown fields in one test', async () => {
       const filePath = path.join(tempDir, 'multiple-unknown-fields.yaml');
       await writeFile(
         filePath,
@@ -2102,12 +2183,12 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const unknownWarnings = result.errors.filter(
-        (e) => e.severity === 'warning' && e.message.includes('Unknown field'),
+      const unknownErrors = result.errors.filter(
+        (e) => e.severity === 'error' && e.message.includes('Unknown test field'),
       );
-      expect(unknownWarnings).toHaveLength(2);
-      expect(unknownWarnings.some((e) => e.message.includes("'foo'"))).toBe(true);
-      expect(unknownWarnings.some((e) => e.message.includes("'baz'"))).toBe(true);
+      expect(unknownErrors).toHaveLength(2);
+      expect(unknownErrors.some((e) => e.message.includes("'foo'"))).toBe(true);
+      expect(unknownErrors.some((e) => e.message.includes("'baz'"))).toBe(true);
     });
   });
 

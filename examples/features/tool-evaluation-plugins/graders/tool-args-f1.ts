@@ -15,7 +15,7 @@
  * Usage in eval YAML:
  *   graders:
  *     - name: tool-args-f1
- *       type: code_grader
+ *       type: script
  *       command: ["bun", "run", "../graders/tool-args-f1.ts"]
  *       expected_tools:
  *         - tool: search

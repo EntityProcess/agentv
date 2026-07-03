@@ -85,6 +85,20 @@ export function renderEnvTemplateString(template: string, env: EnvLookup): strin
 }
 
 /**
+ * Build the config-load env context used for eval file interpolation.
+ *
+ * AgentV-owned defaults are available to YAML as `{{ env.* }}` without mutating
+ * process.env. Caller-provided environment values keep precedence.
+ */
+export function createEvalConfigEnv(repoRoot?: string, env: EnvLookup = process.env): EnvLookup {
+  const result: Record<string, string | undefined> = { ...env };
+  if (repoRoot !== undefined && result.AGENTV_REPO_ROOT === undefined) {
+    result.AGENTV_REPO_ROOT = repoRoot;
+  }
+  return result;
+}
+
+/**
  * Recursively render config-load `{{ env.VAR }}` templates in string values.
  *
  * Runtime shell variables such as `$VAR` and `${VAR}` are intentionally outside

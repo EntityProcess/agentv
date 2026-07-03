@@ -117,7 +117,7 @@ Research ambiguity:
   be treated as upstream/import vocabulary, not a canonical AgentV rename.
 - R3. Runtime policy should stay in top-level `target` and `policy`: target
   selection plus budgets, repeat policy, gates, timeouts, and early-exit
-  behavior. Workspace reuse stays under `workspace.isolation`, and Docker or
+  behavior. Workspace lifetime stays under `workspace.scope`, and Docker or
   container binding stays under `workspace.docker`.
 - R4. Target and workspace hooks should remain the extension point for
   harness-specific setup that external frameworks encode in their own runner

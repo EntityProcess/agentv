@@ -19,9 +19,9 @@ tests:
       - role: assistant
         content: The quick brown fox jumps over the lazy dog near the river bank.
 
-    assertions:
-      - name: rouge-score
-        type: code-grader
+    assert:
+      - metric: rouge-score
+        type: script
         command: ["bun", "run", "../graders/rouge.ts"]
 
   - id: translation-bleu
@@ -35,9 +35,9 @@ tests:
       - role: assistant
         content: The cat sat on the mat and watched the birds in the garden.
 
-    assertions:
-      - name: bleu-score
-        type: code-grader
+    assert:
+      - metric: bleu-score
+        type: script
         command: ["bun", "run", "../graders/bleu.ts"]
 
   - id: paraphrase-similarity
@@ -51,9 +51,9 @@ tests:
       - role: assistant
         content: Machine learning models require large amounts of training data to perform well.
 
-    assertions:
-      - name: cosine-similarity
-        type: code-grader
+    assert:
+      - metric: cosine-similarity
+        type: script
         command: ["bun", "run", "../graders/similarity.ts"]
 
   - id: extraction-levenshtein
@@ -67,9 +67,9 @@ tests:
       - role: assistant
         content: "Widget Pro 3000"
 
-    assertions:
-      - name: edit-distance
-        type: code-grader
+    assert:
+      - metric: edit-distance
+        type: script
         command: ["bun", "run", "../graders/levenshtein.ts"]
 
   - id: multi-metric-evaluation
@@ -83,13 +83,13 @@ tests:
       - role: assistant
         content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and personalised treatment plans.
 
-    assertions:
-      - name: rouge-score
-        type: code-grader
+    assert:
+      - metric: rouge-score
+        type: script
         command: ["bun", "run", "../graders/rouge.ts"]
-      - name: cosine-similarity
-        type: code-grader
+      - metric: cosine-similarity
+        type: script
         command: ["bun", "run", "../graders/similarity.ts"]
-      - name: edit-distance
-        type: code-grader
+      - metric: edit-distance
+        type: script
         command: ["bun", "run", "../graders/levenshtein.ts"]

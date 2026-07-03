@@ -2,7 +2,7 @@
  * Workspace file-change tracking for AgentV evaluation.
  *
  * Two strategies are supported — both produce unified-diff output that is
- * stored in `file_changes` and surfaced to LLM / code graders:
+ * stored in `file_changes` and surfaced to LLM / script graders:
  *
  * 1. **Git baseline** (default when `git` is available in workspace_path):
  *    - `initializeBaseline` runs `git init`, stages all existing files, and

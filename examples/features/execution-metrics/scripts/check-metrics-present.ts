@@ -8,7 +8,7 @@
  * Usage in eval YAML:
  *   graders:
  *     - name: metrics-present
- *       type: code_grader
+ *       type: script
  *       command: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
 import { defineCodeGrader } from '@agentv/sdk';

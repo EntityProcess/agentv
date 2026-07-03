@@ -281,7 +281,7 @@ export interface ProviderResponse {
    * `~/.copilot/session-state/<uuid>/files/`).
    *
    * When set, the orchestrator merges this into `file_changes` so that LLM
-   * and code graders can inspect agent-generated artifacts even when they are
+   * and script graders can inspect agent-generated artifacts even when they are
    * written to a path agentv does not track via git or snapshot.
    */
   readonly fileChanges?: string;

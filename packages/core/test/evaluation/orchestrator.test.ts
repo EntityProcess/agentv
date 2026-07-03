@@ -700,224 +700,6 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(result.retryIndex).toBe(0);
   });
 
-  it('resets a pooled workspace slot before reusing it for the next case', async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-pooled-runner-'));
-    const previousAgentvHome = process.env.AGENTV_HOME;
-    const previousAgentvDataDir = process.env.AGENTV_DATA_DIR;
-    process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
-    process.env.AGENTV_DATA_DIR = path.join(tempDir, 'agentv-data');
-
-    try {
-      const sourceRepo = path.join(tempDir, 'source-repo');
-      const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
-      const workspace = {
-        repos: [
-          {
-            path: './repo-a',
-            repo: `file://${sourceRepo}`,
-            commit: cleanCommit,
-          },
-        ],
-      };
-      const seenStaleBeforeSecond: boolean[] = [];
-      let callCount = 0;
-      const provider: Provider = {
-        id: 'mock:pooled-reset',
-        kind: 'mock' as const,
-        targetName: 'pooled-reset',
-        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-          callCount += 1;
-          if (!request.cwd) {
-            throw new Error('missing cwd');
-          }
-          const repoDir = path.join(request.cwd, 'repo-a');
-          if (callCount === 1) {
-            writeFileSync(path.join(repoDir, 'tracked.txt'), 'dirty\n');
-            writeFileSync(path.join(repoDir, 'stale.txt'), 'stale\n');
-          } else {
-            seenStaleBeforeSecond.push(existsSync(path.join(repoDir, 'stale.txt')));
-            expect(readFileSync(path.join(repoDir, 'tracked.txt'), 'utf8')).toBe('clean\n');
-          }
-          return { output: [{ role: 'assistant', content: `response ${callCount}` }] };
-        },
-      };
-
-      const results = await runEvaluation({
-        testFilePath: path.join(tempDir, 'eval.yaml'),
-        repoRoot: tempDir,
-        target: { ...baseTarget, name: 'pooled-reset' },
-        providerFactory: () => provider,
-        evaluators: evaluatorRegistry,
-        workspaceMode: 'pooled',
-        maxConcurrency: 1,
-        evalCases: [
-          { ...baseTestCase, id: 'case-1', workspace },
-          { ...baseTestCase, id: 'case-2', workspace },
-        ],
-      });
-
-      expect(results).toHaveLength(2);
-      expect(seenStaleBeforeSecond).toEqual([false]);
-    } finally {
-      if (previousAgentvHome === undefined) {
-        process.env.AGENTV_HOME = undefined;
-      } else {
-        process.env.AGENTV_HOME = previousAgentvHome;
-      }
-      if (previousAgentvDataDir === undefined) {
-        process.env.AGENTV_DATA_DIR = undefined;
-      } else {
-        process.env.AGENTV_DATA_DIR = previousAgentvDataDir;
-      }
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  }, 30_000);
-
-  it('does not reuse a single pooled workspace slot after reset failure', async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-pooled-runner-reset-fail-'));
-    const previousAgentvHome = process.env.AGENTV_HOME;
-    const previousAgentvDataDir = process.env.AGENTV_DATA_DIR;
-    process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
-    process.env.AGENTV_DATA_DIR = path.join(tempDir, 'agentv-data');
-
-    try {
-      const sourceRepo = path.join(tempDir, 'source-repo');
-      const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
-      const workspace = {
-        repos: [
-          {
-            path: './repo-a',
-            repo: `file://${sourceRepo}`,
-            commit: cleanCommit,
-          },
-        ],
-      };
-      let providerCalls = 0;
-      const provider: Provider = {
-        id: 'mock:single-slot-reset-failure',
-        kind: 'mock' as const,
-        targetName: 'single-slot-reset-failure',
-        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-          providerCalls += 1;
-          if (!request.cwd) {
-            throw new Error('missing cwd');
-          }
-          const repoDir = path.join(request.cwd, 'repo-a');
-          writeFileSync(path.join(repoDir, 'tracked.txt'), 'dirty\n');
-          rmSync(path.join(repoDir, '.git'), { recursive: true, force: true });
-          return { output: [{ role: 'assistant', content: `response ${providerCalls}` }] };
-        },
-      };
-
-      const results = await runEvaluation({
-        testFilePath: path.join(tempDir, 'eval.yaml'),
-        repoRoot: tempDir,
-        target: { ...baseTarget, name: 'single-slot-reset-failure' },
-        providerFactory: () => provider,
-        evaluators: evaluatorRegistry,
-        workspaceMode: 'pooled',
-        maxConcurrency: 1,
-        evalCases: [
-          { ...baseTestCase, id: 'case-1', workspace },
-          { ...baseTestCase, id: 'case-2', workspace },
-        ],
-      });
-
-      expect(providerCalls).toBe(1);
-      expect(results).toHaveLength(2);
-      expect(results[0].executionStatus).toBe('ok');
-      expect(results[1].executionStatus).toBe('execution_error');
-      expect(results[1].failureReasonCode).toBe('workspace_pool_unavailable');
-      expect(results[1].error).toContain('No clean pooled workspace slot is available');
-    } finally {
-      if (previousAgentvHome === undefined) {
-        process.env.AGENTV_HOME = undefined;
-      } else {
-        process.env.AGENTV_HOME = previousAgentvHome;
-      }
-      if (previousAgentvDataDir === undefined) {
-        process.env.AGENTV_DATA_DIR = undefined;
-      } else {
-        process.env.AGENTV_DATA_DIR = previousAgentvDataDir;
-      }
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  }, 30_000);
-
-  it('fails later pooled workspace cases after all multi-slot resets fail', async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'agentv-pooled-runner-exhausted-'));
-    const previousAgentvHome = process.env.AGENTV_HOME;
-    const previousAgentvDataDir = process.env.AGENTV_DATA_DIR;
-    process.env.AGENTV_HOME = path.join(tempDir, 'agentv-home');
-    process.env.AGENTV_DATA_DIR = path.join(tempDir, 'agentv-data');
-
-    try {
-      const sourceRepo = path.join(tempDir, 'source-repo');
-      const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
-      const workspace = {
-        repos: [
-          {
-            path: './repo-a',
-            repo: `file://${sourceRepo}`,
-            commit: cleanCommit,
-          },
-        ],
-      };
-      let providerCalls = 0;
-      const provider: Provider = {
-        id: 'mock:multi-slot-reset-failure',
-        kind: 'mock' as const,
-        targetName: 'multi-slot-reset-failure',
-        async invoke(request: ProviderRequest): Promise<ProviderResponse> {
-          providerCalls += 1;
-          if (!request.cwd) {
-            throw new Error('missing cwd');
-          }
-          const repoDir = path.join(request.cwd, 'repo-a');
-          writeFileSync(path.join(repoDir, 'tracked.txt'), 'dirty\n');
-          rmSync(path.join(repoDir, '.git'), { recursive: true, force: true });
-          return { output: [{ role: 'assistant', content: `response ${providerCalls}` }] };
-        },
-      };
-
-      const results = await runEvaluation({
-        testFilePath: path.join(tempDir, 'eval.yaml'),
-        repoRoot: tempDir,
-        target: { ...baseTarget, name: 'multi-slot-reset-failure' },
-        providerFactory: () => provider,
-        evaluators: evaluatorRegistry,
-        workspaceMode: 'pooled',
-        maxConcurrency: 2,
-        configPoolMaxSlots: 2,
-        evalCases: [
-          { ...baseTestCase, id: 'case-1', workspace },
-          { ...baseTestCase, id: 'case-2', workspace },
-          { ...baseTestCase, id: 'case-3', workspace },
-        ],
-      });
-
-      expect(providerCalls).toBe(2);
-      expect(results).toHaveLength(3);
-      expect(results[0].executionStatus).toBe('ok');
-      expect(results[1].executionStatus).toBe('ok');
-      expect(results[2].executionStatus).toBe('execution_error');
-      expect(results[2].failureReasonCode).toBe('workspace_pool_unavailable');
-      expect(results[2].error).toContain('No clean pooled workspace slot is available');
-    } finally {
-      if (previousAgentvHome === undefined) {
-        process.env.AGENTV_HOME = undefined;
-      } else {
-        process.env.AGENTV_HOME = previousAgentvHome;
-      }
-      if (previousAgentvDataDir === undefined) {
-        process.env.AGENTV_DATA_DIR = undefined;
-      } else {
-        process.env.AGENTV_DATA_DIR = previousAgentvDataDir;
-      }
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  }, 30_000);
-
   it('applies exponential backoff between retries', async () => {
     const provider = new SequenceProvider('mock', {
       errors: [new Error('Transient failure')],
@@ -1228,7 +1010,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       expect(provider.batchCalls).toBe(0);
       expect(provider.invokeCalls).toBe(2);
       expect(warnSpy).toHaveBeenCalledWith(
-        'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-case dispatch for attempts.',
+        'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-attempt dispatch.',
       );
     } finally {
       warnSpy.mockRestore();
@@ -3752,7 +3534,7 @@ describe('--workspace flag', () => {
     expect(results[0].error).toBeUndefined();
   });
 
-  it('errors when workspace is combined with per_case isolation', async () => {
+  it('errors when static workspace is combined with attempt scope', async () => {
     const { mkdtemp } = await import('node:fs/promises');
     testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
 
@@ -3763,7 +3545,7 @@ describe('--workspace flag', () => {
     const evalCase: EvalTest = {
       ...baseTestCase,
       workspace: {
-        isolation: 'per_case',
+        scope: 'attempt',
       },
     };
 
@@ -3777,7 +3559,7 @@ describe('--workspace flag', () => {
         evalCases: [evalCase],
         workspace: testDir,
       }),
-    ).rejects.toThrow('static workspace mode is incompatible with isolation: per_case');
+    ).rejects.toThrow('static workspace mode is incompatible with workspace.scope: attempt');
   });
 
   it('never deletes user-provided workspace after run', async () => {
@@ -3876,9 +3658,9 @@ describe('--workspace flag', () => {
     expect(results[0].beforeEachOutput).toBeDefined();
   });
 
-  it('creates per-case workspaces for hook-only suites when isolation is per_case', async () => {
+  it('creates attempt workspaces for hook-only suites when scope is attempt', async () => {
     const { mkdtemp, mkdir, writeFile, access: fsAccess } = await import('node:fs/promises');
-    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-per-case-hooks-'));
+    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-attempt-hooks-'));
 
     const beforeAllScript = path.join(testDir, 'before-all.js');
     writeFileSync(
@@ -3895,7 +3677,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     const workspacesSeen: string[] = [];
 
     const provider: Provider = {
-      id: 'mock:per-case-hooks',
+      id: 'mock:attempt-hooks',
       kind: 'mock',
       targetName: 'mock',
       async invoke(request: ProviderRequest): Promise<ProviderResponse> {
@@ -3911,7 +3693,7 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
     };
 
     const workspaceConfig = {
-      isolation: 'per_case' as const,
+      scope: 'attempt' as const,
       hooks: {
         before_all: {
           command: [process.execPath, beforeAllScript],
@@ -4055,73 +3837,6 @@ fs.writeFileSync(path.join(payload.workspace_path, 'hook.txt'), payload.test_id 
 
     await fsAccess(path.join(repoADir, 'marker.txt'));
     await expect(fsAccess(path.join(testDir, 'repo-b'))).rejects.toThrow();
-  });
-
-  it('falls back to temp mode when workspaceMode is static with no path and no repos', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
-    });
-
-    const results = await runEvaluation({
-      testFilePath: 'in-memory.yaml',
-      repoRoot: 'in-memory',
-      target: baseTarget,
-      providerFactory: () => provider,
-      evaluators: evaluatorRegistry,
-      evalCases: [baseTestCase],
-      workspaceMode: 'static',
-    });
-
-    expect(results).toHaveLength(1);
-    expect(results[0].error).toBeUndefined();
-  });
-
-  it('errors when workspaceMode is static without workspace path but with repos', async () => {
-    const provider = new SequenceProvider('mock', {
-      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
-    });
-
-    const evalCase = {
-      ...baseTestCase,
-      workspace: {
-        repos: [{ repo: 'https://example.com/repo.git' }],
-      },
-    };
-
-    await expect(
-      runEvaluation({
-        testFilePath: 'in-memory.yaml',
-        repoRoot: 'in-memory',
-        target: baseTarget,
-        providerFactory: () => provider,
-        evaluators: evaluatorRegistry,
-        evalCases: [evalCase],
-        workspaceMode: 'static',
-      }),
-    ).rejects.toThrow(
-      'runtime workspaceMode=static requires --workspace-path or execution.workspace_path in config.local.yaml',
-    );
-  });
-
-  it('errors when workspace path is combined with non-static workspaceMode', async () => {
-    const { mkdtemp } = await import('node:fs/promises');
-    testDir = await mkdtemp(path.join(tmpdir(), 'agentv-ws-flag-'));
-    const provider = new SequenceProvider('mock', {
-      responses: [{ output: [{ role: 'assistant', content: [{ type: 'text', text: 'answer' }] }] }],
-    });
-
-    await expect(
-      runEvaluation({
-        testFilePath: 'in-memory.yaml',
-        repoRoot: 'in-memory',
-        target: baseTarget,
-        providerFactory: () => provider,
-        evaluators: evaluatorRegistry,
-        evalCases: [baseTestCase],
-        workspacePath: testDir,
-        workspaceMode: 'temp',
-      }),
-    ).rejects.toThrow('--workspace-path requires --workspace-mode static when both are provided');
   });
 
   it('includes per-grader timing in scores', async () => {

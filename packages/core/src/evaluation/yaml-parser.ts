@@ -16,6 +16,7 @@ import { executeScript } from './graders/code-grader.js';
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import {
   type NunjucksFilterMap,
+  createEvalConfigEnv,
   interpolateEnv,
   interpolateTemplateVars,
 } from './interpolation.js';
@@ -25,8 +26,10 @@ import {
   loadCasesFromFile,
 } from './loaders/case-file-loader.js';
 import {
+  type ReferenceMap,
   extractBudgetUsd,
   extractCacheConfig,
+  extractDefaultTestRubricPrompt,
   extractDefaultTestThreshold,
   extractFailOnError,
   extractTargetFromSuite,
@@ -46,7 +49,6 @@ import {
   coerceEvaluator,
   collectAssertionTemplateSourceReferences,
   parseGraders,
-  parseInlineRubrics,
   parsePreprocessors,
   warnUnconsumedCriteria,
 } from './loaders/grader-parser.js';
@@ -99,6 +101,7 @@ export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builde
 export {
   DEFAULT_EVAL_PATTERNS,
   extractCacheConfig,
+  extractDefaultTestRubricPrompt,
   extractDefaultTestThreshold,
   extractFailOnError,
   extractTargetFromSuite,
@@ -131,8 +134,8 @@ type SuiteImportStackEntry = {
 };
 
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
+  'assert',
   'assertions',
-  'evaluators',
   'skip_defaults',
   'cache',
   'trials',
@@ -209,7 +212,6 @@ type RawTestSuite = JsonObject & {
   readonly threshold?: JsonValue;
   readonly default_test?: JsonValue;
   readonly workspace?: JsonValue;
-  readonly assertions?: JsonValue;
   readonly assert?: JsonValue;
   readonly preprocessors?: JsonValue;
   readonly extensions?: JsonValue;
@@ -245,10 +247,7 @@ type RawEvalCase = JsonObject & {
   readonly evaluator?: JsonValue;
   readonly execution?: JsonValue;
   readonly run?: JsonValue;
-  readonly evaluators?: JsonValue;
-  readonly assertions?: JsonValue;
   readonly assert?: JsonValue;
-  readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
   readonly depends_on?: JsonValue;
@@ -313,7 +312,7 @@ function interpolateCaseTurns(
       ...rawTurn,
       input: interpolateCaseField(rawTurn.input, vars, filters),
       expected_output: interpolateCaseField(rawTurn.expected_output, vars, filters),
-      assertions: interpolateCaseField(rawTurn.assertions, vars, filters),
+      assert: interpolateCaseField(rawTurn.assert, vars, filters),
     } satisfies JsonObject;
   });
 }
@@ -345,15 +344,6 @@ function interpolateRawEvalCase(
       : {}),
     ...(raw.assert !== undefined
       ? { assert: interpolateCaseField(raw.assert, vars, filters) }
-      : {}),
-    ...(raw.assertions !== undefined
-      ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
-      : {}),
-    ...(raw.evaluators !== undefined
-      ? { evaluators: interpolateCaseField(raw.evaluators, vars, filters) }
-      : {}),
-    ...(raw.rubrics !== undefined
-      ? { rubrics: interpolateCaseField(raw.rubrics, vars, filters) }
       : {}),
     ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars, filters) } : {}),
   };
@@ -405,6 +395,119 @@ function safePromptId(value: string): string {
 
 function stripFileProtocol(value: string): string {
   return value.startsWith('file://') ? value.slice('file://'.length) : value;
+}
+
+const REF_PROTOCOL = 'ref://';
+
+function expandNamedReference(rawValue: string, refs?: ReferenceMap): string {
+  const trimmed = rawValue.trim();
+  if (!trimmed.startsWith(REF_PROTOCOL)) {
+    return trimmed;
+  }
+
+  const name = trimmed.slice(REF_PROTOCOL.length).trim();
+  if (name.length === 0) {
+    throw new Error(`Invalid ref reference '${rawValue}'. Use ref://name.`);
+  }
+  const value = refs?.[name];
+  if (!value) {
+    throw new Error(`Unknown ref '${name}' in default_test. Define refs.${name} in config.yaml.`);
+  }
+  return value.trim();
+}
+
+type DefaultTestResolution = {
+  readonly value: JsonValue | undefined;
+  readonly references: readonly EvalSourceReference[];
+};
+
+async function loadDefaultTestFile(
+  rawReference: string,
+  displayReference: string,
+  searchRoots: readonly string[],
+  refs: ReferenceMap | undefined,
+  env: ReturnType<typeof createEvalConfigEnv>,
+): Promise<DefaultTestResolution> {
+  const expandedReference = expandNamedReference(rawReference, refs);
+  if (!expandedReference.startsWith('file://')) {
+    throw new Error(
+      `Invalid default_test reference '${rawReference}'. Use file://... or ref://name that resolves to file://... .`,
+    );
+  }
+
+  const fileReference = stripFileProtocol(expandedReference);
+  const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+    fileReference,
+    searchRoots,
+  );
+  if (!resolvedPath) {
+    const attempts = attempted.length
+      ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
+      : undefined;
+    logError(`default_test file not found: ${displayPath}`, attempts);
+    throw new Error(`default_test file not found: ${displayPath}`);
+  }
+
+  const loaded = interpolateEnv(parseYamlValue(await readFile(resolvedPath, 'utf8')), env);
+  if (!isJsonObject(loaded)) {
+    throw new Error(`default_test file must contain a YAML object: ${displayPath}`);
+  }
+  if (loaded.description !== undefined) {
+    throw new Error(`default_test file must not define description: ${displayPath}`);
+  }
+  if (loaded.assertions !== undefined) {
+    throw new Error(`default_test file must use assert, not assertions: ${displayPath}`);
+  }
+  return {
+    value: loaded,
+    references: [
+      {
+        kind: 'default_test',
+        displayPath: displayReference,
+        resolvedPath,
+      },
+    ],
+  };
+}
+
+async function resolveDefaultTestValue(
+  rawDefaultTest: JsonValue | undefined,
+  displayReference: string | undefined,
+  searchRoots: readonly string[],
+  refs: ReferenceMap | undefined,
+  env: ReturnType<typeof createEvalConfigEnv>,
+): Promise<DefaultTestResolution> {
+  if (typeof rawDefaultTest === 'string') {
+    return loadDefaultTestFile(
+      rawDefaultTest,
+      displayReference ?? rawDefaultTest,
+      searchRoots,
+      refs,
+      env,
+    );
+  }
+  return { value: rawDefaultTest, references: [] };
+}
+
+function combineInheritedAssertions(
+  defaultTest: JsonValue | undefined,
+  suiteAssert: JsonValue | undefined,
+): JsonValue | undefined {
+  const defaultAssert = isJsonObject(defaultTest) ? defaultTest.assert : undefined;
+  const parts: JsonValue[] = [];
+
+  for (const value of [defaultAssert, suiteAssert]) {
+    if (value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      parts.push(...value);
+    } else {
+      parts.push(value);
+    }
+  }
+
+  return parts.length > 0 ? parts : undefined;
 }
 
 function isChatPromptArray(value: readonly JsonValue[]): boolean {
@@ -890,6 +993,7 @@ export type EvalSuiteResult = {
 
 export type EvalDefaultTestDefaults = {
   readonly threshold?: number;
+  readonly rubricPrompt?: JsonValue;
 };
 
 export type EvalTargetSpec = {
@@ -997,18 +1101,31 @@ async function loadTestsFromParsedYamlValue(
 
   const repoRootPath = resolveToAbsolutePath(repoRoot);
   const searchRoots = buildSearchRoots(absoluteTestPath, repoRootPath);
+  const configEnv = createEvalConfigEnv(repoRootPath);
 
   // Load configuration (walks up directory tree to repo root)
   const config = await loadConfig(absoluteTestPath, repoRootPath);
 
   const rawCaseSnapshots = buildRawInlineTestSnapshots(rawParsed);
-  const interpolated = interpolateEnv(rawParsed, process.env) as unknown;
+  const interpolated = interpolateEnv(rawParsed, configEnv) as unknown;
   if (!isJsonObject(interpolated)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
   rejectAuthoredWorkers(interpolated);
 
-  const suite = interpolated as RawTestSuite;
+  const rawSuite = rawParsed as RawTestSuite;
+  const resolvedDefaultTest = await resolveDefaultTestValue(
+    (interpolated as RawTestSuite).default_test,
+    typeof rawSuite.default_test === 'string' ? rawSuite.default_test : undefined,
+    searchRoots,
+    config?.refs,
+    configEnv,
+  );
+  const suite = {
+    ...(interpolated as RawTestSuite),
+    default_test: resolvedDefaultTest.value,
+  } as RawTestSuite;
+  const defaultTestReferences = resolvedDefaultTest.references;
   const suiteNameFromFile = asString(suite.name)?.trim();
   const fallbackSuiteName =
     path
@@ -1032,6 +1149,7 @@ async function loadTestsFromParsedYamlValue(
     '<suite>',
     absoluteTestPath,
   );
+  const defaultTestRubricPrompt = extractDefaultTestRubricPrompt(suite);
   const suiteExtensions = parseExtensions(suite.extensions, evalFileDir);
 
   const importedSuiteTests: EvalTest[] = [];
@@ -1083,8 +1201,8 @@ async function loadTestsFromParsedYamlValue(
 
   readSuiteRuntimeBlock(suite, evalFilePath);
 
-  // Build global execution context, including suite-level assertions (which is a sibling of execution)
-  const suiteAssertions = suite.assert ?? suite.assertions;
+  // Build global execution context, including suite-level assert entries (which are siblings of execution)
+  const suiteAssertions = combineInheritedAssertions(suite.default_test, suite.assert);
   const globalExecution: JsonObject | undefined =
     suiteAssertions !== undefined ? { assert: suiteAssertions } : undefined;
 
@@ -1131,7 +1249,7 @@ async function loadTestsFromParsedYamlValue(
       rejectUnsupportedTestExecutionFields(caseExecution, id);
       if (caseExecution?.workspace !== undefined) {
         throw new Error(
-          `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
+          `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable task setup in test workspace or suite workspace.`,
         );
       }
       const skipDefaults = caseExecution?.skip_defaults === true;
@@ -1199,31 +1317,23 @@ async function loadTestsFromParsedYamlValue(
           : undefined;
       const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
-      const hasExplicitCaseGraders =
-        renderedCase.assert !== undefined ||
-        renderedCase.assertions !== undefined ||
-        renderedCase.evaluators !== undefined ||
-        renderedCase.rubrics !== undefined;
+      const hasExplicitCaseGraders = renderedCase.assert !== undefined;
       const hasExplicitRootGraders =
-        skipDefaults === true
-          ? false
-          : globalExecution?.assert !== undefined ||
-            globalExecution?.assertions !== undefined ||
-            globalExecution?.evaluators !== undefined;
+        skipDefaults === true ? false : globalExecution?.assert !== undefined;
       const graderCase =
         outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
           ? ({ ...renderedCase, assert: [outcome] } satisfies RawEvalCase)
           : renderedCase;
 
       // A test is complete when it has id, input, and at least one of: criteria,
-      // expected_output, assertions, or turns (conversation mode). Legacy test-level
+      // expected_output, assert, or turns (conversation mode). Legacy test-level
       // criteria is desugared to a bare-string assert above so it uses the canonical
-      // g-eval path instead of the implicit default LLM grader.
+      // llm-rubric path instead of the implicit default LLM grader.
       const hasEvaluationSpec =
         !!outcome ||
         expectedMessages.length > 0 ||
-        graderCase.assertions !== undefined ||
         graderCase.assert !== undefined ||
+        hasExplicitRootGraders ||
         (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
       const hasInputMessages =
         testInputMessages.length > 0 ||
@@ -1307,6 +1417,7 @@ async function loadTestsFromParsedYamlValue(
           searchRoots,
           id ?? 'unknown',
           suitePreprocessors,
+          defaultTestRubricPrompt,
         );
       } catch (error) {
         // Skip entire test if evaluator validation fails
@@ -1321,16 +1432,6 @@ async function loadTestsFromParsedYamlValue(
         searchRoots,
         id ?? 'unknown',
       );
-
-      // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-      const inlineRubrics = renderedCase.rubrics;
-      if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
-        const rubricEvaluator = parseInlineRubrics(inlineRubrics);
-        if (rubricEvaluator) {
-          // Prepend rubric evaluator to existing evaluators
-          evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
-        }
-      }
 
       warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
@@ -1423,6 +1524,7 @@ async function loadTestsFromParsedYamlValue(
           inputMessages,
           evaluators,
           assertionTemplateReferences,
+          defaultTestReferences,
         }),
       };
 
@@ -1442,8 +1544,16 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
   const defaultTestThreshold = extractDefaultTestThreshold(parsed);
+  const defaultTestRubricPrompt = extractDefaultTestRubricPrompt(parsed);
   const defaultTest =
-    defaultTestThreshold !== undefined ? { threshold: defaultTestThreshold } : undefined;
+    defaultTestThreshold !== undefined || defaultTestRubricPrompt !== undefined
+      ? {
+          ...(defaultTestThreshold !== undefined ? { threshold: defaultTestThreshold } : {}),
+          ...(defaultTestRubricPrompt !== undefined
+            ? { rubricPrompt: defaultTestRubricPrompt }
+            : {}),
+        }
+      : undefined;
   const experimentConfig = normalizeSuiteExperimentConfig(parsed);
   const tags = extractSuiteTagMap(parsed);
 
@@ -2206,6 +2316,7 @@ function buildEvalTestSource(params: {
   readonly inputMessages: readonly TestMessage[];
   readonly evaluators: readonly GraderConfig[] | undefined;
   readonly assertionTemplateReferences: readonly EvalSourceReference[];
+  readonly defaultTestReferences: readonly EvalSourceReference[];
 }): EvalTestSource {
   const evalFileRepoPath = toPortableRelativePath(params.repoRootPath, params.absoluteTestPath);
   const testSnapshotYaml =
@@ -2216,6 +2327,7 @@ function buildEvalTestSource(params: {
     ...inputReferences,
     ...evaluatorReferences,
     ...params.assertionTemplateReferences,
+    ...params.defaultTestReferences,
   ]);
 
   return {
@@ -2347,7 +2459,7 @@ function collectSingleGraderSourceReferences(
 ): readonly EvalSourceReference[] {
   const references: EvalSourceReference[] = [];
 
-  if (evaluator.type === 'script' || evaluator.type === 'code-grader') {
+  if (evaluator.type === 'script') {
     const command = evaluator.command ?? [];
     references.push({
       kind: 'script_grader_command',
@@ -2367,12 +2479,14 @@ function collectSingleGraderSourceReferences(
   }
 
   if (evaluator.type === 'llm-grader') {
-    const promptPath = evaluator.resolvedPromptPath ?? evaluator.promptPath;
-    if (promptPath) {
+    const resolvedPromptPath = evaluator.resolvedPromptPath ?? evaluator.promptPath;
+    if (resolvedPromptPath) {
       references.push({
         kind: 'llm_grader_prompt',
-        displayPath: typeof evaluator.prompt === 'string' ? evaluator.prompt : promptPath,
-        resolvedPath: promptPath,
+        displayPath:
+          evaluator.promptPath ??
+          (typeof evaluator.prompt === 'string' ? evaluator.prompt : resolvedPromptPath),
+        resolvedPath: resolvedPromptPath,
         graderName: evaluator.name,
       });
     }
@@ -2404,7 +2518,7 @@ function collectSingleGraderSourceReferences(
     for (const member of evaluator.assertions) {
       references.push(...collectSingleGraderSourceReferences(member));
     }
-    if (evaluator.aggregator.type === 'script' || evaluator.aggregator.type === 'code-grader') {
+    if (evaluator.aggregator.type === 'script') {
       references.push({
         kind: 'script_grader_command',
         displayPath: evaluator.aggregator.path,
@@ -2476,7 +2590,7 @@ export const loadEvalCaseById = loadTestById;
 
 /**
  * Parse raw turn data from YAML into typed ConversationTurn objects.
- * String assertions are preserved as-is — they become rubric criteria at runtime.
+ * String assert entries are preserved as-is — they become rubric criteria at runtime.
  * Structured assertion objects pass through unchanged.
  */
 function parseTurns(rawTurns: readonly unknown[]): ConversationTurn[] {
@@ -2487,8 +2601,8 @@ function parseTurns(rawTurns: readonly unknown[]): ConversationTurn[] {
 
     // Parse per-turn assertions (string shorthand or structured evaluator config)
     let assertions: (string | GraderConfig)[] | undefined;
-    if (Array.isArray(turn.assertions)) {
-      assertions = turn.assertions.map((a: unknown) => {
+    if (Array.isArray(turn.assert)) {
+      assertions = turn.assert.map((a: unknown) => {
         if (typeof a === 'string') return a;
         // Structured evaluator config — pass through as-is (validated by Zod schema)
         return a as GraderConfig;
@@ -2752,7 +2866,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('pool' in obj) {
     throw new Error(
-      'workspace.pool has been removed from eval YAML. Shared repo workspaces use fresh temp materialization by default; use --workspace-mode pooled or config.local.yaml execution.workspace_mode for machine-local pooled reuse.',
+      'workspace.pool has been removed from eval YAML. Use workspace.scope: suite|attempt for workspace lifetime, or --workspace-path for a machine-local static workspace.',
     );
   }
   if ('static' in obj) {
@@ -2762,7 +2876,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('mode' in obj) {
     throw new Error(
-      'workspace.mode has been removed from eval YAML. Use workspace.isolation: shared|per_case for folder isolation; use --workspace-mode or config.local.yaml execution.workspace_mode only for machine-local runtime overrides.',
+      'workspace.mode has been removed from eval YAML. Use workspace.scope: suite|attempt for workspace lifetime.',
     );
   }
   if ('path' in obj) {
@@ -2776,11 +2890,13 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
-  if (obj.isolation !== undefined && obj.isolation !== 'shared' && obj.isolation !== 'per_case') {
-    throw new Error("workspace.isolation must be 'shared' or 'per_case'.");
+  if ('isolation' in obj) {
+    throw new Error('workspace.isolation has been removed. Use workspace.scope: suite|attempt.');
   }
-  const isolation =
-    obj.isolation === 'shared' || obj.isolation === 'per_case' ? obj.isolation : undefined;
+  if (obj.scope !== undefined && obj.scope !== 'suite' && obj.scope !== 'attempt') {
+    throw new Error("workspace.scope must be 'suite' or 'attempt'.");
+  }
+  const scope = obj.scope === 'suite' || obj.scope === 'attempt' ? obj.scope : undefined;
 
   const repos = Array.isArray(obj.repos)
     ? ((obj.repos as Record<string, unknown>[])
@@ -2793,11 +2909,11 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const docker = parseDockerWorkspaceConfig(obj.docker);
   const env = parseWorkspaceEnvConfig(obj.env);
 
-  if (!template && !isolation && !repos && !hooks && !docker && !env) return undefined;
+  if (!template && !scope && !repos && !hooks && !docker && !env) return undefined;
 
   return {
     ...(template !== undefined && { template }),
-    ...(isolation !== undefined && { isolation }),
+    ...(scope !== undefined && { scope }),
     ...(repos !== undefined && { repos }),
     ...(hooks !== undefined && { hooks }),
     ...(docker !== undefined && { docker }),
@@ -2876,7 +2992,7 @@ function mergeWorkspaceConfigs(
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
-    isolation: caseLevel.isolation ?? suiteLevel.isolation,
+    scope: caseLevel.scope ?? suiteLevel.scope,
     repos: caseLevel.repos ?? suiteLevel.repos,
     ...(hasHooks && { hooks: mergedHooks as WorkspaceHooksConfig }),
     docker: caseLevel.docker ?? suiteLevel.docker,

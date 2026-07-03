@@ -30,25 +30,27 @@ keep AgentV's only where its semantics are genuinely better.**
    Promptfoo type names adopted (`contains`/`equals`/`regex`/`is-json`/`icontains`/
    `contains-all|any`/`starts-with`/`similar`/`latency`/`cost`/`webhook`/`javascript`/
    `python`/`assert-set`). `composite` removed → `assert-set`.
-2. **LLM judge vocabulary follows semantics.** `g-eval` is the criteria/rubric
-   scoring type; AgentV's `rubrics` and bare-string `assert` entries desugar to a
-   grouped `g-eval` (N criteria, one judge flow) as an AgentV superset extension.
-   `llm-rubric` remains the promptfoo-compatible free-form rubric judge. Agentic
-   evidence-gathering judges stay an AgentV extension rather than being forced into
-   `llm-rubric`. Structured AgentV rubric criteria are preserved, not flattened
-   into a single text blob: criteria objects keep `weight`, `operator`,
+2. **LLM judge vocabulary follows semantics.** `llm-rubric` is the criteria/rubric
+   scoring type. Bare-string `assert` entries desugar to grouped `llm-rubric`
+   assertions as an AgentV superset extension. Structured AgentV rubric criteria
+   are authored directly in promptfoo's permissive `llm-rubric.value` field; old
+   `rubric`/`rubrics` assertion type names are removed. `llm-rubric` also remains
+   the promptfoo-compatible free-form rubric judge. Agentic evidence-gathering
+   judges stay an AgentV extension rather than being forced into `llm-rubric`.
+   Structured AgentV rubric criteria are preserved, not flattened into a single
+   text blob: criteria objects keep `weight`, `operator`, `required`,
    `score_ranges`, and `min_score`. Artifact assertion rows are the generic
-   AgentV grader contract, not a `g-eval` special case: each grader returns
+   AgentV grader contract, not a `llm-rubric` special case: each grader returns
    `assertions[]`, the orchestrator flattens those rows into
    `grading.json.assertions[]`, and `grading.json.graders[].assertions[]` keeps
    the per-grader breakdown. Deterministic graders usually emit one row, while
    multi-aspect graders emit one row per authored check or result unit. Structured
-   `g-eval` criteria therefore populate one assertion row per criterion so the
+   `llm-rubric` criteria therefore populate one assertion row per criterion so the
    Dashboard can show criterion-level evidence, using the same mechanism as code
    graders, field accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
-   `code-grader` = the subprocess power tool (workspace-`cwd`, arbitrary language) —
-   `javascript` is NOT desugared to `code-grader`.
+   `script` = the subprocess power tool (workspace-`cwd`, arbitrary language).
+   `javascript` is NOT desugared to `script`.
 4. **`metric` is the named-score field** (nunjucks-templated); grader `name` becomes
    display-only. Add `named_scores` + `derived_metrics`.
 5. **`targets` is the canonical system-under-test** axis (promptfoo target/`ProviderOptions`
@@ -89,13 +91,13 @@ keep AgentV's only where its semantics are genuinely better.**
     first-class via a registered custom backend or a `beforeAll` escape hatch, and the
     built-in acquisition may itself be a swappable plugin — this is the correction of an
     earlier over-absolute "not an extension" claim; provenance stays a declarative field,
-    acquisition stays extensible. `isolation` (shared/pooled/fresh) is a `workspace`
-    config field, not a hook choice.
+    acquisition stays extensible. `workspace.scope` (`suite` or `attempt`) is the portable
+    workspace lifetime field.
     **Extensions are for pluggable non-provisioning setup only**: promptfoo lifecycle
     (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
     e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
     Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
-11. **Scope**: `similar` ships with a configured embeddings provider, and `g-eval` ships
+11. **Scope**: `similar` ships with a configured embeddings provider, and `llm-rubric` ships
     as the structured criteria/rubric judge. Exotic promptfoo assertions
     (`context-*`/`moderation`/…) and `redteam` are **future scope** —
     treated as unrecognized fields, not stubbed. Superset holds over the *implemented*
@@ -105,7 +107,7 @@ Removed (hard): `assertions`, `composite`, `eval_cases`,
 `workspace.hooks` (→ `extensions`), `on_run_complete`, `preprocessors`, `${{ ENV }}`,
 top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, the
 `z.never()` rejection stubs. **Kept** as declarative fields: `workspace.repos` (provenance),
-`workspace.isolation`, `workspace.docker`, `workspace.template`, direct-suite
+`workspace.scope`, `workspace.docker`, `workspace.template`, direct-suite
 `input`, and direct-suite `input_files`.
 
 ## Consequences
@@ -115,6 +117,6 @@ top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, t
   message pointing at the replacement.
 - promptfoo authors get a near-drop-in contract (snake_case); AgentV keeps repo/agent
   differentiation as documented extensions.
-- FizzBuzz/SWE-bench-style test grading needs no new assertion primitive — a
-  workspace-`cwd` `code-grader` runs the tests (see ADR 0017 note on SWE-bench
+- FizzBuzz/SWE-bench-style test grading needs no new assertion primitive -- a
+  workspace-`cwd` `script` grader runs the tests (see ADR 0017 note on SWE-bench
   `FAIL_TO_PASS`/`PASS_TO_PASS`).

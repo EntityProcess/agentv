@@ -50,16 +50,16 @@ tests:
           wrapping since this is a special occasion. You'll receive a tracking update
           shortly. Is there anything else I can help with for your daughter's birthday?
 
-    assertions:
-      - name: context_retention
+    assert:
+      - metric: context_retention
         type: llm-grader
         prompt: ../graders/context-retention.md
         required: true
-      - name: conversation_relevancy
+      - metric: conversation_relevancy
         type: llm-grader
         prompt: ../graders/conversation-relevancy.md
         weight: 2
-      - name: role_adherence
+      - metric: role_adherence
         type: llm-grader
         prompt: ../graders/role-adherence.md
       - type: contains
@@ -110,15 +110,15 @@ tests:
           a technician visit at a time that works for you - no charge. Just let me
           know if it happens again.
 
-    assertions:
-      - name: context_retention
+    assert:
+      - metric: context_retention
         type: llm-grader
         prompt: ../graders/context-retention.md
         required: true
-      - name: conversation_relevancy
+      - metric: conversation_relevancy
         type: llm-grader
         prompt: ../graders/conversation-relevancy.md
         weight: 2
-      - name: role_adherence
+      - metric: role_adherence
         type: llm-grader
         prompt: ../graders/role-adherence.md

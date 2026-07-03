@@ -14,7 +14,7 @@ export type { EvaluationVerdict };
 
 /**
  * Function to resolve a target name to a provider.
- * Used by code graders to support target override.
+ * Used by script graders to support target override.
  */
 export type TargetResolver = (targetName: string) => Provider | undefined;
 
@@ -47,9 +47,9 @@ export interface EvaluationContext {
   readonly startTime?: string;
   /** ISO 8601 timestamp when execution ended */
   readonly endTime?: string;
-  /** Resolver for target override in code graders */
+  /** Resolver for target override in script graders */
   readonly targetResolver?: TargetResolver;
-  /** List of available target names for code graders */
+  /** List of available target names for script graders */
   readonly availableTargets?: readonly string[];
   /** Unified diff of file changes from workspace */
   readonly fileChanges?: string;
@@ -57,7 +57,7 @@ export interface EvaluationContext {
   readonly toolCalls?: string;
   /** Absolute path to the workspace directory */
   readonly workspacePath?: string;
-  /** Docker workspace config: when present, code-grader commands run inside a container */
+  /** Docker workspace config: when present, script commands run inside a container */
   readonly dockerConfig?: DockerWorkspaceConfig;
   /** Results from dependency tests (only present when the test has depends_on) */
   readonly dependencyResults?: Readonly<Record<string, DependencyResult>>;

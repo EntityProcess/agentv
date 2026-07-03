@@ -23,9 +23,9 @@ tests:
       - role: user
         content: Summarize the key points of this document.
 
-    assertions:
-      - name: span-count
-        type: code-grader
+    assert:
+      - metric: span-count
+        type: script
         command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 5
@@ -42,9 +42,9 @@ tests:
       - role: user
         content: Look up the weather forecast for today.
 
-    assertions:
-      - name: error-check
-        type: code-grader
+    assert:
+      - metric: error-check
+        type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
         config:
           maxErrors: 0
@@ -61,9 +61,9 @@ tests:
       - role: user
         content: Answer the question using only approved data sources.
 
-    assertions:
-      - name: error-and-tool-check
-        type: code-grader
+    assert:
+      - metric: error-and-tool-check
+        type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
         config:
           maxErrors: 0
@@ -83,9 +83,9 @@ tests:
       - role: user
         content: Retrieve and format the latest sales data.
 
-    assertions:
-      - name: duration-check
-        type: code-grader
+    assert:
+      - metric: duration-check
+        type: script
         command: ["bun", "run", "../graders/span-duration.ts"]
         config:
           maxSpanMs: 3000
@@ -103,20 +103,20 @@ tests:
       - role: user
         content: Process this data and generate a summary report.
 
-    assertions:
-      - name: span-count
-        type: code-grader
+    assert:
+      - metric: span-count
+        type: script
         command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 8
           maxToolCalls: 20
 
-      - name: error-check
-        type: code-grader
+      - metric: error-check
+        type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
 
-      - name: duration-check
-        type: code-grader
+      - metric: duration-check
+        type: script
         command: ["bun", "run", "../graders/span-duration.ts"]
         config:
           maxSpanMs: 5000

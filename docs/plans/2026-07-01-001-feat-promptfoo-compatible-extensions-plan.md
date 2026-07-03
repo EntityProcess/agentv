@@ -14,16 +14,16 @@ type: feat
 
 This plan is the **extensions/workspace implementation slice** of the wider promptfoo-superset restructure (`docs/plans/promptfoo-aligned-eval-restructure.md`, PR #1594). The following owner-agreed decisions override the original text:
 
-- **A1. Isolation is hook-derived, not a config field.** Remove the `isolation: per_case` config knob (KTD2/U4/AE). Shared-vs-per-case is selected by **which hook** the workspace extension is registered on: `beforeAll` = shared workspace, `beforeEach` = per-case. The mechanism is a **reset-based workspace pool** (workers share a workspace, or draw from a pool that is reset to original — git clean / snapshot — between uses), not container-per-instance.
+- **A1. Workspace lifetime is `workspace.scope: suite | attempt`.** `suite` creates one harness-managed workspace for the run; `attempt` creates a clean workspace for each resolved execution attempt. Remove `isolation`, `pooled`, and `workspace_mode` from the user-facing contract. Use `--workspace-path` / `execution.workspace_path` only for explicit user-managed static local reuse.
 - **A2. Per-case workspace spec lives in dataset `vars.workspace`** (not only in an `extensions/workspace.config.yaml`). Workspace "is part of the dataset": the `beforeEach` extension reads `vars.workspace` from the test context; shared/global config in a config file is still allowed for run-wide defaults. Amend U2/U4 to consume `vars.workspace`.
 - **A3. Ship a built-in, auto-registered `agentv:workspace` / `agentv:agent-rules` scheme** alongside `file://`. The common case needs no copied script: `extensions: [agentv:workspace:beforeAll]`. `file://path:function` remains for custom extensions. (Original text's `file://`-only model becomes the *custom* path, not the only path.)
 - **A4. Grading contract unchanged: reuse `EvaluationScore`.** Extensions never own `grading.json`. The contract originates from agentskills (`assertion_results[{text,passed,evidence}]` + `summary` counts); AgentV keeps that per-assertion shape and adds a top-level string `verdict` (`pass`/`fail`/`skip`) + fractional `score` as a superset. Not a boolean.
 - **A5. ADR sequencing.** The proposed ADR 0014 must note that a broader superseding ADR (reversing parts of ADR-0013: `assert`, grader-type names, removal of `tests[].input`) is incoming, so 0014 does not re-entrench `input`/`assertions`.
 - **A6. Rename the skills extension → `agent-rules` (U5).** It stages more than skills — **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename: built-in `agentv:agent-rules`, package `packages/extensions/agent-rules`, provider context `agent_rules_paths` (typed map covering skills/hooks/agents), not `skill_paths`. `skills` becomes one *kind* of agent rule, not the extension name. Update all U5 files/tests accordingly.
 
-- **A7. Repo provisioning is a declarative `workspace.repos` FIELD, not an extension (finalized in ADR-0016 pt10 / ADR-0017).** This narrows this PR's scope: **do NOT move repo materialization into an extension.** Repo acquisition stays harness-core — a declarative `workspace.repos` field (provenance) the harness materializes (resolver backends) BEFORE hooks. Extensions here are only for **non-provisioning** setup: `agentv:agent-rules` (skills/hooks/agents staging) and custom `file://` lifecycle hooks. `isolation` is a `workspace` field, not a hook choice. The broader superseding ADR referenced in A5 is **ADR-0016** (authoring) + **ADR-0017** (output/resolver).
+- **A7. Repo provisioning is a declarative `workspace.repos` FIELD, not an extension (finalized in ADR-0016 pt10 / ADR-0017).** This narrows this PR's scope: **do NOT move repo materialization into an extension.** Repo acquisition stays harness-core — a declarative `workspace.repos` field (provenance) the harness materializes (resolver backends) BEFORE hooks. Extensions here are only for **non-provisioning** setup: `agentv:agent-rules` (skills/hooks/agents staging) and custom `file://` lifecycle hooks. `workspace.scope` is the portable lifetime field. The broader superseding ADR referenced in A5 is **ADR-0016** (authoring) + **ADR-0017** (output/resolver).
 
-The rest of the plan (Promptfoo `file://path:function` refs, four hook names, typed outputs instead of env-var side channels, JS-in-process/Python-subprocess, canonical run bundle, the agent-rules extension) stands as written — EXCEPT the removal of core `workspace`: repo provisioning is retained as a declarative field per A7 (only `workspace.hooks` moves to extensions).
+The rest of the plan (Promptfoo `file://path:function` refs, four hook names, typed outputs instead of env-var side channels, JS-in-process/Python-subprocess, canonical run bundle, the agent-rules extension) stands as written — EXCEPT the removal of core `workspace`: repo provisioning and `workspace.scope` are retained as declarative fields per A7 (only executable setup moves to extensions).
 
 ## Goal Capsule
 
@@ -50,7 +50,7 @@ The current AgentV `workspace` field is powerful but makes authoring diverge fro
 - R1. Eval YAML supports a top-level `extensions` array using Promptfoo-compatible `file://path:function` references.
 - R2. Supported hook names are `beforeAll`, `beforeEach`, `afterEach`, and `afterAll`, mapped internally to AgentV's existing snake_case lifecycle stages.
 - R3. AgentV core no longer parses or owns top-level `workspace`; workspace setup is expressed through reusable extensions.
-- R4. Existing workspace materialization behavior is extracted behind an extension boundary for templates, repositories, hooks, Docker config, static paths, and workspace pooling.
+- R4. Existing workspace materialization behavior stays harness-core for repositories, templates, Docker config, static paths, and `workspace.scope`; executable setup moves to lifecycle extensions.
 - R5. Skills setup is modeled as a reusable skills extension that stages `SKILL.md` directories into the prepared workspace and exposes normalized skill paths to providers.
 - R6. The PR 679 parity example is reorganized so the suite file is Promptfoo-like and the workspace, materialization, skills, providers, fixtures, and rubrics are independently reusable.
 - R7. Machine-local paths and secrets stay outside portable suite files; extension configs may reference local overlays or env vars, but portable examples must show placeholders and config-local routing.
@@ -194,7 +194,7 @@ The same shape can later be mirrored in AgentV examples with non-sensitive fixtu
 - **Patterns to follow:** `examples/features/workspace-shared-config/workspace.yaml` for reusable config and `packages/core/src/evaluation/workspace/setup.ts` as the extraction source.
 - **Test scenarios:**
   - A workspace extension returns a config with pinned repos and the orchestrator materializes them through the existing repo manager.
-  - A workspace extension returns `isolation: per_case` and each test receives a separate workspace.
+  - `workspace.scope: attempt` gives each resolved execution attempt a clean workspace.
   - A machine-local mirror path in a local overlay is not serialized into the portable eval suite.
   - A legacy top-level `workspace` eval fails validation with a precise migration message.
 - **Verification:** Workspace materialization tests move to the extension package and prove template, repo, hook, Docker, and static directory behavior through the extension path, while core orchestrator tests no longer import workspace-specific config types.

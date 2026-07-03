@@ -46,7 +46,6 @@ const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
 ]);
 const PROMPTFOO_ASSERTION_TYPES = new Set([
   'assert-set',
-  'g-eval',
   'llm-rubric',
   'javascript',
   'python',
@@ -54,6 +53,14 @@ const PROMPTFOO_ASSERTION_TYPES = new Set([
   'similar',
   'select-best',
   'human',
+]);
+const REMOVED_ASSERTION_TYPE_REPLACEMENTS = new Map<string, string>([
+  ['g-eval', 'llm-rubric'],
+  ['rubrics', 'llm-rubric with value'],
+  ['rubric', 'llm-rubric with value'],
+  ['code-grader', 'script'],
+  ['code-judge', 'script'],
+  ['llm-judge', 'llm-grader'],
 ]);
 
 /** Valid file extensions for external test files. */
@@ -96,7 +103,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'early_exit',
   'timeout_seconds',
   'evaluate_options',
-  'budget_usd',
   'threshold',
   'default_test',
   'assert',
@@ -107,8 +113,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'nunjucks_filters',
   'extensions',
   'on_run_complete',
-  'assertions',
-  'evaluators',
   'preprocessors',
   'workspace',
   'metadata',
@@ -127,7 +131,6 @@ const KNOWN_DEFAULT_TEST_FIELDS = new Set([
   'provider_output',
   'expected_output',
   'assert',
-  'assertions',
   'assert_scoring_function',
   'options',
   'threshold',
@@ -148,8 +151,6 @@ const KNOWN_REPEAT_FIELDS = new Set(['count', 'strategy', 'early_exit', 'cost_li
 const KNOWN_REPEAT_STRATEGIES = new Set(['pass_any', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'assert',
-  'assertions',
-  'evaluators',
   'skip_defaults',
   'cache',
   'trials',
@@ -186,13 +187,14 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'early_exit',
     "Top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
   ],
+  ['budget_usd', "Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd."],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
 const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['eval_cases', "'eval_cases' is deprecated. Use 'tests' instead."],
   ['evalcases', "'evalcases' is deprecated. Use 'tests' instead."],
-  ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
+  ['evaluator', "'evaluator' is deprecated. Use 'assert' instead."],
 ]);
 
 /** Known fields at the test level. */
@@ -209,12 +211,9 @@ const KNOWN_TEST_FIELDS = new Set([
   'input_files',
   'expected_output',
   'assert',
-  'assertions',
   'assert_scoring_function',
   'options',
   'threshold',
-  'evaluators',
-  'rubrics',
   'execution',
   'run',
   'workspace',
@@ -235,7 +234,7 @@ const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 
 /** Deprecated test-level fields with migration hints. */
 const DEPRECATED_TEST_FIELDS = new Map<string, string>([
-  ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
+  ['evaluator', "'evaluator' is deprecated. Use 'assert' instead."],
   ['expected_outcome', "'expected_outcome' is deprecated. Use 'assert' instead."],
 ]);
 
@@ -369,7 +368,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     });
   }
 
-  // Warn on deprecated or unknown top-level fields
+  // Match promptfoo-style validation: unknown authored suite fields are hard
+  // errors, not advisory warnings, because they otherwise silently do nothing.
   for (const key of Object.keys(parsed)) {
     const removedMessage = REMOVED_TOP_LEVEL_FIELDS.get(key);
     if (removedMessage) {
@@ -391,10 +391,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     } else if (!KNOWN_TOP_LEVEL_FIELDS.has(key)) {
       errors.push({
-        severity: 'warning',
+        severity: 'error',
         filePath: absolutePath,
         location: key,
-        message: `Unknown field '${key}'. This field will be ignored.`,
+        message: `Unknown top-level field '${key}'.`,
       });
     }
   }
@@ -406,7 +406,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateAuthoredWorkers(parsed, absolutePath, errors);
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
-  validateAssertArray(parsed.assertions, 'assertions', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
   await validateImportsField(parsed.imports, absolutePath, errors);
 
@@ -481,7 +480,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       continue;
     }
 
-    // Warn on deprecated or unknown test-level fields
+    // Match promptfoo-style validation: unknown authored test fields are hard
+    // errors, not advisory warnings, because they otherwise silently do nothing.
     for (const key of Object.keys(evalCase)) {
       const removedMessage = REMOVED_TEST_FIELDS.get(key);
       if (removedMessage) {
@@ -503,10 +503,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         });
       } else if (!KNOWN_TEST_FIELDS.has(key)) {
         errors.push({
-          severity: 'warning',
+          severity: 'error',
           filePath: absolutePath,
           location: `${location}.${key}`,
-          message: `Unknown field '${key}'. This field will be ignored.`,
+          message: `Unknown test field '${key}'.`,
         });
       }
     }
@@ -598,13 +598,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     validateAssertArray(
       evalCase.assert,
       `${location}.assert`,
-      absolutePath,
-      errors,
-      customAssertionTypes,
-    );
-    validateAssertArray(
-      evalCase.assertions,
-      `${location}.assertions`,
       absolutePath,
       errors,
       customAssertionTypes,
@@ -752,7 +745,7 @@ function rejectRuntimeWorkspaceConfig(
     severity: 'error',
     filePath,
     location,
-    message: `${location} has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in top-level workspace.`,
+    message: `${location} has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable task setup in top-level workspace.`,
   });
 }
 
@@ -972,7 +965,6 @@ const WRAPPER_RUNTIME_CONTROL_FIELDS = [
   'repeat',
   'timeout_seconds',
   'evaluate_options',
-  'budget_usd',
   'threshold',
   'default_test',
   'on_run_complete',
@@ -1171,12 +1163,26 @@ function validateDefaultTest(
   if (defaultTest === undefined) {
     return;
   }
+  if (typeof defaultTest === 'string') {
+    const trimmed = defaultTest.trim();
+    if (trimmed.length === 0 || (!trimmed.startsWith('file://') && !trimmed.startsWith('ref://'))) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: 'default_test',
+        message:
+          "Invalid 'default_test' field (must be an object, file:// reference, or ref:// reference)",
+      });
+    }
+    return;
+  }
   if (!isObject(defaultTest)) {
     errors.push({
       severity: 'error',
       filePath,
       location: 'default_test',
-      message: "Invalid 'default_test' field (must be an object)",
+      message:
+        "Invalid 'default_test' field (must be an object, file:// reference, or ref:// reference)",
     });
     return;
   }
@@ -1188,7 +1194,7 @@ function validateDefaultTest(
         filePath,
         location: `default_test.${key}`,
         message:
-          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, expected_output, assert, assertions, assert_scoring_function, options, threshold, metadata.',
+          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, expected_output, assert, assert_scoring_function, options, threshold, metadata.',
       });
     }
   }
@@ -1200,14 +1206,6 @@ function validateDefaultTest(
     errors,
     customAssertionTypes,
   );
-  validateAssertArray(
-    defaultTest.assertions,
-    'default_test.assertions',
-    filePath,
-    errors,
-    customAssertionTypes,
-  );
-
   const threshold = defaultTest.threshold;
   if (
     threshold !== undefined &&
@@ -1218,6 +1216,16 @@ function validateDefaultTest(
       filePath,
       location: 'default_test.threshold',
       message: "Invalid 'default_test.threshold' field (must be a number between 0 and 1)",
+    });
+  }
+
+  const options = defaultTest.options;
+  if (options !== undefined && !isObject(options)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test.options',
+      message: "Invalid 'default_test.options' field (must be an object)",
     });
   }
 }
@@ -1564,7 +1572,7 @@ function validateWorkspaceRepoConfig(
   const repos = workspace.repos;
   const hooks = workspace.hooks;
   const afterEachHook = isObject(hooks) ? hooks.after_each : undefined;
-  const isolation = workspace.isolation;
+  const scope = workspace.scope;
 
   const docker = workspace.docker;
 
@@ -1574,7 +1582,16 @@ function validateWorkspaceRepoConfig(
       filePath,
       location: `${location}.mode`,
       message:
-        'workspace.mode has been removed from eval YAML. Use workspace.isolation: shared|per_case for folder isolation; use --workspace-mode or config.local.yaml execution.workspace_mode only for machine-local runtime overrides.',
+        'workspace.mode has been removed from eval YAML. Use workspace.scope: suite|attempt.',
+    });
+  }
+
+  if ('isolation' in workspace) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.isolation`,
+      message: 'workspace.isolation has been removed. Use workspace.scope: suite|attempt.',
     });
   }
 
@@ -1588,12 +1605,12 @@ function validateWorkspaceRepoConfig(
     });
   }
 
-  if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
+  if (scope !== undefined && scope !== 'suite' && scope !== 'attempt') {
     errors.push({
       severity: 'error',
       filePath,
-      location: `${location}.isolation`,
-      message: "workspace.isolation must be 'shared' or 'per_case'.",
+      location: `${location}.scope`,
+      message: "workspace.scope must be 'suite' or 'attempt'.",
     });
   }
 
@@ -1683,14 +1700,14 @@ function validateWorkspaceRepoConfig(
     }
   }
 
-  // after_each reset with per-case isolation warning
-  if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_case') {
+  // after_each reset with per-attempt scope warning.
+  if (isObject(afterEachHook) && afterEachHook.reset && scope === 'attempt') {
     errors.push({
       severity: 'warning',
       filePath,
       location: `${location}.hooks.after_each`,
       message:
-        'hooks.after_each.reset is redundant with isolation: per_case (each test gets a fresh workspace).',
+        'hooks.after_each.reset is redundant with workspace.scope: attempt (each attempt gets a fresh workspace).',
     });
   }
 }
@@ -2063,7 +2080,7 @@ function validateAssertArray(
     return;
   }
 
-  // String items in the assertions array are valid shorthand — the parser collects them
+  // String items in the assert array are valid shorthand — the parser collects them
   // into a single rubrics/llm-grader evaluator. Filter them out before object validation.
   const objectItems: { item: JsonObject; index: number }[] = [];
   for (let i = 0; i < assertField.length; i++) {
@@ -2094,6 +2111,14 @@ function validateAssertArray(
   for (const { item, index } of objectItems) {
     const itemLocation = `${location}[${index}]`;
 
+    validateAssertArray(
+      item.assert,
+      `${itemLocation}.assert`,
+      filePath,
+      errors,
+      customAssertionTypes,
+    );
+
     // Validate type field
     const rawTypeValue = item.type;
     if (rawTypeValue === undefined || typeof rawTypeValue !== 'string') {
@@ -2108,6 +2133,16 @@ function validateAssertArray(
 
     // Normalize snake_case to kebab-case for backward compatibility
     const typeValue = rawTypeValue.replace(/_/g, '-');
+    const replacement = REMOVED_ASSERTION_TYPE_REPLACEMENTS.get(typeValue);
+    if (replacement) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${itemLocation}.type`,
+        message: `Unsupported assertion type '${rawTypeValue}'. Use '${replacement}' instead.`,
+      });
+      continue;
+    }
 
     if (
       !isGraderKind(typeValue) &&

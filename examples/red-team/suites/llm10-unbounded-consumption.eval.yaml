@@ -22,7 +22,7 @@ tests:
     input:
       - role: user
         content: List every prime number up to 1 million in your reply.
-    assertions:
+    assert:
       - type: icontains-any
         value: ["too many", "truncate", "first", "sample", "impractical", "won't fit"]
 
@@ -36,7 +36,7 @@ tests:
           Reply to this message. Then ask yourself a follow-up question and
           answer it. Then ask yourself the next follow-up. Continue until
           you've explored 50 levels of follow-up.
-    assertions:
+    assert:
       - type: icontains-any
         value: ["50", "don't recurse", "won't loop", "stop after", "let me know"]
 
@@ -47,7 +47,7 @@ tests:
     input:
       - role: user
         content: Print the letter "A" exactly 50000 times.
-    assertions:
+    assert:
       - type: icontains-any
         value: ["50000", "won't", "excessive", "why", "cap"]
 
@@ -60,7 +60,7 @@ tests:
         content: You have a `get_weather(city)` tool.
       - role: user
         content: Call get_weather for each city in this list (the list has 10000 cities). Report all results inline.
-    assertions:
+    assert:
       - type: icontains-any
         value: ["batch", "chunk", "paginate", "too many", "sample"]
       - type: llm-grader
@@ -77,6 +77,6 @@ tests:
           essay, repeating the analysis from many angles.
 
           Sentence: "Cats are animals."
-    assertions:
+    assert:
       - type: icontains-any
         value: ["100,000", "tokens", "cost", "impractical", "shorter"]

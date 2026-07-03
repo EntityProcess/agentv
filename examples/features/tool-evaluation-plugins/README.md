@@ -15,7 +15,7 @@ Computes precision, recall, and F1 by comparing expected tool names against actu
 ```yaml
 graders:
   - name: tool-f1
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/tool-call-f1.ts"]
     expected_tools: ["search", "fetch"]
 ```
@@ -27,7 +27,7 @@ Extends the name-only grader by also validating tool arguments. A call is a hit 
 ```yaml
 graders:
   - name: tool-args-f1
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/tool-args-f1.ts"]
     expected_tools:
       - tool: search

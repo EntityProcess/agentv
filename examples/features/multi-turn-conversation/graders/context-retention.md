@@ -15,7 +15,7 @@ Score each assistant turn:
 - 0.5 if the turn partially retains context and forgets some details
 - 0.0 if the turn ignores or contradicts earlier context
 
-In your `assertions`, include specific turn-level checks.
+In your `assertions` result array, include specific turn-level checks.
 In your `details`, return:
 - `scores_per_turn`: array of scores (0.0-1.0) for each assistant turn
 - `relevant_turns`: count of turns that demonstrated context retention

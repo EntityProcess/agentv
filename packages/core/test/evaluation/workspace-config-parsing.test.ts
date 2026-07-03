@@ -371,14 +371,14 @@ tests:
     expect(cases[0].workspace?.hooks?.after_each?.reset).toBe('fast');
   });
 
-  it('parses workspace isolation field', async () => {
-    const evalFile = path.join(testDir, 'workspace-isolation.yaml');
+  it('parses workspace scope field', async () => {
+    const evalFile = path.join(testDir, 'workspace-scope.yaml');
     await writeFile(
       evalFile,
       `
 description: test
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
@@ -390,10 +390,10 @@ tests:
     );
 
     const cases = await loadTests(evalFile, testDir);
-    expect(cases[0].workspace?.isolation).toBe('per_case');
+    expect(cases[0].workspace?.scope).toBe('attempt');
   });
 
-  it('rejects removed workspace isolation per_test value', async () => {
+  it('rejects removed workspace isolation field', async () => {
     const evalFile = path.join(testDir, 'workspace-isolation-legacy.yaml');
     await writeFile(
       evalFile,
@@ -409,7 +409,7 @@ tests:
     );
 
     await expect(loadTests(evalFile, testDir)).rejects.toThrow(
-      "workspace.isolation must be 'shared' or 'per_case'.",
+      'workspace.isolation has been removed. Use workspace.scope: suite|attempt.',
     );
   });
 

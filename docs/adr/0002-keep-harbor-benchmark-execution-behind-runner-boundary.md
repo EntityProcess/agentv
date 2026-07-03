@@ -16,7 +16,7 @@ still belongs behind adapter boundaries.
 ## Context
 
 AgentV now has native workspace repository acquisition for custom evals, CI
-gates, target comparisons, pooled workspaces, hooks, and Docker workspace cases.
+gates, target comparisons, suite/attempt workspaces, hooks, and Docker workspace cases.
 That should remain generic infrastructure: `workspace.repos[].commit` is the
 canonical checkout pin. SWE-Bench `base_commit` is upstream/import vocabulary
 that adapters may translate into `commit`; it should not become the canonical

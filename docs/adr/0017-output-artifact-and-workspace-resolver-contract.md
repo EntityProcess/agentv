@@ -117,7 +117,7 @@ workspace:                    # suite-level default; tests[].workspace overrides
       commit: 953adb9         # immutable SHA pin (base_commit accepted as input alias)
       sparse: [src/X]         # optional content selection
       ancestor: 1             # optional (nth-ancestor pin)
-  isolation: fresh            # fresh (default, safe) | pooled | shared
+  scope: attempt              # suite (default) | attempt
   template: ./tmpl            # optional local scaffold
   docker: { image: ... }      # optional container env
 ```
@@ -128,8 +128,8 @@ new acquisition technology plugs in without touching it. `commit` is an immutabl
 
 1. **Eval declares provenance ONLY, in a declarative `workspace.repos` field** (per-test
    overridable / suite-level; NOT a `vars` blob and NOT an extension): `workspace.repos:
-   [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`, plus `workspace.isolation`
-   (shared/pooled/fresh). Remove the tangled acquisition fields (`type`/`local`, `resolve`,
+   [{ path, repo, commit (base_commit alias), sparse?, ancestor? }]`, plus `workspace.scope`
+   (`suite` or `attempt`). Remove the tangled acquisition fields (`type`/`local`, `resolve`,
    `clone.depth`, `clone.filter`, per-repo `resolver`). The harness materializes this
    **before hooks** (ADR 0016 pt10).
 2. **Acquisition = harness resolver in machine config (`$AGENTV_HOME/config.yaml`),
@@ -163,7 +163,7 @@ built-in or user — plug in without touching the eval schema because all resolv
 dataset row. The distinction (fix-tests vs regression-tests) matters only at
 *dataset-construction* time; at *run* time it collapses to "**run these named tests; pass
 iff all pass**". So it is **too domain-specific for a core primitive, and needs no
-dedicated SDK recipe** — it is plainly a workspace-`cwd` **`code-grader`**: the grader runs
+dedicated SDK recipe** -- it is plainly a workspace-`cwd` **`script`** grader: the grader runs
 the repo's tests in the workspace and its exit code is the verdict (exactly margin's
 `tests/test.sh` 0/1/2 model). The two lists are just data the grader's command consumes
 (inline, or from `vars`/`metadata`). Combined with the Docker-image acquisition backend

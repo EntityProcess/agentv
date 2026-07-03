@@ -84,7 +84,7 @@ fi
 ```
 
 ```yaml
-assertions:
+assert:
   - type: script
     command: [bash, scripts/check-pages.sh]
 ```
@@ -92,7 +92,7 @@ assertions:
 Silent one-liners work too — stdout is optional:
 
 ```yaml
-assertions:
+assert:
   - type: script
     command: ["bash", "-c", "[ $(wc -l < output.txt) -ge 10 ]"]
 ```
@@ -178,7 +178,7 @@ console.log(JSON.stringify({
 ## Referencing in Eval Files
 
 ```yaml
-assertions:
+assert:
   - name: my_validator
     type: script
     command: [./validators/check_answer.py]
@@ -240,7 +240,7 @@ describe('welcome banner', () => {
 Then use AgentV's built-in Vitest adapter as the `script` command. The adapter copies verifier files into a temporary workspace-local path when needed, runs Vitest in `workspace_path`, reads the JSON reporter output, and maps each test outcome to an AgentV assertion:
 
 ```yaml
-assertions:
+assert:
   - name: vitest-welcome-banner
     type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
@@ -277,7 +277,7 @@ Script graders can call an LLM through a target proxy for metrics that require m
 Add a `target` block to the grader config:
 
 ```yaml
-assertions:
+assert:
   - name: contextual-precision
     type: script
     command: [bun, scripts/contextual-precision.ts]
@@ -426,7 +426,7 @@ target: my_agent
 tests:
   - id: implement-feature
     input: "Implement the TODO functions in src/index.ts"
-    assertions:
+    assert:
       - Agent implements the feature correctly
       - name: functional-check
         type: script

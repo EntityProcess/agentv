@@ -68,7 +68,7 @@ The `type: file` path is resolved from the eval file's directory up to the repo 
 
 ## How It Works
 
-1. AgentV copies `workspace-template/` to a pooled workspace.
+1. AgentV copies `workspace-template/` to the suite workspace.
 2. AgentV clones `workspace.repos`.
 3. The `beforeAll` extension removes stale `.allagents/` config and runs `npx allagents workspace init`.
 4. The extension registers the local marketplace with `--scope project`.

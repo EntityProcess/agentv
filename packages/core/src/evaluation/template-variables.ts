@@ -7,6 +7,7 @@
  *   - {{ output }}          — last assistant message as plain text
  *   - {{ expected_output }} — reference answer as plain text
  *   - {{ criteria }}        — evaluation criteria string
+ *   - {{ rubric }}          — rubric data, as structured JSON when available or criteria text otherwise
  *   - {{ metadata }}        — per-test metadata as formatted JSON
  *   - {{ metadata_json }}   — per-test metadata as compact JSON
  *   - {{ rubrics }}        — llm-grader rubrics as formatted JSON
@@ -18,6 +19,7 @@
 export const TEMPLATE_VARIABLES = {
   EXPECTED_OUTPUT: 'expected_output',
   CRITERIA: 'criteria',
+  RUBRIC: 'rubric',
   METADATA: 'metadata',
   METADATA_JSON: 'metadata_json',
   RUBRICS: 'rubrics',

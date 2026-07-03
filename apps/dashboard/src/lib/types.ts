@@ -346,16 +346,6 @@ export interface IndexResponse {
   entries: IndexEntry[];
 }
 
-export interface FeedbackReview {
-  test_id: string;
-  comment: string;
-  updated_at: string;
-}
-
-export interface FeedbackData {
-  reviews: FeedbackReview[];
-}
-
 export interface ExperimentSummary {
   name: string;
   run_count: number;

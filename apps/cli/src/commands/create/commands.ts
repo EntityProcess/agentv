@@ -34,36 +34,35 @@ export default defineAssertion(({ output }) => {
 
 const EVAL_TEMPLATES: Record<string, (name: string) => string> = {
   default: (name: string) => `description: ${name} evaluation suite
-execution:
-  target: default
+target: default
 
 tests:
   - id: sample-test
     criteria: Agent responds correctly
     input: "Hello, how are you?"
     expected_output: "I'm doing well"
-    assertions:
+    assert:
       - type: contains
         value: "well"
 `,
   rubric: (name: string) => `description: ${name} evaluation suite
-execution:
-  target: default
+target: default
 
 tests:
   - id: sample-test
     criteria: Agent responds correctly and completely
     input: "Hello, how are you?"
     expected_output: "I'm doing well, thank you for asking!"
-    assertions:
-      - type: llm-grader
-        rubric:
-          accuracy:
+    assert:
+      - metric: response-quality
+        type: llm-rubric
+        value:
+          - id: accuracy
+            outcome: Response is factually correct
             weight: 0.6
-            criteria: Response is factually correct
-          completeness:
+          - id: completeness
+            outcome: Response addresses all parts of the question
             weight: 0.4
-            criteria: Response addresses all parts of the question
 `,
 };
 
@@ -128,7 +127,7 @@ export const createAssertionCommand = command({
     await mkdir(dir, { recursive: true });
     await writeFile(filePath, content);
     console.log(`Created ${path.relative(process.cwd(), filePath)} (template: ${templateName})`);
-    console.log(`\nUse in EVAL.yaml:\n  assertions:\n    - type: ${name}`);
+    console.log(`\nUse in EVAL.yaml:\n  assert:\n    - type: ${name}`);
   },
 });
 

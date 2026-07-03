@@ -1,5 +1,5 @@
 /**
- * Local HTTP proxy server for target invocations from code-grader scripts.
+ * Local HTTP proxy server for target invocations from script graders.
  *
  * Security properties:
  * - Binds to loopback only (127.0.0.1)

@@ -32,8 +32,8 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assertions:
-      - name: search-then-fetch
+    assert:
+      - metric: search-then-fetch
         type: tool-trajectory
         mode: in_order
         expected:
@@ -55,8 +55,8 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assertions:
-      - name: exact-workflow
+    assert:
+      - metric: exact-workflow
         type: tool-trajectory
         mode: exact
         expected:
@@ -80,8 +80,8 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assertions:
-      - name: research-depth
+    assert:
+      - metric: research-depth
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -103,8 +103,8 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assertions:
-      - name: input-validator
+    assert:
+      - metric: input-validator
         type: tool-trajectory
         mode: in_order
         expected:
@@ -130,8 +130,8 @@ tests:
       - role: user
         content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
 
-    assertions:
-      - name: output-validator
+    assert:
+      - metric: output-validator
         type: tool-trajectory
         mode: in_order
         expected:
@@ -234,9 +234,9 @@ tests:
             - "No discrete GPU option"
           confidence: "High"
 
-    assertions:
+    assert:
       # Validate the research workflow sequence
-      - name: workflow-validator
+      - metric: workflow-validator
         type: tool-trajectory
         mode: exact
         expected:
@@ -246,7 +246,7 @@ tests:
           - tool: summarize
 
       # Ensure adequate research depth
-      - name: research-depth
+      - metric: research-depth
         type: tool-trajectory
         mode: any_order
         minimums:

@@ -9,7 +9,7 @@ const config: EvalConfig = {
     {
       id: 'greeting',
       input: 'Say hello',
-      assertions: [{ type: 'contains', value: 'hello' }],
+      assert: [{ type: 'contains', value: 'hello' }],
     },
   ],
   cache: false,

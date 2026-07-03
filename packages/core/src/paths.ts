@@ -17,8 +17,8 @@ export function getAgentvConfigDir(): string {
 }
 
 /**
- * AgentV's heavy runtime data directory. Stores workspaces, workspace pool,
- * subagents, trace state, caches, downloaded dependencies, and results clones.
+ * AgentV's heavy runtime data directory. Stores workspaces, subagents, trace
+ * state, caches, downloaded dependencies, and results clones.
  * AGENTV_DATA_DIR can separate this large data from AGENTV_HOME; when unset it
  * falls back to AGENTV_HOME (or ~/.agentv) so existing AGENTV_HOME users keep
  * their runtime data in the same location.
@@ -37,10 +37,6 @@ export function getSubagentsRoot(): string {
 
 export function getTraceStateRoot(): string {
   return path.join(getAgentvDataDir(), 'trace-state');
-}
-
-export function getWorkspacePoolRoot(): string {
-  return path.join(getAgentvDataDir(), 'workspace-pool');
 }
 
 /** @internal Retained for older tests that reset path-helper state. */

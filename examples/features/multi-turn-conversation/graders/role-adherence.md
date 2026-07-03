@@ -17,7 +17,7 @@ Score each assistant turn:
 - 0.5 if the turn partially adheres but shows inconsistency
 - 0.0 if the turn breaks character or contradicts the assigned role
 
-In your `assertions`, include specific turn-level checks.
+In your `assertions` result array, include specific turn-level checks.
 In your `details`, return:
 - `scores_per_turn`: array of scores (0.0-1.0) for each assistant turn
 - `consistent_turns`: count of turns scored 1.0

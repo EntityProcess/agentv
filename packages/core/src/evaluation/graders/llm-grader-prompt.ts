@@ -41,11 +41,17 @@ function buildTemplateVariables(input: {
       ? input.promptInputs.question
       : input.evalCase.question;
 
+  const rubricText =
+    input.rubrics && input.rubrics.length > 0
+      ? stringifyPretty(input.rubrics)
+      : input.evalCase.criteria.trim();
+
   return {
     [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.OUTPUT]: input.candidate.trim(),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (input.evalCase.reference_answer ?? '').trim(),
     [TEMPLATE_VARIABLES.CRITERIA]: input.evalCase.criteria.trim(),
+    [TEMPLATE_VARIABLES.RUBRIC]: rubricText,
     [TEMPLATE_VARIABLES.METADATA]: stringifyPretty(input.evalCase.metadata),
     [TEMPLATE_VARIABLES.METADATA_JSON]: stringifyCompact(input.evalCase.metadata),
     [TEMPLATE_VARIABLES.RUBRICS]: stringifyPretty(input.rubrics),

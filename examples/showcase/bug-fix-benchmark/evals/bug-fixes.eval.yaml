@@ -54,6 +54,6 @@ tests:
       of checking for a per-request cwd override.
 
       Find the bug, fix it, and add tests to verify the fix.
-    assertions:
+    assert:
       - The fix introduces an effectiveCwd variable that prefers request.cwd over this.config.cwd
       - effectiveCwd is used in the runCommand call and response metadata

@@ -18,33 +18,10 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by label from `targets.yaml` or with an eval-local target object.
-- **Experiment** is the run/result grouping label being measured over that corpus, such as `with-skills` or `without-skills`. Keep suite/category and target/model names out of this label.
+- **Tags** are run/result grouping labels. `tags.experiment` is the default experiment namespace, such as `with-skills` or `without-skills`; keep suite/category and target/model names out of that tag.
 - **Evaluate options** configure runner-level behavior such as repeat policy, optional timeouts, and `max_concurrency` under `evaluate_options`.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
-- **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
-
-```mermaid
-flowchart LR
-  corpus["Eval suite / imports / tests<br/>task corpus"]
-  category["Category<br/>path-derived grouping"]
-  context["Workspace / fixtures / graders<br/>task-owned context"]
-  experiment["Experiment<br/>named run condition"]
-  target["Target<br/>system under test"]
-  controls["Run controls<br/>execution + gates"]
-  run["Run<br/>concrete execution"]
-  artifacts["Run artifacts<br/>summary.json + index.jsonl + sidecars"]
-  readers["Dashboard / compare / trend<br/>derived readers"]
-
-  corpus --> category
-  corpus --> run
-  context --> run
-  category --> run
-  experiment --> run
-  target --> run
-  controls --> run
-  run --> artifacts
-  artifacts --> readers
-```
+- **Run** is one concrete execution of a tagged eval against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ## Quick start
 
@@ -80,7 +57,7 @@ default_test:
   threshold: 0.8
 
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./fixture
       repo: EntityProcess/agentv-contract-fixture
@@ -89,14 +66,14 @@ workspace:
 tests:
   - id: fizzbuzz
     input: Write FizzBuzz in Python
-    assertions:
+    assert:
       - type: contains
         value: "fizz"
       - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: script
         command: ["python3", "./validators/check_syntax.py"]
-      - type: g-eval
-        criteria:
+      - type: llm-rubric
+        value:
           - outcome: Solution is simple and idiomatic Python
             weight: 0.5
           - outcome: Handles the 3, 5, and 15 branches correctly
@@ -104,10 +81,10 @@ tests:
 ```
 
 Plain assertion strings are short-form rubric criteria: AgentV groups them into
-`g-eval` and writes each criterion to `grading.json.assertion_results` for the
-Dashboard. Use explicit `type: g-eval` when you need weights, required flags, or
-`score_ranges`; use `type: llm-rubric` for promptfoo-compatible free-form rubric
-assertions; use `type: llm-grader` only when you need a custom grader prompt,
+`llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
+Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
+`score_ranges`; use string `value` for promptfoo-compatible free-form rubric
+checks; use `type: llm-grader` only when you need a custom grader prompt,
 grader target, or preprocessing. Executable graders use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:
@@ -134,7 +111,20 @@ tests:
 
 `target: copilot-sdk` resolves the target label from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
-Use `default_test.threshold` for the inherited per-test pass cutoff. Existing eval files with a top-level `threshold` still load during migration, and `--threshold` on the CLI still overrides YAML thresholds for a run.
+Use `default_test.threshold` for the inherited per-test pass cutoff. `default_test` can also point at a shared file, matching promptfoo's external defaults pattern:
+
+```yaml
+default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+AgentV makes `AGENTV_REPO_ROOT` available during eval/config interpolation. Projects that prefer a short name can define their own reference in `.agentv/config.yaml`; `global-default` below is just an example key:
+
+```yaml
+refs:
+  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+Then eval files in that project can use `default_test: ref://global-default`.
 
 **4. Run it:**
 ```bash
@@ -195,11 +185,11 @@ const { results, summary } = await evaluate({
     {
       id: 'fizzbuzz',
       input: 'Write FizzBuzz in Python',
-      assertions: [
+      assert: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
         { type: 'script', command: ['python3', './validators/check_syntax.py'] },
-        { type: 'g-eval', criteria: ['Solution is simple and idiomatic Python'] },
+        { type: 'llm-rubric', value: ['Solution is simple and idiomatic Python'] },
       ],
     },
   ],
@@ -227,7 +217,7 @@ export default defineEval({
   },
   threshold: 0.8,
   workspace: {
-    isolation: 'per_case',
+    scope: 'attempt',
     repos: [
       {
         path: './fixture',
@@ -240,11 +230,11 @@ export default defineEval({
     {
       id: 'fizzbuzz',
       input: 'Write FizzBuzz in Python',
-      assertions: [
+      assert: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
         { type: 'script', command: ['python3', './validators/check_syntax.py'] },
-        { type: 'g-eval', criteria: ['Solution is simple and idiomatic Python'] },
+        { type: 'llm-rubric', value: ['Solution is simple and idiomatic Python'] },
       ],
     },
   ],

@@ -409,7 +409,7 @@ function parseCsvCases(content: string, filePath: string): JsonObject[] {
       ...(caseInput !== undefined ? { input: caseInput } : {}),
       ...(criteria ? { criteria } : {}),
       ...(expectedOutput ? { expected_output: expectedOutput } : {}),
-      ...(assertions.length > 0 ? { assertions } : {}),
+      ...(assertions.length > 0 ? { assert: assertions } : {}),
       ...(threshold !== undefined ? { threshold } : {}),
       ...(threshold !== undefined ? { execution: { threshold } } : {}),
       ...(Object.keys(vars).length > 0 ? { vars } : {}),

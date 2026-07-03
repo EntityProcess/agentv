@@ -16,8 +16,8 @@ describe('eval source traceability metadata', () => {
 
     await writeFile(
       path.join(tempDir, '.agentv', 'templates', 'shared.yaml'),
-      `assertions:
-  - name: shared-contains
+      `assert:
+  - metric: shared-contains
     type: contains
     value: ok
 `,
@@ -37,7 +37,7 @@ describe('eval source traceability metadata', () => {
     const evalFile = path.join(tempDir, 'trace.eval.yaml');
     await writeFile(
       evalFile,
-      `assertions:
+      `assert:
   - include: shared
 tests:
   - id: trace-case
@@ -49,11 +49,11 @@ tests:
             value: snippets/input.txt
           - type: text
             value: Review the fixture.
-    assertions:
-      - name: prompt-file
+    assert:
+      - metric: prompt-file
         type: llm-grader
         prompt: file://graders/prompt.md
-      - name: prompt-script
+      - metric: prompt-script
         type: llm-grader
         prompt:
           command: ["bun", "graders/prompt.ts"]
@@ -61,11 +61,11 @@ tests:
             secret_token: should-not-persist
             apiKey: should-not-persist
             secret-token: should-not-persist
-      - name: code-check
-        type: code-grader
+      - metric: code-check
+        type: script
         command: ["bun", "graders/code.ts"]
         cwd: graders
-      - name: preprocessed
+      - metric: preprocessed
         type: llm-grader
         prompt: Inline prompt
         preprocessors:

@@ -9,15 +9,15 @@ LLM graders use a language model to evaluate agent responses against custom crit
 
 ## Explicit LLM Graders
 
-Put semantic grading requirements in `assertions` or `assert`. Plain strings are
-handled by the built-in `g-eval` rubric grader. Use `type: llm-grader` when you
+Put semantic grading requirements in `assert`. Plain strings are
+handled by the built-in `llm-rubric` rubric grader. Use `type: llm-grader` when you
 need a custom prompt, target, or grader-specific preprocessing:
 
 ```yaml
 tests:
   - id: simple-eval
     input: "Debug this function..."
-    assertions:
+    assert:
       - Correctly explains the bug and proposes a fix
 ```
 
@@ -31,7 +31,7 @@ supporting context. See [How reference fields and assertions interact](/docs/eva
 Reference an LLM grader in your eval file:
 
 ```yaml
-assertions:
+assert:
   - name: semantic_check
     type: llm-grader
     prompt: file://graders/correctness.md
@@ -76,7 +76,8 @@ Score the response from 0.0 to 1.0 based on:
 | `output` | Candidate answer text |
 | `metadata` | Test metadata as formatted JSON |
 | `metadata_json` | Test metadata as compact JSON |
-| `g-eval` | LLM-grader rubric items as formatted JSON |
+| `rubric` | Rubric data as structured JSON when available, or criteria text otherwise |
+| `rubrics` | LLM-grader rubric items as formatted JSON |
 | `rubrics_json` | LLM-grader rubric items as compact JSON |
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 | `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
@@ -100,11 +101,11 @@ tests:
       ticker: AAPL
     metadata:
       row: 1
-    assertions:
+    assert:
       - name: dexter_semantic
         type: llm-grader
         prompt: file://prompts/dexter-grader.md
-        g-eval:
+        rubrics:
           - operator: correctness
             criteria: Uses the provided ticker and company.
 ```
@@ -114,7 +115,7 @@ tests:
 By default, an `llm-grader` uses the suite target's `grader_target`. Override it per grader when you need multiple grader models in one run:
 
 ```yaml
-assertions:
+assert:
   - name: grader-gpt
     type: llm-grader
     target: grader_gpt_5_mini
@@ -176,7 +177,7 @@ Evaluate and provide a score from 0 to 1.`;
 When using TypeScript templates, configure them in YAML with optional `config` data passed to the command:
 
 ```yaml
-assertions:
+assert:
   - name: custom-eval
     type: llm-grader
     prompt:
@@ -202,7 +203,7 @@ preprocessors:
 tests:
   - id: spreadsheet-output
     input: Generate the spreadsheet report
-    assertions:
+    assert:
       - Output includes the revenue rows
       - name: spreadsheet-check
         type: llm-grader

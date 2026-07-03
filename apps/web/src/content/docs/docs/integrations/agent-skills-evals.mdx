@@ -90,14 +90,14 @@ The read adapter promotes `evals.json` fields into AgentV cases. The converter w
 | evals.json | EVAL.yaml output | Notes |
 |---|---|---|
 | `prompt` | `input` | Written as prompt text |
-| `expected_output` | `criteria` + `g-eval` criterion | Agent Skills uses this as expected outcome/rubric context, not AgentV passive reference-data `expected_output` |
-| `assertions[]` | `g-eval` criteria | Strings are grouped into one rubric with one criterion per assertion |
-| `expectations[]` | `g-eval` criteria | Same handling as `assertions[]` |
+| `expected_output` | `criteria` + `llm-rubric` criterion | Agent Skills uses this as expected outcome/rubric context, not AgentV passive reference-data `expected_output` |
+| `assertions[]` | `llm-rubric` criteria | Strings are grouped into one rubric with one criterion per assertion |
+| `expectations[]` | `llm-rubric` criteria | Same handling as `assertions[]` |
 | `files[]` | `input_files` | Resolved relative to the `evals.json` file |
 | `skill_name` | `tags.skill`, `description` | Used for suite grouping |
 | `id` | `id` | Converted to a string |
 
-The generated `g-eval` assertion emits per-criterion grading rows in AgentV artifacts just like other assertion entries. The converted YAML is the editable source of truth after conversion.
+The generated `llm-rubric` assertion emits per-criterion grading rows in AgentV artifacts just like other assertion entries. The converted YAML is the editable source of truth after conversion.
 
 ## Files
 
@@ -137,7 +137,7 @@ The converter writes comments that point to native AgentV features:
 # AgentV features you can add:
 #   - type: is-json, contains, regex for deterministic graders
 #   - type: script for custom scoring scripts
-#   - type: g-eval criteria with weights and score ranges for rubrics
+#   - type: llm-rubric value arrays with weights and score ranges for rubrics
 #   - Multi-turn conversations via input message arrays
 #   - Multiple assertions with weighted scoring
 #   - Workspace isolation with repos and hooks
@@ -156,10 +156,10 @@ tests:
       - "evals/files/sales.csv"
     # Promoted from evals.json expected_output, assertions[], and expectations[]
     # Replace with type: is-json, contains, or regex for deterministic checks
-    assertions:
+    assert:
       - name: agent-skills-criteria
-        type: g-eval
-        criteria:
+        type: llm-rubric
+        value:
           - id: "expected-outcome"
             outcome: "The top 3 months by revenue are November, September, and December."
             required: true
@@ -211,10 +211,10 @@ tests:
       A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
     criteria: |
       An empathetic response that offers to track the order and provides next steps.
-    assertions:
+    assert:
       - name: agent-skills-criteria
-        type: g-eval
-        criteria:
+        type: llm-rubric
+        value:
           - id: expected-outcome
             outcome: "An empathetic response that offers to track the order and provides next steps."
             required: true

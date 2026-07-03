@@ -425,7 +425,7 @@ tests:
       expected: "DENIED"
       metric_name: "policy"
     input: "Check access"
-    assertions:
+    assert:
       - type: contains
         metric: "{{ vars.metric_name }}_decision"
         value: "{{ vars.expected }}"
@@ -438,7 +438,7 @@ tests:
     expect(tests[0].assertions?.[0]).toMatchObject({
       type: 'contains',
       value: 'DENIED',
-      metric: 'policy_decision',
+      name: 'policy_decision',
     });
   });
 
@@ -454,7 +454,7 @@ tests:
     turns:
       - input: "Fix {{bug}}"
         expected_output: "Fixed {{bug}}"
-        assertions:
+        assert:
           - "Mentions {{bug}}"
 `,
     );

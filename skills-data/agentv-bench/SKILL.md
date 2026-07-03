@@ -257,8 +257,8 @@ Write artifacts to `.agentv/artifacts/` or the iteration directory.
 
 ### Workspace features (EVAL.yaml only)
 
-- **Workspace isolation** — clone repos, run setup/teardown hooks (before_all, before_each, after_each, after_all)
-- **Materialization modes** — `pooled` (reuse slots), `temp` (fresh per run), `static` (existing dir)
+- **Workspace scope** — clone repos, run setup/teardown hooks (before_all, before_each, after_each, after_all), and choose `suite` or `attempt` lifetime
+- **Static local override** — use `--workspace-path` only when an existing local directory should be reused as-is
 - **Multi-repo** — clone multiple repos with sparse checkout and shallow clone support
 - **File change tracking** — grade by diffing workspace files before/after agent execution
 

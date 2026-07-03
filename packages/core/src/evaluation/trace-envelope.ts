@@ -761,8 +761,8 @@ function spanStatusFromResult(result: EvaluationResult): TraceEnvelopeSpanStatus
 }
 
 function scoreSource(type: string): string {
-  if (type === 'code-grader') {
-    return 'code';
+  if (type === 'script') {
+    return 'script';
   }
   if (type === 'llm-grader') {
     return 'llm';

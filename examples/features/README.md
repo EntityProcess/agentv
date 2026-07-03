@@ -28,8 +28,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Deterministic checks (no LLM required)
 | Example | Description |
 |---------|-------------|
-| [assert](assert/) | Core built-ins: `contains`, `regex`, `is-json`, `equals`, `starts_with`, `ends_with` |
-| [assert-extended](assert-extended/) | Extended variants: `contains_any`, `icontains`, `icontains_all`, regex flags |
+| [assert](assert/) | Core built-ins: `contains`, `regex`, `is-json`, `equals`, `starts-with`, `ends-with` |
+| [assert-extended](assert-extended/) | Extended variants: `contains-any`, `icontains`, `icontains-all`, regex flags |
 | [deterministic-graders](deterministic-graders/) | Full showcase of all deterministic assertion types |
 | [nlp-metrics](nlp-metrics/) | ROUGE, BLEU, cosine/Jaccard similarity, Levenshtein as code graders |
 

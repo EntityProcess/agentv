@@ -10,7 +10,7 @@ pins, task patches, generated dataset rows, oracle data, setup scripts, and
 verification commands. AgentV represents that with existing primitives:
 
 - Put runtime behavior in `workspace`, `experiment`, `input`, `expected_output`,
-  and `assertions`.
+  and `assert`.
 - Put provenance and classification in per-case `metadata`.
 - Put bulky per-case authoring inputs in optional case directories and supporting files.
 - Use generated run folders, not hand-authored source bundles, as the portable audit artifact.
@@ -29,10 +29,10 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
 | `extensions` | Yes | Runs Promptfoo-style lifecycle setup after `workspace.template` and `workspace.repos` materialize. |
 | `workspace.hooks.after_each.reset` | Yes | Controls workspace reset policy after each case. |
-| `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
+| `workspace.scope` | Yes | Controls suite vs per-attempt workspace lifetime. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and carries passive gold/reference data for graders. |
-| `assertions` | Yes | Runs deterministic, LLM, composite, or script graders. |
+| `assert` | Yes | Runs deterministic, LLM, composite, or script graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
 | `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and extension context; in-process custom assertions can also read it. |
 
@@ -74,7 +74,7 @@ Benchmark task packs map cleanly onto AgentV fields at authoring time:
 | Source checkout | `workspace.repos[].repo` and `workspace.repos[].commit` |
 | Per-case setup | `extensions: ["file://scripts/setup.mjs:beforeEach"]` reading `case_metadata` |
 | Gold answer or reference context | `expected_output` when the data is passive grader context |
-| Active verification | `assertions`, especially `script` for commands or artifact checks |
+| Active verification | `assert`, especially `script` for commands or artifact checks |
 | Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
 | Bulky task files | Optional `tests: ./cases/` with per-case directories and supporting files |
 
@@ -99,7 +99,7 @@ name: swe-style-regression
 description: Regression tasks against pinned source commits.
 
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git
@@ -111,8 +111,8 @@ workspace:
 extensions:
   - file://scripts/apply-test-patch.mjs:beforeEach
 
-assertions:
-  - name: focused-tests
+assert:
+  - metric: focused-tests
     type: script
     command: ["python", "./graders/run-focused-tests.py"]
     required: true
@@ -154,7 +154,7 @@ primitives.
 name: repo-regressions
 
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git
@@ -165,8 +165,8 @@ extensions:
 
 target: codex
 
-assertions:
-  - name: tests-pass
+assert:
+  - metric: tests-pass
     type: script
     command: ["python", "./graders/run-tests.py"]
     required: true
@@ -226,8 +226,8 @@ answer, and score with rubrics or an LLM/script grader.
 name: finance-research-generated
 description: Generated finance research cases with row-level provenance.
 
-assertions:
-  - name: answer-quality
+assert:
+  - metric: answer-quality
     type: llm-grader
     prompt: ./graders/finance-answer.md
     required: true
@@ -330,7 +330,7 @@ script.
 ## Authoring Rules
 
 - Do not add benchmark-specific fields when `metadata` plus hooks or custom
-  assertions can express the need.
+  assert entries can express the need.
 - Do not duplicate operational checkout state only in metadata. Put the real
   checkout under `workspace.repos`.
 - Keep `metadata` snake_case because it crosses process and result boundaries.

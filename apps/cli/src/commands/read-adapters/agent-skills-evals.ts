@@ -164,11 +164,11 @@ export function agentSkillsToAgentVYamlObject(suite: ConvertedAgentSkillsSuite):
       input: test.prompt,
       ...(test.criteria.length > 0
         ? {
-            assertions: [
+            assert: [
               {
-                name: 'agent-skills-criteria',
-                type: 'g-eval',
-                criteria: test.criteria.map((criterion) => ({ ...criterion })),
+                metric: 'agent-skills-criteria',
+                type: 'llm-rubric',
+                value: test.criteria.map((criterion) => ({ ...criterion })),
               },
             ],
           }

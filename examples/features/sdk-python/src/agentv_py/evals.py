@@ -29,7 +29,7 @@ class EvalTest:
     input: Any | None = None
     expected_output: Any | None = None
     criteria: str | None = None
-    assertions: list[Any] | None = None
+    assert_: list[Any] | None = None
     execution: Mapping[str, Any] | None = None
     metadata: Mapping[str, Any] | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
@@ -42,8 +42,8 @@ class EvalTest:
             wire["input"] = _wire_value(self.input)
         if self.expected_output is not None:
             wire["expected_output"] = _wire_value(self.expected_output)
-        if self.assertions is not None:
-            wire["assertions"] = _wire_value(self.assertions)
+        if self.assert_ is not None:
+            wire["assert"] = _wire_value(self.assert_)
         if self.execution is not None:
             wire["execution"] = _wire_value(self.execution)
         if self.metadata is not None:
@@ -80,7 +80,7 @@ class JsonlCase:
 class EvalDefinition:
     description: str | None = None
     name: str | None = None
-    execution: Mapping[str, Any] | None = None
+    target: str | Mapping[str, Any] | None = None
     tags: list[str] | None = None
     tests: list[EvalTest] | str | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
@@ -91,8 +91,8 @@ class EvalDefinition:
             wire["description"] = self.description
         if self.name is not None:
             wire["name"] = self.name
-        if self.execution is not None:
-            wire["execution"] = _wire_value(self.execution)
+        if self.target is not None:
+            wire["target"] = _wire_value(self.target)
         if self.tags is not None:
             wire["tags"] = list(self.tags)
         if self.tests is not None:

@@ -15,7 +15,7 @@
  *       id: 'capital',
  *       input: 'What is the capital of France?',
  *       expectedOutput: 'Paris',
- *       assertions: [{ type: 'contains', value: 'Paris' }],
+ *       assert: [{ type: 'contains', value: 'Paris' }],
  *     },
  *   ],
  *   target: { provider: 'mock_agent' },
@@ -34,7 +34,7 @@
  *       id: 'echo',
  *       input: 'hello',
  *       expectedOutput: 'Echo: hello',
- *       assertions: [
+ *       assert: [
  *         { type: 'contains', value: 'hello' },
  *         { type: 'equals' },
  *         ({ output }) => ({ name: 'custom', score: output.length > 0 ? 1 : 0 }),
@@ -102,7 +102,7 @@ export interface EvalTestInput {
   /** Expected reference output */
   readonly expectedOutput?: string;
   /** Assertion graders — accepts factory functions, config objects, or inline functions */
-  readonly assertions?: readonly AssertEntry[];
+  readonly assert?: readonly AssertEntry[];
   /** Arbitrary metadata */
   readonly metadata?: Record<string, unknown>;
   /** Enable multi-turn conversation mode. Inferred automatically when turns[] is provided. */
@@ -123,18 +123,18 @@ export interface ConversationTurnInput {
   /** Expected reference output for this turn */
   readonly expectedOutput?: string;
   /** Per-turn assertions (string criteria or grader config) */
-  readonly assertions?: readonly AssertEntry[];
+  readonly assert?: readonly AssertEntry[];
 }
 
 /**
  * Inline assertion definition for the programmatic API.
- * Matches the YAML `assertions` block structure.
+ * Matches the YAML `assert` block structure.
  */
 export interface EvalAssertionInput {
-  /** Assertion type (e.g., 'contains', 'llm-grader', 'code-grader') */
+  /** Assertion type (e.g., 'contains', 'llm-grader', 'script') */
   readonly type: string;
-  /** Display name */
-  readonly name?: string;
+  /** Score/check metric name */
+  readonly metric?: string;
   /** Value for deterministic assertions (contains, equals, regex) */
   readonly value?: string;
   /** Weight for scoring */
@@ -143,14 +143,14 @@ export interface EvalAssertionInput {
   readonly required?: boolean;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** Prompt file for llm_grader */
+  /** Prompt file for llm-grader */
   readonly prompt?: string;
-  /** Command for code_grader */
+  /** Command for script grader */
   readonly command?: string | readonly string[];
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
   /** Nested assertions for composite type */
-  readonly assertions?: readonly EvalAssertionInput[];
+  readonly assert?: readonly EvalAssertionInput[];
   /** Rubric criteria for rubrics type */
   readonly criteria?: readonly (string | { id?: string; outcome: string; weight?: number })[];
   /** Additional properties */
@@ -173,8 +173,8 @@ export interface EvalConfig {
   readonly target?: TargetDefinition;
   /** Custom task function — mutually exclusive with target */
   readonly task?: (input: string) => string | Promise<string>;
-  /** Suite-level assertions applied to all tests */
-  readonly assertions?: readonly AssertEntry[];
+  /** Suite-level assert entries applied to all tests */
+  readonly assert?: readonly AssertEntry[];
   /** Optional suite metadata used by CLI discovery, tagging, and reporting. */
   readonly metadata?: EvalMetadata;
   /** Filter tests by ID pattern(s) (glob supported). Arrays use OR logic. */
@@ -272,7 +272,7 @@ export interface EvalRunArtifacts {
  *     {
  *       id: 'greeting',
  *       input: 'Say hello',
- *       assertions: [{ type: 'contains', value: 'hello' }],
+ *       assert: [{ type: 'contains', value: 'hello' }],
  *     },
  *   ],
  *   target: { provider: 'mock_agent' },
@@ -482,18 +482,7 @@ function toBeforeAllHook(beforeAll: string | readonly string[]): WorkspaceHookCo
   return { command };
 }
 
-const REMOVED_ASSERT_KEY = 'assert';
 const REMOVED_EXPECTED_OUTPUT_KEY = 'expected_output';
-
-function rejectRemovedAssertKey(value: unknown, location: string): void {
-  if (
-    value &&
-    typeof value === 'object' &&
-    Object.prototype.hasOwnProperty.call(value, REMOVED_ASSERT_KEY)
-  ) {
-    throw new Error(`${location}: 'assert' has been removed. Use 'assertions' instead.`);
-  }
-}
 
 function rejectRemovedProgrammaticExpectedOutputKey(value: unknown, location: string): void {
   if (
@@ -513,18 +502,14 @@ function validateAssertionEntries(
 ): void {
   entries?.forEach((entry, i) => {
     if (typeof entry === 'function') return;
-    rejectRemovedAssertKey(entry, `${location}[${i}]`);
-    validateAssertionEntries(entry.assertions, `${location}[${i}].assertions`);
+    validateAssertionEntries(entry.assert, `${location}[${i}].assert`);
   });
 }
 
 /**
  * Convert an array of assertion entries (inline functions or config objects) to GraderConfig[].
  */
-function convertAssertions(
-  entries: readonly AssertEntry[],
-  location = 'assertions',
-): GraderConfig[] {
+function convertAssertions(entries: readonly AssertEntry[], location = 'assert'): GraderConfig[] {
   validateAssertionEntries(entries, location);
   return entries.map((entry, i) => {
     if (typeof entry === 'function') {
@@ -540,7 +525,7 @@ function convertAssertions(
     const { type: rawType, ...rest } = a;
     return {
       ...rest,
-      name: a.name ?? `${rawType}_${i}`,
+      name: a.metric ?? `${rawType}_${i}`,
       type: mapAssertionType(rawType),
     } as unknown as GraderConfig;
   });
@@ -554,7 +539,6 @@ function buildInlineEvalTests(
     readonly testFilePath: string;
   },
 ): readonly EvalTest[] {
-  rejectRemovedAssertKey(config, 'evaluate config');
   const suiteWorkspace = config.beforeAll
     ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
     : undefined;
@@ -567,7 +551,6 @@ function buildInlineEvalTests(
   return (config.tests ?? [])
     .filter((test) => !options.filter || matchesFilter(test.id, options.filter))
     .map((test): EvalTest => {
-      rejectRemovedAssertKey(test, `Test '${test.id}'`);
       rejectRemovedProgrammaticExpectedOutputKey(test, `Test '${test.id}'`);
       const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
 
@@ -590,10 +573,9 @@ function buildInlineEvalTests(
           ] as EvalTest['expected_output'])
         : [];
 
-      const allAssertions = [...(test.assertions ?? []), ...(config.assertions ?? [])];
-      const assertConfigs = convertAssertions(allAssertions, `Test '${test.id}'.assertions`);
+      const allAssertions = [...(test.assert ?? []), ...(config.assert ?? [])];
+      const assertConfigs = convertAssertions(allAssertions, `Test '${test.id}'.assert`);
       const turns: ConversationTurn[] | undefined = test.turns?.map((turn) => {
-        rejectRemovedAssertKey(turn, `Test '${test.id}'.turns[]`);
         rejectRemovedProgrammaticExpectedOutputKey(turn, `Test '${test.id}'.turns[]`);
         const turnExpected = turn.expectedOutput;
         return {
@@ -601,8 +583,8 @@ function buildInlineEvalTests(
           ...(turnExpected !== undefined && {
             expected_output: turnExpected as ConversationTurn['expected_output'],
           }),
-          assertions: turn.assertions
-            ? convertAssertions([...turn.assertions], `Test '${test.id}'.turns[].assertions`)
+          assertions: turn.assert
+            ? convertAssertions([...turn.assert], `Test '${test.id}'.turns[].assert`)
             : undefined,
         };
       });
@@ -631,16 +613,15 @@ function applyProgrammaticSuiteOverrides(
   tests: readonly EvalTest[],
   config: EvalConfig,
 ): readonly EvalTest[] {
-  rejectRemovedAssertKey(config, 'evaluate config');
-  if (!config.beforeAll && (!config.assertions || config.assertions.length === 0)) {
+  if (!config.beforeAll && (!config.assert || config.assert.length === 0)) {
     return tests;
   }
 
   const suiteWorkspace = config.beforeAll
     ? { hooks: { before_all: toBeforeAllHook(config.beforeAll) } }
     : undefined;
-  const suiteAssertions = config.assertions
-    ? convertAssertions(config.assertions, 'evaluate config.assertions')
+  const suiteAssertions = config.assert
+    ? convertAssertions(config.assert, 'evaluate config.assert')
     : [];
 
   return tests.map((test) => ({
@@ -666,12 +647,9 @@ function matchesFilter(id: string, filter: string | readonly string[]): boolean 
     : filter.some((pattern) => micromatch.isMatch(id, pattern));
 }
 
-/**
- * Map user-facing assertion type names to internal grader type names.
- * Handles snake_case to kebab-case normalization (e.g., 'llm_grader' -> 'llm-grader').
- */
+/** Map user-facing assertion type names to internal grader type names. */
 function mapAssertionType(type: string): string {
-  return type.replace(/_/g, '-');
+  return type;
 }
 
 /**

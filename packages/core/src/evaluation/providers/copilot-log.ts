@@ -22,7 +22,7 @@
  *   session's `files/` subdirectory for artifacts generated during the
  *   session (e.g. CSV / Markdown reports saved by Copilot).  Any files
  *   found are returned as synthetic unified diffs in `fileChanges` so that
- *   LLM and code graders can evaluate them via `{{file_changes}}` without
+ *   LLM and script graders can evaluate them via `{{file_changes}}` without
  *   requiring the agent to echo file contents in its final answer.
  */
 

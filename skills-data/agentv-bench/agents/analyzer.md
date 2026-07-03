@@ -48,7 +48,7 @@ For each grader entry in `scores` where `type` is `"llm-grader"` or `"rubrics"`,
 
 ### Step 3: Weak Assertion Detection
 
-Scan the EVAL.yaml `assertions` entries (if `eval-path` provided) and the `reasoning` fields in results for weak assertions:
+Scan the EVAL.yaml `assert` entries (if `eval-path` provided) and the `reasoning` fields in results for weak assertions:
 
 | Weakness | Detection | Improvement |
 |----------|-----------|-------------|
@@ -56,7 +56,7 @@ Scan the EVAL.yaml `assertions` entries (if `eval-path` provided) and the `reaso
 | Tautological | Contains "is correct", "is good", "works properly", "is valid" without specifying what correct/good means | Define explicit pass/fail conditions |
 | Compound criteria | Single assertion checks multiple independent things (uses "and", "also", "additionally" joining distinct checks) | Split into separate assertions, one per concern |
 | Missing expected value | `type: equals` or `type: contains` without a `value` field | Add the expected value |
-| Overly broad LLM-grader | LLM-grader with no rubric items, just a single vague `prompt` string | Convert to `type: rubrics` with enumerated criteria, or use deterministic checks |
+| Overly broad LLM-grader | LLM-grader with no rubric items, just a single vague `prompt` string | Convert to `type: llm-rubric` with enumerated criteria, or use deterministic checks |
 
 ### Step 4: Cost/Quality Signals
 

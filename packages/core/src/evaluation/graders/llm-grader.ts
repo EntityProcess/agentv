@@ -167,12 +167,15 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
       ? context.promptInputs.question
       : context.evalCase.question;
   const rubrics = getRubrics(context.evaluator);
+  const rubricText =
+    rubrics && rubrics.length > 0 ? stringifyPretty(rubrics) : context.evalCase.criteria.trim();
 
   return {
     [TEMPLATE_VARIABLES.INPUT]: formattedQuestion.trim(),
     [TEMPLATE_VARIABLES.OUTPUT]: context.candidate.trim(),
     [TEMPLATE_VARIABLES.EXPECTED_OUTPUT]: (context.evalCase.reference_answer ?? '').trim(),
     [TEMPLATE_VARIABLES.CRITERIA]: context.evalCase.criteria.trim(),
+    [TEMPLATE_VARIABLES.RUBRIC]: rubricText,
     [TEMPLATE_VARIABLES.METADATA]: stringifyPretty(context.evalCase.metadata),
     [TEMPLATE_VARIABLES.METADATA_JSON]: stringifyCompact(context.evalCase.metadata),
     [TEMPLATE_VARIABLES.RUBRICS]: stringifyPretty(rubrics),
@@ -183,15 +186,15 @@ function buildTemplateVariables(context: EvaluationContext): Record<string, stri
 }
 
 function getRubrics(config: GraderConfig | undefined): readonly RubricItem[] | undefined {
-  return config?.type === 'llm-grader' || config?.type === 'g-eval' ? config.rubrics : undefined;
+  return config?.type === 'llm-grader' || config?.type === 'llm-rubric'
+    ? config.rubrics
+    : undefined;
 }
 
 function isLlmBackedWithPreprocessors(
   config: GraderConfig | undefined,
-): config is Extract<GraderConfig, { readonly type: 'llm-grader' | 'g-eval' | 'llm-rubric' }> {
-  return (
-    config?.type === 'llm-grader' || config?.type === 'g-eval' || config?.type === 'llm-rubric'
-  );
+): config is Extract<GraderConfig, { readonly type: 'llm-grader' | 'llm-rubric' }> {
+  return config?.type === 'llm-grader' || config?.type === 'llm-rubric';
 }
 
 function resolveContentBasePath(context: EvaluationContext): string | undefined {
@@ -257,7 +260,7 @@ export class LlmGrader implements Grader {
     // LLM mode: structured JSON evaluation
     const config = preparedContext.evaluator;
     if (
-      (config?.type === 'llm-grader' || config?.type === 'g-eval') &&
+      (config?.type === 'llm-grader' || config?.type === 'llm-rubric') &&
       config.rubrics &&
       config.rubrics.length > 0
     ) {

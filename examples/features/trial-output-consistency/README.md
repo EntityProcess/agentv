@@ -40,9 +40,9 @@ When an agent is run multiple times on the same input (trials), outputs may vary
 ### Eval YAML
 
 ```yaml
-assertions:
+assert:
   - name: trial-consistency
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/trial-consistency.ts"]
     config:
       trialOutputs:
@@ -95,9 +95,9 @@ const config = { trialOutputs: outputs };
 Wrap the grader in an assertion that enforces a minimum consistency threshold:
 
 ```yaml
-assertions:
+assert:
   - name: trial-consistency
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/trial-consistency.ts"]
     config:
       trialOutputs: [...]

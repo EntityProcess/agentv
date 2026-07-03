@@ -3,7 +3,7 @@ name: agentv-eval-writer
 description: >-
   Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
   Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
-  configure graders (`g-eval`, `llm-rubric`, `llm-grader`, `script`), review whether an eval is correct or complete,
+  configure graders (`llm-rubric`, `llm-grader`, `script`), review whether an eval is correct or complete,
   convert between EVAL.yaml and evals.json using `agentv convert`, or generate eval test cases
   from chat transcripts (markdown conversation or JSON messages).
   Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
@@ -20,7 +20,7 @@ Treat YAML as the canonical portable model. Prefer authoring `.eval.yaml` / `EVA
 
 Eval files define what is tested and how it runs: prompts, datasets, assertions,
 task fixtures, top-level `target`, and suite run controls. Use `imports.suites`
-for full child suites that preserve their workspace, shared input, assertions,
+for full child suites that preserve their workspace, shared input, `assert`,
 fixtures, and graders. Use `imports.tests` for raw case rows that should run in
 the parent file's context. Inline `tests` are also parent-owned raw cases.
 String-valued `tests` and string entries inside `tests[]` are raw-case import
@@ -38,7 +38,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 
 ## Authoring Checklist
 
-- Put grading criteria in `assertions`/`assert`, not in test-level `criteria`. Plain assertion strings become a `g-eval` rubric grader.
+- Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
 - Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, `type: llm-grader` for custom prompts/targets, and `type: script` when grading must execute code.
 - Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
 - For historical or repo-state evals, materialize the repo under `workspace.repos[]` pinned to the commit under test. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
@@ -61,7 +61,7 @@ agentv convert evals.json
 agentv eval evals.json
 ```
 
-The converter maps `prompt` → `input`, `expected_output` → `expected_output`, `assertions` → `assertions` (`g-eval` rubric checks), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, script graders, rubrics, required gates).
+The converter maps `prompt` → `input`, `expected_output` → `expected_output`, and Agent Skills `assertions` → AgentV `assert` (`llm-rubric` checks), and resolves `files[]` paths. The generated YAML includes TODO comments for AgentV features to add (workspace setup, script graders, rubrics, required gates).
 
 After converting, enhance the YAML with AgentV-specific capabilities shown below.
 
@@ -103,7 +103,7 @@ tests:
       - role: user
         content: "What's my name?"
     expected_output: "Your name is Alice."
-    assertions:
+    assert:
       - Correctly recalls the user's name from earlier in the conversation
 ```
 
@@ -119,7 +119,7 @@ tests:
   - id: greeting
     input: "Say hello"
     expected_output: "Hello! How can I help you?"
-    assertions:
+    assert:
       - Greeting is friendly and warm
       - Offers to help
 ```
@@ -127,7 +127,7 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assertions`, `input`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assert`, `input`
 
 **Test fields:**
 
@@ -136,7 +136,7 @@ tests:
 | `id` | yes | Unique identifier |
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
-| `assertions` / `assert` | yes | Graders: deterministic checks, rubrics, LLM graders, script graders, or plain-string `g-eval` checks |
+| `assert` | yes | Graders: deterministic checks, rubrics, LLM graders, script graders, or plain-string `llm-rubric` checks |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -175,7 +175,7 @@ requires:
 
 ## Suite-level Input
 
-Prepend shared input messages to every test (like suite-level `assertions`). Avoids repeating the same prompt or instruction in each test:
+Prepend shared input messages to every test (like suite-level `assert`). Avoids repeating the same prompt or instruction in each test:
 
 ```yaml
 input: |
@@ -186,7 +186,7 @@ tests: ./cases.yaml
 
 # cases.yaml — each test only needs its own query
 # - id: test-1
-#   assertions:
+#   assert:
 #     - ...
 #   input: "User question here"
 ```
@@ -206,13 +206,13 @@ tests: ./cases.yaml           # relative to eval file dir
 
 The external file can be YAML (array of test objects) or JSONL.
 
-## Assertions Field
+## Assert Field
 
-`assertions` (or `assert`) defines graders at the suite level or per-test level. It is the canonical field for all graders:
+`assert` defines graders at the suite level or per-test level. It is the canonical authored field for all graders:
 
 ```yaml
 # Mix exact checks with rubric shorthand when both matter.
-assertions:
+assert:
   - type: is-json
     required: true
   - type: contains
@@ -223,18 +223,18 @@ assertions:
 tests:
   - id: test-1
     input: Get status
-    assertions:
+    assert:
       - type: equals
         value: '{"status": "ok"}'
       - Explains what the status means
 ```
 
-Plain strings in `assertions` are rubric criteria and are the preferred shape for
+Plain strings in `assert` are rubric criteria and are the preferred shape for
 qualitative agent behavior. Use deterministic assertions (`contains`, `regex`,
 `is-json`, `equals`) only for exact machine-verifiable outputs, and script graders
 when the check must inspect files, run commands, or validate structured state.
 Do not add a separate test-level `criteria` field. Legacy evals that still use
-`criteria` without explicit assertions are loaded as a plain-string assertion for
+`criteria` without explicit `assert` are loaded as a plain-string assertion for
 compatibility, but new evals should author the assertion directly.
 
 For repo-state evals, combine a pinned checkout, a golden answer, and assertion
@@ -259,7 +259,7 @@ tests:
       reusable verification workflow lessons. AGENTS.md already routes this
       class of work to .agents/verification.md, so no extra AGENTS.md edit is
       needed unless that routing is missing.
-    assertions:
+    assert:
       - The answer recommends updating .agents/verification.md rather than leaving the learning only in PR comments or private evidence.
       - The answer uses the pinned ./agentv checkout to verify the AGENTS.md routing.
       - The answer preserves the historical commit SHA as context.
@@ -267,7 +267,7 @@ tests:
 
 ## Assertions and Reference Data
 
-When `assertions` or `assert` is defined, **only the declared graders run**. For
+When `assert` is defined, **only the declared graders run**. For
 semantic checks, add plain rubric strings. If you need a custom LLM prompt or
 grader target, declare `llm-grader` explicitly:
 
@@ -275,7 +275,7 @@ grader target, declare `llm-grader` explicitly:
 tests:
   - id: mixed-eval
     input: "Debug this function..."
-    assertions:
+    assert:
       - Explains why the bug happens
       - type: contains
         value: "fix"
@@ -302,7 +302,7 @@ tests:
   - id: good-example
     input: "What is 2+2?"
     expected_output: "4"
-    assertions:
+    assert:
       - The answer is 4 and explains the arithmetic briefly
 ```
 
@@ -311,14 +311,14 @@ tests:
 Any grader can be marked `required` to enforce a minimum score:
 
 ```yaml
-assertions:
+assert:
   - type: contains
     value: "DENIED"
     required: true          # must score >= 0.8 (default)
-  - type: g-eval
+  - type: llm-rubric
     required: true
     min_score: 0.6          # must score >= 0.6 (custom threshold)
-    criteria:
+    value:
       - id: accuracy
         outcome: Identifies the denied party
         weight: 5.0
@@ -378,7 +378,7 @@ workspace:
   hooks:
     after_each:
       reset: fast          # none | fast | strict
-  isolation: shared        # shared | per_case
+  scope: suite             # suite | attempt
 ```
 
 - `repo`: full clone URL or GitHub `org/name` shorthand
@@ -389,18 +389,16 @@ workspace:
 - `sparse`: sparse checkout paths array
 - Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
 - Do not author `workspace.mode`, `workspace.path`, `experiment.workspace`, or `execution.workspace` in eval YAML
-- Shared repo workspaces use fresh temp materialization by default; use `--workspace-mode pooled` or local `execution.workspace_mode: pooled` only when pool-slot reuse is intentional
+- Harness-managed repo workspaces use temp materialization by default; use `workspace.scope: suite | attempt` for portable lifetime
 - Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
-- Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)
-- Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
 - `agentv workspace deps <eval-paths>` scans eval files and outputs a JSON manifest of required git repos (useful for CI pre-cloning)
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
 
 ## Grader Types
 
-Configure via `assertions` array. Multiple graders produce a weighted average score.
+Configure via the `assert` array. Multiple graders produce a weighted average score.
 
 ### script
 ```yaml
@@ -442,7 +440,7 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
 ```yaml
 - name: gate
   type: composite
-  assertions:
+  assert:
     - name: safety
       type: llm-grader
       prompt: ./safety.md
@@ -455,7 +453,7 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
 Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `safety_gate`
 - `safety_gate`: fails immediately if the named gate grader scores below threshold (default 1.0)
 
-### tool_trajectory
+### tool-trajectory
 ```yaml
 - name: tool_check
   type: tool-trajectory
@@ -471,7 +469,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
     - tool: summarize                  # omit args to skip argument checking
 ```
 
-### field_accuracy
+### field-accuracy
 ```yaml
 - name: fields
   type: field-accuracy
@@ -495,14 +493,14 @@ Compares `output` fields against `expected_output` fields.
   max_usd: 0.10
 ```
 
-### token_usage
+### token-usage
 ```yaml
 - name: tokens
   type: token-usage
   max_total_tokens: 4000
 ```
 
-### execution_metrics
+### execution-metrics
 ```yaml
 - name: efficiency
   type: execution-metrics
@@ -539,22 +537,21 @@ Binary check: does output match the regex pattern?
 ```
 Binary check: does output exactly equal the value (both trimmed)?
 
-### is_json
+### is-json
 ```yaml
 - type: is-json
   required: true
 ```
 Binary check: is the output valid JSON?
 
-### g-eval / llm-rubric
+### llm-rubric
 ```yaml
 - Correctly identifies the denied party
 - Provides clear reasoning
 ```
 LLM-judged structured evaluation. Plain strings are the preferred shorthand.
-Use `type: g-eval` when you need weighted criteria, `required: false`,
-`min_score`, or score ranges. Use `type: llm-rubric` for a single structured
-rubric item with the same LLM rubric semantics. Criteria items support `id`,
+Use `type: llm-rubric` when you need weighted criteria, `required: false`,
+`min_score`, or score ranges. Rubric items support `id`,
 `outcome`, `weight`, and `required` fields.
 Use optional `operator: correctness` for positive support checks or `operator: contradiction` for guard criteria where omission is acceptable but incompatible claims fail.
 
@@ -646,7 +643,7 @@ export default defineEval({
     {
       id: 'json-answer',
       input: 'Return a JSON answer with a status field.',
-      assertions: [
+      assert: [
         graders.json({ name: 'valid-json', required: true }),
         graders.regex(/"status"\s*:/, { name: 'status-key' }),
       ],
@@ -655,7 +652,7 @@ export default defineEval({
 });
 ```
 
-The `graders` catalog returns ordinary `assertions` entries such as `type: is-json`, `type: regex`, `type: llm-grader`, and `type: script`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
+The `graders` catalog returns ordinary `assert` entries such as `type: is-json`, `type: regex`, `type: llm-grader`, and `type: script`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
 
 If adapting Braintrust `scores` or DeepEval metrics, write small AgentV helper factories that return `graders.*` configs:
 
@@ -671,7 +668,7 @@ export function ragFaithfulness() {
 }
 ```
 
-Use the helper in `assertions: [ragFaithfulness()]`; do not create new YAML terms like `scores`.
+Use the helper in `assert: [ragFaithfulness()]`; do not create new YAML terms like `scores`.
 
 ### defineAssertion (recommended for custom checks)
 ```typescript
@@ -698,7 +695,7 @@ export default defineCodeGrader(({ output, trace }) => {
   const finalOutput = output ?? '';
   return {
     score: finalOutput.length > 0 && (trace?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
-    assertions: [
+    assert: [
       { text: 'Output is not empty', passed: finalOutput.length > 0 },
       { text: 'Efficient tool usage', passed: (trace?.eventCount ?? 0) <= 5 },
     ],
@@ -775,34 +772,6 @@ agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ## Skill Improvement Workflow
 
 For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
-## Human Review Checkpoint
-
-After running evals, perform a human review before iterating. Create `feedback.json` in the results directory:
-
-```json
-{
-  "run_id": "2026-03-14T10-32-00_claude",
-  "reviewer": "engineer-name",
-  "timestamp": "2026-03-14T12:00:00Z",
-  "overall_notes": "Summary of observations",
-  "per_case": [
-    {
-      "test_id": "test-id",
-      "verdict": "acceptable | needs_improvement | incorrect | flaky",
-      "notes": "Why this verdict",
-      "evaluator_overrides": { "script:name": "Override note" },
-      "workspace_notes": "Workspace state observations"
-    }
-  ]
-}
-```
-
-Use `evaluator_overrides` for workspace evaluations to annotate specific grader results (e.g., "script grader was too strict"). Use `workspace_notes` for observations about workspace state.
-
-Review workflow: run evals → inspect results (`agentv inspect show`) → write feedback → tune prompts/graders → re-run.
-
-Full guide: https://agentv.dev/guides/human-review/
-
 ## Observability Export
 
 AgentV exports observability data via OpenTelemetry:

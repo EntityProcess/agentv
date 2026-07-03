@@ -49,7 +49,7 @@ Custom assertion types cannot override built-in types (`contains`, `equals`, `is
 Reference the assertion by type name directly -- no `command:` path needed:
 
 ```yaml
-assertions:
+assert:
   - type: word-count
   - type: contains
     value: "Hello"
@@ -68,7 +68,7 @@ export default defineAssertion(({ output }) => {
   const pass = wordCount >= 3;
   return {
     pass,
-    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
+    assert: [{ text: `Output has ${wordCount} words`, passed: pass }],
   };
 });
 ```
@@ -88,7 +88,7 @@ export default defineAssertion(({ output, traceSummary }) => {
   const isEfficient = (traceSummary?.eventCount ?? 0) <= 5 ? 0.5 : 0;
   return {
     score: hasContent + isEfficient,
-    assertions: [
+    assert: [
       { text: 'Has content', passed: hasContent > 0 },
       { text: 'Efficient', passed: isEfficient > 0 },
     ],
@@ -201,7 +201,7 @@ export default defineAssertion(({ output }) => {
   return {
     pass,
     score: pass ? 1.0 : Math.min(wordCount / minWords, 0.9),
-    assertions: [
+    assert: [
       {
         text: pass
           ? `Output has ${wordCount} words (>= ${minWords} required)`
@@ -226,7 +226,7 @@ tests:
   - id: greeting-response
     input: "Say hello and introduce yourself"
     expected_output: "Hello! I'm an AI assistant here to help you."
-    assertions:
+    assert:
       - Agent gives a multi-word greeting
       - type: contains
         value: "Hello"
@@ -235,7 +235,7 @@ tests:
   - id: short-answer
     input: "What is 2+2?"
     expected_output: "The answer is 4."
-    assertions:
+    assert:
       - Agent gives a short but valid response
       - type: contains
         value: "4"

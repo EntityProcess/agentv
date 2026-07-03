@@ -94,7 +94,7 @@ targets:
     `
 workspace:
   template: ../template
-assertions:
+assert:
 ${assertionYaml
   .trim()
   .split('\n')
@@ -126,8 +126,8 @@ describe('agentv grade prepared attempts', () => {
     const { evalPath, targetMarker, graderPayloadPath } = await writeFixtureProject(
       tempDir,
       `
-- name: workspace-check
-  type: code-grader
+- metric: workspace-check
+  type: script
   command: ["bun", "../scripts/workspace-grader.ts"]
 `,
     );
@@ -247,7 +247,7 @@ describe('agentv grade prepared attempts', () => {
     const { evalPath, targetMarker } = await writeFixtureProject(
       tempDir,
       `
-- name: expected-tool-sequence
+- metric: expected-tool-sequence
   type: tool-trajectory
   mode: exact
   expected:
@@ -292,7 +292,7 @@ describe('agentv grade prepared attempts', () => {
     const { evalPath, targetMarker } = await writeFixtureProject(
       tempDir,
       `
-- name: expected-tool-sequence
+- metric: expected-tool-sequence
   type: tool-trajectory
   mode: in_order
   expected:
@@ -400,7 +400,7 @@ describe('agentv grade prepared attempts', () => {
     const { evalPath } = await writeFixtureProject(
       tempDir,
       `
-- name: expected-tool-sequence
+- metric: expected-tool-sequence
   type: tool-trajectory
   mode: in_order
   expected:
@@ -443,7 +443,7 @@ describe('agentv grade prepared attempts', () => {
     const { evalPath } = await writeFixtureProject(
       tempDir,
       `
-- name: expected-tool-sequence
+- metric: expected-tool-sequence
   type: tool-trajectory
   mode: in_order
   expected:
