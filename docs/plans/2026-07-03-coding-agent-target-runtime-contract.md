@@ -16,7 +16,7 @@ bead: av-y7eq
 - **Objective:** Make AgentV's coding-agent targets reliable by default while
   preserving rich transcripts and local "run the agent I use" workflows.
 - **Core decision:** Target authoring uses the compact shape
-  `label` + `provider` + `runtime` + `config`. SDK-backed coding-agent
+  `id` + `provider` + `runtime` + `config`. SDK-backed coding-agent
   providers, when retained, default to internal process isolation rather than
   importing risky agent SDKs in the AgentV orchestrator process.
 - **Primary Bead:** `av-y7eq`
@@ -46,12 +46,11 @@ field. Runtime placement is a single concept:
 
 ```yaml
 targets:
-  - label: codex-local
+  - id: codex-local
     provider: codex-app-server
     runtime: host
     config:
-      command: codex
-      args: ["--config", "model_reasoning_effort=high"]
+      command: ["codex", "--config", "model_reasoning_effort=high"]
       model: gpt-5-codex
 ```
 
@@ -59,24 +58,23 @@ Expanded form is used only when needed:
 
 ```yaml
 targets:
-  - label: codex-clean
+  - id: codex-clean
     provider: codex-cli
     runtime:
       mode: profile
       home: .agentv/profiles/codex-clean
     config:
-      command: codex
-      args: ["--sandbox", "workspace-write"]
+      command: ["codex", "--sandbox", "workspace-write"]
       model: gpt-5-codex
 ```
 
 ```yaml
 targets:
-  - label: pi-rpc-local
+  - id: pi-rpc-local
     provider: pi-rpc
     runtime: host
     config:
-      command: pi
+      command: ["pi"]
       model: gpt-5-codex
 ```
 
@@ -86,80 +84,64 @@ targets:
 
 | Field | Meaning |
 | --- | --- |
-| `label` | Human and result identity for the target. Used by CLI selection, run artifacts, Dashboard, and comparisons. |
+| `id` | Stable target identity. Used by CLI selection, run artifacts, Dashboard, and comparisons. |
 | `provider` | Adapter/control protocol kind: `codex-cli`, `codex-app-server`, `codex-sdk`, `pi-cli`, `pi-rpc`, `claude-cli`, `claude-sdk`, etc. |
 | `runtime` | Where and how the provider runs: `host`, `profile`, or `sandbox`. May be a string shorthand or an object with `mode`. |
-| `config` | Provider-specific configuration. Keep `model`, `command`, `args`, timeouts, permission flags, and provider knobs here. |
+| `config` | Provider-specific configuration. Keep `model`, `command`, timeouts, permission flags, and provider knobs here. |
 
 Do not add competing top-level fields such as `isolation`, `sandbox`,
 `install`, `container`, `environment`, or `profile`. Those details live under
 `runtime` or `config` only when a provider needs them.
 
-### Preserve Existing AgentV Surface
+### Clean Contract
 
-This plan is a targeted provider-boundary cleanup, not a rewrite from Promptfoo
-or another framework. Preserve AgentV's current target capabilities unless an
-implementation Bead explicitly removes one.
+This plan assumes a breaking cleanup. Do not preserve legacy target aliases or
+compatibility-only fields in the new authored contract.
 
-For coding-agent providers, `config.command` is the executable or shim identity,
-such as `codex`, `codex-personal`, `pi`, or an absolute binary path. It may
-also be a non-empty argv array where the first token is the executable and the
-remaining tokens are extra arguments. Normalize that form internally to
-executable plus argv tokens. `config.args` remains the explicit argv token array
-for extra provider-specific arguments. Keep the existing `executable`/`binary`
-compatibility aliases and the existing `args`/`arguments` array aliases during
-migration. Do not require users to pass shell-joined command strings for
-coding-agent providers.
+For process-backed coding-agent providers, `config.command` is a non-empty argv
+array. The first token is the executable or shim, such as `codex`,
+`codex-personal`, `pi`, or an absolute binary path. Remaining tokens are extra
+arguments. Do not add separate `args`, `arguments`, `executable`, or `binary`
+fields to the new contract.
 
-If `config.command` is an argv array, reject simultaneous `config.args` unless
-the provider defines an unambiguous merge order. This keeps command resolution
-predictable and avoids hidden shell parsing.
+```yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
 
-The generic `provider: cli` path is different: it currently uses a command
-template string with placeholders such as `{PROMPT}` and healthcheck support.
-Keep that compatibility path intact while adding coding-agent-specific runtime
-boundaries.
+defaults:
+  target: codex-local
+  grader: openai-grader
+```
 
-Also preserve the common and provider-specific knobs already used by AgentV:
+```yaml
+# targets.yaml
+- id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "--config", "model_reasoning_effort=high"]
+    model: gpt-5-codex
+```
 
-- common target behavior: `use_target`, `grader_target`, `fallback_targets`,
-  env interpolation, `cwd`, and `timeout_seconds`
-- artifact/log behavior: `stream_log`, `log_dir`/`log_directory`, stdout/stderr
-  capture, raw protocol events, and partial logs on failure
-- Codex knobs: `model`, `reasoning_effort`/`model_reasoning_effort`,
-  `model_verbosity`, `base_url`/`endpoint`, `api_key`, `api_format`,
-  `sandbox_mode`, `approval_policy`, and `system_prompt`
-- Pi knobs: `subprovider`, `model`/`pi_model`, `api_key`, `base_url`/`endpoint`,
-  `tools`/`pi_tools`, `thinking`/`pi_thinking`, `args`, and `system_prompt`
-- Claude knobs: `model`, `max_turns`, `max_budget_usd`,
-  `bypass_permissions`, and `system_prompt`
-- Copilot knobs: `model`, custom provider settings, GitHub token/auth knobs,
-  ACP/prompt execution behavior, `args`, and `system_prompt`
+Keep provider-specific knobs under `config`, using one canonical name per
+concept. Examples:
 
-Where the new normalized contract uses nested `config`, implement migration by
-normalizing the existing flat target fields into that internal shape. Do not
-drop existing accepted YAML fields as a side effect of adding `runtime`.
+- common target runtime config: `command`, `model`, `cwd`, `timeout_seconds`,
+  `system_prompt`, `stream_log`, `log_dir`
+- Codex config: `reasoning_effort`, `model_verbosity`, `base_url`, `api_key`,
+  `api_format`, `sandbox_mode`, `approval_policy`
+- Pi config: `subprovider`, `tools`, `thinking`
+- Claude config: `max_turns`, `max_budget_usd`, `bypass_permissions`
+- Copilot config: custom provider/auth settings and ACP/prompt mode settings
 
-Do not promote orchestration scheduler fields into the new target runtime
-contract. `workers`, `batch_requests`, and `subagent_mode_allowed` are existing
-compatibility/runtime-policy fields, not part of the target's coding-agent
-control boundary. Continue to handle them where AgentV already accepts them,
-but prefer `--workers`, project `execution.workers`, `evaluate_options`, or
-runtime policy for new scheduling behavior.
+Orchestration policy is not target runtime config. Keep `workers`, batching,
+retry policy, and subagent dispatch under project/run policy such as
+`execution`, not inside target definitions.
 
-`grader_target` is different. It is not a coding-agent runtime field, but the
-concept is not redundant: coding-agent targets usually cannot act as structured
-LLM graders, and AgentV workspaces often contain multiple LLM providers or
-endpoints. AgentV still needs a default grader target selection. Preserve the
-current resolution behavior while cleaning up provider runtimes:
-
-- CLI `--grader-target` is the strongest run-level override.
-- Per-evaluator `target` remains the specific grader override.
-- Target-level `grader_target` remains the compatibility/default grader for
-  that target until a clearer eval/project-level default is introduced.
-- If a new canonical default is added later, prefer a grader/eval policy field
-  such as `default_grader_target` over putting grader selection inside
-  `runtime` or coding-agent provider `config`.
+Grader selection is a separate registry/default concern. Do not put
+`grader_target` on targets in the clean schema. Use `defaults.grader` for the
+project default, CLI `--grader` / `--grader-target` for run override, and
+per-evaluator `target` for a specific grader override.
 
 Promptfoo's comparable mechanism is assertion/test grading provider selection:
 assertions can set a `provider`, tests/defaultTest can provide fallback grading
@@ -229,9 +211,9 @@ value for that field. Greenfield examples:
     model: gpt-5-mini
 ```
 
-For compatibility with AgentV's existing standalone `targets.yaml` convention,
-the loader can also accept wrapped forms such as `targets: [...]` and
-`graders: [...]`, but the Promptfoo-like authored shape is the bare field value.
+Do not accept wrapped forms such as `targets: [...]` inside a file already
+loaded through `targets: file://targets.yaml`. The referenced file is the field
+value.
 
 The global `$AGENTV_HOME/config.yaml` is different: it owns Dashboard/operator
 state such as the `projects:` registry. Do not use the existence of global
@@ -241,11 +223,10 @@ project-local `.agentv/config.yaml`.
 Greenfield, the cleanest global shape would put Dashboard project registry
 state in `$AGENTV_HOME/projects.yaml` and leave `$AGENTV_HOME/config.yaml` for
 global settings. If using Promptfoo-style references, the global config would
-say `projects: file://projects.yaml`. Current AgentV code and docs use
-`$AGENTV_HOME/config.yaml` with a top-level `projects:` registry, so do not
-migrate this as part of the coding-agent target-runtime work. If the team wants
-the cleaner split, create a separate migration Bead with backwards-compatible
-reading from current `projects:` locations and a clear write target.
+say `projects: file://projects.yaml`.
+
+Do not add `dashboard.app_name` or other user-configurable AgentV branding to
+the clean config contract. Dashboard product identity is not project policy.
 
 Promptfoo's comparable file-structure guidance is simpler: a main
 `promptfooconfig.yaml` commonly contains `providers`, `prompts`, `defaultTest`,
@@ -274,7 +255,7 @@ and should default to internal process isolation:
 
 ```yaml
 targets:
-  - label: codex-sdk-isolated
+  - id: codex-sdk-isolated
     provider: codex-sdk
     runtime: host
     config:
@@ -309,7 +290,7 @@ Failure mapping:
 
 | Source | Relevant pattern | AgentV decision |
 | --- | --- | --- |
-| Promptfoo | Provider object uses `id`/`label`/`config`; Codex and Claude SDK providers put `model` in `config.model`; direct SDK adapters exist. | Keep `label`/`provider`/`config` ergonomics; keep `model` under `config`; do not make in-process SDK the default. |
+| Promptfoo | Provider object uses `id` plus optional `label` and `config`; Codex and Claude SDK providers put `model` in `config.model`; direct SDK adapters exist. | Use `id` for stable identity, keep `provider`/`config` ergonomics, keep `model` under `config`, and do not make in-process SDK the default. |
 | OpenAI Symphony | Codex app-server subprocess with workspace/session orchestration, approval/sandbox policy, max-turn boundaries, and structured streaming/status. | Use `codex-app-server` as the preferred rich-control Codex provider. |
 | Kata Symphony | Pi is launched as `pi --mode rpc` locally or over SSH and controlled over stdio/RPC; workers must already have the runtime installed. | Add/prefer `pi-rpc` for rich Pi control; do not import Pi coding-agent SDK into AgentV's orchestrator. |
 | Vercel agent-eval | Installs agent CLIs inside ephemeral sandboxes and captures transcripts from CLI JSON/session logs. | `runtime.mode: sandbox` should support managed/pinned CLI install and transcript capture without host config bleed. |
@@ -334,23 +315,21 @@ Use explicit provider kinds:
 Do not add `codex-rpc` unless Codex exposes a distinct RPC mode separate from
 app-server. For Codex, app-server is the protocol provider.
 
-`config.command` is the executable or shim, not the provider identity. Extra
-arguments may be supplied with `config.args` or, for compact argv-style input,
-as a command array:
+`config.command` is the argv array for the executable or shim. It is not the
+provider identity:
 
 ```yaml
 targets:
-  - label: codex-personal
+  - id: codex-personal
     provider: codex-cli
     runtime: host
     config:
-      command: codex-personal
-      args: ["--model", "gpt-5-codex"]
+      command: ["codex-personal", "--model", "gpt-5-codex"]
 ```
 
 ```yaml
 targets:
-  - label: codex-eng
+  - id: codex-eng
     provider: codex-cli
     runtime: host
     config:
@@ -397,7 +376,7 @@ Keep provider names explicit by control boundary:
 
 - Add `runtime: host` shorthand and `runtime.mode: host | profile | sandbox`.
 - Keep `model` and `command` under `config`.
-- Preserve `label` as target identity and `provider` as adapter/backend kind.
+- Use `id` as target identity and `provider` as adapter/backend kind.
 - Reject invalid runtime modes with focused validation errors.
 - Document why `runtime` is the umbrella field.
 
@@ -405,9 +384,8 @@ Keep provider names explicit by control boundary:
 
 - Split current ambiguous `codex` registry behavior into explicit
   `codex-cli`, `codex-app-server`, and `codex-sdk`.
-- Make bare `codex`, if retained at all, alias to the chosen safe default
-  (`codex-app-server`) or reject it during the cleanup. It must not silently
-  select in-process SDK.
+- Remove the bare `codex` provider name from the authored clean contract. Users
+  must choose `codex-cli`, `codex-app-server`, or `codex-sdk` explicitly.
 - Support `config.command` shims such as `codex-personal` and `codex-eng`.
 - Implement host/profile environment construction, including deliberate
   `HOME`, `CODEX_HOME`, temp dirs, and env allowlists for profile mode.
@@ -443,7 +421,7 @@ Keep provider names explicit by control boundary:
 Every coding-agent provider must return or fail through a structured result
 envelope. AgentV must preserve:
 
-- target label, provider kind, runtime mode, command, cwd, and model
+- target id, provider kind, runtime mode, command, cwd, and model
 - stdout/stderr logs
 - structured event transcript when available
 - final assistant output
@@ -457,10 +435,8 @@ crashes.
 
 ## Open Questions
 
-- Whether to keep a bare `codex` alias at all. If kept, it should resolve to the
-  safe default, not SDK.
 - Whether to rename `pi-coding-agent` to `pi-sdk` during the major cleanup or
-  keep the existing provider name as an explicit legacy SDK provider.
+  replace the existing provider name with the shorter explicit SDK name.
 - Which sandbox substrate should be the first implementation target if existing
   AgentV runner support is insufficient.
 - How much transcript normalization belongs in provider adapters versus a shared
@@ -469,7 +445,8 @@ crashes.
 ## Validation Plan
 
 - Schema tests for `runtime` shorthand/object forms and invalid values.
-- Provider registry tests proving explicit provider names and safe aliases.
+- Provider registry tests proving explicit provider names and no bare `codex`
+  fallback to SDK.
 - Codex CLI/app-server tests for command shims, host/profile env, timeout kill,
   nonzero exit, malformed output, and transcript capture.
 - Pi RPC tests with a fake `pi --mode rpc` process.
