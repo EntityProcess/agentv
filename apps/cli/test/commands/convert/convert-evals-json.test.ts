@@ -104,6 +104,38 @@ describe('convertEvalsJsonToYaml', () => {
     });
   });
 
+  it('accepts expectations as Agent Skills criteria without assertions', () => {
+    const filePath = writeTempJson({
+      skill_name: 'test-skill',
+      evals: [
+        {
+          id: 1,
+          prompt: 'Check this paragraph for style issues',
+          expectations: ['Flags "please" as unnecessary', 'Flags "below" as positional'],
+        },
+      ],
+    });
+
+    const yamlObject = agentSkillsToAgentVYamlObject(readAgentSkillsEvalsFile(filePath));
+
+    expect(yamlObject.tests?.[0]?.assert?.[0]).toMatchObject({
+      metric: 'agent-skills-criteria',
+      type: 'llm-rubric',
+      value: [
+        {
+          id: 'expectation-1',
+          outcome: 'Flags "please" as unnecessary',
+          required: true,
+        },
+        {
+          id: 'expectation-2',
+          outcome: 'Flags "below" as positional',
+          required: true,
+        },
+      ],
+    });
+  });
+
   it('throws on invalid format', () => {
     const filePath = writeTempJson({ not_evals: true });
     expect(() => convertEvalsJsonToYaml(filePath)).toThrow(
