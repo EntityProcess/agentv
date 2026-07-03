@@ -44,11 +44,6 @@ type CanonicalTool = 'Skill' | 'Read' | 'Write' | 'Edit' | 'Bash';
  */
 const TOOL_NAME_MAP = new Map<string, CanonicalTool>([
   // --- Claude (already canonical) ---
-  ['claude::Skill', 'Skill'],
-  ['claude::Read', 'Read'],
-  ['claude::Write', 'Write'],
-  ['claude::Edit', 'Edit'],
-  ['claude::Bash', 'Bash'],
   ['claude-cli::Skill', 'Skill'],
   ['claude-cli::Read', 'Read'],
   ['claude-cli::Write', 'Write'],
@@ -122,8 +117,12 @@ const TOOL_NAME_MAP = new Map<string, CanonicalTool>([
   ['vscode-insiders::runTerminalCommand', 'Bash'],
 
   // --- Codex ---
-  ['codex::command_execution', 'Bash'],
-  ['codex::file_change', 'Edit'],
+  ['codex-cli::command_execution', 'Bash'],
+  ['codex-cli::file_change', 'Edit'],
+  ['codex-app-server::command_execution', 'Bash'],
+  ['codex-app-server::file_change', 'Edit'],
+  ['codex-sdk::command_execution', 'Bash'],
+  ['codex-sdk::file_change', 'Edit'],
 
   // --- Pi ---
   ['pi-coding-agent::read', 'Read'],
@@ -166,7 +165,9 @@ const TOOL_PREFIX_MAP = new Map<string, readonly PrefixRule[]>([
   ['copilot-log', COPILOT_PREFIXES],
   ['vscode', COPILOT_PREFIXES],
   ['vscode-insiders', COPILOT_PREFIXES],
-  ['codex', CODEX_PREFIXES],
+  ['codex-cli', CODEX_PREFIXES],
+  ['codex-app-server', CODEX_PREFIXES],
+  ['codex-sdk', CODEX_PREFIXES],
 ]);
 
 // ---------------------------------------------------------------------------

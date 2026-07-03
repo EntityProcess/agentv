@@ -28,7 +28,6 @@ export type ProviderKind =
   | 'pi-coding-agent'
   | 'pi-cli'
   | 'pi-rpc'
-  | 'claude'
   | 'claude-cli'
   | 'claude-sdk'
   | 'cli'
@@ -57,7 +56,6 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'pi-coding-agent',
   'pi-cli',
   'pi-rpc',
-  'claude',
   'claude-cli',
   'claude-sdk',
   'vscode',
@@ -102,7 +100,6 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'pi-coding-agent',
   'pi-cli',
   'pi-rpc',
-  'claude',
   'claude-cli',
   'claude-sdk',
   'cli',
@@ -458,7 +455,6 @@ export interface TargetDefinition {
   readonly api_key?: string | unknown | undefined;
   readonly deployment?: string | unknown | undefined;
   readonly model?: string | unknown | undefined;
-  readonly runtime?: unknown | undefined;
   readonly version?: string | unknown | undefined;
   readonly api_version?: string | unknown | undefined;
   readonly api_format?: string | unknown | undefined;

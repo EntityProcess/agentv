@@ -12,7 +12,7 @@ describe('normalizeToolCall', () => {
   // Claude providers (already canonical — should be identity)
   // -------------------------------------------------------------------------
   describe('claude providers (identity)', () => {
-    for (const provider of ['claude', 'claude-cli', 'claude-sdk'] as ProviderKind[]) {
+    for (const provider of ['claude-cli', 'claude-sdk'] as ProviderKind[]) {
       it(`${provider}: Skill → Skill`, () => {
         const result = normalizeToolCall(provider, tc('Skill', { skill: 'my-skill' }));
         expect(result.tool).toBe('Skill');
@@ -157,7 +157,7 @@ describe('normalizeToolCall', () => {
   // -------------------------------------------------------------------------
   describe('input field normalization', () => {
     it('Read: copies path → file_path when file_path missing', () => {
-      const result = normalizeToolCall('claude', tc('Read', { path: '/foo.ts' }));
+      const result = normalizeToolCall('claude-sdk', tc('Read', { path: '/foo.ts' }));
       expect((result.input as Record<string, unknown>).file_path).toBe('/foo.ts');
       expect((result.input as Record<string, unknown>).path).toBe('/foo.ts');
     });

@@ -23,6 +23,7 @@ import {
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { buildTargetExecutionEnvelope } from './target-execution.js';
 import type { CopilotCliResolvedConfig, CopilotCustomProviderConfig } from './targets.js';
 import type {
   Message,
@@ -111,18 +112,18 @@ export class CopilotCliProvider implements Provider {
     const logger = await this.createStreamLogger(request, 'acp').catch(() => undefined);
 
     // Build command args
-    const executable = this.resolveExecutable();
-    const args = this.buildCliArgs();
+    const command = this.resolveCommand();
+    const executable = this.resolveExecutable(command);
+    const args = this.buildCliArgs(command);
+    const cwd = this.resolveCwd(request.cwd) ?? process.cwd();
 
     // Spawn the CLI process
     const agentProcess = this.spawnAcpProcess(executable, args, {
       env: buildCopilotCliProviderEnv(process.env, this.config.customProvider),
-      cwd: this.resolveCwd(request.cwd) ?? process.cwd(),
+      cwd,
       stdio: ['pipe', 'pipe', 'inherit'],
     });
     trackChild(agentProcess);
-
-    await waitForProcessSpawn(agentProcess, executable, this.targetName);
 
     // Track events
     const toolCallsInProgress = new Map<string, ToolCallInProgress>();
@@ -131,121 +132,123 @@ export class CopilotCliProvider implements Provider {
     let tokenUsage: ProviderTokenUsage | undefined;
     let costUsd: number | undefined;
 
-    // Set up ACP connection
-    if (!agentProcess.stdin || !agentProcess.stdout) {
-      throw new Error('Copilot CLI process missing stdin/stdout (stdio: pipe required)');
-    }
-    const input = Writable.toWeb(agentProcess.stdin);
-    const output = Readable.toWeb(agentProcess.stdout) as ReadableStream<Uint8Array>;
-    const stream = acp.ndJsonStream(input, output);
-    const customProvider = this.config.customProvider;
+    try {
+      await waitForProcessSpawn(agentProcess, executable, this.targetName);
 
-    const client: acp.Client = {
-      async requestPermission(): Promise<acp.RequestPermissionResponse> {
-        // Auto-approve all permissions for autonomous execution
-        return {
-          outcome: { outcome: 'selected', optionId: 'allow' },
-        };
-      },
-      async sessionUpdate(params: acp.SessionNotification): Promise<void> {
-        const update = params.update;
-        const sessionUpdate = update.sessionUpdate;
+      // Set up ACP connection
+      if (!agentProcess.stdin || !agentProcess.stdout) {
+        throw new Error('Copilot CLI process missing stdin/stdout (stdio: pipe required)');
+      }
+      const input = Writable.toWeb(agentProcess.stdin);
+      const output = Readable.toWeb(agentProcess.stdout) as ReadableStream<Uint8Array>;
+      const stream = acp.ndJsonStream(input, output);
+      const customProvider = this.config.customProvider;
 
-        logger?.handleEvent(sessionUpdate, sanitizeSensitiveValue(update, customProvider));
+      const client: acp.Client = {
+        async requestPermission(): Promise<acp.RequestPermissionResponse> {
+          // Auto-approve all permissions for autonomous execution
+          return {
+            outcome: { outcome: 'selected', optionId: 'allow' },
+          };
+        },
+        async sessionUpdate(params: acp.SessionNotification): Promise<void> {
+          const update = params.update;
+          const sessionUpdate = update.sessionUpdate;
 
-        if (sessionUpdate === 'tool_call') {
-          const callId = update.toolCallId ?? randomUUID();
-          // Track new or in-progress tool calls
-          if (!update.status || update.status === 'pending' || update.status === 'in_progress') {
-            toolCallsInProgress.set(callId, {
-              tool: update.title ?? update.kind ?? 'unknown',
-              input: update.rawInput,
-              id: callId,
-              startTime: new Date().toISOString(),
-              startMs: Date.now(),
-            });
-          }
-          // Tool call arrived already completed
-          if (update.status === 'completed' || update.status === 'failed') {
-            const toolName = update.title ?? update.kind ?? 'unknown';
-            completedToolCalls.push(
-              normalizeToolCall('copilot-cli', {
-                tool: toolName,
+          logger?.handleEvent(sessionUpdate, sanitizeSensitiveValue(update, customProvider));
+
+          if (sessionUpdate === 'tool_call') {
+            const callId = update.toolCallId ?? randomUUID();
+            // Track new or in-progress tool calls
+            if (!update.status || update.status === 'pending' || update.status === 'in_progress') {
+              toolCallsInProgress.set(callId, {
+                tool: update.title ?? update.kind ?? 'unknown',
                 input: update.rawInput,
-                output: update.rawOutput,
                 id: callId,
                 startTime: new Date().toISOString(),
-                endTime: new Date().toISOString(),
-                durationMs: 0,
-              }),
-            );
-            request.streamCallbacks?.onToolCallEnd?.(
-              toolName,
-              update.rawInput,
-              update.rawOutput,
-              0,
-              callId,
-            );
-          }
-        }
-
-        if (sessionUpdate === 'tool_call_update') {
-          const callId = update.toolCallId;
-          if (callId && (update.status === 'completed' || update.status === 'failed')) {
-            const inProgress = toolCallsInProgress.get(callId);
-            if (inProgress) {
-              toolCallsInProgress.delete(callId);
-              const duration = Date.now() - inProgress.startMs;
+                startMs: Date.now(),
+              });
+            }
+            // Tool call arrived already completed
+            if (update.status === 'completed' || update.status === 'failed') {
+              const toolName = update.title ?? update.kind ?? 'unknown';
               completedToolCalls.push(
                 normalizeToolCall('copilot-cli', {
-                  tool: inProgress.tool,
-                  input: inProgress.input,
+                  tool: toolName,
+                  input: update.rawInput,
                   output: update.rawOutput,
-                  id: inProgress.id,
-                  startTime: inProgress.startTime,
+                  id: callId,
+                  startTime: new Date().toISOString(),
                   endTime: new Date().toISOString(),
-                  durationMs: duration,
+                  durationMs: 0,
                 }),
               );
               request.streamCallbacks?.onToolCallEnd?.(
-                inProgress.tool,
-                inProgress.input,
+                toolName,
+                update.rawInput,
                 update.rawOutput,
-                duration,
-                inProgress.id,
+                0,
+                callId,
               );
             }
           }
-        }
 
-        if (sessionUpdate === 'agent_message_chunk') {
-          const content = update.content;
-          if (content?.type === 'text' && typeof content.text === 'string') {
-            finalContent += content.text;
+          if (sessionUpdate === 'tool_call_update') {
+            const callId = update.toolCallId;
+            if (callId && (update.status === 'completed' || update.status === 'failed')) {
+              const inProgress = toolCallsInProgress.get(callId);
+              if (inProgress) {
+                toolCallsInProgress.delete(callId);
+                const duration = Date.now() - inProgress.startMs;
+                completedToolCalls.push(
+                  normalizeToolCall('copilot-cli', {
+                    tool: inProgress.tool,
+                    input: inProgress.input,
+                    output: update.rawOutput,
+                    id: inProgress.id,
+                    startTime: inProgress.startTime,
+                    endTime: new Date().toISOString(),
+                    durationMs: duration,
+                  }),
+                );
+                request.streamCallbacks?.onToolCallEnd?.(
+                  inProgress.tool,
+                  inProgress.input,
+                  update.rawOutput,
+                  duration,
+                  inProgress.id,
+                );
+              }
+            }
           }
-        }
 
-        if (sessionUpdate === 'usage_update') {
-          // ACP UsageUpdate provides { size, used, cost? } where `used` is
-          // cumulative context window tokens. This does NOT separate input vs
-          // output tokens, so we report `used` as input with output 0.
-          // Copilot CLI does not currently emit this event via ACP (events are
-          // marked ephemeral internally — see github/copilot-cli#1152), but
-          // this handler is ready for when it does. See #683.
-          tokenUsage = { input: update.used, output: 0 };
-          // Cost may arrive across multiple events — accumulate
-          if (update.cost && update.cost.currency === 'USD') {
-            costUsd = (costUsd ?? 0) + update.cost.amount;
+          if (sessionUpdate === 'agent_message_chunk') {
+            const content = update.content;
+            if (content?.type === 'text' && typeof content.text === 'string') {
+              finalContent += content.text;
+            }
           }
-          // Stream callback for LLM usage
-          request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
-        }
-      },
-    };
 
-    const connection = new acp.ClientSideConnection((_agent) => client, stream);
+          if (sessionUpdate === 'usage_update') {
+            // ACP UsageUpdate provides { size, used, cost? } where `used` is
+            // cumulative context window tokens. This does NOT separate input vs
+            // output tokens, so we report `used` as input with output 0.
+            // Copilot CLI does not currently emit this event via ACP (events are
+            // marked ephemeral internally — see github/copilot-cli#1152), but
+            // this handler is ready for when it does. See #683.
+            tokenUsage = { input: update.used, output: 0 };
+            // Cost may arrive across multiple events — accumulate
+            if (update.cost && update.cost.currency === 'USD') {
+              costUsd = (costUsd ?? 0) + update.cost.amount;
+            }
+            // Stream callback for LLM usage
+            request.streamCallbacks?.onLlmCallEnd?.('copilot', tokenUsage);
+          }
+        },
+      };
 
-    try {
+      const connection = new acp.ClientSideConnection((_agent) => client, stream);
+
       // Initialize the ACP connection
       await connection.initialize({
         protocolVersion: acp.PROTOCOL_VERSION,
@@ -360,7 +363,9 @@ export class CopilotCliProvider implements Provider {
       return {
         raw: {
           model: this.config.model,
+          command,
           executable,
+          args,
           logFile: logger?.filePath,
         },
         output: outputMessages,
@@ -369,7 +374,64 @@ export class CopilotCliProvider implements Provider {
         durationMs,
         startTime,
         endTime,
+        targetExecution: buildTargetExecutionEnvelope({
+          targetName: this.targetName,
+          providerId: this.id,
+          providerKind: this.kind,
+          status: 'success',
+          commandArgv: [executable, ...args],
+          cwd,
+          timeoutMs: resolveCopilotTimeoutMs(this.config.timeoutMs),
+          startedAt: startMs,
+          endedAt: Date.now(),
+          exitCode: 0,
+          stdout: finalContent,
+          stderr: '',
+          output: outputMessages,
+          finalOutput: finalContent,
+          details: { logFile: logger?.filePath, mode: 'acp' },
+        }),
         ...(fileChanges ? { fileChanges } : {}),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const content = `Error: ${message}`;
+      const output = finalContent
+        ? [{ role: 'assistant' as const, content: finalContent }]
+        : [{ role: 'assistant' as const, content }];
+      const endMs = Date.now();
+      return {
+        raw: {
+          model: this.config.model,
+          command,
+          executable,
+          args,
+          logFile: logger?.filePath,
+          error: message,
+        },
+        output,
+        durationMs: endMs - startMs,
+        startTime,
+        endTime: new Date(endMs).toISOString(),
+        targetExecution: buildTargetExecutionEnvelope({
+          targetName: this.targetName,
+          providerId: this.id,
+          providerKind: this.kind,
+          status: 'error',
+          commandArgv: [executable, ...args],
+          cwd,
+          timeoutMs: resolveCopilotTimeoutMs(this.config.timeoutMs),
+          startedAt: startMs,
+          endedAt: endMs,
+          exitCode: null,
+          errorKind: classifyCopilotError(message, request.signal?.aborted),
+          message,
+          stdout: finalContent,
+          stderr: message,
+          output,
+          finalOutput: finalContent || content,
+          details: { logFile: logger?.filePath, mode: 'acp' },
+        }),
       };
     } finally {
       await logger?.close();
@@ -377,7 +439,11 @@ export class CopilotCliProvider implements Provider {
     }
   }
 
-  private buildCliArgs(): string[] {
+  private resolveCommand(): readonly string[] {
+    return this.config.command ?? [this.config.executable, ...(this.config.args ?? [])];
+  }
+
+  private buildCliArgs(command: readonly string[]): string[] {
     // --yolo bypasses copilot's permission system so file reads and tool calls
     // are not rejected during eval runs (see #421).
     const args = ['--acp', '--stdio', '--allow-all-tools', '--yolo'];
@@ -386,10 +452,7 @@ export class CopilotCliProvider implements Provider {
       args.push('--model', this.config.model);
     }
 
-    // Append user-provided extra args
-    if (this.config.args) {
-      args.push(...this.config.args);
-    }
+    args.push(...command.slice(1));
 
     return args;
   }
@@ -400,12 +463,13 @@ export class CopilotCliProvider implements Provider {
     startMs: number,
   ): Promise<ProviderResponse> {
     const logger = await this.createStreamLogger(request, 'prompt').catch(() => undefined);
-    const executable = this.resolveExecutable();
+    const command = this.resolveCommand();
+    const executable = this.resolveExecutable(command);
     const inputFiles = normalizeInputFiles(request.inputFiles);
     const prompt = buildPromptDocument(request, inputFiles);
     const systemPrompt = this.resolveSystemPrompt(request);
     const promptText = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-    const args = this.buildPromptModeArgs(promptText);
+    const args = this.buildPromptModeArgs(command, promptText);
     const cwd = this.resolveCwd(request.cwd) ?? process.cwd();
     const env = buildCopilotCliProviderEnv(process.env, this.config.customProvider);
 
@@ -453,6 +517,7 @@ export class CopilotCliProvider implements Provider {
       return {
         raw: {
           model: this.config.model,
+          command,
           executable,
           args,
           stdout: result.stdout,
@@ -476,17 +541,14 @@ export class CopilotCliProvider implements Provider {
     }
   }
 
-  private buildPromptModeArgs(prompt: string): string[] {
+  private buildPromptModeArgs(command: readonly string[], prompt: string): string[] {
     const args = ['-s', '--allow-all-tools', '--no-color'];
 
     if (this.config.model) {
       args.push('--model', this.config.model);
     }
 
-    if (this.config.args) {
-      args.push(...this.config.args);
-    }
-
+    args.push(...command.slice(1));
     args.push('-p', prompt);
 
     return args;
@@ -528,9 +590,10 @@ export class CopilotCliProvider implements Provider {
     return undefined;
   }
 
-  private resolveExecutable(): string {
-    if (this.config.executable !== 'copilot') {
-      return this.config.executable;
+  private resolveExecutable(command: readonly string[]): string {
+    const executable = command[0] ?? this.config.executable;
+    if (executable !== 'copilot') {
+      return executable;
     }
 
     // Try to resolve the platform-specific native binary
@@ -599,6 +662,17 @@ export class CopilotCliProvider implements Provider {
       return undefined;
     }
   }
+}
+
+function classifyCopilotError(
+  message: string,
+  aborted: boolean | undefined,
+): NonNullable<ProviderResponse['targetExecution']>['errorKind'] {
+  if (aborted) return 'cancelled';
+  if (/not found|enoent|failed to start/i.test(message)) return 'spawn_failure';
+  if (/timed out|timeout/i.test(message)) return 'timeout';
+  if (/malformed|protocol/i.test(message)) return 'malformed_output';
+  return 'target_task_failure';
 }
 
 export function buildCopilotCliProviderEnv(

@@ -109,16 +109,26 @@ The preread block instructs the agent to read input files before processing the 
 
 ```yaml
 targets:
-  - label: claude_agent
-    provider: claude
-    grader_target: azure-base
+  - id: claude-local
+    provider: claude-cli
+    runtime: host
+    config:
+      command: ["claude"]
+      model: claude-sonnet-4-20250514
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `executable` | No | CLI binary name or path (default: `claude`). Accepts a bare name looked up on PATH or an absolute/relative file path. |
-| `cwd` | No | Working directory |
-| `grader_target` | Yes | LLM target for evaluation |
+| `config.command` | No | Claude CLI argv. Defaults to `["claude"]`; use this for host shims or alternate installed binaries. |
+| `config.model` | No | Model to pass to the Claude CLI. |
+| `config.cwd` | No | Working directory. |
+| `config.timeout_seconds` | No | Per-case timeout. |
+| `config.max_turns` | No | Claude CLI turn limit. |
+| `config.bypass_permissions` | No | Defaults to true for autonomous eval runs. Set false to omit `--dangerously-skip-permissions`. |
+
+Use `provider: claude-cli` when you want AgentV to spawn the same Claude CLI a user would run locally. It captures Claude's structured stream output when available and stores stdout, stderr, final output, and target execution metadata in the run bundle.
+
+Use `provider: claude-sdk` only when you intentionally want the Claude Agent SDK path. AgentV runs SDK providers inside an isolated child runner, so SDK crashes, malformed child output, timeouts, and missing optional SDK packages are reported as target execution errors rather than crashing the AgentV process. SDK transcripts may be richer for SDK-native events, while CLI transcripts better match the installed local agent.
 
 ## Codex CLI
 
@@ -146,40 +156,44 @@ Use `provider: codex-sdk` only when you intentionally want the Codex SDK path. T
 
 ```yaml
 targets:
-  - label: copilot
+  - id: copilot-local
     provider: copilot-cli
-    model: gpt-5-mini
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: ["copilot"]
+      model: gpt-5-mini
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `model` | No | Model to use (defaults to copilot's default) |
-| `cwd` | No | Working directory |
-| `subprovider` | No | OpenAI-compatible provider type for `copilot-cli` or `copilot-sdk`, such as `openai` or `azure` |
-| `base_url` | No | Provider base URL or Azure resource URL/name |
-| `api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. |
-| `bearer_token` | No | Provider bearer token. Prefer `${{ ENV_VAR }}` references. Takes precedence over `api_key` when set. |
-| `api_version` | No | Provider API version, primarily for Azure endpoints |
-| `api_format` | No | Provider API format, such as `responses` |
-| `grader_target` | Yes | LLM target for evaluation |
+| `config.command` | No | Copilot CLI argv. Defaults to `["copilot"]`; use this for host shims or alternate installed binaries. |
+| `config.model` | No | Model to use. Defaults to Copilot's configured default. |
+| `config.cwd` | No | Working directory. |
+| `config.subprovider` | No | OpenAI-compatible provider type for `copilot-cli` or `copilot-sdk`, such as `openai` or `azure`. |
+| `config.base_url` | No | Provider base URL or Azure resource URL/name. |
+| `config.api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. |
+| `config.bearer_token` | No | Provider bearer token. Prefer `${{ ENV_VAR }}` references. Takes precedence over `api_key` when set. |
+| `config.api_version` | No | Provider API version, primarily for Azure endpoints. |
+| `config.api_format` | No | Provider API format, such as `responses`. |
 
 Route Copilot through an OpenAI-compatible endpoint:
 
 ```yaml
 targets:
-  - label: copilot-openai
+  - id: copilot-openai
     provider: copilot-cli
-    subprovider: openai
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    api_format: responses
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: ["copilot"]
+      subprovider: openai
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}
+      api_format: responses
 ```
 
 Values can come from environment variables through `${{ ... }}` interpolation. For `copilot-cli`, AgentV maps these flat fields to Copilot's documented provider environment variables before spawning `copilot`; omitted fields leave existing ambient `COPILOT_PROVIDER_*` values unchanged.
 
-Use `provider: copilot-sdk` only when you intentionally want the Copilot SDK path. The SDK package is optional and loaded inside the isolated child runner.
+Use `provider: copilot-cli` for active eval runs through Copilot's ACP subprocess. Use `provider: copilot-log` when you want a passive transcript reader for an existing Copilot CLI session under `~/.copilot/session-state/`; it does not run a new agent and is useful for zero-cost transcript grading. Use `provider: copilot-sdk` only when you intentionally want the Copilot SDK path. SDK providers run inside AgentV's isolated child runner; CLI and log providers keep the boundary at the installed process or existing session logs. CLI runs generally provide the best "what the user actually ran" match, SDK runs may expose SDK-native events, and log runs are limited to the transcript richness already present on disk.
 
 ## Pi SDK
 
@@ -350,19 +364,20 @@ The VS Code provider uses a **subagent file-messaging architecture**. AgentV pro
 ### Copilot CLI
 
 - **MCP OAuth token expiration**: If your copilot CLI has MCP servers configured that use OAuth authentication, **expired tokens will block eval execution**. The copilot CLI attempts to re-authenticate via a browser OAuth flow, which cannot complete in non-interactive mode and causes the eval to hang indefinitely. Before running evals, either re-authenticate your MCP servers manually (`copilot` → `/mcp`) or remove MCP servers with expired tokens. See [copilot-cli#1797](https://github.com/github/copilot-cli/issues/1797) and [copilot-cli#1491](https://github.com/github/copilot-cli/issues/1491) for upstream tracking.
-- **Windows shell shim vs process spawn**: On Windows, `copilot -h` may work in PowerShell while AgentV still fails with `spawn copilot ENOENT`. Shell commands can execute `copilot.ps1`/`copilot.bat`, but AgentV launches a subprocess that expects a directly spawnable executable path. If this occurs, set an explicit target executable (for example via env var):
+- **Windows shell shim vs process spawn**: On Windows, `copilot -h` may work in PowerShell while AgentV still fails with `spawn copilot ENOENT`. Shell commands can execute `copilot.ps1`/`copilot.bat`, but AgentV launches a subprocess that expects a directly spawnable executable path. If this occurs, set an explicit command argv with a native executable path:
 
 ```yaml
 targets:
-  - label: copilot
+  - id: copilot-local
     provider: copilot-cli
-    executable: ${{ COPILOT_EXE }}
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: ["${{ COPILOT_EXE }}"]
 ```
 
 Use a native binary path for `COPILOT_EXE` (for example `copilot.exe` from `@github/copilot-win32-x64`).
 
 ### Claude Code
 
-- **Run evals externally**: Run agentv evals from **outside** Claude Code. Running `agentv eval` with the `claude` target from within a Claude Code session can cause unintended behavior — the spawned Claude agent may interfere with the parent session.
+- **Run evals externally**: Run agentv evals from **outside** Claude Code. Running `agentv eval` with a `claude-cli` target from within a Claude Code session can cause unintended behavior — the spawned Claude agent may interfere with the parent session.
 - **`ANTHROPIC_API_KEY` overrides subscription auth**: Claude Code loads `.env` from the working directory on startup. If your `.env` contains `ANTHROPIC_API_KEY`, the spawned Claude Code process will use that API key instead of your Claude subscription (Max/Pro). If the API key has insufficient credits, evals will fail with "Credit balance is too low". To use subscription auth, remove `ANTHROPIC_API_KEY` from your `.env` file.

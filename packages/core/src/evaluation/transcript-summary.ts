@@ -52,7 +52,7 @@ const PROVIDER_ALIASES: Readonly<Record<string, ProviderKind>> = {
   'pi-cli': 'pi-cli',
   'pi-rpc': 'pi-rpc',
   'pi-coding-agent': 'pi-coding-agent',
-  claude: 'claude',
+  claude: 'claude-sdk',
   'claude-cli': 'claude-cli',
   'claude-sdk': 'claude-sdk',
   vscode: 'vscode',

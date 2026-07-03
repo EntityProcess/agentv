@@ -257,7 +257,6 @@ function getKnownSettings(provider: string): Set<string> | null {
       return COPILOT_SDK_SETTINGS;
     case 'copilot-cli':
       return COPILOT_CLI_SETTINGS;
-    case 'claude':
     case 'claude-cli':
     case 'claude-sdk':
       return CLAUDE_SETTINGS;
@@ -660,6 +659,13 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         location: `${location}.provider`,
         message:
           "Missing or invalid 'provider' field (must be a non-empty string, or use use_target for delegation)",
+      });
+    } else if (!isTemplated && (providerValue === 'claude' || providerValue === 'copilot')) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.provider`,
+        message: `Ambiguous provider '${providerValue}' is not supported. Choose an explicit provider such as '${providerValue}-cli' or '${providerValue}-sdk'.`,
       });
     } else if (typeof provider === 'string' && !isTemplated && !knownProviders.includes(provider)) {
       // Warning for unknown providers (non-fatal); skip when provider uses ${{ VAR }}

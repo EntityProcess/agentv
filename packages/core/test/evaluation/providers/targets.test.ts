@@ -349,7 +349,7 @@ describe('resolveTargetDefinition', () => {
       resolveTargetDefinition(
         {
           name: 'claude-log-output-format',
-          provider: 'claude',
+          provider: 'claude-cli',
           log_output_format: 'summary',
         } as never,
         {},
@@ -376,7 +376,7 @@ describe('resolveTargetDefinition', () => {
     const summary = resolveTargetDefinition(
       {
         name: 'claude-summary-log',
-        provider: 'claude',
+        provider: 'claude-cli',
         stream_log: 'summary',
       },
       {},
@@ -994,24 +994,29 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/ambiguous provider 'codex'/);
   });
 
-  it('does not canonicalize removed provider aliases to built-ins', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'copilot-alias-removed',
-        provider: 'copilot',
-      },
-      {},
-    );
+  it('rejects ambiguous Claude and Copilot provider aliases', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'copilot-alias-removed',
+          provider: 'copilot',
+        },
+        {},
+      ),
+    ).toThrow(/ambiguous provider 'copilot'.*copilot-cli.*copilot-sdk/i);
 
-    expect(target.kind).toBe('cli');
-    if (target.kind !== 'cli') {
-      throw new Error('expected discovered cli target');
-    }
-
-    expect(target.config.command).toBe('bun run .agentv/providers/copilot.ts {PROMPT}');
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'claude-alias-removed',
+          provider: 'claude',
+        },
+        {},
+      ),
+    ).toThrow(/ambiguous provider 'claude'.*claude-cli.*claude-sdk/i);
   });
 
-  it('claude-cli defaults executable to claude', () => {
+  it('claude-cli defaults command to claude', () => {
     const target = resolveTargetDefinition(
       {
         name: 'claude-default',
@@ -1026,14 +1031,15 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('claude');
+    expect(target.config.command).toEqual(['claude']);
   });
 
-  it('claude-cli accepts custom executable', () => {
+  it('claude-cli accepts custom command argv', () => {
     const target = resolveTargetDefinition(
       {
         name: 'claude-custom',
         provider: 'claude-cli',
-        executable: 'claude-custom',
+        command: ['claude-custom', '--config', 'profile=eval'],
       },
       {},
     );
@@ -1044,6 +1050,20 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('claude-custom');
+    expect(target.config.command).toEqual(['claude-custom', '--config', 'profile=eval']);
+  });
+
+  it('claude-cli rejects removed executable and args fields', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'claude-custom',
+          provider: 'claude-cli',
+          executable: 'claude-custom',
+        } as never,
+        {},
+      ),
+    ).toThrow(/executable.*config.command/i);
   });
 
   it('resolves copilot-cli as its own provider kind', () => {
@@ -1063,6 +1083,7 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('copilot');
+    expect(target.config.command).toEqual(['copilot']);
     expect(target.config.model).toBe('claude-haiku-4.5');
     expect(target.config.timeoutMs).toBe(600000);
   });
@@ -1082,6 +1103,7 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('copilot');
+    expect(target.config.command).toEqual(['copilot']);
   });
 
   it('resolves copilot-cli flat base_url/api_key as custom provider', () => {

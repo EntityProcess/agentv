@@ -234,13 +234,7 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
         ? unsupportedSandboxProvider(t)
         : new PiRpcProvider(t.name, t.config as never),
     )
-    // claude-cli is the new default subprocess provider; claude is an alias
     .register('claude-cli', (t) =>
-      usesSandboxRuntime(t)
-        ? unsupportedSandboxProvider(t)
-        : new ClaudeCliProvider(t.name, t.config as never),
-    )
-    .register('claude', (t) =>
       usesSandboxRuntime(t)
         ? unsupportedSandboxProvider(t)
         : new ClaudeCliProvider(t.name, t.config as never),

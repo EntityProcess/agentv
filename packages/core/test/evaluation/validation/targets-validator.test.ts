@@ -170,6 +170,8 @@ targets:
     provider: google-gemini
   - label: copilot-alias
     provider: copilot
+  - label: claude-alias
+    provider: claude
   - label: copilot-sdk-alias
     provider: copilot_sdk
   - label: pi-alias
@@ -189,7 +191,6 @@ targets:
       'azure-openai',
       'google',
       'google-gemini',
-      'copilot',
       'copilot_sdk',
       'pi',
       'claude-code',
@@ -205,6 +206,27 @@ targets:
         ),
       ).toBe(true);
     }
+
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[3].provider' &&
+          error.message.includes("Ambiguous provider 'copilot'") &&
+          error.message.includes('copilot-cli') &&
+          error.message.includes('copilot-sdk'),
+      ),
+    ).toBe(true);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[4].provider' &&
+          error.message.includes("Ambiguous provider 'claude'") &&
+          error.message.includes('claude-cli') &&
+          error.message.includes('claude-sdk'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects camelCase target aliases', async () => {
@@ -471,7 +493,7 @@ targets:
     provider: copilot-cli
     log_format: json
   - label: claude-agent
-    provider: claude
+    provider: claude-cli
     log_output_format: summary
 `,
     );

@@ -211,7 +211,7 @@ export function parseClaudeSession(jsonl: string): TranscriptEntry {
   }
 
   const source: TranscriptSource = {
-    provider: 'claude',
+    provider: 'claude-sdk',
     sessionId,
     projectPath,
     startedAt: startTimestamp,
@@ -288,7 +288,7 @@ function extractAssistantContent(content: string | readonly ClaudeContentBlock[]
       case 'tool_use':
         if (block.name) {
           toolCalls.push(
-            normalizeToolCall('claude', {
+            normalizeToolCall('claude-sdk', {
               tool: block.name,
               input: block.input,
               id: block.id,

@@ -36,23 +36,23 @@ async function loadClaudeSdk(): Promise<typeof import('@anthropic-ai/claude-agen
 }
 
 /**
- * Claude Agent SDK provider using the @anthropic-ai/claude-agent-sdk library directly.
- * This replaces the old CLI subprocess provider with typed SDK access for structured
- * tool calls, token usage, and clean session lifecycle.
+ * Legacy direct Claude Agent SDK provider using the @anthropic-ai/claude-agent-sdk
+ * library directly. The registered claude-sdk target uses SdkChildProvider so SDK
+ * crashes stay isolated from the AgentV process.
  *
  * Note: The SDK is loaded lazily on first use to avoid bundling issues.
  * Users must install @anthropic-ai/claude-agent-sdk separately.
  */
 export class ClaudeProvider implements Provider {
   readonly id: string;
-  readonly kind = 'claude' as const;
+  readonly kind = 'claude-sdk' as const;
   readonly targetName: string;
   readonly supportsBatch = false;
 
   private readonly config: ClaudeResolvedConfig;
 
   constructor(targetName: string, config: ClaudeResolvedConfig) {
-    this.id = `claude:${targetName}`;
+    this.id = `claude-sdk:${targetName}`;
     this.targetName = targetName;
     this.config = config;
   }

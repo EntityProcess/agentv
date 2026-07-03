@@ -13,6 +13,7 @@ import {
   type TargetRuntimeConfig,
   runDockerSandboxCommand,
 } from './sandbox-runner.js';
+import { buildTargetExecutionEnvelope, captureTargetExecutionLog } from './target-execution.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -22,7 +23,6 @@ import type {
   ProviderTokenUsage,
   TargetExecutionEnvelope,
   TargetExecutionErrorKind,
-  TargetExecutionLogCapture,
 } from './types.js';
 import { extractLastAssistantContent } from './types.js';
 
@@ -298,32 +298,6 @@ async function defaultCommandRunner(
   });
 }
 
-const INLINE_LOG_LIMIT_BYTES = 128 * 1024;
-
-function captureLog(text: string): TargetExecutionLogCapture {
-  const bytes = Buffer.byteLength(text, 'utf8');
-  if (bytes <= INLINE_LOG_LIMIT_BYTES) {
-    return {
-      text,
-      truncated: false,
-      bytes,
-      storedBytes: bytes,
-    };
-  }
-
-  let stored = text;
-  while (Buffer.byteLength(stored, 'utf8') > INLINE_LOG_LIMIT_BYTES) {
-    stored = stored.slice(0, Math.max(0, stored.length - 1024));
-  }
-  const storedBytes = Buffer.byteLength(stored, 'utf8');
-  return {
-    text: stored,
-    truncated: true,
-    bytes,
-    storedBytes,
-  };
-}
-
 function commandEnvelopeBase(params: {
   targetName: string;
   providerId: string;
@@ -340,28 +314,23 @@ function commandEnvelopeBase(params: {
     process.platform === 'win32'
       ? ['powershell.exe', '-NoProfile', '-Command', params.command]
       : ['/bin/sh', '-lc', params.command];
-  return {
-    schemaVersion: 'agentv.target_execution.v1',
-    targetId: params.targetName,
+  return buildTargetExecutionEnvelope({
+    targetName: params.targetName,
     providerId: params.providerId,
     providerKind: params.providerKind,
+    status: 'success',
     runtimeMode: params.runtimeMode ?? 'host',
-    command: {
-      argv,
-      commandLine: params.command,
-      cwd: params.cwd,
-    },
+    commandArgv: argv,
+    commandLine: params.command,
+    cwd: params.cwd,
     timeoutMs: params.timeoutMs,
-    startedAt: new Date(params.startedAt).toISOString(),
-    endedAt: new Date(params.endedAt).toISOString(),
-    durationMs: params.endedAt - params.startedAt,
+    startedAt: params.startedAt,
+    endedAt: params.endedAt,
     exitCode: params.result?.exitCode,
     signal: params.result?.signal ?? null,
-    logs: {
-      stdout: captureLog(params.result?.stdout ?? ''),
-      stderr: captureLog(params.result?.stderr ?? ''),
-    },
-  };
+    stdout: params.result?.stdout ?? '',
+    stderr: params.result?.stderr ?? '',
+  });
 }
 
 function classifyCommandFailure(
