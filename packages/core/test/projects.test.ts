@@ -109,6 +109,45 @@ describe('projects registry', () => {
     expect(yamlOnDisk).toContain('projects:');
   });
 
+  it('loads global projects from a direct projects file reference', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(registryPath, 'projects: file://projects.yaml\n', 'utf-8');
+    writeFileSync(
+      path.join(path.dirname(registryPath), 'projects.yaml'),
+      [
+        '- id: split-project',
+        '  path: /srv/agentv/split-project',
+        '  added_at: "2026-01-01T00:00:00Z"',
+        '  last_opened_at: "2026-01-01T00:00:00Z"',
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    expect(loadProjectRegistry().projects).toEqual([
+      {
+        id: 'split-project',
+        path: '/srv/agentv/split-project',
+        addedAt: '2026-01-01T00:00:00Z',
+        lastOpenedAt: '2026-01-01T00:00:00Z',
+      },
+    ]);
+  });
+
+  it('rejects wrapped projects file references by returning an empty registry', () => {
+    const registryPath = getProjectsRegistryPath();
+    mkdirSync(path.dirname(registryPath), { recursive: true });
+    writeFileSync(registryPath, 'projects: file://projects.yaml\n', 'utf-8');
+    writeFileSync(
+      path.join(path.dirname(registryPath), 'projects.yaml'),
+      ['projects:', '  - id: wrapped', '    path: /srv/agentv/wrapped', ''].join('\n'),
+      'utf-8',
+    );
+
+    expect(loadProjectRegistry().projects).toEqual([]);
+  });
+
   it('round-trips flat source repo fields through YAML', () => {
     const registryPath = getProjectsRegistryPath();
     mkdirSync(path.dirname(registryPath), { recursive: true });

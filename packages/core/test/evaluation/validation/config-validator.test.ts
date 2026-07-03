@@ -36,7 +36,7 @@ describe('validateConfigFile', () => {
     await writeFile(
       filePath,
       `execution:
-  timeout: 30000
+  max_concurrency: 3
 `,
     );
 
@@ -44,6 +44,127 @@ describe('validateConfigFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects execution.workers in config graph execution policy', async () => {
+    const filePath = path.join(tempDir, 'config-execution-workers.yaml');
+    await writeFile(
+      filePath,
+      `execution:
+  workers: 3
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        message: expect.stringContaining('execution.workers'),
+      }),
+    );
+  });
+
+  it('accepts composable config graph fields and direct file refs', async () => {
+    const graphDir = path.join(tempDir, 'composable-config');
+    const filePath = path.join(graphDir, '.agentv', 'config.yaml');
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(
+      filePath,
+      [
+        'targets: file://targets.yaml',
+        'graders: file://graders.yaml',
+        'tests: file://tests.yaml',
+        'defaults: file://defaults.yaml',
+        'execution: file://execution.yaml',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(
+      path.join(path.dirname(filePath), 'targets.yaml'),
+      [
+        '- id: codex-local',
+        '  provider: codex-app-server',
+        '  runtime: host',
+        '  config:',
+        '    command: ["codex", "app-server"]',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(
+      path.join(path.dirname(filePath), 'graders.yaml'),
+      ['- id: openai-grader', '  provider: openai', '  config: {}', ''].join('\n'),
+    );
+    await writeFile(
+      path.join(path.dirname(filePath), 'tests.yaml'),
+      ['- id: smoke', '  input: Fix the failing test', ''].join('\n'),
+    );
+    await writeFile(
+      path.join(path.dirname(filePath), 'defaults.yaml'),
+      ['target: codex-local', 'grader: openai-grader', ''].join('\n'),
+    );
+    await writeFile(path.join(path.dirname(filePath), 'execution.yaml'), 'max_concurrency: 3\n');
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects removed composable config target fields and dashboard.app_name', async () => {
+    const filePath = path.join(tempDir, 'config-invalid-composable.yaml');
+    await writeFile(
+      filePath,
+      [
+        'targets:',
+        '  - name: codex-local',
+        '    provider: codex',
+        '    runtime: host',
+        '    executable: codex',
+        '    config: {}',
+        'dashboard:',
+        '  app_name: Custom AgentV',
+        '',
+      ].join('\n'),
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'error',
+          message: expect.stringContaining('name'),
+        }),
+        expect.objectContaining({
+          severity: 'error',
+          location: 'dashboard.app_name',
+        }),
+      ]),
+    );
+  });
+
+  it('rejects wrapped referenced config field files', async () => {
+    const graphDir = path.join(tempDir, 'wrapped-composable-config');
+    const filePath = path.join(graphDir, '.agentv', 'config.yaml');
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, 'targets: file://targets.yaml\n');
+    await writeFile(
+      path.join(path.dirname(filePath), 'targets.yaml'),
+      ['targets:', '  - id: codex-local', '    provider: codex-app-server', ''].join('\n'),
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        message: expect.stringContaining("wrapped in 'targets'"),
+      }),
+    );
   });
 
   it('accepts results field without warnings', async () => {

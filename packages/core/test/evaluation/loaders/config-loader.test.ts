@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { loadComposableConfigGraph } from '../../../src/evaluation/loaders/config-graph.js';
 import {
   extractBudgetUsd,
   extractFailOnError,
@@ -41,6 +42,245 @@ function withOptionalEnv(
 }
 
 describe('loadConfig', () => {
+  it('loads inline composable config graph fields from .agentv/config.yaml', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-inline-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        [
+          'targets:',
+          '  - id: codex-local',
+          '    provider: codex-app-server',
+          '    runtime: host',
+          '    config:',
+          '      command: ["codex", "app-server"]',
+          '      model: gpt-5-codex',
+          'graders:',
+          '  - id: openai-grader',
+          '    provider: openai',
+          '    config:',
+          '      model: gpt-5-mini',
+          'tests:',
+          '  - id: smoke',
+          '    input: Fix the failing test',
+          'defaults:',
+          '  target: codex-local',
+          '  grader: openai-grader',
+          'execution:',
+          '  max_concurrency: 3',
+          '',
+        ].join('\n'),
+      );
+
+      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+
+      expect(config?.targets).toEqual([
+        {
+          id: 'codex-local',
+          provider: 'codex-app-server',
+          runtime: { mode: 'host' },
+          config: { command: ['codex', 'app-server'], model: 'gpt-5-codex' },
+        },
+      ]);
+      expect(config?.graders).toEqual([
+        { id: 'openai-grader', provider: 'openai', config: { model: 'gpt-5-mini' } },
+      ]);
+      expect(config?.tests).toEqual([{ id: 'smoke', input: 'Fix the failing test' }]);
+      expect(config?.defaults).toEqual({ target: 'codex-local', grader: 'openai-grader' });
+      expect(config?.execution?.max_concurrency).toBe(3);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('normalizes split file refs the same as inline fields', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-split-'));
+    try {
+      const inlinePath = path.join(tempDir, 'inline.eval.yaml');
+      const splitPath = path.join(tempDir, 'split.eval.yaml');
+      writeFileSync(
+        inlinePath,
+        [
+          'targets:',
+          '  - id: codex-local',
+          '    provider: codex-app-server',
+          '    runtime:',
+          '      mode: profile',
+          '      home: .agentv/profiles/codex-local',
+          '    config:',
+          '      command: ["codex"]',
+          'graders:',
+          '  - id: openai-grader',
+          '    provider: openai',
+          '    config: {}',
+          'tests:',
+          '  - id: smoke',
+          '    input: Fix the failing test',
+          'defaults:',
+          '  target: codex-local',
+          '  grader: openai-grader',
+          'execution:',
+          '  max_concurrency: 2',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        splitPath,
+        [
+          'targets: file://targets.yaml',
+          'graders: file://graders.yaml',
+          'tests: file://tests.yaml',
+          'defaults: file://defaults.yaml',
+          'execution: file://execution.yaml',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(tempDir, 'targets.yaml'),
+        [
+          '- id: codex-local',
+          '  provider: codex-app-server',
+          '  runtime:',
+          '    mode: profile',
+          '    home: .agentv/profiles/codex-local',
+          '  config:',
+          '    command: ["codex"]',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(tempDir, 'graders.yaml'),
+        ['- id: openai-grader', '  provider: openai', '  config: {}', ''].join('\n'),
+      );
+      writeFileSync(
+        path.join(tempDir, 'tests.yaml'),
+        ['- id: smoke', '  input: Fix the failing test', ''].join('\n'),
+      );
+      writeFileSync(
+        path.join(tempDir, 'defaults.yaml'),
+        ['target: codex-local', 'grader: openai-grader', ''].join('\n'),
+      );
+      writeFileSync(path.join(tempDir, 'execution.yaml'), 'max_concurrency: 2\n');
+
+      await expect(loadComposableConfigGraph(splitPath)).resolves.toEqual(
+        await loadComposableConfigGraph(inlinePath),
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects wrapped referenced field files', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-wrapped-'));
+    try {
+      const configPath = path.join(tempDir, 'config.yaml');
+      writeFileSync(configPath, 'targets: file://targets.yaml\n');
+      writeFileSync(
+        path.join(tempDir, 'targets.yaml'),
+        ['targets:', '  - id: codex-local', '    provider: codex-app-server', ''].join('\n'),
+      );
+
+      await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(/wrapped in 'targets'/);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('validates command arrays, defaults, max_concurrency, and removed target fields', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-invalid-'));
+    try {
+      const invalidCases = [
+        {
+          name: 'command',
+          yaml: [
+            'targets:',
+            '  - id: codex-local',
+            '    provider: codex-app-server',
+            '    runtime: host',
+            '    config:',
+            '      command: codex',
+            '',
+          ].join('\n'),
+          message: /config\.command/,
+        },
+        {
+          name: 'default-target',
+          yaml: [
+            'targets:',
+            '  - id: codex-local',
+            '    provider: codex-app-server',
+            '    runtime: host',
+            '    config: {}',
+            'defaults:',
+            '  target: missing',
+            '',
+          ].join('\n'),
+          message: /defaults\.target/,
+        },
+        {
+          name: 'concurrency',
+          yaml: 'execution:\n  max_concurrency: 0\n',
+          message: /max_concurrency/,
+        },
+        {
+          name: 'execution-workers',
+          yaml: 'execution:\n  workers: 2\n',
+          message: /execution\.workers/,
+        },
+        {
+          name: 'legacy-label',
+          yaml: [
+            'targets:',
+            '  - label: codex-local',
+            '    provider: codex-app-server',
+            '    runtime: host',
+            '    config: {}',
+            '',
+          ].join('\n'),
+          message: /label/,
+        },
+        {
+          name: 'bare-provider',
+          yaml: [
+            'targets:',
+            '  - id: codex-local',
+            '    provider: codex',
+            '    runtime: host',
+            '    config: {}',
+            '',
+          ].join('\n'),
+          message: /ambiguous/,
+        },
+        {
+          name: 'target-workers',
+          yaml: [
+            'targets:',
+            '  - id: codex-local',
+            '    provider: codex-app-server',
+            '    runtime: host',
+            '    workers: 3',
+            '    config: {}',
+            '',
+          ].join('\n'),
+          message: /workers/,
+        },
+      ];
+
+      for (const testCase of invalidCases) {
+        const configPath = path.join(tempDir, `${testCase.name}.yaml`);
+        writeFileSync(configPath, testCase.yaml);
+        await expect(loadComposableConfigGraph(configPath)).rejects.toThrow(testCase.message);
+      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('falls back to AGENTV_HOME/config.yaml when no project-local config exists', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-global-config-'));
     try {
@@ -583,7 +823,7 @@ describe('extractTargetFromSuite', () => {
 
   it('rejects authored top-level execution blocks', () => {
     const suite: JsonObject = { execution: { target: 'my-target' } };
-    expect(() => extractTargetFromSuite(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractTargetFromSuite(suite)).toThrow(/execution\.target/);
   });
 });
 
@@ -629,8 +869,8 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
 
   it('reject top-level target arrays through execution', () => {
     const suite: JsonObject = { execution: { targets: ['copilot', 'claude'] } };
-    expect(() => extractTargetsFromSuite(suite)).toThrow(/Top-level 'execution'/);
-    expect(() => extractTargetRefsFromSuite(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractTargetsFromSuite(suite)).toThrow(/execution\.targets/);
+    expect(() => extractTargetRefsFromSuite(suite)).toThrow(/execution\.targets/);
   });
 });
 
@@ -672,7 +912,7 @@ describe('extractBudgetUsd', () => {
 
   it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { budget_usd: 10.0 } };
-    expect(() => extractBudgetUsd(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractBudgetUsd(suite)).toThrow(/execution\.budget_usd/);
   });
 });
 
@@ -687,6 +927,11 @@ describe('extractWorkersFromSuite', () => {
     expect(extractWorkersFromSuite(suite)).toBe(5);
   });
 
+  it('parses valid execution.max_concurrency', () => {
+    const suite: JsonObject = { execution: { max_concurrency: 3 } };
+    expect(extractWorkersFromSuite(suite)).toBe(3);
+  });
+
   it('returns undefined for invalid max_concurrency', () => {
     const suite: JsonObject = { evaluate_options: { max_concurrency: 0 } };
     expect(extractWorkersFromSuite(suite)).toBeUndefined();
@@ -694,7 +939,7 @@ describe('extractWorkersFromSuite', () => {
 
   it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { workers: 5 } };
-    expect(() => extractWorkersFromSuite(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractWorkersFromSuite(suite)).toThrow(/execution\.workers/);
   });
 });
 
@@ -706,7 +951,7 @@ describe('extractFailOnError', () => {
 
   it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { fail_on_error: true } };
-    expect(() => extractFailOnError(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractFailOnError(suite)).toThrow(/execution\.fail_on_error/);
   });
 });
 
@@ -748,7 +993,7 @@ describe('extractThreshold', () => {
 
   it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { threshold: 0.8 } };
-    expect(() => extractThreshold(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractThreshold(suite)).toThrow(/execution\.threshold/);
   });
 });
 
@@ -766,17 +1011,13 @@ describe('parseExecutionDefaults', () => {
     expect(result?.verbose).toBe(true);
   });
 
-  it('parses workers as an operator-side execution default', () => {
-    const result = parseExecutionDefaults({ workers: 4 }, '/test/config.yaml');
-    expect(result?.workers).toBe(4);
-  });
-
-  it('ignores invalid workers defaults', () => {
+  it('rejects execution.workers defaults', () => {
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const result = parseExecutionDefaults({ workers: 0 }, '/test/config.yaml');
+      const result = parseExecutionDefaults({ workers: 4 }, '/test/config.yaml');
       expect(result).toBeUndefined();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workers'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.max_concurrency'));
     } finally {
       warnSpy.mockRestore();
     }

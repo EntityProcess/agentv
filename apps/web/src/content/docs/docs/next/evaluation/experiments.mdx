@@ -10,9 +10,9 @@ AgentV eval files are the runnable authoring artifact. Use top-level
 label, `target` for the system under test, and flat top-level run controls such
 as `timeout_seconds` and `threshold`. Use `evaluate_options` for evaluation
 runtime options such as `repeat`, `budget_usd`, and `max_concurrency`.
-Use `agentv eval --workers N` or project config defaults such as
-`agentv.config.*` / `.agentv/config.yaml` `execution.workers` for operator-side
-overrides.
+Use `execution.max_concurrency` in eval YAML or `.agentv/config.yaml` for the
+AgentV config graph concurrency field. `agentv eval --workers N` remains an
+operator-side override.
 
 ```yaml
 name: support-regression

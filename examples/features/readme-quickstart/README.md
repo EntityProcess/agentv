@@ -2,6 +2,22 @@
 
 This example mirrors the root README quickstart and is used for smoke testing the documented `llm-rubric` and `default_test.options.rubric_prompt` flow.
 
+It includes a composable `.agentv/config.yaml` that decomposes the base config
+graph into direct field refs:
+
+```yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
+tests: file://tests.yaml
+defaults: file://defaults.yaml
+execution:
+  max_concurrency: 1
+```
+
+Each referenced file contains that field's value directly, such as a bare target
+array in `.agentv/targets.yaml` and a bare defaults object in
+`.agentv/defaults.yaml`.
+
 Run it against a local OpenAI-compatible endpoint:
 
 ```bash

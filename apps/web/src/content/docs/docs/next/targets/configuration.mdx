@@ -5,35 +5,59 @@ sidebar:
   order: 1
 ---
 
-Targets define which agent or LLM provider to evaluate. They are configured in `.agentv/targets.yaml` to decouple eval files from provider details.
+Targets define which agent or LLM provider to evaluate. Project manifests can
+keep targets inline in `.agentv/config.yaml` or decompose them into a direct
+field reference such as `targets: file://targets.yaml`. Both forms normalize to
+the same config graph.
 
 ## Structure
 
 ```yaml
 targets:
-  - label: azure-base
-    provider: azure
+  - id: local-openai
+    provider: openai
+    runtime: host
     config:
-      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
-      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      api_format: chat
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
 
-  - label: vscode_dev
-    provider: vscode
-    grader_target: azure-base
-
-  - label: local_agent
-    provider: cli
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
     config:
-      command: 'python agent.py --prompt {PROMPT}'
-    grader_target: azure-base
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+defaults:
+  target: codex-local
+  grader: openai-grader
 ```
 
-Use `label` for AgentV target references and comparison names. Use `id` only when you need to carry a promptfoo provider/backend identifier. The
-`provider` field selects the backend kind. Provider-specific settings belong in
-`config`; AgentV target extensions such as `grader_target`, `use_target`,
-`fallback_targets`, `workers`, and `batch_requests` remain top-level fields on
-the target object.
+Use `id` for the stable AgentV target identity. `provider` selects the adapter
+or control boundary. `runtime` describes where the provider runs; use `host` as
+the shorthand for the current machine, or object form when you need
+`mode: host | profile | sandbox` plus runtime-specific settings. Provider
+settings belong under `config`. Process-backed providers use
+`config.command` as a non-empty argv array.
+
+Any supported top-level field can be moved to a file reference:
+
+```yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
+defaults: file://defaults.yaml
+```
+
+Referenced field files contain the field value directly. `targets.yaml` contains
+a bare array, not an object wrapped in `targets:`.
 
 ## Environment Variables
 
@@ -43,8 +67,9 @@ eval directory hierarchy when present:
 
 ```yaml
 targets:
-  - label: my_target
+  - id: my-target
     provider: anthropic
+    runtime: host
     config:
       api_key: ${{ ANTHROPIC_API_KEY }}
       model: ${{ ANTHROPIC_MODEL }}
@@ -60,9 +85,13 @@ already-exported secrets into `.env`.
 | `azure` | LLM | Azure OpenAI |
 | `anthropic` | LLM | Anthropic Claude API |
 | `gemini` | LLM | Google Gemini |
-| `claude` | Agent | Claude Agent SDK |
-| `codex` | Agent | Codex CLI |
+| `claude-cli` | Agent | Claude CLI subprocess |
+| `claude-sdk` | Agent | Claude Agent SDK |
+| `codex-cli` | Agent | Codex CLI subprocess |
+| `codex-app-server` | Agent | Codex app-server subprocess |
+| `codex-sdk` | Agent | Codex SDK provider |
 | `pi-coding-agent` | Agent | Pi Coding Agent |
+| `pi-cli` | Agent | Pi CLI subprocess |
 | `vscode` | Agent | VS Code with Copilot |
 | `vscode-insiders` | Agent | VS Code Insiders |
 | `cli` | Agent | Any CLI command — see [CLI Provider](/docs/targets/cli-provider) |
@@ -70,45 +99,35 @@ already-exported secrets into `.env`.
 
 ## Referencing Targets in Evals
 
-Select the system under test with top-level `target` or CLI `--target`.
-Test cases do not choose targets; split target-specific cases into separate eval
-suites, select them with tags/filters, or run the same eval with different
-`--target` values.
+Select the system under test with `defaults.target`, top-level `target`, or CLI
+`--target`, depending on the command flow. Test cases do not choose targets;
+split target-specific cases into separate eval suites, select them with
+tags/filters, or run the same eval with different `--target` values.
 
 ```yaml
-target: azure-base
+target: local-openai
 
 tests:
   - id: test-1
   - id: test-2
 ```
 
-The string is a target `label` from `.agentv/targets.yaml` or `targets.yaml`.
-Use object form when an eval needs a local target variant:
+The string is a configured target `id`. Use object form when an eval needs a
+local target variant:
 
 ```yaml
 target:
-  extends: azure-base
-  label: azure-high-reasoning
-  model: gpt-5.4
-  reasoning_effort: high
+  id: codex-high-reasoning
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+    model: gpt-5-codex
+    reasoning_effort: high
 ```
 
-`extends` names the base target label. `label` names the eval-local variant for
-results and comparison. If `label` is omitted, the eval overrides the base target
-under the same label. If `extends` is omitted, the object is a complete inline
-target definition and must include enough provider configuration to run.
-
-## Grader Target
-
-Agent targets that need LLM-based evaluation specify a `grader_target` — the LLM used to run LLM grader graders:
-
-```yaml
-targets:
-  - label: codex_target
-    provider: codex
-    grader_target: azure-base  # LLM used for grading
-```
+Use `defaults.grader` for the project default grader. A specific evaluator can
+still choose its own grader target when the evaluator supports that override.
 
 ### Lifecycle Extensions
 

@@ -405,7 +405,7 @@ import { defineConfig } from '@agentv/core';
 
 export default defineConfig({
   execution: {
-    workers: 5,
+    maxConcurrency: 5,
     maxRetries: 2,
     verbose: true,
   },

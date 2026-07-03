@@ -1,0 +1,2 @@
+target: local-openai
+grader: local-openai-grader

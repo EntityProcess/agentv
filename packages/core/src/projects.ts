@@ -213,12 +213,34 @@ function readHomeConfig(configPath: string): Record<string, unknown> {
   if (!existsSync(configPath)) return {};
   try {
     const parsed = parseYamlValue(readFileSync(configPath, 'utf-8')) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
+    const config =
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    return resolveProjectsFieldReference(config, configPath);
   } catch {
     return {};
   }
+}
+
+function resolveProjectsFieldReference(
+  config: Record<string, unknown>,
+  configPath: string,
+): Record<string, unknown> {
+  if (typeof config.projects !== 'string' || !config.projects.startsWith('file://')) {
+    return config;
+  }
+  const referencePath = config.projects.slice('file://'.length);
+  const projectsPath = path.isAbsolute(referencePath)
+    ? referencePath
+    : path.resolve(path.dirname(configPath), referencePath);
+  const parsed = parseYamlValue(readFileSync(projectsPath, 'utf-8')) as unknown;
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'projects' in parsed) {
+    throw new Error(
+      `Invalid projects file reference in ${configPath}: ${projectsPath} must contain the projects array directly, not an object wrapped in 'projects'.`,
+    );
+  }
+  return { ...config, projects: parsed };
 }
 
 function readMergedHomeConfig(configPath: string): Record<string, unknown> {

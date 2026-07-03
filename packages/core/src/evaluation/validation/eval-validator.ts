@@ -92,6 +92,8 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'prompts',
   'imports',
   'tests',
+  'graders',
+  'defaults',
   'target',
   'targets',
   'model',
@@ -166,16 +168,12 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   [
     'workers',
-    "'workers' has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.",
+    "'workers' has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.",
   ],
   ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
     'policy',
     "Top-level 'policy' is not part of eval YAML. Put repeat under evaluate_options.repeat, timeout_seconds and threshold at the top level, and budget_usd under evaluate_options.",
-  ],
-  [
-    'execution',
-    "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.",
   ],
   [
     'providers',
@@ -406,6 +404,7 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
 
   await validateSuiteWorkspaceConfigs(parsed, absolutePath, errors);
   validateAuthoredWorkers(parsed, absolutePath, errors);
+  validateExecutionPolicy(parsed.execution, 'execution', absolutePath, errors);
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
@@ -659,7 +658,7 @@ function validateTestExecutionFields(
         filePath,
         location: `${location}.execution.workers`,
         message:
-          'tests[].execution.workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.',
+          'tests[].execution.workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.',
       });
       continue;
     }
@@ -691,6 +690,51 @@ function validateAuthoredWorkers(
   }
 }
 
+function validateExecutionPolicy(
+  execution: JsonValue | undefined,
+  location: string,
+  filePath: string,
+  errors: ValidationError[],
+): void {
+  if (execution === undefined) {
+    return;
+  }
+  if (!isObject(execution)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message: "Invalid 'execution' field (must be an object)",
+    });
+    return;
+  }
+  for (const key of Object.keys(execution)) {
+    if (key !== 'max_concurrency') {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message: `Unsupported execution field '${key}'. Use execution.max_concurrency for eval parallelism.`,
+      });
+    }
+  }
+  const maxConcurrency = execution.max_concurrency;
+  if (
+    maxConcurrency !== undefined &&
+    (typeof maxConcurrency !== 'number' ||
+      !Number.isInteger(maxConcurrency) ||
+      maxConcurrency < 1 ||
+      maxConcurrency > 50)
+  ) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.max_concurrency`,
+      message: "Invalid 'execution.max_concurrency' field (must be an integer between 1 and 50)",
+    });
+  }
+}
+
 function rejectWorkersField(
   raw: JsonValue | undefined,
   location: string,
@@ -705,7 +749,7 @@ function rejectWorkersField(
       severity: 'error',
       filePath,
       location: `${location}.workers`,
-      message: `${location}.workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+      message: `${location}.workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.`,
     });
   }
   rejectTargetWorkers(raw.targets, `${location}.targets`, filePath, errors);
@@ -728,7 +772,7 @@ function rejectTargetWorkers(
       severity: 'error',
       filePath,
       location: `${location}[${index}].workers`,
-      message: `${location}[${index}].workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+      message: `${location}[${index}].workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.`,
     });
   });
 }

@@ -11,7 +11,7 @@
  *
  * export default defineConfig({
  *   execution: {
- *     workers: 5,
+ *     maxConcurrency: 5,
  *     maxRetries: 2,
  *     agentTimeoutMs: 120_000,
  *   },
@@ -28,8 +28,8 @@ import { z } from 'zod';
 
 const ExecutionConfigSchema = z
   .object({
-    /** Number of parallel workers (default: 3) */
-    workers: z.number().int().min(1).max(50).optional(),
+    /** General eval parallelism (default: 3) */
+    maxConcurrency: z.number().int().min(1).max(50).optional(),
     /** Maximum retries on failure (default: 2) */
     maxRetries: z.number().int().min(0).optional(),
     /** Agent timeout in milliseconds. No timeout if not set. */
@@ -41,6 +41,14 @@ const ExecutionConfigSchema = z
   })
   .passthrough()
   .superRefine((value, ctx) => {
+    const supportedFields = new Set([
+      'maxConcurrency',
+      'maxRetries',
+      'agentTimeoutMs',
+      'verbose',
+      'keepWorkspaces',
+    ]);
+
     if ('otelFile' in value) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -49,9 +57,19 @@ const ExecutionConfigSchema = z
           'execution.otelFile has been removed. Emit OpenTelemetry/OpenInference traces from the system under test or provider and correlate AgentV run artifacts with external_trace metadata.',
       });
     }
+
+    for (const key of Object.keys(value)) {
+      if (!supportedFields.has(key) && key !== 'otelFile') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `Unsupported execution field '${key}'`,
+        });
+      }
+    }
   })
-  .transform(({ workers, maxRetries, agentTimeoutMs, verbose, keepWorkspaces }) => ({
-    ...(workers !== undefined && { workers }),
+  .transform(({ maxConcurrency, maxRetries, agentTimeoutMs, verbose, keepWorkspaces }) => ({
+    ...(maxConcurrency !== undefined && { maxConcurrency }),
     ...(maxRetries !== undefined && { maxRetries }),
     ...(agentTimeoutMs !== undefined && { agentTimeoutMs }),
     ...(verbose !== undefined && { verbose }),
@@ -132,7 +150,7 @@ export type AgentVConfig = z.infer<typeof AgentVConfigSchema>;
  * import { defineConfig } from '@agentv/core';
  *
  * export default defineConfig({
- *   execution: { workers: 5 },
+ *   execution: { maxConcurrency: 5 },
  *   output: { dir: './results' },
  *   limits: { maxCostUsd: 10.0 },
  * });

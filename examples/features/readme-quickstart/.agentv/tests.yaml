@@ -1,0 +1,2 @@
+- id: fizzbuzz
+  input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz".
