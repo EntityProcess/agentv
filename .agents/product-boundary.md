@@ -85,6 +85,8 @@ Research those references from local cloned repositories first when a clone is a
 
 Treat these as reference inputs, not dependencies. AgentV should adopt the shared lowest common denominator when it fits the repo-native artifact model, and document any intentional divergence in the relevant plan, ADR, or contract docs.
 
+Do not copy another framework's schema baggage just because the framework is credible. When a peer contract carries historical constraints, overloaded field names, or compatibility aliases, prefer a cleaner AgentV contract if it preserves the core user need. Document the reason for diverging so future workers do not "realign" it back to the peer shape. For target/provider contracts, keep identity and backend/control boundary separate: use a stable AgentV `id` for the target registry key when `provider` already names the adapter/backend kind. Promptfoo's `label` is useful evidence but should not be copied as target identity merely because Promptfoo uses `id` for provider/backend specs.
+
 ### 5. YAGNI - You Aren't Gonna Need It
 
 Do not build features until there is a concrete need. Start with the simplest version that satisfies current demand.
