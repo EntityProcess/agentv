@@ -1,0 +1,51 @@
+---
+const versions = [
+  { label: 'Canary', base: '/docs' },
+  { label: 'v4.42.4', base: '/docs/v4.42.4' },
+];
+
+const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+function getCurrentVersion(path) {
+  if (path === '/docs/v4.42.4' || path.startsWith('/docs/v4.42.4/')) return versions[1];
+  return versions[0];
+}
+
+function getVersionSuffix(path) {
+  if (path === '/docs' || path === '/docs/v4.42.4') return '';
+  if (path.startsWith('/docs/v4.42.4/')) return path.slice('/docs/v4.42.4'.length);
+  if (path.startsWith('/docs/')) return path.slice('/docs'.length);
+  return '';
+}
+
+function withTrailingSlash(path) {
+  return path.endsWith('/') ? path : `${path}/`;
+}
+
+const currentVersion = getCurrentVersion(pathname);
+const suffix = getVersionSuffix(pathname);
+---
+
+<label class="version-select" aria-label="Docs version">
+  <span class="sr-only">Docs version</span>
+  <select data-version-select aria-label="Docs version">
+    {
+      versions.map((version) => {
+        const href = withTrailingSlash(`${version.base}${suffix}`);
+        return (
+          <option value={href} selected={version.base === currentVersion.base}>
+            {version.label}
+          </option>
+        );
+      })
+    }
+  </select>
+</label>
+
+<script>
+  document.querySelectorAll<HTMLSelectElement>('[data-version-select]').forEach((select) => {
+    select.addEventListener('change', () => {
+      window.location.href = select.value;
+    });
+  });
+</script>

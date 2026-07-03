@@ -1,0 +1,300 @@
+---
+title: Targets Configuration
+description: Configure execution targets for providers and agents
+sidebar:
+  order: 1
+slug: docs/v4.42.4/targets/configuration
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+Targets define which agent or LLM provider to evaluate. They are configured in `.agentv/targets.yaml` to decouple eval files from provider details.
+
+## Structure
+
+```yaml
+targets:
+  - name: azure-base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+  - name: vscode_dev
+    provider: vscode
+    grader_target: azure-base
+
+  - name: local_agent
+    provider: cli
+    command: 'python agent.py --prompt {PROMPT}'
+    grader_target: azure-base
+```
+
+## Environment Variables
+
+Use `${{ VARIABLE_NAME }}` syntax to reference values from your environment. AgentV reads
+exported process environment variables directly, and it also loads `.env` files from the
+eval directory hierarchy when present:
+
+```yaml
+targets:
+  - name: my_target
+    provider: anthropic
+    api_key: ${{ ANTHROPIC_API_KEY }}
+    model: ${{ ANTHROPIC_MODEL }}
+```
+
+This keeps secrets out of version-controlled files and avoids requiring a CI step that rewrites
+already-exported secrets into `.env`.
+
+## Supported Providers
+
+| Provider | Type | Description |
+|----------|------|-------------|
+| `azure` | LLM | Azure OpenAI |
+| `anthropic` | LLM | Anthropic Claude API |
+| `gemini` | LLM | Google Gemini |
+| `claude` | Agent | Claude Agent SDK |
+| `codex` | Agent | Codex CLI |
+| `pi-coding-agent` | Agent | Pi Coding Agent |
+| `vscode` | Agent | VS Code with Copilot |
+| `vscode-insiders` | Agent | VS Code Insiders |
+| `cli` | Agent | Any CLI command — see [CLI Provider](/docs/v4.42.4/targets/cli-provider/) |
+| `mock` | Testing | Mock provider for dry runs |
+
+## Referencing Targets in Evals
+
+Set the default target at the top level or override per case:
+
+```yaml
+# Top-level default
+execution:
+  target: azure-base
+
+tests:
+  - id: test-1
+    # Uses azure-base
+
+  - id: test-2
+    execution:
+      target: vscode_dev  # Override for this case
+```
+
+## Grader Target
+
+Agent targets that need LLM-based evaluation specify a `grader_target` (also accepts `judge_target` for backward compatibility) — the LLM used to run LLM grader graders:
+
+```yaml
+targets:
+  - name: codex_target
+    provider: codex
+    grader_target: azure-base  # LLM used for grading
+```
+
+### Workspace Lifecycle Hooks
+
+Run commands and reset/cleanup policies at different lifecycle points using `workspace.hooks`. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
+
+```yaml
+workspace:
+  template: ./workspace-templates/my-project
+  hooks:
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+      timeout_ms: 120000
+      cwd: ./scripts
+    after_each:
+      command: ["bun", "run", "reset.ts"]
+      timeout_ms: 5000
+      reset: fast
+    after_all:
+      command: ["bun", "run", "cleanup.ts"]
+      timeout_ms: 30000
+```
+
+| Field | Description |
+|-------|-------------|
+| `template` | Directory to copy as workspace |
+| `hooks.before_all` | Runs once after workspace creation, before the first test |
+| `hooks.after_all` | Runs once after the last test, before cleanup |
+| `hooks.before_each` | Runs before each test |
+| `hooks.after_each` | Runs after each test (supports both `command` and `reset`) |
+
+Each hook config accepts:
+
+| Field | Description |
+|-------|-------------|
+| `command` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
+| `reset` | Reset mode: `none`, `fast`, `strict` |
+| `timeout_ms` | Timeout in milliseconds (default: 60000 for setup hooks, 30000 for teardown hooks) |
+| `cwd` | Working directory (relative paths resolved against eval file directory) |
+
+**Lifecycle order:** template copy → repo materialization → workspace `hooks.before_all` → target `hooks.before_all` → git baseline → (`hooks.before_each` → target `hooks.before_each` → agent runs → file changes captured → target `hooks.after_each` → `hooks.after_each`) × N tests → target `hooks.after_all` → `hooks.after_all` → cleanup
+
+**Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `hooks.after_each.reset` to reset state between tests (e.g., `fast`/`strict`).
+
+**Error handling:**
+- `hooks.before_all` / `hooks.before_each` command failure aborts the test with an error result
+- `hooks.after_all` / `hooks.after_each` command failure is non-fatal (warning only)
+
+**Script context:** All scripts receive a JSON object on stdin with case context:
+
+```json
+{
+  "workspace_path": "/home/user/.agentv/workspaces/run-123/case-01",
+  "test_id": "case-01",
+  "eval_run_id": "run-123",
+  "case_input": "Fix the bug",
+  "case_metadata": { "repo": "sympy/sympy", "base_commit": "abc123" }
+}
+```
+
+**Suite vs per-test:** When both are defined, test-level fields replace suite-level fields. See [Per-Test Workspace Config](/docs/v4.42.4/evaluation/eval-cases/#per-case-workspace-config) for examples.
+
+### Repository Lifecycle
+
+Materialize git repositories into the shared eval workspace. Repo entries declare provenance only: the repository identity and checkout pin. AgentV resolves acquisition separately using registered projects, configured mirrors, its git cache, and finally remote clone. Define repos at the suite level or per test:
+
+```yaml
+workspace:
+  repos:
+    - path: ./my-repo
+      repo: https://github.com/org/repo.git
+      commit: main
+      ancestor: 1          # check out the parent commit
+  hooks:
+    after_each:
+      reset: fast             # none | fast | strict
+  isolation: shared           # shared (default) | per_test
+  mode: pooled                # pooled | temp | static
+  path: /tmp/my-ws            # workspace path for mode=static
+```
+
+`repo` declares the repository identity. Acquisition is harness-owned: AgentV first looks for matching registered projects and configured mirrors, then uses its git cache, then falls back to remote clone. See [Workspace Architecture](/docs/v4.42.4/guides/workspace-architecture/#repo-provenance-vs-acquisition) for the resolver order and `git_cache.mirrors` config.
+
+| Field | Description |
+|-------|-------------|
+| `repos[].path` | Directory within the workspace to clone into |
+| `repos[].repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
+| `repos[].commit` | Branch, tag, or SHA to check out (default: `HEAD`) |
+| `repos[].base_commit` | Alias for `commit`, useful for SWE-bench-style datasets |
+| `repos[].ancestor` | Walk N commits back from the checked-out ref (e.g., `1` for parent) |
+| `repos[].sparse` | Sparse checkout paths |
+| `hooks.after_each.reset` | Reset policy after each test: `none`, `fast`, `strict` |
+| `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
+| `mode` | Workspace mode: `pooled`, `temp`, `static` |
+| `path` | Workspace path for `mode=static`. When empty or missing, the workspace is auto-materialised (template copied + repos cloned). Populated directories are reused as-is. |
+| `hooks.enabled` | Boolean (default: `true`). Set `false` to skip all lifecycle hooks. |
+
+**Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: temp` to disable pooling for fresh clone/checkouts each run.
+
+**Static auto-materialisation:** When `mode: static` and `path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, it is reused as-is.
+
+Pool management commands:
+- `agentv workspace list` — list all pool entries with size and repo info
+- `agentv workspace clean` — remove all pool entries
+- `agentv workspace deps <eval-paths>` — scan eval files and output a JSON manifest of required git repos (for CI pre-cloning)
+
+**Common patterns:**
+
+```yaml
+# Pinned commit
+workspace:
+  repos:
+    - path: ./repo
+      repo: https://github.com/org/repo.git
+      commit: abc123def
+
+# Multi-repo shared workspace with reset
+workspace:
+  repos:
+    - path: ./frontend
+      repo: https://github.com/org/frontend.git
+    - path: ./backend
+      repo: https://github.com/org/backend.git
+  hooks:
+    after_each:
+      reset: fast
+
+# GitHub shorthand with a base_commit alias
+workspace:
+  repos:
+    - path: ./repo
+      repo: org/repo
+      base_commit: abc123def
+```
+
+### Cleanup Behavior
+
+Default finish behavior:
+- **Success**: cleanup
+- **Failure**: keep
+
+CLI overrides:
+- `--retain-on-success keep|cleanup`
+- `--retain-on-failure keep|cleanup`
+
+### cwd
+
+Use `cwd` on a target to run in an existing directory (shared across tests). If not set, the eval file's directory is used as the working directory.
+
+## Target Hooks
+
+Eval files can define per-target hooks that run setup/teardown scripts to customize the workspace for each target variant. This enables comparing different harness configurations (e.g., baseline vs with-plugins) in a single eval file.
+
+Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config.
+
+Target hooks are defined in the eval file's `execution.targets` array using object form:
+
+```yaml
+execution:
+  targets:
+    - baseline                          # string shorthand (no hooks)
+    - name: with-skills                 # object form with hooks
+      use_target: default
+      hooks:
+        before_each:
+          command: ["setup-plugins.sh", "skills"]
+    - name: with-guidelines
+      use_target: default
+      hooks:
+        before_each:
+          command: ["sh", "-c", "cp guidelines.md {{workspace_path}}/.claude/"]
+```
+
+### Hook execution order
+
+Target hooks run after workspace hooks on setup, before workspace hooks on teardown:
+
+1. Workspace `before_all`
+2. **Target `before_all`**
+3. For each test:
+   - Workspace `before_each`
+   - **Target `before_each`**
+   - Test executes
+   - **Target `after_each`**
+   - Workspace `after_each`
+4. **Target `after_all`**
+5. Workspace `after_all`
+
+### Hook schema
+
+Target hooks follow the same schema as workspace hooks:
+
+```yaml
+hooks:
+  before_all:
+    command: ["setup.sh"]       # Command array or shell string
+    timeout_ms: 60000           # Optional timeout
+    cwd: "./scripts"            # Optional working directory
+  before_each:
+    command: "echo setup"       # String shorthand (runs via sh -c)
+  after_each:
+    command: ["cleanup.sh"]
+  after_all:
+    command: ["teardown.sh"]
+```

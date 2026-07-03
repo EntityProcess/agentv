@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
+    "docs:snapshot:v4.42.4": "node ../../scripts/snapshot-docs-version.mjs v4.42.4",
     "build": "astro build",
     "preview": "astro preview"
   },

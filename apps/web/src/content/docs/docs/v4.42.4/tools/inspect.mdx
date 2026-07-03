@@ -1,0 +1,110 @@
+---
+title: Inspect
+description: Inspect and analyze evaluation results from the CLI
+sidebar:
+  order: 5
+slug: docs/v4.42.4/tools/inspect
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+The `inspect` command provides headless trace inspection and analysis — no server or dashboard needed.
+
+Supported sources:
+
+- Run workspaces or `index.jsonl` manifests for summary-level fallback
+- Legacy simple trace JSONL files for read-only migration scenarios
+- OTLP JSON files written via `agentv eval --otel-file ...`
+
+For full tool-call inspection, prefer OTLP JSON exports over eval manifests.
+
+## Subcommands
+
+### `inspect list`
+
+Enumerate canonical evaluation run workspaces from `.agentv/results/runs/`.
+
+```bash
+agentv inspect list [--limit N] [--format json|table]
+```
+
+Shows filename, test count, pass rate, average score, file size, and timestamp for each run workspace.
+
+### `inspect show`
+
+Display evaluation results with trace details.
+
+```bash
+agentv inspect show <trace-source> [--test-id <id>] [--tree] [--format json|table]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--test-id` | Filter to a specific test ID |
+| `--tree` | Show hierarchical trace tree from output messages or exported trace spans |
+| `--format`, `-f` | Output format: `table` (default), `json` |
+
+#### Tree View
+
+The `--tree` flag renders tool call traces as a hierarchical tree:
+
+```
+research-question, 15.1s, 10,167 tok, $0.105
+├─ tools, 2.4s
+│  ├─ WebSearch, 2.1s
+│  └─ WebSearch, 1.8s
+├─ tavily_search, 3.5s
+└─ write_report, 450ms
+
+Scores: response_quality 75% | routing_accuracy 100%
+```
+
+Falls back to a flat summary when output messages are not present in the run workspace.
+
+### `inspect stats`
+
+Compute summary statistics (percentiles) across evaluation results.
+
+```bash
+agentv inspect stats <trace-source> [--group-by target|suite|test-id] [--format json|table]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--group-by`, `-g` | Group statistics by: `target`, `suite`, or `test-id` |
+| `--format`, `-f` | Output format: `table` (default), `json` |
+
+Output shows mean, P50, P90, P95, and P99 for score, latency, cost, tokens, tool calls, and LLM calls.
+
+```
+Metric              Mean         P50         P90         P95         P99
+────────────  ──────────  ──────────  ──────────  ──────────  ──────────
+score               0.83        0.90        1.00        1.00        1.00
+latency_s           11.7         9.5        22.8        25.4        27.5
+cost_usd          $0.077      $0.065      $0.150      $0.165      $0.177
+tokens_total       7,463       7,000      13,367      14,433      15,287
+```
+
+Metrics with no data are omitted automatically.
+
+## Composability
+
+All commands support `--format json` for piping to `jq`:
+
+```bash
+# Find tests costing more than $0.10
+agentv inspect show trace.otlp.json --format json \
+  | jq '[.[] | select(.cost_usd > 0.10) | {test_id, score, cost: .cost_usd}]'
+
+# Compare providers
+agentv inspect stats .agentv/results/runs/<timestamp>/index.jsonl --group-by target --format json \
+  | jq '.groups[] | {label, score_mean: .metrics.score.mean}'
+```
+
+## Example
+
+See `examples/features/trace-analysis/` for a complete showcase with sample data.

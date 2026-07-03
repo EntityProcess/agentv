@@ -1,0 +1,336 @@
+---
+title: Skill Improvement Workflow
+description: Iteratively evaluate and improve agent skills using AgentV
+sidebar:
+  order: 4
+slug: docs/v4.42.4/guides/skill-improvement-workflow
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+## Introduction
+
+AgentV supports a full evaluation-driven improvement loop for skills and agents. Instead of guessing whether a change makes things better, you run structured evaluations before and after, then compare.
+
+This guide teaches the **core manual loop**. For automated iteration that runs the full cycle hands-free, see [Autoresearch](/docs/v4.42.4/guides/autoresearch/).
+
+## The Core Loop
+
+Every skill improvement follows the same cycle:
+
+```
+┌─────────────────┐
+│ Write Scenarios  │
+└────────┬────────┘
+         ▼
+┌─────────────────┐
+│  Run Baseline    │◄──────────────────┐
+└────────┬────────┘                    │
+         ▼                             │
+┌─────────────────┐                    │
+│  Run Candidate   │                   │
+└────────┬────────┘                    │
+         ▼                             │
+┌─────────────────┐                    │
+│    Compare       │                   │
+└────────┬────────┘                    │
+         ▼                             │
+┌─────────────────┐                    │
+│ Review Failures  │                   │
+└────────┬────────┘                    │
+         ▼                             │
+┌─────────────────┐                    │
+│ Improve Skill    │────── Re-run ─────┘
+└─────────────────┘
+```
+
+1. **Write test scenarios** that capture what the skill should do
+2. **Run a baseline** evaluation without the skill (or with the previous version)
+3. **Run a candidate** evaluation with the new or updated skill
+4. **Compare** the two runs to see what improved and what regressed
+5. **Review failures** to understand why specific cases failed
+6. **Improve** the skill based on failure analysis
+7. **Re-run** and iterate until the candidate consistently beats the baseline
+
+## Step 1: Write Test Scenarios
+
+Start with `evals.json` for quick iteration. It's the simplest format and works directly with AgentV — no conversion needed.
+
+```json
+{
+  "skill_name": "code-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review this Python function for bugs:\n\ndef divide(a, b):\n    return a / b",
+      "expected_output": "The function should handle division by zero.",
+      "assertions": [
+        "Identifies the division by zero risk",
+        "Suggests adding error handling"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review this function:\n\ndef greet(name):\n    return f'Hello, {name}!'",
+      "expected_output": "The function is simple and correct.",
+      "assertions": [
+        "Does not flag false issues",
+        "Acknowledges the function is straightforward"
+      ]
+    }
+  ]
+}
+```
+
+For assisted authoring, use the `agentv-eval-writer` skill — it knows the current eval file schema and can generate test cases from descriptions.
+
+:::tip
+Start with 5–10 focused test cases. You can always add more as you discover edge cases during the review step.
+:::
+
+## Step 2: Run Baseline Evaluation
+
+Run the evaluation **without** the skill loaded to establish a baseline:
+
+```bash
+agentv eval evals.json --target baseline
+```
+
+This produces a results file (e.g., `results-baseline.jsonl`) showing how the agent performs on its own.
+
+### Baseline isolation
+
+Skills in `.claude/skills/` are auto-loaded by progressive disclosure. This means your baseline may accidentally include the skill you're testing.
+
+**Workaround:** Develop skills outside discovery paths during the evaluation cycle. Keep your skill-in-progress in a working directory (e.g., `drafts/`) and only move it to `.claude/skills/` when you're satisfied with the evaluation results.
+
+```bash
+# Skill lives outside the discovery path during development
+drafts/
+  my-skill/
+    SKILL.md
+
+# Baseline run won't pick it up
+agentv eval evals.json --target baseline
+```
+
+## Step 3: Run Candidate Evaluation
+
+Run the same evaluation **with** the skill loaded:
+
+```bash
+agentv eval evals.json --target candidate
+```
+
+Or grade existing sessions offline (no API keys required):
+
+```bash
+# Import a Claude Code session transcript
+agentv import claude --list
+agentv import claude --session-id <uuid>
+
+# Run deterministic graders against the imported transcript
+agentv eval evals.json --target copilot-log
+```
+
+Offline grading is useful when you want to evaluate skills with agents that don't have a direct API integration — import the session transcript and run deterministic graders.
+
+## Step 4: Compare Results
+
+Compare the baseline and candidate runs:
+
+```bash
+agentv compare results-baseline.jsonl results-candidate.jsonl
+```
+
+The comparison output shows:
+
+- **Per-test score deltas** — which cases improved, regressed, or stayed the same
+- **Aggregate statistics** — overall pass rate change, mean score shift
+- **Regressions** — cases that were passing before but now fail (these need immediate attention)
+
+Look for:
+- ✅ **Net positive delta** — more cases improved than regressed
+- ⚠️ **Any regressions** — even one regression deserves investigation
+- 📊 **Score distribution** — are improvements concentrated or spread across cases?
+
+## Step 5: Review Failures
+
+Use trace inspection to understand why specific cases failed:
+
+```bash
+agentv inspect show <trace-id>
+```
+
+When reviewing failures, categorize them:
+
+| Category | Description | Action |
+|----------|-------------|--------|
+| **True failure** | The skill genuinely handled the case wrong | Improve the skill |
+| **False positive** | Got a passing score but the answer was wrong | Tighten assertions |
+| **False negative** | Correct answer but scored as failing | Fix the evaluation criteria |
+| **Systematic pattern** | Multiple failures share the same root cause | Address the pattern, not individual cases |
+
+Systematic patterns are the highest-value findings. A single skill improvement that fixes a pattern can resolve multiple test failures at once.
+
+## Step 6: Improve the Skill
+
+Apply targeted improvements based on your failure analysis:
+
+- **Keep changes small and testable.** One improvement per iteration makes it easy to attribute score changes.
+- **Document what changed and why.** A brief note in your commit message helps when reviewing the improvement history.
+- **Address systematic patterns first.** These give the best return on effort.
+
+```markdown
+<!-- Example: skill change log in a commit message -->
+fix(code-reviewer): handle edge case for single-line functions
+
+The skill was flagging all single-line functions as "too terse" even when
+they were appropriate (e.g., simple getters). Added context-aware length
+assessment.
+
+Failure pattern: tests 2, 5, 8 all failed with false-positive complexity warnings.
+```
+
+## Step 7: Re-run and Iterate
+
+Loop back to Step 3 with the improved skill:
+
+```bash
+# Run the improved candidate
+agentv eval evals.json --target candidate
+
+# Compare against the previous baseline
+agentv compare results-baseline.jsonl results-candidate.jsonl
+```
+
+Each iteration should show:
+- Previous regressions resolved
+- No new regressions introduced
+- Steady improvement in overall pass rate
+
+:::note
+Keep your baseline stable across iterations. Only re-run the baseline when the test scenarios themselves change (Step 1), not when the skill changes.
+:::
+
+## Graduating to EVAL.yaml
+
+When `evals.json` becomes limiting — you need workspace isolation, code graders, tool trajectory checks, or multi-turn conversations — graduate to EVAL.yaml:
+
+```bash
+agentv convert evals.json -o eval.yaml
+```
+
+The generated YAML preserves all your existing test cases and adds comments showing AgentV features you can use:
+
+```yaml
+# Converted from Agent Skills evals.json
+tests:
+  - id: "1"
+    criteria: |-
+      The function should handle division by zero.
+    input:
+      - role: user
+        content: "Review this Python function for bugs:..."
+    assertions:
+      - name: assertion-1
+        type: llm-grader
+        prompt: "Identifies the division by zero risk"
+      # Replace with type: contains for deterministic checks:
+      # - type: contains
+      #   value: "ZeroDivisionError"
+```
+
+After converting, you can:
+- Replace `llm-grader` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
+- Add `workspace` configuration for file-system isolation
+- Use `code-grader` for custom scoring logic
+- Define `tool-trajectory` assertions to check tool usage patterns
+
+See [Skill Evals (evals.json)](/docs/v4.42.4/integrations/agent-skills-evals/) for the full field mapping and side-by-side comparison.
+
+## Migration from Skill-Creator
+
+If you've been using the Agent Skills skill-creator workflow, AgentV reads your existing files directly — no rewrite needed.
+
+| Skill-Creator | AgentV | Notes |
+|--------------|--------|-------|
+| `evals.json` | `agentv eval evals.json` | Direct — no conversion needed |
+| `claude -p "prompt"` | `agentv eval evals.json --target claude` | Same eval, richer engine |
+| `grading.json` (read) | `<test-id>/grading.json` (write) | Same per-test schema, AgentV writes one grading file per test case |
+| `benchmark.json` (read) | `<output>/benchmark.json` (write) | AgentV writes the canonical run summary; convert it in a wrapper if another tool needs a narrower compatibility shape |
+| n/a | `index.jsonl` (write) | AgentV-specific per-test manifest for filtering, retry, and replay workflows |
+| with-skill vs without-skill | `--target baseline --target candidate` | Structured comparison |
+| Graduate to richer evals | `agentv convert evals.json` → EVAL.yaml | Adds workspace, code graders, etc. |
+
+**Key takeaway:** You do not need to rewrite your `evals.json`. AgentV reads it directly and adds a richer evaluation engine on top.
+
+## Using Experiments for Baseline vs Candidate
+
+The `--experiment` flag provides a structured way to label baseline and candidate runs without separate eval files:
+
+```bash
+# Baseline: run without skills installed
+agentv pipeline run evals/my-eval.yaml --experiment without_skills
+
+# Candidate: run with skills installed
+agentv pipeline run evals/my-eval.yaml --experiment with_skills
+```
+
+Both runs use the same eval file and produce separate run directories. The experiment label is recorded in `manifest.json` and `index.jsonl`, making it easy to filter and compare in dashboards.
+
+This replaces the need for separate `--target baseline` / `--target candidate` configurations when the only difference between runs is the workspace setup (skills, config, etc.) rather than the target harness.
+
+## Baseline Comparison Best Practices
+
+### Discovery-path contamination
+
+Skills placed in `.claude/skills/` are auto-discovered and loaded into every agent session. This means your baseline run may unknowingly include the skill you're trying to evaluate.
+
+**Mitigation strategies:**
+1. **Develop outside discovery paths** — keep skills in `drafts/` or `wip/` during evaluation
+2. **Use explicit target configurations** — configure baseline and candidate targets with different skill sets
+3. **Verify baseline purity** — run a smoke test to confirm the baseline agent doesn't reference your skill
+
+### Packaging guidance
+
+When distributing skills, exclude evaluation files from the distributable package:
+
+```
+my-skill/
+  SKILL.md           # ✅ distribute
+  evals/             # ❌ exclude from distribution
+    evals.json
+    eval.yaml
+    results/
+```
+
+Evals are development-time artifacts. End users don't need them, and including them adds unnecessary weight to the package.
+
+### Progressive disclosure for skill authoring
+
+Start simple and add complexity only when the evaluation results demand it:
+
+1. **Start with `evals.json`** — 5-10 test cases, natural-language assertions
+2. **Add deterministic checks** — when you find assertions that can be exact (`contains`, `regex`)
+3. **Graduate to EVAL.yaml** — when you need workspace isolation or code graders
+4. **Add tool trajectory checks** — when tool usage patterns matter
+5. **Use rubrics** — when you need weighted, structured scoring criteria
+
+## Automated Iteration
+
+When you're confident in your eval quality, graduate to **autoresearch** — an unattended optimization loop that runs the full evaluate → analyze → improve cycle hands-free.
+
+Autoresearch uses the same `agentv eval` and `agentv compare` primitives described above, but automates the human decision steps. A mutator subagent rewrites the artifact based on failure analysis, and an automated keep/discard rule promotes improvements and reverts regressions.
+
+```
+"Run autoresearch on my skill"
+```
+
+One command starts the loop. It runs until the optimizer converges (3 consecutive no-improvement cycles) or hits the cycle limit. Typical runs: 5–10 cycles, under $0.05 total cost.
+
+See the full guide: [Autoresearch](/docs/v4.42.4/guides/autoresearch/)

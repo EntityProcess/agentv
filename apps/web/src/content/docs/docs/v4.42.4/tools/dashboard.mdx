@@ -1,0 +1,404 @@
+---
+title: Dashboard
+description: Visual dashboard for reviewing evaluation results
+sidebar:
+  order: 6
+slug: docs/v4.42.4/tools/dashboard
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+import { Image } from 'astro:assets';
+import studioRuns from '../../../../../assets/screenshots/studio-runs.png';
+import studioRunDetail from '../../../../../assets/screenshots/studio-run-detail.png';
+import studioExperiments from '../../../../../assets/screenshots/studio-experiments.png';
+import studioProjects from '../../../../../assets/screenshots/studio-projects.png';
+import studioProjectsMulti from '../../../../../assets/screenshots/studio-projects-multi.png';
+import studioCompareAggregated from '../../../../../assets/screenshots/studio-compare-aggregated.png';
+import studioComparePerRun from '../../../../../assets/screenshots/studio-compare-per-run.png';
+import studioCompareSideBySide from '../../../../../assets/screenshots/studio-compare-side-by-side.png';
+import studioRunsBench from '../../../../../assets/screenshots/studio-runs-bench.png';
+import studioAnalyticsAggregated from '../../../../../assets/screenshots/studio-analytics-aggregated.png';
+import studioAnalyticsCharts from '../../../../../assets/screenshots/studio-analytics-charts.png';
+import studioAnalyticsTrend from '../../../../../assets/screenshots/studio-analytics-trend.png';
+import studioRemoteResultsBeforeSync from '../../../../../assets/screenshots/studio-remote-results-before-sync.png';
+import studioRemoteResultsAfterSync from '../../../../../assets/screenshots/studio-remote-results-after-sync.png';
+
+The `dashboard` command launches a web-based dashboard for browsing evaluation runs, inspecting individual test results, and reviewing scores. It shows both local runs and runs synced from a remote results repository.
+
+<Image src={studioRunsBench} alt="AgentV Dashboard showing evaluation runs with pass rates, targets, and experiment names" />
+
+## Usage
+
+```bash
+agentv dashboard
+```
+
+Dashboard auto-discovers run workspaces from `.agentv/results/runs/` in the current directory and opens at `http://localhost:3117`.
+
+To open a different project, pass the project root with `--dir`:
+
+```bash
+agentv dashboard --dir /path/to/project
+```
+
+Dashboard does not accept a run workspace directory or `index.jsonl` manifest as a direct source. It reads one configured run source per project: the project's `.agentv/results/runs/` tree, plus an external results repository or run directory configured under `results:` in YAML. For one-off inspection of a copied run bundle, use `agentv results report <run-workspace-or-index.jsonl>`.
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--port`, `-p` | Port to listen on (flag > `PORT` env var > 3117) |
+| `--dir`, `-d` | Working directory (default: current directory) |
+| `--multi` | Launch in multi-project dashboard mode (deprecated; use auto-detect or `--single`) |
+| `--single` | Force single-project dashboard mode |
+| `--add <path>` | Register a project by path |
+| `--remove <id>` | Unregister a project by ID |
+
+## Features
+
+- **Recent Runs** — table of all evaluation runs with source badge (`local` / `remote`), target, experiment, timestamp, test count, pass rate, and mean score
+- **Experiments** — group and compare runs by experiment name
+- **Targets** — group runs by target (model/agent)
+- **Run Detail** — drill into a run to see per-test results, scores, and grader output
+- **Human Review** — add feedback annotations to individual test results
+- **Analytics** — two modes: an aggregated experiment × target matrix, and a per-run view for selecting individual runs to compare side-by-side with optional retroactive tags. Includes a collapsible charts section with baseline comparison analytics
+- **Remote Results** — sync and browse runs pushed from other machines or CI (see [Remote Results](#remote-results))
+
+## Pass threshold
+
+Dashboard treats scores greater than or equal to the configured threshold as passing when it calculates pass rates. Configure this in `.agentv/config.yaml`:
+
+```yaml
+dashboard:
+  threshold: 0.8
+```
+
+Legacy `studio.threshold`, `studio.pass_threshold`, and root-level `pass_threshold` values are still read for existing projects. When Dashboard saves settings, it writes the canonical `dashboard.threshold` field and preserves unrelated config.
+
+## White label
+
+Dashboard shows AgentV by default. Override the displayed name with `dashboard.app_name` in project-local `.agentv/config.yaml`:
+
+```yaml
+dashboard:
+  app_name: ai evals
+```
+
+You can also set the same field globally in `$AGENTV_HOME/config.yaml` or `~/.agentv/config.yaml`. Project-local config takes precedence over the global value.
+
+## Run Detail
+
+Click any run to see a breakdown by suite, per-test scores, target, duration, and cost. The source label (`local` or `remote`) tells you where the run came from. Files and source views resolve against the generated run artifacts referenced by `index.jsonl`—including per-result task bundles when present—so Dashboard does not require authors to create a separate source-side bundle structure.
+
+<Image src={studioRunDetail} alt="AgentV Dashboard run detail showing 100% pass rate across 5 tests with scores and duration" />
+
+## Run management
+
+In Recent Runs, select local completed runs to combine partial runs or delete stale run workspaces. Combine creates a new local run workspace and leaves the source runs in place. Delete removes the selected local run workspace directory, including sidecars such as `tags.json`; remote runs are read-only.
+
+The same deletion primitive is available from the CLI:
+
+```bash
+agentv results delete <run-id> --yes
+```
+
+## Experiments
+
+The Experiments tab groups runs by experiment name so you can compare the impact of changes — for example, `with_skills` vs `without_skills`.
+
+<Image src={studioExperiments} alt="AgentV Dashboard experiments tab comparing with_skills (100%) vs without_skills (60%) pass rates" />
+
+## Analytics
+
+The **Analytics** tab has two modes: **Aggregated** for the classic experiment × target matrix, and **Per run** for selecting individual runs and pitting them side-by-side. Toggle between them from the mode switch on the right of the masthead.
+
+<Image src={studioCompareSideBySide} alt="AgentV Dashboard side-by-side comparison of two runs tagged improved-prompt and baseline, with per-test pass rates" />
+
+### Aggregated matrix
+
+The default view shows a cross-experiment, cross-target performance matrix. Numbers are colour-coded by pass rate — green (80%+), amber (50–80%), red (below 50%) — and each cell shows `passed/total` and the mean score. Click any cell to expand the per-test-case breakdown.
+
+<Image src={studioAnalyticsAggregated} alt="AgentV Dashboard Analytics tab showing aggregated experiment × target matrix with pass rates for baseline, optimized-prompt, and with-rag across claude-sonnet, gemini-pro, and gpt-4o" />
+
+Run the same eval against multiple providers or experiment variants, then open the Analytics tab:
+
+```bash
+agentv eval my.EVAL.yaml --target azure --experiment baseline
+agentv eval my.EVAL.yaml --target azure --experiment with-caching
+agentv eval my.EVAL.yaml --target gemini --experiment baseline
+agentv eval my.EVAL.yaml --target gemini --experiment with-caching
+agentv dashboard  # Analytics tab shows 2x2 matrix
+```
+
+### Per-run comparison
+
+Running the same `(experiment, target)` twice no longer collapses into a single cell. Switch to **Per run** mode to see every run as its own row, select two or more, and compare them head-to-head.
+
+<Image src={studioComparePerRun} alt="AgentV Dashboard per-run compare mode with a filter-by-tag chip row and individual runs listing timestamp, tags, experiment, target, and pass rate; experiment-prefixed runs surface the experiment name under the timestamp" />
+
+Use per-run mode when you want to:
+
+- Compare back-to-back runs of the same agent + eval after a prompt or parameter tweak
+- Pit a fresh run against a tagged baseline without touching the eval YAML
+- Debug flakiness by inspecting two identical-configuration runs side-by-side
+
+Select 2+ rows with the checkboxes and click the sticky **Compare N** action to open the side-by-side view. Column headers show the run's timestamp, with any assigned tags as chips below it. The per-test breakdown reuses the same scoring and colour tones as the aggregated matrix.
+
+### Retroactive tags
+
+Click any row's **Tags** cell to tag a run after the fact. Each run can carry multiple free-form tags (max 20, up to 60 characters each); local tags are stored in a `tags.json` sidecar next to `index.jsonl` in the run workspace, so they're mutable, non-destructive, and won't touch your eval YAML or run manifest. The chip editor supports Enter/comma to commit a new tag, Backspace to remove the last chip, and **Clear all** to remove every tag (deletes the sidecar).
+
+Remote run payloads stay immutable, but their tags are editable. Dashboard writes remote tag changes as metadata overlays under `.agentv/results/metadata/runs/.../tags.json` in the configured results repo clone. Until those overlays are synced, the run and project show a dirty state; **Sync Project** commits and pushes them when it is safe to do so.
+
+Use tags to annotate ad-hoc variants, experiment cross-cuts, or status flags you didn't plan for up front — `baseline`, `v2-prompt`, `slow`, `after-retry-fix`, `regression`, etc. Unlike `experiment` — which groups runs and is baked into the JSONL at eval-run time — tags are mutable, multi-valued, and never touch the original run data.
+
+### Filtering by tag
+
+Once runs are tagged, a chip row appears above the compare view listing every distinct tag with a usage count. Click a chip to narrow both the aggregated matrix and the per-run table to runs carrying at least one of the selected tags (OR semantics — clicking a second chip widens the set). A **Clear** link resets the filter, and filter selections persist as you switch between Aggregated and Per-run modes.
+
+The same filter is available to API consumers via `GET /api/compare?tags=baseline,v2-prompt`, which returns only the cells and runs whose tags intersect the query.
+
+### Analytics charts
+
+Below the aggregated matrix, a collapsible **Analytics** section provides visual charts for deeper comparison. Select a **baseline target** from the dropdown to compute deltas and normalized gain metrics against that target.
+
+<Image src={studioAnalyticsCharts} alt="AgentV Dashboard analytics charts showing normalized gain bar chart with baseline selector and score distribution histogram" />
+
+The section includes the following visualizations:
+
+- **Normalized Gain (g)** — horizontal bar chart showing how much of the remaining headroom each experiment × target captured relative to the baseline. Bars are colour-coded green (positive gain), red (regression), or grey (null / no headroom). See [Normalized Gain](/docs/v4.42.4/tools/compare/#normalized-gain-g) for the formula.
+- **Tag × Target Heatmap** — pass-rate grid across tags and targets, colour-coded by performance (emerald for high, amber for medium, red for low).
+- **Negative Delta Table** — filtered list of experiment × target pairs that scored worse than the baseline, sorted by largest regression.
+- **Score Distribution** — histogram showing the variance of scores across all test cases, binned by 10% intervals.
+- **Score Trend Over Time** — line chart plotting mean score per target across runs over time, with a colour-coded legend for each target.
+
+<Image src={studioAnalyticsTrend} alt="AgentV Dashboard analytics showing score distribution histogram and score trend over time line chart with multi-target legend" />
+
+The baseline comparison is also available via the API: `GET /api/compare?baseline=<target>` adds `delta` and `normalized_gain` fields to each non-baseline cell in the response.
+
+## Projects Dashboard
+
+By default, Dashboard shows results for the current directory. Register multiple project repos to view them from a single dashboard.
+
+### Registering Projects
+
+Register project repos one at a time:
+
+```bash
+agentv dashboard --add /path/to/my-evals
+agentv dashboard --add /path/to/other-evals
+```
+
+You can also click **Add Project** on the Projects dashboard, browse or enter a
+folder path, and select a directory that contains `.agentv/`.
+
+Each path must contain a `.agentv/` directory. Registered projects are stored under `projects:` in `$AGENTV_HOME/config.yaml`, or `~/.agentv/config.yaml` when `AGENTV_HOME` is unset.
+
+To register a remote repo and keep it synced automatically, add `repo_url` and `ref` to the entry in `$AGENTV_HOME/config.yaml`. `repo_url` is the Git remote URL AgentV passes to `git clone`, so it can be HTTPS or SSH:
+
+```yaml
+projects:
+  - id: my-evals
+    name: My Evals
+    repo_url: https://github.com/example/my-evals.git
+    path: /srv/agentv/my-evals
+    ref: main
+```
+
+On each Dashboard startup, AgentV clones the repo if the path is empty (`git clone --depth 1`) or pulls the latest if a clone already exists (`git pull --ff-only`). You can also trigger a sync manually from the Dashboard UI's **Sync** button.
+
+### Runtime behavior: no restart needed
+
+`$AGENTV_HOME/config.yaml` is the single source of truth for registered projects. Dashboard re-reads it on every `/api/projects` request (which the UI polls every ~10 s), so any of these changes appear live without restarting `agentv serve`:
+
+- Adding via the UI's **Add Project** folder picker or `POST /api/projects`.
+- Removing via the UI's **Remove** button or `DELETE /api/projects/:id`.
+- Editing the `projects:` block in `$AGENTV_HOME/config.yaml` directly.
+- Mounting the file via a Kubernetes ConfigMap — GitOps the ConfigMap and Dashboard reflects it within the next poll.
+
+This satisfies the 24/7-Dashboard use case: the server stays up; projects come and go through config edits or API calls.
+
+### Launching the Dashboard
+
+Dashboard opens the Projects dashboard by default, even when no projects or one project are registered. When launched from a registered project, the UI redirects to that project's runs tab on first load. Use `--single` only when you need the legacy single-project route layout.
+
+```bash
+agentv dashboard          # Projects dashboard
+agentv dashboard --single # legacy single-project route layout
+```
+
+Use a different `AGENTV_HOME` and port per process when you want multiple non-Docker dashboard instances with separate project registries and global config:
+
+```bash
+AGENTV_HOME=/tmp/agentv-home-a agentv dashboard --port 3117
+AGENTV_HOME=/tmp/agentv-home-b agentv dashboard --port 3118
+```
+
+The landing page shows a card for each project with run count, pass rate, and last run time.
+
+<Image src={studioProjectsMulti} alt="AgentV Dashboard projects dashboard showing project cards with pass rates" />
+
+### Removing a Project
+
+Unregister by its ID:
+
+```bash
+agentv dashboard --remove my-evals
+```
+
+IDs are derived from the directory name (e.g., `/home/user/repos/my-evals` becomes `my-evals`).
+
+## Remote Results
+
+Dashboard can display runs pushed to a remote git repository by other machines or CI alongside your local runs. Each run in the list carries a source badge: **local** (green) or **remote** (amber). For in-progress eval durability before final publish, AgentV writes [WIP checkpoints](/docs/v4.42.4/tools/wip-checkpoints/) to `agentv/wip/...` branches; Dashboard lists them only after they are recovered locally or published to the normal results branch.
+
+### Configuration
+
+For a registered project, put results repo settings on that project's entry in `$AGENTV_HOME/config.yaml`:
+
+```yaml
+projects:
+  - id: agentv
+    name: AgentV
+    repo_url: https://github.com/EntityProcess/agentv.git
+    path: /home/entity/projects/EntityProcess/agentv
+    ref: main
+    results:
+      repo_path: .
+      branch: agentv/results/v1
+      remote: origin
+      sync:
+        auto_push: false
+        require_push: false
+```
+
+`results.repo_path: .` stores completed run artifacts on a dedicated branch of the source repository without checking out that branch in the source worktree. The name is intentionally `repo_path`, not `repo`: in AgentV, `workspace.repos[].repo` means a portable repository identity such as a clone URL or `org/name`, while `results.repo_path` means an existing local Git checkout whose object database and refs AgentV should write to. The branch defaults to `agentv/results/v1` for `repo_path` configs. AgentV creates the branch automatically on first publish and commits only `.agentv/results/**` paths into it. `sync.auto_push: false` keeps the result commit local; set it to `true` to push the branch best-effort after each completed run. `sync.require_push: true` is for CI workflows where a push failure should fail the command after local artifacts are written.
+
+For a separate results repository, use `repo_url` and an optional managed clone `path`:
+
+```yaml
+projects:
+  - id: agentv
+    name: AgentV
+    path: /home/entity/projects/EntityProcess/agentv
+    results:
+      repo_url: git@github.com:EntityProcess/agentv-examples-eval-results.git
+      branch: agentv/results/v1
+      path: /home/entity/projects/EntityProcess/agentv-examples-eval-results
+      sync:
+        auto_push: true
+```
+
+`results.repo_url` is the Git remote URL used for clone and push operations, so use HTTPS when credentials are HTTP-token based and SSH when the runtime has SSH keys configured. `results.path` is the filesystem location of the local clone AgentV manages for that remote results repo. Use `repo_path` only when the results store is an already-existing local checkout such as `.`.
+
+You can also set a top-level global fallback in the same file. This is used when the current project is not registered or its registry entry has no `results` block:
+
+```yaml
+results:
+  repo_path: .
+  branch: agentv/results/v1
+  remote: origin
+  sync:
+    auto_push: false
+    require_push: false
+```
+
+Project-local `.agentv/config.yaml` is for portable eval defaults such as `execution`, `eval_patterns`, and `dashboard`. Do not put `projects` in project-local config; AgentV warns and ignores it there. `results_by_project` is deprecated; use `projects[].results` in `$AGENTV_HOME/config.yaml`.
+
+The project `repo_url` and the `results` block sync different repositories:
+
+- `projects[].repo_url` is the eval source project remote. Dashboard startup clones or fast-forwards the project checkout so eval YAML, scripts, and project-local `.agentv/config.yaml` stay current.
+- `projects[].results.repo_url` is the git-backed results store remote. **Sync Project** fetches, fast-forwards, and, when configured, pushes run artifacts and mutable metadata in that results repo clone.
+
+#### Migration from the legacy project schema
+
+Before:
+
+```yaml
+projects:
+  - id: agentv
+    name: AgentV
+    path: /home/entity/projects/EntityProcess/agentv
+    source:
+      url: https://github.com/EntityProcess/agentv
+      ref: main
+    results:
+      mode: github
+      repo: EntityProcess/agentv-eval-results
+      path: /home/entity/projects/EntityProcess/agentv-eval-results
+      auto_push: true
+```
+
+After:
+
+```yaml
+projects:
+  - id: agentv
+    name: AgentV
+    repo_url: https://github.com/EntityProcess/agentv.git
+    path: /home/entity/projects/EntityProcess/agentv
+    ref: main
+    results:
+      repo_url: https://github.com/EntityProcess/agentv-eval-results.git
+      branch: agentv/results/v1
+      path: /home/entity/projects/EntityProcess/agentv-eval-results
+      sync:
+        auto_push: true
+```
+
+Legacy project fields (`source`, `repository`, `results.mode`, `results.repo`, `results.repository`, `results.local_path`, and `results.auto_push`) fail validation with migration guidance.
+
+Use project-level **Sync Project** as the results exchange workflow. It handles pulled remote runs, locally edited metadata, dirty state, and blocked conflict feedback in one project-scoped action.
+
+There is no separate `agentv results remote status` or `agentv results remote sync` command. The `agentv results` CLI stays focused on local run workspaces; manual remote exchange is Dashboard/API-only, with eval auto-export covering the common CI/publisher path.
+
+Each run writes to a unique timestamped directory, so concurrent pushes from multiple machines are safe. AgentV creates a missing storage branch automatically and pushes with a non-fast-forward retry. `branch_prefix` remains only the prefix for temporary result/PR branch names; it is not the storage branch.
+
+### What happens to existing local runs?
+
+Existing runs already present under `.agentv/results/runs/` stay exactly where they are and continue to appear in Dashboard as **local** runs.
+
+Adding a `results` block does **not** backfill those historical runs into the results branch automatically. Result publishing only affects runs created after the results repo is configured. `sync.auto_push` controls network push and best-effort WIP checkpoints for in-progress `agentv eval` runs.
+
+If you want older local-only runs in the remote repo, rerun them or copy the run directories into the managed clone manually before syncing the project.
+
+### Authentication
+
+Uses `gh` CLI and `git` credentials already configured on the machine. If authentication is missing, AgentV warns and skips the export — the eval run itself is never blocked.
+
+### Syncing in Dashboard
+
+Once configured, Dashboard reads local runs and the configured results repo clone for that project. The status endpoint does not fetch from the remote on every page load; use **Sync Project** when you want to exchange changes with the results repo remote.
+
+Automation can use the same API that Dashboard uses:
+
+- `GET /api/projects/:projectId/remote/status`
+- `POST /api/projects/:projectId/remote/sync`
+
+Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
+
+In the default multi-project flow, open a project card first, then use **Sync Project** in that project's toolbar. The toolbar shows the project display name, sync state, last synced time, configured repo, and remote run count. Statuses include clean, unavailable, behind, ahead, dirty, diverged, conflicted, and syncing.
+
+Use the **All Sources / Local Only / Remote Only** filter to narrow the run list by origin.
+
+<Image src={studioRemoteResultsBeforeSync} alt="AgentV Dashboard project view in multi-project mode before syncing, showing the Support Bot project with a populated run sidebar and remote results that have already been fetched" />
+
+Runs pushed from another machine or CI do not appear until you sync. Existing local-only runs remain visible in the sidebar and keep their **local** source badge.
+
+<Image src={studioRemoteResultsAfterSync} alt="AgentV Dashboard project view in multi-project mode after syncing, showing the newly fetched GitHub remote run alongside existing local and remote runs in the sidebar" />
+
+After sync, newly fetched remote runs appear in the list with a **remote** source badge, and Dashboard can open their details without checking out the remote branch locally.
+
+**Sync Project** fetches the results repo and only changes the clone when Git says it is safe:
+
+- A clean clone that is behind the remote is fast-forwarded.
+- Safe uncommitted changes under `.agentv/results/**`, such as remote tag metadata overlays, are committed and pushed when `sync.auto_push: true`.
+- A local results repo that is ahead is pushed when `sync.auto_push: true` and the committed paths are all under `.agentv/results/**`.
+- Dirty non-results files, dirty metadata plus remote changes, diverged history, unresolved conflicts, missing upstream branches, non-results commits ahead, and rejected pushes are blocked instead of reset.
+
+When sync is blocked, Dashboard keeps the local clone intact and shows the `block_reason`, `dirty_paths` or `conflicted_paths`, `git_status`, and a compact `git_diff_summary` so you can resolve the results repo manually before syncing again.

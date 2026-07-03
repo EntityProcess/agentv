@@ -1,0 +1,249 @@
+---
+title: Import
+description: Import transcripts and external eval configs into AgentV
+sidebar:
+  order: 3
+slug: docs/v4.42.4/tools/import
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+The `import` command converts agent session transcripts and external eval configs into AgentV formats. Transcript imports let you grade past runs offline without re-running the agent. Config imports help migrate existing suites into AgentV YAML.
+
+## Supported Providers
+
+| Provider | Command | Source |
+|----------|---------|--------|
+| Claude Code | `agentv import claude` | `~/.claude/projects/<path>/<uuid>.jsonl` |
+| Codex CLI | `agentv import codex` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl` |
+| Copilot CLI | `agentv import copilot` | `~/.copilot/session-state/<uuid>/events.jsonl` |
+| promptfoo | `agentv import promptfoo` | `promptfooconfig.yaml`, `.json`, `.json5` |
+
+## `import promptfoo`
+
+Convert a promptfoo config into an AgentV `EVAL.yaml`.
+
+```bash
+agentv import promptfoo ./promptfooconfig.yaml
+```
+
+### Dry run
+
+Print the generated AgentV YAML without writing a file:
+
+```bash
+agentv import promptfoo ./promptfooconfig.yaml --dry-run
+```
+
+### Custom output path
+
+```bash
+agentv import promptfoo ./promptfooconfig.yaml -o ./evals/EVAL.yaml
+```
+
+Default output: `EVAL.yaml` beside the promptfoo config file.
+
+### What v1 converts cleanly
+
+- inline prompts and file-backed text / chat JSON prompts
+- inline tests and external YAML / JSON / JSONL / CSV test files
+- `defaultTest.assert` promoted to suite-level `assertions`
+- per-test `vars`, `description`, `threshold`, `metadata`, prompt filters, and provider filters
+- simple prompt templates are preserved as AgentV `{{var}}` input templates instead of being eagerly flattened
+- deterministic assertions that map directly to AgentV: `equals`, `contains`, `icontains`, `regex`, `starts-with`, `ends-with`, `contains-any`, `contains-all`, `icontains-any`, `icontains-all`, `is-json`, `latency`, `cost`
+- rubric-style assertions mapped to `llm-grader`: `llm-rubric`, `g-eval`, `factuality`, `context-faithfulness`, `context-recall`
+
+### What still needs manual migration
+
+The importer fails explicitly instead of doing a lossy conversion when it sees promptfoo features that need a runtime translation layer or AgentV-specific redesign. Current examples:
+
+- `javascript`, `python`, `similar`, `assert-set`, `contains-json`, trajectory assertions, and other non-direct assertion types
+- CSV/XLSX features beyond common `__expected*` / `__description` / `__threshold` / `__metadata:*` columns
+- prompt or test generators, executable prompts, `options.transform`, `options.transformVars`, file-backed vars, and `providerOutput`
+
+If the import stops on one of these, keep the generated config for the supported parts and migrate the flagged feature manually.
+
+## `import claude`
+
+Import a Claude Code session transcript.
+
+### List available sessions
+
+```bash
+agentv import claude --list
+```
+
+Output:
+
+```
+Found 5 session(s):
+
+  4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22  2m ago  -home-user-myproject
+  087b801a-7a63-48ff-b348-62563a290b23  1h ago  -home-user-myproject
+  ed8b8c62-4414-49fb-8739-006d809c8588  3h ago  -home-user-other-project
+```
+
+### Import a specific session
+
+```bash
+agentv import claude --session-id 4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22
+```
+
+### Filter by project path
+
+```bash
+agentv import claude --list --project-path /home/user/myproject
+```
+
+### Custom output path
+
+```bash
+agentv import claude --session-id <uuid> -o transcripts/my-session.jsonl
+```
+
+Default output: `.agentv/transcripts/claude-<session-id-short>.jsonl`
+
+## `import codex`
+
+Import a Codex CLI session transcript.
+
+### List available sessions
+
+```bash
+agentv import codex --list
+```
+
+### Import a specific session
+
+```bash
+agentv import codex --session-id 019d5cff-9f02-7bc3-8f98-2071ba17ef0e
+```
+
+## `import copilot`
+
+Import a Copilot CLI session transcript.
+
+### List available sessions
+
+```bash
+agentv import copilot --list
+```
+
+### Import a specific session
+
+```bash
+agentv import copilot --session-id 9ca6d90c-1d80-40d1-b805-c59ee31fc007
+```
+
+## Options
+
+All three providers share the same core flags:
+
+| Flag | Description |
+|------|-------------|
+| `--session-id <uuid>` | Import a specific session by UUID |
+| `--list` | List available sessions instead of importing |
+| `--output, -o <path>` | Custom output file path |
+
+Provider-specific flags:
+
+| Flag | Provider | Description |
+|------|----------|-------------|
+| `--project-path <path>` | Claude | Filter sessions by project path |
+| `--projects-dir <dir>` | Claude | Override `~/.claude/projects` directory |
+| `--date <YYYY-MM-DD>` | Codex | Filter sessions by date |
+| `--sessions-dir <dir>` | Codex | Override `~/.codex/sessions` directory |
+| `--session-state-dir <dir>` | Copilot | Override `~/.copilot/session-state` directory |
+
+## Output Format
+
+Imported transcripts are written as AgentV transcript JSONL. Each row is a
+provider-neutral `agentv.transcript.v1` message row grouped by `test_id` and
+ordered by `message_index`:
+
+```json
+{"schema_version":"agentv.transcript.v1","test_id":"claude-session-1","target":"claude","message_index":0,"role":"user","content":"Fix the bug in auth.ts","capture":{"content":"full","redaction_level":"none"},"source":{"kind":"imported_transcript","provider":"claude","session_id":"claude-session-1"}}
+{"schema_version":"agentv.transcript.v1","test_id":"claude-session-1","target":"claude","message_index":1,"role":"assistant","content":"I'll fix the authentication bug.","tool_calls":[{"tool":"Read","id":"toolu_01...","input":{"file_path":"src/auth.ts"},"output":"...file contents..."}],"capture":{"content":"full","redaction_level":"none"},"source":{"kind":"imported_transcript","provider":"claude","session_id":"claude-session-1"}}
+```
+
+Stable top-level fields are `schema_version`, `test_id`, `target`,
+`message_index`, `role`, optional `name`, `content`, `tool_calls`,
+`start_time`, `end_time`, `duration_ms`, `metadata`, `token_usage`,
+transcript-level `transcript_token_usage`, `transcript_duration_ms`,
+`transcript_cost_usd`, `capture`, optional `trace`, and `source`.
+Provider-native details stay inside opaque nested fields such as `metadata`,
+`source.metadata`, tool `input`, or tool `output`; they are not custom top-level
+row keys.
+
+Rows without `schema_version`, `capture`, or `trace` from older AgentV transcript
+exports remain replayable. New eval run artifacts write the v1 shape.
+For eval run artifacts, `outputs/transcript.jsonl` is derived from
+`outputs/trace.json`; it is a portable message/event projection, not a second
+canonical trace source or a provider-native session dump.
+
+## What Gets Parsed
+
+| Claude Event | AgentV Message |
+|-------------|----------------|
+| `user` | `{ role: 'user', content }` |
+| `assistant` | `{ role: 'assistant', content, toolCalls }` |
+| `tool_use` blocks | `ToolCall { tool, input, id }` |
+| `tool_result` blocks | Paired with matching `tool_use` by ID |
+| `progress`, `system` | Skipped |
+| Subagent events | Filtered out (v1) |
+
+Token usage is aggregated from the final cumulative value per LLM request. Duration is computed from first-to-last event timestamp.
+
+## Workflow
+
+Import a session, then run graders against it:
+
+```bash
+# 1. List sessions and pick one
+agentv import claude --list
+
+# 2. Import a session by ID
+agentv import claude --session-id 4c4f9e4e-e6f1-490b-a1b1-9aef543ebf22
+
+# 3. Run graders against the imported transcript
+agentv eval evals/my-eval.yaml --transcript .agentv/transcripts/claude-4c4f9e4e.jsonl
+```
+
+See `examples/features/import-claude/` for a complete working example.
+
+## HuggingFace Datasets (SWE-bench)
+
+Use `scripts/import-huggingface.py` to convert HuggingFace benchmark datasets into AgentV eval files. Currently supports SWE-bench-style datasets.
+
+```bash
+uv run scripts/import-huggingface.py \
+  --repo SWE-bench/SWE-bench_Verified \
+  --split test \
+  --limit 10 \
+  --output evals/swebench/
+```
+
+Each instance becomes an EVAL.yaml with:
+- `input` — the problem statement
+- `workspace.docker.image` — the pre-built SWE-bench Docker image (`ghcr.io/epoch-research/swe-bench.eval.x86_64.<instance_id>:latest`)
+- `workspace.repos[].base_commit` — the commit to reset to before the agent runs
+- `assertions` — `code-grader` tasks that run `FAIL_TO_PASS` and `PASS_TO_PASS` pytest suites inside the container
+
+Run an imported SWE-bench eval against any coding agent target:
+
+```bash
+# Import one instance
+uv run scripts/import-huggingface.py \
+  --repo SWE-bench/SWE-bench_Verified \
+  --limit 1 \
+  --output /tmp/swebench-eval/
+
+# Run with a coding agent target
+agentv eval /tmp/swebench-eval/*.EVAL.yaml --target codex
+```
+
+The Docker workspace spins up the pre-built SWE-bench image, checks out `base_commit`, runs the agent to apply a patch, then grades by running the test suite inside the container.
