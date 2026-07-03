@@ -358,7 +358,7 @@ tests:
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-For SWE-bench-style evals, translate the upstream `base_commit` value to
+For SWE-bench-style evals, put operational checkout state under
 `workspace.repos[].commit`; treat `metadata.source_commit` as informational
 only. A SHA in the prompt or metadata without a matching workspace repo pin is
 not an operational checkout.
@@ -384,8 +384,6 @@ workspace:
 - `commit`: branch, tag, or SHA to check out
 - `ancestor`: walk N commits back from the checked-out ref
 - `sparse`: sparse checkout paths array
-- Do not use legacy `source`, `type`, `checkout`, `base_commit`, `resolve`, `resolver`, or `clone` fields under `workspace.repos[]`
-- Do not author `workspace.mode`, `workspace.path`, `experiment.workspace`, or `execution.workspace` in eval YAML
 - Harness-managed repo workspaces use temp materialization by default; use `workspace.scope: suite | attempt` for portable lifetime
 - Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks

@@ -9,6 +9,8 @@
 import type { RepoConfig } from '../types.js';
 import { isJsonObject } from '../types.js';
 
+const SUPPORTED_REPO_FIELDS = new Set(['path', 'repo', 'commit', 'ancestor', 'sparse']);
+
 function readString(obj: Record<string, unknown>, key: string): string | undefined {
   const value = obj[key];
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
@@ -33,9 +35,6 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
       'workspace.repos[].checkout has been removed. Use top-level commit and ancestor.',
     );
   }
-  if ('base_commit' in obj) {
-    throw new Error('workspace.repos[].base_commit has been removed. Use workspace.repos[].commit.');
-  }
   if ('clone' in obj) {
     throw new Error('workspace.repos[].clone has been removed. Use top-level sparse if needed.');
   }
@@ -51,6 +50,13 @@ export function parseRepoConfig(raw: unknown): RepoConfig | undefined {
     throw new Error(
       'workspace.repos[].resolver has been removed. Configure repo_resolvers.repos patterns instead.',
     );
+  }
+  for (const key of Object.keys(obj)) {
+    if (!SUPPORTED_REPO_FIELDS.has(key)) {
+      throw new Error(
+        `workspace.repos[].${key} is not supported. Supported fields: path, repo, commit, ancestor, sparse.`,
+      );
+    }
   }
 
   const repoPath = readString(obj, 'path');

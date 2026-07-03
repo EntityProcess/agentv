@@ -274,28 +274,6 @@ tests:
     expect(cases[0].workspace?.repos?.[0].commit).toBe('v2.0.0');
   });
 
-  it('rejects removed repo base_commit field', async () => {
-    const evalFile = path.join(testDir, 'workspace-repo-base-commit.yaml');
-    await writeFile(
-      evalFile,
-      `
-tests:
-  - id: repo-base-commit
-    input: "Do something"
-    criteria: "Should work"
-    workspace:
-      repos:
-        - path: /testbed
-          repo: https://github.com/org/repo.git
-          base_commit: abc123def
-`,
-    );
-
-    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
-      'workspace.repos[].base_commit has been removed',
-    );
-  });
-
   it('parses workspace repos from YAML', async () => {
     const evalFile = path.join(testDir, 'workspace-repos.yaml');
     await writeFile(

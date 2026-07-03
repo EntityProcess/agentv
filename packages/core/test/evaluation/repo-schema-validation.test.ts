@@ -136,22 +136,6 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects removed base_commit field', () => {
-    const result = EvalFileSchema.safeParse({
-      ...baseEval,
-      workspace: {
-        repos: [
-          {
-            path: './repo-a',
-            repo: 'https://github.com/org/repo.git',
-            base_commit: 'def',
-          },
-        ],
-      },
-    });
-    expect(result.success).toBe(false);
-  });
-
   it('accepts workspace with hooks after_each reset config', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,

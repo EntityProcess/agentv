@@ -229,6 +229,8 @@ const KNOWN_TEST_FIELDS = new Set([
   'window_size',
 ]);
 
+const SUPPORTED_WORKSPACE_REPO_FIELDS = new Set(['path', 'repo', 'commit', 'ancestor', 'sparse']);
+
 /** Removed test-level fields with migration hints. */
 const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 
@@ -1637,16 +1639,6 @@ function validateWorkspaceRepoConfig(
         });
       }
 
-      if ('base_commit' in repo) {
-        errors.push({
-          severity: 'error',
-          filePath,
-          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
-          message:
-            'workspace.repos[].base_commit has been removed. Use workspace.repos[].commit.',
-        });
-      }
-
       if ('clone' in repo) {
         errors.push({
           severity: 'error',
@@ -1684,6 +1676,17 @@ function validateWorkspaceRepoConfig(
         });
       }
 
+      for (const key of Object.keys(repo)) {
+        if (!SUPPORTED_WORKSPACE_REPO_FIELDS.has(key)) {
+          errors.push({
+            severity: 'error',
+            filePath,
+            location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+            message: `workspace.repos[].${key} is not supported. Supported fields: path, repo, commit, ancestor, sparse.`,
+          });
+        }
+      }
+
       if (!repo.repo && !isObject(docker)) {
         errors.push({
           severity: 'error',
@@ -1694,7 +1697,6 @@ function validateWorkspaceRepoConfig(
             'Repo-less entries are only valid when workspace.docker is configured.',
         });
       }
-
     }
   }
 

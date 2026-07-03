@@ -1994,34 +1994,6 @@ tests:
       expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
-    it('errors when base_commit is used', async () => {
-      const filePath = path.join(tempDir, 'workspace-conflicting-commits.yaml');
-      await writeFile(
-        filePath,
-        `workspace:
-  repos:
-    - path: ./repo
-      repo: https://github.com/org/repo.git
-      base_commit: def
-tests:
-  - id: test-1
-    criteria: Goal
-    input: "Query"
-`,
-      );
-
-      const result = await validateEvalFile(filePath);
-
-      expect(result.valid).toBe(false);
-      expect(
-        result.errors.some(
-          (e) =>
-            e.severity === 'error' &&
-            e.message.includes('workspace.repos[].base_commit has been removed'),
-        ),
-      ).toBe(true);
-    });
-
     it('errors when an external workspace file uses legacy source', async () => {
       const workspaceFile = path.join(tempDir, 'external-workspace.yaml');
       await writeFile(

@@ -101,15 +101,15 @@ tests:
     });
   });
 
-  it('reports removed base_commit field', async () => {
+  it('reports unsupported repo fields', async () => {
     const file = await writeYaml(
-      'base-commit.eval.yaml',
+      'unsupported-repo-field.eval.yaml',
       `
 workspace:
   repos:
     - path: ./repo
       repo: https://github.com/org/repo.git
-      base_commit: abc123
+      unknown_field: abc123
 tests:
   - id: test-1
     input: hello
@@ -120,7 +120,7 @@ tests:
     const result = await scanRepoDeps([file]);
     expect(result.repos).toHaveLength(0);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].message).toContain('workspace.repos[].base_commit has been removed');
+    expect(result.errors[0].message).toContain('workspace.repos[].unknown_field is not supported');
   });
 
   it('deduplicates repos by canonical identity and ref', async () => {

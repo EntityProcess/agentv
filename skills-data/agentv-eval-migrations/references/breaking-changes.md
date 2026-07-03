@@ -624,9 +624,8 @@ Inspect `type:` matches manually because grader entries still use `type`.
 
 `repos[].path` remains valid and means the target directory inside the
 materialized workspace. It is not the removed local `workspace.path`.
-Current parser rejects `base_commit`. Prefer a single checkout pin field,
-`commit`, so workers do not preserve a second spelling in examples or generated
-evals.
+Current eval YAML accepts a single checkout pin field, `commit`, so workers
+should not preserve a second spelling in examples or generated evals.
 
 ## Target And Runtime Separation
 
