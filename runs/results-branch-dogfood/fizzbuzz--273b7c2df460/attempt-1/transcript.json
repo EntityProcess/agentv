@@ -1,0 +1,53 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "pi-cli",
+  "target": "pi-cli-openai",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "user",
+      "ts": "2026-07-03T08:59:23.188Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "Write FizzBuzz in Python. Use lowercase output strings \"fizz\", \"buzz\", and \"fizzbuzz\". Return only one Python code block."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "pi-cli",
+      "type": "assistant",
+      "ts": "2026-07-03T08:59:23.290Z",
+      "content": [
+        {
+          "type": "text",
+          "text": "```python\nfor i in range(1, 101):\n    if i % 3 == 0 and i % 5 == 0:\n        print(\"fizzbuzz\")\n    elif i % 3 == 0:\n        print(\"fizz\")\n    elif i % 5 == 0:\n        print(\"buzz\")\n    else:\n        print(i)\n```"
+        }
+      ]
+    }
+  ]
+}

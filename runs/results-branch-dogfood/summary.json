@@ -1,0 +1,84 @@
+{
+  "manifest_path": "index.jsonl",
+  "metadata": {
+    "run_id": "results-branch-dogfood",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv.worktrees/fix-suite-yaml-examples/examples/features/readme-quickstart/evals/my-eval.eval.yaml",
+    "timestamp": "2026-07-03T08:59:38.842Z",
+    "targets": [
+      "pi-cli-openai"
+    ],
+    "tests_run": [
+      "fizzbuzz"
+    ],
+    "experiment": "with-skills",
+    "experiment_config": {
+      "fingerprint": "2ff6841f6fbc3894778adeae5f02e788eedd599cabfa1475dbd5e5eaaf604196",
+      "target": "local-openai"
+    },
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "kind": "direct_suite",
+      "config_source": "mixed",
+      "experiment_namespace": "with-skills",
+      "experiment_namespace_source": "tags",
+      "eval_files": [
+        "examples/features/readme-quickstart/evals/my-eval.eval.yaml"
+      ],
+      "source_eval_files": [
+        "examples/features/readme-quickstart/evals/my-eval.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1,
+    "tags": {
+      "experiment": "with-skills"
+    }
+  },
+  "run_summary": {
+    "pi-cli-openai": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 4.631,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 8688,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "contains-fizz:contains": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "script:script": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "timing": {
+    "total_tokens": 8688,
+    "duration_ms": 4631,
+    "total_duration_seconds": 4.631,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 8557,
+      "output": 131,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "provider_reported",
+      "total_tokens": "provider_reported",
+      "duration": "provider_reported",
+      "cost": "unavailable"
+    }
+  },
+  "notes": []
+}

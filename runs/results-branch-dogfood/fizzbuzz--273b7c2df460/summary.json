@@ -1,0 +1,32 @@
+{
+  "total_attempts": 1,
+  "passed_attempts": 1,
+  "pass_rate": "100%",
+  "mean_duration_ms": 4631,
+  "mean_duration_seconds": 4.631,
+  "fingerprint": "2ff6841f6fbc3894778adeae5f02e788eedd599cabfa1475dbd5e5eaaf604196",
+  "total_tokens": 8688,
+  "duration_ms": 4631,
+  "total_duration_seconds": 4.631,
+  "duration_stats": {
+    "count": 1,
+    "mean_ms": 4631,
+    "mean_seconds": 4.631,
+    "stddev_ms": 0,
+    "stddev_seconds": 0,
+    "min_ms": 4631,
+    "max_ms": 4631
+  },
+  "cost_usd": null,
+  "token_usage": {
+    "input": 8557,
+    "output": 131,
+    "reasoning": 0
+  },
+  "usage_sources": {
+    "token_usage": "provider_reported",
+    "total_tokens": "provider_reported",
+    "duration": "provider_reported",
+    "cost": "unavailable"
+  }
+}
