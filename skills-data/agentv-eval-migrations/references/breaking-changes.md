@@ -579,10 +579,10 @@ suffixes in `file://...:beforeAll`.
 
 ### v4.42.4 Shape
 
-v4.42.4 already documented `workspace.repos[].repo`, `commit`,
-`base_commit`, `ancestor`, and `sparse` as repo provenance. The v4.42.4 parser
-also rejected some acquisition fields such as `source`, `checkout`, and
-`clone`.
+v4.42.4 already documented `workspace.repos[].repo`, `commit`, `ancestor`, and
+`sparse` as repo provenance. It also accepted `base_commit` as a
+SWE-bench-friendly alias for `commit`. The v4.42.4 parser rejected some
+acquisition fields such as `source`, `checkout`, and `clone`.
 
 ### Current Shape
 
@@ -594,7 +594,7 @@ workspace:
   repos:
     - path: ./repo
       repo: org/repo
-      base_commit: abc123def
+      commit: abc123def
       ancestor: 1
       sparse:
         - packages/core
@@ -603,7 +603,7 @@ workspace:
 ### Migration Steps
 
 - `workspace.repos[].source` -> `workspace.repos[].repo`.
-- `workspace.repos[].checkout.ref` or similar -> `commit` / `base_commit`.
+- `workspace.repos[].checkout.ref` or similar -> `commit`.
 - `workspace.repos[].clone.sparse` -> top-level `sparse`.
 - Remove `type`, `resolve`, and `resolver` from repo entries.
 - Configure acquisition policy in repo resolver/project config, not in eval
@@ -622,6 +622,9 @@ Inspect `type:` matches manually because grader entries still use `type`.
 
 `repos[].path` remains valid and means the target directory inside the
 materialized workspace. It is not the removed local `workspace.path`.
+`base_commit` remains accepted as an alias for `commit`, mainly for
+SWE-bench-style datasets, but migrated examples should use `commit` unless the
+source dataset convention specifically uses `base_commit`.
 
 ## Target And Runtime Separation
 
