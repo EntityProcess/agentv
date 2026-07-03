@@ -346,7 +346,6 @@ function validateResultsConfigBody(
   filePath: string,
   rawResults: unknown,
   location: string,
-  options: { projectScoped: boolean },
 ): void {
   if (rawResults === undefined) {
     return;
@@ -360,16 +359,12 @@ function validateResultsConfigBody(
   const r = rawResults;
 
   if (r.mode !== undefined) {
-    if (options.projectScoped) {
-      addError(
-        errors,
-        filePath,
-        `${location}.mode`,
-        `Remove '${location}.mode'; project results use '${location}.repo' and '${location}.path'.`,
-      );
-    } else if (r.mode !== 'github') {
-      addError(errors, filePath, `${location}.mode`, `Field '${location}.mode' must be 'github'`);
-    }
+    addError(
+      errors,
+      filePath,
+      `${location}.mode`,
+      `Remove '${location}.mode'; results use '${location}.repo' and '${location}.path'.`,
+    );
   }
 
   validateOptionalString(errors, filePath, r.repo, `${location}.repo`);
@@ -396,9 +391,7 @@ function validateProjectResultsConfig(
   rawResults: unknown,
   location: string,
 ): void {
-  validateResultsConfigBody(errors, filePath, rawResults, location, {
-    projectScoped: true,
-  });
+  validateResultsConfigBody(errors, filePath, rawResults, location);
 }
 
 function validateResultsConfig(
@@ -407,7 +400,5 @@ function validateResultsConfig(
   rawResults: unknown,
   location: string,
 ): void {
-  validateResultsConfigBody(errors, filePath, rawResults, location, {
-    projectScoped: false,
-  });
+  validateResultsConfigBody(errors, filePath, rawResults, location);
 }

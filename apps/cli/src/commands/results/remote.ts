@@ -187,7 +187,6 @@ export async function loadNormalizedResultsConfig(
       : (getProjectForPath(repoRoot) ?? getProjectForPath(cwd));
   const projectResults = project?.results
     ? ({
-        mode: 'github' as const,
         ...(project.results.repo !== undefined && { repo: project.results.repo }),
         ...(project.results.path !== undefined && { path: project.results.path }),
         ...(project.results.branch !== undefined && { branch: project.results.branch }),

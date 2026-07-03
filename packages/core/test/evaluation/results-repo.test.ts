@@ -71,7 +71,6 @@ function sha256Hex(content: Buffer | string): string {
 
 function createResultsConfig(repoDir: string, cloneDir: string): ResultsConfig {
   return {
-    mode: 'github',
     repo: `file://${repoDir}`,
     path: cloneDir,
     auto_push: true,
@@ -205,7 +204,6 @@ async function setupCanonicalOverlayConflict(rootDir: string): Promise<{
 
   const cloneDir = path.join(rootDir, `results-clone-${randomToken()}`);
   const config: ResultsConfig = {
-    mode: 'github',
     repo: `file://${remoteDir}`,
     path: cloneDir,
     auto_push: true,
