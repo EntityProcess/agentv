@@ -10,8 +10,6 @@ targets: file://targets.yaml
 graders: file://graders.yaml
 tests: file://tests.yaml
 defaults: file://defaults.yaml
-execution:
-  max_concurrency: 1
 ```
 
 Each referenced file contains that field's value directly, such as a bare target
