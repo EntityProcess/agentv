@@ -2,13 +2,14 @@
  * Canonical AgentV run artifact helpers.
  *
  * This module owns the shared run-workspace contract used by CLI and
- * programmatic evals: `index.jsonl`, run-root `summary.json`, per-case
- * `summary.json`, `run-N/result.json`, and transcript projections. Keep wire
- * keys in snake_case here so every caller produces the same artifacts.
+ * programmatic evals: run-root `summary.json`, per-run
+ * `.internal/index.jsonl`, per-case `summary.json`, `sample-N/result.json`,
+ * and transcript projections. Keep wire keys in snake_case here so every caller
+ * produces the same artifacts.
  */
 
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, rmdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -60,6 +61,25 @@ import type {
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RUN_SUMMARY_FILENAME = 'summary.json';
+export const RUN_INTERNAL_DIRNAME = '.internal';
+export const CROSS_RUN_INDEX_DIRNAME = '.indexes';
+export const CROSS_RUN_RUNS_INDEX_FILENAME = 'runs.jsonl';
+export const CROSS_RUN_CASES_INDEX_FILENAME = 'cases.jsonl';
+
+export function runInternalPath(runDir: string, filename: string): string {
+  return path.join(runDir, RUN_INTERNAL_DIRNAME, filename);
+}
+
+export function runIndexPath(runDir: string): string {
+  return runInternalPath(runDir, RESULT_INDEX_FILENAME);
+}
+
+function isCanonicalResultsRoot(resultsRoot: string): boolean {
+  return (
+    path.basename(resultsRoot) === 'results' &&
+    path.basename(path.dirname(resultsRoot)) === '.agentv'
+  );
+}
 
 const TIMING_SOURCE_VALUES = [
   'provider_reported',
@@ -171,8 +191,7 @@ export async function aggregateRunDir(
     tags?: Record<string, string>;
   },
 ): Promise<{ summaryPath: string; testCount: number; targetCount: number }> {
-  const indexPath =
-    (await resolveExistingResultManifestPath(runDir)) ?? path.join(runDir, RESULT_INDEX_FILENAME);
+  const indexPath = (await resolveExistingResultManifestPath(runDir)) ?? runIndexPath(runDir);
   const content = await readFile(indexPath, 'utf8');
   const allResults = parseJsonlResults(content);
   const results = deduplicateByTestIdTarget(allResults);
@@ -223,8 +242,8 @@ async function readRunSummaryManifestPath(runDir: string): Promise<string | unde
     return undefined;
   }
   try {
-    const parsed = JSON.parse(summaryText) as { manifest_path?: unknown };
-    const manifestPath = safeSummaryManifestPath(runDir, parsed.manifest_path);
+    const parsed = JSON.parse(summaryText) as { index_path?: unknown; manifest_path?: unknown };
+    const manifestPath = safeSummaryManifestPath(runDir, parsed.index_path ?? parsed.manifest_path);
     if (manifestPath && (await readTextIfExists(manifestPath)) !== undefined) {
       return manifestPath;
     }
@@ -238,9 +257,13 @@ async function resolveExistingResultManifestPath(runDir: string): Promise<string
     return summaryManifestPath;
   }
 
-  const manifestPath = path.join(runDir, RESULT_INDEX_FILENAME);
+  const manifestPath = runIndexPath(runDir);
   if ((await readTextIfExists(manifestPath)) !== undefined) {
     return manifestPath;
+  }
+  const legacyManifestPath = path.join(runDir, RESULT_INDEX_FILENAME);
+  if ((await readTextIfExists(legacyManifestPath)) !== undefined) {
+    return legacyManifestPath;
   }
   return undefined;
 }
@@ -360,7 +383,7 @@ export interface GradingArtifact {
 
 export type TrialResultArtifact = {
   readonly attempt: number;
-  readonly attempt_path?: string;
+  readonly sample_path?: string;
   readonly score: number;
   readonly verdict: string;
   readonly scores?: IndexArtifactEntry['scores'];
@@ -399,36 +422,90 @@ export type TrialAggregationArtifact =
     };
 
 export interface TimingArtifact {
-  readonly total_tokens: number;
-  readonly duration_ms: number;
-  readonly total_duration_seconds: number;
-  readonly mean_duration_ms?: number;
-  readonly mean_duration_seconds?: number;
-  readonly duration_stats?: {
-    readonly count: number;
-    readonly mean_ms: number;
-    readonly mean_seconds: number;
-    readonly stddev_ms: number;
-    readonly stddev_seconds: number;
-    readonly min_ms: number;
-    readonly max_ms: number;
+  readonly duration: {
+    readonly total_ms: number;
+    readonly total_seconds: number;
+    readonly mean_ms?: number;
+    readonly mean_seconds?: number;
+    readonly stats?: {
+      readonly count: number;
+      readonly mean_ms: number;
+      readonly mean_seconds: number;
+      readonly stddev_ms: number;
+      readonly stddev_seconds: number;
+      readonly min_ms: number;
+      readonly max_ms: number;
+    };
+    readonly source: TimingSource;
   };
-  readonly cost_usd: number | null;
-  readonly token_usage: {
+  readonly tokens: {
+    readonly total: number;
     readonly input: number;
     readonly output: number;
     readonly reasoning: number;
+    readonly source: TimingSource;
   };
-  readonly usage_sources: {
-    readonly token_usage: TimingSource;
-    readonly total_tokens: TimingSource;
-    readonly duration: TimingSource;
-    readonly cost: TimingSource;
+  readonly cost: {
+    readonly usd: number | null;
+    readonly source: TimingSource;
+  };
+  readonly execution?: {
+    readonly status?: string;
+    readonly failure_stage?: string;
+    readonly failure_reason_code?: string;
+  };
+  readonly trajectory?: {
+    readonly total_turns?: number;
+    readonly total_tool_calls?: number;
+    readonly tool_calls?: Record<string, number>;
   };
 }
 
+interface DurationStats {
+  readonly count: number;
+  readonly mean_ms: number;
+  readonly mean_seconds: number;
+  readonly stddev_ms: number;
+  readonly stddev_seconds: number;
+  readonly min_ms: number;
+  readonly max_ms: number;
+}
+
 export interface RunSummaryArtifact {
-  readonly manifest_path: string;
+  readonly index_path: string;
+  readonly run_id?: string;
+  readonly status: {
+    readonly passed: { readonly count: number; readonly percentage: number };
+    readonly failed: { readonly count: number; readonly percentage: number };
+    readonly errored: { readonly count: number; readonly percentage: number };
+    readonly skipped: { readonly count: number; readonly percentage: number };
+  };
+  readonly counts: {
+    readonly total_cases: number;
+    readonly total_instances: number;
+    readonly passed_cases: number;
+    readonly failed_cases: number;
+    readonly errored_instances: number;
+  };
+  readonly pass_at_k: {
+    readonly k: number;
+    readonly passed_cases: number;
+    readonly total_cases: number;
+    readonly rate: number;
+  };
+  readonly usage: {
+    readonly total_tokens: number;
+    readonly input_tokens: number;
+    readonly output_tokens: number;
+    readonly reasoning_tokens: number;
+    readonly cost_usd: number | null;
+  };
+  readonly infra_failures: {
+    readonly total: number;
+    readonly reasons: readonly { readonly reason: string; readonly count: number }[];
+  };
+  readonly cases: readonly Record<string, unknown>[];
+  readonly instances: readonly Record<string, unknown>[];
   readonly metadata: {
     readonly run_id?: string;
     readonly eval_file: string;
@@ -458,7 +535,7 @@ export interface RunSummaryArtifact {
     }
   >;
   readonly per_grader_summary?: Record<string, { readonly mean: number; readonly stddev: number }>;
-  readonly timing: TimingArtifact;
+  readonly metrics: TimingArtifact;
   readonly notes: readonly string[];
 }
 
@@ -501,6 +578,9 @@ export interface IndexArtifactEntry {
   readonly start_time?: string;
   readonly end_time?: string;
   readonly scores?: readonly Record<string, unknown>[];
+  readonly named_scores?: Record<string, number>;
+  readonly derived_metrics?: Record<string, unknown>;
+  readonly provenance?: string;
   readonly attempts?: readonly TrialResultArtifact[];
   readonly aggregation?: TrialAggregationArtifact;
   readonly execution_status?: string;
@@ -510,7 +590,6 @@ export interface IndexArtifactEntry {
   readonly workspace_path?: string;
   readonly result_dir?: string;
   readonly grading_path?: string;
-  readonly timing_path?: string;
   readonly summary_path?: string;
   readonly output_path?: string;
   readonly answer_path?: string;
@@ -521,6 +600,8 @@ export interface IndexArtifactEntry {
   readonly file_changes_path?: string;
   readonly artifact_pointers?: ResultArtifactPointersWire;
   readonly runtime_source?: RunRuntimeSourceMetadata;
+  readonly sample_index?: number;
+  readonly retry_index?: number;
   readonly raw_provider_log_path?: string;
   readonly input_path?: string;
   readonly test_dir?: string;
@@ -565,6 +646,8 @@ export interface AdditionalResultArtifactsContext {
 export interface AgentVRunResultArtifact {
   readonly execution_status: EvaluationResult['executionStatus'];
   readonly verdict: TrialResult['verdict'];
+  readonly sample_index?: number;
+  readonly retry_index?: number;
   readonly duration_ms?: number;
   readonly duration_seconds: number;
   readonly model: string;
@@ -591,7 +674,6 @@ export interface AgentVRunResultArtifact {
     readonly file_changes?: string;
     readonly scripts?: Record<string, string>;
   };
-  readonly timing?: TimingArtifact;
 }
 
 export interface RepeatCaseSummaryArtifact {
@@ -601,13 +683,11 @@ export interface RepeatCaseSummaryArtifact {
   readonly mean_duration_ms: number;
   readonly mean_duration_seconds: number;
   readonly fingerprint: string;
-  readonly total_tokens: number;
-  readonly duration_ms: number;
-  readonly total_duration_seconds: number;
-  readonly duration_stats?: TimingArtifact['duration_stats'];
-  readonly cost_usd: number | null;
-  readonly token_usage: TimingArtifact['token_usage'];
-  readonly usage_sources: TimingArtifact['usage_sources'];
+  readonly duration: TimingArtifact['duration'];
+  readonly tokens: TimingArtifact['tokens'];
+  readonly cost: TimingArtifact['cost'];
+  readonly execution?: TimingArtifact['execution'];
+  readonly trajectory?: TimingArtifact['trajectory'];
 }
 
 export type AdditionalResultArtifactsWriter = (
@@ -761,8 +841,31 @@ function toIndexScores(scores: readonly GraderResult[] | undefined): IndexArtifa
   return scores?.map(toIndexScore) as IndexArtifactEntry['scores'];
 }
 
-function attemptDirName(attempt: number): string {
-  return `attempt-${attempt + 1}`;
+function collectNamedScores(
+  scores: readonly GraderResult[] | undefined,
+  out: Record<string, number> = {},
+): Record<string, number> | undefined {
+  for (const score of scores ?? []) {
+    if (score.name) {
+      out[score.name] = score.score;
+    }
+    collectNamedScores(score.scores, out);
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function resultDerivedMetrics(result: EvaluationResult): Record<string, unknown> | undefined {
+  const value = result.metadata?.derived_metrics ?? result.metadata?.derivedMetrics;
+  return isRecord(value) ? value : undefined;
+}
+
+function resultProvenance(result: EvaluationResult): string {
+  const value = result.metadata?.provenance;
+  return typeof value === 'string' && value.trim().length > 0 ? value : 'native';
+}
+
+function sampleDirName(sampleIndex: number): string {
+  return `sample-${sampleIndex + 1}`;
 }
 
 function hasPersistedTrialRuns(result: EvaluationResult): boolean {
@@ -784,7 +887,7 @@ function toTrialArtifacts(
   }
   return trials.map((trial) => ({
     attempt: trial.attempt,
-    attempt_path: trial.result ? attemptDirName(trial.attempt) : undefined,
+    sample_path: trial.result ? sampleDirName(trial.attempt) : undefined,
     score: trial.score,
     verdict: trial.verdict,
     scores: toIndexScores(trial.scores),
@@ -904,16 +1007,19 @@ function buildRepeatAggregateTimingArtifact(result: EvaluationResult): TimingArt
   const maxMs = Math.max(...durationsMs);
   return {
     ...timing,
-    mean_duration_ms: stats.mean,
-    mean_duration_seconds: roundSecondsFromMs(stats.mean),
-    duration_stats: {
-      count: durationsMs.length,
+    duration: {
+      ...timing.duration,
       mean_ms: stats.mean,
       mean_seconds: roundSecondsFromMs(stats.mean),
-      stddev_ms: stats.stddev,
-      stddev_seconds: roundSecondsFromMs(stats.stddev),
-      min_ms: roundMillis(minMs),
-      max_ms: roundMillis(maxMs),
+      stats: {
+        count: durationsMs.length,
+        mean_ms: stats.mean,
+        mean_seconds: roundSecondsFromMs(stats.mean),
+        stddev_ms: stats.stddev,
+        stddev_seconds: roundSecondsFromMs(stats.stddev),
+        min_ms: roundMillis(minMs),
+        max_ms: roundMillis(maxMs),
+      },
     },
   };
 }
@@ -924,6 +1030,10 @@ function formatRepeatPassRate(passedRuns: number, totalRuns: number): string {
   }
   const percent = Math.round((passedRuns / totalRuns) * 1000) / 10;
   return `${Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1)}%`;
+}
+
+function percentage(count: number, total: number): number {
+  return total > 0 ? Math.round((count / total) * 1000) / 1000 : 0;
 }
 
 function fallbackRepeatFingerprint(result: EvaluationResult): string {
@@ -952,23 +1062,21 @@ function buildRepeatCaseSummaryArtifact(
       : resultVerdict(result) === 'pass'
         ? 1
         : 0;
-  const fallbackMeanMs = totalRuns > 0 ? roundMillis(timing.duration_ms / totalRuns) : 0;
-  const meanDurationMs = timing.mean_duration_ms ?? fallbackMeanMs;
+  const fallbackMeanMs = totalRuns > 0 ? roundMillis(timing.duration.total_ms / totalRuns) : 0;
+  const meanDurationMs = timing.duration.mean_ms ?? fallbackMeanMs;
 
   return {
     total_attempts: totalRuns,
     passed_attempts: passedRuns,
     pass_rate: formatRepeatPassRate(passedRuns, totalRuns),
     mean_duration_ms: meanDurationMs,
-    mean_duration_seconds: timing.mean_duration_seconds ?? roundSecondsFromMs(meanDurationMs),
+    mean_duration_seconds: timing.duration.mean_seconds ?? roundSecondsFromMs(meanDurationMs),
     fingerprint: fingerprint ?? fallbackRepeatFingerprint(result),
-    total_tokens: timing.total_tokens,
-    duration_ms: timing.duration_ms,
-    total_duration_seconds: timing.total_duration_seconds,
-    duration_stats: timing.duration_stats,
-    cost_usd: timing.cost_usd,
-    token_usage: timing.token_usage,
-    usage_sources: timing.usage_sources,
+    duration: timing.duration,
+    tokens: timing.tokens,
+    cost: timing.cost,
+    execution: timing.execution,
+    trajectory: timing.trajectory,
   };
 }
 
@@ -996,7 +1104,9 @@ function buildAgentVRunResultArtifact(params: {
   readonly trial: TrialResult;
   readonly result: EvaluationResult;
   readonly metricsArtifact: ReturnType<typeof buildMetricsArtifact> & {
-    readonly timing?: TimingArtifact;
+    readonly duration?: TimingArtifact['duration'];
+    readonly tokens?: TimingArtifact['tokens'];
+    readonly cost?: TimingArtifact['cost'];
   };
   readonly hasTranscript: boolean;
   readonly hasOutput: boolean;
@@ -1009,6 +1119,8 @@ function buildAgentVRunResultArtifact(params: {
   return dropUndefined({
     execution_status: params.trial.executionStatus ?? params.result.executionStatus,
     verdict: params.trial.verdict,
+    sample_index: params.result.sampleIndex,
+    retry_index: params.result.retryIndex,
     duration_ms: resultDurationMs(params.result),
     duration_seconds: resultDurationSeconds(params.result),
     model: params.result.target ?? 'unknown',
@@ -1039,7 +1151,6 @@ function buildAgentVRunResultArtifact(params: {
             file_changes: fileChangesPath,
           })
         : undefined,
-    timing: params.metricsArtifact.timing,
   }) as unknown as AgentVRunResultArtifact;
 }
 
@@ -1078,12 +1189,11 @@ async function writeTrialRunArtifacts(params: {
     return;
   }
 
-  const runDirName = attemptDirName(params.trial.attempt);
+  const runDirName = sampleDirName(params.trial.attempt);
   const runDir = path.join(params.parentTestDir, runDirName);
   const grading = buildGradingArtifact(result, { includeTrials: false });
   const timing = buildTimingArtifact([result]);
   const gradingPath = path.join(runDir, 'grading.json');
-  const timingPath = path.join(runDir, 'timing.json');
   const metricsPath = path.join(runDir, CANONICAL_METRICS_ARTIFACT_PATH);
   const outputsDir = path.join(runDir, 'outputs');
   const answerOutputPath =
@@ -1110,7 +1220,6 @@ async function writeTrialRunArtifacts(params: {
 
   await mkdir(runDir, { recursive: true });
   await writeFile(gradingPath, `${JSON.stringify(grading, null, 2)}\n`, 'utf8');
-  await writeFile(timingPath, `${JSON.stringify(timing, null, 2)}\n`, 'utf8');
 
   await mkdir(outputsDir, { recursive: true });
   if (answerOutputPath) {
@@ -1129,7 +1238,7 @@ async function writeTrialRunArtifacts(params: {
     envelope,
     transcriptArtifactPath: transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
     gradingArtifactPath: 'grading.json',
-    timingArtifactPath: 'timing.json',
+    timingArtifactPath: null,
     fileChangesArtifactPath: fileChangesPath ? CANONICAL_FILE_CHANGES_ARTIFACT_PATH : undefined,
     timing,
   });
@@ -1364,22 +1473,51 @@ export function buildTimingArtifact(results: readonly EvaluationResult[]): Timin
   const durationSource = combineTimingSources(results, durationSources, hasDuration);
   const costSource = combineTimingSources(results, costSources, hasCost);
 
+  const first = results[0];
+  const totalToolCalls = results.reduce((sum, result) => sum + countToolCalls(result).total, 0);
   return {
-    total_tokens: totalInput + totalOutput,
-    duration_ms: totalDurationMs,
-    total_duration_seconds: Math.round((totalDurationMs / 1000) * 1000) / 1000,
-    cost_usd: hasCost ? totalCostUsd : null,
-    token_usage: {
+    duration: {
+      total_ms: totalDurationMs,
+      total_seconds: Math.round((totalDurationMs / 1000) * 1000) / 1000,
+      source: durationSource,
+    },
+    tokens: {
+      total: totalInput + totalOutput,
       input: totalInput,
       output: totalOutput,
       reasoning: totalReasoning,
+      source: tokenUsageSource,
     },
-    usage_sources: {
-      token_usage: tokenUsageSource,
-      total_tokens: tokenUsageSource,
-      duration: durationSource,
-      cost: costSource,
+    cost: {
+      usd: hasCost ? totalCostUsd : null,
+      source: costSource,
     },
+    execution: first
+      ? dropUndefined({
+          status: first.executionStatus,
+          failure_stage: first.failureStage,
+          failure_reason_code: first.failureReasonCode,
+        })
+      : undefined,
+    trajectory:
+      results.length > 0
+        ? {
+            total_turns: results.reduce(
+              (sum, result) =>
+                sum +
+                (result.trace.llmCallCount ??
+                  result.trace.messages.filter((message) => message.role === 'assistant').length),
+              0,
+            ),
+            total_tool_calls: totalToolCalls,
+            tool_calls: results.reduce<Record<string, number>>((counts, result) => {
+              for (const [tool, count] of Object.entries(countToolCalls(result).toolCalls)) {
+                counts[tool] = (counts[tool] ?? 0) + count;
+              }
+              return counts;
+            }, {}),
+          }
+        : undefined,
   };
 }
 
@@ -1479,9 +1617,131 @@ export function buildRunSummaryArtifact(
 
   const firstResult = results[0];
   const timestamp = firstResult?.timestamp ?? new Date().toISOString();
+  const runMetrics = buildTimingArtifact(results);
+  const casesByKey = new Map<
+    string,
+    {
+      test_id: string;
+      suite?: string;
+      eval_path?: string;
+      target: string;
+      variant?: string;
+      sample_count: number;
+      pass_count: number;
+      status_counts: Record<string, number>;
+      samples: Record<string, unknown>[];
+    }
+  >();
+  const instances = results.flatMap((result) => {
+    const trials = materializedRunTrials(result);
+    return trials.map((trial) => {
+      const sampleIndex = trial.attempt + 1;
+      const status = trial.executionStatus ?? result.executionStatus;
+      const verdict = trial.verdict;
+      const caseKey = buildEvaluationResultTargetKey(result);
+      const sourceTest = undefined;
+      const evalPath = sourceEvalPath(result, sourceTest);
+      const caseSummary = casesByKey.get(caseKey) ?? {
+        test_id: result.testId ?? 'unknown',
+        suite: result.suite,
+        eval_path: evalPath,
+        target: result.target ?? 'unknown',
+        variant: result.variant,
+        sample_count: 0,
+        pass_count: 0,
+        status_counts: {},
+        samples: [],
+      };
+      caseSummary.sample_count += 1;
+      if (verdict === 'pass') {
+        caseSummary.pass_count += 1;
+      }
+      caseSummary.status_counts[status ?? 'unknown'] =
+        (caseSummary.status_counts[status ?? 'unknown'] ?? 0) + 1;
+      const instance = dropUndefined({
+        test_id: result.testId ?? 'unknown',
+        suite: result.suite,
+        eval_path: evalPath,
+        target: result.target ?? 'unknown',
+        variant: result.variant,
+        sample_index: sampleIndex,
+        retry_index: result.metadata?.retry_index,
+        verdict,
+        score: trial.score,
+        execution_status: status,
+        failure_stage: trial.failureStage,
+        failure_reason_code: trial.failureReasonCode,
+        duration_ms: trial.result ? resultDurationMs(trial.result) : resultDurationMs(result),
+        cost_usd: trial.costUsd,
+      });
+      caseSummary.samples.push(instance);
+      casesByKey.set(caseKey, caseSummary);
+      return instance;
+    });
+  });
+  const caseSummaries = [...casesByKey.values()].map((entry) => ({
+    ...entry,
+    pass_rate: percentage(entry.pass_count, entry.sample_count),
+    pass_at_1: entry.pass_count > 0,
+  }));
+  const passedCases = caseSummaries.filter((entry) => entry.pass_count > 0).length;
+  const erroredInstances = instances.filter(
+    (entry) => entry.execution_status === 'execution_error',
+  ).length;
+  const failedCases = caseSummaries.length - passedCases;
+  const infraFailureCounts = new Map<string, number>();
+  for (const instance of instances) {
+    const reason =
+      typeof instance.failure_reason_code === 'string'
+        ? instance.failure_reason_code
+        : instance.execution_status === 'execution_error'
+          ? 'execution_error'
+          : undefined;
+    if (reason) {
+      infraFailureCounts.set(reason, (infraFailureCounts.get(reason) ?? 0) + 1);
+    }
+  }
 
   return {
-    manifest_path: RESULT_INDEX_FILENAME,
+    index_path: `${RUN_INTERNAL_DIRNAME}/${RESULT_INDEX_FILENAME}`,
+    run_id: runId,
+    status: {
+      passed: { count: passedCases, percentage: percentage(passedCases, caseSummaries.length) },
+      failed: { count: failedCases, percentage: percentage(failedCases, caseSummaries.length) },
+      errored: {
+        count: erroredInstances,
+        percentage: percentage(erroredInstances, instances.length),
+      },
+      skipped: { count: 0, percentage: 0 },
+    },
+    counts: {
+      total_cases: caseSummaries.length,
+      total_instances: instances.length,
+      passed_cases: passedCases,
+      failed_cases: failedCases,
+      errored_instances: erroredInstances,
+    },
+    pass_at_k: {
+      k: 1,
+      passed_cases: passedCases,
+      total_cases: caseSummaries.length,
+      rate: percentage(passedCases, caseSummaries.length),
+    },
+    usage: {
+      total_tokens: runMetrics.tokens.total,
+      input_tokens: runMetrics.tokens.input,
+      output_tokens: runMetrics.tokens.output,
+      reasoning_tokens: runMetrics.tokens.reasoning,
+      cost_usd: runMetrics.cost.usd,
+    },
+    infra_failures: {
+      total: [...infraFailureCounts.values()].reduce((sum, count) => sum + count, 0),
+      reasons: [...infraFailureCounts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([reason, count]) => ({ reason, count })),
+    },
+    cases: caseSummaries,
+    instances,
     metadata: {
       run_id: runId,
       eval_file: evalFile,
@@ -1497,7 +1757,7 @@ export function buildRunSummaryArtifact(
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
-    timing: buildTimingArtifact(results),
+    metrics: runMetrics,
     notes,
   };
 }
@@ -1780,7 +2040,6 @@ export function buildIndexArtifactEntry(
     outputDir: string;
     resultDir?: string;
     gradingPath?: string;
-    timingPath?: string;
     summaryPath?: string;
     outputPath?: string;
     answerPath?: string;
@@ -1811,6 +2070,9 @@ export function buildIndexArtifactEntry(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
+    named_scores: collectNamedScores(result.scores),
+    derived_metrics: resultDerivedMetrics(result),
+    provenance: resultProvenance(result),
     attempts: toIndexTrialArtifacts(result),
     aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
@@ -1823,9 +2085,6 @@ export function buildIndexArtifactEntry(
       : undefined,
     grading_path: options.gradingPath
       ? toRelativeArtifactPath(options.outputDir, options.gradingPath)
-      : undefined,
-    timing_path: options.timingPath
-      ? toRelativeArtifactPath(options.outputDir, options.timingPath)
       : undefined,
     summary_path: options.summaryPath
       ? toRelativeArtifactPath(options.outputDir, options.summaryPath)
@@ -1854,6 +2113,8 @@ export function buildIndexArtifactEntry(
       : undefined,
     artifact_pointers: options.artifactPointers,
     runtime_source: options.runtimeSource,
+    sample_index: result.sampleIndex,
+    retry_index: result.retryIndex,
     ...options.extraIndexFields,
     external_trace: toIndexExternalTrace(result, options.projectionIdentity?.dimensions.runId),
     projection_identity: options.projectionIdentity
@@ -1884,7 +2145,7 @@ export function buildResultIndexArtifact(
   const hasFileChanges = result.fileChanges !== undefined && result.fileChanges.length > 0;
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedTrialRuns(result);
-  const singleRunDir = path.posix.join(artifactSubdir, attemptDirName(0));
+  const singleRunDir = path.posix.join(artifactSubdir, sampleDirName(0));
 
   return {
     timestamp: result.timestamp,
@@ -1901,6 +2162,9 @@ export function buildResultIndexArtifact(
     start_time: result.startTime,
     end_time: result.endTime,
     scores: toIndexScores(result.scores),
+    named_scores: collectNamedScores(result.scores),
+    derived_metrics: resultDerivedMetrics(result),
+    provenance: resultProvenance(result),
     attempts: toIndexTrialArtifacts(result),
     aggregation: toTrialAggregationArtifact(result.aggregation),
     execution_status: result.executionStatus,
@@ -1911,7 +2175,6 @@ export function buildResultIndexArtifact(
     result_dir: artifactSubdir,
     summary_path: path.posix.join(artifactSubdir, RUN_SUMMARY_FILENAME),
     grading_path: isSingleRun ? path.posix.join(singleRunDir, 'grading.json') : undefined,
-    timing_path: isSingleRun ? path.posix.join(singleRunDir, 'timing.json') : undefined,
     metrics_path: isSingleRun
       ? path.posix.join(singleRunDir, CANONICAL_METRICS_ARTIFACT_PATH)
       : undefined,
@@ -1935,6 +2198,8 @@ export function buildResultIndexArtifact(
       isSingleRun && hasTranscript ? buildResultTranscriptSummary(result) : undefined,
     artifact_pointers: options?.artifactPointers,
     runtime_source: options?.runtimeSource,
+    sample_index: result.sampleIndex,
+    retry_index: result.retryIndex,
     ...extraIndexFields,
     external_trace: toIndexExternalTrace(result, options?.projectionIdentity?.dimensions.runId),
     projection_identity: options?.projectionIdentity
@@ -2004,17 +2269,28 @@ function buildMetricsArtifactPayload(params: {
   readonly timingArtifactPath?: string | null;
   readonly fileChangesArtifactPath?: string;
   readonly timing?: TimingArtifact;
-}): ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact } {
+}): ReturnType<typeof buildMetricsArtifact> & {
+  readonly duration?: TimingArtifact['duration'];
+  readonly tokens?: TimingArtifact['tokens'];
+  readonly cost?: TimingArtifact['cost'];
+} {
   const artifact = buildMetricsArtifact(params.result, params.envelope, {
     transcriptPath:
       params.transcriptArtifactPath ??
       (params.transcriptPath ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined),
     gradingPath: params.gradingArtifactPath ?? 'grading.json',
-    timingPath:
-      params.timingArtifactPath === null ? undefined : (params.timingArtifactPath ?? 'timing.json'),
     fileChangesPath: params.fileChangesArtifactPath,
   });
-  return params.timing ? { ...artifact, timing: params.timing } : artifact;
+  return params.timing
+    ? {
+        ...artifact,
+        duration: params.timing.duration,
+        tokens: params.timing.tokens,
+        cost: params.timing.cost,
+        execution: params.timing.execution,
+        trajectory: params.timing.trajectory,
+      }
+    : artifact;
 }
 
 async function writeMetricsArtifact(params: {
@@ -2027,7 +2303,13 @@ async function writeMetricsArtifact(params: {
   readonly timingArtifactPath?: string | null;
   readonly fileChangesArtifactPath?: string;
   readonly timing?: TimingArtifact;
-}): Promise<ReturnType<typeof buildMetricsArtifact> & { readonly timing?: TimingArtifact }> {
+}): Promise<
+  ReturnType<typeof buildMetricsArtifact> & {
+    readonly duration?: TimingArtifact['duration'];
+    readonly tokens?: TimingArtifact['tokens'];
+    readonly cost?: TimingArtifact['cost'];
+  }
+> {
   const artifactWithTiming = buildMetricsArtifactPayload(params);
   await writeFile(params.filePath, `${JSON.stringify(artifactWithTiming, null, 2)}\n`, 'utf8');
   return artifactWithTiming;
@@ -2181,6 +2463,133 @@ async function rewriteExistingIndexRecords(
   }
 
   await writeJsonlFile(indexPath, records);
+}
+
+async function readJsonFile(filePath: string): Promise<unknown | undefined> {
+  const text = await readTextIfExists(filePath);
+  if (text === undefined) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function summaryRunId(summary: unknown, fallback: string): string {
+  if (!isRecord(summary)) {
+    return fallback;
+  }
+  const runId = isRecord(summary.metadata) ? summary.metadata.run_id : undefined;
+  return typeof runId === 'string' && runId.trim().length > 0 ? runId : fallback;
+}
+
+function summaryTimestamp(summary: unknown): string | undefined {
+  if (!isRecord(summary) || !isRecord(summary.metadata)) {
+    return undefined;
+  }
+  return typeof summary.metadata.timestamp === 'string' ? summary.metadata.timestamp : undefined;
+}
+
+function summaryTargets(summary: unknown): unknown {
+  return isRecord(summary) && isRecord(summary.metadata) ? summary.metadata.targets : undefined;
+}
+
+function summaryTags(summary: unknown): unknown {
+  return isRecord(summary) && isRecord(summary.metadata) ? summary.metadata.tags : undefined;
+}
+
+async function readJsonlFile(filePath: string): Promise<unknown[]> {
+  const content = await readTextIfExists(filePath);
+  if (content === undefined) {
+    return [];
+  }
+  const records: unknown[] = [];
+  for (const line of content.split('\n')) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+    try {
+      records.push(JSON.parse(line) as unknown);
+    } catch {}
+  }
+  return records;
+}
+
+function buildCrossRunRunRecord(params: {
+  readonly runId: string;
+  readonly runDirName: string;
+  readonly summary: unknown;
+}): Record<string, unknown> {
+  const summary = isRecord(params.summary) ? params.summary : {};
+  return dropUndefined({
+    run_id: params.runId,
+    run_dir: params.runDirName,
+    summary_path: `${params.runDirName}/${RUN_SUMMARY_FILENAME}`,
+    index_path: `${params.runDirName}/${RUN_INTERNAL_DIRNAME}/${RESULT_INDEX_FILENAME}`,
+    timestamp: summaryTimestamp(summary),
+    targets: summaryTargets(summary),
+    tags: summaryTags(summary),
+    status: summary.status,
+    run_summary: summary.run_summary,
+    metrics: summary.metrics,
+  });
+}
+
+function buildCrossRunCaseRecord(params: {
+  readonly runId: string;
+  readonly runDirName: string;
+  readonly summary: unknown;
+  readonly caseRecord: unknown;
+}): Record<string, unknown> | undefined {
+  if (!isRecord(params.caseRecord)) {
+    return undefined;
+  }
+  return dropUndefined({
+    ...params.caseRecord,
+    run_id: params.runId,
+    run_dir: params.runDirName,
+    run_timestamp: summaryTimestamp(params.summary),
+    run_tags: summaryTags(params.summary),
+  });
+}
+
+export async function rebuildCrossRunIndexes(resultsRoot: string): Promise<void> {
+  const entries = await readdir(resultsRoot, { withFileTypes: true }).catch(() => []);
+  const runRecords: Record<string, unknown>[] = [];
+  const caseRecords: Record<string, unknown>[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith('.')) {
+      continue;
+    }
+    const runDir = path.join(resultsRoot, entry.name);
+    const summary = await readJsonFile(path.join(runDir, RUN_SUMMARY_FILENAME));
+    if (!summary) {
+      continue;
+    }
+    const indexPath = (await resolveExistingResultManifestPath(runDir)) ?? runIndexPath(runDir);
+    const runId = summaryRunId(summary, entry.name);
+    runRecords.push(buildCrossRunRunRecord({ runId, runDirName: entry.name, summary }));
+    const cases = await readJsonlFile(indexPath);
+    for (const caseRecord of cases) {
+      const projected = buildCrossRunCaseRecord({
+        runId,
+        runDirName: entry.name,
+        summary,
+        caseRecord,
+      });
+      if (projected) {
+        caseRecords.push(projected);
+      }
+    }
+  }
+
+  const indexesDir = path.join(resultsRoot, CROSS_RUN_INDEX_DIRNAME);
+  await mkdir(indexesDir, { recursive: true });
+  await writeJsonlFile(path.join(indexesDir, CROSS_RUN_RUNS_INDEX_FILENAME), runRecords);
+  await writeJsonlFile(path.join(indexesDir, CROSS_RUN_CASES_INDEX_FILENAME), caseRecords);
 }
 
 type ParsedEvaluationResult = Record<string, unknown> & {
@@ -2405,7 +2814,7 @@ export async function writePerTestArtifacts(
     }
 
     const isSingleRun = !hasPersistedTrialRuns(result);
-    const singleRunDir = path.join(testDir, attemptDirName(0));
+    const singleRunDir = path.join(testDir, sampleDirName(0));
     const singleAnswerPath =
       isSingleRun && result.output.length > 0
         ? path.join(singleRunDir, 'outputs', 'answer.md')
@@ -2419,7 +2828,6 @@ export async function writePerTestArtifacts(
         ? path.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined;
     const singleGradingPath = isSingleRun ? path.join(singleRunDir, 'grading.json') : undefined;
-    const singleTimingPath = isSingleRun ? path.join(singleRunDir, 'timing.json') : undefined;
     const singleMetricsPath = isSingleRun
       ? path.join(singleRunDir, CANONICAL_METRICS_ARTIFACT_PATH)
       : undefined;
@@ -2442,7 +2850,6 @@ export async function writePerTestArtifacts(
         resultDir: testDir,
         summaryPath: caseSummaryPath,
         gradingPath: singleGradingPath,
-        timingPath: singleTimingPath,
         metricsPath: singleMetricsPath,
         outputPath: singleAnswerPath,
         answerPath: singleAnswerPath,
@@ -2485,7 +2892,7 @@ export async function writeArtifactsFromResults(
 }> {
   const testArtifactDir = outputDir;
   const summaryPath = path.join(outputDir, RUN_SUMMARY_FILENAME);
-  const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
+  const indexPath = runIndexPath(outputDir);
   await mkdir(outputDir, { recursive: true });
   const duplicatePolicy = options?.duplicatePolicy ?? 'update';
   const resolvedTags =
@@ -2521,7 +2928,7 @@ export async function writeArtifactsFromResults(
     const caseSummaryPath = path.join(testDir, RUN_SUMMARY_FILENAME);
     const identityId = projectionIdentity.id;
     const isSingleRun = !hasPersistedTrialRuns(result);
-    const singleRunDir = path.join(testDir, attemptDirName(0));
+    const singleRunDir = path.join(testDir, sampleDirName(0));
     const singleAnswerPath =
       isSingleRun && result.output.length > 0
         ? path.join(singleRunDir, 'outputs', 'answer.md')
@@ -2535,7 +2942,6 @@ export async function writeArtifactsFromResults(
         ? path.join(singleRunDir, 'transcript-raw.jsonl')
         : undefined;
     const singleGradingPath = isSingleRun ? path.join(singleRunDir, 'grading.json') : undefined;
-    const singleTimingPath = isSingleRun ? path.join(singleRunDir, 'timing.json') : undefined;
     const singleMetricsPath = isSingleRun
       ? path.join(singleRunDir, CANONICAL_METRICS_ARTIFACT_PATH)
       : undefined;
@@ -2553,7 +2959,6 @@ export async function writeArtifactsFromResults(
       singleTranscriptPath,
       singleTranscriptRawPath,
       singleGradingPath,
-      singleTimingPath,
       singleMetricsPath,
       singleFileChangesPath,
       identityId,
@@ -2624,7 +3029,6 @@ export async function writeArtifactsFromResults(
         resultDir: plan.testDir,
         summaryPath: plan.caseSummaryPath,
         gradingPath: plan.singleGradingPath,
-        timingPath: plan.singleTimingPath,
         metricsPath: plan.singleMetricsPath,
         outputPath: plan.singleAnswerPath,
         answerPath: plan.singleAnswerPath,
@@ -2668,7 +3072,12 @@ export async function writeArtifactsFromResults(
   );
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 
+  await mkdir(path.dirname(indexPath), { recursive: true });
   await writeJsonlFile(indexPath, indexRecords);
+  const resultsRoot = path.dirname(outputDir);
+  if (isCanonicalResultsRoot(resultsRoot)) {
+    await rebuildCrossRunIndexes(resultsRoot);
+  }
 
   return { testArtifactDir, summaryPath, indexPath };
 }

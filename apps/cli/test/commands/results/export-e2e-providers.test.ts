@@ -213,7 +213,7 @@ function toJsonl(...records: object[]): string {
 }
 
 function readIndex(outputDir: string): IndexArtifactEntry[] {
-  return readFileSync(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8')
+  return readFileSync(path.join(outputDir, '.internal', RESULT_INDEX_FILENAME), 'utf8')
     .trim()
     .split('\n')
     .filter(Boolean)
@@ -238,7 +238,7 @@ function runArtifactDir(
   outputDir: string,
   record: { suite?: string; target?: string; test_id?: string },
 ): string {
-  return path.join(outputDir, findIndexEntry(outputDir, record).result_dir, 'attempt-1');
+  return path.join(outputDir, findIndexEntry(outputDir, record).result_dir, 'sample-1');
 }
 
 describe('export e2e — multi-provider metrics verification', () => {
@@ -254,7 +254,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
   // ── Timing artifact tests ──────────────────────────────────────────────
 
-  describe('<test-id>/timing.json — per-test timing', () => {
+  describe('<test-id>/metrics.json — per-test timing', () => {
     it('should include reasoning tokens in token_usage', async () => {
       const outputDir = path.join(tempDir, 'claude');
       const content = toJsonl(CLAUDE_CLI_RESULT);
@@ -263,14 +263,14 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       const timing: TimingArtifact = JSON.parse(
         readFileSync(
-          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'),
+          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'metrics.json'),
           'utf8',
         ),
       );
 
-      expect(timing.token_usage.input).toBe(2000);
-      expect(timing.token_usage.output).toBe(800);
-      expect(timing.token_usage.reasoning).toBe(1500);
+      expect(timing.tokens.input).toBe(2000);
+      expect(timing.tokens.output).toBe(800);
+      expect(timing.tokens.reasoning).toBe(1500);
     });
 
     it('should write independent timing files for multiple providers', async () => {
@@ -281,20 +281,20 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       const claudeTiming: TimingArtifact = JSON.parse(
         readFileSync(
-          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'),
+          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'metrics.json'),
           'utf8',
         ),
       );
       const codexTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(runArtifactDir(outputDir, CODEX_RESULT), 'timing.json'), 'utf8'),
+        readFileSync(path.join(runArtifactDir(outputDir, CODEX_RESULT), 'metrics.json'), 'utf8'),
       );
       const copilotTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'timing.json'), 'utf8'),
+        readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'metrics.json'), 'utf8'),
       );
 
-      expect(claudeTiming.token_usage.reasoning).toBe(1500);
-      expect(codexTiming.token_usage.reasoning).toBe(2500);
-      expect(copilotTiming.token_usage.reasoning).toBe(0);
+      expect(claudeTiming.tokens.reasoning).toBe(1500);
+      expect(codexTiming.tokens.reasoning).toBe(2500);
+      expect(copilotTiming.tokens.reasoning).toBe(0);
     });
 
     it('should compute total_tokens as input + output (not including reasoning)', async () => {
@@ -305,12 +305,12 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       const timing: TimingArtifact = JSON.parse(
         readFileSync(
-          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'),
+          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'metrics.json'),
           'utf8',
         ),
       );
 
-      expect(timing.total_tokens).toBe(2800);
+      expect(timing.tokens.total).toBe(2800);
     });
 
     it('should preserve duration_ms per test result', async () => {
@@ -320,11 +320,11 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(runArtifactDir(outputDir, CODEX_RESULT), 'timing.json'), 'utf8'),
+        readFileSync(path.join(runArtifactDir(outputDir, CODEX_RESULT), 'metrics.json'), 'utf8'),
       );
 
-      expect(timing.duration_ms).toBe(12000);
-      expect(timing.total_duration_seconds).toBe(12);
+      expect(timing.duration.total_ms).toBe(12000);
+      expect(timing.duration.total_seconds).toBe(12);
     });
 
     it('should handle results with no token_usage gracefully', async () => {
@@ -334,14 +334,14 @@ describe('export e2e — multi-provider metrics verification', () => {
       await exportResults('test.jsonl', content, outputDir);
 
       const timing: TimingArtifact = JSON.parse(
-        readFileSync(path.join(runArtifactDir(outputDir, MINIMAL_RESULT), 'timing.json'), 'utf8'),
+        readFileSync(path.join(runArtifactDir(outputDir, MINIMAL_RESULT), 'metrics.json'), 'utf8'),
       );
 
-      expect(timing.total_tokens).toBe(0);
-      expect(timing.duration_ms).toBe(0);
-      expect(timing.token_usage.input).toBe(0);
-      expect(timing.token_usage.output).toBe(0);
-      expect(timing.token_usage.reasoning).toBe(0);
+      expect(timing.tokens.total).toBe(0);
+      expect(timing.duration.total_ms).toBe(0);
+      expect(timing.tokens.input).toBe(0);
+      expect(timing.tokens.output).toBe(0);
+      expect(timing.tokens.reasoning).toBe(0);
     });
 
     it('should handle providers with and without reasoning tokens', async () => {
@@ -352,16 +352,16 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       const claudeTiming: TimingArtifact = JSON.parse(
         readFileSync(
-          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'timing.json'),
+          path.join(runArtifactDir(outputDir, CLAUDE_CLI_RESULT), 'metrics.json'),
           'utf8',
         ),
       );
       const copilotTiming: TimingArtifact = JSON.parse(
-        readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'timing.json'), 'utf8'),
+        readFileSync(path.join(runArtifactDir(outputDir, COPILOT_RESULT), 'metrics.json'), 'utf8'),
       );
 
-      expect(claudeTiming.token_usage.reasoning).toBe(1500);
-      expect(copilotTiming.token_usage.reasoning).toBe(0);
+      expect(claudeTiming.tokens.reasoning).toBe(1500);
+      expect(copilotTiming.tokens.reasoning).toBe(0);
     });
   });
 
@@ -644,7 +644,7 @@ describe('export e2e — multi-provider metrics verification', () => {
 
       // Verify all artifact files exist
       expect(existsSync(path.join(outputDir, 'summary.json'))).toBe(true);
-      expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
+      expect(existsSync(path.join(outputDir, 'metrics.json'))).toBe(false);
 
       // Verify benchmark
       const benchmark: RunSummaryArtifact = JSON.parse(
@@ -713,16 +713,16 @@ describe('export e2e — multi-provider metrics verification', () => {
         readFileSync(
           path.join(
             runArtifactDir(outputDir, { ...record, target: 'mock' as const }),
-            'timing.json',
+            'metrics.json',
           ),
           'utf8',
         ),
       );
 
-      expect(timing.token_usage.input).toBe(100);
-      expect(timing.token_usage.output).toBe(50);
-      expect(timing.token_usage.reasoning).toBe(75);
-      expect(timing.duration_ms).toBe(1000);
+      expect(timing.tokens.input).toBe(100);
+      expect(timing.tokens.output).toBe(50);
+      expect(timing.tokens.reasoning).toBe(75);
+      expect(timing.duration.total_ms).toBe(1000);
     });
   });
 });

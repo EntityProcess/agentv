@@ -8,9 +8,9 @@
  *     index.jsonl              — per-test manifest with artifact pointers
  *     <test-id>/
  *       summary.json           — per-case aggregate
- *       attempt-1/result.json  — per-attempt result
- *       attempt-1/grading.json — per-attempt grading artifact (assertions, graders)
- *       attempt-1/metrics.json — per-attempt metrics artifact
+ *       sample-1/result.json  — per-sample result
+ *       sample-1/grading.json — per-sample grading artifact (assertions, graders)
+ *       sample-1/metrics.json — per-sample metrics artifact
  *
  * This module delegates artifact building to the shared artifact-writer so
  * that summary/grading/timing schemas stay aligned with `agentv eval`.
@@ -36,6 +36,7 @@ import type {
 import { parseJsonlResults, writeArtifactsFromResults } from '../eval/artifact-writer.js';
 import {
   RESULT_INDEX_FILENAME,
+  RUN_INTERNAL_DIRNAME,
   isReservedResultsNamespace,
   isRunManifestPath,
 } from '../eval/result-layout.js';
@@ -69,7 +70,7 @@ export async function exportResults(
     duplicatePolicy: options?.duplicatePolicy ?? 'update',
     additionalArtifacts: createExportBundleArtifactsWriter({
       outputDir,
-      sourceBaseDir: path.dirname(sourceFile),
+      sourceBaseDir: runRootFromIndexPath(sourceFile),
       sourceRecordsByResult: buildSourceRecordMap(results, sourceIndexRecords),
     }),
   });
@@ -85,7 +86,7 @@ export function deriveOutputDir(cwd: string, sourceFile: string): string {
     throw new Error(`Expected a run manifest named ${RESULT_INDEX_FILENAME}: ${sourceFile}`);
   }
 
-  const runDir = path.dirname(sourceFile);
+  const runDir = runRootFromIndexPath(sourceFile);
   const segments = path.normalize(runDir).split(path.sep).filter(Boolean);
   const resultsIndex = segments.lastIndexOf('results');
   if (resultsIndex >= 0 && resultsIndex < segments.length - 2) {
@@ -104,9 +105,17 @@ export function deriveOutputDir(cwd: string, sourceFile: string): string {
 
 export function deriveExportRunId(sourceFile: string): string {
   if (isRunManifestPath(sourceFile)) {
-    return path.basename(path.dirname(sourceFile));
+    return path.basename(runRootFromIndexPath(sourceFile));
   }
   return path.basename(sourceFile, path.extname(sourceFile));
+}
+
+function runRootFromIndexPath(sourceFile: string): string {
+  const indexDir = path.dirname(sourceFile);
+  if (path.basename(indexDir) === RUN_INTERNAL_DIRNAME) {
+    return path.dirname(indexDir);
+  }
+  return indexDir;
 }
 
 export async function loadExportSource(
@@ -222,7 +231,7 @@ export function buildProjectionBundleFromExportedIndex(options: {
   readonly includeRawContent?: boolean;
   readonly duplicatePolicy?: ExportDuplicatePolicy;
 }): ProjectionBundle {
-  const indexPath = path.join(options.outputDir, RESULT_INDEX_FILENAME);
+  const indexPath = path.join(options.outputDir, RUN_INTERNAL_DIRNAME, RESULT_INDEX_FILENAME);
   const indexRecords = readIndexArtifactEntries(indexPath);
   const emittedResults = loadManifestResults(indexPath);
 
@@ -327,7 +336,7 @@ export const resultsExportCommand = command({
         duplicatePolicy: policy,
         additionalArtifacts: createExportBundleArtifactsWriter({
           outputDir,
-          sourceBaseDir: path.dirname(sourceFile),
+          sourceBaseDir: runRootFromIndexPath(sourceFile),
           sourceRecordsByResult: buildSourceRecordMap(results, indexRecords ?? []),
         }),
       });

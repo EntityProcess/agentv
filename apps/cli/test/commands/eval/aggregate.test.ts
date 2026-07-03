@@ -52,14 +52,18 @@ function writeJsonlIndex(
   results: Partial<EvaluationResult>[],
   filename = RESULT_INDEX_FILENAME,
 ): string {
-  const indexPath = path.join(dir, filename);
+  const indexPath =
+    filename === RESULT_INDEX_FILENAME
+      ? path.join(dir, '.internal', filename)
+      : path.join(dir, filename);
+  mkdirSync(path.dirname(indexPath), { recursive: true });
   const lines = results.map((r) => JSON.stringify(toSnakeCaseDeep(makeResult(r)))).join('\n');
   writeFileSync(indexPath, `${lines}\n`);
   return indexPath;
 }
 
 function readIndexRows(dir: string): Array<{ test_id: string; result_dir: string }> {
-  const indexPath = path.join(dir, RESULT_INDEX_FILENAME);
+  const indexPath = path.join(dir, '.internal', RESULT_INDEX_FILENAME);
   if (!existsSync(indexPath)) {
     return readdirSync(dir)
       .filter((entry) => /--[a-f0-9]{12}$/.test(entry))
@@ -217,11 +221,11 @@ describe('aggregateRunDir', () => {
     expect(result.targetCount).toBe(1);
 
     const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
-    expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
+    expect(summary.index_path).toBe('.internal/index.jsonl');
     expect(summary.metadata.tests_run).toContain('a');
     expect(summary.metadata.tests_run).toContain('b');
     expect(summary.run_summary.x).toBeDefined();
-    expect(summary.timing.total_tokens).toBeGreaterThanOrEqual(0);
+    expect(summary.usage.total_tokens).toBeGreaterThanOrEqual(0);
   });
 
   it('reads canonical index.jsonl bundles', async () => {
@@ -238,7 +242,7 @@ describe('aggregateRunDir', () => {
     expect(result.testCount).toBe(2);
 
     const summary = JSON.parse(readFileSync(result.summaryPath, 'utf8'));
-    expect(summary.manifest_path).toBe(RESULT_INDEX_FILENAME);
+    expect(summary.index_path).toBe('.internal/index.jsonl');
     expect(summary.metadata.tests_run).toEqual(['case-a', 'case-b']);
   });
 
@@ -283,23 +287,23 @@ describe('writePerTestArtifacts', () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('writes grading.json and timing.json for each result', async () => {
+  it('writes grading.json and metrics.json for each result', async () => {
     const results = [makeResult({ testId: 'test-1' }), makeResult({ testId: 'test-2' })];
 
     await writePerTestArtifacts(results, tmpDir);
 
     const grading1 = JSON.parse(
-      readFileSync(rowRunPath(tmpDir, 'test-1', 'attempt-1', 'grading.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-1', 'sample-1', 'grading.json'), 'utf8'),
     );
     expect(grading1.assertion_results).toHaveLength(1);
 
-    const timing1 = JSON.parse(
-      readFileSync(rowRunPath(tmpDir, 'test-1', 'attempt-1', 'timing.json'), 'utf8'),
+    const metrics1 = JSON.parse(
+      readFileSync(rowRunPath(tmpDir, 'test-1', 'sample-1', 'metrics.json'), 'utf8'),
     );
-    expect(timing1.total_tokens).toBeGreaterThanOrEqual(0);
+    expect(metrics1.tokens.total).toBeGreaterThanOrEqual(0);
 
     const grading2 = JSON.parse(
-      readFileSync(rowRunPath(tmpDir, 'test-2', 'attempt-1', 'grading.json'), 'utf8'),
+      readFileSync(rowRunPath(tmpDir, 'test-2', 'sample-1', 'grading.json'), 'utf8'),
     );
     expect(grading2.assertion_results).toHaveLength(1);
   });
@@ -310,7 +314,7 @@ describe('writePerTestArtifacts', () => {
     await writePerTestArtifacts(results, tmpDir);
 
     const answer = readFileSync(
-      rowRunPath(tmpDir, 'test-1', 'attempt-1', 'outputs', 'answer.md'),
+      rowRunPath(tmpDir, 'test-1', 'sample-1', 'outputs', 'answer.md'),
       'utf8',
     );
     expect(answer).toContain('hello');

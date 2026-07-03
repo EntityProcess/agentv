@@ -67,6 +67,7 @@ const GIT_EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results branch';
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
 const RESULT_INDEX_FILENAME = 'index.jsonl';
+const RUN_INTERNAL_DIRNAME = '.internal';
 
 // Artifact-aware merge config for the AgentV-owned results checkout. Concurrent
 // writers append to rebuildable cross-run JSONL catalogs and each run's
@@ -2924,8 +2925,8 @@ function safeLocalSummaryManifestPath(
 function resolveLocalResultManifestPath(sourceDir: string): string | undefined {
   try {
     const summary = JSON.parse(readFileSync(path.join(sourceDir, 'summary.json'), 'utf8')) as {
-      manifest_path?: unknown;
       index_path?: unknown;
+      manifest_path?: unknown;
     };
     const manifestPath = safeLocalSummaryManifestPath(
       sourceDir,
@@ -2936,14 +2937,13 @@ function resolveLocalResultManifestPath(sourceDir: string): string | undefined {
     }
   } catch {}
 
-  const internalManifestPath = path.join(sourceDir, '.internal', RESULT_INDEX_FILENAME);
-  if (existsSync(internalManifestPath)) {
-    return internalManifestPath;
-  }
-
-  const manifestPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
+  const manifestPath = path.join(sourceDir, RUN_INTERNAL_DIRNAME, RESULT_INDEX_FILENAME);
   if (existsSync(manifestPath)) {
     return manifestPath;
+  }
+  const legacyManifestPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
+  if (existsSync(legacyManifestPath)) {
+    return legacyManifestPath;
   }
   return undefined;
 }
@@ -3719,7 +3719,7 @@ export interface GitListedRun {
   timestamp: string;
   pass_rate?: number;
   target?: string;
-  manifest_path: string;
+  index_path: string;
   summary_path?: string;
   display_name: string;
   test_count: number;
@@ -3745,8 +3745,8 @@ type GitBatchBlob = {
 };
 
 type GitRunSummary = {
-  readonly manifest_path?: string;
   readonly index_path?: string;
+  readonly manifest_path?: string;
   readonly metadata?: {
     readonly display_name?: string;
     readonly timestamp?: string;
@@ -4216,7 +4216,7 @@ function isGitListedRun(value: unknown): value is GitListedRun {
     typeof record.run_id === 'string' &&
     typeof record.experiment === 'string' &&
     typeof record.timestamp === 'string' &&
-    typeof record.manifest_path === 'string' &&
+    (typeof record.index_path === 'string' || typeof record.manifest_path === 'string') &&
     typeof record.display_name === 'string' &&
     typeof record.test_count === 'number' &&
     typeof record.avg_score === 'number' &&
@@ -4443,7 +4443,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
         timestamp,
         ...(passRate !== undefined && { pass_rate: passRate }),
         ...(targets.length === 1 && targets[0] ? { target: targets[0] } : {}),
-        manifest_path: manifestPath,
+        index_path: manifestPath,
         ...(summaryByPath.has(summaryPath) && { summary_path: summaryPath }),
         display_name: displayName,
         test_count: summary?.metadata?.tests_run?.length ?? rowTestIds.length,

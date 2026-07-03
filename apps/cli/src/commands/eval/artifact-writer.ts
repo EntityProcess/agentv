@@ -98,7 +98,6 @@ export function buildIndexArtifactEntry(
     outputDir: string;
     resultDir?: string;
     gradingPath?: string;
-    timingPath?: string;
     summaryPath?: string;
     outputPath?: string;
     answerPath?: string;

@@ -10,7 +10,7 @@ describe('resolveRunCacheFile', () => {
       timestamp: '',
     };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/2026-03-24T00-00-00-000Z', 'index.jsonl'),
+      path.join('/results/2026-03-24T00-00-00-000Z', '.internal', 'index.jsonl'),
     );
   });
 
@@ -29,7 +29,7 @@ describe('resolveRunCacheFile', () => {
       timestamp: '',
     };
     expect(resolveRunCacheFile(cache)).toBe(
-      path.join('/results/2026-03-24T00-00-00-000Z', 'index.jsonl'),
+      path.join('/results/2026-03-24T00-00-00-000Z', '.internal', 'index.jsonl'),
     );
   });
 

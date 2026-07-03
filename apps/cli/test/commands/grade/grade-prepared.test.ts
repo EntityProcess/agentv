@@ -169,7 +169,7 @@ describe('agentv grade prepared attempts', () => {
       workspace_path: path.join(preparedDir, 'workspace'),
       manifest_path: path.join(preparedDir, 'agentv_prepare.json'),
       output_dir: runDir,
-      index_path: path.join(runDir, 'index.jsonl'),
+      index_path: path.join(runDir, '.internal', 'index.jsonl'),
     });
     expect(await exists(targetMarker)).toBe(false);
 
@@ -177,7 +177,9 @@ describe('agentv grade prepared attempts', () => {
     expect(graderPayload.workspace_path).toBe(path.join(preparedDir, 'workspace'));
     expect(graderPayload.file_changes).toContain('+manual edit');
 
-    const row = JSON.parse((await readFile(path.join(runDir, 'index.jsonl'), 'utf8')).trim());
+    const row = JSON.parse(
+      (await readFile(path.join(runDir, '.internal', 'index.jsonl'), 'utf8')).trim(),
+    );
     expect(row).toMatchObject({
       test_id: 'case-1',
       target: 'codex',
@@ -197,7 +199,7 @@ describe('agentv grade prepared attempts', () => {
     });
     expect(typeof row.metadata.prepared_attempt.baseline_commit).toBe('string');
 
-    expect(row.file_changes_path).toMatch(/\/attempt-1\/outputs\/file_changes\.diff$/);
+    expect(row.file_changes_path).toMatch(/\/sample-1\/outputs\/file_changes\.diff$/);
     await expect(readFile(path.join(runDir, row.file_changes_path), 'utf8')).resolves.toContain(
       '+manual edit',
     );
@@ -275,7 +277,9 @@ describe('agentv grade prepared attempts', () => {
     );
 
     expect(await exists(targetMarker)).toBe(false);
-    const row = JSON.parse((await readFile(path.join(runDir, 'index.jsonl'), 'utf8')).trim());
+    const row = JSON.parse(
+      (await readFile(path.join(runDir, '.internal', 'index.jsonl'), 'utf8')).trim(),
+    );
     expect(row.score).toBe(0);
     expect(row.scores[0]).toMatchObject({
       name: 'expected-tool-sequence',
@@ -382,7 +386,9 @@ describe('agentv grade prepared attempts', () => {
     });
     expect(await exists(targetMarker)).toBe(false);
 
-    const row = JSON.parse((await readFile(path.join(runDir, 'index.jsonl'), 'utf8')).trim());
+    const row = JSON.parse(
+      (await readFile(path.join(runDir, '.internal', 'index.jsonl'), 'utf8')).trim(),
+    );
     const answerPath = row.answer_path ?? row.response_path ?? row.output_path;
     expect(typeof answerPath).toBe('string');
     expect((await readFile(path.join(runDir, answerPath), 'utf8')).trim()).toBe('done');

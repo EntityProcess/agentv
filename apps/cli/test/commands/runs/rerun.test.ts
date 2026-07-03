@@ -241,7 +241,10 @@ describe('agentv runs rerun', () => {
       },
     });
 
-    const answerPath = path.join(path.dirname(indexPath), String(rows[0].answer_path));
+    const answerPath = path.join(
+      path.dirname(path.dirname(indexPath)),
+      String(rows[0].answer_path),
+    );
     const answer = await readFile(answerPath, 'utf8');
     expect(answer).toContain('Alpha answer');
     expect(answer).not.toContain('Captured answer');

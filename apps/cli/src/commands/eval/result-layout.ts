@@ -3,6 +3,7 @@ import path from 'node:path';
 
 export const RESULT_INDEX_FILENAME = 'index.jsonl';
 export const RUN_SUMMARY_FILENAME = 'summary.json';
+export const RUN_INTERNAL_DIRNAME = '.internal';
 export const RESULTS_DIRNAME = 'results';
 export const DEFAULT_EXPERIMENT_NAME = 'default';
 export const RESERVED_RESULTS_NAMESPACES = new Set(['export', 'metadata', 'runs']);
@@ -59,11 +60,11 @@ export function buildDefaultRunDir(
 }
 
 export function buildDefaultIndexPath(cwd: string, experiment?: string): string {
-  return path.join(buildDefaultRunDir(cwd, experiment), RESULT_INDEX_FILENAME);
+  return resolveRunIndexPath(buildDefaultRunDir(cwd, experiment));
 }
 
 export function resolveRunIndexPath(runDir: string): string {
-  return path.join(runDir, RESULT_INDEX_FILENAME);
+  return path.join(runDir, RUN_INTERNAL_DIRNAME, RESULT_INDEX_FILENAME);
 }
 
 export function isRunManifestPath(filePath: string): boolean {
@@ -74,6 +75,11 @@ export function resolveExistingRunPrimaryPath(runDir: string): string | undefine
   const indexPath = resolveRunIndexPath(runDir);
   if (existsSync(indexPath)) {
     return indexPath;
+  }
+
+  const legacyIndexPath = path.join(runDir, RESULT_INDEX_FILENAME);
+  if (existsSync(legacyIndexPath)) {
+    return legacyIndexPath;
   }
 
   return undefined;

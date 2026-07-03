@@ -777,7 +777,12 @@ function addTrialRunCatalogEntries(
     : undefined;
   if (!resultDir) return;
   for (const trial of record.attempts ?? record.trials ?? []) {
-    const rawPath = typeof trial.attempt_path === 'string' ? trial.attempt_path : trial.run_path;
+    const rawPath =
+      typeof trial.sample_path === 'string'
+        ? trial.sample_path
+        : typeof trial.attempt_path === 'string'
+          ? trial.attempt_path
+          : trial.run_path;
     const runPath = rawPath ? normalizeArtifactRelativePath(rawPath) : undefined;
     if (!runPath) continue;
     const runDir = path.posix.join(resultDir, runPath);
@@ -799,12 +804,6 @@ function addTrialRunCatalogEntries(
       path.posix.join(runDir, 'metrics.json'),
       'artifact',
     );
-    addDirectArtifactCatalogEntry(
-      entries,
-      seen,
-      path.posix.join(runDir, 'timing.json'),
-      'artifact',
-    );
   }
 }
 
@@ -824,6 +823,7 @@ function buildResultArtifactCatalog(
 
   addDirectArtifactCatalogEntry(entries, seen, record.summary_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.grading_path, 'artifact');
+  addDirectArtifactCatalogEntry(entries, seen, record.metrics_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.timing_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.input_path, 'artifact');
   addDirectArtifactCatalogEntry(entries, seen, record.output_path, 'artifact');
@@ -1124,7 +1124,12 @@ function buildRepeatTrialReadModels(
     : undefined;
 
   return attempts.map((trial) => {
-    const rawPath = typeof trial.attempt_path === 'string' ? trial.attempt_path : trial.run_path;
+    const rawPath =
+      typeof trial.sample_path === 'string'
+        ? trial.sample_path
+        : typeof trial.attempt_path === 'string'
+          ? trial.attempt_path
+          : trial.run_path;
     const runPath = rawPath ? normalizeArtifactRelativePath(rawPath) : undefined;
     const metricsPath = caseTrialArtifactPath(resultDir, runPath, 'metrics.json');
     const timingPath = caseTrialArtifactPath(resultDir, runPath, 'timing.json');
@@ -1137,21 +1142,35 @@ function buildRepeatTrialReadModels(
     const metrics = readArtifactJsonObject(baseDir, metricsPath);
     const timing = readArtifactJsonObject(baseDir, timingPath);
     const toolCalls = objectField(metrics, 'tool_calls');
-    const tokenUsage = objectField(timing, 'token_usage');
+    const tokenUsage = objectField(metrics, 'tokens') ?? objectField(timing, 'token_usage');
+    const duration = objectField(metrics, 'duration');
+    const cost = objectField(metrics, 'cost');
     const transcriptSummary =
       objectField(trial, 'transcript_summary') ?? objectField(runResult, 'transcript_summary');
 
     return {
       ...trial,
-      ...(numberField(timing, 'duration_ms') !== undefined && {
-        duration_ms: numberField(timing, 'duration_ms'),
+      ...(numberField(duration, 'total_ms') !== undefined && {
+        duration_ms: numberField(duration, 'total_ms'),
       }),
-      ...(numberField(timing, 'total_tokens') !== undefined && {
-        total_tokens: numberField(timing, 'total_tokens'),
+      ...(numberField(duration, 'total_ms') === undefined &&
+        numberField(timing, 'duration_ms') !== undefined && {
+          duration_ms: numberField(timing, 'duration_ms'),
+        }),
+      ...(numberField(tokenUsage, 'total') !== undefined && {
+        total_tokens: numberField(tokenUsage, 'total'),
       }),
-      ...(numberField(timing, 'cost_usd') !== undefined && {
-        cost_usd: numberField(timing, 'cost_usd'),
+      ...(numberField(tokenUsage, 'total') === undefined &&
+        numberField(timing, 'total_tokens') !== undefined && {
+          total_tokens: numberField(timing, 'total_tokens'),
+        }),
+      ...(numberField(cost, 'usd') !== undefined && {
+        cost_usd: numberField(cost, 'usd'),
       }),
+      ...(numberField(cost, 'usd') === undefined &&
+        numberField(timing, 'cost_usd') !== undefined && {
+          cost_usd: numberField(timing, 'cost_usd'),
+        }),
       ...(tokenUsage && { token_usage: tokenUsage }),
       ...(numberField(metrics, 'total_tool_calls') !== undefined && {
         total_tool_calls: numberField(metrics, 'total_tool_calls'),
@@ -1159,7 +1178,7 @@ function buildRepeatTrialReadModels(
       ...(toolCalls && { tool_calls: toolCalls }),
       ...(transcriptSummary && { transcript_summary: transcriptSummary }),
       ...(metricsPath && { metrics_path: metricsPath }),
-      ...(timingPath && { timing_path: timingPath }),
+      ...(timing && timingPath && { timing_path: timingPath }),
       ...(gradingPath && { grading_path: gradingPath }),
       ...(transcriptPath && { transcript_path: transcriptPath }),
       ...(transcriptRawPath && { transcript_raw_path: transcriptRawPath }),

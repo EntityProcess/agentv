@@ -4,7 +4,7 @@
  *
  * Equivalent to running:
  *   1. `agentv pipeline input <eval> --out <dir>`
- *   2. Invoking each CLI target in parallel (writing response.md + timing.json)
+ *   2. Invoking each CLI target in parallel (writing response.md + metrics.json)
  *   3. `agentv pipeline grade <dir>`
  *
  * For `kind: agent` targets, step 2 is skipped (subagent handles execution).
@@ -289,10 +289,15 @@ export const evalRunCommand = command({
           }
 
           await writeFile(join(testDir, 'response.md'), response, 'utf8');
-          await writeJson(join(testDir, 'timing.json'), {
-            duration_ms: durationMs,
-            total_duration_seconds: Math.round(durationMs / 10) / 100,
-            execution_status: 'ok',
+          await writeJson(join(testDir, 'metrics.json'), {
+            duration: {
+              total_ms: durationMs,
+              total_seconds: Math.round(durationMs / 10) / 100,
+              source: 'provider_reported',
+            },
+            tokens: { total: 0, input: 0, output: 0, reasoning: 0, source: 'unavailable' },
+            cost: { usd: null, source: 'unavailable' },
+            execution: { status: 'ok' },
           });
 
           process.stderr.write(`\n  ${testId}: OK (${durationMs}ms, ${response.length} chars)\n`);
@@ -301,10 +306,15 @@ export const evalRunCommand = command({
           const message = error instanceof Error ? error.message : String(error);
           const response = `ERROR: target failed — ${message}`;
           await writeFile(join(testDir, 'response.md'), response, 'utf8');
-          await writeJson(join(testDir, 'timing.json'), {
-            duration_ms: durationMs,
-            total_duration_seconds: Math.round(durationMs / 10) / 100,
-            execution_status: 'execution_error',
+          await writeJson(join(testDir, 'metrics.json'), {
+            duration: {
+              total_ms: durationMs,
+              total_seconds: Math.round(durationMs / 10) / 100,
+              source: 'provider_reported',
+            },
+            tokens: { total: 0, input: 0, output: 0, reasoning: 0, source: 'unavailable' },
+            cost: { usd: null, source: 'unavailable' },
+            execution: { status: 'execution_error' },
           });
           process.stderr.write(
             `\n  ${testId}: FAILED (${durationMs}ms) — ${message.slice(0, 200)}\n`,

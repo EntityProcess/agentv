@@ -118,7 +118,7 @@ describe('results report', () => {
       { evalFile: 'evals/demo.eval.yaml' },
     );
 
-    const indexPath = path.join(runDir, RESULT_INDEX_FILENAME);
+    const indexPath = path.join(runDir, '.internal', RESULT_INDEX_FILENAME);
     const lines = readFileSync(indexPath, 'utf8')
       .trim()
       .split('\n')

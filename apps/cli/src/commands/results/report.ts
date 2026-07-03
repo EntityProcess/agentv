@@ -5,6 +5,7 @@ import { command, option, optional, string } from 'cmd-ts';
 
 import type { EvaluationResult, RunRuntimeSourceMetadata } from '@agentv/core';
 
+import { RUN_INTERNAL_DIRNAME } from '../eval/result-layout.js';
 import { loadManifestResults, parseResultManifest, resolveResultSourcePath } from './manifest.js';
 import { RESULTS_REPORT_TEMPLATE } from './report-template.js';
 import { resolveSourceFile, sourceArg } from './shared.js';
@@ -43,7 +44,10 @@ function readSummaryEvalFile(sourceFile: string): string | undefined {
 }
 
 function readSummaryReportMetadata(sourceFile: string): RunSummaryReportMetadata {
-  const summaryPath = path.join(path.dirname(sourceFile), 'summary.json');
+  const sourceDir = path.dirname(sourceFile);
+  const runDir =
+    path.basename(sourceDir) === RUN_INTERNAL_DIRNAME ? path.dirname(sourceDir) : sourceDir;
+  const summaryPath = path.join(runDir, 'summary.json');
   if (!existsSync(summaryPath)) {
     return {};
   }
@@ -67,7 +71,10 @@ function readSummaryReportMetadata(sourceFile: string): RunSummaryReportMetadata
 }
 
 export function deriveReportPath(sourceFile: string): string {
-  return path.join(path.dirname(sourceFile), 'report.html');
+  const sourceDir = path.dirname(sourceFile);
+  const runDir =
+    path.basename(sourceDir) === RUN_INTERNAL_DIRNAME ? path.dirname(sourceDir) : sourceDir;
+  return path.join(runDir, 'report.html');
 }
 
 function serializeReportResult(

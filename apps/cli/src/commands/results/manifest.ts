@@ -14,7 +14,7 @@ import {
   traceEnvelopeToTranscriptMessages,
 } from '@agentv/core';
 
-import type { GradingArtifact, TimingArtifact } from '../eval/artifact-writer.js';
+import type { GradingArtifact } from '../eval/artifact-writer.js';
 import {
   isDirectoryPath,
   isRunManifestPath,
@@ -37,6 +37,7 @@ export interface ResultManifestRecord {
   readonly attempts?: readonly {
     readonly attempt?: number;
     readonly attempt_path?: string;
+    readonly sample_path?: string;
     readonly run_path?: string;
     readonly score?: number;
     readonly verdict?: string;
@@ -45,6 +46,7 @@ export interface ResultManifestRecord {
   readonly trials?: readonly {
     readonly attempt?: number;
     readonly attempt_path?: string;
+    readonly sample_path?: string;
     readonly run_path?: string;
     readonly score?: number;
     readonly verdict?: string;
@@ -84,6 +86,34 @@ export interface ResultManifestRecord {
   readonly files_path?: string;
   readonly graders_path?: string;
   readonly metadata?: Record<string, unknown>;
+}
+
+interface MetricsUsageArtifact {
+  readonly duration?: {
+    readonly total_ms?: number;
+  };
+  readonly tokens?: {
+    readonly input?: number;
+    readonly output?: number;
+    readonly reasoning?: number;
+  };
+  readonly cost?: {
+    readonly usd?: number | null;
+  };
+}
+
+interface LegacyTimingArtifact {
+  readonly duration_ms?: number;
+  readonly token_usage?: {
+    readonly input?: number;
+    readonly output?: number;
+    readonly reasoning?: number;
+  };
+}
+
+function manifestBaseDir(indexPath: string): string {
+  const dir = path.dirname(indexPath);
+  return path.basename(dir) === '.internal' ? path.dirname(dir) : dir;
 }
 
 export interface ManifestHydrationOptions {
@@ -304,7 +334,8 @@ function hydrateManifestRecord(
   options: ManifestHydrationOptions,
 ): EvaluationResult {
   const grading = readOptionalJson<GradingArtifact>(baseDir, record.grading_path);
-  const timing = readOptionalJson<TimingArtifact>(baseDir, record.timing_path);
+  const metrics = readOptionalJson<MetricsUsageArtifact>(baseDir, record.metrics_path);
+  const timing = metrics ?? readOptionalJson<LegacyTimingArtifact>(baseDir, record.timing_path);
   const testId = record.test_id ?? 'unknown';
   const gradingAssertions = grading
     ? readGradingAssertionResults(grading as unknown as Record<string, unknown>)
@@ -334,15 +365,24 @@ function hydrateManifestRecord(
       // `evaluators` was renamed to `graders` in v4.13 — read both for backwards compat with old artifacts.
       // TODO: remove `evaluators` fallback once old run directories are no longer in use.
       gradingScores ?? (record.scores as EvaluationResult['scores']),
-    tokenUsage: timing?.token_usage
+    tokenUsage: metrics?.tokens
       ? {
-          input: timing.token_usage.input,
-          output: timing.token_usage.output,
-          reasoning: timing.token_usage.reasoning,
+          input: metrics.tokens.input,
+          output: metrics.tokens.output,
+          reasoning: metrics.tokens.reasoning,
         }
-      : record.token_usage,
-    durationMs: timing?.duration_ms ?? record.duration_ms,
-    costUsd: record.cost_usd,
+      : (timing as LegacyTimingArtifact | undefined)?.token_usage
+        ? {
+            input: (timing as LegacyTimingArtifact).token_usage?.input,
+            output: (timing as LegacyTimingArtifact).token_usage?.output,
+            reasoning: (timing as LegacyTimingArtifact).token_usage?.reasoning,
+          }
+        : record.token_usage,
+    durationMs:
+      metrics?.duration?.total_ms ??
+      (timing as LegacyTimingArtifact | undefined)?.duration_ms ??
+      record.duration_ms,
+    costUsd: metrics?.cost?.usd ?? record.cost_usd,
     input: hydrateInput(baseDir, record),
     output: hydrateOutput(baseDir, record) ?? '',
     trace: hydrateTrace(baseDir, record, options),
@@ -369,7 +409,7 @@ export function loadManifestResults(
   const resolvedSourceFile = resolveRunManifestPath(sourceFile);
   const content = readFileSync(resolvedSourceFile, 'utf8');
   const records = parseResultRows(content, resolvedSourceFile);
-  const baseDir = path.dirname(resolvedSourceFile);
+  const baseDir = manifestBaseDir(resolvedSourceFile);
   return records.map((record) => hydrateManifestRecord(baseDir, record, options));
 }
 

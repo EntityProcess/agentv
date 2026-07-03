@@ -132,10 +132,15 @@ describe('evaluate() — programmatic API extensions', () => {
 
         expect(result.artifacts).toBeDefined();
         expect(result.artifacts?.runDir).toBe(outputDir);
-        expect(result.artifacts?.indexPath).toBe(path.join(outputDir, RESULT_INDEX_FILENAME));
+        expect(result.artifacts?.indexPath).toBe(
+          path.join(outputDir, '.internal', RESULT_INDEX_FILENAME),
+        );
         expect(result.artifacts?.summaryPath).toBe(path.join(outputDir, 'summary.json'));
 
-        const indexContent = await readFile(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8');
+        const indexContent = await readFile(
+          path.join(outputDir, '.internal', RESULT_INDEX_FILENAME),
+          'utf8',
+        );
         expect(indexContent).toContain('"test_id":"programmatic-artifacts"');
         expect(indexContent).toContain('"experiment":"sdk-test"');
         const [indexRow] = indexContent
@@ -153,20 +158,20 @@ describe('evaluate() — programmatic API extensions', () => {
             tests_run: string[];
             eval_file: string;
           };
-          timing: { duration_ms: number };
+          metrics: { duration: { total_ms: number } };
         };
         expect(summaryArtifact.metadata.run_id).toBe(path.basename(outputDir));
         expect(summaryArtifact.metadata.experiment).toBe('sdk-test');
         expect(summaryArtifact.metadata.tests_run).toEqual(['programmatic-artifacts']);
         expect(summaryArtifact.metadata.eval_file).toBe('');
-        expect(summaryArtifact.timing.duration_ms).toBeGreaterThanOrEqual(0);
+        expect(summaryArtifact.metrics.duration.total_ms).toBeGreaterThanOrEqual(0);
 
         expect(resultDir).toMatch(/^programmatic-artifacts--[a-f0-9]{12}$/);
-        expect(existsSync(path.join(outputDir, resultDir ?? '', 'attempt-1', 'grading.json'))).toBe(
+        expect(existsSync(path.join(outputDir, resultDir ?? '', 'sample-1', 'grading.json'))).toBe(
           true,
         );
         expect(
-          existsSync(path.join(outputDir, resultDir ?? '', 'attempt-1', 'outputs', 'answer.md')),
+          existsSync(path.join(outputDir, resultDir ?? '', 'sample-1', 'outputs', 'answer.md')),
         ).toBe(true);
       } finally {
         rmSync(outputDir, { recursive: true, force: true });

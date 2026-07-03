@@ -165,7 +165,7 @@ function toJsonl(...records: object[]): string {
 }
 
 function readIndex(outputDir: string): IndexArtifactEntry[] {
-  return readFileSync(path.join(outputDir, RESULT_INDEX_FILENAME), 'utf8')
+  return readFileSync(path.join(outputDir, '.internal', RESULT_INDEX_FILENAME), 'utf8')
     .trim()
     .split('\n')
     .filter(Boolean)
@@ -197,7 +197,7 @@ function runArtifactDir(
   outputDir: string,
   record: { suite?: string; target?: string; test_id?: string },
 ): string {
-  return path.join(artifactDir(outputDir, record), 'attempt-1');
+  return path.join(artifactDir(outputDir, record), 'sample-1');
 }
 
 function readAnswer(
@@ -220,8 +220,8 @@ describe('results export', () => {
 
   it('loadExportSource resolves run workspaces to index.jsonl', async () => {
     const runDir = path.join(tempDir, '2026-03-18T10-00-00-000Z');
-    mkdirSync(runDir, { recursive: true });
-    const sourceFile = path.join(runDir, RESULT_INDEX_FILENAME);
+    mkdirSync(path.join(runDir, '.internal'), { recursive: true });
+    const sourceFile = path.join(runDir, '.internal/index.jsonl');
     writeFileSync(sourceFile, toJsonl(RESULT_FULL));
 
     const { sourceFile: loadedSource, results } = await loadExportSource(runDir, tempDir);
@@ -234,7 +234,7 @@ describe('results export', () => {
   it('deriveOutputDir uses the run directory name for manifest inputs', () => {
     const outputDir = deriveOutputDir(
       tempDir,
-      path.join(tempDir, '2026-03-18T10-00-00-000Z', 'index.jsonl'),
+      path.join(tempDir, '2026-03-18T10-00-00-000Z', '.internal', 'index.jsonl'),
     );
     expect(outputDir).toBe(
       path.join(tempDir, '.agentv', 'results', 'export', '2026-03-18T10-00-00-000Z'),
@@ -250,6 +250,7 @@ describe('results export', () => {
         'results',
         'with-skills',
         '2026-03-18T10-00-00-000Z',
+        '.internal',
         RESULT_INDEX_FILENAME,
       ),
     );
@@ -299,7 +300,7 @@ describe('results export', () => {
     });
     expect(first.entries[0].artifact_refs).toMatchObject({
       status: 'planned_export',
-      timing_path: expect.stringMatching(/^test-private--[a-f0-9]{12}\/attempt-1\/timing\.json$/),
+      metrics_path: expect.stringMatching(/^test-private--[a-f0-9]{12}\/sample-1\/metrics\.json$/),
     });
     expect(first.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(first.entries[0].artifact_refs).not.toHaveProperty('output_path');
@@ -380,20 +381,19 @@ describe('results export', () => {
       status: 'planned_export',
       result_dir: resultDir,
       summary_path: `${resultDir}/summary.json`,
-      grading_path: `${resultDir}/attempt-1/grading.json`,
-      timing_path: `${resultDir}/attempt-1/timing.json`,
-      metrics_path: `${resultDir}/attempt-1/metrics.json`,
-      output_path: `${resultDir}/attempt-1/outputs/answer.md`,
-      answer_path: `${resultDir}/attempt-1/outputs/answer.md`,
-      transcript_path: `${resultDir}/attempt-1/transcript.json`,
-      transcript_raw_path: `${resultDir}/attempt-1/transcript-raw.jsonl`,
+      grading_path: `${resultDir}/sample-1/grading.json`,
+      metrics_path: `${resultDir}/sample-1/metrics.json`,
+      output_path: `${resultDir}/sample-1/outputs/answer.md`,
+      answer_path: `${resultDir}/sample-1/outputs/answer.md`,
+      transcript_path: `${resultDir}/sample-1/transcript.json`,
+      transcript_raw_path: `${resultDir}/sample-1/transcript-raw.jsonl`,
     });
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('trace_path');
     expect(bundle.entries[0].artifact_refs).not.toHaveProperty('input_path');
     expect(bundle.entries[0].trace).not.toHaveProperty('envelope_ref');
     expect(bundle.entries[0].trace_envelope.artifacts).toBeDefined();
     expect(bundle.entries[0].trace_envelope.artifacts).not.toHaveProperty('trace_path');
-    expect(bundle.entries[0].feedback.grading_path).toBe(`${resultDir}/attempt-1/grading.json`);
+    expect(bundle.entries[0].feedback.grading_path).toBe(`${resultDir}/sample-1/grading.json`);
     expect(bundle.entries[0].raw_content).toBeDefined();
     expect(bundle.entries[0].feedback.scores?.[0]).toHaveProperty('evidence');
     expect(serialized).toContain('SECRET_PROMPT_TEXT');
@@ -413,7 +413,7 @@ describe('results export', () => {
     expect(existsSync(summaryPath)).toBe(true);
 
     const benchmark: RunSummaryArtifact = JSON.parse(readFileSync(summaryPath, 'utf8'));
-    expect(benchmark.manifest_path).toBe(RESULT_INDEX_FILENAME);
+    expect(benchmark.index_path).toBe('.internal/index.jsonl');
     expect(benchmark.metadata.eval_file).toBe('eval_2026-03-18.jsonl');
     expect(benchmark.metadata.timestamp).toBe('2026-03-18T10:00:01.000Z');
     // artifact-writer uses string[] for tests_run, not a count
@@ -437,7 +437,7 @@ describe('results export', () => {
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const indexPath = path.join(outputDir, RESULT_INDEX_FILENAME);
+    const indexPath = path.join(outputDir, '.internal', RESULT_INDEX_FILENAME);
     expect(existsSync(indexPath)).toBe(true);
 
     const entries = readFileSync(indexPath, 'utf8')
@@ -454,13 +454,12 @@ describe('results export', () => {
       execution_status: 'ok',
       result_dir: rowDir,
       summary_path: `${rowDir}/summary.json`,
-      grading_path: `${rowDir}/attempt-1/grading.json`,
-      timing_path: `${rowDir}/attempt-1/timing.json`,
-      metrics_path: `${rowDir}/attempt-1/metrics.json`,
-      output_path: `${rowDir}/attempt-1/outputs/answer.md`,
-      answer_path: `${rowDir}/attempt-1/outputs/answer.md`,
-      transcript_path: `${rowDir}/attempt-1/transcript.json`,
-      transcript_raw_path: `${rowDir}/attempt-1/transcript-raw.jsonl`,
+      grading_path: `${rowDir}/sample-1/grading.json`,
+      metrics_path: `${rowDir}/sample-1/metrics.json`,
+      output_path: `${rowDir}/sample-1/outputs/answer.md`,
+      answer_path: `${rowDir}/sample-1/outputs/answer.md`,
+      transcript_path: `${rowDir}/sample-1/transcript.json`,
+      transcript_raw_path: `${rowDir}/sample-1/transcript-raw.jsonl`,
     });
     expect(entries[0]).not.toHaveProperty('input_path');
     expect(entries[0].projection_identity).toMatchObject({
@@ -575,12 +574,13 @@ describe('results export', () => {
   it('exports generated test bundle refs and files from source manifests', async () => {
     const sourceDir = path.join(tempDir, 'source-run');
     mkdirSync(path.join(sourceDir, 'case', 'test'), { recursive: true });
+    mkdirSync(path.join(sourceDir, '.internal'), { recursive: true });
     writeFileSync(
       path.join(sourceDir, 'case', 'test', 'EVAL.yaml'),
       'tests:\n  - id: test-greeting\n',
     );
     writeFileSync(path.join(sourceDir, 'case', 'test', 'targets.yaml'), 'targets: []\n');
-    const sourceFile = path.join(sourceDir, RESULT_INDEX_FILENAME);
+    const sourceFile = path.join(sourceDir, '.internal/index.jsonl');
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl({
       ...RESULT_FULL,
@@ -618,12 +618,13 @@ describe('results export', () => {
   it('exports legacy task_dir bundles as new test_dir artifacts', async () => {
     const sourceDir = path.join(tempDir, 'legacy-run');
     mkdirSync(path.join(sourceDir, 'case', 'task'), { recursive: true });
+    mkdirSync(path.join(sourceDir, '.internal'), { recursive: true });
     writeFileSync(
       path.join(sourceDir, 'case', 'task', 'EVAL.yaml'),
       'tests:\n  - id: test-greeting\n',
     );
     writeFileSync(path.join(sourceDir, 'case', 'task', 'targets.yaml'), 'targets: []\n');
-    const sourceFile = path.join(sourceDir, RESULT_INDEX_FILENAME);
+    const sourceFile = path.join(sourceDir, '.internal/index.jsonl');
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl({
       ...RESULT_FULL,
@@ -647,8 +648,8 @@ describe('results export', () => {
 
   it('preserves source bundle refs in dry-run projection inputs', async () => {
     const sourceDir = path.join(tempDir, 'source-run');
-    mkdirSync(sourceDir, { recursive: true });
-    const sourceFile = path.join(sourceDir, RESULT_INDEX_FILENAME);
+    mkdirSync(path.join(sourceDir, '.internal'), { recursive: true });
+    const sourceFile = path.join(sourceDir, '.internal/index.jsonl');
     writeFileSync(
       sourceFile,
       toJsonl({
@@ -694,21 +695,21 @@ describe('results export', () => {
     expect(readAnswer(outputDir, RESULT_FULL)).toBe('Hello, Alice!');
   });
 
-  it('should create per-test timing.json with run timing', async () => {
+  it('should create per-test metrics.json with run timing', async () => {
     const outputDir = path.join(tempDir, 'output');
     const content = toJsonl(RESULT_FULL, RESULT_PARTIAL);
 
     await exportResults('test.jsonl', content, outputDir);
 
-    const timingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'timing.json');
+    const timingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'metrics.json');
     expect(existsSync(timingPath)).toBe(true);
 
     const timing: TimingArtifact = JSON.parse(readFileSync(timingPath, 'utf8'));
-    expect(timing.total_tokens).toBe(1500);
-    expect(timing.duration_ms).toBe(3500);
-    expect(timing.token_usage).toHaveProperty('input');
-    expect(timing.token_usage).toHaveProperty('output');
-    expect(timing.token_usage).toHaveProperty('reasoning');
+    expect(timing.tokens.total).toBe(1500);
+    expect(timing.duration.total_ms).toBe(3500);
+    expect(timing.tokens).toHaveProperty('input');
+    expect(timing.tokens).toHaveProperty('output');
+    expect(timing.tokens).toHaveProperty('reasoning');
   });
 
   it('should create per-test artifact directories', async () => {
@@ -750,7 +751,7 @@ describe('results export', () => {
     expect(grading.graders?.[0].name).toBe('greeting_quality');
     expect(grading.graders?.[0].type).toBe('llm-grader');
 
-    const perTestTimingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'timing.json');
+    const perTestTimingPath = path.join(runArtifactDir(outputDir, RESULT_FULL), 'metrics.json');
     expect(existsSync(perTestTimingPath)).toBe(true);
   });
 
@@ -803,8 +804,8 @@ describe('results export', () => {
     await exportResults('test.jsonl', content, outputDir);
 
     expect(existsSync(path.join(outputDir, 'summary.json'))).toBe(true);
-    expect(existsSync(path.join(outputDir, RESULT_INDEX_FILENAME))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'timing.json'))).toBe(false);
+    expect(existsSync(path.join(outputDir, '.internal', RESULT_INDEX_FILENAME))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'metrics.json'))).toBe(false);
     expect(existsSync(path.join(runArtifactDir(outputDir, RESULT_FULL), 'grading.json'))).toBe(
       true,
     );
@@ -837,7 +838,7 @@ describe('results export', () => {
 
     const answerPath = path.join(
       artifactDir(outputDir, RESULT_DIFFERENT_TARGET),
-      'attempt-1',
+      'sample-1',
       'outputs',
       'answer.md',
     );

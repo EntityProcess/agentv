@@ -433,7 +433,7 @@ describe('listGitRuns', () => {
       experiment: 'with-skills',
       timestamp: '2026-05-21T11:00:00.000Z',
       display_name: 'remote friendly run',
-      manifest_path: '2026-05-21T11-00-00-000Z/.internal/index.jsonl',
+      index_path: '2026-05-21T11-00-00-000Z/.internal/index.jsonl',
       summary_path: '2026-05-21T11-00-00-000Z/summary.json',
       test_count: 3,
       pass_rate: 0.75,
@@ -444,7 +444,7 @@ describe('listGitRuns', () => {
       experiment: 'default',
       display_name: '2026-05-20T10-00-00-000Z',
       target: 'gpt-4o',
-      manifest_path: '2026-05-20T10-00-00-000Z/.internal/index.jsonl',
+      index_path: '2026-05-20T10-00-00-000Z/.internal/index.jsonl',
       test_count: 2,
       pass_rate: 0.5,
     });

@@ -21,6 +21,15 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../..');
 const CLI_ENTRY = path.join(projectRoot, 'apps/cli/src/cli.ts');
 const MOCK_RUNNER = path.join(projectRoot, 'apps/cli/test/fixtures/mock-run-evaluation.ts');
+
+function runIndexPath(runDir: string): string {
+  return path.join(runDir, '.internal', 'index.jsonl');
+}
+
+function runDirFromIndexPath(indexPath: string): string {
+  return path.dirname(path.dirname(indexPath));
+}
+
 async function createFixture(): Promise<EvalFixture> {
   const baseDir = await mkdtemp(path.join(tmpdir(), 'agentv-cli-test-'));
   const suiteDir = path.join(baseDir, 'suite');
@@ -332,7 +341,7 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(0);
-      const indexPath = path.join(outputDir, 'index.jsonl');
+      const indexPath = runIndexPath(outputDir);
       expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).toContain(`Artifact directory: ${outputDir}`);
 
@@ -343,7 +352,7 @@ describe('agentv eval CLI', () => {
         const resultDir = row.result_dir as string;
         expect(resultDir).not.toContain('/');
         await expectFileExists(path.join(outputDir, resultDir, 'summary.json'));
-        await expectFileExists(path.join(outputDir, resultDir, 'attempt-1', 'grading.json'));
+        await expectFileExists(path.join(outputDir, resultDir, 'sample-1', 'grading.json'));
       }
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
@@ -359,14 +368,14 @@ describe('agentv eval CLI', () => {
 
       const outputDir = path.join(fixture.suiteDir, 'configured-results');
       expect(exitCode).toBe(0);
-      const indexPath = path.join(outputDir, 'index.jsonl');
+      const indexPath = runIndexPath(outputDir);
       expect(extractOutputPath(stdout)).toBe(indexPath);
       await expectFileExists(indexPath);
       await expectFileExists(path.join(outputDir, 'summary.json'));
       const [firstRow] = (await readJsonLines(indexPath)) as Array<Record<string, unknown>>;
       await expectFileExists(path.join(outputDir, firstRow.result_dir as string, 'summary.json'));
       await expectFileExists(
-        path.join(outputDir, firstRow.result_dir as string, 'attempt-1', 'grading.json'),
+        path.join(outputDir, firstRow.result_dir as string, 'sample-1', 'grading.json'),
       );
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
@@ -401,7 +410,7 @@ describe('agentv eval CLI', () => {
       ]);
 
       expect(exitCode).toBe(1);
-      const indexPath = path.join(outputDir, 'index.jsonl');
+      const indexPath = runIndexPath(outputDir);
       expect(extractOutputPath(stdout)).toBe(indexPath);
       expect(stdout).not.toContain('Export files:');
 
@@ -409,10 +418,10 @@ describe('agentv eval CLI', () => {
       expect(canonicalResults).toHaveLength(2);
       await expectFileExists(path.join(outputDir, 'summary.json'));
       for (const row of canonicalResults) {
-        expect(row.transcript_path).toMatch(/attempt-1\/transcript\.json$/);
+        expect(row.transcript_path).toMatch(/sample-1\/transcript\.json$/);
         await expectFileExists(path.join(outputDir, row.transcript_path as string));
         expect(row.transcript_summary).toBeDefined();
-        expect(row.transcript_raw_path).toMatch(/attempt-1\/transcript-raw\.jsonl$/);
+        expect(row.transcript_raw_path).toMatch(/sample-1\/transcript-raw\.jsonl$/);
         await expectFileExists(path.join(outputDir, row.transcript_raw_path as string));
       }
     } finally {
@@ -664,7 +673,7 @@ describe('agentv eval CLI', () => {
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
-      expect(path.dirname(path.dirname(outputPath))).toBe(
+      expect(path.dirname(runDirFromIndexPath(outputPath))).toBe(
         path.join(fixture.suiteDir, '.agentv', 'results'),
       );
 
@@ -685,7 +694,7 @@ describe('agentv eval CLI', () => {
       });
 
       const benchmark = JSON.parse(
-        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
+        await readFile(path.join(runDirFromIndexPath(outputPath), 'summary.json'), 'utf8'),
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata?.experiment_config).toMatchObject({
@@ -860,7 +869,7 @@ describe('agentv eval CLI', () => {
 
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
-      expect(path.dirname(path.dirname(outputPath))).toBe(
+      expect(path.dirname(runDirFromIndexPath(outputPath))).toBe(
         path.join(fixture.suiteDir, '.agentv', 'results'),
       );
 
@@ -885,7 +894,7 @@ describe('agentv eval CLI', () => {
       });
 
       const benchmark = JSON.parse(
-        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
+        await readFile(path.join(runDirFromIndexPath(outputPath), 'summary.json'), 'utf8'),
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
@@ -946,7 +955,7 @@ describe('agentv eval CLI', () => {
         '0.8',
       ]);
       expect(first.exitCode).toBe(1);
-      const priorIndexPath = path.join(priorRunDir, 'index.jsonl');
+      const priorIndexPath = runIndexPath(priorRunDir);
       const priorRows = (await readJsonLines(priorIndexPath)) as Array<Record<string, unknown>>;
       const alphaRow = priorRows.find((row) => row.test_id === 'case-alpha');
       const betaRow = priorRows.find((row) => row.test_id === 'case-beta');
@@ -1062,7 +1071,7 @@ tests:
       ]);
       expect(first.exitCode).toBe(0);
 
-      const priorIndexPath = path.join(priorRunDir, 'index.jsonl');
+      const priorIndexPath = runIndexPath(priorRunDir);
       const priorRows = (await readJsonLines(priorIndexPath)) as Array<Record<string, unknown>>;
       expect(priorRows).toHaveLength(1);
       const baseRow = priorRows[0];
@@ -1181,7 +1190,7 @@ tests:
       expect(exitCode).toBe(0);
       const outputPath = extractOutputPath(stdout);
       const benchmark = JSON.parse(
-        await readFile(path.join(path.dirname(outputPath), 'summary.json'), 'utf8'),
+        await readFile(path.join(runDirFromIndexPath(outputPath), 'summary.json'), 'utf8'),
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',

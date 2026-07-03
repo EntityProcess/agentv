@@ -411,7 +411,10 @@ export async function listMergedResultFiles(
         raw_filename: r.run_id,
         source: 'remote' as const,
         on_remote: true,
-        path: path.join(config.path, r.manifest_path),
+        path: path.join(
+          config.path,
+          r.index_path ?? (r as { manifest_path?: string }).manifest_path ?? '',
+        ),
         ...(r.summary_path && { summaryPath: path.join(config.path, r.summary_path) }),
         experiment: r.experiment,
         ...(r.target && { target: r.target }),

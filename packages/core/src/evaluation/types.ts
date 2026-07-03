@@ -1166,7 +1166,7 @@ export interface TrialResult {
   readonly failureReasonCode?: string;
   /**
    * Full per-attempt result used by artifact writers to materialize AgentV
-   * attempt-N folders. This is intentionally omitted from compact wire summaries.
+   * sample-N folders. This is intentionally omitted from compact wire summaries.
    */
   readonly result?: EvaluationResult;
 }

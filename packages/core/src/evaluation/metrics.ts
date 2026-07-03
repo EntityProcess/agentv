@@ -4,8 +4,9 @@
  * This is a derived per-case executor metrics projection over `EvaluationResult`
  * and the internal trace envelope. It aligns with AgentV's case-local `metrics.json`
  * while carrying compact executor observability fields. It is not the
- * canonical trace store; portable transcript detail stays in `transcript.json`, and
- * duration/token/cost usage stays in `timing.json`.
+ * canonical trace store; portable transcript detail stays in `transcript.json`.
+ * Duration, token, and cost usage live in this artifact's top-level
+ * `duration`, `tokens`, and `cost` sections.
  */
 
 import { z } from 'zod';
@@ -115,27 +116,42 @@ const ReasoningBlockWireSchema = z
   })
   .strict();
 
-const MetricsTimingWireSchema = z
+const MetricsDurationWireSchema = z
   .object({
-    total_tokens: z.number().int().nonnegative(),
-    duration_ms: z.number().nonnegative(),
-    total_duration_seconds: z.number().nonnegative(),
-    cost_usd: z.number().nonnegative().nullable(),
-    token_usage: z
+    total_ms: z.number().nonnegative(),
+    total_seconds: z.number().nonnegative(),
+    mean_ms: z.number().nonnegative().optional(),
+    mean_seconds: z.number().nonnegative().optional(),
+    source: z.enum(TIMING_SOURCE_VALUES),
+    stats: z
       .object({
-        input: z.number().int().nonnegative(),
-        output: z.number().int().nonnegative(),
-        reasoning: z.number().int().nonnegative(),
+        count: z.number().int().nonnegative(),
+        mean_ms: z.number().nonnegative(),
+        mean_seconds: z.number().nonnegative(),
+        stddev_ms: z.number().nonnegative(),
+        stddev_seconds: z.number().nonnegative(),
+        min_ms: z.number().nonnegative(),
+        max_ms: z.number().nonnegative(),
       })
-      .strict(),
-    usage_sources: z
-      .object({
-        token_usage: z.enum(TIMING_SOURCE_VALUES),
-        total_tokens: z.enum(TIMING_SOURCE_VALUES),
-        duration: z.enum(TIMING_SOURCE_VALUES),
-        cost: z.enum(TIMING_SOURCE_VALUES),
-      })
-      .strict(),
+      .strict()
+      .optional(),
+  })
+  .strict();
+
+const MetricsTokensWireSchema = z
+  .object({
+    total: z.number().int().nonnegative(),
+    input: z.number().int().nonnegative(),
+    output: z.number().int().nonnegative(),
+    reasoning: z.number().int().nonnegative(),
+    source: z.enum(TIMING_SOURCE_VALUES),
+  })
+  .strict();
+
+const MetricsCostWireSchema = z
+  .object({
+    usd: z.number().nonnegative().nullable(),
+    source: z.enum(TIMING_SOURCE_VALUES),
   })
   .strict();
 
@@ -184,12 +200,15 @@ export const MetricsArtifactWireSchema = z
       .object({
         transcript_path: z.string().optional(),
         grading_path: z.string().optional(),
-        timing_path: z.string().optional(),
         file_changes_path: z.string().optional(),
       })
       .strict(),
+    duration: MetricsDurationWireSchema.optional(),
+    tokens: MetricsTokensWireSchema.optional(),
+    cost: MetricsCostWireSchema.optional(),
+    execution: z.record(z.string(), z.unknown()).optional(),
+    trajectory: z.record(z.string(), z.unknown()).optional(),
     metrics: MetricsWireSchema,
-    timing: MetricsTimingWireSchema.optional(),
   })
   .strict();
 
@@ -879,7 +898,6 @@ export function buildMetricsArtifact(
   options: {
     transcriptPath?: string;
     gradingPath?: string;
-    timingPath?: string;
     fileChangesPath?: string;
     generatedAt?: string;
   } = {},
@@ -902,7 +920,6 @@ export function buildMetricsArtifact(
       source_artifacts: dropUndefined({
         transcript_path: options.transcriptPath,
         grading_path: options.gradingPath,
-        timing_path: options.timingPath,
         file_changes_path: options.fileChangesPath,
       }),
       metrics: buildMetrics(result),
