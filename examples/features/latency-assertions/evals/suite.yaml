@@ -1,0 +1,154 @@
+# AgentV Per-Step Latency Assertions Demo
+# Demonstrates latency assertions in the tool_trajectory grader
+#
+# The tool_trajectory grader now supports optional `max_duration_ms` assertions
+# on individual tool calls. This allows you to validate that tools complete within
+# timing budgets to catch performance regressions.
+#
+# Usage:
+#   Add `max_duration_ms: <milliseconds>` to any expected tool item:
+#   - tool: Read
+#     max_duration_ms: 100  # Must complete within 100ms
+#
+# Scoring:
+#   - Each latency assertion counts as a separate aspect for scoring
+#   - Pass: actual_duration <= max_duration_ms
+#   - Fail: actual_duration > max_duration_ms
+#   - Skip: No duration data available (warning logged, neutral score)
+#
+# Wire format:
+#   Providers must include `duration_ms` in tool calls for latency checks to work:
+#   {
+#     "output": [{
+#       "role": "assistant",
+#       "tool_calls": [{
+#         "tool": "Read",
+#         "duration_ms": 45
+#       }]
+#     }]
+#   }
+#
+# Note: use `agentv validate` to test parsing. For real latency testing,
+# use the included mock latency target or a provider that returns duration_ms in tool calls.
+
+name: latency-assertions
+description: Latency assertions for per-step performance validation
+
+target: mock_latency_agent
+
+tests:
+  # ==========================================
+  # Example 1: Simple latency assertion - PASS
+  # Validates a single tool completes within time budget
+  # ==========================================
+  - id: latency-pass
+
+    input:
+      - role: user
+        content: Read the config.json file.
+
+    assert:
+      - metric: fast-read
+        type: tool-trajectory
+        mode: in_order
+        expected:
+          - tool: Read
+            max_duration_ms: 200 # Allow 200ms (actual ~45ms)
+      - |-
+        Agent reads the config file quickly.
+
+  # ==========================================
+  # Example 2: Latency assertion - FAIL
+  # Demonstrates score reduction when latency exceeds budget
+  # ==========================================
+  - id: latency-fail
+
+    input:
+      - role: user
+        content: Read the large-file.json.
+
+    assert:
+      - metric: slow-read
+        type: tool-trajectory
+        mode: in_order
+        expected:
+          - tool: Read
+            max_duration_ms: 10 # Very tight budget (actual ~45ms)
+      - |-
+        Agent reads the file but takes too long.
+
+  # ==========================================
+  # Example 3: Mixed sequence with latency
+  # Some tools have latency assertions, some don't
+  # ==========================================
+  - id: mixed-latency
+
+    input:
+      - role: user
+        content: Process the customer data from the API.
+
+    assert:
+      - metric: data-pipeline-perf
+        type: tool-trajectory
+        mode: in_order
+        expected:
+          - tool: fetchData
+            max_duration_ms: 1000 # Network call can take up to 1s
+          - tool: validateSchema # No latency requirement
+          - tool: transformData
+            max_duration_ms: 500 # Transform should be fast
+          - tool: saveResults
+            max_duration_ms: 200 # Saves should be quick
+      - |-
+        Agent performs data processing workflow with timing constraints
+        on critical operations.
+
+  # ==========================================
+  # Example 4: Exact mode with latency assertions
+  # Combines strict sequence matching with timing validation
+  # ==========================================
+  - id: exact-with-latency
+
+    input:
+      - role: user
+        content: Authenticate the user with provided credentials.
+
+    assert:
+      - metric: auth-perf
+        type: tool-trajectory
+        mode: exact
+        expected:
+          - tool: checkCredentials
+            max_duration_ms: 100 # Credential check should be fast
+          - tool: generateToken
+            max_duration_ms: 50 # Token generation is quick
+          - tool: auditLog
+            max_duration_ms: 200 # Logging can take longer
+      - |-
+        Agent authenticates user with performance requirements.
+
+  # ==========================================
+  # Example 5: Combined with argument matching
+  # Latency assertions work alongside args validation
+  # ==========================================
+  - id: latency-with-args
+
+    input:
+      - role: user
+        content: What's the weather like in Paris?
+
+    assert:
+      - metric: weather-perf
+        type: tool-trajectory
+        mode: in_order
+        expected:
+          - tool: search
+            args:
+              query: "weather Paris"
+            max_duration_ms: 500
+          - tool: get_weather
+            args:
+              location: "Paris"
+            max_duration_ms: 1000
+      - |-
+        Agent searches for weather with specific query and responds quickly.

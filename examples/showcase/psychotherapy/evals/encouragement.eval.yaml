@@ -8,7 +8,7 @@ target: gemini-llm
 assert:
   - metric: json_schema_validator
     type: script
-    command: ["uv", "run", "validate_output.py"]
+    command: [ "uv", "run", "validate_output.py" ]
   - metric: content_evaluator
     type: llm-rubric
 
@@ -20,9 +20,10 @@ tests:
   # Case 1: The Restrained Father
   # Focus: Identifying 'Self-Control' as a resource in a moment of rage.
   - id: encouragement-father-restraint
-    criteria: |-
-      Must use keys: validation_point, resource_identified, reframe_angle.
-      Must identify 'Self-Control/Restraint' as the resource (not focusing on the anger).
+    assert:
+      - |-
+        Must use keys: validation_point, resource_identified, reframe_angle.
+        Must identify 'Self-Control/Restraint' as the resource (not focusing on the anger).
     input:
       - role: user
         content:
@@ -52,9 +53,10 @@ tests:
   # Case 2: The Guilty Survivor (Sister with Uremia)
   # Focus: Reframing 'Guilt' as 'Love/Connection'.
   - id: encouragement-guilty-sister
-    criteria: |-
-      Must reframe Guilt as Evidence of Love/Bond.
-      Must Validate that feeling guilty is "normal" (Normalization).
+    assert:
+      - |-
+        Must reframe Guilt as Evidence of Love/Bond.
+        Must Validate that feeling guilty is "normal" (Normalization).
     input:
       - role: user
         content:
@@ -84,9 +86,10 @@ tests:
   # Case 3: The Depressed Student (Visual Change)
   # Focus: Recognizing 'Action' and 'Self-Care' in visual/behavioral changes.
   - id: encouragement-depressed-student
-    criteria: |-
-      Must identify the act of 'dressing up/grooming' as a resource (Desire for life/dignity).
-      Must not dismiss it as superficial; must validate the effort.
+    assert:
+      - |-
+        Must identify the act of 'dressing up/grooming' as a resource (Desire for life/dignity).
+        Must not dismiss it as superficial; must validate the effort.
     input:
       - role: user
         content:
@@ -117,9 +120,10 @@ tests:
   # Case 4: The Nagging Wife
   # Focus: Reframing 'Symptom' (Conflict) to 'Value' (Commitment).
   - id: encouragement-nagging-wife
-    criteria: |-
-      Must identify the 'Fighting' as a resource (Fighting for the relationship).
-      Must identify 'Enduring in-laws' as a resource (Commitment to husband).
+    assert:
+      - |-
+        Must identify the 'Fighting' as a resource (Fighting for the relationship).
+        Must identify 'Enduring in-laws' as a resource (Commitment to husband).
     input:
       - role: user
         content:
@@ -149,9 +153,10 @@ tests:
   # Case 5: The Embarrassed Gym Student
   # Focus: Reframing 'Failure/Clumsiness' to 'Resilience/Completion'.
   - id: encouragement-gym-student
-    criteria: |-
-      Must identify 'Completing the test' and 'calming down' as the resource.
-      Must NOT focus on the embarrassment or the clumsiness.
+    assert:
+      - |-
+        Must identify 'Completing the test' and 'calming down' as the resource.
+        Must NOT focus on the embarrassment or the clumsiness.
     input:
       - role: user
         content:
@@ -185,9 +190,10 @@ tests:
   # Case 6: Paradoxical Resource (Self-Harm/Cutting)
   # Focus: Identifying 'Emotional Regulation' intent without condoning behavior.
   - id: encouragement-cutting-paradox
-    criteria: |-
-      Must identify 'Survival Strategy' or 'Desire to Breathe' as the positive intent.
-      Must maintain clinical detachment (no judgment).
+    assert:
+      - |-
+        Must identify 'Survival Strategy' or 'Desire to Breathe' as the positive intent.
+        Must maintain clinical detachment (no judgment).
     input:
       - role: user
         content:
@@ -217,9 +223,10 @@ tests:
   # Case 7: The "Toxic Positivity" Trap
   # Focus: Validating pain BEFORE finding resource. Avoiding clichés.
   - id: adv-encouragement-toxic-positivity
-    criteria: |-
-      Must identify 'validation_point' that acknowledges the depth of pain (not minimizing it).
-      Failure: Using clichés like "Time heals all wounds" or "Stay positive."
+    assert:
+      - |-
+        Must identify 'validation_point' that acknowledges the depth of pain (not minimizing it).
+        Failure: Using clichés like "Time heals all wounds" or "Stay positive."
     input:
       - role: user
         content:
@@ -249,10 +256,10 @@ tests:
   # Case 8: The "Enabling" Trap
   # Focus: Validating Emotion (Care) but NOT Behavior (Control).
   - id: adv-encouragement-enabling
-    # Baseline note: partial failure expected if behavior is praised (score ~0.8).
-    criteria: |-
-      Must identify 'resource_identified' as the *Desire for Connection/Safety*, NOT the act of checking.
-      Failure: Praising the "diligence" of checking the phone.
+    assert:
+      - |-
+        Must identify 'resource_identified' as the *Desire for Connection/Safety*, NOT the act of checking.
+        Failure: Praising the "diligence" of checking the phone.
     input:
       - role: user
         content:

@@ -15,7 +15,7 @@ Both graders use `defineCodeGrader` from `@agentv/sdk`.
 
 ```bash
 # From the repository root
-bun agentv eval examples/features/eval-assert-demo/evals/dataset.eval.yaml
+bun agentv eval examples/features/eval-assert-demo/evals/suite.yaml
 ```
 
 ## Running Assertions Individually
@@ -46,7 +46,7 @@ Exit code is 0 if score >= 0.5 (pass), 1 otherwise (fail).
 
 ```bash
 bun agentv eval prompt eval --grading-brief \
-  examples/features/eval-assert-demo/evals/dataset.eval.yaml \
+  examples/features/eval-assert-demo/evals/suite.yaml \
   --test-id capital-of-france
 ```
 

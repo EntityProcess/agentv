@@ -1,0 +1,145 @@
+name: composite-grader-examples
+description: Demonstrates composite grader patterns for combining multiple
+  evaluation criteria
+
+target: llm
+
+tests:
+  # Example 1: Weighted Average Aggregation
+  - id: weighted-average-example
+    input:
+      - role: user
+        content: "Write a concise but informative summary of machine learning."
+    expected_output:
+      - role: assistant
+        content: |
+          Machine learning is a subset of AI that enables systems to learn from data and improve performance without explicit programming. It uses algorithms to identify patterns, make predictions, and adapt based on experience.
+    assert:
+      - The response should be both concise and detailed, balancing brevity with
+        informative content.
+      - metric: release_gate
+        type: composite
+        assert:
+          - metric: safety
+            type: llm-rubric
+            prompt: file://../prompts/safety-check.md
+          - metric: quality
+            type: llm-rubric
+            prompt: file://../prompts/quality-evaluation.md
+        aggregator:
+          type: weighted_average
+          weights:
+            safety: 0.3
+            quality: 0.7
+
+  # Example 2: Code Grader Aggregator (Safety Gate Pattern)
+  - id: code-grader-safety-gate
+    input:
+      - role: user
+        content: "Explain quantum computing in simple terms."
+    expected_output:
+      - role: assistant
+        content: |
+          Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously, unlike classical bits that are either 0 or 1. This property, called superposition, along with entanglement, allows quantum computers to solve certain complex problems exponentially faster than classical computers.
+    assert:
+      - The response should be accurate, accessible to non-experts, and pass
+        safety checks.
+      - metric: safety_gate
+        type: composite
+        assert:
+          - metric: safety
+            type: llm-rubric
+            prompt: file://../prompts/safety-check-strict.md
+          - metric: quality
+            type: llm-rubric
+            prompt: file://../prompts/technical-accuracy.md
+        aggregator:
+          type: script
+          path: bun run ../scripts/safety-gate-aggregator.js
+
+  # Example 3: Strict OR with a local code-grader aggregator
+  - id: strict-or-local
+    input:
+      - role: user
+        content: "Where is Paris?"
+    expected_output:
+      - role: assistant
+        content: |
+          Paris is the capital city of France.
+    assert:
+      - The response should include either Paris or the phrase "capital of
+        France".
+      - metric: strict_or
+        type: composite
+        assert:
+          - metric: mentions-paris
+            type: contains
+            value: Paris
+          - metric: mentions-capital
+            type: contains
+            value: capital
+        aggregator:
+          type: script
+          path: bun run ../scripts/or-aggregator.js
+
+  # Example 4: LLM Grader Aggregator
+  - id: llm-rubric-conflict-resolution
+    # Baseline note: aggregator may report minor omissions (score ~0.9).
+    input:
+      - role: user
+        content: "Write a product description that is both brief and comprehensive."
+    expected_output:
+      - role: assistant
+        content: |
+          Premium wireless headphones featuring active noise cancellation, 30-hour battery life, premium sound quality with enhanced bass, comfortable over-ear design, and seamless Bluetooth 5.0 connectivity.
+    assert:
+      - The response should balance conciseness with detail effectively.
+      - metric: final_decision
+        type: composite
+        assert:
+          - metric: conciseness
+            type: llm-rubric
+            prompt: file://../prompts/conciseness-check.md
+          - metric: detail
+            type: llm-rubric
+            prompt: file://../prompts/detail-check.md
+        aggregator:
+          type: llm-rubric
+          prompt: file://../prompts/conflict-resolution.md
+
+  # Example 5: Nested Composite Graders
+  - id: nested-composite
+    input:
+      - role: user
+        content: "Explain the difference between supervised and unsupervised learning."
+    expected_output:
+      - role: assistant
+        content: |
+          Supervised learning uses labeled training data to learn patterns and make predictions, like classifying emails as spam or not spam. Unsupervised learning finds patterns in unlabeled data without predefined categories, like customer segmentation or anomaly detection.
+    assert:
+      - The response should be accurate, clear, safe, and appropriately detailed.
+      - metric: comprehensive_evaluation
+        type: composite
+        assert:
+          - metric: content_quality
+            type: composite
+            assert:
+              - metric: accuracy
+                type: llm-rubric
+                prompt: file://../prompts/accuracy-check.md
+              - metric: clarity
+                type: llm-rubric
+                prompt: file://../prompts/clarity-check.md
+            aggregator:
+              type: weighted_average
+              weights:
+                accuracy: 0.6
+                clarity: 0.4
+          - metric: safety
+            type: llm-rubric
+            prompt: file://../prompts/safety-verification.md
+        aggregator:
+          type: weighted_average
+          weights:
+            content_quality: 0.7
+            safety: 0.3

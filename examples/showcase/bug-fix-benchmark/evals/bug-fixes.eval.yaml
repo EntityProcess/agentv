@@ -29,9 +29,9 @@ target:
   extends: ${{ AGENT_TARGET }}
   hooks:
     before_each:
-      command: ["bash", "../scripts/setup-variant.sh", "baseline"]
+      command: [ "bash", "../scripts/setup-variant.sh", "baseline" ]
 
-tags: [coding, bugfix, benchmark, swe-bench]
+tags: [ coding, bugfix, benchmark, swe-bench ]
 
 tests:
   # Issue #912: CLI provider retries don't preserve workspace cwd
@@ -55,5 +55,6 @@ tests:
 
       Find the bug, fix it, and add tests to verify the fix.
     assert:
-      - The fix introduces an effectiveCwd variable that prefers request.cwd over this.config.cwd
+      - The fix introduces an effectiveCwd variable that prefers request.cwd
+        over this.config.cwd
       - effectiveCwd is used in the runCommand call and response metadata

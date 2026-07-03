@@ -79,8 +79,8 @@ export async function resolveEvalPaths(
       if (candidateStats.isDirectory()) {
         // Auto-expand directory to recursive eval file glob
         const filePattern = options.allowReadAdapters
-          ? '{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts,evals.json,*.evals.json}'
-          : '{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}';
+          ? '{suite.yaml,suite.yml,*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts,evals.json,*.evals.json}'
+          : '{suite.yaml,suite.yml,*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}';
         const dirGlob = path.posix.join(candidatePath.replace(/\\/g, '/'), `**/${filePattern}`);
         const dirMatches = await fg(dirGlob, {
           absolute: true,
@@ -143,7 +143,7 @@ export async function resolveEvalPaths(
     throw new Error(
       `No eval files matched any provided paths or globs: ${includePatterns.join(
         ', ',
-      )}. Provide YAML, JSONL, TypeScript, or supported read-adapter paths/globs (e.g., "evals/**/eval.yaml", "evals/**/*.eval.ts", "skills/**/evals.json").`,
+      )}. Provide YAML, JSONL, TypeScript, or supported read-adapter paths/globs (e.g., "evals/**/suite.yaml", "evals/**/*.eval.ts", "skills/**/evals.json").`,
     );
   }
 

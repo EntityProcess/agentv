@@ -32,7 +32,7 @@ target: mock_extractor
 assert:
   - metric: header_confusion
     type: script
-    command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
+    command: [ "bun", "run", "../graders/header_confusion_metrics.ts" ]
     fields:
       - path: invoice_number
       - path: invoice_date
@@ -47,7 +47,8 @@ tests:
   # Expected: All TP → score ~1.000
   # ============================================
   - id: metrics-001
-    criteria: All fields extracted correctly (all TP)
+    assert:
+      - All fields extracted correctly (all TP)
     expected_output:
       - role: assistant
         content:
@@ -73,7 +74,8 @@ tests:
   # NOTE: Low score is intentional — demonstrates confusion matrix for name mismatches
   # ============================================
   - id: metrics-002
-    criteria: Supplier name has dash variation (FP+FN)
+    assert:
+      - Supplier name has dash variation (FP+FN)
     expected_output:
       - role: assistant
         content:
@@ -99,7 +101,8 @@ tests:
   # NOTE: Low score is intentional — same name mismatch pattern as case 2
   # ============================================
   - id: metrics-003
-    criteria: Supplier name has dash variation (FP+FN)
+    assert:
+      - Supplier name has dash variation (FP+FN)
     expected_output:
       - role: assistant
         content:
@@ -125,7 +128,8 @@ tests:
   # NOTE: Low score is intentional — demonstrates FN for missing fields
   # ============================================
   - id: metrics-004
-    criteria: Invoice number missing (FN)
+    assert:
+      - Invoice number missing (FN)
     expected_output:
       - role: assistant
         content:
@@ -154,7 +158,8 @@ tests:
   # NOTE: Low score is intentional — demonstrates multiple extraction failures
   # ============================================
   - id: metrics-005
-    criteria: Multiple field errors (currency, supplier, gross_total)
+    assert:
+      - Multiple field errors (currency, supplier, gross_total)
     expected_output:
       - role: assistant
         content:

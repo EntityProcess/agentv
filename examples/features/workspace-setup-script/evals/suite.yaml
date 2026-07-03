@@ -1,0 +1,40 @@
+description: >-
+  Demonstrates using a beforeAll lifecycle extension to clean and re-initialize
+  an allagents workspace before evaluation runs.
+
+extensions:
+  - file://../scripts/workspace-setup.mjs:beforeAll
+
+workspace:
+  template: ../workspace-template
+  repos:
+    - path: ./my-repo
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: main
+tags: [ agent ]
+
+tests:
+  - id: verify-workspace
+    input: >-
+      List the files in the my-repo/ directory and read my-repo/package.json.
+      Report the package name.
+    assert:
+      - type: contains
+        value: "@agentv/workspace"
+      - >-
+        The agent should confirm that the workspace contains a cloned repository
+        at my-repo/ with a valid package.json.
+
+  - id: summarize-repo
+    assert:
+      - >-
+        The agent should follow the prompt instructions and report the package
+        name, version, description, and key dependencies from
+        my-repo/package.json.
+    input:
+      - role: user
+        content:
+          - type: file
+            value: ../plugins/my-plugin/AGENTS.md
+          - type: file
+            value: ../plugins/my-plugin/.github/prompts/summarize-repo.prompt.md

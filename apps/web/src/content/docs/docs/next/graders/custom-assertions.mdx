@@ -182,7 +182,7 @@ my-project/
     assertions/
       word-count.ts
   evals/
-    dataset.eval.yaml
+    suite.yaml
   package.json
 ```
 
@@ -216,7 +216,7 @@ export default defineAssertion(({ output }) => {
 ### 3. Reference in YAML
 
 ```yaml
-# evals/dataset.eval.yaml
+# evals/suite.yaml
 name: custom-assertion-demo
 description: Demonstrates custom assertions with convention discovery
 
@@ -246,7 +246,7 @@ tests:
 
 ```bash
 npm install @agentv/sdk
-agentv eval evals/dataset.eval.yaml
+agentv eval evals/suite.yaml
 ```
 
 Each test produces scores from both the built-in `contains` assertion and your custom `word-count` assertion. Results appear in the output JSONL with each grader's score in the `scores[]` array.

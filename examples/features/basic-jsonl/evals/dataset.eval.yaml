@@ -1,9 +1,0 @@
-# JSONL dataset with YAML defaults
-# Tests are loaded from the JSONL file; this YAML provides shared configuration.
-
-description: JSONL version of the basic example - demonstrates file references, multi-turn, and per-case overrides
-name: basic-jsonl
-
-target: llm
-
-tests: ./dataset.jsonl

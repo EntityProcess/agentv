@@ -64,6 +64,29 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('rejects redundant results mode in project config', async () => {
+    const filePath = path.join(tempDir, 'config-results-mode.yaml');
+    await writeFile(
+      filePath,
+      `results:
+  mode: github
+  path: .
+  branch: agentv/results/v1
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'results.mode',
+        message: "Remove 'results.mode'; results use 'results.repo' and 'results.path'.",
+      }),
+    );
+  });
+
   it('accepts repo_resolvers field without warnings', async () => {
     const filePath = path.join(tempDir, 'config-repo-resolvers.yaml');
     await writeFile(

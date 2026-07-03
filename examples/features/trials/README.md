@@ -6,12 +6,12 @@ attempts.
 
 ## Files
 
-- `evals/dataset.eval.yaml` defines the task cases and inline runtime config.
+- `evals/suite.yaml` defines the task cases and inline runtime config.
 
 ## Run
 
 ```bash
-bun agentv eval examples/features/trials/evals/dataset.eval.yaml
+bun agentv eval examples/features/trials/evals/suite.yaml
 ```
 
 Edit `evaluate_options.repeat.count` to change how many attempts AgentV makes

@@ -1,4 +1,5 @@
-description: Offline grader benchmark — setup A (same dataset, three low-cost graders, majority vote)
+description: Offline grader benchmark — setup A (same dataset, three low-cost
+  graders, majority vote)
 target: fixture_replay
 
 tests:
@@ -14,12 +15,12 @@ assert:
       - metric: grader-gpt-5-mini
         type: llm-rubric
         target: grader_gpt_5_mini
-        prompt: ../prompts/grader-pass-fail-v1.md
+        prompt: file://../prompts/grader-pass-fail-v1.md
       - metric: grader-claude-haiku
         type: llm-rubric
         target: grader_claude_haiku
-        prompt: ../prompts/grader-pass-fail-v1.md
+        prompt: file://../prompts/grader-pass-fail-v1.md
       - metric: grader-gemini-flash
         type: llm-rubric
         target: grader_gemini_flash
-        prompt: ../prompts/grader-pass-fail-v1.md
+        prompt: file://../prompts/grader-pass-fail-v1.md

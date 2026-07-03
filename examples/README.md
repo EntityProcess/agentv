@@ -80,7 +80,7 @@ Each example follows this structure:
 ```
 example-name/
 ├── evals/
-│   ├── dataset.eval.yaml     # Primary eval file
+│   ├── suite.yaml     # Primary eval file
 │   ├── *.ts or *.py          # Code graders (optional)
 │   └── *.md                  # LLM grader prompts (optional)
 ├── scripts/                  # Helper scripts (optional)

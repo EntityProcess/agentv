@@ -15,11 +15,11 @@ Demonstrates rubric-based evaluation with weights, required flags, and auto-gene
 
 ```bash
 # From repository root
-bun agentv eval examples/features/rubric/evals/dataset.eval.yaml --target default
+bun agentv eval examples/features/rubric/evals/suite.yaml --target default
 ```
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` - Test cases with various rubric patterns
+- `evals/suite.yaml` - Test cases with various rubric patterns
 - `evals/operators.eval.yaml` - Focused example of correctness and contradiction operators
 - `evals/rubrics/` - External rubric files

@@ -68,7 +68,7 @@ def rag_faithfulness():
 
 
 write_jsonl(
-    "evals/dataset.jsonl",
+    "evals/cases.jsonl",
     [
         JsonlCase(
             id="grounded-answer",
@@ -80,8 +80,8 @@ write_jsonl(
 )
 
 write_eval_yaml(
-    "evals/dataset.eval.yaml",
-    EvalDefinition(name="rag-suite", tests="./dataset.jsonl"),
+    "evals/suite.yaml",
+    EvalDefinition(name="rag-suite", tests="./cases.jsonl"),
 )
 ```
 

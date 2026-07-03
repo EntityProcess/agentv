@@ -1,4 +1,4 @@
 targets:
-  - name: mock-sdk
+  - label: mock-sdk
     provider: mock
     response: Hello from the mock target

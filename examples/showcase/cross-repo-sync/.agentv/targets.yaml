@@ -1,11 +1,11 @@
 targets:
-  - name: mock_agent
+  - label: mock_agent
     provider: cli
     command: bash mock-agent.sh {PROMPT} {OUTPUT_FILE}
 
-  - name: claude_agent
+  - label: claude_agent
     provider: claude
 
-  - name: copilot_agent
+  - label: copilot_agent
     provider: copilot-cli
     model: claude-haiku-4.5

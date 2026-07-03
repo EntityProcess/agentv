@@ -8,9 +8,6 @@ target: llm
 
 tests:
   - id: finance-summary-operator-guards
-    criteria: |-
-      Summarize the source faithfully. Include supported material facts and avoid
-      claims that contradict the source.
 
     input:
       - role: user
@@ -39,3 +36,6 @@ tests:
             operator: contradiction
             outcome: Gross margin declined to 42% from 45%.
             required: true
+      - |-
+        Summarize the source faithfully. Include supported material facts and avoid
+        claims that contradict the source.

@@ -1,7 +1,7 @@
 /** Default category for eval files without category taxonomy metadata. */
 export const DEFAULT_CATEGORY = 'Uncategorized';
 
-const GENERIC_EVAL_FILE_STEMS = new Set(['eval', 'dataset']);
+const GENERIC_EVAL_FILE_STEMS = new Set(['eval', 'dataset', 'suite']);
 
 /**
  * Canonicalize analytics category taxonomy paths.
@@ -27,7 +27,7 @@ function evalFileStem(fileName: string): string {
 /**
  * Derive a canonical slash-delimited analytics category path from an eval file.
  *
- * Generic eval filenames such as `eval.yaml` and `dataset.eval.yaml` do not add
+ * Generic eval filenames such as `eval.yaml`, `dataset.eval.yaml`, and `suite.yaml` do not add
  * a taxonomy leaf. Meaningful named eval files such as `network.eval.yaml` do
  * contribute a leaf. Any `evals` directory segment is treated as organization
  * only and is removed from the analytics taxonomy.

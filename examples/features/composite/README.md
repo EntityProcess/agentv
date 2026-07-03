@@ -13,13 +13,13 @@ Demonstrates composite grader patterns for combining multiple evaluation criteri
 
 ```bash
 # From repository root
-bun agentv eval run examples/features/composite/evals/dataset.eval.yaml
+bun agentv eval run examples/features/composite/evals/suite.yaml
 # Validate the eval file without executing targets
-bun agentv validate examples/features/composite/evals/dataset.eval.yaml
+bun agentv validate examples/features/composite/evals/suite.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` - Test cases with composite grader patterns
+- `evals/suite.yaml` - Test cases with composite grader patterns
 - `scripts/or-aggregator.js` - Strict OR aggregator script used by `composite` examples
 - `apps/web/src/content/docs/docs/next/graders/composite.mdx` - Detailed AND/OR and strict-OR composition guidance

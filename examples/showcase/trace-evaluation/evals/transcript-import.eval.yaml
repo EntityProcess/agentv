@@ -2,9 +2,6 @@ description: Trace grading over an imported Codex transcript fixture
 
 tests:
   - id: imported-codex-config-fix
-    criteria: |-
-      The imported coding-agent transcript should show a repository inspection,
-      a targeted config edit, and a concise final explanation.
 
     input:
       - role: user
@@ -34,5 +31,8 @@ tests:
 
       - metric: replay-proof
         type: script
-        command: ["bun", "run", "../graders/replay-proof.ts"]
+        command: [ "bun", "run", "../graders/replay-proof.ts" ]
         require_metrics: false
+      - |-
+        The imported coding-agent transcript should show a repository inspection,
+        a targeted config edit, and a concise final explanation.

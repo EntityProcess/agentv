@@ -1,0 +1,32 @@
+# Langfuse Export Example Eval
+#
+# Run: agentv eval examples/features/langfuse-export/evals/suite.yaml
+#
+# Traces will appear in your Langfuse dashboard with gen_ai.* semantic
+# conventions, per-span token usage, and turn-level grouping.
+
+description: Sample eval with Langfuse trace export
+
+target: default
+
+tests:
+  - id: greeting
+    input: "Hello, who are you?"
+    assert:
+      - "Responds with a self-introduction"
+
+  - id: math
+    input: "What is 15 * 23?"
+    assert:
+      - "Provides the correct answer: 345"
+
+  - id: multi-turn
+    input:
+      - role: user
+        content: "Remember the number 42."
+      - role: assistant
+        content: "Got it, I'll remember 42."
+      - role: user
+        content: "What number did I ask you to remember?"
+    assert:
+      - "Correctly recalls the number 42"

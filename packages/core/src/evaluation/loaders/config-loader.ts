@@ -29,6 +29,8 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
 
 export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
+  '**/evals/**/suite.yaml',
+  '**/evals/**/suite.yml',
   '**/evals/**/*.eval.yaml',
   '**/evals/**/eval.yaml',
   '**/evals/**/*.eval.ts',
@@ -49,7 +51,6 @@ export type ExecutionDefaults = {
 export type ResultPushConflictPolicy = 'block';
 
 export type ResultsConfig = {
-  readonly mode?: 'github';
   /** Git remote slug/URL for a managed results clone, or omit to default to the source repo. */
   readonly repo?: string;
   /** Local Git checkout path for results. */
@@ -778,7 +779,7 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   const obj = raw as Record<string, unknown>;
 
   if (obj.mode !== undefined && obj.mode !== 'github') {
-    logWarning(`Invalid results.mode in ${configPath}, expected 'github'`);
+    logWarning(`Invalid results.mode in ${configPath}; remove results.mode`);
     return undefined;
   }
 
@@ -820,7 +821,6 @@ export function parseResultsConfig(raw: unknown, configPath: string): ResultsCon
   }
 
   return {
-    mode: 'github',
     ...(repo && { repo }),
     ...(resultsPath !== undefined && { path: resultsPath }),
     ...(branch !== undefined && { branch }),

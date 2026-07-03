@@ -149,17 +149,20 @@ describe('resolveEvalPaths', () => {
     mkdirSync(evalDir, { recursive: true });
 
     const yamlFile = path.join(evalDir, 'suite.eval.yaml');
+    const suiteYamlFile = path.join(evalDir, 'suite.yaml');
     const evalYamlFile = path.join(evalDir, 'eval.yaml');
     const tsFile = path.join(evalDir, 'suite.eval.ts');
     writeFileSync(yamlFile, 'tests:\n  - id: sample\n    input: test\n');
+    writeFileSync(suiteYamlFile, 'tests:\n  - id: sample-suite\n    input: test\n');
     writeFileSync(evalYamlFile, 'tests:\n  - id: sample2\n    input: test\n');
     writeFileSync(tsFile, 'export default { tests: [] }');
 
     const resolved = await resolveEvalPaths([tempDir], tempDir);
 
     expect(resolved).toContain(path.normalize(yamlFile));
+    expect(resolved).toContain(path.normalize(suiteYamlFile));
     expect(resolved).toContain(path.normalize(evalYamlFile));
     expect(resolved).toContain(path.normalize(tsFile));
-    expect(resolved).toHaveLength(3);
+    expect(resolved).toHaveLength(4);
   });
 });

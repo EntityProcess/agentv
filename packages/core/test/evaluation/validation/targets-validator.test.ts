@@ -177,8 +177,6 @@ targets:
     provider: pi
   - label: claude-code-alias
     provider: claude-code
-  - label: cc-mirror-alias
-    provider: cc-mirror
   - label: bedrock-future
     provider: bedrock
   - label: vertex-future
@@ -197,7 +195,6 @@ targets:
       'copilot_sdk',
       'pi',
       'claude-code',
-      'cc-mirror',
       'bedrock',
       'vertex',
     ]) {

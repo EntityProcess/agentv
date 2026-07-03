@@ -13,7 +13,7 @@ EVALS_DIR = ROOT / "evals"
 
 def main() -> None:
     write_jsonl(
-        EVALS_DIR / "dataset.jsonl",
+        EVALS_DIR / "cases.jsonl",
         [
             JsonlCase(
                 id="python-helper-local-cli",
@@ -40,13 +40,13 @@ def main() -> None:
     )
 
     write_eval_yaml(
-        EVALS_DIR / "dataset.eval.yaml",
+        EVALS_DIR / "suite.yaml",
         EvalDefinition(
             description="Python helper example that emits canonical AgentV YAML/JSONL.",
             name="python-helper",
             target="local_cli",
             tags=["python", "sdk"],
-            tests="./dataset.jsonl",
+            tests="./cases.jsonl",
         ),
     )
 

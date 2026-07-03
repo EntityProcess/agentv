@@ -1,5 +1,5 @@
 targets:
-  - name: mock_latency_agent
+  - label: mock_latency_agent
     provider: cli
     grader_target: grader
     command: bun run ./mock-latency-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}

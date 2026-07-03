@@ -6,7 +6,7 @@
  * grader. Use this approach for comparing extracted text that may have OCR errors,
  * formatting variations, or minor typos.
  *
- * Usage in dataset.eval.yaml:
+ * Usage in suite.yaml:
  * ```yaml
  * graders:
  *   - name: vendor_name_fuzzy

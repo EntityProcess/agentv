@@ -968,9 +968,9 @@ describe('resolveTargetDefinition', () => {
   it('claude-cli accepts custom executable', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'claude-zai',
+        name: 'claude-custom',
         provider: 'claude-cli',
-        executable: 'claude-zai',
+        executable: 'claude-custom',
       },
       {},
     );
@@ -980,7 +980,7 @@ describe('resolveTargetDefinition', () => {
       throw new Error('expected claude-cli target');
     }
 
-    expect(target.config.executable).toBe('claude-zai');
+    expect(target.config.executable).toBe('claude-custom');
   });
 
   it('resolves copilot-cli as its own provider kind', () => {

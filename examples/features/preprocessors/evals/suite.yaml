@@ -1,0 +1,13 @@
+description: Convert file outputs to grader-readable text before llm grading
+
+preprocessors:
+  - type: xlsx
+    command: [ "bun", "run", "../scripts/preprocessors/xlsx-to-csv.ts" ]
+
+tests:
+  - id: spreadsheet-output
+    input: Generate the spreadsheet report
+    assert:
+      - Output contains the transformed spreadsheet text including the revenue
+        rows
+      - The extracted spreadsheet content includes the revenue rows

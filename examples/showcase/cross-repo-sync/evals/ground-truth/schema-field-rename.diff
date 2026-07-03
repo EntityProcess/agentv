@@ -954,7 +954,7 @@ index 12dd909..25a5ae0 100644
 -For large evaluations, use JSONL format with one evalcase per line:
 +For large evaluations, use JSONL format with one case per line:
  
- **dataset.jsonl:**
+ **cases.jsonl:**
  ```jsonl
 -{"id": "case-1", "expected_outcome": "...", "input": [{"role": "user", "content": "..."}]}
 -{"id": "case-2", "expected_outcome": "...", "input": [{"role": "user", "content": "..."}]}

@@ -1,0 +1,36 @@
+# Code Grader SDK Helper Demo
+# Demonstrates using the optional TypeScript helper to parse code_grader stdin.
+
+description: Demonstrates TypeScript helpers for code_grader payloads
+
+# Uses the CLI target defined in .agentv/targets.yaml
+target: local_cli
+
+tags: [ agent ]
+
+tests:
+  - id: code-grader-sdk-attachments
+
+    input:
+      - role: system
+        content:
+          - type: file
+            value: python.instructions.md
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Please echo this request in one short sentence and mention all attached files by name.
+          - type: file
+            value: example.txt
+
+    expected_output:
+      - role: assistant
+        content: |-
+          Attachments detected (2): example.txt, python.instructions.md.
+
+    assert:
+      - metric: attachment-check
+        type: script
+        command: [ "bun", "run", "../scripts/verify-attachments.ts" ]
+      - The CLI echoes the prompt and lists attachment names.

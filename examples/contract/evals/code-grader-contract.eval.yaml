@@ -5,7 +5,6 @@ target: github-models-contract
 
 tests:
   - id: code-grader-stdin-payload
-    criteria: Response includes both literal tokens RELEASE and CONTRACT.
     input:
       - role: system
         content: "Use the literal token RELEASE as the first word in your response."
@@ -14,4 +13,5 @@ tests:
     assert:
       - metric: code-grader-payload-contract
         type: script
-        command: ["bun", "../scripts/check-code-grader-payload.ts"]
+        command: [ "bun", "../scripts/check-code-grader-payload.ts" ]
+      - Response includes both literal tokens RELEASE and CONTRACT.

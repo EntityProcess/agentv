@@ -251,7 +251,7 @@ tests:
 
 When `category` is omitted, AgentV derives it from the eval file path. Generic
 filenames do not add a leaf: `security/eval.yaml` becomes `security`, and
-`security/network/dataset.eval.yaml` becomes `security/network`. A meaningful
+`security/network/suite.yaml` becomes `security/network`. A meaningful
 named eval file contributes a leaf, so `security/network.eval.yaml` becomes
 `security/network`. Existing flat category strings remain valid one-node
 category paths.
@@ -590,7 +590,7 @@ For large-scale evaluations, AgentV supports JSONL (JSON Lines) format. Each lin
 
 An optional YAML sidecar file provides metadata and execution config. Place it alongside the JSONL file with the same base name:
 
-`dataset.jsonl` + `dataset.eval.yaml`:
+`cases.jsonl` + `suite.yaml`:
 
 ```yaml
 description: Math evaluation dataset
@@ -614,6 +614,6 @@ assert:
 Use the `convert` command to switch between YAML and JSONL:
 
 ```bash
-agentv convert evals/dataset.eval.yaml --format jsonl
-agentv convert evals/dataset.jsonl --format yaml
+agentv convert evals/suite.yaml --format jsonl
+agentv convert evals/cases.jsonl --format yaml
 ```

@@ -1,0 +1,249 @@
+# AgentV Eval Schema Example
+# Demonstrates schema features with real file references and minimal redundancy
+
+name: basic
+description: Example showing basic features, conversation threading, multiple graders
+
+# File-level default target
+target: llm
+
+tests:
+  # ==========================================
+  # Example 1: Basic V2 features with file references
+  # Demonstrates: input, expected_output, file references, array content format
+  # ==========================================
+  - id: code-review-javascript
+
+    input:
+      - role: system
+        content: You are an expert software developer who provides clear, concise code
+          reviews.
+      - role: user
+        content:
+          # Content can be a string or an array of content blocks
+          # Array format supports mixed text and file references
+          - type: text
+            value: |-
+              Please review this JavaScript function:
+
+              ```javascript
+              function calculateTotal(items) {
+                let total = 0;
+                for (let i = 0; i < 0; i++) {
+                  total += items[i].price * items[i].quantity;
+                }
+                return total;
+              }
+              ```
+          # File references are resolved relative to the eval file directory
+          - type: file
+            value: javascript.instructions.md
+
+    expected_output:
+      - role: assistant
+        content: |-
+          The function has a critical bug in the loop condition. Here's my analysis (SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT):
+
+          **Critical Issue:**
+          - Loop condition `i < 0` means the loop never executes (should be `i < items.length`)
+
+          **Suggestions:**
+          - Fix the loop: `for (let i = 0; i < items.length; i++)`
+          - Consider using `reduce()` for a more functional approach
+          - Add input validation for edge cases
+    assert:
+      - Assistant provides helpful code analysis and mentions
+        SUPERSECRET_INSTRUCTION_MARKER_JAVASCRIPT
+
+  # ==========================================
+  # Example 2: Advanced features - conversation_id, multiple graders
+  # Demonstrates: conversation threading and per-test graders
+  # Note: Optimization (ACE, etc.) is configured separately in opts/*.yaml files
+  # ==========================================
+  - id: code-gen-python-comprehensive
+    # Baseline note: type hints are required; missing them typically drops score (~0.95).
+
+    # conversation_id represents the full conversation that may be split into multiple tests
+    # Most commonly, tests validate the final response, but could also test intermediate turns
+    conversation_id: python-code-generation
+
+    # Multiple graders - supports both code-based and LLM graders
+    assert:
+      - AI generates correct Python function with proper error handling, type
+        hints, and mentions SUPERSECRET_INSTRUCTION_MARKER_PYTHON
+      - metric: keyword_check
+        type: script # Code graders handle regex, keywords, linting, etc.
+        command: [ "uv", "run", "check_python_keywords.py" ]
+        cwd: . # Working directory for script execution
+      - metric: code_correctness
+        type: llm-rubric # LLM-based evaluation
+        prompt: file://code-correctness-grader.md
+
+    input:
+      - role: system
+        content: You are a code generator that follows specifications exactly.
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Create a Python function that:
+              1. Takes a list of integers
+              2. Returns the second largest number
+              3. Handles edge cases (empty list, single item, duplicates)
+              4. Raises appropriate exceptions for invalid input
+          # Reference to real instruction file
+          - type: file
+            value: python.instructions.md
+
+    expected_output:
+      - role: assistant
+        content:
+          - type: file
+            value: ./snippets/python-second-largest.md
+          - type: file
+            value: ./snippets/python-second-largest-comments.md
+
+  # ==========================================
+  # Example 3: criteria-only evaluation (no reference answer)
+  # Demonstrates: Evaluating based on criteria alone, useful for creative/open-ended tasks
+  # Use case: When there's no single "correct" answer, only quality criteria to meet
+  # ==========================================
+  - id: feature-proposal-brainstorm
+
+    input:
+      - role: system
+        content: You are a product strategist specializing in mobile health and fitness
+          applications.
+      - role: user
+        content: |-
+          We're developing a mobile fitness app and need fresh feature ideas that would differentiate us from competitors.
+          Our target users are busy professionals aged 25-45 who struggle to maintain consistent workout routines.
+
+          Please brainstorm 3-5 innovative features we should consider building.
+
+    # Note: No expected_output - evaluation is purely based on whether the assertion is met.
+    assert:
+      - |-
+        Assistant generates 3-5 creative feature ideas for a mobile fitness app. Each idea should:
+        1. Address a specific user pain point
+        2. Be technically feasible with current mobile technology
+        3. Include a brief value proposition (1-2 sentences)
+        4. Be distinct from the others (no duplicate concepts)
+        Ideas should be innovative but practical, avoiding generic suggestions like "add social sharing."
+
+  # ==========================================
+  # Example 4: Multi-turn conversation
+  # Demonstrates: multi-turn input and threaded reasoning
+  # ==========================================
+  - id: coding-multiturn-debug-session
+
+    input:
+      - role: system
+        content: You are an expert debugging assistant who reasons step by step, asks
+          clarifying questions, and explains fixes clearly.
+      - role: user
+        content: |-
+          I'm getting an off-by-one error in this function, but I can't see why:
+
+          ```python
+          def get_items(items):
+              result = []
+              for i in range(len(items) - 1):
+                  result.append(items[i])
+              return result
+          ```
+
+          Sometimes the last element is missing. Can you help debug this?
+      - role: assistant
+        content: |-
+          I can help debug this. Before I propose a fix, could you tell me:
+          - What output you expect for an example input list
+          - What output you actually get
+      - role: user
+        content: |-
+          For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
+
+    expected_output:
+      - role: assistant
+        content: |-
+          You have an off-by-one error in your loop bounds.
+          You're iterating with `range(len(items) - 1)`, which stops before the last index.
+          To include all items, you can either:
+          - Use `range(len(items))`, or
+          - Iterate directly over the list: `for item in items:`
+
+          Here's a corrected version:
+
+          ```python
+          def get_items(items):
+              result = []
+              for item in items:
+                  result.append(item)
+              return result
+          ```
+    assert:
+      - |-
+        Assistant conducts a multi-turn debugging session, asking clarification
+        questions when needed, correctly diagnosing the bug, and proposing a clear
+        fix with rationale.
+
+  # ==========================================
+  # Example 5: String shorthand aliases
+  # Demonstrates: input/expected_output aliases with string shorthand
+  # These expand automatically to single user/assistant messages
+  # ==========================================
+  - id: shorthand-string-example
+
+    # String shorthand: expands to [{role: user, content: "What is 2+2?"}]
+    input: "What is 2+2?"
+
+    # String shorthand: expands to [{role: assistant, content: "..."}]
+    expected_output: "The answer is 4."
+    assert:
+      - Assistant correctly answers the math question
+
+  # ==========================================
+  # Example 6: Object shorthand for structured output
+  # Demonstrates: expected_output with object for structured data validation
+  # Use case: Testing agents that return structured JSON responses
+  # ==========================================
+  - id: shorthand-structured-output
+
+    input:
+      - role: system
+        content: |
+          You are a fraud detection API. Always respond with valid JSON only, no other text.
+          Response format: {"riskLevel": "Low"|"Medium"|"High", "confidence": 0.0-1.0, "reasoning": "..."}
+
+          Transaction database:
+          - ID 12345: amount=$47.99, merchant=Amazon, location=Seattle, user_history=normal, velocity=low
+      - role: user
+        content: "Analyze transaction ID 12345 for fraud risk"
+
+    # Object shorthand: expands to [{role: assistant, content: {riskLevel: "Low", ...}}]
+    expected_output:
+      riskLevel: Low
+      confidence: 0.95
+      reasoning: Transaction amount and pattern are within normal bounds
+    assert:
+      - Agent returns properly structured risk assessment
+
+  # ==========================================
+  # Example 7: Array syntax with alias names
+  # Demonstrates: Using input/expected_output with full message arrays
+  # Shows that aliases work with arrays too, not just shorthand
+  # ==========================================
+  - id: shorthand-array-syntax
+
+    # Array syntax still works with alias names
+    input:
+      - role: system
+        content: You are a friendly assistant.
+      - role: user
+        content: Hello!
+
+    expected_output:
+      - role: assistant
+        content: Hello! How can I help you today?
+    assert:
+      - Assistant provides a greeting response

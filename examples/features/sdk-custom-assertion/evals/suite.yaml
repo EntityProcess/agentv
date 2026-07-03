@@ -1,0 +1,39 @@
+# Custom Assertion Demo
+# Uses a custom 'word-count' assertion from .agentv/assertions/word-count.ts
+
+name: sdk-custom-assertion
+description: Demonstrates custom assertions via defineAssertion() and convention discovery
+
+target: llm
+
+tests:
+  - id: greeting-response
+    input: "Say hello and introduce yourself"
+    expected_output: "Hello! I'm an AI assistant here to help you with your questions."
+    assert:
+      - type: contains
+        value: "Hello"
+      - type: word-count
+      - Agent gives a multi-word greeting
+
+  - id: short-answer
+    input: "What is 2+2?"
+    expected_output: "The answer is 4."
+    assert:
+      - type: contains
+        value: "4"
+      - type: word-count
+      - Agent gives a short but valid response
+
+  - id: json-response
+    input:
+      - role: system
+        content: "Respond only with valid JSON."
+      - role: user
+        content: "Return a JSON object with name and age fields."
+    expected_output: '{"name": "Alice", "age": 30}'
+    assert:
+      - type: is-json
+        required: true
+      - type: word-count
+      - Agent returns valid JSON with sufficient content

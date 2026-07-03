@@ -209,7 +209,6 @@ describe('loadConfig', () => {
         workspace_path: '/tmp/agentv-local-workspace',
       });
       expect(config?.results).toEqual({
-        mode: 'github',
         path: '.',
         branch: 'local-results',
       });
@@ -332,7 +331,6 @@ describe('loadConfig', () => {
       writeFileSync(
         path.join(homeDir, 'config.yaml'),
         `results:
-  mode: github
   repo: EntityProcess/global-results
 `,
       );
@@ -379,7 +377,6 @@ describe('parseResultsConfig', () => {
   it('parses valid flat results config', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         repo: 'EntityProcess/agentv-evals',
         path: '~/data/agentv-results',
         branch: 'agentv-results',
@@ -389,7 +386,6 @@ describe('parseResultsConfig', () => {
     );
 
     expect(result).toEqual({
-      mode: 'github',
       repo: 'EntityProcess/agentv-evals',
       path: '~/data/agentv-results',
       branch: 'agentv-results',
@@ -400,6 +396,19 @@ describe('parseResultsConfig', () => {
   it('parses valid results config without path (defaults omitted)', () => {
     const result = parseResultsConfig(
       {
+        repo: 'EntityProcess/agentv-evals',
+      },
+      '/tmp/.agentv/config.yaml',
+    );
+
+    expect(result).toEqual({
+      repo: 'EntityProcess/agentv-evals',
+    });
+  });
+
+  it('ignores legacy github mode for compatibility', () => {
+    const result = parseResultsConfig(
+      {
         mode: 'github',
         repo: 'EntityProcess/agentv-evals',
       },
@@ -407,21 +416,6 @@ describe('parseResultsConfig', () => {
     );
 
     expect(result).toEqual({
-      mode: 'github',
-      repo: 'EntityProcess/agentv-evals',
-    });
-  });
-
-  it('accepts missing mode for current results config', () => {
-    const result = parseResultsConfig(
-      {
-        repo: 'EntityProcess/agentv-evals',
-      },
-      '/tmp/.agentv/config.yaml',
-    );
-
-    expect(result).toEqual({
-      mode: 'github',
       repo: 'EntityProcess/agentv-evals',
     });
   });
@@ -437,7 +431,6 @@ describe('parseResultsConfig', () => {
     );
 
     expect(result).toEqual({
-      mode: 'github',
       path: '~/data/agentv-results',
       branch: 'agentv/results/v1',
       auto_push: false,
@@ -456,7 +449,6 @@ describe('parseResultsConfig', () => {
     );
 
     expect(result).toEqual({
-      mode: 'github',
       repo: 'https://github.com/example/results.git',
       path: '~/data/agentv-results',
       branch: 'agentv/results/v1',
@@ -479,7 +471,6 @@ describe('parseResultsConfig', () => {
   it('returns undefined when neither repo nor path is set', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         branch: 'agentv/results/v1',
       },
       '/tmp/.agentv/config.yaml',
@@ -491,7 +482,6 @@ describe('parseResultsConfig', () => {
   it('accepts absolute path', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         repo: 'EntityProcess/agentv-evals',
         path: '/home/user/data/results',
       },
@@ -504,7 +494,6 @@ describe('parseResultsConfig', () => {
   it('returns undefined when repo is empty', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         repo: '',
       },
       '/tmp/.agentv/config.yaml',
@@ -516,7 +505,6 @@ describe('parseResultsConfig', () => {
   it('returns undefined when repo is not a string', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         repo: 123,
       },
       '/tmp/.agentv/config.yaml',
@@ -528,7 +516,6 @@ describe('parseResultsConfig', () => {
   it('returns undefined when branch is empty', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         repo: 'EntityProcess/agentv-evals',
         branch: '',
       },
@@ -541,7 +528,6 @@ describe('parseResultsConfig', () => {
   it('returns undefined when auto_push is not a boolean', () => {
     const result = parseResultsConfig(
       {
-        mode: 'github',
         repo: 'EntityProcess/agentv-evals',
         auto_push: 'yes',
       },
@@ -556,7 +542,7 @@ describe('resolveResultsConfigForProject', () => {
   it('returns top-level results regardless of project id', () => {
     const result = resolveResultsConfigForProject(
       {
-        results: { mode: 'github', repo: 'EntityProcess/fallback' },
+        results: { repo: 'EntityProcess/fallback' },
       },
       'agentv',
     );

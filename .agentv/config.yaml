@@ -1,21 +1,23 @@
 $schema: agentv-config-v2
 
-# Example .agentv/config.yaml Configuration
+# Repository AgentV configuration.
 
-# Customize which YAML files are discovered as evals during interactive mode
-# (`agentv eval` with no args). Defaults to dataset*.yaml and eval.yaml under evals/.
+# Discover the current example suite names during interactive eval selection.
+# Legacy *.eval.yaml fixtures remain discoverable for compatibility coverage.
 eval_patterns:
-  - "**/evals/**/dataset*.yaml"
-  - "**/evals/**/eval.yaml"
+  - "**/evals/**/suite.yaml"
+  - "**/evals/**/suite.yml"
+  - "**/evals/**/*.eval.yaml"
+  - "**/evals/**/*.eval.yml"
+  - "**/evals/**/*.eval.ts"
+
+# Publish completed run bundles to the git-backed results branch.
+results:
+  path: .
+  branch: agentv/results/v1
+  auto_push: true
 
 # Execution defaults (overridden by CLI flags)
 execution:
   verbose: false
-  trace_file: .agentv/results/trace-{timestamp}.jsonl
   keep_workspaces: false
-  otel_file: .agentv/results/otel-{timestamp}.json
-  # OTel live export (set credentials in .env)
-  # export_otel: true
-  # otel_backend: langfuse
-  # otel_capture_content: false
-  # otel_group_turns: true

@@ -1,0 +1,41 @@
+# Per-test vars templating example
+#
+# tests[].vars provides per-test data for {{ vars.name }} placeholders in eval fields.
+# Placeholders support dotted paths like {{ vars.expected.answer }}.
+#
+# Usage:
+#   agentv eval examples/features/test-vars-templating/evals/suite.yaml
+
+description: Demonstrates tests[].vars templating in eval fields
+
+target: llm
+
+input:
+  - role: system
+    content: "You are a concise assistant answering {{ vars.category }} questions."
+
+tests:
+  - id: capital-france
+    vars:
+      category: geography
+      question: What is the capital of France?
+      expected:
+        answer: Paris
+    assert:
+      - "Answers {{ vars.question }} correctly"
+    input: "Question: {{ vars.question }}"
+    expected_output: "{{ vars.expected.answer }}"
+
+  - id: greet-ada
+    vars:
+      category: etiquette
+      person:
+        name: Ada
+      expected:
+        answer: Hello, Ada!
+    assert:
+      - "Greets {{ vars.person.name }} warmly"
+    input:
+      - role: user
+        content: "Say hello to {{ vars.person.name }}."
+    expected_output: "{{ vars.expected.answer }}"

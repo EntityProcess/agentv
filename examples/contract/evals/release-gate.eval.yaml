@@ -8,12 +8,11 @@ target: github-models-contract
 
 tests:
   - id: json-contract
-    criteria: The target returns a small valid JSON object with the release gate markers.
     input:
       - role: system
         content: >-
-          You are a deterministic JSON endpoint. Reply only with raw JSON.
-          Do not include markdown, prose, code fences, or trailing commentary.
+          You are a deterministic JSON endpoint. Reply only with raw JSON. Do
+          not include markdown, prose, code fences, or trailing commentary.
       - role: user
         content: >-
           Return this exact JSON object:
@@ -25,9 +24,10 @@ tests:
         value: '"status"\s*:\s*"ok"'
       - type: regex
         value: '"gate"\s*:\s*"agentv-contract"'
+      - The target returns a small valid JSON object with the release gate
+        markers.
 
   - id: workspace-contract
-    criteria: The local workspace template is materialized and deterministic grading can inspect it.
     input:
       - role: system
         content: >-
@@ -39,4 +39,6 @@ tests:
         value: workspace ready
       - metric: workspace-template-materialized
         type: script
-        command: ["bun", "../scripts/check-workspace.ts"]
+        command: [ "bun", "../scripts/check-workspace.ts" ]
+      - The local workspace template is materialized and deterministic grading
+        can inspect it.

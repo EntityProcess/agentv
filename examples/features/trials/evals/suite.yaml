@@ -1,0 +1,37 @@
+# AgentV Repeat Runs Example
+# Demonstrates repeat policy for handling LLM non-determinism
+
+name: trials
+description: Repeat runs example with 2 attempts configured inline
+
+target: llm
+evaluate_options:
+  repeat:
+    count: 2
+    strategy: pass_any
+    early_exit: false
+  budget_usd: 1.00
+
+tests:
+  - id: math-basics
+    assert:
+      - Assistant correctly answers the math question and shows reasoning
+
+    input:
+      - role: user
+        content: What is 15 * 7? Show your reasoning step by step.
+
+    expected_output:
+      - role: assistant
+        content: |-
+          15 * 7 = 105
+
+          Reasoning: 15 * 7 = (10 * 7) + (5 * 7) = 70 + 35 = 105
+
+  - id: capital-knowledge
+    assert:
+      - Assistant correctly identifies the capital city
+
+    input: "What is the capital of Australia?"
+
+    expected_output: "The capital of Australia is Canberra."

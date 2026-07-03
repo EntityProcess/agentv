@@ -8,7 +8,7 @@
 # The grader under test receives: question, criteria, answer, expected_output
 
 grader:
-  command: ["bun", "run", "graders/keyword-grader.ts"]
+  command: [ "bun", "run", "graders/keyword-grader.ts" ]
 
 fixtures:
   # ── Unambiguous Pass Cases ─────────────────────────────────────────────
@@ -16,21 +16,24 @@ fixtures:
   - id: clear-pass-exact-match
     label: pass
     question: "What is the capital of France?"
-    criteria: "Answer must name the capital city of France."
+    assert:
+      - "Answer must name the capital city of France."
     expected_output: "Paris"
     answer: "Paris"
 
   - id: clear-pass-contains-answer
     label: pass
     question: "What is 7 * 8?"
-    criteria: "Answer must contain the correct numerical result."
+    assert:
+      - "Answer must contain the correct numerical result."
     expected_output: "56"
     answer: "The answer is 56."
 
   - id: clear-pass-multi-keyword
     label: pass
     question: "Name the primary colors."
-    criteria: "Answer must mention red, blue, and yellow."
+    assert:
+      - "Answer must mention red, blue, and yellow."
     expected_output: "red, blue, yellow"
     answer: "The primary colors are red, blue, and yellow."
 
@@ -39,21 +42,24 @@ fixtures:
   - id: clear-fail-wrong-answer
     label: fail
     question: "What is the capital of France?"
-    criteria: "Answer must name the capital city of France."
+    assert:
+      - "Answer must name the capital city of France."
     expected_output: "Paris"
     answer: "London"
 
   - id: clear-fail-irrelevant
     label: fail
     question: "What is 7 * 8?"
-    criteria: "Answer must contain the correct numerical result."
+    assert:
+      - "Answer must contain the correct numerical result."
     expected_output: "56"
     answer: "I like pizza."
 
   - id: clear-fail-empty
     label: fail
     question: "Name the primary colors."
-    criteria: "Answer must mention red, blue, and yellow."
+    assert:
+      - "Answer must mention red, blue, and yellow."
     expected_output: "red, blue, yellow"
     answer: ""
 
@@ -61,24 +67,28 @@ fixtures:
 
   - id: ambiguous-partial-overlap
     label: ambiguous
-    score_bounds: [0.2, 0.8]
+    score_bounds: [ 0.2, 0.8 ]
     question: "Name the primary colors."
-    criteria: "Answer must mention red, blue, and yellow."
+    assert:
+      - "Answer must mention red, blue, and yellow."
     expected_output: "red, blue, yellow"
     answer: "Red and green are colors."
 
   - id: ambiguous-verbose-correct
     label: ambiguous
-    score_bounds: [0.4, 1.0]
+    score_bounds: [ 0.4, 1.0 ]
     question: "What is the capital of France?"
-    criteria: "Answer must name the capital city of France."
+    assert:
+      - "Answer must name the capital city of France."
     expected_output: "Paris"
-    answer: "France is a country in Europe. Its capital city is Paris, which is known for the Eiffel Tower."
+    answer: "France is a country in Europe. Its capital city is Paris, which is
+      known for the Eiffel Tower."
 
   - id: ambiguous-near-miss
     label: ambiguous
-    score_bounds: [0.0, 0.6]
+    score_bounds: [ 0.0, 0.6 ]
     question: "What is 7 * 8?"
-    criteria: "Answer must contain the correct numerical result."
+    assert:
+      - "Answer must contain the correct numerical result."
     expected_output: "56"
     answer: "The answer is approximately 55."

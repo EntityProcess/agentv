@@ -13,19 +13,19 @@ target: llm
 
 tests:
   - id: exact-match
-    criteria: "Answer must name the capital city of France."
     input: "What is the capital of France?"
     expected_output: "Paris"
     assert:
       - metric: keyword-grader
         type: script
-        command: ["bun", "run", "graders/keyword-grader.ts"]
+        command: [ "bun", "run", "graders/keyword-grader.ts" ]
+      - "Answer must name the capital city of France."
 
   - id: partial-match
-    criteria: "Answer must mention red, blue, and yellow."
     input: "Name the primary colors."
     expected_output: "red, blue, yellow"
     assert:
       - metric: keyword-grader
         type: script
-        command: ["bun", "run", "graders/keyword-grader.ts"]
+        command: [ "bun", "run", "graders/keyword-grader.ts" ]
+      - "Answer must mention red, blue, and yellow."

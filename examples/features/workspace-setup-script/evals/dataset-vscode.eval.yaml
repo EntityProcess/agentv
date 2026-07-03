@@ -1,6 +1,6 @@
 description: >-
   Demonstrates using a beforeAll lifecycle extension with the VSCode target.
-  Same as dataset.eval.yaml but uses vscode instead of copilot.
+  Same as suite.yaml but uses vscode instead of copilot.
 
 extensions:
   - file://../scripts/workspace-setup.mjs:beforeAll
@@ -14,16 +14,16 @@ workspace:
     - path: ./my-repo
       repo: https://github.com/EntityProcess/agentv.git
       commit: main
-tags: [agent]
+tags: [ agent ]
 
 tests:
   - id: verify-workspace
-    criteria: >-
-      The agent should confirm that the workspace contains a cloned repository
-      at my-repo/ with a valid package.json.
     input: >-
       List the files in the my-repo/ directory and read my-repo/package.json.
       Report the package name.
     assert:
       - type: contains
         value: "@agentv/workspace"
+      - >-
+        The agent should confirm that the workspace contains a cloned repository
+        at my-repo/ with a valid package.json.

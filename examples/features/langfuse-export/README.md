@@ -15,7 +15,7 @@ cp .env.example .env
 2. Run evals — traces appear in your Langfuse dashboard automatically:
 
 ```bash
-agentv eval examples/features/langfuse-export/evals/eval.yaml
+agentv eval examples/features/langfuse-export/evals/suite.yaml
 ```
 
 No `--export-otel` or `--otel-backend` flags needed — the config.yaml handles it.
@@ -41,8 +41,8 @@ Config.yaml defaults can always be overridden by CLI flags:
 
 ```bash
 # Disable OTel export for a single run
-agentv eval evals/eval.yaml  # export_otel in config still applies
+agentv eval evals/suite.yaml  # export_otel in config still applies
 
 # Use a different backend
-agentv eval evals/eval.yaml --export-otel --otel-backend braintrust
+agentv eval evals/suite.yaml --export-otel --otel-backend braintrust
 ```

@@ -603,8 +603,8 @@ The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `202
 AgentV's response cache stores exact provider responses on disk to reduce repeated live LLM calls while iterating on the same eval. It is disabled by default. Enable it from the CLI with `--cache`, or enable it with a custom directory using `--cache-path`:
 
 ```bash
-agentv eval evals/dataset.eval.yaml --cache
-agentv eval evals/dataset.eval.yaml --cache-path .agentv/response-cache
+agentv eval evals/suite.yaml --cache
+agentv eval evals/suite.yaml --cache-path .agentv/response-cache
 ```
 
 Project TypeScript config can set the project default:

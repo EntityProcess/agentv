@@ -48,7 +48,7 @@ The template receives evaluation context via stdin (JSON) and outputs the prompt
 ## Running
 
 ```bash
-bun agentv validate examples/features/prompt-template-sdk/evals/dataset.eval.yaml
+bun agentv validate examples/features/prompt-template-sdk/evals/suite.yaml
 ```
 
 ## File Structure
@@ -56,7 +56,7 @@ bun agentv validate examples/features/prompt-template-sdk/evals/dataset.eval.yam
 ```
 prompt-template-sdk/
   evals/
-    dataset.eval.yaml  # Tests using TypeScript prompt
+    suite.yaml  # Tests using TypeScript prompt
   prompts/
     custom-grader.ts  # TypeScript prompt template
   README.md

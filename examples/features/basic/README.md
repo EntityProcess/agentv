@@ -14,13 +14,13 @@ Demonstrates core AgentV schema features with minimal setup.
 
 ```bash
 # From repository root
-bun agentv eval examples/features/basic/evals/dataset.eval.yaml
+bun agentv eval examples/features/basic/evals/suite.yaml
 
 # With specific target
-bun agentv eval examples/features/basic/evals/dataset.eval.yaml --target default
+bun agentv eval examples/features/basic/evals/suite.yaml --target default
 ```
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` - Main evaluation file with test cases
+- `evals/suite.yaml` - Main evaluation file with test cases
 - `files/*.js` - Sample code files referenced in test cases

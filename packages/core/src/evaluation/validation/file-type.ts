@@ -18,7 +18,7 @@ const SCHEMA_CONFIG_V2 = 'agentv-config-v2';
  * If $schema is missing, infers type from filename/path:
  * - config.yaml/config.local.yaml under .agentv folder → 'config'
  * - targets.yaml under .agentv folder → 'targets'
- * - All other YAML files → 'eval' (default)
+ * - suite.yaml/suite.yml → 'eval'
  */
 export async function detectFileType(filePath: string): Promise<FileType> {
   try {
@@ -82,9 +82,14 @@ function inferFileTypeFromPath(filePath: string): FileType {
     }
   }
 
-  // Require .eval.yaml / .eval.yml suffix for eval files
+  // Recognize canonical eval suite filenames.
   const lower = basename.toLowerCase();
-  if (lower.endsWith('.eval.yaml') || lower.endsWith('.eval.yml')) {
+  if (
+    lower === 'suite.yaml' ||
+    lower === 'suite.yml' ||
+    lower.endsWith('.eval.yaml') ||
+    lower.endsWith('.eval.yml')
+  ) {
     return 'eval';
   }
 

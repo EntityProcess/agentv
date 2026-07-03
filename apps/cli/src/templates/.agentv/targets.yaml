@@ -4,14 +4,14 @@
 # Agent and CLI targets use grader_target to reference an LLM target for scoring.
 
 targets:
-  - name: default
+  - label: default
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     # version: ${{ AZURE_OPENAI_API_VERSION }}  # Optional: uncomment to override default (v1)
 
-  - name: codex
+  - label: codex
     provider: codex
     grader_target: azure-llm
     # Uses the Codex CLI (defaults to `codex` on PATH)
@@ -28,7 +28,7 @@ targets:
     stream_log: raw                    # Optional: 'summary' for consolidated logs or 'raw' for per-event logs
 
   # Claude - Anthropic's Claude Agent SDK
-  - name: claude
+  - label: claude
     provider: claude
     grader_target: azure-llm
     # Uses the @anthropic-ai/claude-agent-sdk
@@ -40,19 +40,19 @@ targets:
     stream_log: raw                           # Optional: 'summary' for consolidated logs or 'raw' for per-event logs
     # system_prompt: optional override (default instructs agent to include code in response)
 
-  - name: azure-llm
+  - label: azure-llm
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
-  - name: gemini-llm
+  - label: gemini-llm
     provider: gemini
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
-  - name: local_cli
+  - label: local_cli
     provider: cli
     grader_target: azure-llm
     # Passes the fully rendered prompt and any attached files to a local Python script
@@ -75,12 +75,12 @@ targets:
   #   mimo-v2.5        — 1M context, ~131K output, multimodal
   #   mimo-v2-flash    — 262K context, 65K output, fast MoE (open-source)
   #   mimo-v2-omni     — 262K context, 65K output, omni-modal
-  - name: mimo
+  - label: mimo
     provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: xiaomi/mimo-v2.5-pro
 
-  - name: mimo-flash
+  - label: mimo-flash
     provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: xiaomi/mimo-v2-flash

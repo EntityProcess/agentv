@@ -3,8 +3,8 @@ target: llm
 tests:
   - id: transcript-quality
     input: "Analyze the imported Claude Code transcript"
-    criteria: "Transcript contains meaningful assistant messages with tool calls"
     assert:
       - metric: transcript-quality
         type: script
-        command: [bun, graders/transcript-quality.ts]
+        command: [ bun, graders/transcript-quality.ts ]
+      - "Transcript contains meaningful assistant messages with tool calls"
