@@ -143,7 +143,7 @@ describe('SkillTriggerGrader', () => {
     });
 
     it('should work with any provider kind (provider-agnostic)', () => {
-      for (const kind of ['claude-cli', 'copilot-cli', 'codex', 'pi-cli', 'openai']) {
+      for (const kind of ['claude-cli', 'copilot-cli', 'codex-cli', 'pi-cli', 'openai']) {
         const evaluator = new SkillTriggerGrader(makeConfig());
         const context = makeContext({
           provider: { kind, targetName: 'test' },

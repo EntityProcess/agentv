@@ -834,7 +834,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/unsupported placeholder/i);
   });
 
-  it('resolves codex args using ${{ }} syntax', () => {
+  it('resolves codex-cli command argv using ${{ }} syntax', () => {
     const env = {
       CODEX_PROFILE: 'default',
       CODEX_MODEL: 'gpt-4',
@@ -842,26 +842,39 @@ describe('resolveTargetDefinition', () => {
 
     const target = resolveTargetDefinition(
       {
-        name: 'codex',
-        provider: 'codex',
-        args: ['--profile', '${{ CODEX_PROFILE }}', '--model', '${{ CODEX_MODEL }}'],
+        name: 'codex-cli',
+        provider: 'codex-cli',
+        command: [
+          'codex-personal',
+          '--profile',
+          '${{ CODEX_PROFILE }}',
+          '--model',
+          '${{ CODEX_MODEL }}',
+        ],
       },
       env,
     );
 
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
+    expect(target.kind).toBe('codex-cli');
+    if (target.kind !== 'codex-cli') {
+      throw new Error('expected codex-cli target');
     }
 
-    expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
+    expect(target.config.command).toEqual([
+      'codex-personal',
+      '--profile',
+      'default',
+      '--model',
+      'gpt-4',
+    ]);
   });
 
-  it('resolves codex reasoning_effort from env', () => {
+  it('resolves codex-cli reasoning_effort from env', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'codex',
-        provider: 'codex',
+        name: 'codex-cli',
+        provider: 'codex-cli',
+        command: ['codex'],
         model: '${{ CODEX_MODEL }}',
         reasoning_effort: '${{ CODEX_REASONING_EFFORT }}',
       },
@@ -871,20 +884,21 @@ describe('resolveTargetDefinition', () => {
       },
     );
 
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
+    expect(target.kind).toBe('codex-cli');
+    if (target.kind !== 'codex-cli') {
+      throw new Error('expected codex-cli target');
     }
 
     expect(target.config.model).toBe('gpt-5.5');
     expect(target.config.modelReasoningEffort).toBe('low');
   });
 
-  it('resolves codex OpenAI-compatible endpoint settings', () => {
+  it('resolves codex-cli OpenAI-compatible endpoint settings', () => {
     const target = resolveTargetDefinition(
       {
         name: 'codex-local-openai',
-        provider: 'codex',
+        provider: 'codex-cli',
+        command: ['codex-eng'],
         model: '${{ CODEX_MODEL }}',
         reasoning_effort: 'medium',
         model_verbosity: 'medium',
@@ -901,12 +915,13 @@ describe('resolveTargetDefinition', () => {
       },
     );
 
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
+    expect(target.kind).toBe('codex-cli');
+    if (target.kind !== 'codex-cli') {
+      throw new Error('expected codex-cli target');
     }
 
     expect(target.config).toMatchObject({
+      command: ['codex-eng'],
       model: 'gpt-5.3-codex-spark',
       modelReasoningEffort: 'medium',
       modelVerbosity: 'medium',
@@ -937,12 +952,26 @@ describe('resolveTargetDefinition', () => {
       resolveTargetDefinition(
         {
           name: 'codex',
-          provider: 'codex',
+          provider: 'codex-cli',
+          command: ['codex'],
           reasoning_effort: 'tiny',
         },
         {},
       ),
     ).toThrow(/reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
+  });
+
+  it('rejects bare codex provider alias', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'codex',
+          provider: 'codex',
+          command: ['codex'],
+        },
+        {},
+      ),
+    ).toThrow(/ambiguous provider 'codex'/);
   });
 
   it('does not canonicalize removed provider aliases to built-ins', () => {

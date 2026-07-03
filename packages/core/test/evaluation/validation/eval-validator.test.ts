@@ -306,7 +306,8 @@ prompts:
   - raw: "Review {{ vars.diff }}"
 targets:
   - label: local-agent
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
 default_test:
   vars:
     tone: concise

@@ -18,8 +18,8 @@ export type ProviderKind =
   | 'azure'
   | 'anthropic'
   | 'gemini'
-  | 'codex'
   | 'codex-cli'
+  | 'codex-app-server'
   | 'codex-sdk'
   | 'copilot-sdk'
   | 'copilot-cli'
@@ -47,8 +47,8 @@ export type ProviderKind =
  * (e.g., skill-trigger) to run without a grader_target or LLM API key.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
-  'codex',
   'codex-cli',
+  'codex-app-server',
   'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
@@ -90,8 +90,8 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'azure',
   'anthropic',
   'gemini',
-  'codex',
   'codex-cli',
+  'codex-app-server',
   'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
@@ -454,6 +454,7 @@ export interface TargetDefinition {
   readonly api_key?: string | unknown | undefined;
   readonly deployment?: string | unknown | undefined;
   readonly model?: string | unknown | undefined;
+  readonly runtime?: unknown | undefined;
   readonly version?: string | unknown | undefined;
   readonly api_version?: string | unknown | undefined;
   readonly api_format?: string | unknown | undefined;
@@ -467,7 +468,7 @@ export interface TargetDefinition {
   readonly max_output_tokens?: number | unknown | undefined;
   // Codex fields
   readonly executable?: string | unknown | undefined;
-  readonly command?: string | unknown | undefined;
+  readonly command?: string | readonly string[] | unknown | undefined;
   readonly binary?: string | unknown | undefined;
   readonly args?: unknown | undefined;
   readonly arguments?: unknown | undefined;

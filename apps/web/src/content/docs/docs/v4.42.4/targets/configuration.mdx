@@ -86,9 +86,11 @@ Agent targets that need LLM-based evaluation specify a `grader_target` (also acc
 
 ```yaml
 targets:
-  - name: codex_target
-    provider: codex
-    grader_target: azure-base  # LLM used for grading
+  - id: codex_target
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex"]
 ```
 
 ### Workspace Lifecycle Hooks

@@ -1,7 +1,7 @@
 import { AgentvProvider } from './agentv-provider.js';
 import { ClaudeCliProvider } from './claude-cli.js';
 import { CliProvider } from './cli.js';
-import { CodexCliProvider } from './codex-cli.js';
+import { CodexAppServerProvider, CodexCliProvider } from './codex-cli.js';
 import { CopilotCliProvider } from './copilot-cli.js';
 import { CopilotLogProvider } from './copilot-log.js';
 import {
@@ -107,8 +107,8 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('anthropic', (t) => new AnthropicProvider(t.name, t.config as never))
     .register('gemini', (t) => new GeminiProvider(t.name, t.config as never))
     .register('cli', (t) => new CliProvider(t.name, t.config as never))
-    .register('codex', (t) => new CodexCliProvider(t.name, t.config as never))
     .register('codex-cli', (t) => new CodexCliProvider(t.name, t.config as never))
+    .register('codex-app-server', (t) => new CodexAppServerProvider(t.name, t.config as never))
     .register('codex-sdk', (t) => new SdkChildProvider('codex-sdk', t.name, t.config))
     .register('copilot-sdk', (t) => new SdkChildProvider('copilot-sdk', t.name, t.config))
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))

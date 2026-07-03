@@ -256,8 +256,9 @@ describe('EvalFileSchema input shorthand', () => {
       targets: [
         {
           id: 'local-agent',
-          provider: 'codex',
+          provider: 'codex-cli',
           config: {
+            command: ['codex'],
             model: 'gpt-5.4-mini',
           },
         },

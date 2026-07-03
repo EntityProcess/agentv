@@ -47,8 +47,9 @@ describe('validateTargetsFile', () => {
       `targets:
   - label: candidate-agent
     id: openai:gpt-5-codex
-    provider: codex
+    provider: codex-cli
     config:
+      command: ["codex"]
       model: \${{ CODEX_MODEL }}
       reasoning_effort: low
       base_url: \${{ OPENAI_BASE_URL }}
@@ -167,8 +168,6 @@ targets:
     provider: google
   - label: google-gemini-alias
     provider: google-gemini
-  - label: codex-cli-alias
-    provider: codex-cli
   - label: copilot-alias
     provider: copilot
   - label: copilot-sdk-alias
@@ -190,7 +189,6 @@ targets:
       'azure-openai',
       'google',
       'google-gemini',
-      'codex-cli',
       'copilot',
       'copilot_sdk',
       'pi',
@@ -215,7 +213,8 @@ targets:
       filePath,
       `targets:
   - label: codex-target
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
     timeoutSeconds: 30
     logDir: ./logs
     systemPrompt: Be precise.
@@ -280,7 +279,8 @@ targets:
       filePath,
       `targets:
   - label: codex-target
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
     model: \${{ CODEX_MODEL }}
     reasoning_effort: \${{ CODEX_REASONING_EFFORT }}
 `,
@@ -326,7 +326,8 @@ targets:
       filePath,
       `targets:
   - label: codex-local-openai
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
     model: \${{ CODEX_MODEL }}
     reasoning_effort: medium
     model_verbosity: medium
@@ -396,7 +397,8 @@ targets:
   - label: grader
     use_target: \${{ GRADER_TARGET }}
   - label: codex-agent
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
     grader_target: grader
 `,
     );
@@ -437,7 +439,8 @@ targets:
       filePath,
       `targets:
   - label: codex-agent
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
     model: gpt-5
     judge_target: grader
   - label: grader

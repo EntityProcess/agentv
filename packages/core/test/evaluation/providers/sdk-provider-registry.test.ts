@@ -13,7 +13,7 @@ describe('SDK provider registry isolation', () => {
       const provider = registry.create({
         name: `${kind}-target`,
         kind,
-        config: kind === 'codex-sdk' ? { executable: 'codex' } : {},
+        config: kind === 'codex-sdk' ? { command: ['codex'] } : {},
       });
       expect(provider).toBeInstanceOf(SdkChildProvider);
       expect(provider.kind).toBe(kind);

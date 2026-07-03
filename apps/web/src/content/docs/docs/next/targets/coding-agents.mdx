@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `grader_target` to run LLM-based graders.
+Coding agent targets evaluate AI coding assistants and CLI-based agents. Use `defaults.grader` or an evaluator-level grader override for LLM-based grading.
 
 AgentV's recommended coding-agent targets use process or protocol boundaries such as `claude-cli`, `codex-cli`, `copilot-cli`, and `pi-cli`. SDK-backed targets are opt-in provider kinds: `claude-sdk`, `codex-sdk`, `copilot-sdk`, and `pi-sdk`. When selected, AgentV runs the SDK adapter in an AgentV-owned child process and communicates with it through a structured protocol, so SDK crashes, malformed output, timeouts, and missing optional SDK packages are scoped to that target run instead of the AgentV orchestrator process.
 
@@ -79,21 +79,21 @@ targets:
 
 ```yaml
 targets:
-  - label: codex_target
+  - id: codex-target
     provider: codex-cli
-    executable: codex-eng
-    model: ${{ CODEX_MODEL }}
-    reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: ["codex-eng"]
+      model: ${{ CODEX_MODEL }}
+      reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `executable` | No | Codex binary or profile shim to run, such as `codex-eng` |
-| `model` | No | Model to use |
-| `reasoning_effort` | No | Codex SDK reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
-| `cwd` | No | Working directory |
-| `grader_target` | Yes | LLM target for evaluation |
+| `config.command` | Yes | Codex binary or profile shim argv, such as `["codex-eng"]` |
+| `config.model` | No | Model to use |
+| `config.reasoning_effort` | No | Codex reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
+| `config.cwd` | No | Working directory |
 
 Use `provider: codex-sdk` only when you intentionally want the Codex SDK path. The SDK package is optional and loaded inside the isolated child runner.
 

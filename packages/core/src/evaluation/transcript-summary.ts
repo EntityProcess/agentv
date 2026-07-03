@@ -40,9 +40,10 @@ export interface TranscriptSummaryWire {
 }
 
 const PROVIDER_ALIASES: Readonly<Record<string, ProviderKind>> = {
-  codex: 'codex',
-  'codex-cli': 'codex',
-  'codex-sdk': 'codex',
+  codex: 'codex-cli',
+  'codex-cli': 'codex-cli',
+  'codex-app-server': 'codex-app-server',
+  'codex-sdk': 'codex-sdk',
   copilot: 'copilot-sdk',
   'copilot-cli': 'copilot-cli',
   'copilot-sdk': 'copilot-sdk',

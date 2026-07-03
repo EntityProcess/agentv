@@ -429,14 +429,25 @@ export interface CodexResolvedConfig {
   readonly apiFormat?: ApiFormat;
   readonly sandboxMode?: CodexSandboxMode;
   readonly approvalPolicy?: CodexApprovalPolicy;
-  readonly executable: string;
-  readonly args?: readonly string[];
+  readonly command?: readonly string[];
+  readonly runtime: CodingAgentRuntimeConfig;
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
+}
+
+export type CodingAgentRuntimeMode = 'host' | 'profile' | 'sandbox';
+
+export interface CodingAgentRuntimeConfig {
+  readonly mode: CodingAgentRuntimeMode;
+  readonly home?: string;
+  readonly codexHome?: string;
+  readonly tmpDir?: string;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly envAllowlist?: readonly string[];
 }
 
 export interface CopilotCliResolvedConfig {
@@ -828,7 +839,7 @@ export type ResolvedTarget =
   | (ResolvedTargetBase & { readonly kind: 'anthropic'; readonly config: AnthropicResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'gemini'; readonly config: GeminiResolvedConfig })
   | (ResolvedTargetBase & {
-      readonly kind: 'codex' | 'codex-cli' | 'codex-sdk';
+      readonly kind: 'codex-cli' | 'codex-app-server' | 'codex-sdk';
       readonly config: CodexResolvedConfig;
     })
   | (ResolvedTargetBase & {
@@ -1082,12 +1093,16 @@ export function resolveTargetDefinition(
         config: resolveGeminiConfig(parsed, env),
       };
     case 'codex':
+      throw new Error(
+        `Target "${parsed.name}" uses ambiguous provider 'codex'. Choose 'codex-cli', 'codex-app-server', or 'codex-sdk'.`,
+      );
     case 'codex-cli':
+    case 'codex-app-server':
     case 'codex-sdk':
       return {
-        kind: provider as 'codex' | 'codex-cli' | 'codex-sdk',
+        kind: provider as 'codex-cli' | 'codex-app-server' | 'codex-sdk',
         ...base,
-        config: resolveCodexConfig(parsed, env, evalFilePath),
+        config: resolveCodexConfig(parsed, env, provider, evalFilePath),
       };
     case 'copilot-sdk':
       return {
@@ -1372,6 +1387,7 @@ function resolveGeminiConfig(
 function resolveCodexConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  provider: string,
   _evalFilePath?: string,
 ): CodexResolvedConfig {
   const modelSource = target.model;
@@ -1382,12 +1398,18 @@ function resolveCodexConfig(
   const apiFormatSource = target.api_format;
   const sandboxModeSource = target.sandbox_mode;
   const approvalPolicySource = target.approval_policy;
-  const executableSource = target.executable ?? target.command ?? target.binary;
-  const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const systemPromptSource = target.system_prompt;
+  const runtime = resolveCodingAgentRuntime(target.runtime, env, target.name);
+
+  if (provider === 'codex') {
+    throw new Error(
+      `Target "${target.name}" uses ambiguous provider 'codex'. Choose 'codex-cli', 'codex-app-server', or 'codex-sdk'.`,
+    );
+  }
+  assertNoCodexProcessFieldAliases(target, provider);
 
   const streamLogResult = resolveStreamLog({ name: target.name, stream_log: target.stream_log });
 
@@ -1439,13 +1461,10 @@ function resolveCodexConfig(
     }),
   );
 
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'codex';
-
-  const args = resolveOptionalStringArray(argsSource, env, `${target.name} codex args`);
+  const command =
+    provider === 'codex-sdk'
+      ? resolveOptionalCommandArgv(target.command, env, `${target.name} codex command`)
+      : resolveRequiredCommandArgv(target.command, env, `${target.name} codex command`);
 
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} codex cwd`, {
     allowLiteral: true,
@@ -1472,14 +1491,156 @@ function resolveCodexConfig(
     apiFormat,
     sandboxMode,
     approvalPolicy,
-    executable,
-    args,
+    command,
+    runtime,
     cwd,
     timeoutMs,
     logDir,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
+}
+
+function assertNoCodexProcessFieldAliases(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  provider: string,
+): void {
+  if (provider === 'codex-sdk') {
+    return;
+  }
+  for (const field of ['executable', 'binary', 'args', 'arguments'] as const) {
+    if (target[field] !== undefined) {
+      throw new Error(
+        `Target "${target.name}" (${provider}) uses removed field '${field}'. Use config.command as a non-empty argv array instead.`,
+      );
+    }
+  }
+}
+
+function resolveRequiredCommandArgv(
+  value: unknown,
+  env: EnvLookup,
+  label: string,
+): readonly string[] {
+  const command = resolveOptionalCommandArgv(value, env, label);
+  if (!command || command.length === 0) {
+    throw new Error(`${label} must be a non-empty argv array`);
+  }
+  return command;
+}
+
+function resolveOptionalCommandArgv(
+  value: unknown,
+  env: EnvLookup,
+  label: string,
+): readonly string[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be a non-empty argv array`);
+  }
+  const resolved = value.map((entry, index) =>
+    resolveString(entry, env, `${label}[${index}]`, true),
+  );
+  if (resolved.length === 0 || resolved.some((entry) => entry.trim().length === 0)) {
+    throw new Error(`${label} must be a non-empty argv array`);
+  }
+  return resolved;
+}
+
+function resolveCodingAgentRuntime(
+  value: unknown,
+  env: EnvLookup,
+  targetName: string,
+): CodingAgentRuntimeConfig {
+  if (value === undefined || value === null) {
+    return { mode: 'host' };
+  }
+  if (typeof value === 'string') {
+    return { mode: normalizeCodingAgentRuntimeMode(value, targetName) };
+  }
+  if (!isRecord(value)) {
+    throw new Error(
+      `Target "${targetName}" runtime must be 'host' or an object with mode: host|profile|sandbox.`,
+    );
+  }
+
+  const mode = normalizeCodingAgentRuntimeMode(value.mode, targetName);
+  const runtimeEnv = resolveRuntimeEnv(value.env, env, targetName);
+  const envAllowlist = resolveRuntimeEnvAllowlist(value.env_allowlist ?? value.envAllowlist);
+  return {
+    mode,
+    home: resolveOptionalString(value.home, env, `${targetName} runtime home`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+    codexHome: resolveOptionalString(
+      value.codex_home ?? value.codexHome,
+      env,
+      `${targetName} runtime CODEX_HOME`,
+      {
+        allowLiteral: true,
+        optionalEnv: true,
+      },
+    ),
+    tmpDir: resolveOptionalString(
+      value.tmp_dir ?? value.tmpDir,
+      env,
+      `${targetName} runtime tmp dir`,
+      {
+        allowLiteral: true,
+        optionalEnv: true,
+      },
+    ),
+    ...(runtimeEnv ? { env: runtimeEnv } : {}),
+    ...(envAllowlist ? { envAllowlist } : {}),
+  };
+}
+
+function normalizeCodingAgentRuntimeMode(
+  value: unknown,
+  targetName: string,
+): CodingAgentRuntimeMode {
+  if (typeof value !== 'string') {
+    throw new Error(`Target "${targetName}" runtime.mode must be one of: host, profile, sandbox.`);
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'host' || normalized === 'profile' || normalized === 'sandbox') {
+    return normalized;
+  }
+  throw new Error(`Target "${targetName}" runtime.mode must be one of: host, profile, sandbox.`);
+}
+
+function resolveRuntimeEnv(
+  value: unknown,
+  env: EnvLookup,
+  targetName: string,
+): Readonly<Record<string, string>> | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new Error(`Target "${targetName}" runtime.env must be an object of string values.`);
+  }
+  const resolved: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw !== 'string') {
+      throw new Error(`Target "${targetName}" runtime.env.${key} must be a string.`);
+    }
+    resolved[key] = resolveString(raw, env, `${targetName} runtime.env.${key}`, true);
+  }
+  return resolved;
+}
+
+function resolveRuntimeEnvAllowlist(value: unknown): readonly string[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) {
+    throw new Error('runtime.env_allowlist must be an array of strings.');
+  }
+  return value.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 }
 
 function normalizeCodexModelReasoningEffort(

@@ -110,11 +110,7 @@ const CODEX_SETTINGS = new Set([
   'model_verbosity',
   'sandbox_mode',
   'approval_policy',
-  'executable',
   'command',
-  'binary',
-  'args',
-  'arguments',
   'cwd',
   'timeout_seconds',
   'log_dir',
@@ -226,7 +222,9 @@ function getKnownSettings(provider: string): Set<string> | null {
       return ANTHROPIC_SETTINGS;
     case 'gemini':
       return GEMINI_SETTINGS;
-    case 'codex':
+    case 'codex-cli':
+    case 'codex-app-server':
+    case 'codex-sdk':
       return CODEX_SETTINGS;
     case 'copilot-sdk':
       return COPILOT_SDK_SETTINGS;

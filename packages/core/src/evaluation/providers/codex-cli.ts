@@ -1,9 +1,10 @@
 import { exec as execCallback, spawn } from 'node:child_process';
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { constants, createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -12,7 +13,16 @@ import { recordCodexLogEntry } from './codex-log-tracker.js';
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
 import type { CodexResolvedConfig } from './targets.js';
-import type { Provider, ProviderRequest, ProviderResponse } from './types.js';
+import type {
+  Message,
+  Provider,
+  ProviderRequest,
+  ProviderResponse,
+  TargetExecutionEnvelope,
+  TargetExecutionErrorKind,
+  TargetExecutionLogCapture,
+} from './types.js';
+import { extractLastAssistantContent } from './types.js';
 
 const execAsync = promisify(execCallback);
 const WORKSPACE_PREFIX = 'agentv-codex-';
@@ -34,15 +44,17 @@ interface CodexRunOptions {
 interface CodexRunResult {
   readonly stdout: string;
   readonly stderr: string;
-  readonly exitCode: number;
+  readonly exitCode: number | null;
+  readonly signal?: NodeJS.Signals | null;
   readonly timedOut?: boolean;
+  readonly cancelled?: boolean;
 }
 
 type CodexRunner = (options: CodexRunOptions) => Promise<CodexRunResult>;
 
 export class CodexCliProvider implements Provider {
   readonly id: string;
-  readonly kind = 'codex' as const;
+  readonly kind: 'codex-cli' | 'codex-app-server';
   readonly targetName: string;
   readonly supportsBatch = false;
 
@@ -55,8 +67,10 @@ export class CodexCliProvider implements Provider {
     targetName: string,
     config: CodexResolvedConfig,
     runner: CodexRunner = defaultCodexRunner,
+    kind: 'codex-cli' | 'codex-app-server' = 'codex-cli',
   ) {
-    this.id = `codex:${targetName}`;
+    this.kind = kind;
+    this.id = `${kind}:${targetName}`;
     this.targetName = targetName;
     this.config = config;
     this.runCodex = runner;
@@ -64,12 +78,19 @@ export class CodexCliProvider implements Provider {
 
   async invoke(request: ProviderRequest): Promise<ProviderResponse> {
     if (request.signal?.aborted) {
-      throw new Error('Codex provider request was aborted before execution');
+      return this.buildUnsupportedRuntimeOrEarlyCancel('cancelled', 'Codex request was cancelled');
+    }
+
+    if (this.config.runtime.mode === 'sandbox') {
+      return this.buildUnsupportedRuntimeOrEarlyCancel(
+        'sandbox_infra_failure',
+        'runtime.mode: sandbox for Codex targets is not available in this AgentV build. Use runtime: host/profile or the sandbox runtime provider once configured.',
+      );
     }
 
     await this.ensureEnvironmentReady();
 
-    const inputFiles = normalizeInputFiles(request.inputFiles);
+    const inputFiles = normalizeInputFiles(request.inputFiles) ?? [];
 
     const workspaceRoot = await this.createWorkspace();
     const logger = await this.createStreamLogger(request).catch(() => undefined);
@@ -82,23 +103,109 @@ export class CodexCliProvider implements Provider {
 
       const args = this.buildCodexArgs();
       const cwd = this.resolveCwd(workspaceRoot, request.cwd);
-
-      const result = await this.executeCodex(args, cwd, promptContent, request.signal, logger);
+      const env = await this.buildProcessEnv(workspaceRoot);
+      const startedAt = Date.now();
+      let result: CodexRunResult;
+      try {
+        result = await this.executeCodex(
+          args,
+          cwd,
+          this.buildStdinPayload(promptContent, request),
+          env,
+          request.signal,
+          logger,
+        );
+      } catch (error) {
+        const message = formatError(error);
+        return this.buildErrorResponse({
+          errorKind: 'spawn_failure',
+          message,
+          args,
+          cwd,
+          startedAt,
+          endedAt: Date.now(),
+          stdout: '',
+          stderr: message,
+          inputFiles,
+          promptFile,
+          workspaceRoot,
+          logFile: logger?.filePath,
+        });
+      }
 
       if (result.timedOut) {
-        throw new Error(
-          `Codex CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
+        return this.buildErrorResponse({
+          errorKind: 'timeout',
+          message: `Codex ${this.providerLabel()} timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
+          args,
+          cwd,
+          startedAt,
+          endedAt: Date.now(),
+          result,
+          inputFiles,
+          promptFile,
+          workspaceRoot,
+          logFile: logger?.filePath,
+        });
+      }
+
+      if (result.cancelled || request.signal?.aborted) {
+        return this.buildErrorResponse({
+          errorKind: 'cancelled',
+          message: `Codex ${this.providerLabel()} request was cancelled`,
+          args,
+          cwd,
+          startedAt,
+          endedAt: Date.now(),
+          result,
+          inputFiles,
+          promptFile,
+          workspaceRoot,
+          logFile: logger?.filePath,
+        });
       }
 
       if (result.exitCode !== 0) {
         const detail = pickDetail(result.stderr, result.stdout);
-        const prefix = `Codex CLI exited with code ${result.exitCode}`;
-        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
+        const prefix = `Codex ${this.providerLabel()} exited with code ${result.exitCode}`;
+        return this.buildErrorResponse({
+          errorKind: result.signal ? 'signal_crash' : 'nonzero_exit',
+          message: detail ? `${prefix}: ${detail}` : prefix,
+          args,
+          cwd,
+          startedAt,
+          endedAt: Date.now(),
+          result,
+          inputFiles,
+          promptFile,
+          workspaceRoot,
+          logFile: logger?.filePath,
+        });
       }
 
-      const parsed = parseCodexJson(result.stdout);
-      const assistantText = extractAssistantText(parsed);
+      let parsed: unknown;
+      let messages: readonly Message[];
+      try {
+        parsed = parseCodexJson(result.stdout);
+        messages = extractAssistantMessages(parsed);
+      } catch (error) {
+        const message = formatError(error);
+        return this.buildErrorResponse({
+          errorKind: 'malformed_output',
+          message,
+          args,
+          cwd,
+          startedAt,
+          endedAt: Date.now(),
+          result,
+          inputFiles,
+          promptFile,
+          workspaceRoot,
+          logFile: logger?.filePath,
+        });
+      }
+      const assistantText = extractLastAssistantContent(messages);
+      const durationMs = Date.now() - startedAt;
 
       return {
         raw: {
@@ -107,13 +214,34 @@ export class CodexCliProvider implements Provider {
           stderr: result.stderr,
           exitCode: result.exitCode,
           args,
-          executable: this.resolvedExecutable ?? this.config.executable,
+          executable: this.resolvedExecutable ?? this.config.command?.[0],
           promptFile,
           workspace: workspaceRoot,
           inputFiles,
           logFile: logger?.filePath,
         },
-        output: [{ role: 'assistant' as const, content: assistantText }],
+        output: messages,
+        durationMs,
+        targetExecution: {
+          ...this.buildEnvelopeBase({
+            args,
+            cwd,
+            startedAt,
+            endedAt: Date.now(),
+            result,
+          }),
+          status: 'success',
+          transcript: {
+            messages,
+            finalOutput: assistantText,
+          },
+          details: {
+            promptFile,
+            workspace: workspaceRoot,
+            inputFiles,
+            logFile: logger?.filePath,
+          },
+        },
       };
     } finally {
       await logger?.close();
@@ -129,7 +257,7 @@ export class CodexCliProvider implements Provider {
   }
 
   private async validateEnvironment(): Promise<void> {
-    this.resolvedExecutable = await locateExecutable(this.config.executable);
+    this.resolvedExecutable = await locateExecutable(this.commandExecutable());
   }
 
   private resolveCwd(workspaceRoot: string, cwdOverride?: string): string {
@@ -144,19 +272,28 @@ export class CodexCliProvider implements Provider {
   }
 
   private buildCodexArgs(): string[] {
-    // Global flags must come before 'exec' subcommand
-    const args = [
-      '--ask-for-approval',
-      'never',
-      'exec',
-      '--json',
-      '--color',
-      'never',
-      '--skip-git-repo-check',
-    ];
-    if (this.config.args && this.config.args.length > 0) {
-      args.push(...this.config.args);
+    const [, ...configuredArgs] = this.config.command ?? [];
+    if (this.kind === 'codex-app-server') {
+      return configuredArgs;
     }
+
+    const args = [...configuredArgs];
+    if (this.config.model) {
+      args.push('--model', this.config.model);
+    }
+    if (this.config.modelReasoningEffort) {
+      args.push('--config', `model_reasoning_effort=${this.config.modelReasoningEffort}`);
+    }
+    if (this.config.modelVerbosity) {
+      args.push('--config', `model_verbosity=${this.config.modelVerbosity}`);
+    }
+    if (this.config.sandboxMode) {
+      args.push('--sandbox', this.config.sandboxMode);
+    }
+    if (this.config.approvalPolicy) {
+      args.push('--ask-for-approval', this.config.approvalPolicy);
+    }
+    args.push('exec', '--json', '--color', 'never', '--skip-git-repo-check');
     args.push('-');
     return args;
   }
@@ -164,35 +301,206 @@ export class CodexCliProvider implements Provider {
   private async executeCodex(
     args: readonly string[],
     cwd: string,
-    promptContent: string,
+    stdinPayload: string,
+    env: NodeJS.ProcessEnv,
     signal: AbortSignal | undefined,
     logger: CodexStreamLogger | undefined,
   ): Promise<CodexRunResult> {
-    try {
-      return await this.runCodex({
-        executable: this.resolvedExecutable ?? this.config.executable,
-        args,
-        cwd,
-        prompt: promptContent,
-        timeoutMs: this.config.timeoutMs,
-        env: process.env,
-        signal,
-        onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
-        onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
-      });
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code === 'ENOENT') {
-        throw new Error(
-          `Codex executable '${this.config.executable}' was not found. Update the target settings.executable or add it to PATH.`,
-        );
-      }
-      throw error;
+    return await this.runCodex({
+      executable: this.resolvedExecutable ?? this.commandExecutable(),
+      args,
+      cwd,
+      prompt: stdinPayload,
+      timeoutMs: this.config.timeoutMs,
+      env,
+      signal,
+      onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
+      onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
+    });
+  }
+
+  private buildStdinPayload(promptContent: string, request: ProviderRequest): string {
+    if (this.kind !== 'codex-app-server') {
+      return promptContent;
     }
+    return `${JSON.stringify({
+      type: 'agentv.invoke',
+      question: request.question,
+      prompt: promptContent,
+      eval_case_id: request.evalCaseId,
+      attempt: request.attempt,
+    })}\n`;
   }
 
   private async createWorkspace(): Promise<string> {
     return await mkdtemp(path.join(tmpdir(), WORKSPACE_PREFIX));
+  }
+
+  private commandExecutable(): string {
+    const executable = this.config.command?.[0];
+    if (!executable) {
+      throw new Error(`Codex ${this.providerLabel()} requires config.command`);
+    }
+    return executable;
+  }
+
+  private providerLabel(): string {
+    return this.kind === 'codex-app-server' ? 'app-server' : 'CLI';
+  }
+
+  private async buildProcessEnv(workspaceRoot: string): Promise<NodeJS.ProcessEnv> {
+    if (this.config.runtime.mode === 'host') {
+      return process.env;
+    }
+
+    const runtime = this.config.runtime;
+    const env: NodeJS.ProcessEnv = {};
+    const allowlist = runtime.envAllowlist ?? defaultProfileEnvAllowlist();
+    for (const key of allowlist) {
+      const value = process.env[key];
+      if (value !== undefined) {
+        env[key] = value;
+      }
+    }
+
+    const profileHome = path.resolve(runtime.home ?? path.join(workspaceRoot, 'profile-home'));
+    const codexHome = path.resolve(runtime.codexHome ?? path.join(profileHome, '.codex'));
+    const tmpRoot = path.resolve(runtime.tmpDir ?? path.join(profileHome, '.tmp'));
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(tmpRoot, { recursive: true });
+
+    env.HOME = profileHome;
+    env.USERPROFILE = profileHome;
+    env.CODEX_HOME = codexHome;
+    env.TMPDIR = tmpRoot;
+    env.TMP = tmpRoot;
+    env.TEMP = tmpRoot;
+    for (const [key, value] of Object.entries(runtime.env ?? {})) {
+      env[key] = value;
+    }
+    return env;
+  }
+
+  private buildUnsupportedRuntimeOrEarlyCancel(
+    errorKind: TargetExecutionErrorKind,
+    message: string,
+  ): ProviderResponse {
+    const now = Date.now();
+    return {
+      output: [{ role: 'assistant', content: `Error: ${message}` }],
+      durationMs: 0,
+      targetExecution: {
+        ...this.buildEnvelopeBase({
+          args: this.config.command?.slice(1) ?? [],
+          cwd: this.config.cwd,
+          startedAt: now,
+          endedAt: now,
+          result: { stdout: '', stderr: '', exitCode: null },
+        }),
+        status: 'error',
+        errorKind,
+        message,
+        transcript: {
+          messages: [{ role: 'assistant', content: `Error: ${message}` }],
+          finalOutput: `Error: ${message}`,
+        },
+      },
+      raw: { error: message },
+    };
+  }
+
+  private buildErrorResponse(params: {
+    readonly errorKind: TargetExecutionErrorKind;
+    readonly message: string;
+    readonly args: readonly string[];
+    readonly cwd: string;
+    readonly startedAt: number;
+    readonly endedAt: number;
+    readonly result?: CodexRunResult;
+    readonly stdout?: string;
+    readonly stderr?: string;
+    readonly inputFiles: readonly string[];
+    readonly promptFile: string;
+    readonly workspaceRoot: string;
+    readonly logFile?: string;
+  }): ProviderResponse {
+    const output = [{ role: 'assistant' as const, content: `Error: ${params.message}` }];
+    return {
+      output,
+      durationMs: params.endedAt - params.startedAt,
+      targetExecution: {
+        ...this.buildEnvelopeBase({
+          args: params.args,
+          cwd: params.cwd,
+          startedAt: params.startedAt,
+          endedAt: params.endedAt,
+          result: params.result ?? {
+            stdout: params.stdout ?? '',
+            stderr: params.stderr ?? '',
+            exitCode: null,
+          },
+        }),
+        status: 'error',
+        errorKind: params.errorKind,
+        message: params.message,
+        transcript: {
+          messages: output,
+          finalOutput: `Error: ${params.message}`,
+        },
+        details: {
+          promptFile: params.promptFile,
+          workspace: params.workspaceRoot,
+          inputFiles: params.inputFiles,
+          logFile: params.logFile,
+        },
+      },
+      raw: {
+        stderr: params.result?.stderr ?? params.stderr ?? '',
+        stdout: params.result?.stdout ?? params.stdout ?? '',
+        exitCode: params.result?.exitCode ?? null,
+        signal: params.result?.signal ?? null,
+        cwd: params.cwd,
+        args: params.args,
+        executable: this.resolvedExecutable ?? this.config.command?.[0],
+        error: params.message,
+        logFile: params.logFile,
+      },
+    };
+  }
+
+  private buildEnvelopeBase(params: {
+    readonly args: readonly string[];
+    readonly cwd?: string;
+    readonly startedAt: number;
+    readonly endedAt: number;
+    readonly result?: CodexRunResult;
+  }): Omit<TargetExecutionEnvelope, 'status'> {
+    const executable = this.resolvedExecutable ?? this.config.command?.[0] ?? 'codex';
+    const argv = [executable, ...params.args];
+    const stdout = params.result?.stdout ?? '';
+    const stderr = params.result?.stderr ?? '';
+    return {
+      schemaVersion: 'agentv.target_execution.v1',
+      targetId: this.targetName,
+      providerId: this.id,
+      providerKind: this.kind,
+      runtimeMode: this.config.runtime.mode,
+      command: {
+        argv,
+        commandLine: argv.map(shellQuote).join(' '),
+        cwd: params.cwd,
+      },
+      timeoutMs: this.config.timeoutMs,
+      startedAt: new Date(params.startedAt).toISOString(),
+      endedAt: new Date(params.endedAt).toISOString(),
+      durationMs: params.endedAt - params.startedAt,
+      exitCode: params.result?.exitCode,
+      signal: params.result?.signal ?? null,
+      logs: {
+        stdout: captureLog(stdout),
+        stderr: captureLog(stderr),
+      },
+    };
   }
 
   private async cleanupWorkspace(workspaceRoot: string): Promise<void> {
@@ -251,6 +559,16 @@ export class CodexCliProvider implements Provider {
       console.warn(`Skipping Codex stream logging for ${filePath}: ${message}`);
       return undefined;
     }
+  }
+}
+
+export class CodexAppServerProvider extends CodexCliProvider {
+  constructor(
+    targetName: string,
+    config: CodexResolvedConfig,
+    runner: CodexRunner = defaultCodexRunner,
+  ) {
+    super(targetName, config, runner, 'codex-app-server');
   }
 }
 
@@ -640,6 +958,11 @@ function extractAssistantText(parsed: unknown): string {
   throw new Error('Codex CLI JSON response did not include an assistant message');
 }
 
+function extractAssistantMessages(parsed: unknown): readonly Message[] {
+  const text = extractAssistantText(parsed);
+  return [{ role: 'assistant', content: text }];
+}
+
 function extractFromEventStream(events: readonly unknown[]): string | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const candidate = events[index];
@@ -749,12 +1072,54 @@ function formatTimeoutSuffix(timeoutMs: number | undefined): string {
   return ` after ${seconds}s`;
 }
 
+const INLINE_LOG_LIMIT_BYTES = 128 * 1024;
+
+function captureLog(text: string): TargetExecutionLogCapture {
+  const bytes = Buffer.byteLength(text, 'utf8');
+  if (bytes <= INLINE_LOG_LIMIT_BYTES) {
+    return {
+      text,
+      truncated: false,
+      bytes,
+      storedBytes: bytes,
+    };
+  }
+  let stored = text;
+  while (Buffer.byteLength(stored, 'utf8') > INLINE_LOG_LIMIT_BYTES) {
+    stored = stored.slice(0, Math.max(0, stored.length - 1024));
+  }
+  return {
+    text: stored,
+    truncated: true,
+    bytes,
+    storedBytes: Buffer.byteLength(stored, 'utf8'),
+  };
+}
+
+function defaultProfileEnvAllowlist(): readonly string[] {
+  return process.platform === 'win32'
+    ? ['PATH', 'Path', 'PATHEXT', 'SystemRoot', 'COMSPEC', 'LANG', 'LC_ALL', 'NO_COLOR']
+    : ['PATH', 'LANG', 'LC_ALL', 'TERM', 'NO_COLOR', 'SHELL'];
+}
+
+function shellQuote(value: string): string {
+  if (/^[A-Za-z0-9_/:=.,@%+-]+$/.test(value)) {
+    return value;
+  }
+  return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunResult> {
   return await new Promise<CodexRunResult>((resolve, reject) => {
     const child = spawn(options.executable, options.args, {
       cwd: options.cwd,
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
       shell: shouldShellExecute(options.executable),
     });
     trackChild(child);
@@ -762,9 +1127,12 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let cancelled = false;
 
     const onAbort = (): void => {
-      child.kill('SIGTERM');
+      cancelled = true;
+      terminateChild(child, 'SIGTERM');
+      setTimeout(() => terminateChild(child, 'SIGKILL'), 2_000).unref?.();
     };
 
     if (options.signal) {
@@ -779,7 +1147,8 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
     if (options.timeoutMs && options.timeoutMs > 0) {
       timeoutHandle = setTimeout(() => {
         timedOut = true;
-        child.kill('SIGTERM');
+        terminateChild(child, 'SIGTERM');
+        setTimeout(() => terminateChild(child, 'SIGKILL'), 2_000).unref?.();
       }, options.timeoutMs);
       timeoutHandle.unref?.();
     }
@@ -812,16 +1181,35 @@ async function defaultCodexRunner(options: CodexRunOptions): Promise<CodexRunRes
       reject(error);
     });
 
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       cleanup();
       resolve({
         stdout,
         stderr,
-        exitCode: typeof code === 'number' ? code : -1,
+        exitCode: typeof code === 'number' ? code : null,
+        signal,
         timedOut,
+        cancelled,
       });
     });
   });
+}
+
+function terminateChild(child: ChildProcessWithoutNullStreams, signal: NodeJS.Signals): void {
+  if (child.pid === undefined) {
+    return;
+  }
+  try {
+    if (process.platform === 'win32') {
+      child.kill(signal);
+    } else {
+      process.kill(-child.pid, signal);
+    }
+  } catch {
+    try {
+      child.kill(signal);
+    } catch {}
+  }
 }
 
 function shouldShellExecute(executable: string): boolean {

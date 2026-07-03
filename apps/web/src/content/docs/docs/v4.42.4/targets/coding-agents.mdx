@@ -80,12 +80,13 @@ targets:
 
 ```yaml
 targets:
-  - name: codex_target
-    provider: codex
-    executable: codex-eng
-    model: ${{ CODEX_MODEL }}
-    model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
-    grader_target: azure-base
+  - id: codex_target
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex-eng"]
+      model: ${{ CODEX_MODEL }}
+      model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
 ```
 
 | Field | Required | Description |

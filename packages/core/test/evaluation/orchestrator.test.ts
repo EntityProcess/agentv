@@ -1147,7 +1147,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
   it('populates agent_provider_request for agent providers', async () => {
     class AgentProvider implements Provider {
       readonly id = 'agent';
-      readonly kind = 'codex'; // Agent provider kind
+      readonly kind = 'codex-cli'; // Agent provider kind
       readonly targetName = 'agent';
       async invoke() {
         return { output: [{ role: 'assistant', content: 'ok' }] };
@@ -1162,8 +1162,8 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       provider,
       target: {
         ...baseTarget,
-        kind: 'codex',
-        config: { executable: 'echo' },
+        kind: 'codex-cli',
+        config: { command: ['echo'], runtime: { mode: 'host' } },
       },
       evaluators: evaluatorRegistry,
     });
@@ -1177,8 +1177,8 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
       provider,
       target: {
         ...baseTarget,
-        kind: 'codex',
-        config: { executable: 'echo' },
+        kind: 'codex-cli',
+        config: { command: ['echo'], runtime: { mode: 'host' } },
       },
       evaluators: evaluatorRegistry,
       verbose: true,

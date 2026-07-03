@@ -611,12 +611,14 @@ Then add a replay target alias in `.agentv/targets.yaml`:
 
 ```yaml
 targets:
-  - label: live_coding_agent
-    provider: codex
-    model: gpt-5
-    grader_target: grader_gpt_5_mini
+  - id: live_coding_agent
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex"]
+      model: gpt-5
 
-  - label: replay_coding_agent
+  - id: replay_coding_agent
     provider: replay
     fixtures: ../fixtures/legal-review-target-output.jsonl
     source_target: live_coding_agent
