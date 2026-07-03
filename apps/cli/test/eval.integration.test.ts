@@ -48,7 +48,7 @@ targets:
   - label: cli-target
     provider: mock
   - label: codex-target
-    provider: codex
+    provider: codex-sdk
     model: gpt-5-default
 `;
   await writeFile(targetsPath, targetsContent, 'utf8');
