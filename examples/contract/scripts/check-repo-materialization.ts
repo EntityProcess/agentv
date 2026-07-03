@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Deterministic code grader for the repo materialization release contract.
+ * Deterministic script grader for the repo materialization release contract.
  *
  * It verifies that AgentV cloned the owned public fixture repo, checked out a
  * specific historical commit, and resolved a type:file input into the prompt

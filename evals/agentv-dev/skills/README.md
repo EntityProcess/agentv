@@ -76,7 +76,7 @@ Pattern for repo-driven file tests:
         - type: text
           value: |
             <prompt referring to the live repo file>
-  assertions:
+  assert:
     - type: contains
       value: <expected substring>
     - type: rubrics

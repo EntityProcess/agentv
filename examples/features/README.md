@@ -17,7 +17,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Grade response quality with an LLM judge
 | Example | Description |
 |---------|-------------|
-| [rubric](rubric/) | Boolean rubric criteria — pass/fail each with a code grader or LLM check |
+| [rubric](rubric/) | Boolean rubric criteria — pass/fail each with a script grader or LLM check |
 | [weighted-graders](weighted-graders/) | Multiple named `llm-rubric` assertions with per-grader weights |
 | [composite](composite/) | Safety gate and weighted aggregation patterns |
 | [threshold-grader](threshold-grader/) | Pass a test if a configurable percentage of sub-graders pass |
@@ -32,16 +32,16 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [assert](assert/) | Core built-ins: `contains`, `regex`, `is-json`, `equals`, `starts-with`, `ends-with` |
 | [assert-extended](assert-extended/) | Extended variants: `contains-any`, `icontains`, `icontains-all`, regex flags |
 | [deterministic-graders](deterministic-graders/) | Full showcase of all deterministic assertion types |
-| [nlp-metrics](nlp-metrics/) | ROUGE, BLEU, cosine/Jaccard similarity, Levenshtein as code graders |
+| [nlp-metrics](nlp-metrics/) | ROUGE, BLEU, cosine/Jaccard similarity, Levenshtein as script graders |
 
 ---
 
 ### Write custom graders in code
 | Example | Description |
 |---------|-------------|
-| [code-grader-sdk](code-grader-sdk/) | TypeScript code graders using `defineCodeGrader()` from `@agentv/sdk` |
-| [code-grader-with-llm-calls](code-grader-with-llm-calls/) | Code graders that make LLM calls via a target proxy |
-| [eval-assert-demo](eval-assert-demo/) | Code graders runnable both in a suite and individually via `agentv eval assert` |
+| [script-grader-sdk](script-grader-sdk/) | TypeScript script graders using `defineScriptGrader()` from `@agentv/sdk` |
+| [script-grader-with-llm-calls](script-grader-with-llm-calls/) | script graders that make LLM calls via a target proxy |
+| [eval-assert-demo](eval-assert-demo/) | script graders runnable both in a suite and individually via `agentv eval assert` |
 | [functional-grading](functional-grading/) | Install dependencies, compile, and run tests against agent-generated code |
 
 ---
@@ -140,8 +140,8 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [basic-jsonl](basic-jsonl/) | Getting started |
 | [batch-cli](batch-cli/) | Workspace & targets |
 | [benchmark-tooling](benchmark-tooling/) | Benchmarking |
-| [code-grader-sdk](code-grader-sdk/) | Custom graders |
-| [code-grader-with-llm-calls](code-grader-with-llm-calls/) | Custom graders |
+| [script-grader-sdk](script-grader-sdk/) | Custom graders |
+| [script-grader-with-llm-calls](script-grader-with-llm-calls/) | Custom graders |
 | [compare](compare/) | Benchmarking |
 | [composite](composite/) | LLM grading |
 | [copilot-log-eval](copilot-log-eval/) | Offline evaluation |

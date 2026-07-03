@@ -68,7 +68,7 @@ def validate_json_format(candidate_answer: str, required_keys: list[str]) -> dic
 
 
 def main():
-    """Main entry point for AgentV code grader."""
+    """Main entry point for AgentV script grader."""
     # AgentV passes eval data via stdin as JSON
     try:
         eval_data = json.load(sys.stdin)

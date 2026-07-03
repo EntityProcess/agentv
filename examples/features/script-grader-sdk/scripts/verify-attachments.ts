@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
 /**
- * Code Grader SDK Demo
+ * script grader SDK Demo
  *
- * Uses the declarative defineCodeGrader helper to verify attachments
+ * Uses the declarative defineScriptGrader helper to verify attachments
  * are referenced in the candidate output.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function fileName(path: string): string {
   const parts = path.split('/');
   return parts[parts.length - 1] ?? path;
 }
 
-export default defineCodeGrader(({ expectedOutput, output, inputFiles }) => {
+export default defineScriptGrader(({ expectedOutput, output, inputFiles }) => {
   const outputText = output ?? '';
   const assertions: Array<{ text: string; passed: boolean }> = [];
 

@@ -1,5 +1,5 @@
 /**
- * Zod schemas for code grader input/output validation.
+ * Zod schemas for script grader input/output validation.
  * Provides both compile-time types and runtime validation.
  *
  * ## Content model
@@ -286,12 +286,12 @@ export const TraceSchema = TraceSummarySchema.extend({
 });
 
 /**
- * Code grader input schema (camelCase, converted from snake_case wire format).
+ * Script grader input schema (camelCase, converted from snake_case wire format).
  *
  * `output` is the final answer/scored result only. Transcript-aware graders
  * should inspect `messages`, `trace.messages`, or `trace.events`.
  */
-export const CodeGraderInputSchema = z.object({
+export const ScriptGraderInputSchema = z.object({
   criteria: z.string(),
   expectedOutput: z.array(MessageSchema),
   output: z.string().nullable().optional(),
@@ -314,9 +314,9 @@ export const CodeGraderInputSchema = z.object({
 });
 
 /**
- * Code grader result schema (validated before output).
+ * Script grader result schema (validated before output).
  */
-export const CodeGraderResultSchema = z.object({
+export const ScriptGraderResultSchema = z.object({
   score: z.number().min(0).max(1),
   assertions: z
     .array(
@@ -335,8 +335,8 @@ export const CodeGraderResultSchema = z.object({
 /**
  * Inferred types from schemas.
  */
-export type CodeGraderInput = z.infer<typeof CodeGraderInputSchema>;
-export type CodeGraderResult = z.infer<typeof CodeGraderResultSchema>;
+export type ScriptGraderInput = z.infer<typeof ScriptGraderInputSchema>;
+export type ScriptGraderResult = z.infer<typeof ScriptGraderResultSchema>;
 
 export type TraceSummary = z.infer<typeof TraceSummarySchema>;
 export type Trace = z.infer<typeof TraceSchema>;
@@ -363,18 +363,26 @@ export type Content = z.infer<typeof ContentSchema>;
 
 /**
  * Prompt template input schema (camelCase, converted from snake_case wire format).
- * Uses the same schema as CodeGraderInput since the orchestrator sends identical payloads.
+ * Uses the same schema as ScriptGraderInput since the orchestrator sends identical payloads.
  */
-export const PromptTemplateInputSchema = CodeGraderInputSchema;
+export const PromptTemplateInputSchema = ScriptGraderInputSchema;
 
-export type PromptTemplateInput = CodeGraderInput;
+export type PromptTemplateInput = ScriptGraderInput;
 
 // ── Backward-compat aliases (deprecated) ────────────────────────────────────────
-/** @deprecated Use CodeGraderInputSchema */
-export const CodeJudgeInputSchema = CodeGraderInputSchema;
-/** @deprecated Use CodeGraderResultSchema */
-export const CodeJudgeResultSchema = CodeGraderResultSchema;
-/** @deprecated Use CodeGraderInput */
-export type CodeJudgeInput = CodeGraderInput;
-/** @deprecated Use CodeGraderResult */
-export type CodeJudgeResult = CodeGraderResult;
+/** @deprecated Use ScriptGraderInputSchema */
+export const CodeGraderInputSchema = ScriptGraderInputSchema;
+/** @deprecated Use ScriptGraderResultSchema */
+export const CodeGraderResultSchema = ScriptGraderResultSchema;
+/** @deprecated Use ScriptGraderInput */
+export type CodeGraderInput = ScriptGraderInput;
+/** @deprecated Use ScriptGraderResult */
+export type CodeGraderResult = ScriptGraderResult;
+/** @deprecated Use ScriptGraderInputSchema */
+export const CodeJudgeInputSchema = ScriptGraderInputSchema;
+/** @deprecated Use ScriptGraderResultSchema */
+export const CodeJudgeResultSchema = ScriptGraderResultSchema;
+/** @deprecated Use ScriptGraderInput */
+export type CodeJudgeInput = ScriptGraderInput;
+/** @deprecated Use ScriptGraderResult */
+export type CodeJudgeResult = ScriptGraderResult;

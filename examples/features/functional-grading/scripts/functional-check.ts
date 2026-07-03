@@ -23,7 +23,7 @@ if (!workspacePath) {
         {
           text: 'workspace_path not provided — cannot run functional checks',
           passed: false,
-          evidence: 'Code grader requires workspace_path to execute commands in the workspace',
+          evidence: 'script grader requires workspace_path to execute commands in the workspace',
         },
       ],
     }),

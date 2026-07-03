@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Fuzzy String Matching code-grader Example
+ * Fuzzy String Matching script-grader Example
  *
- * This script demonstrates how to implement fuzzy string matching as a code-grader
+ * This script demonstrates how to implement fuzzy string matching as a script-grader
  * grader. Use this approach for comparing extracted text that may have OCR errors,
  * formatting variations, or minor typos.
  *

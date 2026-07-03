@@ -8,8 +8,8 @@ const CLI_ENTRY = join(import.meta.dirname, '../../../../src/cli.ts');
 describe('pipeline grade', () => {
   beforeEach(async () => {
     const testDir = join(OUT_DIR, 'test-01');
-    const codeGradersDir = join(testDir, 'code_graders');
-    await mkdir(codeGradersDir, { recursive: true });
+    const scriptGradersDir = join(testDir, 'script_graders');
+    await mkdir(scriptGradersDir, { recursive: true });
 
     await writeFile(join(testDir, 'response.md'), 'hello world');
     await writeFile(
@@ -20,7 +20,7 @@ describe('pipeline grade', () => {
       }),
     );
     await writeFile(
-      join(codeGradersDir, 'always_pass.json'),
+      join(scriptGradersDir, 'always_pass.json'),
       JSON.stringify({
         name: 'always_pass',
         command: [
@@ -46,12 +46,12 @@ describe('pipeline grade', () => {
     await rm(OUT_DIR, { recursive: true, force: true });
   });
 
-  it('writes code_grader_results/<name>.json with score and assertions', async () => {
+  it('writes script_grader_results/<name>.json with score and assertions', async () => {
     const { execa } = await import('execa');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', OUT_DIR]);
 
     const result = JSON.parse(
-      await readFile(join(OUT_DIR, 'test-01', 'code_grader_results', 'always_pass.json'), 'utf8'),
+      await readFile(join(OUT_DIR, 'test-01', 'script_grader_results', 'always_pass.json'), 'utf8'),
     );
     expect(result.score).toBe(1);
     expect(result.name).toBe('always_pass');
@@ -65,7 +65,7 @@ describe('pipeline grade — builtin assertions', () => {
 
   beforeEach(async () => {
     const testDir = join(BUILTIN_OUT, 'test-01');
-    const builtinGradersDir = join(testDir, 'code_graders');
+    const builtinGradersDir = join(testDir, 'script_graders');
     await mkdir(builtinGradersDir, { recursive: true });
 
     await writeFile(join(testDir, 'response.md'), 'hello world');
@@ -127,7 +127,10 @@ describe('pipeline grade — builtin assertions', () => {
     await execa('bun', [CLI_ENTRY, 'pipeline', 'grade', BUILTIN_OUT]);
 
     const containsResult = JSON.parse(
-      await readFile(join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'has_hello.json'), 'utf8'),
+      await readFile(
+        join(BUILTIN_OUT, 'test-01', 'script_grader_results', 'has_hello.json'),
+        'utf8',
+      ),
     );
     expect(containsResult.score).toBe(1);
     expect(containsResult.type).toBe('contains');
@@ -135,7 +138,7 @@ describe('pipeline grade — builtin assertions', () => {
 
     const regexResult = JSON.parse(
       await readFile(
-        join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'matches_pattern.json'),
+        join(BUILTIN_OUT, 'test-01', 'script_grader_results', 'matches_pattern.json'),
         'utf8',
       ),
     );
@@ -144,7 +147,7 @@ describe('pipeline grade — builtin assertions', () => {
 
     const failingContainsResult = JSON.parse(
       await readFile(
-        join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'has_goodbye.json'),
+        join(BUILTIN_OUT, 'test-01', 'script_grader_results', 'has_goodbye.json'),
         'utf8',
       ),
     );
@@ -154,7 +157,7 @@ describe('pipeline grade — builtin assertions', () => {
 
   it('applies negate to invert score', async () => {
     await writeFile(
-      join(BUILTIN_OUT, 'test-01', 'code_graders', 'has_goodbye.json'),
+      join(BUILTIN_OUT, 'test-01', 'script_graders', 'has_goodbye.json'),
       JSON.stringify({
         name: 'has_goodbye',
         type: 'contains',
@@ -169,7 +172,7 @@ describe('pipeline grade — builtin assertions', () => {
 
     const result = JSON.parse(
       await readFile(
-        join(BUILTIN_OUT, 'test-01', 'code_grader_results', 'has_goodbye.json'),
+        join(BUILTIN_OUT, 'test-01', 'script_grader_results', 'has_goodbye.json'),
         'utf8',
       ),
     );

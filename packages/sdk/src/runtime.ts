@@ -1,5 +1,5 @@
 /**
- * Runtime for code grader evaluators.
+ * Runtime for script grader evaluators.
  * Handles stdin parsing, validation, error handling, and output formatting.
  */
 import { readFileSync } from 'node:fs';
@@ -7,18 +7,18 @@ import { toCamelCaseDeep } from '@agentv/core';
 
 import { enrichInput } from './deprecation.js';
 import {
-  type CodeGraderInput,
-  CodeGraderInputSchema,
-  type CodeGraderResult,
-  CodeGraderResultSchema,
+  type ScriptGraderInput,
+  ScriptGraderInputSchema,
+  type ScriptGraderResult,
+  ScriptGraderResultSchema,
 } from './schemas.js';
 
 /**
- * Handler function type for code graders.
+ * Handler function type for script graders.
  */
-export type CodeGraderHandler = (
-  input: CodeGraderInput,
-) => CodeGraderResult | Promise<CodeGraderResult>;
+export type ScriptGraderHandler = (
+  input: ScriptGraderInput,
+) => ScriptGraderResult | Promise<ScriptGraderResult>;
 
 /**
  * Read stdin synchronously (works in both Node.js and Bun).
@@ -48,10 +48,10 @@ function formatError(error: unknown): string {
 }
 
 /**
- * Run a code grader handler with full stdin/stdout handling.
- * This is the internal implementation called by defineCodeGrader.
+ * Run a script grader handler with full stdin/stdout handling.
+ * This is the internal implementation called by defineScriptGrader.
  */
-export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
+export async function runScriptGrader(handler: ScriptGraderHandler): Promise<void> {
   try {
     // 1. Read stdin
     const stdin = readStdin();
@@ -63,11 +63,11 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
     const camelInput = toCamelCaseDeep(rawInput);
 
     // 4. Validate input with Zod
-    const input = CodeGraderInputSchema.parse(camelInput);
+    const input = ScriptGraderInputSchema.parse(camelInput);
 
     // 5. Set up lazy file-backed output loading if applicable
     if (input.outputPath && (input.output === null || input.output === undefined)) {
-      let cachedOutput: CodeGraderInput['output'] | undefined;
+      let cachedOutput: ScriptGraderInput['output'] | undefined;
       const filePath = input.outputPath;
       Object.defineProperty(input, 'output', {
         get() {
@@ -88,7 +88,7 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
     const rawResult = await handler(input);
 
     // 8. Validate and normalize output
-    const result = CodeGraderResultSchema.parse({
+    const result = ScriptGraderResultSchema.parse({
       ...rawResult,
       score: clampScore(rawResult.score),
     });
@@ -98,7 +98,7 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
   } catch (error) {
     // Output failure result
     const errorMessage = formatError(error);
-    const errorResult: CodeGraderResult = {
+    const errorResult: ScriptGraderResult = {
       score: 0,
       assertions: [{ text: `Evaluation failed: ${errorMessage}`, passed: false }],
     };
@@ -106,3 +106,9 @@ export async function runCodeGrader(handler: CodeGraderHandler): Promise<void> {
     process.exit(1);
   }
 }
+
+/** @deprecated Use ScriptGraderHandler. */
+export type CodeGraderHandler = ScriptGraderHandler;
+
+/** @deprecated Use runScriptGrader. */
+export const runCodeGrader = runScriptGrader;

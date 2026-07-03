@@ -216,7 +216,7 @@ def validate_routing_schema(parsed: dict[str, Any]) -> list[str]:
 
 
 def main():
-    """Main entry point for AgentV code grader."""
+    """Main entry point for AgentV script grader."""
     # AgentV passes eval data via stdin as JSON
     try:
         eval_data = json.load(sys.stdin)

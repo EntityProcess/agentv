@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Code grader: verifies file_changes captures BOTH workspace-root files
+ * script grader: verifies file_changes captures BOTH workspace-root files
  * and changes inside nested git repos.
  *
  * Expected diff should include:

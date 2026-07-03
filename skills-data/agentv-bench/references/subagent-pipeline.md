@@ -50,12 +50,12 @@ code grading in one step. When `--out` is omitted, the output directory defaults
 # Extract inputs and invoke all CLI targets in parallel:
 agentv pipeline run evals/repro.eval.yaml
 
-# Also run code graders inline (instead of using pipeline grade separately):
+# Also run script graders inline (instead of using pipeline grade separately):
 agentv pipeline run evals/repro.eval.yaml --grader-type code
 ```
 
 By default, `pipeline run` extracts inputs and invokes targets only. Pass `--grader-type code`
-to also run code-graders inline, or use `agentv pipeline grade <run-dir>` as a separate step.
+to also run script-graders inline, or use `agentv pipeline grade <run-dir>` as a separate step.
 
 The run directory is printed to stdout. Then continue to the grading and merge phases
 described in SKILL.md Step 3.
@@ -109,7 +109,7 @@ grading until all responses are present.
 
 ### Step 3 onward: Grade and merge
 
-See SKILL.md Step 3 "Grading" section for the three-phase grading process (code graders →
+See SKILL.md Step 3 "Grading" section for the three-phase grading process (script graders →
 LLM grading → merge and validate).
 
 ## Step-by-Step Fine-Grained Control (CLI targets)
@@ -122,7 +122,7 @@ agentv pipeline input evals/repro.eval.yaml
 
 # Step 2: run_tests.py invokes CLI targets (or use pipeline run instead)
 
-# Step 3: Run code graders
+# Step 3: Run script graders
 agentv pipeline grade <run-dir>
 
 # Step 4: Subagent does LLM grading, writes results to llm_grader_results/<name>.json per test
@@ -174,9 +174,9 @@ the eval.yaml. The target is recorded in `manifest.json` — one run = one targe
         ├── criteria.md              ← grading criteria
         ├── response.md              ← target/agent output
         ├── timing.json              ← execution timing
-        ├── code_graders/<name>.json     ← grader configs written by `pipeline input`: code-grader scripts AND built-in types (contains, regex, equals, etc.)
+        ├── script_graders/<name>.json     ← grader configs written by `pipeline input`: script-grader scripts AND built-in types (contains, regex, equals, etc.)
         ├── llm_graders/<name>.json      ← LLM grader configs
-        ├── code_grader_results/<name>.json  ← code grader results
+        ├── script_grader_results/<name>.json  ← script grader results
         ├── llm_grader_results/<name>.json   ← LLM grader results (written by grader subagents; one file per grader)
         └── grading.json              ← merged grading (written by `pipeline bench` — do NOT write here directly)
 ```

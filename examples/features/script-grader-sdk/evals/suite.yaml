@@ -1,7 +1,7 @@
-# Code Grader SDK Helper Demo
-# Demonstrates using the optional TypeScript helper to parse code_grader stdin.
+# script grader SDK Helper Demo
+# Demonstrates using the optional TypeScript helper to parse script_grader stdin.
 
-description: Demonstrates TypeScript helpers for code_grader payloads
+description: Demonstrates TypeScript helpers for script_grader payloads
 
 # Uses the CLI target defined in .agentv/targets.yaml
 target: local_cli
@@ -9,7 +9,7 @@ target: local_cli
 tags: [ agent ]
 
 tests:
-  - id: code-grader-sdk-attachments
+  - id: script-grader-sdk-attachments
 
     input:
       - role: system

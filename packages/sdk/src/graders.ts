@@ -99,13 +99,13 @@ export interface LlmGraderConfig extends EvalAssertionConfig, GraderCommonConfig
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
-export interface CodeGraderTargetOptions {
+export interface ScriptGraderTargetOptions {
   readonly maxCalls?: number;
 }
 
-export interface CodeGraderOptions extends GraderHelperOptions {
+export interface ScriptGraderOptions extends GraderHelperOptions {
   readonly cwd?: string;
-  readonly target?: true | CodeGraderTargetOptions;
+  readonly target?: true | ScriptGraderTargetOptions;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
@@ -114,10 +114,16 @@ export interface ScriptGraderConfig extends EvalAssertionConfig, GraderCommonCon
   readonly type: 'script';
   readonly command: GraderCommand;
   readonly cwd?: string;
-  readonly target?: true | CodeGraderTargetOptions;
+  readonly target?: true | ScriptGraderTargetOptions;
   readonly config?: Readonly<Record<string, unknown>>;
   readonly preprocessors?: readonly EvalPreprocessor[];
 }
+
+/** @deprecated Use ScriptGraderTargetOptions. */
+export type CodeGraderTargetOptions = ScriptGraderTargetOptions;
+
+/** @deprecated Use ScriptGraderOptions. */
+export type CodeGraderOptions = ScriptGraderOptions;
 
 /** @deprecated Use ScriptGraderConfig with type: 'script'. */
 export type CodeGraderConfig = ScriptGraderConfig;
@@ -224,16 +230,17 @@ export function llmGrader(options: LlmGraderOptions = {}): LlmGraderConfig {
   );
 }
 
+/** @deprecated Use scriptGrader. */
 export function codeGrader(
   command: GraderCommand,
-  options: CodeGraderOptions = {},
+  options: ScriptGraderOptions = {},
 ): ScriptGraderConfig {
   return scriptGrader(command, options);
 }
 
 export function scriptGrader(
   command: GraderCommand,
-  options: CodeGraderOptions = {},
+  options: ScriptGraderOptions = {},
 ): ScriptGraderConfig {
   return withCommon(
     {

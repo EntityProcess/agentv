@@ -10,7 +10,7 @@ tests:
             value: "/plugins/deploy-auto/skills/deploy-execute/SKILL.md"
           - type: text
             value: "Execute the deployment plan at ./output/deploy-plan.md"
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Reads the deployment plan file
@@ -26,7 +26,7 @@ tests:
             value: "/plugins/deploy-auto/skills/deploy-execute/SKILL.md"
           - type: text
             value: "The API service health check is failing after deployment. What should happen?"
-    assertions:
+    assert:
       - type: contains
         value: rollback
       - type: rubrics

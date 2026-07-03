@@ -35,14 +35,14 @@ Use canonical fields instead:
 ## Example
 
 ```python
-from agentv_py.grader import Assertion, CodeGraderResult, define_script
+from agentv_py.grader import Assertion, ScriptGraderResult, define_script
 
 
 def evaluate(context):
     actual = context.output or ""
     expected = context.expected_output[0]["content"]
     passed = actual.strip() == expected.strip()
-    return CodeGraderResult(
+    return ScriptGraderResult(
         score=1.0 if passed else 0.0,
         assertions=[
             Assertion(

@@ -1,11 +1,11 @@
-# Code Grader SDK Helper
+# script grader SDK Helper
 
-Demonstrates how a TypeScript `code-grader` can use `defineCodeGrader` from `@agentv/sdk` for a declarative, low-boilerplate approach while still consuming the canonical AgentV wire format.
+Demonstrates how a TypeScript `script-grader` can use `defineScriptGrader` from `@agentv/sdk` for a declarative, low-boilerplate approach while still consuming the canonical AgentV wire format.
 
 ## Files
 
-- `evals/suite.yaml`: Example test that uses a `code-grader`.
-- `scripts/verify-attachments.ts`: Code grader script using `defineCodeGrader`.
+- `evals/suite.yaml`: Example test that uses a script grader.
+- `scripts/verify-attachments.ts`: Script grader script using `defineScriptGrader`.
 - `evals/example.txt`, `evals/python.instructions.md`: Attachment fixtures.
 
 ## Setup
@@ -21,10 +21,10 @@ bun run build  # Builds @agentv/core package
 
 ### Standalone Test
 
-Test the SDK-based code grader directly with a mock payload:
+Test the SDK-based script grader directly with a mock payload:
 
 ```bash
-cd examples/features/code-grader-sdk
+cd examples/features/script-grader-sdk
 cat << 'EOF' | bun run scripts/verify-attachments.ts
 {
   "criteria": "The CLI echoes the prompt and lists attachment names.",
@@ -42,24 +42,24 @@ From the repository root:
 
 ```bash
 cd examples/features
-bun agentv eval code-grader-sdk/evals/suite.yaml --target local_cli
+bun agentv eval script-grader-sdk/evals/suite.yaml --target local_cli
 ```
 
 This requires a CLI target named `local_cli` configured in `.agentv/targets.yaml`.
 
 ## API
 
-The `defineCodeGrader` helper:
+The `defineScriptGrader` helper:
 - Reads JSON from stdin automatically
 - Converts snake_case to camelCase
 - Validates input and output with Zod schemas
 - Handles errors gracefully
 
 ```typescript
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output, criteria }) => ({
+export default defineScriptGrader(({ output, criteria }) => ({
   score: (output ?? '').includes(criteria) ? 1.0 : 0.0,
-  assertions: [{ text: 'Check passed', passed: (output ?? '').includes(criteria) }],
+  assert: [{ text: 'Check passed', passed: (output ?? '').includes(criteria) }],
 }));
 ```

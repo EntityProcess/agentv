@@ -17,12 +17,12 @@
  * }));
  * ```
  *
- * @example Code grader (full control)
+ * @example script grader (full control)
  * ```typescript
  * #!/usr/bin/env bun
- * import { defineCodeGrader } from '@agentv/sdk';
+ * import { defineScriptGrader } from '@agentv/sdk';
  *
- * export default defineCodeGrader(({ output, traceSummary }) => {
+ * export default defineScriptGrader(({ output, traceSummary }) => {
  *   return {
  *     score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
  *     assertions: [
@@ -62,6 +62,8 @@
 
 // Re-export schemas and types
 export {
+  ScriptGraderInputSchema,
+  ScriptGraderResultSchema,
   CodeGraderInputSchema,
   CodeGraderResultSchema,
   TRACE_REDACTION_LEVELS,
@@ -90,6 +92,8 @@ export {
   ContentImageSchema,
   ContentFileSchema,
   ContentSchema,
+  type ScriptGraderInput,
+  type ScriptGraderResult,
   type CodeGraderInput,
   type CodeGraderResult,
   type TraceArtifact,
@@ -167,6 +171,9 @@ export {
   llmRubricGrader,
   regexGrader,
   scriptGrader,
+  type ScriptGraderConfig,
+  type ScriptGraderOptions,
+  type ScriptGraderTargetOptions,
   type CodeGraderConfig,
   type CodeGraderOptions,
   type CodeGraderTargetOptions,
@@ -188,7 +195,6 @@ export {
   type LlmRubricGraderConfig,
   type RegexGraderConfig,
   type RegexGraderOptions,
-  type ScriptGraderConfig,
 } from './graders.js';
 
 // Re-export target client
@@ -221,6 +227,7 @@ export {
 export {
   defineVitestWorkspaceGrader,
   runVitestWorkspaceGrader,
+  vitestReportToScriptGraderResult,
   vitestReportToCodeGraderResult,
   type VitestWorkspaceGraderOptions,
 } from './vitest.js';
@@ -238,14 +245,19 @@ export type {
 
 import { type AssertionHandler, runAssertion } from './assertion.js';
 import { type PromptTemplateHandler, runPromptTemplate } from './prompt-template.js';
-import { type CodeGraderHandler, runCodeGrader } from './runtime.js';
+import {
+  type CodeGraderHandler,
+  type ScriptGraderHandler,
+  runCodeGrader,
+  runScriptGrader,
+} from './runtime.js';
 
-export { runCodeGrader };
-export type { CodeGraderHandler };
+export { runCodeGrader, runScriptGrader };
+export type { CodeGraderHandler, ScriptGraderHandler };
 export type { PromptTemplateHandler };
 
 /**
- * Define a code grader with automatic stdin/stdout handling.
+ * Define a script grader with automatic stdin/stdout handling.
  *
  * This function:
  * 1. Reads JSON from stdin (snake_case format)
@@ -258,9 +270,9 @@ export type { PromptTemplateHandler };
  *
  * @example
  * ```typescript
- * import { defineCodeGrader } from '@agentv/sdk';
+ * import { defineScriptGrader } from '@agentv/sdk';
  *
- * export default defineCodeGrader(({ trace }) => {
+ * export default defineScriptGrader(({ trace }) => {
  *   if (!trace) {
  *     return { score: 0.5, assertions: [{ text: 'No trace available', passed: false }] };
  *   }
@@ -275,21 +287,26 @@ export type { PromptTemplateHandler };
  *
  * @example With typed config
  * ```typescript
- * import { defineCodeGrader, z } from '@agentv/sdk';
+ * import { defineScriptGrader, z } from '@agentv/sdk';
  *
  * const ConfigSchema = z.object({
  *   maxToolCalls: z.number().default(10),
  * });
  *
- * export default defineCodeGrader(({ trace, config }) => {
+ * export default defineScriptGrader(({ trace, config }) => {
  *   const { maxToolCalls } = ConfigSchema.parse(config ?? {});
  *   // Use maxToolCalls...
  * });
  * ```
  */
-export function defineCodeGrader(handler: CodeGraderHandler): void {
+export function defineScriptGrader(handler: ScriptGraderHandler): void {
   // Run immediately when module is loaded
-  runCodeGrader(handler);
+  runScriptGrader(handler);
+}
+
+/** @deprecated Use defineScriptGrader. */
+export function defineCodeGrader(handler: ScriptGraderHandler): void {
+  defineScriptGrader(handler);
 }
 
 /**

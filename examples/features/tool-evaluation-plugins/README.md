@@ -1,6 +1,6 @@
 # Tool-Call F1 Scoring
 
-Code grader plugins that compute **F1 scores** over tool calls, comparing expected tools against actual agent behavior.
+script grader plugins that compute **F1 scores** over tool calls, comparing expected tools against actual agent behavior.
 
 ## Graders
 

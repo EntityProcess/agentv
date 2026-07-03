@@ -1,5 +1,5 @@
 /**
- * Tests for code-grader plain-text fallback.
+ * Tests for script-grader plain-text fallback.
  *
  * When a script emits non-JSON stdout, the grader uses the exit code as
  * pass/fail (0 = score 1, non-zero = score 0) and stdout as the assertion
@@ -7,15 +7,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CodeGrader } from '../../../src/evaluation/graders/code-grader.js';
+import { ScriptGrader } from '../../../src/evaluation/graders/script-grader.js';
 import type { EvaluationContext } from '../../../src/evaluation/graders/types.js';
 
 const ctx = { candidate: '', evalCase: { id: 'test', input: [] } } as unknown as EvaluationContext;
 
 const grader = (cmd: string) =>
-  new CodeGrader({ command: ['bash', '-c', cmd], agentTimeoutMs: 10_000 });
+  new ScriptGrader({ command: ['bash', '-c', cmd], agentTimeoutMs: 10_000 });
 
-describe('code-grader plain-text fallback', () => {
+describe('script-grader plain-text fallback', () => {
   it('exit 0 with empty stdout → score 1, assertion text "exit 0"', async () => {
     const result = await grader('true').evaluate(ctx);
     expect(result.score).toBe(1);

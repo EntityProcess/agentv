@@ -1,6 +1,6 @@
 # Docker Workspace Example
 
-This example demonstrates how to run code-grader evaluations inside Docker containers.
+This example demonstrates how to run script-grader evaluations inside Docker containers.
 
 ## Use Case
 

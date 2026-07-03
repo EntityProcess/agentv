@@ -29,28 +29,28 @@ to any platform with skill-discovery mechanisms. All listed providers support sk
 ## Unsupported Providers: Use a Code-Grader
 
 The built-in `skill-trigger` grader covers Claude, Copilot, Pi, Codex and VS Code out
-of the box. For providers with different tool-call formats, write a code-grader that inspects
+of the box. For providers with different tool-call formats, write a script-grader that inspects
 the agent's transcript messages or tool call trace.
 
-A code-grader receives the full evaluation context including the final `output` string,
+A script-grader receives the full evaluation context including the final `output` string,
 transcript `messages`, and structured `trace`. Inspect `messages` or `trace.events` for
 tool calls; reserve `output` for final-answer text checks.
 
 ```yaml
-# Example: code-grader for Codex skill-trigger detection
+# Example: script-grader for Codex skill-trigger detection
 tests:
   - id: should-trigger-codex
     input: "Analyze this CSV file"
-    assertions:
+    assert:
       - type: script
         command: [bun, run, ./judges/codex-skill-trigger.ts]
 ```
 
 ```typescript
 // judges/codex-skill-trigger.ts
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ messages }) => {
+export default defineScriptGrader(({ messages }) => {
   const skillName = 'csv-analyzer';
   const toolCalls = messages.flatMap((msg) => msg.toolCalls ?? []);
   const firstTool = toolCalls[0];
@@ -65,7 +65,7 @@ export default defineCodeGrader(({ messages }) => {
     if (cmd.includes(skillName)) {
       return {
         score: 1,
-        assertions: [
+        assert: [
           { text: `Skill "${skillName}" triggered via command`, passed: true, evidence: cmd },
         ],
       };
@@ -78,14 +78,14 @@ export default defineCodeGrader(({ messages }) => {
     if (path.includes(skillName)) {
       return {
         score: 1,
-        assertions: [{ text: 'Skill file accessed', passed: true, evidence: path }],
+        assert: [{ text: 'Skill file accessed', passed: true, evidence: path }],
       };
     }
   }
 
   return {
     score: 0,
-    assertions: [
+    assert: [
       {
         text: `First tool was not a skill invocation for "${skillName}"`,
         passed: false,

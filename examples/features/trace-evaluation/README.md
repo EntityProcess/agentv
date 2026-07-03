@@ -1,6 +1,6 @@
 # Trace-Based Evaluation
 
-Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using code graders that inspect `context.trace`.
+Demonstrates how to evaluate agent internals — LLM call counts, tool executions, errors, and step durations — using script graders that inspect `context.trace`.
 
 ## Graders
 
@@ -12,7 +12,7 @@ Demonstrates how to evaluate agent internals — LLM call counts, tool execution
 
 ## Available Trace Data
 
-Code graders receive `trace` with these fields:
+script graders receive `trace` with these fields:
 
 ```typescript
 interface TraceSummary {

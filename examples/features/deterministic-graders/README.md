@@ -4,7 +4,7 @@ Demonstrates how a single parameterised `script` grader can replace a family of 
 
 ## Why a Script Grader?
 
-AgentV's design philosophy keeps the core minimal. Instead of adding `contains`, `regex`, `is-json` as built-in grader types, you write a small code grader and drive it with YAML `config`:
+AgentV's design philosophy keeps the core minimal. Instead of adding `contains`, `regex`, `is-json` as built-in grader types, you write a small script grader and drive it with YAML `config`:
 
 ```yaml
 graders:
@@ -31,7 +31,7 @@ Set `negated: true` in config to invert any assertion.
 
 ## Files
 
-- `graders/assertions.ts` — Parameterised script grader using `defineCodeGrader` from `@agentv/sdk`
+- `graders/assertions.ts` — Parameterised script grader using `defineScriptGrader` from `@agentv/sdk`
 - `evals/suite.yaml` — Example tests covering every assertion type
 
 ## Setup

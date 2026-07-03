@@ -22,7 +22,7 @@
  *           args: { query: "weather" }
  *         - tool: fetch
  */
-import { type CodeGraderInput, defineCodeGrader } from '@agentv/sdk';
+import { type ScriptGraderInput, defineScriptGrader } from '@agentv/sdk';
 
 interface ExpectedTool {
   tool: string;
@@ -34,7 +34,7 @@ interface ActualCall {
   input: Record<string, unknown>;
 }
 
-function extractActualCalls(input: CodeGraderInput): ActualCall[] {
+function extractActualCalls(input: ScriptGraderInput): ActualCall[] {
   const calls: ActualCall[] = [];
   for (const msg of input.output ?? []) {
     if (msg.role === 'assistant' && msg.toolCalls) {
@@ -62,7 +62,7 @@ function argsMatch(expected: Record<string, unknown>, actual: Record<string, unk
   return true;
 }
 
-export default defineCodeGrader(({ output, config, ...rest }) => {
+export default defineScriptGrader(({ output, config, ...rest }) => {
   const rawExpected = config?.expectedTools ?? config?.expected_tools;
   if (!rawExpected || !Array.isArray(rawExpected) || rawExpected.length === 0) {
     return {
@@ -80,7 +80,7 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
     typeof e === 'string' ? { tool: e } : (e as ExpectedTool),
   );
 
-  const input: CodeGraderInput = { output, config, ...rest };
+  const input: ScriptGraderInput = { output, config, ...rest };
   const actualCalls = extractActualCalls(input);
 
   // Greedy matching: for each expected tool, find first unmatched actual call

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ output }) => {
+export default defineScriptGrader(({ output }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   // Check 1: Has assistant messages

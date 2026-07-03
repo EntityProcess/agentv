@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * Deterministic code grader for the code-grader stdin payload contract.
+ * Deterministic script grader for the script-grader stdin payload contract.
  *
- * It verifies that AgentV sends the canonical wire payload to code graders:
+ * It verifies that AgentV sends the canonical wire payload to script graders:
  * final answer text in `output`, full transcript in `messages`, test context in
  * `input`/`criteria`, and no deprecated `answer` alias.
  */

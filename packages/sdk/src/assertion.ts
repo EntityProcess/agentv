@@ -2,7 +2,7 @@
  * Runtime for custom assertion evaluators.
  * Handles stdin parsing, validation, error handling, and output formatting.
  *
- * Assertions receive the same input as code graders but use a simplified result
+ * Assertions receive the same input as script graders but use a simplified result
  * contract focused on pass/fail with optional score granularity.
  */
 import { readFileSync } from 'node:fs';
@@ -10,16 +10,16 @@ import { toCamelCaseDeep } from '@agentv/core';
 
 import { enrichInput } from './deprecation.js';
 import {
-  type CodeGraderInput,
-  CodeGraderInputSchema,
-  type CodeGraderResult,
-  CodeGraderResultSchema,
+  type ScriptGraderInput,
+  ScriptGraderInputSchema,
+  type ScriptGraderResult,
+  ScriptGraderResultSchema,
 } from './schemas.js';
 
 /**
  * Context provided to assertion handlers.
  */
-export type AssertionContext = CodeGraderInput;
+export type AssertionContext = ScriptGraderInput;
 
 /**
  * Known built-in assertion types. Custom types are extensible via string.
@@ -133,9 +133,9 @@ function formatError(error: unknown): string {
 }
 
 /**
- * Normalize an AssertionScore to a CodeGraderResult for wire compatibility.
+ * Normalize an AssertionScore to a ScriptGraderResult for wire compatibility.
  */
-function normalizeScore(result: AssertionScore): CodeGraderResult {
+function normalizeScore(result: AssertionScore): ScriptGraderResult {
   let score: number;
   if (result.score !== undefined) {
     score = clampScore(result.score);
@@ -161,11 +161,11 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
     const stdin = readStdin();
     const rawInput = JSON.parse(stdin) as Record<string, unknown>;
     const camelInput = toCamelCaseDeep(rawInput);
-    const input = CodeGraderInputSchema.parse(camelInput);
+    const input = ScriptGraderInputSchema.parse(camelInput);
 
     // Lazy file-backed output loading
     if (input.outputPath && (input.output === null || input.output === undefined)) {
-      let cachedOutput: CodeGraderInput['output'] | undefined;
+      let cachedOutput: ScriptGraderInput['output'] | undefined;
       const filePath = input.outputPath;
       Object.defineProperty(input, 'output', {
         get() {
@@ -185,11 +185,11 @@ export async function runAssertion(handler: AssertionHandler): Promise<void> {
     // Run handler
     const rawResult = await handler(input);
     const normalized = normalizeScore(rawResult);
-    const result = CodeGraderResultSchema.parse(normalized);
+    const result = ScriptGraderResultSchema.parse(normalized);
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     const errorMessage = formatError(error);
-    const errorResult: CodeGraderResult = {
+    const errorResult: ScriptGraderResult = {
       score: 0,
       assertions: [{ text: `Assertion failed: ${errorMessage}`, passed: false }],
     };

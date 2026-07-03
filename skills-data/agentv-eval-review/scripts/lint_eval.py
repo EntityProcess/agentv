@@ -8,7 +8,7 @@ Checks:
   - description field present
   - Each test has id, input, criteria
   - File paths in type:file use leading /
-  - assertions blocks present (not relying solely on expected_output)
+  - assert blocks present (not relying solely on expected_output)
   - expected_output does not contain evaluation criteria prose
   - Repeated file inputs across tests (should use top-level input)
   - Naming prefix consistency across eval files in same directory

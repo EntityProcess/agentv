@@ -5,7 +5,7 @@ from disk with deterministic graders. **No LLM API key needed.**
 
 Graders used:
 - `skill-trigger` — checks whether a specific skill was invoked
-- `code-grader` — custom TypeScript grader inspecting the full `Message[]` with tool calls
+- `script-grader` — custom TypeScript grader inspecting the full `Message[]` with tool calls
 
 ## Setup
 
@@ -44,7 +44,7 @@ allagents workspace init (setup hook)
   ↓ copilot-log provider (reads from disk)
 Message[] with tool calls
   ├─ skill-trigger grader (deterministic) → pass/fail
-  └─ code-grader (graders/transcript-quality.ts) → pass/fail
+  └─ script-grader (graders/transcript-quality.ts) → pass/fail
 ```
 
 ## Graders
@@ -53,8 +53,8 @@ Message[] with tool calls
 Checks whether the `csv-analyzer` skill was (or was not) invoked.
 Inspects tool call names and skill invocation events in the transcript.
 
-### transcript-quality (code-grader)
-Custom grader using `defineCodeGrader` from `@agentv/sdk`. Validates:
+### transcript-quality (script-grader)
+Custom grader using `defineScriptGrader` from `@agentv/sdk`. Validates:
 1. Transcript contains assistant messages
 2. Tool calls were recorded (inspects `Message[].toolCalls`)
 3. Response addresses the CSV analysis question

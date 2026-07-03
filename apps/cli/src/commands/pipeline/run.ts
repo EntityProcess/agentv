@@ -25,7 +25,7 @@ import { buildDefaultRunDir } from '../eval/result-layout.js';
 import { findRepoRoot } from '../eval/shared.js';
 import { selectTarget } from '../eval/targets.js';
 import type { GraderTask } from './grade.js';
-import { runCodeGraders } from './grade.js';
+import { runScriptGraders } from './grade.js';
 
 /**
  * Convert a Message[] array to plain text.
@@ -386,12 +386,12 @@ export const evalRunCommand = command({
     for (const testId of testIds) {
       const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
       const testDir = join(outDir, ...subpath);
-      const codeGradersDir = join(testDir, 'code_graders');
-      const resultsDir = join(testDir, 'code_grader_results');
+      const scriptGradersDir = join(testDir, 'script_graders');
+      const resultsDir = join(testDir, 'script_grader_results');
 
       let graderFiles: string[];
       try {
-        graderFiles = (await readdir(codeGradersDir)).filter((f) => f.endsWith('.json'));
+        graderFiles = (await readdir(scriptGradersDir)).filter((f) => f.endsWith('.json'));
       } catch {
         continue;
       }
@@ -407,7 +407,7 @@ export const evalRunCommand = command({
     }
 
     const graderConcurrency = workers ?? 10;
-    const { totalGraders, totalPassed } = await runCodeGraders(graderTasks, graderConcurrency);
+    const { totalGraders, totalPassed } = await runScriptGraders(graderTasks, graderConcurrency);
     console.log(`Graded ${totalGraders} script grader(s): ${totalPassed} passed`);
     console.log('');
     console.log(`Results in ${outDir}`);
@@ -432,20 +432,20 @@ async function writeGraderConfigs(
   assertions: readonly GraderConfig[],
   evalDir: string,
 ): Promise<void> {
-  const codeGradersDir = join(testDir, 'code_graders');
+  const scriptGradersDir = join(testDir, 'script_graders');
   const llmGradersDir = join(testDir, 'llm_graders');
 
-  let hasCodeGraders = false;
+  let hasScriptGraders = false;
   let hasLlmGraders = false;
 
   for (const assertion of assertions) {
     if (assertion.type === 'script') {
-      if (!hasCodeGraders) {
-        await mkdir(codeGradersDir, { recursive: true });
-        hasCodeGraders = true;
+      if (!hasScriptGraders) {
+        await mkdir(scriptGradersDir, { recursive: true });
+        hasScriptGraders = true;
       }
       const config = assertion as ScriptGraderConfig;
-      await writeJson(join(codeGradersDir, `${config.name}.json`), {
+      await writeJson(join(scriptGradersDir, `${config.name}.json`), {
         name: config.name,
         type: 'script',
         command: config.command,

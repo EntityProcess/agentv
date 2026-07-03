@@ -67,7 +67,7 @@ describe('agentv eval vitest', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('runs external verifier files through the code-grader protocol', async () => {
+  it('runs external verifier files through the script-grader protocol', async () => {
     const workspacePath = path.join(tempDir, 'workspace');
     const gradersPath = path.join(tempDir, 'graders');
     const fakeVitest = path.join(tempDir, 'fake-vitest.ts');

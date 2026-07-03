@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Levenshtein Distance Code Grader
+ * Levenshtein Distance script grader
  *
  * Computes normalised edit distance between candidate and reference text.
  * The score is 1 - (distance / maxLength), so identical strings score 1.0
  * and completely different strings score close to 0.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function levenshteinDistance(a: string, b: string): number {
   const m = a.length;
@@ -50,7 +50,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, expectedOutput }) => {
+export default defineScriptGrader(({ output, expectedOutput }) => {
   const outputText = getMessageText(output ?? []);
   const reference = getMessageText(expectedOutput);
 

@@ -20,9 +20,9 @@
  *       command: ["bun", "run", "../graders/tool-call-f1.ts"]
  *       expected_tools: ["search", "fetch"]
  */
-import { type CodeGraderInput, defineCodeGrader } from '@agentv/sdk';
+import { type ScriptGraderInput, defineScriptGrader } from '@agentv/sdk';
 
-function extractActualTools(input: CodeGraderInput): string[] {
+function extractActualTools(input: ScriptGraderInput): string[] {
   const tools: string[] = [];
   for (const msg of input.output ?? []) {
     if (msg.role === 'assistant' && msg.toolCalls) {
@@ -34,7 +34,7 @@ function extractActualTools(input: CodeGraderInput): string[] {
   return tools;
 }
 
-export default defineCodeGrader(({ output, config, ...rest }) => {
+export default defineScriptGrader(({ output, config, ...rest }) => {
   const expectedTools: string[] =
     (config?.expectedTools as string[]) ?? (config?.expected_tools as string[]) ?? [];
 
@@ -50,7 +50,7 @@ export default defineCodeGrader(({ output, config, ...rest }) => {
     };
   }
 
-  const input: CodeGraderInput = { output, config, ...rest };
+  const input: ScriptGraderInput = { output, config, ...rest };
   const actualTools = extractActualTools(input);
   const actualSet = new Set(actualTools);
 

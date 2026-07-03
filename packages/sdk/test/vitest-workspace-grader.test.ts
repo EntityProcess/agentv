@@ -3,8 +3,8 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CodeGraderInputSchema } from '../src/schemas.js';
-import { runVitestWorkspaceGrader, vitestReportToCodeGraderResult } from '../src/vitest.js';
+import { ScriptGraderInputSchema } from '../src/schemas.js';
+import { runVitestWorkspaceGrader, vitestReportToScriptGraderResult } from '../src/vitest.js';
 
 const mixedVitestReport = {
   success: false,
@@ -39,7 +39,7 @@ const mixedVitestReport = {
 };
 
 function buildInput(overrides?: Record<string, unknown>) {
-  return CodeGraderInputSchema.parse({
+  return ScriptGraderInputSchema.parse({
     criteria: 'Verify the workspace with Vitest',
     expectedOutput: [],
     inputFiles: [],
@@ -68,7 +68,7 @@ describe('Vitest workspace grader adapter', () => {
   });
 
   it('maps individual Vitest test outcomes to AgentV assertions', () => {
-    const result = vitestReportToCodeGraderResult(mixedVitestReport);
+    const result = vitestReportToScriptGraderResult(mixedVitestReport);
 
     expect(result.score).toBe(0.5);
     expect(result.assertions).toEqual([

@@ -5,14 +5,14 @@
  * Validates that the number of LLM calls and tool executions stays
  * within configurable thresholds using trace data.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 const DEFAULTS = {
   maxLlmCalls: 10,
   maxToolCalls: 15,
 };
 
-export default defineCodeGrader(({ trace, config }) => {
+export default defineScriptGrader(({ trace, config }) => {
   if (!trace) {
     return {
       score: 0,

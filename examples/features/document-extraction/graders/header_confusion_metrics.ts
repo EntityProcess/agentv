@@ -2,7 +2,7 @@
 /**
  * Header Field Confusion Metrics Grader
  *
- * A code-grader that compares header fields and classifies them as TP/TN/FP/FN
+ * A script-grader that compares header fields and classifies them as TP/TN/FP/FN
  * based on empty vs non-empty expected/parsed values.
  *
  * Classification rules (per attribute):

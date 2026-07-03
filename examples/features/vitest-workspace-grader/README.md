@@ -43,4 +43,4 @@ assert:
 
 AgentV infers the built-in Vitest adapter for `*.test.ts`, `*.spec.ts`, and Vercel-style `EVAL.ts` verifier files. The local example uses a source-relative CLI path so it can run before the next AgentV package release. In a normal project, use the installed `agentv` binary form above.
 
-Use lower-level `defineCodeGrader` scripts when the grader needs custom scoring, multi-stage setup, external commands beyond a test runner, or structured `details` that do not map cleanly to individual test outcomes.
+Use lower-level `defineScriptGrader` scripts when the grader needs custom scoring, multi-stage setup, external commands beyond a test runner, or structured `details` that do not map cleanly to individual test outcomes.

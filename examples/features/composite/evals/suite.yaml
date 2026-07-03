@@ -32,8 +32,8 @@ tests:
             safety: 0.3
             quality: 0.7
 
-  # Example 2: Code Grader Aggregator (Safety Gate Pattern)
-  - id: code-grader-safety-gate
+  # Example 2: script grader Aggregator (Safety Gate Pattern)
+  - id: script-grader-safety-gate
     input:
       - role: user
         content: "Explain quantum computing in simple terms."
@@ -57,7 +57,7 @@ tests:
           type: script
           path: bun run ../scripts/safety-gate-aggregator.js
 
-  # Example 3: Strict OR with a local code-grader aggregator
+  # Example 3: Strict OR with a local script-grader aggregator
   - id: strict-or-local
     input:
       - role: user

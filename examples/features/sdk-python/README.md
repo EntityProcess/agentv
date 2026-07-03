@@ -4,16 +4,16 @@ This example is the smallest repo-local Python helper surface for AgentV.
 
 It is intentionally scoped to two jobs:
 
-- build Python `code-grader` scripts over the existing stdin/stdout contract
+- build Python `script-grader` scripts over the existing stdin/stdout contract
 - author AgentV-shaped eval definitions and emit canonical YAML/JSONL
 
 It does **not** add a native Python runner. Evaluations still run through the AgentV CLI.
 
 ## Layout
 
-- `src/agentv_py/grader.py` - canonical code-grader helper and target proxy client
+- `src/agentv_py/grader.py` - canonical script-grader helper and target proxy client
 - `src/agentv_py/evals.py` - YAML/JSONL authoring helpers plus optional CLI invocation
-- `scripts/check_expected_output.py` - example Python code-grader
+- `scripts/check_expected_output.py` - example Python script-grader
 - `scripts/build_eval.py` - example eval definition builder
 - `evals/` - generated canonical AgentV YAML/JSONL
 - `tests/` - focused pytest coverage for wire fields and emitted shapes

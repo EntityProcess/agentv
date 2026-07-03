@@ -1,5 +1,5 @@
 /**
- * Client for invoking configured targets from code-grader scripts.
+ * Client for invoking configured targets from script-grader scripts.
  *
  * Environment variables (set automatically by AgentV when `target` config is present):
  * - AGENTV_TARGET_PROXY_URL: The URL of the local proxy server
@@ -97,16 +97,16 @@ export class TargetInvocationError extends Error {
  *
  * This function reads the proxy URL and token from environment variables
  * that are automatically set by AgentV when a `target` config block is present
- * on a `code_grader` evaluator.
+ * on a `script` evaluator.
  *
  * @returns A target client if environment variables are set, otherwise undefined
  * @throws TargetNotAvailableError if token is missing when URL is present
  *
  * @example
  * ```typescript
- * import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
+ * import { createTargetClient, defineScriptGrader } from '@agentv/sdk';
  *
- * export default defineCodeGrader(async ({ input, criteria, output }) => {
+ * export default defineScriptGrader(async ({ input, criteria, output }) => {
  *   const target = createTargetClient();
  *   const question = input
  *     .filter((message) => message.role === 'user')

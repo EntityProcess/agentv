@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from agentv_py.grader import Assertion, CodeGraderContext, CodeGraderResult, define_code_grader
+from agentv_py.grader import Assertion, ScriptGraderContext, ScriptGraderResult, define_script_grader
 
 
-def evaluate(context: CodeGraderContext) -> CodeGraderResult:
+def evaluate(context: ScriptGraderContext) -> ScriptGraderResult:
     expected = context.expected_output[0]["content"] if context.expected_output else ""
     actual = context.output or ""
     passed = actual.strip() == expected.strip()
-    return CodeGraderResult(
+    return ScriptGraderResult(
         score=1.0 if passed else 0.0,
         assertions=[
             Assertion(
@@ -21,4 +21,4 @@ def evaluate(context: CodeGraderContext) -> CodeGraderResult:
 
 
 if __name__ == "__main__":
-    define_code_grader(evaluate)
+    define_script_grader(evaluate)

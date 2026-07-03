@@ -27,14 +27,14 @@ describe('pipeline input', () => {
     expect(input.input).toHaveLength(1);
     expect(input.input[0].content).toBe('hello world');
 
-    const codeGrader = JSON.parse(
+    const scriptGrader = JSON.parse(
       await readFile(
-        join(OUT_DIR, 'input-test', 'test-01', 'code_graders', 'contains_hello.json'),
+        join(OUT_DIR, 'input-test', 'test-01', 'script_graders', 'contains_hello.json'),
         'utf8',
       ),
     );
-    expect(codeGrader.command).toBeDefined();
-    expect(codeGrader.name).toBe('contains_hello');
+    expect(scriptGrader.command).toBeDefined();
+    expect(scriptGrader.name).toBe('contains_hello');
 
     const llmGrader = JSON.parse(
       await readFile(
@@ -71,14 +71,14 @@ describe('pipeline input', () => {
     expect(manifest.experiment).toBe('without_skills');
   }, 30_000);
 
-  it('writes code_graders/<name>.json for deterministic assertions', async () => {
+  it('writes script_graders/<name>.json for deterministic assertions', async () => {
     const { execa } = await import('execa');
     const builtinEvalPath = join(FIXTURE_DIR, 'builtin-test.eval.yaml');
     await execa('bun', [CLI_ENTRY, 'pipeline', 'input', builtinEvalPath, '--out', OUT_DIR]);
 
     const containsGrader = JSON.parse(
       await readFile(
-        join(OUT_DIR, 'builtin-test', 'test-01', 'code_graders', 'has_hello.json'),
+        join(OUT_DIR, 'builtin-test', 'test-01', 'script_graders', 'has_hello.json'),
         'utf8',
       ),
     );
@@ -88,7 +88,7 @@ describe('pipeline input', () => {
 
     const regexGrader = JSON.parse(
       await readFile(
-        join(OUT_DIR, 'builtin-test', 'test-01', 'code_graders', 'matches_pattern.json'),
+        join(OUT_DIR, 'builtin-test', 'test-01', 'script_graders', 'matches_pattern.json'),
         'utf8',
       ),
     );

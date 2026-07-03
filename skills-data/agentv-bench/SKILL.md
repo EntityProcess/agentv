@@ -65,7 +65,7 @@ Before running or optimizing, understand what you're working with.
 
 AgentV supports two evaluation formats:
 
-**EVAL.yaml** (native, full features) — supports workspaces, code graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
+**EVAL.yaml** (native, full features) — supports workspaces, script graders, multi-turn conversations, tool trajectory scoring, workspace file tracking, multi-provider targets. Use this for agent evaluation.
 
 ```yaml
 # example.eval.yaml
@@ -73,7 +73,7 @@ tests:
   - id: basic-code-review
     input: "Review this TypeScript file for bugs and suggest improvements"
     criteria: "Identifies the null pointer bug on line 12 and suggests a fix"
-    assertions:
+    assert:
       - type: contains
         value: "null"
       - Review identifies the null pointer bug and suggests a concrete fix
@@ -113,7 +113,7 @@ Start with 2-3 realistic test cases — the kind of thing a real user would actu
 
 Good assertions are objectively verifiable and have descriptive names. Subjective quality ("the output is good") is better evaluated qualitatively — don't force assertions onto things that need human judgment.
 
-**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `code-grader`, `tool-trajectory`, `llm-rubric`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
+**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `script`, `tool-trajectory`, `llm-rubric`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
 
 Prefer deterministic graders over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-rubric`.
 
@@ -196,17 +196,17 @@ grading until all responses are present.
 
 **In subagent mode**, grading has three phases. **All three are required — do not stop after phase 1.**
 
-**Phase 1: Code graders** (deterministic, zero-cost)
+**Phase 1: script graders** (deterministic, zero-cost)
 
 ```bash
 agentv pipeline grade <run-dir>
 ```
 
 This evaluates all deterministic assertions against `response.md` files. Two types are handled:
-- **`code-grader` scripts** — external scripts executed against the response (arbitrary logic, any language)
+- **`script-grader` scripts** — external scripts executed against the response (arbitrary logic, any language)
 - **Built-in assertion types** — evaluated in-process: `contains`, `contains-any`, `contains-all`, `icontains`, `regex`, `equals`, `starts-with`, `ends-with`, `is-json`, and variants
 
-Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
+Both types are configured by `pipeline input` into `script_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/script_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
 
 **Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost. To detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json` config files — `pipeline input` only writes there for `llm-rubric` assertions. Tests with an empty (or missing) `llm_graders/` directory are done after Phase 1.
 
@@ -242,7 +242,7 @@ agentv pipeline bench <run-dir>
 agentv results validate <run-dir>
 ```
 
-`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with code-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `summary.json`.
+`pipeline bench` reads LLM grader results from `llm_grader_results/<name>.json` per test automatically, merges with script-grader scores, computes weighted pass_rate, and writes `grading.json` + `index.jsonl` + `summary.json`.
 
 > **Diagnosing `pass_rate=0`:** If `pipeline bench` reports `pass_rate=0` across the board, do **not** assume the tests genuinely failed. First verify the grading pipeline ran correctly: check that `<test-id>/llm_grader_results/<name>.json` exists and is non-empty for each test. If these files are absent or empty, the grader subagents failed to produce output (most common cause: `agents/grader.md` was not embedded in the subagent prompts — see Phase 2). Treat `pass_rate=0` as a real signal only after confirming grader results exist.
 

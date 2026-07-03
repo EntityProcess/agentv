@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Cosine Similarity Code Grader
+ * Cosine Similarity script grader
  *
  * Computes cosine similarity between candidate and reference text using
  * token-overlap (bag-of-words) vectors. This is a lightweight alternative to
  * embedding-based similarity that requires no external dependencies.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function tokenize(text: string): string[] {
   return text
@@ -68,7 +68,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, expectedOutput }) => {
+export default defineScriptGrader(({ output, expectedOutput }) => {
   const outputText = getMessageText(output ?? []);
   const reference = getMessageText(expectedOutput);
 

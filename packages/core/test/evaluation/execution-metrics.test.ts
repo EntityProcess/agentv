@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CodeGrader } from '../../src/evaluation/graders.js';
+import { ScriptGrader } from '../../src/evaluation/graders.js';
 import type { ResolvedTarget } from '../../src/evaluation/providers/targets.js';
 import {
   type TraceComputeResult,
@@ -250,7 +250,7 @@ describe('Code Grader Metrics Integration', () => {
     reference_answer: '',
     file_paths: [],
     criteria: 'Test outcome',
-    evaluator: 'code-grader',
+    evaluator: 'script',
   };
 
   const baseTarget: ResolvedTarget = {
@@ -259,12 +259,12 @@ describe('Code Grader Metrics Integration', () => {
     config: { response: '{}' },
   };
 
-  it('passes trace to code-grader scripts', async () => {
+  it('passes trace to script grader scripts', async () => {
     // Use external script file for cross-platform compatibility
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-trace-summary.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const trace: TraceSummary = {
       eventCount: 3,
@@ -303,7 +303,7 @@ describe('Code Grader Metrics Integration', () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const script = ['node', join(__dirname, '../fixtures/test-no-trace-summary.cjs')];
 
-    const evaluator = new CodeGrader({ command: script });
+    const evaluator = new ScriptGrader({ command: script });
 
     const result = await evaluator.evaluate({
       evalCase: baseTestCase,

@@ -5,9 +5,9 @@ import type {
   CompositeGraderConfig,
   JsonObject,
 } from '../types.js';
-import { executeScript } from './code-grader.js';
 import { buildOutputSchema, freeformEvaluationSchema } from './llm-grader.js';
 import { clampScore, parseJsonFromText, parseJsonSafe, scoreToVerdict } from './scoring.js';
+import { executeScript } from './script-grader.js';
 import type {
   ChildGraderResult,
   EvaluationContext,

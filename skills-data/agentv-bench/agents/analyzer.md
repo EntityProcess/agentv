@@ -123,7 +123,7 @@ If a section has no findings, include the header with "None found." underneath.
 - **Be specific:** Every suggestion must include the test case ID, grader name, evidence from the results, and a concrete replacement config.
 - **Be conservative:** Only suggest deterministic upgrades when the pattern is clear and consistent. Partial or ambiguous evidence should be noted but not acted on.
 - **Prioritize by impact:** Order suggestions by estimated cost savings (`llm-rubric` → deterministic saves the most).
-- **Handle all grader types:** Process `code-grader`, `tool-trajectory`, `llm-rubric`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
+- **Handle all grader types:** Process `script`, `tool-trajectory`, `llm-rubric`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
 - **Multi-provider awareness:** When results span multiple targets, note if a suggestion applies to all targets or is target-specific.
 - **No false positives:** It is better to miss a suggestion than to recommend an incorrect upgrade. If unsure, add the finding to a "Needs Review" subsection with your reasoning.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Pairwise Tool Comparison - Code Grader Plugin
+ * Pairwise Tool Comparison - script grader Plugin
  *
  * Compares tool usage quality between two agent responses with
  * position bias mitigation (runs comparison twice with swapped order).
@@ -17,7 +17,7 @@
  *       type: script
  *       command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
  */
-import { type Message, defineCodeGrader } from '@agentv/sdk';
+import { type Message, defineScriptGrader } from '@agentv/sdk';
 
 interface ToolSummary {
   tools: string[];
@@ -119,7 +119,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader((input) => {
+export default defineScriptGrader((input) => {
   const candidate = getMessageText(input.output ?? []);
   const reference = getMessageText(input.expectedOutput);
 

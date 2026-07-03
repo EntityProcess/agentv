@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Test fixture for the code-grader stdin/stdout contract.
+ * Test fixture for the script-grader stdin/stdout contract.
  */
 import { readFileSync } from 'node:fs';
 

@@ -91,7 +91,7 @@ tests:
   - id: my-bug-fix
     input: |
       Fix the bug: <problem description>
-    assertions:
+    assert:
       - type: contains
         value: "<expected code pattern>"
       - "The fix correctly addresses the root cause"

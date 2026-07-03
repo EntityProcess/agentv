@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 
 import { enrichInput } from '../src/deprecation.js';
-import { CodeGraderInputSchema } from '../src/schemas.js';
+import { ScriptGraderInputSchema } from '../src/schemas.js';
 
 /**
- * Build a minimal valid CodeGraderInput for testing.
+ * Build a minimal valid ScriptGraderInput for testing.
  */
 function buildInput(overrides?: Record<string, unknown>) {
-  return CodeGraderInputSchema.parse({
+  return ScriptGraderInputSchema.parse({
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
     inputFiles: [],

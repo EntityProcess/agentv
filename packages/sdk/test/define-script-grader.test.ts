@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
-  CodeGraderInputSchema,
-  type CodeGraderResult,
-  CodeGraderResultSchema,
   // Backward-compat aliases
   CodeJudgeInputSchema,
   CodeJudgeResultSchema,
@@ -12,6 +9,9 @@ import {
   ContentSchema,
   ContentTextSchema,
   MessageSchema,
+  ScriptGraderInputSchema,
+  type ScriptGraderResult,
+  ScriptGraderResultSchema,
 } from '../src/schemas.js';
 
 const makeTrace = (overrides: Record<string, unknown> = {}) => ({
@@ -173,7 +173,7 @@ describe('MessageSchema content variants', () => {
   });
 });
 
-describe('CodeGraderInputSchema', () => {
+describe('ScriptGraderInputSchema', () => {
   const validInput = {
     criteria: 'The answer should be 4',
     expectedOutput: [{ role: 'assistant', content: '4' }],
@@ -182,7 +182,7 @@ describe('CodeGraderInputSchema', () => {
   };
 
   it('parses valid input', () => {
-    const result = CodeGraderInputSchema.parse(validInput);
+    const result = ScriptGraderInputSchema.parse(validInput);
     expect(result.criteria).toBe('The answer should be 4');
   });
 
@@ -191,7 +191,7 @@ describe('CodeGraderInputSchema', () => {
       ...validInput,
       trace: makeTrace(),
     };
-    const result = CodeGraderInputSchema.parse(inputWithTrace);
+    const result = ScriptGraderInputSchema.parse(inputWithTrace);
     expect(result.trace?.eventCount).toBe(3);
     expect(result.trace?.toolCalls).toEqual({ read: 2, write: 1 });
   });
@@ -201,7 +201,7 @@ describe('CodeGraderInputSchema', () => {
       ...validInput,
       trace: null,
     };
-    const result = CodeGraderInputSchema.parse(inputWithNullTrace);
+    const result = ScriptGraderInputSchema.parse(inputWithNullTrace);
     expect(result.trace).toBeNull();
   });
 
@@ -210,7 +210,7 @@ describe('CodeGraderInputSchema', () => {
       ...validInput,
       config: { maxToolCalls: 10, strictMode: true },
     };
-    const result = CodeGraderInputSchema.parse(inputWithConfig);
+    const result = ScriptGraderInputSchema.parse(inputWithConfig);
     expect(result.config).toEqual({ maxToolCalls: 10, strictMode: true });
   });
 
@@ -226,7 +226,7 @@ describe('CodeGraderInputSchema', () => {
         },
       ],
     };
-    const result = CodeGraderInputSchema.parse(inputWithOutput);
+    const result = ScriptGraderInputSchema.parse(inputWithOutput);
     expect(result.output).toBe('Reading file...');
     expect(result.messages?.[0].toolCalls?.[0].tool).toBe('read');
   });
@@ -245,7 +245,7 @@ describe('CodeGraderInputSchema', () => {
         },
       ],
     };
-    const result = CodeGraderInputSchema.parse(inputWithImages);
+    const result = ScriptGraderInputSchema.parse(inputWithImages);
     const content = result.messages?.[0].content as { type: string; path?: string }[];
     expect(content).toHaveLength(2);
     expect(content[1].type).toBe('image');
@@ -265,7 +265,7 @@ describe('CodeGraderInputSchema', () => {
         },
       ],
     };
-    const result = CodeGraderInputSchema.parse(inputWithContentArray);
+    const result = ScriptGraderInputSchema.parse(inputWithContentArray);
     const content = result.input[0].content as { type: string }[];
     expect(content).toHaveLength(2);
   });
@@ -280,21 +280,21 @@ describe('CodeGraderInputSchema', () => {
         },
       ],
     };
-    const result = CodeGraderInputSchema.parse(inputWithStructuredExpectedOutput);
+    const result = ScriptGraderInputSchema.parse(inputWithStructuredExpectedOutput);
     expect(result.expectedOutput[0].content).toEqual({ riskLevel: 'High' });
   });
 });
 
-describe('CodeGraderResultSchema', () => {
+describe('ScriptGraderResultSchema', () => {
   it('parses valid result with all fields', () => {
-    const result: CodeGraderResult = {
+    const result: ScriptGraderResult = {
       score: 0.8,
       assertions: [
         { text: 'Correct answer', passed: true },
         { text: 'Missing explanation', passed: false },
       ],
     };
-    const parsed = CodeGraderResultSchema.parse(result);
+    const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.score).toBe(0.8);
     expect(parsed.assertions).toEqual([
       { text: 'Correct answer', passed: true },
@@ -304,29 +304,29 @@ describe('CodeGraderResultSchema', () => {
 
   it('defaults assertions to empty array', () => {
     const result = { score: 0.5 };
-    const parsed = CodeGraderResultSchema.parse(result);
+    const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.assertions).toEqual([]);
   });
 
   it('defaults assertions to empty array when omitted', () => {
     const result = { score: 1.0 };
-    const parsed = CodeGraderResultSchema.parse(result);
+    const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.assertions).toEqual([]);
   });
 
   it('rejects score below 0', () => {
     const result = { score: -0.5 };
-    expect(() => CodeGraderResultSchema.parse(result)).toThrow();
+    expect(() => ScriptGraderResultSchema.parse(result)).toThrow();
   });
 
   it('rejects score above 1', () => {
     const result = { score: 1.5 };
-    expect(() => CodeGraderResultSchema.parse(result)).toThrow();
+    expect(() => ScriptGraderResultSchema.parse(result)).toThrow();
   });
 
   it('accepts boundary scores 0 and 1', () => {
-    expect(CodeGraderResultSchema.parse({ score: 0 }).score).toBe(0);
-    expect(CodeGraderResultSchema.parse({ score: 1 }).score).toBe(1);
+    expect(ScriptGraderResultSchema.parse({ score: 0 }).score).toBe(0);
+    expect(ScriptGraderResultSchema.parse({ score: 1 }).score).toBe(1);
   });
 
   it('accepts optional details object', () => {
@@ -341,7 +341,7 @@ describe('CodeGraderResultSchema', () => {
         recall: 0.714,
       },
     };
-    const parsed = CodeGraderResultSchema.parse(result);
+    const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.details).toEqual({
       tp: 5,
       tn: 2,
@@ -354,7 +354,7 @@ describe('CodeGraderResultSchema', () => {
 
   it('allows details to be omitted', () => {
     const result = { score: 0.5 };
-    const parsed = CodeGraderResultSchema.parse(result);
+    const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.details).toBeUndefined();
   });
 
@@ -372,7 +372,7 @@ describe('CodeGraderResultSchema', () => {
         },
       },
     };
-    const parsed = CodeGraderResultSchema.parse(result);
+    const parsed = ScriptGraderResultSchema.parse(result);
     expect(parsed.details?.alignment).toHaveLength(2);
     expect(parsed.details?.metrics).toBeDefined();
   });

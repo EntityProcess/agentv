@@ -15,7 +15,7 @@
  *   1 trial   → score 1.0 (perfect consistency by definition)
  *   2+ trials → average pairwise cosine similarity
  */
-import { createTargetClient, defineCodeGrader, z } from '@agentv/sdk';
+import { createTargetClient, defineScriptGrader, z } from '@agentv/sdk';
 
 const ConfigSchema = z.object({
   trialOutputs: z.array(z.string()),
@@ -110,7 +110,7 @@ function averagePairwiseSimilarity(vectors: number[][]): number {
 
 // ── Grader ───────────────────────────────────────────────────────────────
 
-export default defineCodeGrader(async (input) => {
+export default defineScriptGrader(async (input) => {
   const parsed = ConfigSchema.safeParse(input.config ?? {});
   if (!parsed.success) {
     return {

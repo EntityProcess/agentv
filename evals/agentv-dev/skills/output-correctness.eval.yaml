@@ -23,7 +23,7 @@ tests:
               correctly summarises a paragraph.
 
               Output **only** the YAML — no surrounding prose or fences.
-    assertions:
+    assert:
       - type: contains
         value: "description:"
       - type: contains
@@ -50,7 +50,7 @@ tests:
               single test entry under `tests:` that uses **three** assertions:
               one `contains`, one `regex`, and one `rubrics` (with at least
               two criteria). Output only the YAML for the test entry.
-    assertions:
+    assert:
       - type: regex
         value: "type:\\s+contains"
       - type: regex
@@ -78,7 +78,7 @@ tests:
               1. List all bundled skills as JSON.
               2. Print the agentv-bench skill including its bundled support files.
               3. Print the on-disk path of the agentv-bench skill.
-    assertions:
+    assert:
       - type: regex
         value: "agentv\\s+skills\\s+list\\s+--json"
       - type: regex
@@ -99,7 +99,7 @@ tests:
               describe what this skill does and when it should be invoked.
               Quote at most one short phrase from the skill text; do not
               invent capabilities the skill does not mention.
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Description accurately reflects what agentv-trace-analyst does (analysing eval traces and failure modes)
@@ -119,7 +119,7 @@ tests:
               The file above is the live `agentv-dev` plugin entrypoint.
               Reproduce the list of available bundled skill names as a markdown
               bulleted list.
-    assertions:
+    assert:
       - type: contains
         value: agentv-bench
       - type: contains
@@ -148,7 +148,7 @@ tests:
               single command should I run to load the `lint-rules` reference
               file without pulling in the whole skill?
               Reply with the command on its own line.
-    assertions:
+    assert:
       - type: regex
         value: "agentv\\s+skills\\s+get\\s+agentv-governance\\s+--ref\\s+lint-rules"
 
@@ -166,7 +166,7 @@ tests:
               to grade an answer's correctness. Include whatever fields the
               skill says an `llm-grader` requires (for example target/model or
               rubric criteria). Output only the YAML for the single assertion.
-    assertions:
+    assert:
       - type: regex
         value: "type:\\s+llm-grader"
       - type: rubrics

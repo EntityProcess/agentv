@@ -117,7 +117,7 @@ agentv eval evals/benchmark.eval.yaml --target gemini-llm
 Three LLM graders score each response. Weights control their contribution to the aggregate score:
 
 ```yaml
-assertions:
+assert:
   - name: accuracy
     weight: 3.0      # Most important — factual correctness
   - name: completeness

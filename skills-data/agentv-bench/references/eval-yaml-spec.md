@@ -45,7 +45,7 @@ including `criteria` and `expected_output` when present.
 
 When `assertions` is present, the list is explicit: run only the declared
 assertions/graders. `expected_output` remains reference data for graders that consume it,
-such as `llm-rubric`, `code-grader`, or `field-accuracy`; it does not trigger an additional
+such as `llm-rubric`, `script`, or `field-accuracy`; it does not trigger an additional
 default `llm-rubric`.
 When the declared assertion strings fully express the semantic contract, do not
 also add a duplicate `criteria` block.
@@ -194,15 +194,15 @@ Same as contains variants but explicitly case-insensitive.
 
 ### Script-based assertions
 
-#### `code-grader`
+#### `script-grader`
 
 - **Fields:** `path` (string, required — path to script), `command` (string[], optional — custom command)
-- **Script SDK:** Use `defineCodeGrader` from `@agentv/sdk`:
+- **Script SDK:** Use `defineScriptGrader` from `@agentv/sdk`:
   ```typescript
-  import { defineCodeGrader } from '@agentv/sdk';
-  export default defineCodeGrader(({ output, trace }) => ({
+  import { defineScriptGrader } from '@agentv/sdk';
+  export default defineScriptGrader(({ output, trace }) => ({
     score: (output ?? '').includes('expected') ? 1 : 0,
-    assertions: [{ text: 'Contains expected', passed: (output ?? '').includes('expected') }],
+    assert: [{ text: 'Contains expected', passed: (output ?? '').includes('expected') }],
   }));
   ```
 - **Recipe:** The CLI runs the script, passing canonical JSON on stdin (`{output, input, expected_output, ...}`). Script returns `{"score": N, "assertions": [...]}`
@@ -268,7 +268,7 @@ Each line in the results JSONL file is an `EvaluationResult` object. In JSONL, f
 - `assertions` (array of `{text, passed, evidence?}`)
 - `weight` (number, optional)
 - `verdict` (string: `pass` | `fail` | `skip`)
-- `details` (object, optional — structured data from code graders)
+- `details` (object, optional — structured data from script graders)
 - `reasoning` (string, optional)
 
 ## 6. Eval Set Support
@@ -301,7 +301,7 @@ Extracts inputs, target commands, and grader configs from an eval YAML file.
 │   ├── invoke.json             ← {kind, command?, cwd?, timeout_ms?}
 │   ├── criteria.md             ← human-readable success criteria
 │   ├── expected_output.json    ← (if present)
-│   ├── code_graders/<name>.json   ← {name, command, weight, config?}
+│   ├── script_graders/<name>.json   ← {name, command, weight, config?}
 │   └── llm_graders/<name>.json    ← {name, weight, threshold?, prompt_content}
 ```
 
@@ -321,15 +321,15 @@ Extracts inputs, target commands, and grader configs from an eval YAML file.
 
 ### `agentv pipeline grade <export-dir>`
 
-Runs code-grader assertions against `response.md` files in each test directory.
+Runs script-grader assertions against `response.md` files in each test directory.
 
 **Prerequisites:** `pipeline input` has been run and `response.md` exists in each test dir.
 
-**Output:** `<test-id>/code_grader_results/<name>.json` for each code grader, containing:
+**Output:** `<test-id>/script_grader_results/<name>.json` for each script grader, containing:
 ```json
 {
   "name": "grader-name",
-  "type": "code-grader",
+  "type": "script-grader",
   "score": 1.0,
   "weight": 1.0,
   "assertions": [{"text": "...", "passed": true}]
@@ -338,7 +338,7 @@ Runs code-grader assertions against `response.md` files in each test directory.
 
 ### `agentv pipeline bench <export-dir>`
 
-Merges code-grader results with LLM grader scores and produces final artifacts.
+Merges script-grader results with LLM grader scores and produces final artifacts.
 
 LLM grader results are read from disk at `<test-id>/llm_grader_results/<name>.json` per test.
 

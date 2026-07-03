@@ -7,7 +7,7 @@
  *
  * Returns structured output that enables post-processing for metrics.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 const VALID_RISK_LEVELS = new Set(['High', 'Medium', 'Low']);
 const REQUIRED_KEYS = ['riskLevel', 'reasoning'];
@@ -78,7 +78,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, expectedOutput }) => {
+export default defineScriptGrader(({ output, expectedOutput }) => {
   const outputText = getMessageText(output ?? []);
   const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 

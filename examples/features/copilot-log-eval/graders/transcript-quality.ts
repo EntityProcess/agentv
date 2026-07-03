@@ -15,7 +15,7 @@
  *       type: script
  *       command: ["bun", "run", "../graders/transcript-quality.ts"]
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function getMessageText(
   messages: readonly { role: string; content?: unknown }[],
@@ -36,7 +36,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output }) => {
+export default defineScriptGrader(({ output }) => {
   const outputText = getMessageText(output ?? []);
   const assertions: Array<{ text: string; passed: boolean; evidence?: string }> = [];
 

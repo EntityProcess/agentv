@@ -27,7 +27,7 @@ tests:
         content: |
           agentv just merged eval spec v2 (PR #262). Update the agentevals
           spec docs to reflect: 4 new deterministic assertion types, required
-          gates, assertions field at test/suite level, tests-as-string-path.
+          gates, assert field at test/suite level, tests-as-string-path.
     assert:
       - metric: sync-check
         type: script

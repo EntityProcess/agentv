@@ -67,7 +67,7 @@ bun examples/showcase/trace-evaluation/scripts/prove-replay.ts
 The proof script runs the replay eval with common LLM API keys blanked. It then verifies:
 
 - the result target is `replay_coding_agent`,
-- the proof code grader ran once per test,
+- the proof script grader ran once per test,
 - replayed target metrics are preserved,
 - deterministic graders produced fresh scores for `tool-trajectory`, `execution-metrics`, `recovery-check`, and `replay-proof`.
 

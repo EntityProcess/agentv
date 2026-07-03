@@ -27,7 +27,7 @@ tests:
       `agentv` CLI to print the skill's SKILL.md to stdout?
 
       Reply with the command on its own line.
-    assertions:
+    assert:
       - type: regex
         value: "agentv\\s+skills\\s+get\\s+agentv-bench"
       - type: rubrics
@@ -42,7 +42,7 @@ tests:
       bundled supporting files too — so I can inspect its reference material.
 
       What single `agentv skills` command should I run?
-    assertions:
+    assert:
       - type: contains
         value: --full
       - type: regex
@@ -53,7 +53,7 @@ tests:
     input: |
       I just installed `agentv` globally. How do I list every skill that ships
       bundled with the CLI? Give me the single command.
-    assertions:
+    assert:
       - type: regex
         value: "agentv\\s+skills\\s+list"
       - type: rubrics
@@ -66,7 +66,7 @@ tests:
     input: |
       I ran `agentv skills get does-not-exist`. What happened, and what command
       should I run instead to discover the correct skill name?
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - Identifies that `does-not-exist` is not a valid skill name
@@ -79,7 +79,7 @@ tests:
       I want to pipe the list of skill names into `jq` so I can build a
       shell-script loop over each name. Which `agentv skills` invocation
       gives me machine-readable output suitable for `jq`?
-    assertions:
+    assert:
       - type: contains
         value: --json
       - type: regex
@@ -91,7 +91,7 @@ tests:
       Where on disk does the installed `agentv` CLI keep its bundled skill
       files? I want the absolute path so I can open one in my editor. Give me
       the single CLI command that prints that path.
-    assertions:
+    assert:
       - type: regex
         value: "agentv\\s+skills\\s+path"
       - type: rubrics
@@ -105,7 +105,7 @@ tests:
       I want to dump the SKILL.md of every bundled agentv skill into a single
       stream so I can pass them all into another tool's context. What's the
       single `agentv skills get` command that does this?
-    assertions:
+    assert:
       - type: contains
         value: --all
       - type: regex
@@ -116,7 +116,7 @@ tests:
     input: |
       I want to read the skill that helps with debugging eval failures and
       analysing traces. Give me the single CLI command to print its content.
-    assertions:
+    assert:
       - type: contains
         value: agentv-trace-analyst
       - type: regex

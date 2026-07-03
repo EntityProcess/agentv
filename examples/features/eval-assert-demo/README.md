@@ -1,6 +1,6 @@
 # Eval Assert Demo
 
-Demonstrates code graders that can be run both as part of an eval suite and individually via `agentv eval assert`.
+Demonstrates script graders that can be run both as part of an eval suite and individually via `agentv eval assert`.
 
 ## Graders
 
@@ -9,7 +9,7 @@ Demonstrates code graders that can be run both as part of an eval suite and indi
 | `.agentv/graders/keyword-check.ts` | Checks answer contains expected keywords (Paris, France) |
 | `.agentv/graders/length-check.ts` | Validates answer word count is between 5 and 50 |
 
-Both graders use `defineCodeGrader` from `@agentv/sdk`.
+Both graders use `defineScriptGrader` from `@agentv/sdk`.
 
 ## Running the Full Eval
 
@@ -56,13 +56,13 @@ Input: "What is the capital of France? Answer in one concise sentence."
 Expected: "The capital of France is Paris."
 Criteria:
   - Output contains 'Paris'
-  - [code-grader] keyword-check: Checks that the answer mentions Paris and France
-  - [code-grader] length-check: Ensures answer is between 5 and 50 words
+  - [script-grader] keyword-check: Checks that the answer mentions Paris and France
+  - [script-grader] length-check: Ensures answer is between 5 and 50 words
 ```
 
 ## How It Works
 
-When running the eval, the transpiler emits natural-language instructions for each code grader:
+When running the eval, the transpiler emits natural-language instructions for each script grader:
 
 ```
 Run `agentv eval assert keyword-check --agent-output <text> --agent-input <text>` and check the result.
@@ -71,4 +71,4 @@ The command returns JSON: {"score": 0-1, "assertions": [{"text": "...", "passed"
 A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).
 ```
 
-This allows external grading agents to execute code graders directly without understanding their internal implementation.
+This allows external grading agents to execute script graders directly without understanding their internal implementation.

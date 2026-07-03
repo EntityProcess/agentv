@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
-  codeGrader,
   containsGrader,
   defineEval,
   equalsGrader,
@@ -56,7 +55,7 @@ describe('grader helper config builders', () => {
       temperature: 0,
     });
     expect(
-      codeGrader(['bun', 'run', 'graders/check.ts'], {
+      scriptGrader(['bun', 'run', 'graders/check.ts'], {
         metric: 'scripted-check',
         cwd: 'graders',
         target: { maxCalls: 2 },

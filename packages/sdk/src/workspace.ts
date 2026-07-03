@@ -1,7 +1,7 @@
 /**
  * Workspace grader helpers for deterministic file assertions.
  *
- * `defineWorkspaceGrader()` wraps the code-grader runtime with a small
+ * `defineWorkspaceGrader()` wraps the script-grader runtime with a small
  * workspace object so graders can read files and return assertion arrays
  * without hand-rolling stdin parsing, workspace path fallback, file reads, or
  * score aggregation.
@@ -9,8 +9,12 @@
 import { readFile, stat } from 'node:fs/promises';
 import nodePath from 'node:path';
 
-import { runCodeGrader } from './runtime.js';
-import { type CodeGraderInput, type CodeGraderResult, CodeGraderResultSchema } from './schemas.js';
+import { runScriptGrader } from './runtime.js';
+import {
+  type ScriptGraderInput,
+  type ScriptGraderResult,
+  ScriptGraderResultSchema,
+} from './schemas.js';
 
 export interface WorkspaceAssertion {
   readonly text: string;
@@ -21,7 +25,7 @@ export interface WorkspaceAssertion {
 type Awaitable<T> = T | Promise<T>;
 
 export type WorkspaceGraderReturn =
-  | CodeGraderResult
+  | ScriptGraderResult
   | WorkspaceAssertion
   | readonly Awaitable<WorkspaceAssertion>[];
 
@@ -49,7 +53,7 @@ export interface Workspace {
   readText(relativePath: string): Promise<string>;
 }
 
-export type WorkspaceGraderContext = CodeGraderInput & {
+export type WorkspaceGraderContext = ScriptGraderInput & {
   readonly workspace: Workspace;
 };
 
@@ -63,7 +67,7 @@ interface ResolvedWorkspacePath {
   readonly error?: string;
 }
 
-function workspacePathFrom(input: CodeGraderInput): string | undefined {
+function workspacePathFrom(input: ScriptGraderInput): string | undefined {
   const workspacePath = input.workspacePath ?? process.env.AGENTV_WORKSPACE_PATH;
   if (!workspacePath?.trim()) {
     return undefined;
@@ -143,11 +147,11 @@ async function readFileForAssertion(
   }
 }
 
-function isCodeGraderResult(value: WorkspaceGraderReturn): value is CodeGraderResult {
+function isScriptGraderResult(value: WorkspaceGraderReturn): value is ScriptGraderResult {
   return !Array.isArray(value) && typeof value === 'object' && value !== null && 'score' in value;
 }
 
-export function createWorkspace(input: CodeGraderInput): Workspace {
+export function createWorkspace(input: ScriptGraderInput): Workspace {
   const workspacePath = workspacePathFrom(input);
   const textCache = new Map<string, Promise<string>>();
 
@@ -272,15 +276,15 @@ export function createWorkspace(input: CodeGraderInput): Workspace {
 
 export async function normalizeWorkspaceGraderResult(
   result: WorkspaceGraderReturn,
-): Promise<CodeGraderResult> {
-  if (isCodeGraderResult(result)) {
-    return CodeGraderResultSchema.parse(result);
+): Promise<ScriptGraderResult> {
+  if (isScriptGraderResult(result)) {
+    return ScriptGraderResultSchema.parse(result);
   }
 
   const assertions = Array.isArray(result) ? await Promise.all(result) : [result];
   const passed = assertions.filter((item) => item.passed).length;
 
-  return CodeGraderResultSchema.parse({
+  return ScriptGraderResultSchema.parse({
     score: assertions.length > 0 ? passed / assertions.length : 0,
     assertions,
   });
@@ -288,8 +292,8 @@ export async function normalizeWorkspaceGraderResult(
 
 export async function runWorkspaceGrader(
   handler: WorkspaceGraderHandler,
-  input: CodeGraderInput,
-): Promise<CodeGraderResult> {
+  input: ScriptGraderInput,
+): Promise<ScriptGraderResult> {
   return normalizeWorkspaceGraderResult(
     await handler({
       ...input,
@@ -299,5 +303,5 @@ export async function runWorkspaceGrader(
 }
 
 export function defineWorkspaceGrader(handler: WorkspaceGraderHandler): void {
-  runCodeGrader((input) => runWorkspaceGrader(handler, input));
+  runScriptGrader((input) => runWorkspaceGrader(handler, input));
 }

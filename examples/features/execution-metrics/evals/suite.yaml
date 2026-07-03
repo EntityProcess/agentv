@@ -127,8 +127,8 @@ tests:
         Agent completes the task within the specified cost budget.
 
   # ==========================================
-  # Example 6: Combining with code_grader
-  # Use execution_metrics for thresholds, code_grader for custom logic
+  # Example 6: Combining with script_grader
+  # Use execution_metrics for thresholds, script_grader for custom logic
   # ==========================================
   - id: hybrid-evaluation
 

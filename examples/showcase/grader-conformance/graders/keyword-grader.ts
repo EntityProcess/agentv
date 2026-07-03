@@ -6,7 +6,7 @@
  * appear in the candidate output. Produces stable scores for unambiguous
  * cases and variable scores for partial matches.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function getMessageText(
   messages: readonly { role: string; content?: unknown }[],
@@ -27,7 +27,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ output, expectedOutput, criteria }) => {
+export default defineScriptGrader(({ output, expectedOutput, criteria }) => {
   const outputText = getMessageText(output ?? []);
   const expectedOutputText = getMessageText(expectedOutput);
   const candidate = (outputText ?? '').toLowerCase().trim();

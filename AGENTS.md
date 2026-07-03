@@ -62,7 +62,7 @@ These baseline rules apply to every repo change. They summarize the most common 
 ## Repo Map
 
 - `packages/core/`: evaluation engine, providers, grading, project registry, and the programmatic API.
-- `packages/sdk/`: lightweight assertion SDK such as `defineAssertion` and `defineCodeGrader`.
+- `packages/sdk/`: lightweight assertion SDK such as `defineAssertion` and `defineScriptGrader`.
 - `apps/cli/`: published CLI surface for `agentv`.
 - `apps/web/src/content/docs/`: public product and CLI docs on agentv.dev.
 - `examples/`: examples that double as reference material and integration coverage.

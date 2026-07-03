@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Check Metrics Present - Code Grader Plugin
+ * Check Metrics Present - script grader Plugin
  *
  * Verifies that execution metrics are present in the trace payload.
  * This is a simple sanity check that metrics collection is working.
@@ -11,9 +11,9 @@
  *       type: script
  *       command: ["bun", "run", "../scripts/check-metrics-present.ts"]
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
-export default defineCodeGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
+export default defineScriptGrader(({ trace, tokenUsage, costUsd, durationMs }) => {
   const assertions: Array<{ text: string; passed: boolean }> = [];
 
   if (!trace) {

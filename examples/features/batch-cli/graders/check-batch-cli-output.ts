@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Batch CLI Output Grader - Code Grader
+ * Batch CLI Output Grader - script grader
  *
  * Validates that the batch CLI runner produces the expected decision
  * by comparing candidate output against expected_output or input.
  */
-import { defineCodeGrader } from '@agentv/sdk';
+import { defineScriptGrader } from '@agentv/sdk';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -66,7 +66,7 @@ function getMessageText(
   return '';
 }
 
-export default defineCodeGrader(({ expectedOutput, input, output }) => {
+export default defineScriptGrader(({ expectedOutput, input, output }) => {
   const outputText = getMessageText(output ?? []);
   const expectedDecision =
     findExpectedDecisionFromExpectedMessages(expectedOutput) ??

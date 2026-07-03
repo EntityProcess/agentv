@@ -2,7 +2,7 @@
 /**
  * Multi-Field Fuzzy Matcher
  *
- * A configurable code-grader that compares multiple fields using Levenshtein similarity.
+ * A configurable script-grader that compares multiple fields using Levenshtein similarity.
  * Configuration is passed via YAML properties that become stdin config.
  *
  * Usage in suite.yaml:

@@ -16,7 +16,7 @@
  *           ├── criteria.md
  *           ├── expected_output.json    (if present)
  *           ├── llm_graders/<name>.json
- *           └── code_graders/<name>.json   # script/deterministic grader configs
+ *           └── script_graders/<name>.json   # script/deterministic grader configs
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -234,7 +234,7 @@ export const evalInputCommand = command({
 });
 
 interface GraderCounts {
-  codeGraders: number;
+  scriptGraders: number;
   llmGraders: number;
   builtinAssertions: number;
 }
@@ -244,21 +244,21 @@ async function writeGraderConfigs(
   assertions: readonly GraderConfig[],
   evalDir: string,
 ): Promise<GraderCounts> {
-  const counts: GraderCounts = { codeGraders: 0, llmGraders: 0, builtinAssertions: 0 };
-  const codeGradersDir = join(testDir, 'code_graders');
+  const counts: GraderCounts = { scriptGraders: 0, llmGraders: 0, builtinAssertions: 0 };
+  const scriptGradersDir = join(testDir, 'script_graders');
   const llmGradersDir = join(testDir, 'llm_graders');
 
-  let hasCodeGraders = false;
+  let hasScriptGraders = false;
   let hasLlmGraders = false;
 
   for (const assertion of assertions) {
     if (assertion.type === 'script') {
-      if (!hasCodeGraders) {
-        await mkdir(codeGradersDir, { recursive: true });
-        hasCodeGraders = true;
+      if (!hasScriptGraders) {
+        await mkdir(scriptGradersDir, { recursive: true });
+        hasScriptGraders = true;
       }
       const config = assertion as ScriptGraderConfig;
-      await writeJson(join(codeGradersDir, `${config.name}.json`), {
+      await writeJson(join(scriptGradersDir, `${config.name}.json`), {
         name: config.name,
         type: 'script',
         command: config.command,
@@ -305,12 +305,12 @@ async function writeGraderConfigs(
         config: {},
       });
     } else if (BUILTIN_ASSERTION_TYPES.has(assertion.type)) {
-      if (!hasCodeGraders) {
-        await mkdir(codeGradersDir, { recursive: true });
-        hasCodeGraders = true;
+      if (!hasScriptGraders) {
+        await mkdir(scriptGradersDir, { recursive: true });
+        hasScriptGraders = true;
       }
       const config = assertion as GraderConfig & { value?: unknown; flags?: string };
-      await writeJson(join(codeGradersDir, `${config.name}.json`), {
+      await writeJson(join(scriptGradersDir, `${config.name}.json`), {
         name: config.name,
         type: config.type,
         value: config.value,

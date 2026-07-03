@@ -11,7 +11,7 @@
 import path from 'node:path';
 import fg from 'fast-glob';
 
-import { CodeGrader } from '../graders/code-grader.js';
+import { ScriptGrader } from '../graders/script-grader.js';
 import type { GraderFactoryFn } from './grader-registry.js';
 import type { GraderRegistry } from './grader-registry.js';
 
@@ -65,7 +65,7 @@ export async function discoverGraders(
     }
 
     const factory: GraderFactoryFn = (_config, context) => {
-      return new CodeGrader({
+      return new ScriptGrader({
         command: ['bun', 'run', filePath],
         agentTimeoutMs: context.agentTimeoutMs,
       });

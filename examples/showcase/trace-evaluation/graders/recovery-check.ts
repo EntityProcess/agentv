@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { type Message, type ToolCall, defineCodeGrader } from '@agentv/sdk';
+import { type Message, type ToolCall, defineScriptGrader } from '@agentv/sdk';
 
 function allToolCalls(output: readonly Message[] | null | undefined): ToolCall[] {
   return (output ?? []).flatMap((message) => [...(message.toolCalls ?? [])]);
@@ -23,7 +23,7 @@ function assistantText(output: readonly Message[] | null | undefined): string {
     .toLowerCase();
 }
 
-export default defineCodeGrader(({ messages }) => {
+export default defineScriptGrader(({ messages }) => {
   const toolCalls = allToolCalls(messages);
   const text = assistantText(messages);
 

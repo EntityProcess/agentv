@@ -3,7 +3,7 @@
  * Grader Conformance Harness
  *
  * Runs an grader N times per fixture and validates:
- *   - Compatibility: output matches CodeGraderResult schema (score, assertions)
+ *   - Compatibility: output matches ScriptGraderResult schema (score, assertions)
  *   - Consistency: flip-rate, agreement, and variance meet thresholds
  *
  * Usage:
@@ -98,8 +98,8 @@ const maxFlipRate = Number.parseFloat(values['max-flip-rate'] ?? '0');
 
 // ── Grader invocation ────────────────────────────────────────────────
 
-function buildCodeGraderInput(fixture: Fixture): string {
-  // Build a minimal CodeGraderInput in the snake_case wire format
+function buildScriptGraderInput(fixture: Fixture): string {
+  // Build a minimal ScriptGraderInput in the snake_case wire format
   return JSON.stringify({
     criteria: fixture.criteria,
     output: fixture.answer,
@@ -234,7 +234,7 @@ async function main(): Promise<void> {
   let allConsistent = true;
 
   for (const fixture of fixtures) {
-    const input = buildCodeGraderInput(fixture);
+    const input = buildScriptGraderInput(fixture);
     const scores: number[] = [];
     const errors: string[] = [];
     let compatible = true;

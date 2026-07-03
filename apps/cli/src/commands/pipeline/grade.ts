@@ -2,15 +2,15 @@
  * `agentv pipeline grade` — Run grader assertions against response.md files
  * in an export directory produced by `pipeline input`.
  *
- * All grader configs live in code_graders/<name>.json. Each config has a `type`
+ * All grader configs live in script_graders/<name>.json. Each config has a `type`
  * field that determines how it's evaluated:
  * - `script` (or configs with a `command` field): executed as external scripts
  * - Built-in types (contains, regex, equals, etc.): evaluated in-process
  *
- * Results are written to code_grader_results/<name>.json for pipeline bench.
+ * Results are written to script_grader_results/<name>.json for pipeline bench.
  *
  * Export directory additions:
- *   <out-dir>/<suite>/<test-id>/code_grader_results/<name>.json
+ *   <out-dir>/<suite>/<test-id>/script_grader_results/<name>.json
  */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -66,7 +66,7 @@ export interface GraderTask {
  * external scripts, built-in types (contains, regex, etc.) are evaluated in-process.
  * Shared by `pipeline grade` and `pipeline run`.
  */
-export async function runCodeGraders(
+export async function runScriptGraders(
   tasks: GraderTask[],
   concurrency: number,
 ): Promise<{ totalGraders: number; totalPassed: number }> {
@@ -86,13 +86,13 @@ export async function runCodeGraders(
   const executeGrader = async (task: GraderTask) => {
     const { testDir, resultsDir, graderFile, responseText } = task;
     const graderConfig = JSON.parse(
-      await readFile(join(testDir, 'code_graders', graderFile), 'utf8'),
+      await readFile(join(testDir, 'script_graders', graderFile), 'utf8'),
     );
 
     // Dispatch: configs with a `command` field are external scripts;
     // all others are built-in deterministic assertions evaluated in-process.
     if (graderConfig.command) {
-      await executeCodeGrader(graderConfig, task);
+      await executeScriptGrader(graderConfig, task);
     } else {
       await executeBuiltinGrader(graderConfig, responseText, resultsDir);
     }
@@ -104,7 +104,7 @@ export async function runCodeGraders(
   };
 
   /** Run an external script grader. */
-  const executeCodeGrader = async (graderConfig: Record<string, unknown>, task: GraderTask) => {
+  const executeScriptGrader = async (graderConfig: Record<string, unknown>, task: GraderTask) => {
     const { testId, resultsDir, responseText, inputData } = task;
     const graderName = graderConfig.name as string;
     const graderType = typeof graderConfig.type === 'string' ? graderConfig.type : 'script';
@@ -299,12 +299,12 @@ export const evalGradeCommand = command({
     for (const testId of testIds) {
       const subpath = safeSuiteName ? [safeSuiteName, testId] : [testId];
       const testDir = join(exportDir, ...subpath);
-      const codeGradersDir = join(testDir, 'code_graders');
-      const resultsDir = join(testDir, 'code_grader_results');
+      const scriptGradersDir = join(testDir, 'script_graders');
+      const resultsDir = join(testDir, 'script_grader_results');
 
       let graderFiles: string[];
       try {
-        graderFiles = (await readdir(codeGradersDir)).filter((f: string) => f.endsWith('.json'));
+        graderFiles = (await readdir(scriptGradersDir)).filter((f: string) => f.endsWith('.json'));
       } catch {
         continue; // No graders for this test
       }
@@ -320,7 +320,7 @@ export const evalGradeCommand = command({
       }
     }
 
-    const { totalGraders, totalPassed } = await runCodeGraders(tasks, maxWorkers);
+    const { totalGraders, totalPassed } = await runScriptGraders(tasks, maxWorkers);
     console.log(`Graded ${totalGraders} grader(s): ${totalPassed} passed`);
   },
 });

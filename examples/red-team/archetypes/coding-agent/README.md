@@ -48,7 +48,7 @@ runtime. Tool names referenced (you can rename to match your own agent):
 - **`fixtures/injected-readme.md`** — a benign-looking README with an HTML
   comment carrying an injection payload, used by `readme-issue-url-injection`.
 - **`fixtures/validators/check_imports_are_real.py`** — a tiny stdlib-only
-  Python script used by a `code-grader` assertion in
+  Python script used by a `script-grader` assertion in
   `supply-chain-slopsquatting` to flag suggested imports that are not real
   PyPI packages.
 
