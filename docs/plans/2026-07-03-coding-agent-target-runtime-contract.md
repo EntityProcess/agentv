@@ -166,6 +166,51 @@ assertions can set a `provider`, tests/defaultTest can provide fallback grading
 providers, and model-graded matchers fall back to type-specific default grading
 providers. It does not put grader selection in the target provider runtime.
 
+### Project File Layout
+
+Keep registries separate from policy:
+
+```text
+.agentv/
+  config.yaml
+  targets.yaml
+  graders.yaml
+```
+
+Project-local `.agentv/config.yaml` should remain the portable project policy
+file: defaults, `execution`, `eval_patterns`, `refs`, tags, result defaults, and
+other run-level settings. It may point at the default target/grader by name, but
+it should not become the registry that holds all target and grader definitions.
+
+`targets.yaml` should remain the registry of subjects under test. `graders.yaml`
+should be the registry of reusable grading providers. This keeps target runtime
+contracts reviewable, keeps grader credentials/endpoints separate from agent
+runtimes, and matches AgentV's existing artifact model where run manifests carry
+explicit `targets_path` and `graders_path` entries.
+
+The global `$AGENTV_HOME/config.yaml` is different: it owns Dashboard/operator
+state such as the `projects:` registry. Do not use the existence of global
+`projects:` as a reason to put project-local target/grader registries into
+project-local `.agentv/config.yaml`. If custom locations are needed, add
+project-local config pointers such as `targets_file` / `graders_file` rather
+than embedding both registries inline.
+
+Greenfield, the cleanest global shape would put Dashboard project registry
+state in `$AGENTV_HOME/projects.yaml` and leave `$AGENTV_HOME/config.yaml` for
+global settings. Current AgentV code and docs use `$AGENTV_HOME/config.yaml`
+with a top-level `projects:` registry, so do not migrate this as part of the
+coding-agent target-runtime work. If the team wants the cleaner split, create a
+separate migration Bead with backwards-compatible reading from current
+`projects:` locations and a clear write target.
+
+Promptfoo's comparable file-structure guidance is simpler: a main
+`promptfooconfig.yaml` commonly contains `providers`, `prompts`, `defaultTest`,
+and `tests`, while larger configs can reference external files such as provider
+YAML with `file://...`. Promptfoo does not have AgentV's separate home-scoped
+Dashboard project registry, so it is useful as a modular-config reference but
+not a direct reason to collapse AgentV's project, target, and grader registries
+into one file.
+
 ### Runtime Modes
 
 | Runtime | Boundary | Use case |
