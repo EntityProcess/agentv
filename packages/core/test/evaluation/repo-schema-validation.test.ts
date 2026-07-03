@@ -36,7 +36,7 @@ describe('repo lifecycle schema validation', () => {
           {
             path: './repo-a',
             repo: 'org/repo',
-            base_commit: '4a1b2c3d',
+            commit: '4a1b2c3d',
           },
         ],
       },
@@ -49,7 +49,7 @@ describe('repo lifecycle schema validation', () => {
       ...baseEval,
       workspace: {
         docker: { image: 'swebench/sweb.eval.django__django:latest' },
-        repos: [{ path: '/testbed', base_commit: 'abc123' }],
+        repos: [{ path: '/testbed', commit: 'abc123' }],
       },
     });
     expect(result.success).toBe(true);
@@ -136,7 +136,7 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects conflicting commit aliases', () => {
+  it('rejects removed base_commit field', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
@@ -144,7 +144,6 @@ describe('repo lifecycle schema validation', () => {
           {
             path: './repo-a',
             repo: 'https://github.com/org/repo.git',
-            commit: 'abc',
             base_commit: 'def',
           },
         ],

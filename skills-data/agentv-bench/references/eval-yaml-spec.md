@@ -32,9 +32,9 @@ intentional grader panels. Write `expected_output` as a golden/reference answer,
 not as criteria or scoring instructions.
 
 For historical or repo-state evals, materialize the repository under
-`workspace.repos[]` and pin `commit` or `base_commit` to the commit under test.
-A SHA in prompt prose or metadata is context only; it does not give the agent an
-actual checkout.
+`workspace.repos[]` and pin `commit` to the commit under test. A SHA in prompt
+prose or metadata is context only; it does not give the agent an actual
+checkout.
 
 ## 2. Assertion Types and Grading Recipes
 

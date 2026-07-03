@@ -579,10 +579,11 @@ suffixes in `file://...:beforeAll`.
 
 ### v4.42.4 Shape
 
-v4.42.4 already documented `workspace.repos[].repo`, `commit`, `ancestor`, and
-`sparse` as repo provenance. It also accepted `base_commit` as a
-SWE-bench-friendly alias for `commit`. The v4.42.4 parser rejected some
-acquisition fields such as `source`, `checkout`, and `clone`.
+v4.42.4 documented `workspace.repos[].repo`, `commit`, `base_commit`,
+`ancestor`, and `sparse` as repo provenance. Treat `base_commit` as a legacy
+authoring alias during migration; normalize it to `commit` instead of carrying
+it forward. The v4.42.4 parser rejected some acquisition fields such as
+`source`, `checkout`, and `clone`.
 
 ### Current Shape
 
@@ -604,6 +605,7 @@ workspace:
 
 - `workspace.repos[].source` -> `workspace.repos[].repo`.
 - `workspace.repos[].checkout.ref` or similar -> `commit`.
+- `workspace.repos[].base_commit` -> `commit`.
 - `workspace.repos[].clone.sparse` -> top-level `sparse`.
 - Remove `type`, `resolve`, and `resolver` from repo entries.
 - Configure acquisition policy in repo resolver/project config, not in eval
@@ -613,7 +615,7 @@ workspace:
 
 ```bash
 bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
-rg -n "source:|checkout:|clone:|type:|resolve:|resolver:" path/to/evals
+rg -n "source:|checkout:|clone:|base_commit:|type:|resolve:|resolver:" path/to/evals
 ```
 
 Inspect `type:` matches manually because grader entries still use `type`.
@@ -622,9 +624,9 @@ Inspect `type:` matches manually because grader entries still use `type`.
 
 `repos[].path` remains valid and means the target directory inside the
 materialized workspace. It is not the removed local `workspace.path`.
-`base_commit` remains accepted as an alias for `commit`, mainly for
-SWE-bench-style datasets, but migrated examples should use `commit` unless the
-source dataset convention specifically uses `base_commit`.
+Current parser rejects `base_commit`. Prefer a single checkout pin field,
+`commit`, so workers do not preserve a second spelling in examples or generated
+evals.
 
 ## Target And Runtime Separation
 

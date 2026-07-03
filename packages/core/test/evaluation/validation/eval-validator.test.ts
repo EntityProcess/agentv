@@ -1980,7 +1980,7 @@ tests:
     image: swebench/sweb.eval.django__django:latest
   repos:
     - path: /testbed
-      base_commit: abc123
+      commit: abc123
 tests:
   - id: test-1
     criteria: Goal
@@ -1994,7 +1994,7 @@ tests:
       expect(result.errors.filter((e) => e.severity === 'error')).toHaveLength(0);
     });
 
-    it('errors when commit aliases conflict', async () => {
+    it('errors when base_commit is used', async () => {
       const filePath = path.join(tempDir, 'workspace-conflicting-commits.yaml');
       await writeFile(
         filePath,
@@ -2002,7 +2002,6 @@ tests:
   repos:
     - path: ./repo
       repo: https://github.com/org/repo.git
-      commit: abc
       base_commit: def
 tests:
   - id: test-1
@@ -2016,7 +2015,9 @@ tests:
       expect(result.valid).toBe(false);
       expect(
         result.errors.some(
-          (e) => e.severity === 'error' && e.message.includes('commit and repos[].base_commit'),
+          (e) =>
+            e.severity === 'error' &&
+            e.message.includes('workspace.repos[].base_commit has been removed'),
         ),
       ).toBe(true);
     });

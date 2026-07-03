@@ -56,7 +56,6 @@ export interface PreparedWorkspaceRepoPin {
   readonly path?: string;
   readonly repo?: string;
   readonly commit?: string;
-  readonly baseCommit?: string;
   readonly ancestor?: number;
   readonly sparse?: readonly string[];
 }
@@ -140,7 +139,6 @@ function toRepoPins(repos: readonly RepoConfig[] | undefined): readonly Prepared
     ...(repo.path !== undefined && { path: repo.path }),
     ...(repo.repo !== undefined && { repo: repo.repo }),
     ...(repo.commit !== undefined && { commit: repo.commit }),
-    ...(repo.base_commit !== undefined && { baseCommit: repo.base_commit }),
     ...(repo.ancestor !== undefined && { ancestor: repo.ancestor }),
     ...(repo.sparse !== undefined && { sparse: repo.sparse }),
   }));

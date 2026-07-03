@@ -61,7 +61,7 @@ tests:
     criteria: "Bug should be fixed"
     metadata:
       repo: sympy/sympy
-      base_commit: "abc123def"
+      source_commit: "abc123def"
 `,
     );
 
@@ -69,7 +69,7 @@ tests:
     expect(cases).toHaveLength(1);
     expect(cases[0].metadata).toEqual({
       repo: 'sympy/sympy',
-      base_commit: 'abc123def',
+      source_commit: 'abc123def',
     });
   });
 
@@ -234,7 +234,7 @@ tests:
         image: swebench/sweb.eval.django__django:latest
       repos:
         - path: /testbed
-          base_commit: abc123def
+          commit: abc123def
 `,
     );
 
@@ -246,7 +246,7 @@ tests:
     expect(cases[0].workspace?.repos).toHaveLength(1);
     expect(cases[0].workspace?.repos?.[0].path).toBe('/testbed');
     expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
-    expect(cases[0].workspace?.repos?.[0].base_commit).toBe('abc123def');
+    expect(cases[0].workspace?.repos?.[0].commit).toBe('abc123def');
   });
 
   it('should parse Docker repos with path + commit but no repo', async () => {
@@ -274,7 +274,7 @@ tests:
     expect(cases[0].workspace?.repos?.[0].commit).toBe('v2.0.0');
   });
 
-  it('should parse repo base_commit alias', async () => {
+  it('rejects removed repo base_commit field', async () => {
     const evalFile = path.join(testDir, 'workspace-repo-base-commit.yaml');
     await writeFile(
       evalFile,
@@ -291,9 +291,9 @@ tests:
 `,
     );
 
-    const cases = await loadTests(evalFile, testDir);
-    expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.repos?.[0].base_commit).toBe('abc123def');
+    await expect(loadTests(evalFile, testDir)).rejects.toThrow(
+      'workspace.repos[].base_commit has been removed',
+    );
   });
 
   it('parses workspace repos from YAML', async () => {

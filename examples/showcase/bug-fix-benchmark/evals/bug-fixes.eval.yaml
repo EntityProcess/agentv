@@ -17,7 +17,7 @@ workspace:
   repos:
     - path: ./repo
       repo: https://github.com/EntityProcess/agentv
-      base_commit: "6e446b722627e9df017b22e391fa63320362d8c7"
+      commit: "6e446b722627e9df017b22e391fa63320362d8c7"
   hooks:
     before_each:
       reset: fast

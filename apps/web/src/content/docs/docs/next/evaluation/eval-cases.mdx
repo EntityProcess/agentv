@@ -189,14 +189,14 @@ tests:
       repos:
         - path: ./repo
           repo: sympy/sympy
-          base_commit: "abc123def"
+          commit: "abc123def"
       hooks:
         before_each:
           command: ["python", "apply_test_patch.py"]
 ```
 
 The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
-Operational checkout state belongs under `workspace.repos[].base_commit`; matching metadata fields such as `source_commit` are informational only.
+Operational checkout state belongs under `workspace.repos[].commit`; matching metadata fields such as `source_commit` are informational only.
 For historical repo-state evals, pin the checkout under `workspace.repos[]`
 instead of only mentioning the SHA in prompt prose:
 

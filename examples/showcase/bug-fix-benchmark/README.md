@@ -21,7 +21,7 @@ Compares four configurations on identical bug fix tasks:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 1. Clone public repo at base_commit (broken state)              │
+│ 1. Clone public repo at commit (broken state)                   │
 │ 2. Run target before_each hook (install plugin config)           │
 │ 3. Agent receives issue description                              │
 │ 4. Agent diagnoses and writes fix                                │
@@ -81,7 +81,7 @@ The `setup-variant.sh` hook copies these files into the workspace before each te
 ## Adding New Test Cases
 
 1. Find a bug fix from GitHub issues/PRs
-2. Note the `base_commit` (before the fix)
+2. Note the `commit` (before the fix)
 3. Copy the issue description as the test `input`
 4. Add assertions to verify the fix
 5. Add to `evals/bug-fixes.eval.yaml`

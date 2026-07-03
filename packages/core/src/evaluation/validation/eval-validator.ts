@@ -1633,7 +1633,17 @@ function validateWorkspaceRepoConfig(
           filePath,
           location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
           message:
-            'workspace.repos[].checkout has been removed. Use top-level commit, base_commit, and ancestor.',
+            'workspace.repos[].checkout has been removed. Use top-level commit and ancestor.',
+        });
+      }
+
+      if ('base_commit' in repo) {
+        errors.push({
+          severity: 'error',
+          filePath,
+          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
+          message:
+            'workspace.repos[].base_commit has been removed. Use workspace.repos[].commit.',
         });
       }
 
@@ -1685,18 +1695,6 @@ function validateWorkspaceRepoConfig(
         });
       }
 
-      if (
-        typeof repo.commit === 'string' &&
-        typeof repo.base_commit === 'string' &&
-        repo.commit !== repo.base_commit
-      ) {
-        errors.push({
-          severity: 'error',
-          filePath,
-          location: `${location}.repos[path=${repo.path ?? '(none)'}]`,
-          message: 'repos[].commit and repos[].base_commit must match when both are set.',
-        });
-      }
     }
   }
 

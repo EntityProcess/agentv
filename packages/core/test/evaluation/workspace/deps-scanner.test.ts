@@ -101,7 +101,7 @@ tests:
     });
   });
 
-  it('uses base_commit as a commit alias', async () => {
+  it('reports removed base_commit field', async () => {
     const file = await writeYaml(
       'base-commit.eval.yaml',
       `
@@ -118,8 +118,9 @@ tests:
     );
 
     const result = await scanRepoDeps([file]);
-    expect(result.errors).toHaveLength(0);
-    expect(result.repos[0].ref).toBe('abc123');
+    expect(result.repos).toHaveLength(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].message).toContain('workspace.repos[].base_commit has been removed');
   });
 
   it('deduplicates repos by canonical identity and ref', async () => {
