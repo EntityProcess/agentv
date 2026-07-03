@@ -12,7 +12,7 @@
  * config.yaml format:
  *   required_version: ">=4.2.0"
  *   dashboard:
- *     app_name: agentv # displayed in the Dashboard shell
+ *     app_name: AgentV # displayed in the Dashboard shell
  *     threshold: 0.8   # score >= this value is considered "pass"
  *
  * Backward compat: reads `studio.threshold`, `studio.pass_threshold`, and
@@ -41,7 +41,7 @@ export interface StudioConfig {
 
 const DEFAULTS: StudioConfig = {
   threshold: DEFAULT_THRESHOLD,
-  appName: 'agentv',
+  appName: 'AgentV',
 };
 
 /**

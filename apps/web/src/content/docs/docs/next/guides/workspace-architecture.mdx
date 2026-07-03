@@ -244,7 +244,7 @@ On Windows, the drive type materially affects file-write throughput during check
 
 [Windows Dev Drive](https://learn.microsoft.com/en-us/windows/dev-drive/) uses the Resilient File System (ReFS) with a performance mode that reduces antivirus filter overhead for developer workloads. If you evaluate large repos frequently, relocating `~/.agentv` to a Dev Drive volume can meaningfully reduce per-run setup time.
 
-To relocate the agentv home directory, set `HOME` or `USERPROFILE` to point to the Dev Drive path before running `agentv eval`:
+To relocate the AgentV home directory, set `HOME` or `USERPROFILE` to point to the Dev Drive path before running `agentv eval`:
 
 ```powershell
 $env:USERPROFILE = "D:\Users\$env:USERNAME"

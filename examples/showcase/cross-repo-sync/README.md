@@ -4,7 +4,7 @@ Evaluates whether a coding agent can keep two public repos in sync after one cha
 
 ## Scenario
 
-When **agentv** (EntityProcess/agentv) ships a feature, the **agentevals** (agentevals/agentevals) spec docs must be updated to reflect the change. This eval measures how well an agent handles that cross-repo synchronization.
+When **AgentV** (EntityProcess/agentv) ships a feature, the **agentevals** (agentevals/agentevals) spec docs must be updated to reflect the change. This eval measures how well an agent handles that cross-repo synchronization.
 
 ## Workspace Features Demonstrated
 

@@ -4,7 +4,7 @@ Opt-in adversarial eval suites tagged against public AI-safety taxonomies. Copy
 this directory into your own repo, point a target at it, and you have a starting
 red-team baseline drawn from the corpora the field has converged on.
 
-## How this fits agentv design
+## How this fits AgentV design
 
 This pack is **content, not core**. There are no changes to `packages/core` or
 `apps/cli`; the suites compose existing primitives — `llm-rubric`,

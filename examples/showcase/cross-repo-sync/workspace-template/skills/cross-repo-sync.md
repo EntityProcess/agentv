@@ -1,11 +1,11 @@
 # Cross-Repo Sync
 
-Synchronize agentevals spec docs when agentv implementation changes.
+Synchronize agentevals spec docs when AgentV implementation changes.
 
 ## Process
 
-1. **Read the prompt** to understand what changed in agentv
-2. **Examine the agentv checkout** to see the actual implementation changes
+1. **Read the prompt** to understand what changed in AgentV
+2. **Examine the AgentV checkout** to see the actual implementation changes
 3. **Find corresponding spec/docs files** in the agentevals checkout
 4. **Make updates** preserving existing Starlight/MDX conventions
 
