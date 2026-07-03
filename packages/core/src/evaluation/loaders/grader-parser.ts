@@ -135,7 +135,6 @@ export async function parseGraders(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
     readonly assert?: JsonValue;
-    readonly assertions?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -146,17 +145,13 @@ export async function parseGraders(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level graders priority: assert > legacy assertions > execution assert.
+  // Case-level graders priority: assert > execution assert.
   const caseEvaluators =
-    rawEvalCase.assert ??
-    rawEvalCase.assertions ??
-    (executionObject ? executionObject.assert : undefined);
+    rawEvalCase.assert ?? (executionObject ? executionObject.assert : undefined);
 
-  // Root-level default graders: assert > legacy assertions.
+  // Root-level default graders.
   const skipDefaults = executionObject?.skip_defaults === true;
-  const rootEvaluators = skipDefaults
-    ? undefined
-    : (globalExecution?.assert ?? globalExecution?.assertions);
+  const rootEvaluators = skipDefaults ? undefined : globalExecution?.assert;
 
   // Parse case-level evaluators
   const parsedCase = await parseGraderList(
@@ -269,14 +264,14 @@ async function loadAssertionTemplateEntries(
   const parsed = interpolateEnv(parseYamlValue(content), process.env) as unknown;
   if (!isJsonObject(parsed)) {
     throw new Error(
-      `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} (expected a YAML object with an assertions array)`,
+      `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} (expected a YAML object with an assert array)`,
     );
   }
 
-  const assertions = (parsed as Record<string, unknown>).assertions;
+  const assertions = (parsed as Record<string, unknown>).assert;
   if (!Array.isArray(assertions)) {
     throw new Error(
-      `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} is missing a top-level assertions array`,
+      `Invalid assertion template file in '${evalId}': ${resolved.resolvedPath} is missing a top-level assert array`,
     );
   }
 
@@ -331,7 +326,6 @@ export async function collectAssertionTemplateSourceReferences(
   rawEvalCase: JsonObject & {
     readonly execution?: JsonValue;
     readonly assert?: JsonValue;
-    readonly assertions?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -340,13 +334,9 @@ export async function collectAssertionTemplateSourceReferences(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
   const caseEvaluators =
-    rawEvalCase.assert ??
-    rawEvalCase.assertions ??
-    (executionObject ? executionObject.assert : undefined);
+    rawEvalCase.assert ?? (executionObject ? executionObject.assert : undefined);
   const skipDefaults = executionObject?.skip_defaults === true;
-  const rootEvaluators = skipDefaults
-    ? undefined
-    : (globalExecution?.assert ?? globalExecution?.assertions);
+  const rootEvaluators = skipDefaults ? undefined : globalExecution?.assert;
 
   return [
     ...(await collectAssertionTemplateReferencesFromValue(caseEvaluators, searchRoots, evalId)),
@@ -390,10 +380,7 @@ async function collectAssertionTemplateReferencesFromValue(
 
           const content = await readFile(resolved.resolvedPath, 'utf8');
           const parsed = interpolateEnv(parseYamlValue(content), process.env) as unknown;
-          if (
-            isJsonObject(parsed) &&
-            Array.isArray((parsed as Record<string, unknown>).assertions)
-          ) {
+          if (isJsonObject(parsed) && Array.isArray((parsed as Record<string, unknown>).assert)) {
             const templateDir = path.dirname(resolved.resolvedPath);
             const nestedSearchRoots = [
               templateDir,
@@ -401,7 +388,7 @@ async function collectAssertionTemplateReferencesFromValue(
             ];
             references.push(
               ...(await collectAssertionTemplateReferencesFromValue(
-                (parsed as Record<string, JsonValue>).assertions,
+                (parsed as Record<string, JsonValue>).assert,
                 nestedSearchRoots,
                 evalId,
                 {
@@ -447,16 +434,14 @@ async function collectAssertionTemplateReferencesFromObject(
   includeContext: IncludeContext,
 ): Promise<readonly EvalSourceReference[]> {
   const references: EvalSourceReference[] = [];
-  for (const key of ['assert', 'assertions'] as const) {
-    references.push(
-      ...(await collectAssertionTemplateReferencesFromValue(
-        value[key],
-        searchRoots,
-        evalId,
-        includeContext,
-      )),
-    );
-  }
+  references.push(
+    ...(await collectAssertionTemplateReferencesFromValue(
+      value.assert,
+      searchRoots,
+      evalId,
+      includeContext,
+    )),
+  );
   return references;
 }
 
@@ -529,7 +514,7 @@ async function parseGraderList(
       continue;
     }
 
-    const rawName = asString(rawEvaluator.name);
+    const rawName = asString(rawEvaluator.metric);
     const rawType = rawEvaluator.type;
     const typeValue = typeof rawType === 'string' ? normalizeGraderType(rawType) : rawType;
 
@@ -556,10 +541,8 @@ async function parseGraderList(
     const name =
       rawName ??
       (isCustomType ? typeValue : generateAssertionName(typeValue as GraderKind, rawEvaluator));
-    const metric = asString(rawEvaluator.metric);
-
     if (!name) {
-      logWarning(`Skipping evaluator with missing name in '${evalId}'`);
+      logWarning(`Skipping evaluator with missing metric in '${evalId}'`);
       continue;
     }
 
@@ -582,7 +565,7 @@ async function parseGraderList(
         evalId,
       );
       // Collect all properties except known meta-keys as pass-through config
-      const knownProps = new Set(['name', 'type', 'weight', 'required', 'min_score', 'negate']);
+      const knownProps = new Set(['metric', 'type', 'weight', 'required', 'min_score', 'negate']);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
@@ -602,7 +585,7 @@ async function parseGraderList(
     }
 
     if (typeValue === 'assert-set') {
-      const rawMembers = rawEvaluator.assert ?? rawEvaluator.assertions;
+      const rawMembers = rawEvaluator.assert;
       if (!Array.isArray(rawMembers)) {
         logWarning(`Skipping assert-set evaluator '${name}' in '${evalId}': missing assert array`);
         continue;
@@ -734,7 +717,7 @@ async function parseGraderList(
 
       // Collect unrecognized properties as pass-through config
       const knownProps = new Set([
-        'name',
+        'metric',
         'type',
         'command',
         'cwd',
@@ -776,11 +759,9 @@ async function parseGraderList(
     }
 
     if (typeValue === 'composite') {
-      const rawMembers = rawEvaluator.assert ?? rawEvaluator.assertions;
+      const rawMembers = rawEvaluator.assert;
       if (!Array.isArray(rawMembers)) {
-        logWarning(
-          `Skipping composite evaluator '${name}' in '${evalId}': missing assertions array`,
-        );
+        logWarning(`Skipping composite evaluator '${name}' in '${evalId}': missing assert array`);
         continue;
       }
 
@@ -834,7 +815,7 @@ async function parseGraderList(
           continue;
         }
 
-        const memberName = asString(rawMember.name);
+        const memberName = asString(rawMember.metric);
         const memberType = rawMember.type;
 
         if (!memberName || !isGraderKind(memberType)) {
@@ -1533,7 +1514,6 @@ async function parseGraderList(
         name,
         type: 'contains',
         value,
-        ...(metric !== undefined ? { metric } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
         ...(min_score !== undefined ? { min_score } : {}),
@@ -1753,7 +1733,7 @@ async function parseGraderList(
     // Collect unrecognized properties as pass-through config (for text prompt templates)
     // Note: For script prompts, config comes from prompt.config instead
     const knownProps = new Set([
-      'name',
+      'metric',
       'type',
       'prompt',
       'model',

@@ -14,7 +14,7 @@ tests:
   - id: code-review-001
     input: Review the following code for bugs and suggest improvements.
     criteria: Identifies at least one issue and suggests a fix
-    assertions:
+    assert:
       - type: contains
         value: bug
       - type: contains
@@ -23,7 +23,7 @@ tests:
   - id: code-review-002
     input: Explain what this function does and how it could be optimized.
     criteria: Provides a clear explanation and at least one optimization suggestion
-    assertions:
+    assert:
       - type: contains
         value: function
       - type: contains
@@ -32,7 +32,7 @@ tests:
   - id: code-review-003
     input: Review this error handling code for edge cases and missing checks.
     criteria: Identifies missing error handling or edge cases
-    assertions:
+    assert:
       - type: contains
         value: error
       - type: regex
@@ -41,13 +41,13 @@ tests:
   - id: code-gen-001
     input: Write a function that checks if a string is a palindrome.
     criteria: Returns working code that handles basic palindrome cases
-    assertions:
+    assert:
       - type: contains
         value: palindrome
 
   - id: code-gen-002
     input: Write a function that finds the longest common subsequence of two strings.
     criteria: Returns a correct implementation with reasonable time complexity
-    assertions:
+    assert:
       - type: regex
         value: "subsequence|lcs|LCS"

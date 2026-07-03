@@ -11,7 +11,7 @@ tests:
     criteria: Agent responds with a greeting
     input: "Hello!"
     expected_output: "Hello! How can I help you?"
-    assertions:
+    assert:
       - type: contains
         value: "Hello"
 
@@ -23,5 +23,5 @@ tests:
       - role: user
         content: "Return status ok"
     expected_output: '{"status": "ok"}'
-    assertions:
+    assert:
       - type: is-json

@@ -23,8 +23,8 @@ tests:
       - role: user
         content: Summarize the key points of this document.
 
-    assertions:
-      - name: span-count
+    assert:
+      - metric: span-count
         type: script
         command: ["bun", "run", "../graders/span-count.ts"]
         config:
@@ -42,8 +42,8 @@ tests:
       - role: user
         content: Look up the weather forecast for today.
 
-    assertions:
-      - name: error-check
+    assert:
+      - metric: error-check
         type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
         config:
@@ -61,8 +61,8 @@ tests:
       - role: user
         content: Answer the question using only approved data sources.
 
-    assertions:
-      - name: error-and-tool-check
+    assert:
+      - metric: error-and-tool-check
         type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
         config:
@@ -83,8 +83,8 @@ tests:
       - role: user
         content: Retrieve and format the latest sales data.
 
-    assertions:
-      - name: duration-check
+    assert:
+      - metric: duration-check
         type: script
         command: ["bun", "run", "../graders/span-duration.ts"]
         config:
@@ -103,19 +103,19 @@ tests:
       - role: user
         content: Process this data and generate a summary report.
 
-    assertions:
-      - name: span-count
+    assert:
+      - metric: span-count
         type: script
         command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 8
           maxToolCalls: 20
 
-      - name: error-check
+      - metric: error-check
         type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
 
-      - name: duration-check
+      - metric: duration-check
         type: script
         command: ["bun", "run", "../graders/span-duration.ts"]
         config:

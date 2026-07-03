@@ -313,7 +313,7 @@ describe('EvalFileSchema input shorthand', () => {
       tests: [
         {
           ...baseTest,
-          assertions: [
+          assert: [
             {
               type: 'llm-rubric',
               value: ['Must be polite', 'Must be accurate'],

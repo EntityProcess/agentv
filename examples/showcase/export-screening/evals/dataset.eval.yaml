@@ -17,8 +17,8 @@
 
 description: Export control risk classification eval for trade compliance screening
 
-assertions:
-  - name: risk_assessment_quality
+assert:
+  - metric: risk_assessment_quality
     type: script
     command: ["bun", "run", "validate_risk_output.ts"]
 

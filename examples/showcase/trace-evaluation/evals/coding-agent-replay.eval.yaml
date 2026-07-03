@@ -12,8 +12,8 @@ tests:
       - role: user
         content: Inspect the project and change the default request timeout to 5000ms.
 
-    assertions:
-      - name: expected-tool-sequence
+    assert:
+      - metric: expected-tool-sequence
         type: tool-trajectory
         mode: in_order
         args_match: superset
@@ -31,7 +31,7 @@ tests:
               path: src/config.ts
             max_duration_ms: 100
 
-      - name: execution-budget
+      - metric: execution-budget
         type: execution-metrics
         max_tool_calls: 5
         max_llm_calls: 3
@@ -39,7 +39,7 @@ tests:
         max_cost_usd: 0.01
         max_duration_ms: 2000
 
-      - name: replay-proof
+      - metric: replay-proof
         type: script
         command: ["bun", "run", "../graders/replay-proof.ts"]
 
@@ -52,8 +52,8 @@ tests:
       - role: user
         content: Fix the retry limit bug in the config module. If a file path is wrong, recover and continue.
 
-    assertions:
-      - name: recovery-sequence
+    assert:
+      - metric: recovery-sequence
         type: tool-trajectory
         mode: in_order
         args_match: superset
@@ -71,11 +71,11 @@ tests:
               path: src/config.ts
             max_duration_ms: 100
 
-      - name: recovery-check
+      - metric: recovery-check
         type: script
         command: ["bun", "run", "../graders/recovery-check.ts"]
 
-      - name: execution-budget
+      - metric: execution-budget
         type: execution-metrics
         max_tool_calls: 5
         max_llm_calls: 4
@@ -83,6 +83,6 @@ tests:
         max_cost_usd: 0.02
         max_duration_ms: 2500
 
-      - name: replay-proof
+      - metric: replay-proof
         type: script
         command: ["bun", "run", "../graders/replay-proof.ts"]

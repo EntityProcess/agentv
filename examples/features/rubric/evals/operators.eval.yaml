@@ -27,7 +27,7 @@ tests:
           Q4 revenue increased to $10M from $8M. Gross margin declined to 42%
           from 45%.
 
-    assertions:
+    assert:
       - type: rubrics
         criteria:
           - id: supported-revenue

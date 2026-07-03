@@ -51,7 +51,6 @@ type RawJsonlEvalCase = JsonObject & {
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
   readonly assert?: JsonValue;
-  readonly assertions?: JsonValue;
 };
 
 /**
@@ -197,15 +196,12 @@ export async function loadTestsFromJsonl(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
-    const hasExplicitCaseGraders =
-      testCaseConfig.assert !== undefined || testCaseConfig.assertions !== undefined;
+    const hasExplicitCaseGraders = testCaseConfig.assert !== undefined;
     const executionObject = isJsonObject(testCaseConfig.execution)
       ? testCaseConfig.execution
       : undefined;
     const hasExplicitRootGraders =
-      executionObject?.skip_defaults === true
-        ? false
-        : globalExecution?.assert !== undefined || globalExecution?.assertions !== undefined;
+      executionObject?.skip_defaults === true ? false : globalExecution?.assert !== undefined;
     const graderCase =
       outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
         ? ({ ...testCaseConfig, assert: [outcome] } satisfies RawJsonlEvalCase)
@@ -216,10 +212,7 @@ export async function loadTestsFromJsonl(
     // bare-string assert above so it uses the canonical llm-rubric path instead of the
     // implicit default LLM grader.
     const hasEvaluationSpec =
-      !!outcome ||
-      expectedMessages.length > 0 ||
-      graderCase.assert !== undefined ||
-      graderCase.assertions !== undefined;
+      !!outcome || expectedMessages.length > 0 || graderCase.assert !== undefined;
     if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
         `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,

@@ -21,9 +21,9 @@ tests:
             value: ../fixtures/repo-materialization-note.txt
           - type: text
             value: Reply READY after reading the attached contract file.
-    assertions:
+    assert:
       - type: contains
         value: READY
-      - name: repo-materialized-previous-commit
+      - metric: repo-materialized-previous-commit
         type: script
         command: ["bun", "../scripts/check-repo-materialization.ts"]

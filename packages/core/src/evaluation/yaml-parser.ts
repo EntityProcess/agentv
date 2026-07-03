@@ -210,7 +210,6 @@ type RawTestSuite = JsonObject & {
   readonly threshold?: JsonValue;
   readonly default_test?: JsonValue;
   readonly workspace?: JsonValue;
-  readonly assertions?: JsonValue;
   readonly assert?: JsonValue;
   readonly preprocessors?: JsonValue;
   readonly extensions?: JsonValue;
@@ -246,7 +245,6 @@ type RawEvalCase = JsonObject & {
   readonly evaluator?: JsonValue;
   readonly execution?: JsonValue;
   readonly run?: JsonValue;
-  readonly assertions?: JsonValue;
   readonly assert?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
@@ -312,7 +310,7 @@ function interpolateCaseTurns(
       ...rawTurn,
       input: interpolateCaseField(rawTurn.input, vars, filters),
       expected_output: interpolateCaseField(rawTurn.expected_output, vars, filters),
-      assertions: interpolateCaseField(rawTurn.assertions, vars, filters),
+      assert: interpolateCaseField(rawTurn.assert, vars, filters),
     } satisfies JsonObject;
   });
 }
@@ -344,9 +342,6 @@ function interpolateRawEvalCase(
       : {}),
     ...(raw.assert !== undefined
       ? { assert: interpolateCaseField(raw.assert, vars, filters) }
-      : {}),
-    ...(raw.assertions !== undefined
-      ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
       : {}),
     ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars, filters) } : {}),
   };
@@ -1078,8 +1073,8 @@ async function loadTestsFromParsedYamlValue(
 
   readSuiteRuntimeBlock(suite, evalFilePath);
 
-  // Build global execution context, including suite-level assertions (which is a sibling of execution)
-  const suiteAssertions = suite.assert ?? suite.assertions;
+  // Build global execution context, including suite-level assert entries (which are siblings of execution)
+  const suiteAssertions = suite.assert;
   const globalExecution: JsonObject | undefined =
     suiteAssertions !== undefined ? { assert: suiteAssertions } : undefined;
 
@@ -1194,25 +1189,21 @@ async function loadTestsFromParsedYamlValue(
           : undefined;
       const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
-      const hasExplicitCaseGraders =
-        renderedCase.assert !== undefined || renderedCase.assertions !== undefined;
+      const hasExplicitCaseGraders = renderedCase.assert !== undefined;
       const hasExplicitRootGraders =
-        skipDefaults === true
-          ? false
-          : globalExecution?.assert !== undefined || globalExecution?.assertions !== undefined;
+        skipDefaults === true ? false : globalExecution?.assert !== undefined;
       const graderCase =
         outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
           ? ({ ...renderedCase, assert: [outcome] } satisfies RawEvalCase)
           : renderedCase;
 
       // A test is complete when it has id, input, and at least one of: criteria,
-      // expected_output, assertions, or turns (conversation mode). Legacy test-level
+      // expected_output, assert, or turns (conversation mode). Legacy test-level
       // criteria is desugared to a bare-string assert above so it uses the canonical
       // llm-rubric path instead of the implicit default LLM grader.
       const hasEvaluationSpec =
         !!outcome ||
         expectedMessages.length > 0 ||
-        graderCase.assertions !== undefined ||
         graderCase.assert !== undefined ||
         (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
       const hasInputMessages =
@@ -2465,7 +2456,7 @@ export const loadEvalCaseById = loadTestById;
 
 /**
  * Parse raw turn data from YAML into typed ConversationTurn objects.
- * String assertions are preserved as-is — they become rubric criteria at runtime.
+ * String assert entries are preserved as-is — they become rubric criteria at runtime.
  * Structured assertion objects pass through unchanged.
  */
 function parseTurns(rawTurns: readonly unknown[]): ConversationTurn[] {
@@ -2476,8 +2467,8 @@ function parseTurns(rawTurns: readonly unknown[]): ConversationTurn[] {
 
     // Parse per-turn assertions (string shorthand or structured evaluator config)
     let assertions: (string | GraderConfig)[] | undefined;
-    if (Array.isArray(turn.assertions)) {
-      assertions = turn.assertions.map((a: unknown) => {
+    if (Array.isArray(turn.assert)) {
+      assertions = turn.assert.map((a: unknown) => {
         if (typeof a === 'string') return a;
         // Structured evaluator config — pass through as-is (validated by Zod schema)
         return a as GraderConfig;

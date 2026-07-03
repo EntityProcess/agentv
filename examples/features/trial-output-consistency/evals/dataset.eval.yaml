@@ -22,8 +22,8 @@ tests:
       - role: assistant
         content: The capital of France is Paris.
 
-    assertions:
-      - name: trial-consistency
+    assert:
+      - metric: trial-consistency
         type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
@@ -45,8 +45,8 @@ tests:
       - role: assistant
         content: Any creative tagline.
 
-    assertions:
-      - name: trial-consistency
+    assert:
+      - metric: trial-consistency
         type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
@@ -68,8 +68,8 @@ tests:
       - role: assistant
         content: "4"
 
-    assertions:
-      - name: trial-consistency
+    assert:
+      - metric: trial-consistency
         type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
@@ -89,8 +89,8 @@ tests:
       - role: assistant
         content: Hi
 
-    assertions:
-      - name: trial-consistency
+    assert:
+      - metric: trial-consistency
         type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:

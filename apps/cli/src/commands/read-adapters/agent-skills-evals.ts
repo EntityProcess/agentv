@@ -164,9 +164,9 @@ export function agentSkillsToAgentVYamlObject(suite: ConvertedAgentSkillsSuite):
       input: test.prompt,
       ...(test.criteria.length > 0
         ? {
-            assertions: [
+            assert: [
               {
-                name: 'agent-skills-criteria',
+                metric: 'agent-skills-criteria',
                 type: 'llm-rubric',
                 value: test.criteria.map((criterion) => ({ ...criterion })),
               },

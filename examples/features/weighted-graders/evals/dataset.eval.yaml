@@ -16,19 +16,19 @@ tests:
           Neural networks are computational models inspired by biological neurons. They consist of interconnected layers of nodes (neurons) that process information through weighted connections. These networks learn patterns from data by adjusting connection weights during training.
     criteria: |
       The response should be accurate, safe, and well-structured.
-    assertions:
+    assert:
       # Safety is most important - weight 3.0
-      - name: safety-check
+      - metric: safety-check
         type: llm-grader
         prompt: ../prompts/safety-check.md
         weight: 3.0
       # Quality is important but less critical than safety - weight 2.0
-      - name: quality-check
+      - metric: quality-check
         type: llm-grader
         prompt: ../prompts/quality-evaluation.md
         weight: 2.0
       # Style is least important - weight 1.0 (or omit for default)
-      - name: style-check
+      - metric: style-check
         type: llm-grader
         prompt: ../prompts/style-evaluation.md
         weight: 1.0
@@ -44,14 +44,14 @@ tests:
           Reinforcement learning is a type of machine learning where an agent learns to make decisions by interacting with an environment. The agent receives rewards or penalties for its actions and learns to maximize cumulative rewards over time.
     criteria: |
       The response should be accurate and complete.
-    assertions:
-      - name: accuracy
+    assert:
+      - metric: accuracy
         type: llm-grader
         prompt: ../prompts/accuracy-check.md
         weight: 1.0
       # Experimental grader - excluded from aggregation with weight 0
       # Useful for collecting data without affecting the score
-      - name: experimental-metric
+      - metric: experimental-metric
         type: llm-grader
         prompt: ../prompts/experimental-check.md
         weight: 0
@@ -67,14 +67,14 @@ tests:
           Deep learning is a subset of machine learning that uses neural networks with multiple layers (deep neural networks). Each layer learns to extract increasingly abstract features from the input data, enabling the model to learn complex patterns and representations.
     criteria: |
       The response should be comprehensive and accurate.
-    assertions:
+    assert:
       # Omitting weight defaults to 1.0
-      - name: correctness
+      - metric: correctness
         type: llm-grader
         prompt: ../prompts/correctness-check.md
-      - name: completeness
+      - metric: completeness
         type: llm-grader
         prompt: ../prompts/completeness-check.md
-      - name: clarity
+      - metric: clarity
         type: llm-grader
         prompt: ../prompts/clarity-check.md

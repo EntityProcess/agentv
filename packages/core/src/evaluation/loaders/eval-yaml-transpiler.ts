@@ -4,7 +4,7 @@
  * Converts an AgentV EVAL.yaml file into Agent Skills evals.json format
  * for consumption by the skill-creator pipeline.
  *
- * Handles canonical `assertions:` entries.
+ * Handles canonical `assert:` entries.
  */
 
 import { readFileSync } from 'node:fs';
@@ -51,7 +51,7 @@ interface RawAssertEntry {
   should_trigger?: boolean;
   criteria?: string;
   value?: unknown;
-  name?: string;
+  metric?: string;
   description?: string;
   command?: unknown;
   prompt?: string;
@@ -69,13 +69,13 @@ interface RawTestCase {
   input?: string | RawMessage[] | { [key: string]: unknown };
   input_files?: string[];
   expected_output?: string | RawMessage[] | unknown;
-  assertions?: RawAssertEntry[];
+  assert?: RawAssertEntry[];
   [key: string]: unknown;
 }
 
 interface RawSuite {
   tests?: RawTestCase[];
-  assertions?: RawAssertEntry[];
+  assert?: RawAssertEntry[];
   [key: string]: unknown;
 }
 
@@ -175,7 +175,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     }
 
     case 'script': {
-      const graderName = entry.name ?? deriveGraderNameFromCommand(entry.command) ?? 'script';
+      const graderName = entry.metric ?? deriveGraderNameFromCommand(entry.command) ?? 'script';
       const desc = typeof entry.description === 'string' ? entry.description : undefined;
       return scriptGraderInstruction(graderName, desc);
     }
@@ -360,7 +360,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
     throw new Error(`Invalid EVAL.yaml: missing 'tests' array in '${source}'`);
   }
 
-  const suiteAssertions = rawSuite.assertions ?? [];
+  const suiteAssertions = rawSuite.assert ?? [];
 
   // Suite-level NL assertions (appended to every test)
   const suiteNlAssertions: string[] = suiteAssertions
@@ -382,7 +382,7 @@ export function transpileEvalYaml(suite: unknown, source = 'EVAL.yaml'): Transpi
 
   for (let idx = 0; idx < tests.length; idx++) {
     const rawCase = tests[idx];
-    const caseAssertions = rawCase.assertions ?? [];
+    const caseAssertions = rawCase.assert ?? [];
 
     // Collect NL assertions (not skill-trigger)
     const nlAssertions: string[] = [];

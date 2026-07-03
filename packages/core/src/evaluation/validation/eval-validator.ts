@@ -113,7 +113,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'nunjucks_filters',
   'extensions',
   'on_run_complete',
-  'assertions',
   'preprocessors',
   'workspace',
   'metadata',
@@ -132,7 +131,6 @@ const KNOWN_DEFAULT_TEST_FIELDS = new Set([
   'provider_output',
   'expected_output',
   'assert',
-  'assertions',
   'assert_scoring_function',
   'options',
   'threshold',
@@ -153,7 +151,6 @@ const KNOWN_REPEAT_FIELDS = new Set(['count', 'strategy', 'early_exit', 'cost_li
 const KNOWN_REPEAT_STRATEGIES = new Set(['pass_any', 'pass_all', 'mean', 'confidence_interval']);
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'assert',
-  'assertions',
   'skip_defaults',
   'cache',
   'trials',
@@ -214,7 +211,6 @@ const KNOWN_TEST_FIELDS = new Set([
   'input_files',
   'expected_output',
   'assert',
-  'assertions',
   'assert_scoring_function',
   'options',
   'threshold',
@@ -409,7 +405,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
   validateAuthoredWorkers(parsed, absolutePath, errors);
   validateEvaluateOptions(parsed.evaluate_options, 'evaluate_options', absolutePath, errors);
   validateAssertArray(parsed.assert, 'assert', absolutePath, errors, customAssertionTypes);
-  validateAssertArray(parsed.assertions, 'assertions', absolutePath, errors, customAssertionTypes);
   validateDefaultTest(parsed.default_test, absolutePath, errors, customAssertionTypes);
   await validateImportsField(parsed.imports, absolutePath, errors);
 
@@ -601,13 +596,6 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     validateAssertArray(
       evalCase.assert,
       `${location}.assert`,
-      absolutePath,
-      errors,
-      customAssertionTypes,
-    );
-    validateAssertArray(
-      evalCase.assertions,
-      `${location}.assertions`,
       absolutePath,
       errors,
       customAssertionTypes,
@@ -1190,7 +1178,7 @@ function validateDefaultTest(
         filePath,
         location: `default_test.${key}`,
         message:
-          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, expected_output, assert, assertions, assert_scoring_function, options, threshold, metadata.',
+          'Invalid default_test field. Supported fields: vars, provider, providers, prompts, provider_output, expected_output, assert, assert_scoring_function, options, threshold, metadata.',
       });
     }
   }
@@ -1202,14 +1190,6 @@ function validateDefaultTest(
     errors,
     customAssertionTypes,
   );
-  validateAssertArray(
-    defaultTest.assertions,
-    'default_test.assertions',
-    filePath,
-    errors,
-    customAssertionTypes,
-  );
-
   const threshold = defaultTest.threshold;
   if (
     threshold !== undefined &&
@@ -2084,7 +2064,7 @@ function validateAssertArray(
     return;
   }
 
-  // String items in the assertions array are valid shorthand — the parser collects them
+  // String items in the assert array are valid shorthand — the parser collects them
   // into a single rubrics/llm-grader evaluator. Filter them out before object validation.
   const objectItems: { item: JsonObject; index: number }[] = [];
   for (let i = 0; i < assertField.length; i++) {
@@ -2114,6 +2094,14 @@ function validateAssertArray(
 
   for (const { item, index } of objectItems) {
     const itemLocation = `${location}[${index}]`;
+
+    validateAssertArray(
+      item.assert,
+      `${itemLocation}.assert`,
+      filePath,
+      errors,
+      customAssertionTypes,
+    );
 
     // Validate type field
     const rawTypeValue = item.type;

@@ -24,7 +24,7 @@ describe('criteria is optional when expected_output or assertions is present', (
   - id: test-01
     input: "sample prompt"
     expected_output: "sample expected output"
-    assertions:
+    assert:
       - type: contains
         value: sample
 `,
@@ -42,7 +42,7 @@ describe('criteria is optional when expected_output or assertions is present', (
       `tests:
   - id: test-02
     input: "sample prompt"
-    assertions:
+    assert:
       - type: llm-rubric
         value:
           - response includes sample expected output
@@ -60,7 +60,7 @@ describe('criteria is optional when expected_output or assertions is present', (
       path.join(tempDir, 'missing-input.eval.yaml'),
       `tests:
   - id: test-03
-    assertions:
+    assert:
       - type: contains
         value: sample
 `,

@@ -8,5 +8,5 @@ tests:
   - id: spreadsheet-output
     input: Generate the spreadsheet report
     criteria: The extracted spreadsheet content includes the revenue rows
-    assertions:
+    assert:
       - Output contains the transformed spreadsheet text including the revenue rows

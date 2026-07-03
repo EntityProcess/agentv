@@ -23,7 +23,7 @@ describe('rubric criterion operators', () => {
   - id: finance-summary
     input: "Summarize the finance note"
     criteria: "Keep supported facts and avoid contradictions"
-    assertions:
+    assert:
       - type: llm-rubric
         value:
           - id: supported-revenue

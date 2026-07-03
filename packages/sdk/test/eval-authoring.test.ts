@@ -32,7 +32,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       timeoutSeconds: 600,
       threshold: 0.8,
       budgetUsd: 1.5,
-      assertions: [
+      assert: [
         {
           type: 'execution-metrics',
           maxToolCalls: 3,
@@ -65,7 +65,7 @@ describe('YAML-aligned eval authoring helpers', () => {
             {
               input: 'hello?',
               expectedOutput: 'hi',
-              assertions: [
+              assert: [
                 'mentions hi',
                 {
                   type: 'tool-trajectory',
@@ -123,7 +123,7 @@ describe('YAML-aligned eval authoring helpers', () => {
         },
         budget_usd: 1.5,
       },
-      assertions: [
+      assert: [
         {
           type: 'execution-metrics',
           max_tool_calls: 3,
@@ -156,7 +156,7 @@ describe('YAML-aligned eval authoring helpers', () => {
             {
               input: 'hello?',
               expected_output: 'hi',
-              assertions: [
+              assert: [
                 'mentions hi',
                 {
                   type: 'tool-trajectory',
@@ -182,7 +182,7 @@ describe('YAML-aligned eval authoring helpers', () => {
     });
   });
 
-  it('serializes canonical YAML and keeps assertions as the durable field', () => {
+  it('serializes canonical YAML and uses the assert block', () => {
     const suite = evalSuite({
       name: 'yaml-round-trip',
       tests: [
@@ -190,7 +190,7 @@ describe('YAML-aligned eval authoring helpers', () => {
           id: 'hello',
           input: 'Say hello',
           expectedOutput: 'Hello',
-          assertions: [{ type: 'contains', value: 'Hello' }],
+          assert: [{ type: 'contains', value: 'Hello' }],
         },
       ],
     });
@@ -199,7 +199,7 @@ describe('YAML-aligned eval authoring helpers', () => {
 
     expect(yaml).toContain('name: yaml-round-trip');
     expect(yaml).toContain('expected_output: Hello');
-    expect(yaml).toContain('assertions:');
+    expect(yaml).toContain('assert:');
     expect(yaml).not.toContain('expectedOutput');
     expect(yaml).not.toContain('inputFiles');
   });
@@ -209,7 +209,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-tags-map',
       tags: { experiment: 'sdk-baseline', team: 'compliance' },
       target: 'mock-target',
-      tests: [{ id: 'hello', input: 'Say hello', assertions: [{ type: 'contains', value: 'hi' }] }],
+      tests: [{ id: 'hello', input: 'Say hello', assert: [{ type: 'contains', value: 'hi' }] }],
     });
 
     const lowered = toEvalYamlObject(suite);
@@ -221,7 +221,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-tags-list',
       tags: ['smoke', 'regression'],
       target: 'mock-target',
-      tests: [{ id: 'hello', input: 'Say hello', assertions: [{ type: 'contains', value: 'hi' }] }],
+      tests: [{ id: 'hello', input: 'Say hello', assert: [{ type: 'contains', value: 'hi' }] }],
     });
 
     const lowered = toEvalYamlObject(suite);
@@ -237,7 +237,7 @@ describe('YAML-aligned eval authoring helpers', () => {
           {
             id: 'hello',
             input: 'Say hello',
-            assertions: [{ type: 'contains', value: 'hello' }],
+            assert: [{ type: 'contains', value: 'hello' }],
           },
         ],
       } as never),
@@ -253,7 +253,7 @@ describe('YAML-aligned eval authoring helpers', () => {
           {
             id: 'hello',
             input: 'Say hello',
-            assertions: [{ type: 'contains', value: 'hello' }],
+            assert: [{ type: 'contains', value: 'hello' }],
           },
         ],
       } as never),

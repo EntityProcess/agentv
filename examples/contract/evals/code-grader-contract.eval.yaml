@@ -11,7 +11,7 @@ tests:
         content: "Use the literal token RELEASE as the first word in your response."
       - role: user
         content: "Use the literal token CONTRACT as the second word in your response."
-    assertions:
-      - name: code-grader-payload-contract
+    assert:
+      - metric: code-grader-payload-contract
         type: script
         command: ["bun", "../scripts/check-code-grader-payload.ts"]

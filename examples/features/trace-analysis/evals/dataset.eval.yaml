@@ -11,7 +11,7 @@ tests:
   - id: research-question
     input: What are the key differences between REST and GraphQL APIs?
     criteria: Covers at least three differences including query flexibility, over-fetching, and type system
-    assertions:
+    assert:
       - type: contains
         value: REST
       - type: contains
@@ -22,7 +22,7 @@ tests:
   - id: code-review-task
     input: Review this Python function for potential issues and suggest improvements.
     criteria: Identifies at least one code quality issue
-    assertions:
+    assert:
       - type: contains
         value: suggest
       - type: regex
@@ -31,6 +31,6 @@ tests:
   - id: simple-qa
     input: What is the capital of France?
     criteria: Correctly answers Paris
-    assertions:
+    assert:
       - type: contains
         value: Paris

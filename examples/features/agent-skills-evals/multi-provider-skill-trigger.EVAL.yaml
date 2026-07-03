@@ -27,14 +27,14 @@ tests:
 
   - id: should-trigger-direct-request
     input: "How do I deploy payments-api to production?"
-    assertions:
+    assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: true
 
   - id: should-trigger-casual-phrasing
     input: "I need to roll back user-service in staging, what's the Acme deploy procedure for that?"
-    assertions:
+    assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: true
@@ -43,14 +43,14 @@ tests:
 
   - id: should-not-trigger-unrelated
     input: "What time is it in Tokyo right now?"
-    assertions:
+    assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: false
 
   - id: should-not-trigger-near-miss
     input: "Write a Python function that parses JSON logs and extracts error messages"
-    assertions:
+    assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: false

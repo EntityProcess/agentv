@@ -15,12 +15,12 @@ tests:
 
     expected_output: "The capital of France is Paris."
 
-    assertions:
-      - name: keyword-check
+    assert:
+      - metric: keyword-check
         type: script
         command: ["bun", "run", "../.agentv/graders/keyword-check.ts"]
         description: "Checks that the answer mentions Paris and France"
-      - name: length-check
+      - metric: length-check
         type: script
         command: ["bun", "run", "../.agentv/graders/length-check.ts"]
         description: "Ensures answer is between 5 and 50 words"
@@ -34,6 +34,6 @@ tests:
 
     expected_output: "Jupiter is the largest planet in our solar system."
 
-    assertions:
+    assert:
       - type: contains
         value: "Jupiter"

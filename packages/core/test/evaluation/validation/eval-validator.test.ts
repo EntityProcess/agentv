@@ -652,7 +652,7 @@ tests:
       `workspace:
   template: ./child-workspace
 input: child suite input
-assertions:
+assert:
   - type: contains
     value: child
 tests:
@@ -1031,7 +1031,7 @@ tests:
   - id: finance-summary
     criteria: Keep supported facts and avoid contradictions
     input: Summarize the finance note
-    assertions:
+    assert:
       - type: llm-rubric
         value:
           - id: supported-revenue
@@ -1124,15 +1124,15 @@ tests:
     expect(warnings).toHaveLength(0);
   });
 
-  describe('assertions field validation', () => {
-    it('validates assertions array items have type field', async () => {
+  describe('assert field validation', () => {
+    it('validates assert array items have type field', async () => {
       const filePath = path.join(tempDir, 'assert-missing-type.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - value: test
 `,
       );
@@ -1150,7 +1150,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: invalid_evaluator
         value: test
 `,
@@ -1169,7 +1169,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
 `,
       );
@@ -1187,7 +1187,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: equals
 `,
       );
@@ -1205,7 +1205,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: regex
         value: "[invalid"
 `,
@@ -1224,7 +1224,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: regex
 `,
       );
@@ -1242,7 +1242,7 @@ tests:
         `tests:
   - id: test-1
     input: "Return JSON"
-    assertions:
+    assert:
       - type: is-json
 `,
       );
@@ -1261,7 +1261,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: true
@@ -1282,7 +1282,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: 0.8
@@ -1302,7 +1302,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: "yes"
@@ -1322,7 +1322,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: 0
@@ -1342,7 +1342,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - type: contains
         value: "4"
         required: 1.5
@@ -1355,31 +1355,31 @@ tests:
       expect(warnings.some((e) => e.message.includes("Numeric 'required: 1.5'"))).toBe(true);
     });
 
-    it('warns when assertions is not an array', async () => {
+    it('warns when assert is not an array', async () => {
       const filePath = path.join(tempDir, 'assert-not-array.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions: "contains"
+    assert: "contains"
 `,
       );
 
       const result = await validateEvalFile(filePath);
 
       const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes('assertions'))).toBe(true);
+      expect(warnings.some((e) => e.message.includes('assert'))).toBe(true);
     });
 
-    it('accepts string shorthand in assertions array', async () => {
+    it('accepts string shorthand in assert array', async () => {
       const filePath = path.join(tempDir, 'assert-string-shorthand.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "Explain quicksort"
-    assertions:
+    assert:
       - Mentions divide-and-conquer approach
       - Explains partition step
       - States time complexity correctly
@@ -1399,7 +1399,7 @@ tests:
         `tests:
   - id: test-1
     input: "What is 2+2?"
-    assertions:
+    assert:
       - 42
 `,
       );
@@ -1410,14 +1410,14 @@ tests:
       expect(warnings.some((e) => e.message.includes('string or an object'))).toBe(true);
     });
 
-    it('passes valid assertions array', async () => {
+    it('passes valid assert array', async () => {
       const filePath = path.join(tempDir, 'assert-valid.yaml');
       await writeFile(
         filePath,
         `tests:
   - id: test-1
     input: "Is this entity sanctioned?"
-    assertions:
+    assert:
       - type: contains
         value: DENIED
       - type: is-json
@@ -2050,7 +2050,7 @@ tests:
     input: "Hello"
     criteria: Some criteria
     expected_output: "World"
-    assertions:
+    assert:
       - type: contains
         value: "world"
     metadata:

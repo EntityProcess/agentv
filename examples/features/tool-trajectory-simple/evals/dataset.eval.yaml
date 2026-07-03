@@ -53,8 +53,8 @@ tests:
       - role: user
         content: Research the key differences between REST and GraphQL APIs.
 
-    assertions:
-      - name: tool-usage-check
+    assert:
+      - metric: tool-usage-check
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -76,8 +76,8 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    assertions:
-      - name: workflow-sequence
+    assert:
+      - metric: workflow-sequence
         type: tool-trajectory
         mode: in_order
         expected:
@@ -101,8 +101,8 @@ tests:
       - role: user
         content: Authenticate the user with provided credentials.
 
-    assertions:
-      - name: auth-sequence-exact
+    assert:
+      - metric: auth-sequence-exact
         type: tool-trajectory
         mode: exact
         expected:
@@ -125,8 +125,8 @@ tests:
       - role: user
         content: What are the current system metrics for CPU and memory?
 
-    assertions:
-      - name: metrics-tools
+    assert:
+      - metric: metrics-tools
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -148,8 +148,8 @@ tests:
       - role: user
         content: Search for information and generate a report.
 
-    assertions:
-      - name: tool-check
+    assert:
+      - metric: tool-check
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -176,8 +176,8 @@ tests:
       - role: user
         content: What's the weather like in Paris?
 
-    assertions:
-      - name: arg-validation
+    assert:
+      - metric: arg-validation
         type: tool-trajectory
         mode: in_order
         # Use superset args matching to allow extra keys in actual args
@@ -203,8 +203,8 @@ tests:
       - role: user
         content: Load customer data, normalize it, and save
 
-    assertions:
-      - name: workflow-sequence-only
+    assert:
+      - metric: workflow-sequence-only
         type: tool-trajectory
         mode: in_order
         expected:
@@ -238,8 +238,8 @@ tests:
       - role: user
         content: Research and analyze the data.
 
-    assertions:
-      - name: required-tools
+    assert:
+      - metric: required-tools
         type: tool-trajectory
         mode: superset
         args_match: superset
@@ -261,8 +261,8 @@ tests:
       - role: user
         content: Look up the current system status.
 
-    assertions:
-      - name: safe-tools-only
+    assert:
+      - metric: safe-tools-only
         type: tool-trajectory
         mode: subset
         expected:
@@ -284,8 +284,8 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    assertions:
-      - name: mixed-precision
+    assert:
+      - metric: mixed-precision
         type: tool-trajectory
         mode: in_order
         args_match: ignore  # Default: don't check args
@@ -309,8 +309,8 @@ tests:
       - role: user
         content: Process the customer data from the API endpoint.
 
-    assertions:
-      - name: check-source-only
+    assert:
+      - metric: check-source-only
         type: tool-trajectory
         mode: in_order
         expected:

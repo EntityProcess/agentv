@@ -74,7 +74,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
   lines.push('#   - type: script for custom scoring scripts');
   lines.push('#   - type: llm-rubric value arrays with weights and score ranges for rubrics');
   lines.push('#   - Multi-turn conversations via input message arrays');
-  lines.push('#   - Multiple assertions with weighted scoring');
+  lines.push('#   - Multiple assert entries with weighted scoring');
   lines.push('#   - Workspace isolation with repos and hooks');
   lines.push('');
 
@@ -125,8 +125,8 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
         '    # Promoted from evals.json expected_output, assertions[], and expectations[]',
       );
       lines.push('    # Replace with type: is-json, contains, or regex for deterministic checks');
-      lines.push('    assertions:');
-      lines.push('      - name: agent-skills-criteria');
+      lines.push('    assert:');
+      lines.push('      - metric: agent-skills-criteria');
       lines.push('        type: llm-rubric');
       lines.push('        value:');
       for (const criterion of test.criteria) {

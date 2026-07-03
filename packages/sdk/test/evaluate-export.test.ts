@@ -9,7 +9,7 @@ describe('evaluate export', () => {
         {
           id: 'sdk-evaluate-export',
           input: 'Say hello',
-          assertions: [{ type: 'contains', value: 'hello' }],
+          assert: [{ type: 'contains', value: 'hello' }],
         },
       ],
       task: async (input) => `hello: ${input}`,

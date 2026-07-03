@@ -69,7 +69,7 @@ export default defineAssertion(({ output }) => ({
 }));
 ```
 
-Assertions support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
+Checks support `pass: boolean` for simple checks and `score: number` (0-1) for granular scoring.
 
 ### defineCodeGrader (full control)
 
@@ -106,8 +106,8 @@ it('links to the dashboard', () => {
 Then reference the verifier directly from eval YAML through AgentV's built-in code-grader adapter:
 
 ```yaml
-assertions:
-  - name: vitest-welcome-banner
+assert:
+  - metric: vitest-welcome-banner
     type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
@@ -158,7 +158,7 @@ export default defineEval({
       id: 'hello',
       input: 'Say hello',
       expectedOutput: 'Hello from the mock target',
-      assertions: [graders.contains('Hello')],
+      assert: [graders.contains('Hello')],
     },
   ],
 });
@@ -179,24 +179,24 @@ export default defineEval({
     {
       id: 'json-greeting',
       input: 'Return a JSON greeting.',
-      assertions: [
-        graders.contains('Hello', { name: 'mentions-hello' }),
-        graders.regex(/"message"\s*:/, { name: 'message-key' }),
-        graders.json({ name: 'valid-json', required: true }),
-        graders.llmRubric(['Greets the user'], { name: 'rubric-review' }),
+      assert: [
+        graders.contains('Hello', { metric: 'mentions-hello' }),
+        graders.regex(/"message"\s*:/, { metric: 'message-key' }),
+        graders.json({ metric: 'valid-json', required: true }),
+        graders.llmRubric(['Greets the user'], { metric: 'rubric-review' }),
         graders.llmGrader({
-          name: 'llm-review',
+          metric: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
           target: 'grader-target',
         }),
-        graders.codeGrader(['bun', 'run', 'graders/check.ts'], { name: 'scripted-check' }),
+        graders.codeGrader(['bun', 'run', 'graders/check.ts'], { metric: 'scripted-check' }),
       ],
     },
   ],
 });
 ```
 
-The helpers return ordinary `assertions` entries such as `type: contains`, `type: llm-grader`, and `type: script`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
+The helpers return ordinary `assert` entries such as `type: contains`, `type: llm-grader`, and `type: script`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
 
 If you are coming from Braintrust `scores` or DeepEval metrics, model reusable checks as small AgentV-native helper factories that return these grader configs. They still lower to the same YAML/runtime contract:
 
@@ -205,7 +205,7 @@ import { defineEval, graders } from '@agentv/sdk';
 
 function ragFaithfulness() {
   return graders.llmGrader({
-    name: 'rag-faithfulness',
+    metric: 'rag-faithfulness',
     target: 'grader-target',
     prompt: 'Grade whether the answer is supported by the provided context.',
   });
@@ -217,7 +217,7 @@ export default defineEval({
     {
       id: 'grounded-answer',
       input: 'Answer using the retrieved context.',
-      assertions: [ragFaithfulness()],
+      assert: [ragFaithfulness()],
     },
   ],
 });

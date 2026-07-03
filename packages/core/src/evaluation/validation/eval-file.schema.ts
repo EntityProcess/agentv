@@ -47,7 +47,6 @@ const ExpectedOutputSchema = z.union([z.string(), JsonObjectSchema, z.array(Mess
 
 /** Common fields shared by all evaluators */
 const EvaluatorCommonSchema = z.object({
-  name: z.string().optional(),
   metric: z.string().optional(),
   weight: z.number().min(0).optional(),
   required: z.boolean().optional(),
@@ -159,7 +158,6 @@ const CompositeSchema: z.ZodType = z.lazy(() =>
   EvaluatorCommonSchema.extend({
     type: z.literal('composite'),
     assert: z.array(EvaluatorSchema).optional(),
-    assertions: z.array(EvaluatorSchema).optional(),
     aggregator: AggregatorSchema,
   }),
 );
@@ -275,7 +273,6 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
   provider: z.union([z.string(), JsonObjectSchema]).optional(),
   config: JsonRecordSchema.optional(),
   assert: z.array(z.union([z.string(), JsonObjectSchema])).optional(),
-  assertions: z.array(z.union([z.string(), JsonObjectSchema])).optional(),
   transform: z.union([z.string(), JsonObjectSchema]).optional(),
 }).passthrough();
 
@@ -493,7 +490,6 @@ const ExecutionSchema = z.object({
   targets: z.array(z.union([z.string(), EvalTargetRefSchema])).optional(),
   workers: z.never().optional(),
   assert: z.array(AssertionItemSchema).optional(),
-  assertions: z.array(AssertionItemSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
   /** Removed before stable release. Repeat counts belong under evaluate_options.repeat.count. */
@@ -533,7 +529,6 @@ const DefaultTestSchema = z
     provider_output: ExpectedOutputSchema.optional(),
     expected_output: ExpectedOutputSchema.optional(),
     assert: z.array(AssertionItemSchema).optional(),
-    assertions: z.array(AssertionItemSchema).optional(),
     assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
     options: JsonObjectSchema.optional(),
     threshold: z.number().min(0).max(1).optional(),
@@ -560,7 +555,6 @@ const ConversationTurnSchema = z.object({
   input: z.union([z.string(), MessageContentSchema]),
   expected_output: z.union([z.string(), MessageContentSchema]).optional(),
   assert: z.array(AssertionItemSchema).optional(),
-  assertions: z.array(AssertionItemSchema).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -581,7 +575,6 @@ const EvalTestSchema = z.object({
   input_files: z.array(z.string()).optional(),
   expected_output: ExpectedOutputSchema.optional(),
   assert: z.array(AssertionItemSchema).optional(),
-  assertions: z.array(AssertionItemSchema).optional(),
   assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
   options: JsonObjectSchema.optional(),
   threshold: z.number().min(0).max(1).optional(),
@@ -658,7 +651,6 @@ const ScenarioConfigSchema = z
     prompts: PromptsSchema.optional(),
     provider_output: ExpectedOutputSchema.optional(),
     assert: z.array(AssertionItemSchema).optional(),
-    assertions: z.array(AssertionItemSchema).optional(),
     options: JsonObjectSchema.optional(),
     threshold: z.number().min(0).max(1).optional(),
     metadata: z.record(z.unknown()).optional(),
@@ -739,9 +731,8 @@ export const EvalFileSchema: z.ZodType = z
     on_run_complete: z.never().optional(),
     policy: z.never().optional(),
     execution: z.never().optional(),
-    // Suite-level assertions
+    // Suite-level assert entries
     assert: z.array(AssertionItemSchema).optional(),
-    assertions: z.array(AssertionItemSchema).optional(),
     // Suite-level content preprocessors shared by evaluators
     preprocessors: z.array(PreprocessorSchema).optional(),
     // Workspace (inline object or path to external workspace YAML file)

@@ -18,7 +18,7 @@ tests:
         content: >-
           Return this exact JSON object:
           {"status":"ok","gate":"agentv-contract","checks":2}
-    assertions:
+    assert:
       - type: is-json
         required: true
       - type: regex
@@ -34,9 +34,9 @@ tests:
           Reply with exactly the lowercase words: workspace ready
       - role: user
         content: Confirm the release contract workspace is ready.
-    assertions:
+    assert:
       - type: contains
         value: workspace ready
-      - name: workspace-template-materialized
+      - metric: workspace-template-materialized
         type: script
         command: ["bun", "../scripts/check-workspace.ts"]

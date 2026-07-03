@@ -37,10 +37,10 @@ tests:
   # (gpt-5-mini typically reads CSV directly without invoking skills)
   - id: should-not-trigger-csv-analyzer
     input: "Analyze this CSV file and tell me the top 5 months by revenue"
-    assertions:
+    assert:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: false
-      - name: transcript-quality
+      - metric: transcript-quality
         type: script
         command: ["bun", "run", "../graders/transcript-quality.ts"]

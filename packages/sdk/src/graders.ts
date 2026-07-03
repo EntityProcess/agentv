@@ -3,7 +3,7 @@ import type { EvalAssertionConfig, EvalPreprocessor } from './eval.js';
 export type GraderCommand = string | readonly string[];
 
 export interface GraderHelperOptions {
-  readonly name?: string;
+  readonly metric?: string;
   readonly weight?: number;
   readonly required?: boolean;
   readonly minScore?: number;
@@ -11,7 +11,7 @@ export interface GraderHelperOptions {
 }
 
 export interface GraderCommonConfig {
-  readonly name?: string;
+  readonly metric?: string;
   readonly weight?: number;
   readonly required?: boolean;
   readonly minScore?: number;
@@ -131,7 +131,7 @@ function withCommon<T extends { readonly type: string }>(
   options: GraderHelperOptions = {},
 ): T & GraderCommonConfig & EvalAssertionConfig {
   return {
-    ...(options.name !== undefined ? { name: options.name } : {}),
+    ...(options.metric !== undefined ? { metric: options.metric } : {}),
     ...config,
     ...(options.weight !== undefined ? { weight: options.weight } : {}),
     ...(options.required !== undefined ? { required: options.required } : {}),

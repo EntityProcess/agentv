@@ -107,7 +107,7 @@ Plain assertion strings are short-form rubric criteria: AgentV groups them into
 `llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
 Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
 `score_ranges`; use string `value` for promptfoo-compatible free-form rubric
-assertions; use `type: llm-grader` only when you need a custom grader prompt,
+checks; use `type: llm-grader` only when you need a custom grader prompt,
 grader target, or preprocessing. Executable graders use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:
@@ -195,7 +195,7 @@ const { results, summary } = await evaluate({
     {
       id: 'fizzbuzz',
       input: 'Write FizzBuzz in Python',
-      assertions: [
+      assert: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
         { type: 'script', command: ['python3', './validators/check_syntax.py'] },
@@ -240,7 +240,7 @@ export default defineEval({
     {
       id: 'fizzbuzz',
       input: 'Write FizzBuzz in Python',
-      assertions: [
+      assert: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
         { type: 'script', command: ['python3', './validators/check_syntax.py'] },

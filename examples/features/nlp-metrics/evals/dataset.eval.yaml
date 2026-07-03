@@ -19,8 +19,8 @@ tests:
       - role: assistant
         content: The quick brown fox jumps over the lazy dog near the river bank.
 
-    assertions:
-      - name: rouge-score
+    assert:
+      - metric: rouge-score
         type: script
         command: ["bun", "run", "../graders/rouge.ts"]
 
@@ -35,8 +35,8 @@ tests:
       - role: assistant
         content: The cat sat on the mat and watched the birds in the garden.
 
-    assertions:
-      - name: bleu-score
+    assert:
+      - metric: bleu-score
         type: script
         command: ["bun", "run", "../graders/bleu.ts"]
 
@@ -51,8 +51,8 @@ tests:
       - role: assistant
         content: Machine learning models require large amounts of training data to perform well.
 
-    assertions:
-      - name: cosine-similarity
+    assert:
+      - metric: cosine-similarity
         type: script
         command: ["bun", "run", "../graders/similarity.ts"]
 
@@ -67,8 +67,8 @@ tests:
       - role: assistant
         content: "Widget Pro 3000"
 
-    assertions:
-      - name: edit-distance
+    assert:
+      - metric: edit-distance
         type: script
         command: ["bun", "run", "../graders/levenshtein.ts"]
 
@@ -83,13 +83,13 @@ tests:
       - role: assistant
         content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and personalised treatment plans.
 
-    assertions:
-      - name: rouge-score
+    assert:
+      - metric: rouge-score
         type: script
         command: ["bun", "run", "../graders/rouge.ts"]
-      - name: cosine-similarity
+      - metric: cosine-similarity
         type: script
         command: ["bun", "run", "../graders/similarity.ts"]
-      - name: edit-distance
+      - metric: edit-distance
         type: script
         command: ["bun", "run", "../graders/levenshtein.ts"]

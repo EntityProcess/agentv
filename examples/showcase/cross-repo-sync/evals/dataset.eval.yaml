@@ -31,8 +31,8 @@ tests:
           agentv just merged eval spec v2 (PR #262). Update the agentevals
           spec docs to reflect: 4 new deterministic assertion types, required
           gates, assertions field at test/suite level, tests-as-string-path.
-    assertions:
-      - name: sync-check
+    assert:
+      - metric: sync-check
         type: script
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
@@ -51,8 +51,8 @@ tests:
         content: |
           agentv renamed cases→tests in the eval schema (PR #240).
           Update all agentevals spec docs to match.
-    assertions:
-      - name: sync-check
+    assert:
+      - metric: sync-check
         type: script
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:
@@ -72,8 +72,8 @@ tests:
           agentv renamed schema fields: eval_cases→cases, expected_outcome→criteria
           at case level, expected_outcome→outcome at rubric level (PR #202).
           Update agentevals spec docs accordingly.
-    assertions:
-      - name: sync-check
+    assert:
+      - metric: sync-check
         type: script
         command: ["bash", "../scripts/run-ts.sh", "../scripts/validate-sync.ts"]
         expected_files_modified:

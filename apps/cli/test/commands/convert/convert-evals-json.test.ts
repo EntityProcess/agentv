@@ -44,6 +44,8 @@ describe('convertEvalsJsonToYaml', () => {
     expect(yaml).toContain('criteria: |-');
     expect(yaml).toContain('Something done');
     expect(yaml).toContain('agent-skills-criteria');
+    expect(yaml).toContain('assert:');
+    expect(yaml).toContain('metric: agent-skills-criteria');
     expect(yaml).toContain('type: llm-rubric');
     expect(yaml).toContain('value:');
     expect(yaml).toContain('expected-outcome');
@@ -64,7 +66,7 @@ describe('convertEvalsJsonToYaml', () => {
     const yaml = convertEvalsJsonToYaml(filePath);
     expect(yaml).toContain('id: "1"');
     expect(yaml).toContain('Just a prompt');
-    expect(yaml).not.toContain('assertions:');
+    expect(yaml).not.toContain('assert:');
     expect(yaml).not.toContain('expected_output:');
   });
 
@@ -95,7 +97,8 @@ describe('convertEvalsJsonToYaml', () => {
 
     expect(yamlObject.tags).toEqual({ skill: 'test-skill' });
     expect(yamlObject.metadata).toEqual({ source_adapter: 'agent-skills-evals-json' });
-    expect(yamlObject.tests?.[0]?.assertions?.[0]).toMatchObject({
+    expect(yamlObject.tests?.[0]?.assert?.[0]).toMatchObject({
+      metric: 'agent-skills-criteria',
       type: 'llm-rubric',
       value: [{ id: 'assertion-1', outcome: 'Check A' }],
     });

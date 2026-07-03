@@ -23,6 +23,6 @@ tests:
   - id: hello-world
     input: "Write a Python function that returns 'hello world'"
     criteria: "The output should contain a working Python function"
-    assertions:
+    assert:
       - type: script
         command: ["python", "-c", "import sys, json; data = json.load(sys.stdin); print(json.dumps({'score': 1.0, 'assertions': [{'text': 'grader ran in container', 'passed': True}]}))"]

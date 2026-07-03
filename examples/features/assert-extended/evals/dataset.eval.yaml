@@ -14,7 +14,7 @@ tests:
   - id: contains-any-greeting
     criteria: Response should include some form of greeting
     input: "Greet the user warmly. Start with Hello or Hi."
-    assertions:
+    assert:
       - type: contains-any
         value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
 
@@ -28,7 +28,7 @@ tests:
         content: "Always repeat back the user's name and email exactly as given."
       - role: user
         content: "Confirm my details: name is Alice, email is alice@example.com"
-    assertions:
+    assert:
       - type: contains-all
         value: ["Alice", "alice@example.com"]
 
@@ -38,7 +38,7 @@ tests:
   - id: icontains-keyword
     criteria: Response mentions "error" in any case
     input: "Report the system status. Mention whether there are any errors."
-    assertions:
+    assert:
       - type: icontains
         value: "error"
 
@@ -52,7 +52,7 @@ tests:
         content: "You are a customs processing assistant. If rule codes are missing, ask for them."
       - role: user
         content: "Process this customs declaration. Country: BE. No rule codes provided."
-    assertions:
+    assert:
       - type: icontains-any
         value: ["rule code", "rule codes", "missing", "need", "provide", "required"]
         required: true
@@ -67,7 +67,7 @@ tests:
         content: "When asked about customs entry fields, always mention these three: Country Code, Rule Codes, and Expected Values."
       - role: user
         content: "What fields are needed for a customs entry?"
-    assertions:
+    assert:
       - type: icontains-all
         value: ["country code", "rule code", "expected value"]
 
@@ -77,7 +77,7 @@ tests:
   - id: starts-with-greeting
     criteria: Response starts with a formal prefix
     input: "Write a formal letter opening. Start with 'Dear Sir/Madam'."
-    assertions:
+    assert:
       - type: starts-with
         value: "Dear"
 
@@ -87,7 +87,7 @@ tests:
   - id: ends-with-sign-off
     criteria: Response ends with a professional sign-off
     input: "Write a brief thank you note. End your response with exactly 'Best regards'"
-    assertions:
+    assert:
       - type: ends-with
         value: "Best regards"
 
@@ -97,7 +97,7 @@ tests:
   - id: regex-case-insensitive
     criteria: Response contains an email pattern
     input: "Provide a support email address for contacting the team."
-    assertions:
+    assert:
       - type: regex
         value: "[a-z]+@[a-z]+\\.[a-z]+"
         flags: "i"
@@ -108,7 +108,7 @@ tests:
   - id: negate-contains-any
     criteria: Response must NOT mention any competitor
     input: "Describe the advantages of cloud computing. Do not mention any company names."
-    assertions:
+    assert:
       - type: contains-any
         value: ["CompetitorA", "CompetitorB", "CompetitorC"]
         negate: true
@@ -124,11 +124,11 @@ tests:
         content: "You are a customs processing assistant. When rule codes are missing, ask the user to provide them in true/false format."
       - role: user
         content: "Process customs entry for country BE. No other data provided."
-    assertions:
-      - name: asks-for-rule-codes
+    assert:
+      - metric: asks-for-rule-codes
         type: icontains-any
         value: ["rule code", "rule codes"]
         required: true
-      - name: mentions-expected-format
+      - metric: mentions-expected-format
         type: icontains-any
         value: ["true/false", "true or false", "boolean", "expected value", "format"]

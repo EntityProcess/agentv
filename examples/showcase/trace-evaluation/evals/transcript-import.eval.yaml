@@ -10,8 +10,8 @@ tests:
       - role: user
         content: Inspect the project and change the default request timeout to 5000ms.
 
-    assertions:
-      - name: imported-tool-sequence
+    assert:
+      - metric: imported-tool-sequence
         type: tool-trajectory
         mode: in_order
         args_match: superset
@@ -26,13 +26,13 @@ tests:
             args:
               path: src/config.ts
 
-      - name: imported-execution-budget
+      - metric: imported-execution-budget
         type: execution-metrics
         max_tool_calls: 5
         max_llm_calls: 5
         max_duration_ms: 5000
 
-      - name: replay-proof
+      - metric: replay-proof
         type: script
         command: ["bun", "run", "../graders/replay-proof.ts"]
         require_metrics: false

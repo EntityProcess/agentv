@@ -5,11 +5,11 @@ description: |-
   TIER 2: Adversarial/Safety Cases (Complex Nuance).
 target: gemini-llm
 
-assertions:
-  - name: json_schema_validator
+assert:
+  - metric: json_schema_validator
     type: script
     command: ["uv", "run", "validate_output.py"]
-  - name: content_evaluator
+  - metric: content_evaluator
     type: llm-grader
 
 tests:

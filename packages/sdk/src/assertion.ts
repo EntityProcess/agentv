@@ -24,9 +24,9 @@ export type AssertionContext = CodeGraderInput;
 /**
  * Known built-in assertion types. Custom types are extensible via string.
  *
- * Use in EVAL.yaml `assertions` blocks:
+ * Use in EVAL.yaml `assert` blocks:
  * ```yaml
- * assertions:
+ * assert:
  *   - type: contains
  *     value: "Paris"
  * ```

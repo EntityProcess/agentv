@@ -217,7 +217,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-assert.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"name": "rubric-check", "type": "llm-grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"metric": "rubric-check", "type": "llm-grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -231,7 +231,7 @@ describe('loadTestsFromJsonl', () => {
     const jsonlPath = path.join(tempDir, 'with-llm-rubric-value.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"name": "rubric-check", "type": "llm-rubric", "value": ["Must be polite", "Must be helpful"]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"metric": "rubric-check", "type": "llm-rubric", "value": ["Must be polite", "Must be helpful"]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -253,7 +253,7 @@ describe('loadTestsFromJsonl', () => {
         input: [{ role: 'user', content: 'Query' }],
         assert: [
           {
-            name: 'quality',
+            metric: 'quality',
             type: 'llm-rubric',
             value: [
               {

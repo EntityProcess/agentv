@@ -30,7 +30,7 @@ tests:
         content: |-
           Attachments detected (2): example.txt, python.instructions.md.
 
-    assertions:
-      - name: attachment-check
+    assert:
+      - metric: attachment-check
         type: script
         command: ["bun", "run", "../scripts/verify-attachments.ts"]
