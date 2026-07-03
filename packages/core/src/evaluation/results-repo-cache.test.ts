@@ -34,10 +34,12 @@ function writeRun(
   score: number,
   executionStatus = 'ok',
 ): void {
-  const runDir = path.join(repoDir, 'runs', timestamp);
+  const runDir = path.join(repoDir, timestamp);
+  const internalDir = path.join(runDir, '.internal');
   mkdirSync(runDir, { recursive: true });
+  mkdirSync(internalDir, { recursive: true });
   writeFileSync(
-    path.join(runDir, 'index.jsonl'),
+    path.join(internalDir, 'index.jsonl'),
     `${JSON.stringify({
       timestamp,
       test_id: `${experiment}-case`,
@@ -51,7 +53,7 @@ function writeRun(
     path.join(runDir, 'summary.json'),
     `${JSON.stringify(
       {
-        manifest_path: 'index.jsonl',
+        index_path: '.internal/index.jsonl',
         metadata: {
           display_name: `${experiment} ${timestamp}`,
           experiment,
@@ -82,7 +84,7 @@ function createResultsRepo(tempRoot: string): string {
   git(repoDir, ['checkout', '--orphan', RESULTS_REF]);
   rmSync(path.join(repoDir, 'README.md'), { force: true });
   writeRun(repoDir, 'default', '2026-06-28T00-00-00-000Z', 1);
-  git(repoDir, ['add', 'runs']);
+  git(repoDir, ['add', '.']);
   git(repoDir, ['commit', '-m', 'add first run']);
   return repoDir;
 }
@@ -114,7 +116,7 @@ describe('git results filesystem index cache', () => {
     const runs = await listGitRunsCached(repoDir, RESULTS_REF);
     expect(runs).toHaveLength(1);
     expect(runs[0]?.run_id).toBe('2026-06-28T00-00-00-000Z');
-    expect(runs[0]?.summary_path).toBe('runs/2026-06-28T00-00-00-000Z/summary.json');
+    expect(runs[0]?.summary_path).toBe('2026-06-28T00-00-00-000Z/summary.json');
 
     const cacheFile = resolveGitResultsIndexCacheFile({
       repoDir,
@@ -146,7 +148,7 @@ describe('git results filesystem index cache', () => {
               run_id: 'sentinel',
               experiment: 'default',
               timestamp: '2026-06-28T01-00-00-000Z',
-              manifest_path: 'runs/sentinel/index.jsonl',
+              manifest_path: 'sentinel/.internal/index.jsonl',
               display_name: 'from cache',
               test_count: 1,
               avg_score: 0.5,
@@ -172,7 +174,7 @@ describe('git results filesystem index cache', () => {
     const firstCommit = await resolveGitRunsRefCommit(repoDir, RESULTS_REF);
 
     writeRun(repoDir, 'experiment-a', '2026-06-28T02-00-00-000Z', 0.25);
-    git(repoDir, ['add', 'runs']);
+    git(repoDir, ['add', '.']);
     git(repoDir, ['commit', '-m', 'add second run']);
     const secondCommit = await resolveGitRunsRefCommit(repoDir, RESULTS_REF);
 
@@ -211,7 +213,7 @@ describe('git results filesystem index cache', () => {
   it('preserves execution error counts for remote-only list metadata', async () => {
     const repoDir = createResultsRepo(tempRoot);
     writeRun(repoDir, 'error-experiment', '2026-06-28T03-00-00-000Z', 0, 'execution_error');
-    git(repoDir, ['add', 'runs']);
+    git(repoDir, ['add', '.']);
     git(repoDir, ['commit', '-m', 'add execution error run']);
 
     const runs = await listGitRunsCached(repoDir, RESULTS_REF);

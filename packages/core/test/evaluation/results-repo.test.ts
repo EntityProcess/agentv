@@ -140,9 +140,9 @@ async function createStaleResultBranchPushFixture(params: {
   });
 
   git(`git switch --quiet ${params.storageBranch}`, params.seedDir);
-  const remoteOnlyPath = path.join(params.seedDir, 'runs', '2026-06-23T09-30-00-000Z');
+  const remoteOnlyPath = path.join(params.seedDir, '2026-06-23T09-30-00-000Z');
   writeRunArtifacts(remoteOnlyPath, 'remote-only', '2026-06-23T09:30:00.000Z');
-  git('git add runs && git commit --quiet -m "remote result wins race"', params.seedDir);
+  git('git add . && git commit --quiet -m "remote result wins race"', params.seedDir);
   git(`git push --quiet origin HEAD:${params.storageBranch}`, params.seedDir);
   git('git switch --quiet main', params.seedDir);
 
@@ -160,84 +160,20 @@ async function createStaleResultBranchPushFixture(params: {
   };
 }
 
-// Sets up a genuine (non-auto-mergeable) overlay conflict where the canonical
-// results branch is `agentv/results/v1` (the clone's default/checked-out
-// branch). The local checkout and the remote both commit a conflicting scalar
-// field on the same overlay file, so a sync routes to the Layer 2 human-merge
-// path (needs_human_merge + a temp branch). The canonical branch name is
-// deliberately the nested-looking `agentv/results/v1` to prove the flat
-// temp-branch name never D/F-conflicts with it.
-async function setupCanonicalOverlayConflict(rootDir: string): Promise<{
-  remoteDir: string;
-  seedDir: string;
-  cloneDir: string;
-  targetBranch: string;
-  tagsRel: string;
-  config: ResultsConfig;
-  remoteBefore: string;
-}> {
-  const targetBranch = DEFAULT_RESULTS_BRANCH;
-  const remoteDir = path.join(rootDir, `remote-${randomToken()}.git`);
-  const seedDir = path.join(rootDir, `seed-${randomToken()}`);
-  git(`git init --bare --initial-branch=${targetBranch} --quiet "${remoteDir}"`, rootDir);
-  git(`git clone --quiet "${remoteDir}" "${seedDir}"`, rootDir);
-  git('git config user.email "test@example.com"', seedDir);
-  git('git config user.name "Test User"', seedDir);
-
-  const tagsRel = path.join(
-    'metadata',
-    'runs',
-    'conflict',
-    '2026-06-24T10-00-00-000Z',
-    'tags.json',
-  );
-  const writeOverlay = (repoDir: string, rating: number) => {
-    const tagPath = path.join(repoDir, tagsRel);
-    mkdirSync(path.dirname(tagPath), { recursive: true });
-    writeFileSync(tagPath, `${JSON.stringify({ tags: ['keep'], rating }, null, 2)}\n`);
-  };
-
-  writeFileSync(path.join(seedDir, 'README.md'), '# results\n');
-  writeOverlay(seedDir, 1);
-  git('git add . && git commit --quiet -m "seed overlay"', seedDir);
-  git(`git push --quiet origin HEAD:${targetBranch}`, seedDir);
-
-  const cloneDir = path.join(rootDir, `results-clone-${randomToken()}`);
-  const config: ResultsConfig = {
-    repo: `file://${remoteDir}`,
-    path: cloneDir,
-    auto_push: true,
-  };
-  await ensureResultsRepoClone(config);
-  git('git config user.email "test@example.com"', cloneDir);
-  git('git config user.name "Test User"', cloneDir);
-  git('git pull --ff-only --quiet', cloneDir);
-
-  // Local edit: a conflicting scalar (rating=3) committed on the canonical branch.
-  writeOverlay(cloneDir, 3);
-  git('git add metadata && git commit --quiet -m "local overlay scalar"', cloneDir);
-
-  // Remote advances with a different conflicting scalar (rating=5).
-  writeOverlay(seedDir, 5);
-  git('git add metadata && git commit --quiet -m "remote overlay scalar"', seedDir);
-  git(`git push --quiet origin HEAD:${targetBranch}`, seedDir);
-  const remoteBefore = git(`git --git-dir "${remoteDir}" rev-parse ${targetBranch}`, rootDir);
-
-  return { remoteDir, seedDir, cloneDir, targetBranch, tagsRel, config, remoteBefore };
-}
-
 function randomToken(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
 function writeRunArtifacts(runDir: string, experiment: string, timestamp: string): void {
   mkdirSync(runDir, { recursive: true });
-  writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
+  const internalDir = path.join(runDir, '.internal');
+  mkdirSync(internalDir, { recursive: true });
+  writeFileSync(path.join(internalDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
   writeFileSync(
     path.join(runDir, 'summary.json'),
     JSON.stringify(
       {
-        manifest_path: 'index.jsonl',
+        index_path: '.internal/index.jsonl',
         metadata: {
           timestamp,
           experiment,
@@ -288,7 +224,7 @@ function writeRunArtifactsWithPointers(
   const legacyTraceSha = sha256Hex(legacyTraceContent);
   const transcriptSha = sha256Hex(transcriptContent);
   writeFileSync(
-    path.join(runDir, 'index.jsonl'),
+    path.join(runDir, '.internal', 'index.jsonl'),
     `${JSON.stringify({
       test_id: 'alpha',
       score: 1,
@@ -397,10 +333,11 @@ describe('listGitRuns', () => {
   });
 
   it('returns committed runs derived from canonical index.jsonl manifests', async () => {
-    const defaultRunDir = path.join(repoDir, 'runs', '2026-05-20T10-00-00-000Z');
-    mkdirSync(defaultRunDir, { recursive: true });
+    const defaultRunDir = path.join(repoDir, '2026-05-20T10-00-00-000Z');
+    const defaultInternalDir = path.join(defaultRunDir, '.internal');
+    mkdirSync(defaultInternalDir, { recursive: true });
     writeFileSync(
-      path.join(defaultRunDir, 'index.jsonl'),
+      path.join(defaultInternalDir, 'index.jsonl'),
       `${[
         JSON.stringify({
           test_id: 'alpha',
@@ -434,10 +371,11 @@ describe('listGitRuns', () => {
       ),
     );
 
-    const experimentRunDir = path.join(repoDir, 'runs', '2026-05-21T11-00-00-000Z');
-    mkdirSync(experimentRunDir, { recursive: true });
+    const experimentRunDir = path.join(repoDir, '2026-05-21T11-00-00-000Z');
+    const experimentInternalDir = path.join(experimentRunDir, '.internal');
+    mkdirSync(experimentInternalDir, { recursive: true });
     writeFileSync(
-      path.join(experimentRunDir, 'index.jsonl'),
+      path.join(experimentInternalDir, 'index.jsonl'),
       `${[
         JSON.stringify({
           test_id: 'alpha',
@@ -460,7 +398,7 @@ describe('listGitRuns', () => {
       path.join(experimentRunDir, 'summary.json'),
       JSON.stringify(
         {
-          manifest_path: 'index.jsonl',
+          index_path: '.internal/index.jsonl',
           metadata: {
             display_name: 'remote friendly run',
             timestamp: '2026-05-21T11:00:00.000Z',
@@ -482,7 +420,7 @@ describe('listGitRuns', () => {
       ),
     );
 
-    git('git add runs && git commit -m "seed runs"', repoDir);
+    git('git add . && git commit -m "seed runs"', repoDir);
 
     const runs = await listGitRuns(repoDir, 'HEAD');
 
@@ -495,8 +433,8 @@ describe('listGitRuns', () => {
       experiment: 'with-skills',
       timestamp: '2026-05-21T11:00:00.000Z',
       display_name: 'remote friendly run',
-      manifest_path: 'runs/2026-05-21T11-00-00-000Z/index.jsonl',
-      summary_path: 'runs/2026-05-21T11-00-00-000Z/summary.json',
+      manifest_path: '2026-05-21T11-00-00-000Z/.internal/index.jsonl',
+      summary_path: '2026-05-21T11-00-00-000Z/summary.json',
       test_count: 3,
       pass_rate: 0.75,
       avg_score: 0,
@@ -506,7 +444,7 @@ describe('listGitRuns', () => {
       experiment: 'default',
       display_name: '2026-05-20T10-00-00-000Z',
       target: 'gpt-4o',
-      manifest_path: 'runs/2026-05-20T10-00-00-000Z/index.jsonl',
+      manifest_path: '2026-05-20T10-00-00-000Z/.internal/index.jsonl',
       test_count: 2,
       pass_rate: 0.5,
     });
@@ -528,10 +466,11 @@ describe('listGitRuns', () => {
   });
 
   it('ignores inherited git hook environment variables', async () => {
-    const runDir = path.join(repoDir, 'runs', '2026-05-20T10-00-00-000Z');
-    mkdirSync(runDir, { recursive: true });
+    const runDir = path.join(repoDir, '2026-05-20T10-00-00-000Z');
+    const internalDir = path.join(runDir, '.internal');
+    mkdirSync(internalDir, { recursive: true });
     writeFileSync(
-      path.join(runDir, 'index.jsonl'),
+      path.join(internalDir, 'index.jsonl'),
       `${JSON.stringify({
         test_id: 'alpha',
         target: 'gpt-4o',
@@ -542,7 +481,7 @@ describe('listGitRuns', () => {
       path.join(runDir, 'summary.json'),
       JSON.stringify(
         {
-          manifest_path: 'index.jsonl',
+          index_path: '.internal/index.jsonl',
           metadata: {
             timestamp: '2026-05-20T10:00:00.000Z',
             targets: ['gpt-4o'],
@@ -558,7 +497,7 @@ describe('listGitRuns', () => {
         2,
       ),
     );
-    git('git add runs && git commit -m "seed run"', repoDir);
+    git('git add . && git commit -m "seed run"', repoDir);
 
     const previousGitDir = process.env.GIT_DIR;
     const previousGitWorkTree = process.env.GIT_WORK_TREE;
@@ -585,13 +524,14 @@ describe('listGitRuns', () => {
   });
 
   it('materializes an entire run subtree atomically from git objects', async () => {
-    const runDir = path.join(repoDir, 'runs', '2026-05-22T10-00-00-000Z');
+    const runDir = path.join(repoDir, '2026-05-22T10-00-00-000Z');
+    mkdirSync(path.join(runDir, '.internal'), { recursive: true });
     mkdirSync(path.join(runDir, 'attachments'), { recursive: true });
-    writeFileSync(path.join(runDir, 'index.jsonl'), '{"test_id":"alpha"}\n');
+    writeFileSync(path.join(runDir, '.internal', 'index.jsonl'), '{"test_id":"alpha"}\n');
     writeFileSync(
       path.join(runDir, 'summary.json'),
       JSON.stringify({
-        manifest_path: 'index.jsonl',
+        index_path: '.internal/index.jsonl',
         metadata: {
           timestamp: '2026-05-22T10:00:00.000Z',
           experiment: 'with-files',
@@ -606,13 +546,15 @@ describe('listGitRuns', () => {
       }),
     );
     writeFileSync(path.join(runDir, 'attachments', 'response.md'), 'hello from git\n');
-    git('git add runs && git commit -m "seed run with files"', repoDir);
+    git('git add . && git commit -m "seed run with files"', repoDir);
 
     rmSync(runDir, { recursive: true, force: true });
 
     await materializeGitRun(repoDir, '2026-05-22T10-00-00-000Z', 'HEAD');
 
-    expect(readFileSync(path.join(runDir, 'index.jsonl'), 'utf8')).toContain('"test_id":"alpha"');
+    expect(readFileSync(path.join(runDir, '.internal', 'index.jsonl'), 'utf8')).toContain(
+      '"test_id":"alpha"',
+    );
     expect(readFileSync(path.join(runDir, 'attachments', 'response.md'), 'utf8')).toBe(
       'hello from git\n',
     );
@@ -638,10 +580,10 @@ describe('listGitRuns', () => {
     const defaultBranch = git('git branch --show-current', repoDir);
     git('git checkout -b agentv-results', repoDir);
 
-    const runDir = path.join(repoDir, 'runs', '2026-06-12T10-00-00-000Z');
+    const runDir = path.join(repoDir, '2026-06-12T10-00-00-000Z');
     writeRunArtifacts(runDir, 'branch-only', '2026-06-12T10:00:00.000Z');
     writeFileSync(path.join(runDir, 'attachments.txt'), 'from branch\n');
-    git('git add runs && git commit -m "seed branch run"', repoDir);
+    git('git add . && git commit -m "seed branch run"', repoDir);
     git(`git checkout ${defaultBranch}`, repoDir);
 
     const runs = await listGitRuns(repoDir, 'agentv-results');
@@ -787,7 +729,7 @@ describe('results repo write path', () => {
     expect(published).toBe(true);
     expect(git('git branch --show-current', projectDir)).toBe('main');
     const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, projectDir);
-    expect(branchFiles).toContain(`runs/${runTimestamp}/summary.json`);
+    expect(branchFiles).toContain(`${runTimestamp}/summary.json`);
     expect(branchFiles).not.toContain('README.md');
     expect(branchFiles).not.toContain('UNRELATED.txt');
     expect(git('git status --short --branch', projectDir)).toContain('## main');
@@ -959,7 +901,7 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
       rootDir,
     );
-    expect(remoteFiles).toContain(`runs/${runTimestamp}/summary.json`);
+    expect(remoteFiles).toContain(`${runTimestamp}/summary.json`);
     expect(remoteFiles).not.toContain('README.md');
   }, 20000);
 
@@ -995,271 +937,6 @@ describe('results repo write path', () => {
     ).toBe('');
   }, 20000);
 
-  it('commits repo_path metadata overlays to the configured storage branch during sync', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const projectDir = path.join(rootDir, 'source-project-metadata-sync');
-    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
-    git('git config user.email "test@example.com"', projectDir);
-    git('git config user.name "Test User"', projectDir);
-    git(`git fetch --quiet origin ${storageBranch}`, projectDir);
-
-    const tagPath = path.join(
-      projectDir,
-      'metadata',
-      'runs',
-      '2026-06-22T00-19-03-060Z',
-      'tags.json',
-    );
-    mkdirSync(path.dirname(tagPath), { recursive: true });
-    writeFileSync(
-      tagPath,
-      `${JSON.stringify({ tags: ['dogfood'], updated_at: '2026-06-22T00:00:00.000Z' }, null, 2)}\n`,
-    );
-
-    const config: ResultsConfig = {
-      repo_path: projectDir,
-      branch: storageBranch,
-      remote: 'origin',
-      auto_push: true,
-    };
-
-    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
-      sync_status: 'dirty',
-      dirty_paths: ['metadata/runs/2026-06-22T00-19-03-060Z/tags.json'],
-    });
-
-    const status = await syncResultsRepoForProject(config);
-
-    expect(status).toMatchObject({
-      sync_status: 'clean',
-      commit_created: true,
-      push_performed: true,
-      blocked: false,
-      branch: storageBranch,
-      upstream: `origin/${storageBranch}`,
-    });
-    expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).toContain('metadata/runs/2026-06-22T00-19-03-060Z/tags.json');
-    await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
-      sync_status: 'clean',
-      dirty_paths: [],
-    });
-    expect(git('git branch --show-current', projectDir)).toBe('main');
-  }, 20000);
-
-  it('fast-forwards a clean repo_path storage branch during project sync', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const projectDir = path.join(rootDir, 'source-project-repo-path-ff');
-    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
-    git(
-      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
-      projectDir,
-    );
-
-    git(`git switch --quiet ${storageBranch}`, seedDir);
-    const remoteTagPath = path.join(
-      seedDir,
-      'metadata',
-      'runs',
-      '2026-06-22T00-00-00-000Z',
-      'tags.json',
-    );
-    mkdirSync(path.dirname(remoteTagPath), { recursive: true });
-    writeFileSync(remoteTagPath, `${JSON.stringify({ tags: ['remote'] }, null, 2)}\n`);
-    git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
-    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
-
-    const config: ResultsConfig = {
-      repo_path: projectDir,
-      branch: storageBranch,
-      remote: 'origin',
-      auto_push: false,
-    };
-
-    const status = await syncResultsRepoForProject(config);
-
-    expect(status).toMatchObject({
-      sync_status: 'clean',
-      pull_performed: true,
-      push_performed: false,
-      commit_created: false,
-      blocked: false,
-      branch: storageBranch,
-      upstream: `origin/${storageBranch}`,
-    });
-    expect(git(`git rev-parse ${storageBranch}`, projectDir)).toBe(
-      git(`git --git-dir "${remoteDir}" rev-parse ${storageBranch}`, rootDir),
-    );
-    expect(git('git branch --show-current', projectDir)).toBe('main');
-  }, 20000);
-
-  it('fast-forwards repo_path metadata overlays before committing and pushing them', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const projectDir = path.join(rootDir, 'source-project-repo-path-dirty-ff');
-    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
-    git('git config user.email "test@example.com"', projectDir);
-    git('git config user.name "Test User"', projectDir);
-    git(
-      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
-      projectDir,
-    );
-
-    git(`git switch --quiet ${storageBranch}`, seedDir);
-    const remoteTagPath = path.join(
-      seedDir,
-      'metadata',
-      'runs',
-      '2026-06-22T00-00-00-000Z',
-      'tags.json',
-    );
-    mkdirSync(path.dirname(remoteTagPath), { recursive: true });
-    writeFileSync(remoteTagPath, `${JSON.stringify({ tags: ['remote'] }, null, 2)}\n`);
-    git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
-    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
-
-    const localTagPath = path.join(
-      projectDir,
-      'metadata',
-      'runs',
-      '2026-06-22T01-00-00-000Z',
-      'tags.json',
-    );
-    mkdirSync(path.dirname(localTagPath), { recursive: true });
-    writeFileSync(localTagPath, `${JSON.stringify({ tags: ['local'] }, null, 2)}\n`);
-
-    const config: ResultsConfig = {
-      repo_path: projectDir,
-      branch: storageBranch,
-      remote: 'origin',
-      auto_push: true,
-    };
-
-    const status = await syncResultsRepoForProject(config);
-
-    expect(status).toMatchObject({
-      sync_status: 'clean',
-      pull_performed: true,
-      push_performed: true,
-      commit_created: true,
-      blocked: false,
-      branch: storageBranch,
-      upstream: `origin/${storageBranch}`,
-    });
-    const remoteFiles = git(
-      `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
-      rootDir,
-    );
-    expect(remoteFiles).toContain('metadata/runs/2026-06-22T00-00-00-000Z/tags.json');
-    expect(remoteFiles).toContain('metadata/runs/2026-06-22T01-00-00-000Z/tags.json');
-    expect(git('git branch --show-current', projectDir)).toBe('main');
-  }, 20000);
-
-  it('blocks repo_path metadata sync when upstream changed the same dirty path', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const projectDir = path.join(rootDir, 'source-project-repo-path-dirty-ff-conflict');
-    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
-    git('git config user.email "test@example.com"', projectDir);
-    git('git config user.name "Test User"', projectDir);
-    git(
-      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
-      projectDir,
-    );
-
-    const metadataPath = 'metadata/runs/2026-06-22T03-00-00-000Z/tags.json';
-    git(`git switch --quiet ${storageBranch}`, seedDir);
-    const remoteTagPath = path.join(seedDir, ...metadataPath.split('/'));
-    mkdirSync(path.dirname(remoteTagPath), { recursive: true });
-    writeFileSync(remoteTagPath, `${JSON.stringify({ tags: ['remote'] }, null, 2)}\n`);
-    git('git add metadata && git commit --quiet -m "remote shared tag metadata"', seedDir);
-    git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
-
-    const localTagPath = path.join(projectDir, ...metadataPath.split('/'));
-    mkdirSync(path.dirname(localTagPath), { recursive: true });
-    writeFileSync(localTagPath, `${JSON.stringify({ tags: ['local'] }, null, 2)}\n`);
-
-    const status = await syncResultsRepoForProject({
-      repo_path: projectDir,
-      branch: storageBranch,
-      remote: 'origin',
-      auto_push: true,
-    });
-
-    expect(status).toMatchObject({
-      sync_status: 'conflicted',
-      pull_performed: false,
-      push_performed: false,
-      commit_created: false,
-      blocked: true,
-      branch: storageBranch,
-      upstream: `origin/${storageBranch}`,
-      dirty_paths: [metadataPath],
-      conflicted_paths: [metadataPath],
-    });
-    expect(status.block_reason).toContain(metadataPath);
-    expect(
-      git(`git --git-dir "${remoteDir}" show ${storageBranch}:${metadataPath}`, rootDir),
-    ).toContain('"remote"');
-    expect(readFileSync(localTagPath, 'utf8')).toContain('"local"');
-    expect(git('git branch --show-current', projectDir)).toBe('main');
-  }, 20000);
-
-  it('reports repo_path metadata push rejection without dropping the local commit', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const storageBranch = initializeRemoteStorageBranch(seedDir, DEFAULT_RESULTS_BRANCH);
-    const projectDir = path.join(rootDir, 'source-project-repo-path-rejected-push');
-    git(`git clone --quiet "${remoteDir}" "${projectDir}"`, rootDir);
-    git('git config user.email "test@example.com"', projectDir);
-    git('git config user.name "Test User"', projectDir);
-    git(
-      `git fetch --quiet origin refs/heads/${storageBranch}:refs/heads/${storageBranch}`,
-      projectDir,
-    );
-
-    const tagPath = path.join(
-      projectDir,
-      'metadata',
-      'runs',
-      '2026-06-22T02-00-00-000Z',
-      'tags.json',
-    );
-    mkdirSync(path.dirname(tagPath), { recursive: true });
-    writeFileSync(tagPath, `${JSON.stringify({ tags: ['local'] }, null, 2)}\n`);
-
-    const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
-    writeFileSync(hookPath, '#!/usr/bin/env sh\necho "reject metadata push" >&2\nexit 1\n');
-    chmodSync(hookPath, 0o755);
-
-    const status = await syncResultsRepoForProject({
-      repo_path: projectDir,
-      branch: storageBranch,
-      remote: 'origin',
-      auto_push: true,
-    });
-
-    expect(status).toMatchObject({
-      sync_status: 'ahead',
-      pull_performed: false,
-      push_performed: false,
-      commit_created: true,
-      blocked: true,
-      branch: storageBranch,
-      upstream: `origin/${storageBranch}`,
-    });
-    expect(status.block_reason).toContain('Results repo push was rejected');
-    expect(git(`git ls-tree -r --name-only ${storageBranch}`, projectDir)).toContain(
-      'metadata/runs/2026-06-22T02-00-00-000Z/tags.json',
-    );
-    expect(
-      git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).not.toContain('metadata/runs/2026-06-22T02-00-00-000Z/tags.json');
-    expect(git('git branch --show-current', projectDir)).toBe('main');
-  }, 20000);
-
   it('publishes to an explicit external local repo path', async () => {
     const projectDir = path.join(rootDir, 'project');
     const resultsRepoDir = path.join(rootDir, 'local-results-repo');
@@ -1289,7 +966,7 @@ describe('results repo write path', () => {
     expect(published).toBe(true);
     expect(git('git branch --show-current', resultsRepoDir)).toBe('main');
     const branchFiles = git(`git ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, resultsRepoDir);
-    expect(branchFiles).toContain(`runs/${runTimestamp}/index.jsonl`);
+    expect(branchFiles).toContain(`${runTimestamp}/.internal/index.jsonl`);
     expect(branchFiles).not.toContain('README.md');
   }, 20000);
 
@@ -1320,7 +997,7 @@ describe('results repo write path', () => {
     ).rejects.toThrow(/simulated interrupted push/);
     expect(git('git rev-list --count origin/main..main', cloneDir)).toBe('1');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      `runs/${runTimestamp}/summary.json`,
+      `${runTimestamp}/summary.json`,
     );
 
     rmSync(hookPath, { force: true });
@@ -1336,7 +1013,7 @@ describe('results repo write path', () => {
 
     expect(git('git rev-list --count origin/main..main', cloneDir)).toBe('0');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      `runs/${runTimestamp}/summary.json`,
+      `${runTimestamp}/summary.json`,
     );
     expect(git(`git --git-dir "${remoteDir}" log -1 --pretty=%B main`, rootDir)).toContain(
       `AgentV-Run: ${runTimestamp}`,
@@ -1388,8 +1065,8 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
     );
-    expect(remoteFiles).toContain(`runs/${fixture.localDestinationPath}/summary.json`);
-    expect(remoteFiles).toContain('runs/2026-06-23T09-30-00-000Z/summary.json');
+    expect(remoteFiles).toContain(`${fixture.localDestinationPath}/summary.json`);
+    expect(remoteFiles).toContain('2026-06-23T09-30-00-000Z/summary.json');
     // No backup ref was ever created in the merge path.
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
@@ -1465,7 +1142,7 @@ describe('results repo write path', () => {
       rootDir,
     );
     expect(remoteFiles).toContain('RACE.md');
-    expect(remoteFiles).toContain('runs/2026-06-24T10-00-00-000Z/summary.json');
+    expect(remoteFiles).toContain('2026-06-24T10-00-00-000Z/summary.json');
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
     ).toBe('');
@@ -1498,7 +1175,7 @@ describe('results repo write path', () => {
       `AgentV-Run: ${runTimestamp}`,
     );
     expect(git('git ls-tree -r --name-only main', cloneDir)).toContain(
-      `runs/${runTimestamp}/index.jsonl`,
+      `${runTimestamp}/.internal/index.jsonl`,
     );
 
     const runs = await listGitRuns(cloneDir, 'main');
@@ -1533,11 +1210,11 @@ describe('results repo write path', () => {
     expect(pushed).toBe(true);
     expect(git('git branch --show-current', cloneDir)).toBe('main');
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
-      `runs/${runTimestamp}/summary.json`,
+      `${runTimestamp}/summary.json`,
     );
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`, rootDir),
-    ).toContain(`runs/${runTimestamp}/summary.json`);
+    ).toContain(`${runTimestamp}/summary.json`);
     expect(
       git(`git --git-dir "${remoteDir}" log -1 --pretty=%B ${storageBranch}`, rootDir),
     ).toContain(`AgentV-Run: ${runTimestamp}`);
@@ -1571,23 +1248,23 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
     );
-    expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
-    expect(resultTree).toContain(`runs/${destinationPath}/summary.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
+    expect(resultTree).toContain(`${destinationPath}/.internal/index.jsonl`);
+    expect(resultTree).toContain(`${destinationPath}/summary.json`);
+    expect(resultTree).not.toContain(`${destinationPath}/alpha/trace.json`);
+    expect(resultTree).not.toContain(`${destinationPath}/alpha/transcript.jsonl`);
 
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
     );
-    expect(artifactTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
-    expect(artifactTree).not.toContain(`runs/${destinationPath}/summary.json`);
-    expect(artifactTree).not.toContain(`runs/${destinationPath}/index.jsonl`);
+    expect(artifactTree).not.toContain(`${destinationPath}/alpha/trace.json`);
+    expect(artifactTree).toContain(`${destinationPath}/alpha/transcript.jsonl`);
+    expect(artifactTree).not.toContain(`${destinationPath}/summary.json`);
+    expect(artifactTree).not.toContain(`${destinationPath}/.internal/index.jsonl`);
 
     const index = JSON.parse(
       gitRaw(
-        `git --git-dir "${remoteDir}" show ${storageBranch}:runs/${destinationPath}/index.jsonl`,
+        `git --git-dir "${remoteDir}" show ${storageBranch}:${destinationPath}/.internal/index.jsonl`,
         rootDir,
       ).toString('utf8'),
     );
@@ -1599,7 +1276,7 @@ describe('results repo write path', () => {
       sha256: string;
       object_version: string;
     }>) {
-      expect(pointer.key).toBe(`runs/${destinationPath}/${pointer.path}`);
+      expect(pointer.key).toBe(`${destinationPath}/${pointer.path}`);
       const bytes = gitRaw(
         `git --git-dir "${remoteDir}" show ${AGENTV_RESULTS_REFS.artifacts}:${pointer.key}`,
         rootDir,
@@ -1645,10 +1322,10 @@ describe('results repo write path', () => {
 
     git(`git switch --quiet --orphan ${storageBranch}`, seedDir);
     git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
-    const seededRunDir = path.join(seedDir, 'runs', destinationPath);
+    const seededRunDir = path.join(seedDir, destinationPath);
     mkdirSync(path.dirname(seededRunDir), { recursive: true });
     cpSync(sourceDir, seededRunDir, { recursive: true });
-    git('git add runs && git commit --quiet -m "seed published run"', seedDir);
+    git('git add . && git commit --quiet -m "seed published run"', seedDir);
     git(`git push --quiet origin HEAD:${storageBranch}`, seedDir);
     git('git switch --quiet main', seedDir);
     const seededResultsHead = git(
@@ -1674,16 +1351,16 @@ describe('results repo write path', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${storageBranch}`,
       rootDir,
     );
-    expect(resultTree).toContain(`runs/${destinationPath}/index.jsonl`);
-    expect(resultTree).toContain(`runs/${destinationPath}/summary.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
-    expect(resultTree).not.toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
+    expect(resultTree).toContain(`${destinationPath}/.internal/index.jsonl`);
+    expect(resultTree).toContain(`${destinationPath}/summary.json`);
+    expect(resultTree).not.toContain(`${destinationPath}/alpha/trace.json`);
+    expect(resultTree).not.toContain(`${destinationPath}/alpha/transcript.jsonl`);
     const artifactTree = git(
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${AGENTV_RESULTS_REFS.artifacts}`,
       rootDir,
     );
-    expect(artifactTree).not.toContain(`runs/${destinationPath}/alpha/trace.json`);
-    expect(artifactTree).toContain(`runs/${destinationPath}/alpha/transcript.jsonl`);
+    expect(artifactTree).not.toContain(`${destinationPath}/alpha/trace.json`);
+    expect(artifactTree).toContain(`${destinationPath}/alpha/transcript.jsonl`);
 
     await expect(
       directPushResults({
@@ -1718,7 +1395,7 @@ describe('results repo write path', () => {
     );
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only agentv-results`, rootDir),
-    ).toContain('runs/2026-06-12T11-00-00-000Z/summary.json');
+    ).toContain('2026-06-12T11-00-00-000Z/summary.json');
   }, 20000);
 
   it('syncResultsRepo refreshes refs without checking out the base branch', async () => {
@@ -1757,9 +1434,9 @@ describe('results repo write path', () => {
       behind: 0,
     });
 
-    const localRunDir = path.join(cloneDir, 'runs', '2026-05-23T10-00-00-000Z');
+    const localRunDir = path.join(cloneDir, '2026-05-23T10-00-00-000Z');
     writeRunArtifacts(localRunDir, 'local-only', '2026-05-23T10:00:00.000Z');
-    git('git add runs && git commit --quiet -m "local result"', cloneDir);
+    git('git add . && git commit --quiet -m "local result"', cloneDir);
 
     await expect(getResultsRepoSyncStatus(config)).resolves.toMatchObject({
       sync_status: 'ahead',
@@ -1839,7 +1516,7 @@ describe('results repo write path', () => {
     );
   }, 20000);
 
-  it('commits and pushes safe dirty result metadata when auto_push is enabled', async () => {
+  it('commits and pushes safe dirty result artifacts when auto_push is enabled', async () => {
     const { remoteDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
@@ -1849,7 +1526,7 @@ describe('results repo write path', () => {
     git('git config user.name "Test User"', cloneDir);
 
     const runTimestamp = '2026-05-24T10-00-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', runTimestamp);
+    const runDir = path.join(cloneDir, runTimestamp);
     writeRunArtifacts(runDir, 'metadata', '2026-05-24T10:00:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -1861,7 +1538,7 @@ describe('results repo write path', () => {
       blocked: false,
     });
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      `runs/${runTimestamp}/summary.json`,
+      `${runTimestamp}/summary.json`,
     );
   }, 20000);
 
@@ -1899,7 +1576,7 @@ describe('results repo write path', () => {
     writeFileSync(path.join(cloneDir, 'package.json'), '{"dependencies":{"agentv":"next"}}\n');
 
     const runTimestamp = '2026-05-24T11-00-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', runTimestamp);
+    const runDir = path.join(cloneDir, runTimestamp);
     writeRunArtifacts(runDir, 'safe-run', '2026-05-24T11:00:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -1912,7 +1589,7 @@ describe('results repo write path', () => {
     });
     expect(status.dirty_paths).toEqual([]);
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).toContain(
-      `runs/${runTimestamp}/summary.json`,
+      `${runTimestamp}/summary.json`,
     );
     expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir)).not.toContain(
       'package.json',
@@ -1934,7 +1611,7 @@ describe('results repo write path', () => {
     git('git add package.json', cloneDir);
 
     const runTimestamp = '2026-05-24T11-30-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', runTimestamp);
+    const runDir = path.join(cloneDir, runTimestamp);
     writeRunArtifacts(runDir, 'staged-unrelated', '2026-05-24T11:30:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -1946,7 +1623,7 @@ describe('results repo write path', () => {
       blocked: false,
     });
     const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
-    expect(remoteFiles).toContain(`runs/${runTimestamp}/summary.json`);
+    expect(remoteFiles).toContain(`${runTimestamp}/summary.json`);
     expect(remoteFiles).not.toContain('package.json');
     expect(git('git status --porcelain', cloneDir)).toContain('A  package.json');
   }, 20000);
@@ -1992,7 +1669,7 @@ describe('results repo write path', () => {
     git('git push --quiet origin main', seedDir);
 
     const runTimestamp = '2026-05-24T12-00-00-000Z';
-    const runDir = path.join(cloneDir, 'runs', runTimestamp);
+    const runDir = path.join(cloneDir, runTimestamp);
     writeRunArtifacts(runDir, 'pulled-then-pushed', '2026-05-24T12:00:00.000Z');
 
     const status = await syncResultsRepoForProject(config);
@@ -2006,7 +1683,7 @@ describe('results repo write path', () => {
     });
     const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
     expect(remoteFiles).toContain('REMOTE.md');
-    expect(remoteFiles).toContain(`runs/${runTimestamp}/summary.json`);
+    expect(remoteFiles).toContain(`${runTimestamp}/summary.json`);
     expect(remoteFiles).not.toContain('package.json');
     expect(readFileSync(path.join(cloneDir, 'package.json'), 'utf8')).toBe(
       '{"dependencies":{"agentv":"next"}}\n',
@@ -2022,13 +1699,13 @@ describe('results repo write path', () => {
     git('git config user.email "test@example.com"', cloneDir);
     git('git config user.name "Test User"', cloneDir);
 
-    const runDir = path.join(cloneDir, 'runs', '2026-05-25T10-00-00-000Z');
+    const runDir = path.join(cloneDir, '2026-05-25T10-00-00-000Z');
     writeRunArtifacts(runDir, 'local-only', '2026-05-25T10:00:00.000Z');
-    git('git add runs && git commit --quiet -m "local result"', cloneDir);
+    git('git add . && git commit --quiet -m "local result"', cloneDir);
 
-    const remoteRunDir = path.join(seedDir, 'runs', '2026-05-25T11-00-00-000Z');
+    const remoteRunDir = path.join(seedDir, '2026-05-25T11-00-00-000Z');
     writeRunArtifacts(remoteRunDir, 'remote-only', '2026-05-25T11:00:00.000Z');
-    git('git add runs && git commit --quiet -m "remote result"', seedDir);
+    git('git add . && git commit --quiet -m "remote result"', seedDir);
     const remoteBefore = git('git rev-parse HEAD', seedDir);
     git('git push --quiet origin main', seedDir);
 
@@ -2051,8 +1728,8 @@ describe('results repo write path', () => {
       ),
     ).not.toThrow();
     const remoteFiles = git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, rootDir);
-    expect(remoteFiles).toContain('runs/2026-05-25T10-00-00-000Z/summary.json');
-    expect(remoteFiles).toContain('runs/2026-05-25T11-00-00-000Z/summary.json');
+    expect(remoteFiles).toContain('2026-05-25T10-00-00-000Z/summary.json');
+    expect(remoteFiles).toContain('2026-05-25T11-00-00-000Z/summary.json');
     expect(
       git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
     ).toBe('');
@@ -2062,7 +1739,7 @@ describe('results repo write path', () => {
     const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
     const cloneDir = path.join(rootDir, 'results-clone');
     const config = createResultsConfig(remoteDir, cloneDir);
-    const indexRel = path.join('runs', '2026-05-25T12-00-00-000Z', 'index.jsonl');
+    const indexRel = path.join('2026-05-25T12-00-00-000Z', '.internal', 'index.jsonl');
 
     await ensureResultsRepoClone(config);
     git('git config user.email "test@example.com"', cloneDir);
@@ -2072,16 +1749,16 @@ describe('results repo write path', () => {
     const seedIndex = path.join(seedDir, indexRel);
     mkdirSync(path.dirname(seedIndex), { recursive: true });
     writeFileSync(seedIndex, '{"test_id":"base"}\n');
-    git('git add runs && git commit --quiet -m "seed shared index"', seedDir);
+    git('git add . && git commit --quiet -m "seed shared index"', seedDir);
     git('git push --quiet origin main', seedDir);
     git('git pull --ff-only --quiet', cloneDir);
 
     // Local appends one line; the remote concurrently appends a different line.
     const localIndex = path.join(cloneDir, indexRel);
     writeFileSync(localIndex, '{"test_id":"base"}\n{"test_id":"local"}\n');
-    git('git add runs && git commit --quiet -m "local index append"', cloneDir);
+    git('git add . && git commit --quiet -m "local index append"', cloneDir);
     writeFileSync(seedIndex, '{"test_id":"base"}\n{"test_id":"remote"}\n');
-    git('git add runs && git commit --quiet -m "remote index append"', seedDir);
+    git('git add . && git commit --quiet -m "remote index append"', seedDir);
     git('git push --quiet origin main', seedDir);
 
     const status = await syncResultsRepoForProject(config);
@@ -2094,216 +1771,6 @@ describe('results repo write path', () => {
     expect(merged).toContain('"test_id":"local"');
     expect(merged).toContain('"test_id":"remote"');
   }, 20000);
-
-  it('auto-merges overlay tag additions from both sides via the agentv-json driver', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const cloneDir = path.join(rootDir, 'results-clone');
-    const config = createResultsConfig(remoteDir, cloneDir);
-    const tagsRel = path.join(
-      'metadata',
-      'runs',
-      'overlay',
-      '2026-05-26T10-00-00-000Z',
-      'tags.json',
-    );
-    const writeTags = (repoDir: string, tags: string[], revision: string) => {
-      const tagPath = path.join(repoDir, tagsRel);
-      mkdirSync(path.dirname(tagPath), { recursive: true });
-      writeFileSync(
-        tagPath,
-        `${JSON.stringify({ tags, updated_at: '2026-05-26T10:00:00.000Z', tag_revision: revision }, null, 2)}\n`,
-      );
-    };
-
-    await ensureResultsRepoClone(config);
-    git('git config user.email "test@example.com"', cloneDir);
-    git('git config user.name "Test User"', cloneDir);
-
-    writeTags(seedDir, ['base'], 'r0');
-    git('git add metadata && git commit --quiet -m "seed tags"', seedDir);
-    git('git push --quiet origin main', seedDir);
-    git('git pull --ff-only --quiet', cloneDir);
-
-    writeTags(cloneDir, ['base', 'local-tag'], 'r1');
-    git('git add metadata && git commit --quiet -m "local tag add"', cloneDir);
-    writeTags(seedDir, ['base', 'remote-tag'], 'r2');
-    git('git add metadata && git commit --quiet -m "remote tag add"', seedDir);
-    git('git push --quiet origin main', seedDir);
-
-    const status = await syncResultsRepoForProject(config);
-
-    expect(status.sync_status).toBe('clean');
-    expect(status.blocked).toBe(false);
-    expect(status.push_performed).toBe(true);
-
-    const mergedTags = JSON.parse(
-      git(`git --git-dir "${remoteDir}" show main:${tagsRel}`, rootDir),
-    );
-    expect(mergedTags.tags).toContain('base');
-    expect(mergedTags.tags).toContain('local-tag');
-    expect(mergedTags.tags).toContain('remote-tag');
-    // The content-derived concurrency token must NOT survive a real set merge as
-    // either side's pre-merge value; otherwise a stale client holding that token
-    // would bypass the optimistic-concurrency check and overwrite the union.
-    expect(mergedTags.tag_revision).not.toBe('r1');
-    expect(mergedTags.tag_revision).not.toBe('r2');
-    expect(
-      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
-    ).toBe('');
-  }, 20000);
-
-  it('returns needs_human_merge on a genuine overlay conflict without changing the remote', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const cloneDir = path.join(rootDir, 'results-clone');
-    const config = createResultsConfig(remoteDir, cloneDir);
-    const tagsRel = path.join(
-      'metadata',
-      'runs',
-      'conflict',
-      '2026-05-27T10-00-00-000Z',
-      'tags.json',
-    );
-    const writeOverlay = (repoDir: string, rating: number) => {
-      const tagPath = path.join(repoDir, tagsRel);
-      mkdirSync(path.dirname(tagPath), { recursive: true });
-      writeFileSync(tagPath, `${JSON.stringify({ tags: ['keep'], rating }, null, 2)}\n`);
-    };
-
-    await ensureResultsRepoClone(config);
-    git('git config user.email "test@example.com"', cloneDir);
-    git('git config user.name "Test User"', cloneDir);
-
-    writeOverlay(seedDir, 1);
-    git('git add metadata && git commit --quiet -m "seed overlay"', seedDir);
-    git('git push --quiet origin main', seedDir);
-    git('git pull --ff-only --quiet', cloneDir);
-
-    // Both sides set a genuinely conflicting non-tag scalar field.
-    writeOverlay(cloneDir, 3);
-    git('git add metadata && git commit --quiet -m "local overlay scalar"', cloneDir);
-    writeOverlay(seedDir, 5);
-    git('git add metadata && git commit --quiet -m "remote overlay scalar"', seedDir);
-    const remoteBefore = git('git rev-parse HEAD', seedDir);
-    git('git push --quiet origin main', seedDir);
-
-    const status = await syncResultsRepoForProject(config);
-
-    expect(status.sync_status).toBe('needs_human_merge');
-    expect(status.blocked).toBe(true);
-    expect(status.block_reason).not.toMatch(/force/i);
-    // The remote branch is untouched: no merge commit, no force, no backup.
-    expect(git(`git --git-dir "${remoteDir}" rev-parse main`, rootDir)).toBe(remoteBefore);
-    expect(
-      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
-    ).toBe('');
-    // The local checkout is clean (the failed merge was aborted).
-    expect(git('git status --porcelain', cloneDir)).toBe('');
-  }, 20000);
-
-  it('pushes diverged work to a flat temp branch and surfaces pending_merge on a genuine conflict', async () => {
-    const { remoteDir, cloneDir, targetBranch, tagsRel, config, remoteBefore } =
-      await setupCanonicalOverlayConflict(rootDir);
-
-    const status = await syncResultsRepoForProject(config);
-
-    expect(status.sync_status).toBe('needs_human_merge');
-    expect(status.blocked).toBe(true);
-    expect(status.block_reason).not.toMatch(/force/i);
-
-    // A pending_merge wire block (snake_case) is surfaced for the Dashboard.
-    const pending = status.pending_merge;
-    expect(pending).toBeDefined();
-    expect(pending?.target_branch).toBe(targetBranch);
-    expect(typeof pending?.created_at).toBe('string');
-    expect(typeof pending?.contributed_run_count).toBe('number');
-    // The branch is flat under a dedicated namespace, never nested under the
-    // canonical branch, so it cannot D/F-conflict with agentv/results/v1.
-    expect(pending?.temp_branch).toMatch(/^agentv\/results-sync\/.+/);
-    expect(pending?.temp_branch.startsWith(`${targetBranch}/`)).toBe(false);
-    // Snake_case keys only on the wire shape.
-    expect(Object.keys(pending ?? {})).toEqual(
-      expect.arrayContaining(['temp_branch', 'target_branch', 'created_at']),
-    );
-    // A non-GitHub (file://) remote yields no compare_url.
-    expect(pending?.compare_url).toBeUndefined();
-
-    const tempBranch = pending?.temp_branch ?? '';
-    // The temp branch exists on the remote alongside the canonical branch (the
-    // create-only push succeeded — no D/F-conflict) and carries the local work.
-    const remoteRefs = git(
-      `git --git-dir "${remoteDir}" for-each-ref --format="%(refname:short)" refs/heads`,
-      rootDir,
-    );
-    expect(remoteRefs).toContain(tempBranch);
-    expect(remoteRefs).toContain(targetBranch);
-    const overlayOnTemp = JSON.parse(
-      git(`git --git-dir "${remoteDir}" show ${tempBranch}:${tagsRel}`, rootDir),
-    );
-    expect(overlayOnTemp.rating).toBe(3);
-
-    // The canonical branch is untouched: no merge commit, no force, no backup.
-    expect(git(`git --git-dir "${remoteDir}" rev-parse ${targetBranch}`, rootDir)).toBe(
-      remoteBefore,
-    );
-    expect(
-      git(`git --git-dir "${remoteDir}" for-each-ref refs/heads/agentv/backups`, rootDir),
-    ).toBe('');
-
-    // The local work is intact on disk.
-    expect(JSON.parse(readFileSync(path.join(cloneDir, tagsRel), 'utf8')).rating).toBe(3);
-  }, 30000);
-
-  it('clears the pending merge after the temp branch is merged into the target', async () => {
-    const { remoteDir, cloneDir, targetBranch, tagsRel, config } =
-      await setupCanonicalOverlayConflict(rootDir);
-
-    const blocked = await syncResultsRepoForProject(config);
-    expect(blocked.sync_status).toBe('needs_human_merge');
-    const tempBranch = blocked.pending_merge?.temp_branch ?? '';
-    expect(tempBranch).not.toBe('');
-
-    // Simulate the user merging the temp branch into the target on GitHub: a
-    // fresh clone merges the temp branch (resolving the scalar toward the temp
-    // side) and pushes the result onto the canonical branch.
-    const mergeDir = path.join(rootDir, `merge-${randomToken()}`);
-    git(`git clone --quiet "${remoteDir}" "${mergeDir}"`, rootDir);
-    git('git config user.email "merge@example.com"', mergeDir);
-    git('git config user.name "Merge Bot"', mergeDir);
-    git(`git fetch --quiet origin "+refs/heads/*:refs/remotes/origin/*"`, mergeDir);
-    git(`git checkout --quiet -B ${targetBranch} origin/${targetBranch}`, mergeDir);
-    git(`git merge --no-edit -X theirs origin/${tempBranch}`, mergeDir);
-    git(`git push --quiet origin HEAD:${targetBranch}`, mergeDir);
-
-    const resumed = await confirmResultsMergeAndPull(config);
-
-    expect(resumed.blocked ?? false).toBe(false);
-    expect(resumed.sync_status).not.toBe('needs_human_merge');
-    expect(resumed.sync_status).toBe('clean');
-    expect(resumed.pending_merge).toBeUndefined();
-    // The local checkout now matches the merged target which carries the work.
-    expect(JSON.parse(readFileSync(path.join(cloneDir, tagsRel), 'utf8')).rating).toBe(3);
-  }, 30000);
-
-  it('keeps local work intact on a premature confirm-merge (target not yet merged)', async () => {
-    const { cloneDir, targetBranch, tagsRel, config } =
-      await setupCanonicalOverlayConflict(rootDir);
-
-    const blocked = await syncResultsRepoForProject(config);
-    expect(blocked.sync_status).toBe('needs_human_merge');
-    const firstTempBranch = blocked.pending_merge?.temp_branch ?? '';
-
-    // OK clicked without merging on GitHub: pulling the target is a no-op, the
-    // local work stays diverged, and the resumed sync re-creates a temp branch.
-    const resumed = await confirmResultsMergeAndPull(config);
-
-    expect(resumed.sync_status).toBe('needs_human_merge');
-    expect(resumed.blocked).toBe(true);
-    expect(resumed.pending_merge?.temp_branch).toMatch(/^agentv\/results-sync\/.+/);
-    expect(resumed.pending_merge?.target_branch).toBe(targetBranch);
-    // No data loss: the local work survives the premature OK.
-    expect(JSON.parse(readFileSync(path.join(cloneDir, tagsRel), 'utf8')).rating).toBe(3);
-    expect(firstTempBranch).not.toBe('');
-  }, 30000);
 
   it('builds a GitHub compare URL only for GitHub remotes', () => {
     expect(
@@ -2326,57 +1793,6 @@ describe('results repo write path', () => {
     expect(buildResultsCompareUrl(undefined, 'main', 'temp')).toBeUndefined();
   });
 
-  it('supersedes stale sync errors with the current conflicted status', async () => {
-    const { remoteDir, seedDir } = initializeRemoteRepo(rootDir);
-    const cloneDir = path.join(rootDir, 'results-clone');
-    const config = { ...createResultsConfig(remoteDir, cloneDir), auto_push: false };
-    const relativeMetadataPath = path.join(
-      'metadata',
-      'runs',
-      'stale-error',
-      '2026-05-26T10-00-00-000Z',
-      'tags.json',
-    );
-    const writeTags = (repoDir: string, rating: number) => {
-      const tagPath = path.join(repoDir, relativeMetadataPath);
-      mkdirSync(path.dirname(tagPath), { recursive: true });
-      writeFileSync(tagPath, `${JSON.stringify({ tags: ['keep'], rating }, null, 2)}\n`);
-    };
-
-    await ensureResultsRepoClone(config);
-    git('git config user.email "test@example.com"', cloneDir);
-    git('git config user.name "Test User"', cloneDir);
-
-    writeTags(cloneDir, 0);
-    const dirtyStatus = await syncResultsRepoForProject(config);
-    expect(dirtyStatus.sync_status).toBe('dirty');
-    expect(dirtyStatus.block_reason).toContain('auto_push is disabled');
-
-    git('git reset --hard --quiet', cloneDir);
-    git('git clean -fd --quiet metadata', cloneDir);
-
-    writeTags(seedDir, 1);
-    git('git add metadata && git commit --quiet -m "seed tag metadata"', seedDir);
-    git('git push --quiet origin main', seedDir);
-    git('git pull --ff-only --quiet', cloneDir);
-
-    // Both sides set a genuinely conflicting scalar so the agentv-json driver
-    // leaves the overlay conflicted instead of auto-merging it.
-    writeTags(cloneDir, 3);
-    git('git add metadata && git commit --quiet -m "local tag metadata"', cloneDir);
-    writeTags(seedDir, 5);
-    git('git add metadata && git commit --quiet -m "remote tag metadata"', seedDir);
-    git('git push --quiet origin main', seedDir);
-    git('git fetch --quiet origin --prune', cloneDir);
-    git('git merge origin/main || true', cloneDir);
-
-    const status = await getResultsRepoSyncStatus(config);
-
-    expect(status.sync_status).toBe('conflicted');
-    expect(status.last_error).toBe('Results repo has unresolved git conflicts');
-    expect(status.last_error).not.toContain('auto_push is disabled');
-    expect(status.conflicted_paths).toEqual([relativeMetadataPath]);
-  }, 20000);
 });
 
 describe('results branch stable genesis', () => {
@@ -2479,7 +1895,7 @@ describe('results branch stable genesis', () => {
     expect(isAncestor(remoteDir, mainSha, DEFAULT_RESULTS_BRANCH)).toBe(false);
     expect(
       git(`git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`, rootDir),
-    ).toContain('runs/2026-06-19T10-00-00-000Z/summary.json');
+    ).toContain('2026-06-19T10-00-00-000Z/summary.json');
   }, 20000);
 
   it('mints a byte-identical genesis root regardless of wall-clock time', async () => {
@@ -2539,8 +1955,8 @@ describe('results branch stable genesis', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
       rootDir,
     );
-    expect(tree).toContain('runs/2026-06-19T10-00-00-000Z/summary.json');
-    expect(tree).toContain('runs/2026-06-19T11-00-00-000Z/summary.json');
+    expect(tree).toContain('2026-06-19T10-00-00-000Z/summary.json');
+    expect(tree).toContain('2026-06-19T11-00-00-000Z/summary.json');
   }, 30000);
 
   it('reconciles two independent first-inits onto a single shared genesis', async () => {
@@ -2581,8 +1997,8 @@ describe('results branch stable genesis', () => {
       `git --git-dir "${remoteDir}" ls-tree -r --name-only ${DEFAULT_RESULTS_BRANCH}`,
       rootDir,
     );
-    expect(tree).toContain('runs/2026-06-19T10-00-00-000Z/summary.json');
-    expect(tree).toContain('runs/2026-06-19T11-00-00-000Z/summary.json');
+    expect(tree).toContain('2026-06-19T10-00-00-000Z/summary.json');
+    expect(tree).toContain('2026-06-19T11-00-00-000Z/summary.json');
   }, 30000);
 });
 

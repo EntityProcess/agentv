@@ -18,19 +18,19 @@ describe('getProjectSyncView', () => {
     });
   });
 
-  it('surfaces dirty metadata as syncable without reset language', () => {
+  it('surfaces dirty result artifacts as syncable without reset language', () => {
     const view = getProjectSyncView({
       configured: true,
       available: true,
       sync_status: 'dirty',
-      dirty_paths: ['metadata/runs/demo/tags.json'],
+      dirty_paths: ['demo-run/summary.json'],
       auto_push: false,
     });
 
     expect(view).toMatchObject({
       state: 'dirty',
       label: 'Dirty',
-      actionLabel: 'Sync Metadata',
+      actionLabel: 'Sync Results',
       canSync: true,
     });
     expect(view.nextAction).toContain('no reset');
@@ -182,7 +182,7 @@ describe('buildProjectSyncFeedback', () => {
 
     expect(feedback.kind).toBe('success');
     expect(feedback.message).toContain(
-      'Sync completed: committed pending metadata, pulled remote results, pushed local results.',
+      'Sync completed: committed pending results, pulled remote results, pushed local results.',
     );
   });
 
