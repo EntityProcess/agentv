@@ -1,0 +1,17 @@
+targets:
+  - label: pi-cli-openai
+    provider: pi-cli
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    grader_target: local-openai-grader
+    config:
+      subprovider: openai
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      thinking: low
+      stream_log: raw
+  - label: local-openai-grader
+    provider: openai
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    config:
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}

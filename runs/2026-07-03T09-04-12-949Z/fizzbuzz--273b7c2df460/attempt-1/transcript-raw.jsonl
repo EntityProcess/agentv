@@ -1,0 +1,712 @@
+# Pi CLI stream log
+# target: pi-cli-openai
+# eval: fizzbuzz
+# attempt: 1
+# started: 2026-07-03T09:04:14.679Z
+[+00:02] [stdout] {
+  "type": "session",
+  "version": 3,
+  "id": "019f2738-b980-76f0-b2cc-0c9b7587bded",
+  "timestamp": "2026-07-03T09:04:16.768Z",
+  "cwd": "/tmp/agentv-pi-CAmYuN"
+}
+[+00:03] [stdout] {
+  "type": "agent_start"
+}
+[+00:03] [stdout] {
+  "type": "turn_start"
+}
+[+00:03] [stdout] {
+  "type": "message_start",
+  "message": {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Write FizzBuzz in Python. Use lowercase output strings \"fizz\", \"buzz\", and \"fizzbuzz\". Return only one Python code block."
+      }
+    ],
+    "timestamp": 1783069457609
+  }
+}
+[+00:03] [stdout] {
+  "type": "message_end",
+  "message": {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Write FizzBuzz in Python. Use lowercase output strings \"fizz\", \"buzz\", and \"fizzbuzz\". Return only one Python code block."
+      }
+    ],
+    "timestamp": 1783069457609
+  }
+}
+[+00:03] [stdout] {
+  "type": "message_start",
+  "message": {
+    "role": "assistant",
+    "content": [],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694
+  }
+}
+[+00:04] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "thinking_start",
+    "contentIndex": 0,
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": ""
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": ""
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:04] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "thinking_end",
+    "contentIndex": 0,
+    "content": "",
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:04] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "text_start",
+    "contentIndex": 1,
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        },
+        {
+          "type": "text",
+          "text": ""
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": ""
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:04] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "text_delta",
+    "contentIndex": 1,
+    "delta": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz",
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        },
+        {
+          "type": "text",
+          "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz"
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:04] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "text_delta",
+    "contentIndex": 1,
+    "delta": "\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif",
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        },
+        {
+          "type": "text",
+          "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif"
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:04] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "text_delta",
+    "contentIndex": 1,
+    "delta": " __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        },
+        {
+          "type": "text",
+          "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```"
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:05] [stdout] {
+  "type": "message_update",
+  "assistantMessageEvent": {
+    "type": "text_end",
+    "contentIndex": 1,
+    "content": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+    "partial": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        },
+        {
+          "type": "text",
+          "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+          "textSignature": "{\"v\":1,\"id\":\"msg_08579ecbc264ad39016a477b136dac8191bbed42e106d5f571\",\"phase\":\"final_answer\"}"
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  },
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+        "textSignature": "{\"v\":1,\"id\":\"msg_08579ecbc264ad39016a477b136dac8191bbed42e106d5f571\",\"phase\":\"final_answer\"}"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 0,
+      "output": 0,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 0,
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:05] [stdout] {
+  "type": "message_end",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+        "textSignature": "{\"v\":1,\"id\":\"msg_08579ecbc264ad39016a477b136dac8191bbed42e106d5f571\",\"phase\":\"final_answer\"}"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 8556,
+      "output": 191,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 8747,
+      "cost": {
+        "input": 0.014973,
+        "output": 0.002674,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0.017647
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  }
+}
+[+00:05] [stdout] {
+  "type": "turn_end",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+      },
+      {
+        "type": "text",
+        "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+        "textSignature": "{\"v\":1,\"id\":\"msg_08579ecbc264ad39016a477b136dac8191bbed42e106d5f571\",\"phase\":\"final_answer\"}"
+      }
+    ],
+    "api": "azure-openai-responses",
+    "provider": "azure-openai-responses",
+    "model": "gpt-5.3-codex-spark",
+    "usage": {
+      "input": 8556,
+      "output": 191,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "totalTokens": 8747,
+      "cost": {
+        "input": 0.014973,
+        "output": 0.002674,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0.017647
+      }
+    },
+    "stopReason": "stop",
+    "timestamp": 1783069457694,
+    "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+  },
+  "toolResults": []
+}
+[+00:05] [stdout] {
+  "type": "agent_end",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Write FizzBuzz in Python. Use lowercase output strings \"fizz\", \"buzz\", and \"fizzbuzz\". Return only one Python code block."
+        }
+      ],
+      "timestamp": 1783069457609
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "thinkingSignature": "{\"id\":\"rs_08579ecbc264ad39016a477b13494c819181bb9026260437c0\",\"type\":\"reasoning\",\"content\":[],\"encrypted_content\":\"gAAAAABqR3sTdlu6Ig_jxQlxN9JccTG35NQ6yWrXFgt_-we9UrqWDX3-KzcTalGpXITgKzMAutStuDtGN0z8pv6ug9BVr7OwKB5vXUKxNtyBBBXjVr3GKhJitc4YLOUOufbtY6FU6z5uLtLe5HCBALn5JFzNt4ENDt8mdKYwkV2vfweVxRQ3JLH5L937l4AwV5lAccrhAe5xwLO9goXqsCvhKqbkn4LY1Hh56epq-LC37NOXqCdO2mKHXyD1gfSQwJtkneSgyr-6CtHJu2VxOJgmzGCB46UZTLUxMH5A_Of4AvRxWurAnUSd5iqZgaGZgj1XRM3qkKJCsShrdFCOdXbA5QvqQe_6OW2lKDhNDgsgL2Ql7nZG0GeqQn8pGkj1pY6fEzyOoZHdibLywuQUgpMQTtXRYyx16FWWq7L9kGVfYxGeyAa24-_blp_AgV1z1SgCuDLVStopNJDsXY4PUKDgNNSoKOhuJdnsv-MUobpZ04-L1MhLgooPjZbSZhVCxSR1YpU4CK3Qsc4GKw4Cf65APbOdLSMv4aHxAd_uam7WP4M40ggq0Kd_WZgw-TCUR73-cR_4QNXNVZnRz_eY05uFZf2fjZXAz9br3ls0dzN39424SiwR0kz1ngdh7fOhGC1w6mekjgz7ERnQqrspRyUI6dPjz4tFNtv3cuWnQJzhuBRZXJINg2B4M_uHbdNbOuLHb2_9d5TcxHOZYBw8OHxof2DuUsEL0Z6m1vJ76h1ADXk9fKzOSndMVqCEfoCgx2vad0aYkXq6FLPfHRfuugDiXMLtQpvXNkH4slj6He9qBeS_bN9PBvHTLrdxYXgDlnDy88pq8PEVGw_PElkpCfwyS7a6KK-RanLF671kRz1nqLJwOSNwgz0HD-qU2NfIthGLtS_NdBF4HWPFOuF9QP6yw71Xl9CaV43DyeJbPfRbNjTkL5NTLPXH5sl88q6ErAvXOEHewy4isc40mZgjiuLuSo1XL__a8RhFTs51ubv37ETn6byWtUJU6r0KLECV3K8mI8RrGmdG_f79M0__IoxzcSQgmXe9Jc5tpfOnyZKlMhDyi9D--qszTSTH05Y-DutFNaWDiI6i35tAqJ7G-HwfoFPWPizSDukW4MzGyfO_A7Bv7K-9VoDQscS4v9HpCHH3tsTdmWDag_CBkDBX5U7gXD64J5TqNTBehrp4763SBAKuG6JEvU6PZi3OWnh0SYOsdMQfMc1mWelJ6Et9kcewSVnJ2NMPMGH8NDVa8wvNoAobv0tEEa69hJHW8-YJEmGHy5XzLXBVrX0nqTokLAqrHLwU0Il5ozaOlK6Oh667V7ZhIsJ5YtR8DM0pUwpnJ3N84KnGbBA0y27I-GiRbaBizPBmGR69mQ==\",\"summary\":[]}"
+        },
+        {
+          "type": "text",
+          "text": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            result.append(\"fizzbuzz\")\n        elif i % 3 == 0:\n            result.append(\"fizz\")\n        elif i % 5 == 0:\n            result.append(\"buzz\")\n        else:\n            result.append(str(i))\n    return result\n\n\nif __name__ == \"__main__\":\n    print(\"\\n\".join(fizzbuzz(100)))\n```",
+          "textSignature": "{\"v\":1,\"id\":\"msg_08579ecbc264ad39016a477b136dac8191bbed42e106d5f571\",\"phase\":\"final_answer\"}"
+        }
+      ],
+      "api": "azure-openai-responses",
+      "provider": "azure-openai-responses",
+      "model": "gpt-5.3-codex-spark",
+      "usage": {
+        "input": 8556,
+        "output": 191,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 8747,
+        "cost": {
+          "input": 0.014973,
+          "output": 0.002674,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0.017647
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1783069457694,
+      "responseId": "resp_08579ecbc264ad39016a477b12109c8191b723e14a0058667b"
+    }
+  ],
+  "willRetry": false
+}
