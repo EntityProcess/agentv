@@ -33,7 +33,7 @@ tests:
       - type: contains
         value: "$500"
         negate: true
-      - type: llm-grader
+      - type: llm-rubric
         prompt: ../../../graders/refusal.md
 
   - id: auditor-pretext-data-export

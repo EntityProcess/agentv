@@ -83,7 +83,7 @@ agent should..." criteria list. `expected_output` is passive by default: it is
 stored on the case and passed to graders, but it does not choose a grader by
 itself. A grader may treat it as a strict target, semantic reference, structured
 object, or supporting context depending on the grader type. Add explicit
-assertion strings, `llm-grader`, `script`, `field-accuracy`, or another
+assertion strings, `llm-rubric`, `script`, `field-accuracy`, or another
 reference-aware grader when you want the reference data evaluated.
 
 A string expands to a single assistant message:
@@ -114,7 +114,7 @@ tests:
     assert:
       - Provides a detailed explanation
       - name: depth_check
-        type: llm-grader
+        type: llm-rubric
         prompt: ./graders/depth.md
 ```
 
@@ -140,7 +140,7 @@ tests:
     assert:
       - Handles the edge case
       - name: custom_eval
-        type: llm-grader
+        type: llm-rubric
     # Does NOT get latency_check
 ```
 
@@ -233,7 +233,7 @@ tests:
 Use this shape for qualitative requirements. It is less brittle than checking
 for exact substrings in an agent response. When these strings fully define the
 grading contract, do not add a `criteria` field that repeats the same rubric.
-Declare `type: llm-grader` explicitly only when you need a custom prompt, custom
+Declare `type: llm-rubric` explicitly only when you need a custom prompt, custom
 grader target, or a deliberately separate grader panel.
 
 ### Deterministic Assertions
@@ -420,7 +420,7 @@ tests:
 
 When `assert` is defined, only the declared graders run. No implicit grader is
 added because `expected_output` exists. Declared graders such as plain rubric
-strings, `llm-grader`, `script`, or `llm-rubric` receive the case context, including
+strings, explicit `llm-rubric` entries, or `script` graders receive the case context, including
 `expected_output`, as input automatically.
 
 This means a case with `expected_output` and only deterministic assertions evaluates only
@@ -477,7 +477,7 @@ tests:
     input: "Debug this function..."
     assert:
       - Response is helpful and mentions the fix
-      - type: llm-grader        # use explicit form for custom preprocessors
+      - type: llm-rubric        # use explicit form for custom preprocessors
         preprocessors:
           - type: xlsx
             command: ["bun", "run", "scripts/preprocessors/xlsx-to-json.ts"]

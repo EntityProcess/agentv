@@ -14,7 +14,7 @@ Use it when pairwise `compare` is too narrow and you want to detect gradual drif
 Analyze the last 8 canonical runs in the current workspace:
 
 ```bash
-agentv trend --last 8
+agentv results trend --last 8
 ```
 
 This is the primary day-to-day workflow. In most cases, users should start with `--last`.
@@ -22,13 +22,13 @@ This is the primary day-to-day workflow. In most cases, users should start with 
 Filter to one suite and target:
 
 ```bash
-agentv trend --last 8 --suite code-review --target claude-sonnet
+agentv results trend --last 8 --suite code-review --target claude-sonnet
 ```
 
 Point directly at run workspaces or `index.jsonl` manifests when you need a specific historical slice or want a reproducible example:
 
 ```bash
-agentv trend \
+agentv results trend \
   .agentv/results/2026-03-01T10-00-00-000Z/ \
   .agentv/results/2026-03-08T10-00-00-000Z/index.jsonl \
   .agentv/results/2026-03-15T10-00-00-000Z/
@@ -37,7 +37,7 @@ agentv trend \
 Concrete regression-gating example:
 
 ```bash
-agentv trend --last 8 --suite code-review --target claude-sonnet \
+agentv results trend --last 8 --suite code-review --target claude-sonnet \
   --fail-on-degrading --slope-threshold 0.01
 ```
 

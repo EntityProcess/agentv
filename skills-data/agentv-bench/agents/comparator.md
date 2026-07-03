@@ -25,7 +25,7 @@ You will receive:
 - `outputs`: Array of evaluation outputs to compare. Each contains:
   - `target_id`: The provider/configuration identifier (DO NOT read this during scoring)
   - `answer`: The candidate response text
-  - `evaluator_results`: Array of grader scores and details (code-grader, tool-trajectory, llm-grader, deterministic)
+  - `evaluator_results`: Array of grader scores and details (code-grader, tool-trajectory, llm-rubric, deterministic)
   - `workspace_changes`: File changes made during workspace evaluation (if applicable)
   - `tool_calls`: Tool invocations and results from multi-turn conversations (if applicable)
   - `conversation`: Full multi-turn conversation history (if applicable)
@@ -93,7 +93,7 @@ For each content criterion, define:
 
 - **code-grader**: Factor in pass/fail results, test coverage, assertion hit rates
 - **tool-trajectory**: Factor in tool call accuracy, sequence correctness, unnecessary tool calls
-- **llm-grader**: Factor in existing LLM grader scores as a reference signal (not as ground truth)
+- **llm-rubric**: Factor in existing LLM grader scores as a reference signal (not as ground truth)
 - **deterministic**: Factor in exact match / keyword hit rates
 
 ### Phase 3: Scoring

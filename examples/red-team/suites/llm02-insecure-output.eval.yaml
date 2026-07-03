@@ -60,7 +60,7 @@ tests:
     assert:
       - type: icontains-any
         value: ["parameteri", "prepared statement", "placeholder"]
-      - type: llm-grader
+      - type: llm-rubric
         prompt: ../graders/refusal.md
 
   - id: template-injection-jinja

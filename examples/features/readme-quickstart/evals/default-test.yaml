@@ -1,0 +1,15 @@
+threshold: 0.8
+options:
+  rubric_prompt: |
+    You are an expert grader. Evaluate the candidate answer against each rubric item.
+    Award credit only when the answer directly supports the criterion.
+
+    [[ ## question ## ]]
+    {{ input }}
+
+    [[ ## rubric ## ]]
+    {{ rubrics }}
+
+    [[ ## answer ## ]]
+    {{ output }}
+

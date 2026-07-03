@@ -58,11 +58,11 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ## Comparing Models
 
-Each eval produces a canonical run workspace with `target` in each `index.jsonl` record. Use `agentv compare` or Dashboard analytics to see completed runs side by side:
+Each eval produces a canonical run workspace with `target` in each `index.jsonl` record. Use `agentv results compare` or Dashboard analytics to see completed runs side by side:
 
 ```bash
 # Pairwise: compare two completed runs
-agentv compare \
+agentv results compare \
   .agentv/results/multi-model-benchmark/<copilot-timestamp>/index.jsonl \
   .agentv/results/multi-model-benchmark/<claude-timestamp>/index.jsonl
 
@@ -72,7 +72,7 @@ agentv results combine \
   .agentv/results/multi-model-benchmark/<claude-timestamp> \
   .agentv/results/multi-model-benchmark/<gemini-timestamp> \
   --output .agentv/results/multi-model-benchmark/combined
-agentv compare .agentv/results/multi-model-benchmark/combined/index.jsonl
+agentv results compare .agentv/results/multi-model-benchmark/combined/index.jsonl
 
 # Dashboard analytics also shows an experiment × target matrix over completed runs
 agentv dashboard
@@ -148,7 +148,7 @@ that signals inconsistency worth investigating.
 
 ### 4. Compare
 
-The `agentv compare` command reads completed run manifests (`index.jsonl`, with `target` per record) and shows pairwise summaries. Dashboard analytics aggregates completed runs into an experiment × target matrix. Each pair classifies per-test deltas:
+The `agentv results compare` command reads completed run manifests (`index.jsonl`, with `target` per record) and shows pairwise summaries. Dashboard analytics aggregates completed runs into an experiment × target matrix. Each pair classifies per-test deltas:
 
 - **Win**: candidate score exceeds baseline by threshold (default 0.10)
 - **Loss**: baseline score exceeds candidate by threshold
@@ -173,7 +173,7 @@ benchmark.eval.yaml
          │
          ▼
 ┌─────────────────────────┐
-│  agentv compare /        │
+│  agentv results compare /        │
 │  Dashboard analytics     │
 │  (completed-run deltas) │
 └─────────────────────────┘
@@ -197,7 +197,7 @@ Add a new grader prompt in `prompts/` and reference it in the eval's `assertions
 ```yaml
 assertions:
   - name: safety
-    type: llm-grader
+    type: llm-rubric
     prompt: ../prompts/safety-rubric.md
     weight: 4.0    # Highest priority
 ```

@@ -28,7 +28,7 @@ If `eval-path` is provided, also read the EVAL.yaml to understand grader configu
 
 ### Step 2: Deterministic-Upgrade Analysis
 
-For each grader entry in `scores` where `type` is `"llm-grader"` or `"rubrics"`, inspect the `reasoning` and `assertions` fields for patterns that indicate a deterministic assertion would suffice:
+For each grader entry in `scores` where `type` is `"llm-rubric"` or `"rubrics"`, inspect the `reasoning` and `assertions` fields for patterns that indicate a deterministic assertion would suffice:
 
 | Signal | Detection | Suggested Upgrade |
 |--------|-----------|-------------------|
@@ -94,7 +94,7 @@ Produce a structured report in this exact format:
 
 | # | Test ID | Grader | Current Type | Evidence | Suggested Type | Suggested Config |
 |---|---------|-----------|-------------|----------|----------------|-----------------|
-| 1 | <test_id> | <grader name> | llm-grader | <brief evidence> | contains | `value: "exact string"` |
+| 1 | <test_id> | <grader name> | llm-rubric | <brief evidence> | contains | `value: "exact string"` |
 
 ### Weak Assertions
 
@@ -122,8 +122,8 @@ If a section has no findings, include the header with "None found." underneath.
 
 - **Be specific:** Every suggestion must include the test case ID, grader name, evidence from the results, and a concrete replacement config.
 - **Be conservative:** Only suggest deterministic upgrades when the pattern is clear and consistent. Partial or ambiguous evidence should be noted but not acted on.
-- **Prioritize by impact:** Order suggestions by estimated cost savings (`llm-grader` → deterministic saves the most).
-- **Handle all grader types:** Process `code-grader`, `tool-trajectory`, `llm-grader`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
+- **Prioritize by impact:** Order suggestions by estimated cost savings (`llm-rubric` → deterministic saves the most).
+- **Handle all grader types:** Process `code-grader`, `tool-trajectory`, `llm-rubric`, `rubrics`, `composite`, and all deterministic types. Only LLM-based types are candidates for deterministic upgrades.
 - **Multi-provider awareness:** When results span multiple targets, note if a suggestion applies to all targets or is target-specific.
 - **No false positives:** It is better to miss a suggestion than to recommend an incorrect upgrade. If unsure, add the finding to a "Needs Review" subsection with your reasoning.
 

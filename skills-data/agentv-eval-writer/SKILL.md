@@ -3,7 +3,7 @@ name: agentv-eval-writer
 description: >-
   Write, edit, review, and validate AgentV EVAL.yaml / .eval.yaml evaluation files.
   Use when asked to create new eval files, update or fix existing ones, add or remove test cases,
-  configure graders (`llm-rubric`, `llm-grader`, `script`), review whether an eval is correct or complete,
+  configure graders (`llm-rubric`, `script`), review whether an eval is correct or complete,
   convert between EVAL.yaml and evals.json using `agentv convert`, or generate eval test cases
   from chat transcripts (markdown conversation or JSON messages).
   Do NOT use for creating SKILL.md files, writing skill definitions, or running evals —
@@ -39,7 +39,7 @@ Use `@agentv/sdk` for TypeScript helper imports. Do not use `@agentv/eval` for n
 ## Authoring Checklist
 
 - Put grading criteria in `assert`, not in test-level `criteria`. Plain assertion strings become an `llm-rubric` grader.
-- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, `type: llm-grader` for custom prompts/targets, and `type: script` when grading must execute code.
+- Prefer plain assertion strings for semantic checks when the default rubric grader can judge them. Use `type: llm-rubric` for structured criteria, custom prompts, custom grader targets, or preprocessing, and `type: script` when grading must execute code.
 - Write `expected_output` as a golden/reference answer the target could have produced. Do not write criteria, scoring instructions, or "the agent should..." rubric prose there.
 - For historical or repo-state evals, materialize the repo under `workspace.repos[]` pinned to the commit under test. Mentioning a SHA only in prompt prose is not enough because the agent needs an actual checkout to inspect.
 
@@ -136,7 +136,7 @@ tests:
 | `id` | yes | Unique identifier |
 | `input` | yes | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
-| `assert` | yes | Graders: deterministic checks, rubrics, LLM graders, script graders, or plain-string `llm-rubric` checks |
+| `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
@@ -269,7 +269,7 @@ tests:
 
 When `assert` is defined, **only the declared graders run**. For
 semantic checks, add plain rubric strings. If you need a custom LLM prompt or
-grader target, declare `llm-grader` explicitly:
+grader target, declare `llm-rubric` explicitly:
 
 ```yaml
 tests:
@@ -421,10 +421,10 @@ For deterministic workspace checks that fit normal Vitest `expect(...)` tests, p
 AgentV infers the Vitest adapter for `*.test.ts`, `*.spec.ts`, and Vercel-style `EVAL.ts` files. Use the explicit `agentv eval vitest` subcommand only when you need adapter flags such as `--cwd`, `--in-workspace`, or `--vitest-command`.
 See the Script Graders docs for the full stdin/stdout contract.
 
-### llm-grader
+### llm-rubric
 ```yaml
 - name: quality
-  type: llm-grader
+  type: llm-rubric
   prompt: ./prompts/eval.md     # markdown template or command config
   target: grader_gpt_5_mini     # optional: override the grader target for this grader
   model: gpt-5-chat            # optional model override
@@ -434,7 +434,7 @@ See the Script Graders docs for the full stdin/stdout contract.
 Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{metadata}}`, `{{metadata_json}}`, `{{rubrics}}`, `{{rubrics_json}}`, `{{file_changes}}`, `{{tool_calls}}`
 - Markdown templates: use `{{variable}}` syntax
 - TypeScript templates: use `definePromptTemplate(fn)` from `@agentv/sdk`, receives context object with all variables + `config`
-- Use `target:` to run different `llm-grader` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
+- Use `target:` to run different `llm-rubric` graders against different named LLM targets in the same eval (useful for grader panels / ensembles)
 
 ### composite
 ```yaml
@@ -442,10 +442,10 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
   type: composite
   assert:
     - name: safety
-      type: llm-grader
+      type: llm-rubric
       prompt: ./safety.md
     - name: quality
-      type: llm-grader
+      type: llm-rubric
   aggregator:
     type: weighted_average
     weights: { safety: 0.3, quality: 0.7 }
@@ -600,7 +600,7 @@ agentv eval <file.yaml> --retry-errors .agentv/results/default/<timestamp>/index
 agentv validate <file.yaml>
 
 # Compare completed runs
-agentv compare \
+agentv results compare \
   .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl
 agentv results combine \
@@ -608,8 +608,8 @@ agentv results combine \
   .agentv/results/default/<candidate-timestamp> \
   .agentv/results/default/<third-target-timestamp> \
   --output .agentv/results/default/combined
-agentv compare .agentv/results/default/combined/index.jsonl
-agentv compare \
+agentv results compare .agentv/results/default/combined/index.jsonl
+agentv results compare \
   .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl \
   --json
@@ -652,7 +652,7 @@ export default defineEval({
 });
 ```
 
-The `graders` catalog returns ordinary `assert` entries such as `type: is-json`, `type: regex`, `type: llm-grader`, and `type: script`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
+The `graders` catalog returns ordinary `assert` entries such as `type: is-json`, `type: regex`, `type: llm-rubric`, and `type: script`. `defineEval()` lowers camelCase TypeScript fields such as `expectedOutput`, `inputFiles`, and `maxSteps` to canonical snake_case YAML/runtime keys.
 
 If adapting Braintrust `scores` or DeepEval metrics, write small AgentV helper factories that return `graders.*` configs:
 
@@ -660,7 +660,7 @@ If adapting Braintrust `scores` or DeepEval metrics, write small AgentV helper f
 import { graders } from '@agentv/sdk';
 
 export function ragFaithfulness() {
-  return graders.llmGrader({
+  return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
     target: 'grader-target',
     prompt: 'Grade whether the answer is supported by the retrieved context.',

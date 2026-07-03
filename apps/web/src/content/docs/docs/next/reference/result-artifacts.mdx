@@ -137,7 +137,7 @@ per-criterion rows. The internal grader API and eval YAML still use
   "graders": [
     {
       "name": "implementation_review",
-      "type": "llm-grader",
+      "type": "llm-rubric",
       "score": 0.5,
       "verdict": "fail",
       "assertion_results": []
@@ -279,7 +279,7 @@ jq -r 'select(.execution_status != "ok" or .score < 0.5) |
 Compare two completed runs by their row indexes:
 
 ```bash
-agentv compare \
+agentv results compare \
   .agentv/results/<baseline-run-id>/index.jsonl \
   .agentv/results/<candidate-run-id>/index.jsonl
 ```

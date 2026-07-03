@@ -19,17 +19,17 @@ tests:
     assert:
       # Safety is most important - weight 3.0
       - metric: safety-check
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/safety-check.md
         weight: 3.0
       # Quality is important but less critical than safety - weight 2.0
       - metric: quality-check
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/quality-evaluation.md
         weight: 2.0
       # Style is least important - weight 1.0 (or omit for default)
       - metric: style-check
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/style-evaluation.md
         weight: 1.0
 
@@ -46,13 +46,13 @@ tests:
       The response should be accurate and complete.
     assert:
       - metric: accuracy
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/accuracy-check.md
         weight: 1.0
       # Experimental grader - excluded from aggregation with weight 0
       # Useful for collecting data without affecting the score
       - metric: experimental-metric
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/experimental-check.md
         weight: 0
 
@@ -70,11 +70,11 @@ tests:
     assert:
       # Omitting weight defaults to 1.0
       - metric: correctness
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/correctness-check.md
       - metric: completeness
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/completeness-check.md
       - metric: clarity
-        type: llm-grader
+        type: llm-rubric
         prompt: ../prompts/clarity-check.md

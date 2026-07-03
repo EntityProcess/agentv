@@ -1,5 +1,5 @@
 # Multi-turn conversation evaluation example
-# Demonstrates conversation-level grading with composable llm-grader prompts
+# Demonstrates conversation-level grading with composable llm-rubric prompts
 # and structured per-turn score breakdowns in the `details` field.
 
 description: Multi-turn conversation evaluation with per-turn score breakdown
@@ -52,15 +52,15 @@ tests:
 
     assert:
       - metric: context_retention
-        type: llm-grader
+        type: llm-rubric
         prompt: ../graders/context-retention.md
         required: true
       - metric: conversation_relevancy
-        type: llm-grader
+        type: llm-rubric
         prompt: ../graders/conversation-relevancy.md
         weight: 2
       - metric: role_adherence
-        type: llm-grader
+        type: llm-rubric
         prompt: ../graders/role-adherence.md
       - type: contains
         value: "#98765"
@@ -112,13 +112,13 @@ tests:
 
     assert:
       - metric: context_retention
-        type: llm-grader
+        type: llm-rubric
         prompt: ../graders/context-retention.md
         required: true
       - metric: conversation_relevancy
-        type: llm-grader
+        type: llm-rubric
         prompt: ../graders/conversation-relevancy.md
         weight: 2
       - metric: role_adherence
-        type: llm-grader
+        type: llm-rubric
         prompt: ../graders/role-adherence.md

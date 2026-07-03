@@ -56,7 +56,7 @@ from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_js
 def rag_faithfulness():
     return {
         "name": "rag-faithfulness",
-        "type": "llm-grader",
+        "type": "llm-rubric",
         "target": "grader-target",
         "prompt": "Grade whether the answer is supported by the retrieved context.",
     }

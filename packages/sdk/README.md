@@ -184,7 +184,7 @@ export default defineEval({
         graders.regex(/"message"\s*:/, { metric: 'message-key' }),
         graders.json({ metric: 'valid-json', required: true }),
         graders.llmRubric(['Greets the user'], { metric: 'rubric-review' }),
-        graders.llmGrader({
+        graders.llmRubric(undefined, {
           metric: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
           target: 'grader-target',
@@ -196,7 +196,7 @@ export default defineEval({
 });
 ```
 
-The helpers return ordinary `assert` entries such as `type: contains`, `type: llm-grader`, and `type: script`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
+The helpers return ordinary `assert` entries such as `type: contains`, `type: llm-rubric`, and `type: script`. CamelCase SDK options such as `minScore` and `maxSteps` lower to canonical YAML keys such as `min_score` and `max_steps`.
 
 If you are coming from Braintrust `scores` or DeepEval metrics, model reusable checks as small AgentV-native helper factories that return these grader configs. They still lower to the same YAML/runtime contract:
 
@@ -204,7 +204,7 @@ If you are coming from Braintrust `scores` or DeepEval metrics, model reusable c
 import { defineEval, graders } from '@agentv/sdk';
 
 function ragFaithfulness() {
-  return graders.llmGrader({
+  return graders.llmRubric(undefined, {
     metric: 'rag-faithfulness',
     target: 'grader-target',
     prompt: 'Grade whether the answer is supported by the provided context.',
@@ -235,7 +235,7 @@ Python workflows should emit canonical YAML/JSONL or implement code graders over
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite
 - `graders` - Catalog of built-in AgentV grader config helpers
-- `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `llmRubricGrader`, `llmGrader`, `scriptGrader` - Named grader helper functions
+- `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `llmRubricGrader`, `scriptGrader` - Named grader helper functions
 - `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
 - `EvalConfig`, `EvalRunResult`, `EvalSummary`, `EvalTestInput`, `EvalAssertionInput` - Programmatic evaluation types
 - `AssertionContext`, `AssertionScore` - Assertion types

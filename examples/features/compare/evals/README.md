@@ -1,6 +1,6 @@
 # Compare Command Example
 
-The `agentv compare` command compares completed run manifests. Run the same eval once per target, then pass the finished run manifests to compare. For N-way matrix analysis, combine completed runs first and compare the combined manifest.
+The `agentv results compare` command compares completed run manifests. Run the same eval once per target, then pass the finished run manifests to compare. For N-way matrix analysis, combine completed runs first and compare the combined manifest.
 
 ## Use Case
 
@@ -19,7 +19,7 @@ Compare model performance across different configurations:
 ### Pairwise Compare
 
 ```bash
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl
 ```
 
@@ -46,7 +46,7 @@ agentv results combine \
   .agentv/results/default/<claude-timestamp> \
   .agentv/results/default/<gemini-timestamp> \
   --output .agentv/results/default/combined
-agentv compare .agentv/results/default/combined/index.jsonl
+agentv results compare .agentv/results/default/combined/index.jsonl
 ```
 
 Output:
@@ -66,7 +66,7 @@ Score Matrix
 Use a stricter threshold (0.05) for win/loss classification:
 
 ```bash
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl --threshold 0.05
 ```
 
@@ -75,7 +75,7 @@ agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
 For machine-readable output (CI pipelines, scripts):
 
 ```bash
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl --json
 ```
 
@@ -104,5 +104,5 @@ Use exit codes for automated quality gates:
 
 ```bash
 # Fail if candidate regresses
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl || echo "Regression detected!"
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl .agentv/results/default/<candidate-timestamp>/index.jsonl || echo "Regression detected!"
 ```

@@ -25,15 +25,15 @@ evaluate_options:
 
 assert:
   - metric: accuracy
-    type: llm-grader
+    type: llm-rubric
     prompt: ../prompts/accuracy-rubric.md
     weight: 3.0
   - metric: completeness
-    type: llm-grader
+    type: llm-rubric
     prompt: ../prompts/completeness-rubric.md
     weight: 2.0
   - metric: clarity
-    type: llm-grader
+    type: llm-rubric
     prompt: ../prompts/clarity-rubric.md
     weight: 1.0
 

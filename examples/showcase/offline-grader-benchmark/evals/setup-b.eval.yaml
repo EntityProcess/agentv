@@ -12,14 +12,14 @@ assert:
       threshold: 0.6
     assert:
       - metric: grader-gpt-5-mini
-        type: llm-grader
+        type: llm-rubric
         target: grader_gpt_5_mini
         prompt: ../prompts/grader-pass-fail-v2.md
       - metric: grader-claude-haiku
-        type: llm-grader
+        type: llm-rubric
         target: grader_claude_haiku
         prompt: ../prompts/grader-pass-fail-v2.md
       - metric: grader-gemini-flash
-        type: llm-grader
+        type: llm-rubric
         target: grader_gemini_flash
         prompt: ../prompts/grader-pass-fail-v2.md

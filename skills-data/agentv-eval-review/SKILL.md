@@ -25,7 +25,7 @@ Walk every target eval file and report violations grouped by severity (error > w
 - File-typed inputs (`type: file`) use a leading `/` in their `path` (error if relative).
 - Tests have an `assertions` block — flag tests that rely solely on `expected_output` (warning).
 - Flag `criteria` that duplicates assertion strings when `assertions` already express the grading contract (warning — remove the duplicate `criteria`).
-- Prefer plain assertion strings over multiple named `type: llm-grader` blocks when the default LLM rubric grader can evaluate the checks (info unless custom prompts or grader targets are present).
+- Prefer plain assertion strings over multiple named `type: llm-rubric` blocks when the default LLM rubric grader can evaluate the checks (info unless custom prompts or grader targets are present).
 - Detect `expected_output` prose patterns like "The agent should..." or "The output is..." (warning — `expected_output` should be a golden/reference answer; scoring rules belong in `assertions` or, for implicit-grader cases, `criteria`).
 - For historical or repo-state evals, verify the relevant repo is pinned under `workspace.repos[].commit` or `workspace.repos[].base_commit`; a SHA mentioned only in prompt prose or metadata is not an operational checkout (warning).
 - Identical file inputs repeated across multiple tests in the same eval should be hoisted to a top-level `input` (info).

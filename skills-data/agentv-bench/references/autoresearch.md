@@ -11,7 +11,7 @@ After each iteration, you can automatically decide whether to keep or discard th
 After re-running test cases, compare the new results against the previous iteration's baseline:
 
 ```bash
-agentv compare <baseline>.jsonl <candidate>.jsonl --json
+agentv results compare <baseline>.jsonl <candidate>.jsonl --json
 ```
 
 Where `<baseline>.jsonl` is the `index.jsonl` from the previous best iteration and `<candidate>.jsonl` is the `index.jsonl` from the run you just completed.
@@ -75,7 +75,7 @@ The automated keep/discard replaces the manual compare-and-present cycle (steps 
 
 1. Apply change to prompts/skills/config
 2. Re-run all test cases
-3. Run `agentv compare baseline.jsonl candidate.jsonl --json`
+3. Run `agentv results compare baseline.jsonl candidate.jsonl --json`
 4. Apply keep/discard rules → promote or revert
 5. Log the decision
 6. If this is iteration 3, 6, or 9 → present progress to the user (human checkpoint)
@@ -244,7 +244,7 @@ The trajectory chart fetches `iterations.jsonl` directly via HTTP on each auto-r
 
 Apply the automated keep/discard rules from the section above:
 
-1. Run `agentv compare <baseline>.jsonl <candidate>.jsonl --json` where `<baseline>` is the best iteration's `index.jsonl` (or the first run's `index.jsonl` for cycle 1) and `<candidate>` is this cycle's `index.jsonl`.
+1. Run `agentv results compare <baseline>.jsonl <candidate>.jsonl --json` where `<baseline>` is the best iteration's `index.jsonl` (or the first run's `index.jsonl` for cycle 1) and `<candidate>` is this cycle's `index.jsonl`.
 2. If `wins > losses` → **KEEP**.
 3. If `wins <= losses` → **DISCARD**.
 4. If `mean_delta == 0` and the artifact is simpler → **KEEP** (simpler is better at equal performance). Simplicity: for files, compare line count; for directories, compare total size via `du -sb`.

@@ -75,7 +75,7 @@ tests:
         command: ["uv", "run", "check_python_keywords.py"]
         cwd: .  # Working directory for script execution
       - metric: code_correctness
-        type: llm-grader  # LLM-based evaluation
+        type: llm-rubric  # LLM-based evaluation
         prompt: code-correctness-grader.md
     
     input:

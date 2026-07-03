@@ -10,7 +10,7 @@ assert:
     type: script
     command: ["uv", "run", "validate_output.py"]
   - metric: content_evaluator
-    type: llm-grader
+    type: llm-rubric
 
 tests:
   # ==============================================================================

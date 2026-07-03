@@ -23,7 +23,7 @@ tests:
 
     assert:
       - metric: custom-prompt-eval
-        type: llm-grader
+        type: llm-rubric
         # Executable prompt template using explicit script array (matches code_grader pattern)
         prompt:
           command: [bun, run, ../prompts/custom-grader.ts]
@@ -43,7 +43,7 @@ tests:
 
     assert:
       - metric: strict-eval
-        type: llm-grader
+        type: llm-rubric
         # Executable prompt template with config
         prompt:
           command: [bun, run, ../prompts/custom-grader.ts]

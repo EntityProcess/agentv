@@ -113,9 +113,9 @@ Start with 2-3 realistic test cases — the kind of thing a real user would actu
 
 Good assertions are objectively verifiable and have descriptive names. Subjective quality ("the output is good") is better evaluated qualitatively — don't force assertions onto things that need human judgment.
 
-**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `code-grader`, `tool-trajectory`, `llm-grader`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
+**Grader types** (cheapest to most expensive): `exact`, `contains`, `regex`, `is-json`, `field-accuracy`, `composite`, `code-grader`, `tool-trajectory`, `llm-rubric`. See `references/eval-yaml-spec.md` for full config and grading recipes for each type.
 
-Prefer deterministic graders over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-grader`.
+Prefer deterministic graders over LLM graders whenever possible. If an assertion can be checked with `contains` or `regex`, don't use `llm-rubric`.
 
 ---
 
@@ -208,7 +208,7 @@ This evaluates all deterministic assertions against `response.md` files. Two typ
 
 Both types are configured by `pipeline input` into `code_graders/<name>.json` and graded by `pipeline grade`. Results are written to `<test-id>/code_grader_results/<name>.json`. Alternatively, pass `--grader-type code` to `pipeline run` to run these inline.
 
-**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost. To detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json` config files — `pipeline input` only writes there for `llm-grader` assertions. Tests with an empty (or missing) `llm_graders/` directory are done after Phase 1.
+**Do not dispatch LLM grader subagents for tests that only have `contains`, `regex`, or other built-in assertions** — `pipeline grade` handles them entirely, at zero cost. To detect which tests need Phase 2, check whether `<test-id>/llm_graders/` contains any `.json` config files — `pipeline input` only writes there for `llm-rubric` assertions. Tests with an empty (or missing) `llm_graders/` directory are done after Phase 1.
 
 **Phase 2: LLM grading** (semantic — do NOT skip this phase)
 
@@ -276,7 +276,7 @@ Read the JSONL results and look for:
 - **Always-fail tests** — task impossible, eval broken, or assertion misconfigured. Don't optimize against broken evals.
 - **Flaky tests** — non-deterministic results across runs. Investigate before treating failures as real.
 - **Systematic failures** — same failure pattern across multiple tests. This usually points to a missing instruction or wrong approach.
-- **Deterministic upgrade candidates** — `llm-grader` assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
+- **Deterministic upgrade candidates** — `llm-rubric` assertions that could be replaced with `contains`, `regex`, or `is-json` (cheaper, faster, more reliable).
 
 ### Dispatch subagents
 
@@ -289,7 +289,7 @@ Read the JSONL results and look for:
 Use CLI tools for deeper investigation:
 ```bash
 agentv inspect <results-file>          # Detailed execution trace inspection
-agentv compare <file-a> <file-b>     # Structured diff between runs
+agentv results compare <file-a> <file-b>     # Structured diff between runs
 ```
 
 Look for: tool call patterns, error recovery behavior, conversation flow, wasted steps.
@@ -360,7 +360,7 @@ After improving:
 
 ### Automated keep/discard
 
-For autonomous iteration, use `agentv compare --json` to automatically decide whether to keep or discard each change based on wins/losses/ties. Read `references/autoresearch.md` for the full decision rules, logging format, and integration with the iteration loop.
+For autonomous iteration, use `agentv results compare --json` to automatically decide whether to keep or discard each change based on wins/losses/ties. Read `references/autoresearch.md` for the full decision rules, logging format, and integration with the iteration loop.
 
 ---
 

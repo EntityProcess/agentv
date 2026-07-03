@@ -136,10 +136,10 @@ Before adding a new pointer family, verify that the artifact is large enough or 
 
 Grader types use kebab-case everywhere.
 
-- YAML config: `type: llm-rubric`, `type: llm-rubric`, `type: script`, `type: is-json`
-- Internal TypeScript: `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
-- Output `scores[].type`: `"llm-grader"`, `"is-json"`
-- Registry keys: `registry.register('llm-grader', ...)`
+- Authored YAML config: `type: llm-rubric`, `type: script`, `type: is-json`
+- Internal TypeScript still has the shared LLM grader implementation and registry key (`'llm-grader'`), but new authored evals should use `llm-rubric` for semantic LLM grading.
+- Output `scores[].type`: use the authored grader type when available, such as `"llm-rubric"` or `"is-json"`.
+- Registry keys: `registry.register('llm-rubric', ...)` for the authored rubric surface, with `llm-grader` retained as internal/shared implementation plumbing.
 
 Source of truth: `GRADER_KIND_VALUES` in `packages/core/src/evaluation/types.ts`.
 

@@ -15,7 +15,7 @@ Run two evaluations and compare them:
 agentv eval evals/my-eval.yaml --output .agentv/results/before
 # ... make changes to your agent ...
 agentv eval evals/my-eval.yaml --output .agentv/results/after
-agentv compare .agentv/results/before/index.jsonl .agentv/results/after/index.jsonl
+agentv results compare .agentv/results/before/index.jsonl .agentv/results/after/index.jsonl
 ```
 
 `index.jsonl` is the canonical row-level result index. New runs live at
@@ -132,7 +132,7 @@ agentv eval evals/*.yaml --target gpt-4 --output .agentv/results/baseline
 agentv eval evals/*.yaml --target gpt-4o --output .agentv/results/candidate
 
 # Compare results
-agentv compare .agentv/results/baseline/index.jsonl .agentv/results/candidate/index.jsonl
+agentv results compare .agentv/results/baseline/index.jsonl .agentv/results/candidate/index.jsonl
 ```
 
 ### Prompt Optimization
@@ -147,7 +147,7 @@ agentv eval evals/*.yaml --output .agentv/results/before
 agentv eval evals/*.yaml --output .agentv/results/after
 
 # Compare with strict threshold
-agentv compare .agentv/results/before/index.jsonl .agentv/results/after/index.jsonl --threshold 0.05
+agentv results compare .agentv/results/before/index.jsonl .agentv/results/after/index.jsonl --threshold 0.05
 ```
 
 ### CI Quality Gate
@@ -156,7 +156,7 @@ Fail CI if the candidate regresses:
 
 ```bash
 #!/bin/bash
-agentv compare \
+agentv results compare \
   .agentv/results/baseline/index.jsonl \
   .agentv/results/candidate/index.jsonl
 if [ $? -eq 1 ]; then

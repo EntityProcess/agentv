@@ -147,6 +147,11 @@ const AggregatorSchema = z.discriminatedUnion('type', [
     cwd: z.string().optional(),
   }),
   z.object({
+    type: z.literal('llm-rubric'),
+    prompt: z.string().optional(),
+    model: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('llm-grader'),
     prompt: z.string().optional(),
     model: z.string().optional(),

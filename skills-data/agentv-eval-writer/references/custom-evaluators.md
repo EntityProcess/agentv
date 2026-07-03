@@ -80,7 +80,7 @@ Use helper factories for reusable Braintrust/DeepEval-inspired checks, but keep 
 import { defineEval, graders } from '@agentv/sdk';
 
 function ragFaithfulness() {
-  return graders.llmGrader({
+  return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
     target: 'grader-target',
     prompt: 'Grade whether the answer is supported by the retrieved context.',
@@ -110,7 +110,7 @@ assert:
     type: contains
     value: source
   - name: rag-faithfulness
-    type: llm-grader
+    type: llm-rubric
     target: grader-target
     prompt: Grade whether the answer is supported by the retrieved context.
 ```

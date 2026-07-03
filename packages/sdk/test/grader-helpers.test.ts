@@ -9,7 +9,6 @@ import {
   graders,
   isJsonGrader,
   jsonGrader,
-  llmGrader,
   llmRubricGrader,
   regexGrader,
   scriptGrader,
@@ -41,7 +40,7 @@ describe('grader helper config builders', () => {
       weight: 2,
     });
     expect(
-      llmGrader({
+      llmRubricGrader(undefined, {
         metric: 'tone-review',
         prompt: 'Grade the answer for tone.',
         target: 'grader-target',
@@ -50,7 +49,7 @@ describe('grader helper config builders', () => {
       }),
     ).toEqual({
       metric: 'tone-review',
-      type: 'llm-grader',
+      type: 'llm-rubric',
       prompt: 'Grade the answer for tone.',
       target: 'grader-target',
       maxSteps: 3,
@@ -104,18 +103,11 @@ describe('grader helper config builders', () => {
               ],
               { metric: 'rubric-review' },
             ),
-            graders.llmGrader({
+            graders.llmRubric(undefined, {
               metric: 'llm-review',
               prompt: 'Grade whether the answer is useful.',
               target: 'grader-target',
               maxSteps: 2,
-              rubrics: [
-                {
-                  id: 'useful',
-                  outcome: 'The answer is useful.',
-                  minScore: 0.8,
-                },
-              ],
             }),
             graders.script(['bun', 'run', 'graders/check.ts'], {
               metric: 'scripted-check',
@@ -154,17 +146,10 @@ describe('grader helper config builders', () => {
       },
       {
         metric: 'llm-review',
-        type: 'llm-grader',
+        type: 'llm-rubric',
         prompt: 'Grade whether the answer is useful.',
         target: 'grader-target',
         max_steps: 2,
-        rubrics: [
-          {
-            id: 'useful',
-            outcome: 'The answer is useful.',
-            min_score: 0.8,
-          },
-        ],
       },
       {
         metric: 'scripted-check',
@@ -179,7 +164,7 @@ describe('grader helper config builders', () => {
 
     expect(yaml).toContain('assert:');
     expect(yaml).toContain('metric: mentions-hello');
-    expect(yaml).toContain('type: llm-grader');
+    expect(yaml).toContain('type: llm-rubric');
     expect(yaml).toContain('type: script');
     expect(yaml).toContain('max_steps: 2');
     expect(yaml).toContain('max_calls: 2');

@@ -7,7 +7,7 @@ red-team baseline drawn from the corpora the field has converged on.
 ## How this fits agentv design
 
 This pack is **content, not core**. There are no changes to `packages/core` or
-`apps/cli`; the suites compose existing primitives — `llm-grader`,
+`apps/cli`; the suites compose existing primitives — `llm-rubric`,
 `not-matches-regex`, `not-contains`, `tool-trajectory` (where the target supports
 tools), and `composite`. Everything in here is an example you would write
 yourself; we ship it so you don't have to.

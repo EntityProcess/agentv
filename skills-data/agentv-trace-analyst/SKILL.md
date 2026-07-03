@@ -1,7 +1,7 @@
 ---
 name: agentv-trace-analyst
 description: >-
-  Analyze AgentV evaluation traces and result JSONL files using `agentv inspect` and `agentv compare` CLI commands.
+  Analyze AgentV evaluation traces and result JSONL files using `agentv inspect` and `agentv results compare` CLI commands.
   Use when asked to inspect AgentV eval results, find regressions between AgentV evaluation runs,
   identify failure patterns in AgentV trace data, analyze tool trajectories, or compute cost/latency/score statistics
   from AgentV result files.
@@ -26,7 +26,7 @@ agentv inspect show <result-file> [--test-id <id>] [--tree] [--format json|table
 agentv inspect stats <result-file> [--group-by target|suite|test-id] [--format json|table]
 
 # A/B comparison between runs
-agentv compare <baseline.jsonl> <candidate.jsonl> [--threshold 0.1] [--format json|table]
+agentv results compare <baseline.jsonl> <candidate.jsonl> [--threshold 0.1] [--format json|table]
 ```
 
 ## Analysis Workflow
@@ -81,7 +81,7 @@ The tree view shows the agent's execution path — LLM calls interspersed with t
 ### 5. Compare runs
 
 ```bash
-agentv compare <baseline.jsonl> <candidate.jsonl>
+agentv results compare <baseline.jsonl> <candidate.jsonl>
 ```
 
 Look for:
@@ -123,7 +123,7 @@ agentv inspect show <result-file> --format json \
   | jq '[.[].trace.tool_calls // {} | to_entries[]] | group_by(.key) | .[] | {tool: .[0].key, total_calls: ([.[].value] | add)}'
 
 # Find regressions > 0.1 between two runs
-agentv compare baseline.jsonl candidate.jsonl --format json \
+agentv results compare baseline.jsonl candidate.jsonl --format json \
   | jq '.matched[] | select(.delta < -0.1) | {test_id: .testId, delta, from: .score1, to: .score2}'
 ```
 

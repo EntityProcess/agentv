@@ -4,13 +4,13 @@ Utilities for comparing completed multi-model benchmark runs with AgentV.
 
 ## Completed Run Comparison
 
-`agentv compare` reads completed run manifests with a `target` field and compares finished runs. Use it after running the same eval once per target. For N-way analysis, combine completed runs first or use Dashboard analytics for the aggregated experiment × target matrix.
+`agentv results compare` reads completed run manifests with a `target` field and compares finished runs. Use it after running the same eval once per target. For N-way analysis, combine completed runs first or use Dashboard analytics for the aggregated experiment × target matrix.
 
 ### Quick Start
 
 ```bash
 # Compare two completed target runs
-agentv compare \
+agentv results compare \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl
 ```
@@ -31,7 +31,7 @@ Comparing: gpt-4.1 → claude-sonnet-4
 
 ```bash
 # Pairwise completed-run comparison
-agentv compare \
+agentv results compare \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl
 
@@ -41,10 +41,10 @@ agentv results combine \
   .agentv/results/model-benchmark/<claude-timestamp> \
   .agentv/results/model-benchmark/<gemini-timestamp> \
   --output .agentv/results/model-benchmark/combined
-agentv compare .agentv/results/model-benchmark/combined/index.jsonl
+agentv results compare .agentv/results/model-benchmark/combined/index.jsonl
 
 # JSON output
-agentv compare \
+agentv results compare \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl \
   --json
@@ -55,7 +55,7 @@ agentv compare \
 Extract a head-to-head comparison between two specific targets:
 
 ```bash
-agentv compare \
+agentv results compare \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<candidate-timestamp>/index.jsonl
 ```
@@ -95,7 +95,7 @@ Each line includes a `target` field to identify which model produced the result:
 
 ## split-by-target
 
-Splits a combined results JSONL file into one file per `target`, enabling pairwise comparison with `agentv compare`. Use this when you need separate files per target for other tools.
+Splits a combined results JSONL file into one file per `target`, enabling pairwise comparison with `agentv results compare`. Use this when you need separate files per target for other tools.
 
 ### Usage
 
@@ -126,7 +126,7 @@ Target names are normalized for safe filenames:
 
 ### Downstream Compare Workflow
 
-Use `agentv compare` on completed run manifests for pairwise analysis, or combine completed runs before matrix-style analysis:
+Use `agentv results compare` on completed run manifests for pairwise analysis, or combine completed runs before matrix-style analysis:
 
 ```bash
 # 1. Run the same eval once per target
@@ -134,7 +134,7 @@ bun agentv eval my-eval.yaml --target gpt-4.1 --experiment model-benchmark
 bun agentv eval my-eval.yaml --target claude-sonnet-4 --experiment model-benchmark
 
 # 2. Compare two completed runs
-bun agentv compare \
+bun agentv results compare \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl
 
@@ -143,10 +143,10 @@ bun agentv results combine \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl \
   --output .agentv/results/model-benchmark/combined
-bun agentv compare .agentv/results/model-benchmark/combined/index.jsonl
+bun agentv results compare .agentv/results/model-benchmark/combined/index.jsonl
 
 # 4. JSON output for CI pipelines
-bun agentv compare \
+bun agentv results compare \
   .agentv/results/model-benchmark/<gpt-timestamp>/index.jsonl \
   .agentv/results/model-benchmark/<claude-timestamp>/index.jsonl \
   --json
@@ -156,13 +156,13 @@ The `compare` command matches records by `test_id`, calculates score deltas, and
 
 ## win-rate-summary
 
-Computes aggregate win/loss/tie rates from `agentv compare --json` output, making comparison results decision-ready at a glance.
+Computes aggregate win/loss/tie rates from `agentv results compare --json` output, making comparison results decision-ready at a glance.
 
 ### Usage
 
 ```bash
 # Save comparison output to a file
-bun agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+bun agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl --json > comparison.json
 
 # Print a human-readable summary table
@@ -181,9 +181,9 @@ Pass a directory of comparison JSON files to get per-metric win rates. Each file
 
 ```bash
 # Run comparisons for different metrics
-bun agentv compare .agentv/results/default/<baseline-accuracy>/index.jsonl \
+bun agentv results compare .agentv/results/default/<baseline-accuracy>/index.jsonl \
   .agentv/results/default/<candidate-accuracy>/index.jsonl --json > comparisons/accuracy.json
-bun agentv compare .agentv/results/default/<baseline-latency>/index.jsonl \
+bun agentv results compare .agentv/results/default/<baseline-latency>/index.jsonl \
   .agentv/results/default/<candidate-latency>/index.jsonl --json > comparisons/latency.json
 
 # Aggregate across all metrics
@@ -196,7 +196,7 @@ A result is classified as a **tie** when `|delta| < tolerance`.
 
 | Tolerance | Effect |
 |---|---|
-| `0.1` (default) | Matches `agentv compare` default threshold |
+| `0.1` (default) | Matches `agentv results compare` default threshold |
 | `0.05` | Stricter — only small deltas are ties |
 | `0` | No ties unless delta is exactly 0 |
 
@@ -299,7 +299,7 @@ bun examples/features/benchmark-tooling/scripts/benchmark-report.ts ./by-target/
 bun agentv eval my-eval.yaml
 
 # 2. Compare two targets from the run manifest
-bun agentv compare .agentv/results/default/<timestamp>/index.jsonl \
+bun agentv results compare .agentv/results/default/<timestamp>/index.jsonl \
   --baseline gpt-4.1 --candidate claude-sonnet-4 --json > comparison.json
 
 # 3. Get win-rate summary
