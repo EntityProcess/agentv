@@ -50,6 +50,7 @@ const PROVIDER_ALIASES: Readonly<Record<string, ProviderKind>> = {
   'copilot-log': 'copilot-log',
   pi: 'pi-cli',
   'pi-cli': 'pi-cli',
+  'pi-rpc': 'pi-rpc',
   'pi-coding-agent': 'pi-coding-agent',
   claude: 'claude',
   'claude-cli': 'claude-cli',

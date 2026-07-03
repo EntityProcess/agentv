@@ -130,6 +130,8 @@ const TOOL_NAME_MAP = new Map<string, CanonicalTool>([
   ['pi-coding-agent::bash', 'Bash'],
   ['pi-cli::read', 'Read'],
   ['pi-cli::bash', 'Bash'],
+  ['pi-rpc::read', 'Read'],
+  ['pi-rpc::bash', 'Bash'],
 ]);
 
 // ---------------------------------------------------------------------------

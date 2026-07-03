@@ -27,6 +27,7 @@ export type ProviderKind =
   | 'pi-sdk'
   | 'pi-coding-agent'
   | 'pi-cli'
+  | 'pi-rpc'
   | 'claude'
   | 'claude-cli'
   | 'claude-sdk'
@@ -55,6 +56,7 @@ export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
+  'pi-rpc',
   'claude',
   'claude-cli',
   'claude-sdk',
@@ -99,6 +101,7 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
+  'pi-rpc',
   'claude',
   'claude-cli',
   'claude-sdk',

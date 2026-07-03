@@ -13,6 +13,7 @@ import {
 } from './llm-providers.js';
 import { MockProvider } from './mock.js';
 import { PiCliProvider } from './pi-cli.js';
+import { PiRpcProvider } from './pi-rpc.js';
 import { ProviderRegistry } from './provider-registry.js';
 import { ReplayProvider } from './replay.js';
 import { SdkChildProvider } from './sdk-child-provider.js';
@@ -64,6 +65,7 @@ export type {
   OpenRouterResolvedConfig,
   PiCliResolvedConfig,
   PiCodingAgentResolvedConfig,
+  PiRpcResolvedConfig,
   ReplayResolvedConfig,
   ReplayResolvedSource,
   ResolvedTarget,
@@ -226,6 +228,11 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
       usesSandboxRuntime(t)
         ? unsupportedSandboxProvider(t)
         : new PiCliProvider(t.name, t.config as never),
+    )
+    .register('pi-rpc', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new PiRpcProvider(t.name, t.config as never),
     )
     // claude-cli is the new default subprocess provider; claude is an alias
     .register('claude-cli', (t) =>

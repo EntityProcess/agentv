@@ -165,6 +165,33 @@ const COPILOT_CLI_SETTINGS = new Set([
   'wire_model',
 ]);
 
+const PI_AGENT_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'executable',
+  'command',
+  'binary',
+  'args',
+  'arguments',
+  'subprovider',
+  'model',
+  'pi_model',
+  'api_key',
+  'base_url',
+  'endpoint',
+  'tools',
+  'pi_tools',
+  'thinking',
+  'pi_thinking',
+  'reasoning_effort',
+  'cwd',
+  'timeout_seconds',
+  'log_dir',
+  'log_directory',
+  'stream_log',
+  'system_prompt',
+  'runtime',
+]);
+
 const VSCODE_SETTINGS = new Set([
   ...COMMON_SETTINGS,
   'executable',
@@ -234,6 +261,11 @@ function getKnownSettings(provider: string): Set<string> | null {
     case 'claude-cli':
     case 'claude-sdk':
       return CLAUDE_SETTINGS;
+    case 'pi-cli':
+    case 'pi-rpc':
+    case 'pi-sdk':
+    case 'pi-coding-agent':
+      return PI_AGENT_SETTINGS;
     case 'vscode':
     case 'vscode-insiders':
       return VSCODE_SETTINGS;

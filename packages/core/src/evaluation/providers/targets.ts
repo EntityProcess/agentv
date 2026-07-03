@@ -522,6 +522,7 @@ export interface PiCodingAgentResolvedConfig {
 }
 
 export interface PiCliResolvedConfig {
+  readonly command: readonly string[];
   readonly executable: string;
   readonly subprovider?: string;
   readonly model?: string;
@@ -529,7 +530,6 @@ export interface PiCliResolvedConfig {
   readonly baseUrl?: string;
   readonly tools?: string;
   readonly thinking?: string;
-  readonly args?: readonly string[];
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
@@ -537,6 +537,31 @@ export interface PiCliResolvedConfig {
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
+  readonly runtime: PiRuntimeResolvedConfig;
+}
+
+export interface PiRpcResolvedConfig {
+  readonly command: readonly string[];
+  readonly subprovider?: string;
+  readonly model?: string;
+  readonly apiKey?: string;
+  readonly baseUrl?: string;
+  readonly tools?: string;
+  readonly thinking?: string;
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+  readonly streamLog?: false | 'raw' | 'summary';
+  readonly systemPrompt?: string;
+  readonly runtime: PiRuntimeResolvedConfig;
+}
+
+export interface PiRuntimeResolvedConfig {
+  readonly mode: 'host' | 'profile' | 'sandbox';
+  readonly home?: string;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly [key: string]: unknown;
 }
 
 export interface ClaudeResolvedConfig {
@@ -861,6 +886,7 @@ export type ResolvedTarget =
       readonly config: PiCodingAgentResolvedConfig;
     })
   | (ResolvedTargetBase & { readonly kind: 'pi-cli'; readonly config: PiCliResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'pi-rpc'; readonly config: PiRpcResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'claude'; readonly config: ClaudeResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'claude-cli'; readonly config: ClaudeResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'claude-sdk'; readonly config: ClaudeResolvedConfig })
@@ -1164,6 +1190,12 @@ export function resolveTargetDefinition(
         kind: 'pi-cli',
         ...base,
         config: resolvePiCliConfig(parsed, env, evalFilePath),
+      };
+    case 'pi-rpc':
+      return {
+        kind: 'pi-rpc',
+        ...base,
+        config: resolvePiRpcConfig(parsed, env, evalFilePath),
       };
     case 'claude':
     case 'claude-cli':
@@ -2076,7 +2108,7 @@ function resolvePiCliConfig(
   env: EnvLookup,
   _evalFilePath?: string,
 ): PiCliResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
+  const command = resolveProcessCommandArgv(target, env, `${target.name} pi-cli command`, ['pi']);
   const subproviderSource = target.subprovider;
   const modelSource = target.model ?? target.pi_model;
   const apiKeySource = target.api_key;
@@ -2088,12 +2120,6 @@ function resolvePiCliConfig(
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'pi';
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -2129,9 +2155,6 @@ function resolvePiCliConfig(
     optionalEnv: true,
   });
 
-  const rawArgs = target.args ?? target.arguments;
-  const args = resolveOptionalStringArray(rawArgs, env, `${target.name} pi-cli args`);
-
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi-cli cwd`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -2150,20 +2173,97 @@ function resolvePiCliConfig(
       : undefined;
 
   return {
-    executable,
+    command,
+    executable: command[0],
     subprovider: piCliSubprovider,
     model,
     apiKey,
     baseUrl,
     tools,
     thinking,
-    args,
     cwd,
     timeoutMs,
     logDir,
     logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
+    runtime: resolvePiRuntimeConfig(target, env),
+  };
+}
+
+function resolvePiRpcConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  _evalFilePath?: string,
+): PiRpcResolvedConfig {
+  const command = resolveProcessCommandArgv(target, env, `${target.name} pi-rpc command`, ['pi']);
+  const subproviderSource = target.subprovider;
+  const modelSource = target.model ?? target.pi_model;
+  const apiKeySource = target.api_key;
+  const toolsSource = target.tools ?? target.pi_tools;
+  const thinkingSource = target.reasoning_effort ?? target.thinking ?? target.pi_thinking;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
+  const systemPromptSource = target.system_prompt;
+  const streamLogResult = resolveStreamLog(target);
+
+  const subprovider = resolveOptionalString(
+    subproviderSource,
+    env,
+    `${target.name} pi-rpc subprovider`,
+    { allowLiteral: true, optionalEnv: true },
+  );
+  const model = resolveOptionalString(modelSource, env, `${target.name} pi-rpc model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi-rpc api key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
+  const baseUrlSource = target.base_url ?? target.endpoint;
+  const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} pi-rpc base url`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const tools = resolveOptionalString(toolsSource, env, `${target.name} pi-rpc tools`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const thinking = resolveOptionalString(thinkingSource, env, `${target.name} pi-rpc thinking`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi-rpc cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi-rpc timeout`);
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} pi-rpc log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
+    command,
+    subprovider,
+    model,
+    apiKey,
+    baseUrl,
+    tools,
+    thinking,
+    cwd,
+    timeoutMs,
+    logDir,
+    logFormat: streamLogResult.logFormat,
+    streamLog: streamLogResult.streamLog,
+    systemPrompt,
+    runtime: resolvePiRuntimeConfig(target, env),
   };
 }
 
@@ -2179,6 +2279,101 @@ function normalizePiCliSubprovider(
     return 'azure';
   }
   return subprovider;
+}
+
+function resolveProcessCommandArgv(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  description: string,
+  defaultCommand: readonly string[],
+): readonly string[] {
+  const rawCommand = target.command;
+  if (Array.isArray(rawCommand)) {
+    const command = resolveOptionalStringArray(rawCommand, env, description);
+    if (!command || command.length === 0) {
+      throw new Error(`${description} must be a non-empty argv array`);
+    }
+    return command;
+  }
+
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const executable = resolveOptionalString(executableSource, env, `${description} executable`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const args = resolveOptionalStringArray(
+    target.args ?? target.arguments,
+    env,
+    `${description} args`,
+  );
+  return [...(executable ? [executable] : defaultCommand), ...(args ?? [])];
+}
+
+function resolvePiRuntimeConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): PiRuntimeResolvedConfig {
+  const raw = target.runtime;
+  if (raw === undefined || raw === null) {
+    return { mode: 'host' };
+  }
+  if (typeof raw === 'string') {
+    return { mode: normalizeRuntimeMode(raw, target.name) };
+  }
+  if (!isRecord(raw)) {
+    throw new Error(`${target.name} runtime must be 'host' or an object with mode`);
+  }
+
+  const mode = normalizeRuntimeMode(String(raw.mode ?? ''), target.name);
+  const home = resolveOptionalString(raw.home, env, `${target.name} runtime home`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const runtimeEnv = resolveRuntimeEnv(raw.env, env, target.name);
+  const rest = Object.fromEntries(
+    Object.entries(raw).filter(([key]) => key !== 'mode' && key !== 'home' && key !== 'env'),
+  );
+  return {
+    ...rest,
+    mode,
+    ...(home ? { home } : {}),
+    ...(runtimeEnv ? { env: runtimeEnv } : {}),
+  };
+}
+
+function normalizeRuntimeMode(value: string, targetName: string): PiRuntimeResolvedConfig['mode'] {
+  const mode = value.trim();
+  if (mode === 'host' || mode === 'profile' || mode === 'sandbox') {
+    return mode;
+  }
+  throw new Error(`${targetName} runtime.mode must be one of: host, profile, sandbox`);
+}
+
+function resolveRuntimeEnv(
+  raw: unknown,
+  env: EnvLookup,
+  targetName: string,
+): Readonly<Record<string, string>> | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (!isRecord(raw)) {
+    throw new Error(`${targetName} runtime.env must be an object`);
+  }
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(`${targetName} runtime.env has invalid variable name '${key}'`);
+    }
+    const resolved = resolveOptionalString(value, env, `${targetName} runtime.env.${key}`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    });
+    if (resolved !== undefined) {
+      result[key] = resolved;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 function resolveClaudeConfig(

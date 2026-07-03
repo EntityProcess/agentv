@@ -2,24 +2,32 @@
  * Pi CLI provider — shells out to the `pi` binary as a subprocess.
  *
  * Use this when you have the Pi CLI installed globally or want to point to
- * a specific binary via the `executable` config field (defaults to `pi` on PATH).
+ * a specific binary via `config.command` (defaults to `["pi"]` on PATH).
  * Output is captured as JSONL from stdout and parsed into AgentV messages.
  *
- * For the SDK-based approach (no subprocess), use the `pi-coding-agent` provider instead.
+ * For the SDK-based approach, use the explicit `pi-sdk` provider.
  */
 
-import { execSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { accessSync, createWriteStream, readFileSync } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import type { WriteStream } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { trackChild } from '../../runtime/child-tracker.js';
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { recordPiLogEntry } from './pi-log-tracker.js';
+import {
+  type PiProcessRunResult,
+  type PiProcessRunner,
+  buildPiRuntimeEnv,
+  buildPiTargetExecution,
+  classifyPiProcessFailure,
+  defaultPiProcessRunner,
+  piProcessFailureMessage,
+  splitPiCommand,
+} from './pi-process.js';
 import {
   extractAzureResourceName,
   resolveCliProvider,
@@ -40,26 +48,6 @@ import type {
 const WORKSPACE_PREFIX = 'agentv-pi-';
 const PROMPT_FILENAME = 'prompt.md';
 
-interface PiRunOptions {
-  readonly executable: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  readonly timeoutMs?: number;
-  readonly env: NodeJS.ProcessEnv;
-  readonly signal?: AbortSignal;
-  readonly onStdoutChunk?: (chunk: string) => void;
-  readonly onStderrChunk?: (chunk: string) => void;
-}
-
-interface PiRunResult {
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly exitCode: number;
-  readonly timedOut?: boolean;
-}
-
-type PiRunner = (options: PiRunOptions) => Promise<PiRunResult>;
-
 export class PiCliProvider implements Provider {
   readonly id: string;
   readonly kind = 'pi-cli' as const;
@@ -67,9 +55,13 @@ export class PiCliProvider implements Provider {
   readonly supportsBatch = false;
 
   private readonly config: PiCliResolvedConfig;
-  private readonly runPi: PiRunner;
+  private readonly runPi: PiProcessRunner;
 
-  constructor(targetName: string, config: PiCliResolvedConfig, runner: PiRunner = defaultPiRunner) {
+  constructor(
+    targetName: string,
+    config: PiCliResolvedConfig,
+    runner: PiProcessRunner = defaultPiProcessRunner,
+  ) {
     this.id = `pi-cli:${targetName}`;
     this.targetName = targetName;
     this.config = config;
@@ -98,22 +90,32 @@ export class PiCliProvider implements Provider {
       await writeFile(promptFile, request.question, 'utf8');
 
       const args = this.buildPiArgs(request.question, inputFiles);
+      const command = splitPiCommand(this.config.command, args);
 
       const result = await this.executePi(args, cwd, request.signal, logger);
 
-      if (result.timedOut) {
-        throw new Error(
-          `Pi CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
+      if (result.timedOut || result.exitCode !== 0 || result.signal || result.spawnErrorCode) {
+        return this.buildProcessErrorResponse({
+          result,
+          command,
+          cwd,
+          startedAt: startMs,
+          signalAborted: request.signal?.aborted,
+        });
       }
 
-      if (result.exitCode !== 0) {
-        const detail = pickDetail(result.stderr, result.stdout);
-        const prefix = `Pi CLI exited with code ${result.exitCode}`;
-        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
+      let parsed: unknown[];
+      try {
+        parsed = parsePiJsonl(result.stdout);
+      } catch (error) {
+        return this.buildMalformedOutputResponse({
+          result,
+          command,
+          cwd,
+          startedAt: startMs,
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
-
-      const parsed = parsePiJsonl(result.stdout);
       const output = extractMessages(parsed);
       const tokenUsage = extractTokenUsage(parsed);
 
@@ -145,6 +147,7 @@ export class PiCliProvider implements Provider {
           stderr: result.stderr,
           exitCode: result.exitCode,
           args,
+          command,
           executable: this.config.executable,
           promptFile,
           workspace: workspaceRoot ?? cwd,
@@ -156,6 +159,22 @@ export class PiCliProvider implements Provider {
         durationMs,
         startTime,
         endTime,
+        targetExecution: buildPiTargetExecution({
+          targetName: this.targetName,
+          providerId: this.id,
+          providerKind: this.kind,
+          runtimeMode: this.config.runtime.mode,
+          command,
+          cwd,
+          timeoutMs: this.config.timeoutMs,
+          startedAt: startMs,
+          endedAt: Date.now(),
+          result,
+          status: 'success',
+          output,
+          finalOutput: extractPiTextContent(output.at(-1)?.content) ?? '',
+          details: { promptFile, inputFiles, logFile: logger?.filePath },
+        }),
       };
     } finally {
       await logger?.close();
@@ -203,10 +222,6 @@ export class PiCliProvider implements Provider {
     if (this.config.thinking) {
       args.push('--thinking', this.config.thinking);
     }
-    if (this.config.args && this.config.args.length > 0) {
-      args.push(...this.config.args);
-    }
-
     if (inputFiles && inputFiles.length > 0) {
       for (const file of inputFiles) {
         args.push(`@${file}`);
@@ -226,31 +241,23 @@ export class PiCliProvider implements Provider {
     cwd: string,
     signal: AbortSignal | undefined,
     logger: PiStreamLogger | undefined,
-  ): Promise<PiRunResult> {
-    try {
-      return await this.runPi({
-        executable: this.config.executable,
-        args,
-        cwd,
-        timeoutMs: this.config.timeoutMs,
-        env: this.buildEnv(),
-        signal,
-        onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
-        onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
-      });
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code === 'ENOENT') {
-        throw new Error(
-          `Pi CLI executable '${this.config.executable}' was not found. Update the target executable or add it to PATH.`,
-        );
-      }
-      throw error;
-    }
+  ): Promise<PiProcessRunResult> {
+    return await this.runPi({
+      command: splitPiCommand(this.config.command, args),
+      cwd,
+      timeoutMs: this.config.timeoutMs,
+      env: this.buildEnv(),
+      signal,
+      onStdoutChunk: logger ? (chunk) => logger.handleStdoutChunk(chunk) : undefined,
+      onStderrChunk: logger ? (chunk) => logger.handleStderrChunk(chunk) : undefined,
+    });
   }
 
   private buildEnv(): NodeJS.ProcessEnv {
-    const env = { ...process.env };
+    const env = buildPiRuntimeEnv({
+      runtime: this.config.runtime,
+      targetName: this.targetName,
+    });
 
     const provider = this.config.subprovider?.toLowerCase() ?? 'google';
 
@@ -312,6 +319,101 @@ export class PiCliProvider implements Provider {
     }
 
     return env;
+  }
+
+  private buildProcessErrorResponse(params: {
+    readonly result: PiProcessRunResult;
+    readonly command: readonly string[];
+    readonly cwd: string;
+    readonly startedAt: number;
+    readonly signalAborted?: boolean;
+  }): ProviderResponse {
+    const errorKind = classifyPiProcessFailure(params.result, params.signalAborted);
+    const message = piProcessFailureMessage({
+      providerLabel: 'Pi CLI',
+      result: params.result,
+      errorKind,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const output = [{ role: 'assistant' as const, content: `Error: ${message}` }];
+    const endedAt = Date.now();
+
+    return {
+      raw: {
+        stdout: params.result.stdout,
+        stderr: params.result.stderr,
+        exitCode: params.result.exitCode,
+        signal: params.result.signal,
+        command: params.command,
+        cwd: params.cwd,
+        error: message,
+      },
+      output,
+      durationMs: endedAt - params.startedAt,
+      startTime: new Date(params.startedAt).toISOString(),
+      endTime: new Date(endedAt).toISOString(),
+      targetExecution: buildPiTargetExecution({
+        targetName: this.targetName,
+        providerId: this.id,
+        providerKind: this.kind,
+        runtimeMode: this.config.runtime.mode,
+        command: params.command,
+        cwd: params.cwd,
+        timeoutMs: this.config.timeoutMs,
+        startedAt: params.startedAt,
+        endedAt,
+        result: params.result,
+        status: 'error',
+        errorKind,
+        message,
+        output,
+        finalOutput: `Error: ${message}`,
+        details: { spawnErrorCode: params.result.spawnErrorCode },
+      }),
+    };
+  }
+
+  private buildMalformedOutputResponse(params: {
+    readonly result: PiProcessRunResult;
+    readonly command: readonly string[];
+    readonly cwd: string;
+    readonly startedAt: number;
+    readonly message: string;
+  }): ProviderResponse {
+    const message = `Pi CLI malformed output: ${params.message}`;
+    const output = [{ role: 'assistant' as const, content: `Error: ${message}` }];
+    const endedAt = Date.now();
+    return {
+      raw: {
+        stdout: params.result.stdout,
+        stderr: params.result.stderr,
+        exitCode: params.result.exitCode,
+        command: params.command,
+        cwd: params.cwd,
+        error: message,
+      },
+      output,
+      durationMs: endedAt - params.startedAt,
+      startTime: new Date(params.startedAt).toISOString(),
+      endTime: new Date(endedAt).toISOString(),
+      targetExecution: buildPiTargetExecution({
+        targetName: this.targetName,
+        providerId: this.id,
+        providerKind: this.kind,
+        runtimeMode: this.config.runtime.mode,
+        command: params.command,
+        cwd: params.cwd,
+        timeoutMs: this.config.timeoutMs,
+        startedAt: params.startedAt,
+        endedAt,
+        result: params.result,
+        status: 'error',
+        errorKind: 'malformed_output',
+        message,
+        output,
+        finalOutput: `Error: ${message}`,
+      }),
+    };
   }
 
   private async createWorkspace(): Promise<string> {
@@ -975,140 +1077,6 @@ function extractToolCalls(content: unknown): readonly ToolCall[] {
 
 function escapeAtSymbols(prompt: string): string {
   return prompt.replace(/@\[([^\]]+)\]:/g, '[[$1]]:');
-}
-
-function pickDetail(stderr: string, stdout: string): string | undefined {
-  const errorText = stderr.trim();
-  if (errorText.length > 0) return errorText;
-  const stdoutText = stdout.trim();
-  return stdoutText.length > 0 ? stdoutText : undefined;
-}
-
-function formatTimeoutSuffix(timeoutMs: number | undefined): string {
-  if (!timeoutMs || timeoutMs <= 0) return '';
-  return ` after ${Math.ceil(timeoutMs / 1000)}s`;
-}
-
-/**
- * On Windows, npm/bun global installs create `.cmd` and `.sh` wrappers.
- * Bun's spawn can't capture stdout from sh-script wrappers (the forked
- * node process writes to a different stdout). Resolve to the underlying
- * node script so we can spawn `node script.js` directly.
- */
-function resolveWindowsCmd(executable: string): [string, string[]] {
-  if (process.platform !== 'win32') return [executable, []];
-
-  // If already pointing at node/bun or a .js file, no resolution needed
-  const lower = executable.toLowerCase();
-  if (lower.endsWith('.js') || lower.endsWith('.exe')) return [executable, []];
-
-  // Find the executable's full path using `where`
-  let fullPath: string;
-  try {
-    fullPath = execSync(`where ${executable}`, { encoding: 'utf-8' })
-      .trim()
-      .split(/\r?\n/)[0]
-      .trim();
-  } catch {
-    return [executable, []];
-  }
-
-  // Try .cmd wrapper first (has the script path embedded)
-  const cmdPath = fullPath.endsWith('.cmd') ? fullPath : `${fullPath}.cmd`;
-  try {
-    const content = readFileSync(cmdPath, 'utf-8');
-    // npm .cmd wrappers end with: "%_prog%" "%dp0%\path\to\script.js" %*
-    const match = content.match(/"?%_prog%"?\s+"([^"]+\.js)"/);
-    if (match) {
-      const dp0 = path.dirname(path.resolve(cmdPath));
-      const scriptPath = match[1].replace(/%dp0%[/\\]?/gi, `${dp0}${path.sep}`);
-      try {
-        accessSync(scriptPath);
-        return ['node', [scriptPath]];
-      } catch {
-        // Script not found at resolved path, fall through
-      }
-    }
-  } catch {
-    // No .cmd wrapper, fall through
-  }
-
-  return [executable, []];
-}
-
-async function defaultPiRunner(options: PiRunOptions): Promise<PiRunResult> {
-  return await new Promise<PiRunResult>((resolve, reject) => {
-    const parts = options.executable.split(/\s+/);
-    const [resolvedExe, prefixArgs] = resolveWindowsCmd(parts[0]);
-    const executableArgs = [...prefixArgs, ...parts.slice(1)];
-    const allArgs = [...executableArgs, ...options.args];
-
-    const child = spawn(resolvedExe, allArgs, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    trackChild(child);
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
-    const onAbort = (): void => {
-      child.kill('SIGTERM');
-    };
-
-    if (options.signal) {
-      if (options.signal.aborted) {
-        onAbort();
-      } else {
-        options.signal.addEventListener('abort', onAbort, { once: true });
-      }
-    }
-
-    let timeoutHandle: NodeJS.Timeout | undefined;
-    if (options.timeoutMs && options.timeoutMs > 0) {
-      timeoutHandle = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-      }, options.timeoutMs);
-      timeoutHandle.unref?.();
-    }
-
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      options.onStdoutChunk?.(chunk);
-    });
-
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-      options.onStderrChunk?.(chunk);
-    });
-
-    child.stdin.end();
-
-    const cleanup = (): void => {
-      if (timeoutHandle) clearTimeout(timeoutHandle);
-      if (options.signal) options.signal.removeEventListener('abort', onAbort);
-    };
-
-    child.on('error', (error) => {
-      cleanup();
-      reject(error);
-    });
-
-    child.on('close', (code) => {
-      cleanup();
-      resolve({
-        stdout,
-        stderr,
-        exitCode: typeof code === 'number' ? code : -1,
-        timedOut,
-      });
-    });
-  });
 }
 
 /** @internal Exported for testing only. */

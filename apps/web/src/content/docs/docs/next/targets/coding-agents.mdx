@@ -7,7 +7,7 @@ sidebar:
 
 Coding agent targets evaluate AI coding assistants and CLI-based agents. Use `defaults.grader` or an evaluator-level grader override for LLM-based grading.
 
-AgentV's recommended coding-agent targets use process or protocol boundaries such as `claude-cli`, `codex-cli`, `copilot-cli`, and `pi-cli`. SDK-backed targets are opt-in provider kinds: `claude-sdk`, `codex-sdk`, `copilot-sdk`, and `pi-sdk`. When selected, AgentV runs the SDK adapter in an AgentV-owned child process and communicates with it through a structured protocol, so SDK crashes, malformed output, timeouts, and missing optional SDK packages are scoped to that target run instead of the AgentV orchestrator process.
+AgentV's recommended coding-agent targets use process or protocol boundaries such as `claude-cli`, `codex-cli`, `copilot-cli`, `pi-cli`, and `pi-rpc`. SDK-backed targets are opt-in provider kinds: `claude-sdk`, `codex-sdk`, `copilot-sdk`, and `pi-sdk`. When selected, AgentV runs the SDK adapter in an AgentV-owned child process and communicates with it through a structured protocol, so SDK crashes, malformed output, timeouts, and missing optional SDK packages are scoped to that target run instead of the AgentV orchestrator process.
 
 ## Runtime isolation
 
@@ -185,12 +185,13 @@ Use `provider: copilot-sdk` only when you intentionally want the Copilot SDK pat
 
 ```yaml
 targets:
-  - label: pi_target
+  - id: pi_target
     provider: pi-sdk
-    subprovider: openai-codex
-    model: gpt-5.5
-    thinking: medium
-    grader_target: azure-base
+    runtime: host
+    config:
+      subprovider: openai-codex
+      model: gpt-5.5
+      thinking: medium
 ```
 
 | Field | Required | Description |
@@ -210,21 +211,47 @@ configuration. This works for OpenAI-compatible endpoints:
 
 ```yaml
 targets:
-  - label: pi-sdk-openai
+  - id: pi-sdk-openai
     provider: pi-sdk
-    subprovider: openai
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    model: ${{ OPENAI_MODEL }}
-    grader_target: azure-base
+    runtime: host
+    config:
+      subprovider: openai
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}
+      model: ${{ OPENAI_MODEL }}
 ```
 
-Use `provider: pi-cli` instead when you want AgentV to spawn the `pi` binary directly. It accepts the same Pi fields above plus:
+Use `provider: pi-rpc` when you want AgentV to launch Pi in Kata-style RPC mode and communicate over process stdio. AgentV starts the configured command with `--mode rpc` unless the command already includes a mode flag. The Pi runtime must already be installed or reachable through `config.command`; AgentV does not install workers or provision a fleet for this target.
+
+```yaml
+targets:
+  - id: pi-rpc-local
+    provider: pi-rpc
+    runtime: host
+    config:
+      command: ["pi"]
+      model: gpt-5-codex
+```
+
+Use `provider: pi-cli` when you want AgentV to spawn the `pi` binary for simple JSONL subprocess execution:
+
+```yaml
+targets:
+  - id: pi-cli-local
+    provider: pi-cli
+    runtime:
+      mode: profile
+      home: .agentv/profiles/pi-local
+    config:
+      command: ["pi"]
+      model: gpt-5-codex
+```
+
+`pi-cli` and `pi-rpc` accept the same Pi fields above plus:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `executable` | No | Pi binary or shim to run. Defaults to `pi`. |
-| `args` | No | Extra arguments appended before the prompt. |
+| `command` | No | Non-empty argv array for the Pi binary, shim, or remote command. Defaults to `["pi"]`. |
 
 Pi CLI has one important difference from the SDK path: the built-in `openai`
 provider does not currently expose a CLI base-url option. With `provider: pi-cli`
@@ -236,13 +263,15 @@ is compatible with Azure OpenAI Responses:
 
 ```yaml
 targets:
-  - label: pi-cli-gateway
+  - id: pi-cli-gateway
     provider: pi-cli
-    subprovider: azure
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    model: ${{ OPENAI_MODEL }}
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: ["pi"]
+      subprovider: azure
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}
+      model: ${{ OPENAI_MODEL }}
 ```
 
 ## VS Code
