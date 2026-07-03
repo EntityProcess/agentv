@@ -252,7 +252,7 @@ For complete documentation including:
 - Execution metrics usage
 - Best practices
 
-See the docs site guides under `apps/web/src/content/docs/docs/graders/` or run `agentv skills get agentv-eval-writer`.
+See the docs site guides under `apps/web/src/content/docs/docs/next/graders/` or run `agentv skills get agentv-eval-writer`.
 
 ## Repository
 

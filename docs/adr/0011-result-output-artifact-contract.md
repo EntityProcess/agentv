@@ -232,4 +232,4 @@ files as the canonical contract.
 - Roadmap: [ROADMAP.md](../../ROADMAP.md)
 - Product boundary: [.agents/product-boundary.md](../../.agents/product-boundary.md)
 - Technical conventions: [.agents/conventions.md](../../.agents/conventions.md)
-- Public docs: [Result Artifact Contract](../../apps/web/src/content/docs/docs/reference/result-artifacts.mdx)
+- Public docs: [Result Artifact Contract](../../apps/web/src/content/docs/docs/next/reference/result-artifacts.mdx)

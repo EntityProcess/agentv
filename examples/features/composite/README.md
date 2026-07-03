@@ -22,4 +22,4 @@ bun agentv validate examples/features/composite/evals/dataset.eval.yaml
 
 - `evals/dataset.eval.yaml` - Test cases with composite grader patterns
 - `scripts/or-aggregator.js` - Strict OR aggregator script used by `composite` examples
-- `apps/web/src/content/docs/docs/graders/composite.mdx` - Detailed AND/OR and strict-OR composition guidance
+- `apps/web/src/content/docs/docs/next/graders/composite.mdx` - Detailed AND/OR and strict-OR composition guidance

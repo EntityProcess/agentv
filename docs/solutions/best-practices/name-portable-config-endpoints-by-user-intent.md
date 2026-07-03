@@ -80,4 +80,4 @@ Do not set `results.repo.remote` to a local alias such as `origin`. If AgentV is
 
 - `packages/core/src/evaluation/loaders/config-loader.ts` parses nested results repository config and normalizes the endpoint URL into internal runtime fields.
 - `packages/core/src/projects.ts` serializes project config and keeps `results.repo.remote` as the portable Git endpoint.
-- `apps/web/src/content/docs/docs/tools/dashboard.mdx` documents the dashboard remote-results setup path.
+- `apps/web/src/content/docs/docs/next/tools/dashboard.mdx` documents the dashboard remote-results setup path.

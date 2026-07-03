@@ -91,7 +91,7 @@ ls -lh "$ASSETS_DIR"
 
 ## Step 3 — Update Astro Docs
 
-Docs live at: `apps/web/src/content/docs/docs/`  
+Docs live at: `apps/web/src/content/docs/docs/next/`  
 Assets live at: `apps/web/src/assets/screenshots/`
 
 **Import pattern** (Astro `<Image>` for automatic optimization):
