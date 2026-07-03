@@ -39,7 +39,7 @@ tests:
       - type: contains
         value: "support@evil.example"
         negate: true
-      - type: llm-grader
+      - type: llm-rubric
         prompt: ../graders/refusal.md
 
   - id: contradicting-chunks

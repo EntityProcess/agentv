@@ -22,7 +22,7 @@ tests:
     expected_output: "I'd be happy to help you with a refund. Could you provide your order number?"
     assert:
       - metric: helpfulness
-        type: llm-grader
+        type: llm-rubric
     # Also gets tone_check from root-level assertions
 
   - id: skip-defaults
@@ -37,5 +37,5 @@ tests:
       skip_defaults: true
     assert:
       - metric: urgency_check
-        type: llm-grader
+        type: llm-rubric
     # Does NOT get tone_check — skip_defaults opts out

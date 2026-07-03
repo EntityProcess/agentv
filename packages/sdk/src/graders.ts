@@ -65,7 +65,12 @@ export type GraderRubricCriterion = string | GraderRubric;
 export interface LlmRubricGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
   readonly type: 'llm-rubric';
   readonly value?: unknown;
+  readonly prompt?: string | GraderPromptScriptConfig;
   readonly target?: string;
+  readonly config?: Readonly<Record<string, unknown>>;
+  readonly maxSteps?: number;
+  readonly temperature?: number;
+  readonly preprocessors?: readonly EvalPreprocessor[];
 }
 
 export interface GraderPromptScriptConfig {
@@ -178,14 +183,26 @@ export function jsonGrader(options?: GraderHelperOptions): IsJsonGraderConfig {
 }
 
 export function llmRubricGrader(
-  valueOrCriteria: string | readonly GraderRubricCriterion[] | Readonly<Record<string, unknown>>,
-  options: GraderHelperOptions & { readonly target?: string } = {},
+  valueOrCriteria?: string | readonly GraderRubricCriterion[] | Readonly<Record<string, unknown>>,
+  options: GraderHelperOptions & {
+    readonly prompt?: string | GraderPromptScriptConfig;
+    readonly target?: string;
+    readonly config?: Readonly<Record<string, unknown>>;
+    readonly maxSteps?: number;
+    readonly temperature?: number;
+    readonly preprocessors?: readonly EvalPreprocessor[];
+  } = {},
 ): LlmRubricGraderConfig {
   return withCommon(
     {
       type: 'llm-rubric',
-      value: valueOrCriteria,
+      ...(valueOrCriteria !== undefined ? { value: valueOrCriteria } : {}),
+      ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
       ...(options.target !== undefined ? { target: options.target } : {}),
+      ...(options.config !== undefined ? { config: options.config } : {}),
+      ...(options.maxSteps !== undefined ? { maxSteps: options.maxSteps } : {}),
+      ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
+      ...(options.preprocessors !== undefined ? { preprocessors: options.preprocessors } : {}),
     },
     options,
   );

@@ -46,7 +46,7 @@ agentv eval evals/bug-fixes.eval.yaml --target claude-baseline --workers 2
 ### 2. Compare results
 
 ```bash
-agentv compare \
+agentv results compare \
   .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<superpowers-timestamp>/index.jsonl
 ```

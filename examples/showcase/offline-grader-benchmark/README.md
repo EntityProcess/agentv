@@ -4,9 +4,9 @@ A public, offline workflow for benchmarking **grader quality itself** against a 
 
 It uses existing AgentV primitives:
 - a `cli` replay target to return the frozen agent output from each sample,
-- three `llm-grader` graders (each can use a different low-cost target),
+- three `llm-rubric` graders (each can use a different low-cost target),
 - a `composite` threshold aggregator for majority vote,
-- `agentv compare` for A/B grader-setup comparison,
+- `agentv results compare` for A/B grader-setup comparison,
 - and a small post-processing script that scores the grader panel against human ground truth.
 
 ## Files
@@ -132,11 +132,11 @@ bun apps/cli/src/cli.ts compare \
   .agentv/results/offline-grader-setup-b.scored.jsonl
 ```
 
-Because the scored files use one record per `test_id` with a numeric `score`, they plug directly into `agentv compare`, `benchmark-report.ts`, `significance-test.ts`, and any other JSONL-based reporting flow.
+Because the scored files use one record per `test_id` with a numeric `score`, they plug directly into `agentv results compare`, `benchmark-report.ts`, `significance-test.ts`, and any other JSONL-based reporting flow.
 
 ## What changes between setups?
 
-- Swap grader targets (`target:` per `llm-grader`) to compare different grader-model mixes.
+- Swap grader targets (`target:` per `llm-rubric`) to compare different grader-model mixes.
 - Swap the prompt file to compare grader instructions/policies.
 - Keep the labeled export constant so the comparison stays paired and fair.
 
@@ -146,13 +146,13 @@ This workflow's design draws from published research and aligns with (or exceeds
 
 ### Multi-model grader panels
 
-The three-model panel approach is grounded in [Replacing Judges with Juries (PoLL)](https://arxiv.org/abs/2404.18796), which found that an ensemble of 3 smaller models from disjoint families outperforms a single strong grader (GPT-4) in correlation with human judgments while being 7× cheaper. No production framework (DeepEval, Arize Phoenix, LangSmith, RAGAS) ships multi-model panels as a built-in — Braintrust documents "multi-grader voting" as a concept but does not implement it. AgentV composes this from existing primitives (`llm-grader` + `composite`).
+The three-model panel approach is grounded in [Replacing Judges with Juries (PoLL)](https://arxiv.org/abs/2404.18796), which found that an ensemble of 3 smaller models from disjoint families outperforms a single strong grader (GPT-4) in correlation with human judgments while being 7× cheaper. No production framework (DeepEval, Arize Phoenix, LangSmith, RAGAS) ships multi-model panels as a built-in — Braintrust documents "multi-grader voting" as a concept but does not implement it. AgentV composes this from existing primitives (`llm-rubric` + `composite`).
 
 ### Scoring graders against human ground truth
 
 | Framework | Accuracy | Precision / Recall / F1 | Cohen's κ | A/B grader prompts |
 |---|---|---|---|---|
-| **This workflow** | ✓ | — | — | ✓ (`agentv compare`) |
+| **This workflow** | ✓ | — | — | ✓ (`agentv results compare`) |
 | Arize Phoenix | ✓ | ✓ | — | Via experiment reruns |
 | LangSmith Align | % agreement only | — | — | Baseline vs. new prompt |
 | RAGAS | % accuracy only | — | — | Iterative refinement |
@@ -172,7 +172,7 @@ Per AgentV's [design principles](../../../CLAUDE.md) — "Lightweight Core, Plug
 ## Why this stays lightweight
 
 This workflow avoids a new benchmark subsystem in core. The reusable pieces are already in AgentV:
-- `llm-grader` for individual grader models,
+- `llm-rubric` for individual grader models,
 - `composite` for majority-vote panels,
 - JSONL outputs for offline post-processing,
 - `compare` for A/B analysis.

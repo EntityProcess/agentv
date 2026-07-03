@@ -10,6 +10,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [basic](basic/) | Core schema: input, expected output, file references, multi-turn |
 | [basic-jsonl](basic-jsonl/) | Load test cases from an external JSONL file |
 | [default-graders](default-graders/) | Apply the same assertions to every test without repeating them |
+| [readme-quickstart](readme-quickstart/) | Root README quickstart with `default_test.options.rubric_prompt` |
 
 ---
 
@@ -17,11 +18,11 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | Example | Description |
 |---------|-------------|
 | [rubric](rubric/) | Boolean rubric criteria — pass/fail each with a code grader or LLM check |
-| [weighted-graders](weighted-graders/) | Multiple named `llm-grader` assertions with per-grader weights |
+| [weighted-graders](weighted-graders/) | Multiple named `llm-rubric` assertions with per-grader weights |
 | [composite](composite/) | Safety gate and weighted aggregation patterns |
 | [threshold-grader](threshold-grader/) | Pass a test if a configurable percentage of sub-graders pass |
 | [multi-turn-conversation](multi-turn-conversation/) | Grade a multi-turn conversation with per-turn score breakdowns |
-| [preprocessors](preprocessors/) | Convert `ContentFile` outputs into grader-readable text before `llm-grader` runs |
+| [preprocessors](preprocessors/) | Convert `ContentFile` outputs into grader-readable text before `llm-rubric` runs |
 
 ---
 
@@ -80,7 +81,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 ### Benchmark across models or measure consistency
 | Example | Description |
 |---------|-------------|
-| [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv compare` over completed runs |
+| [benchmark-tooling](benchmark-tooling/) | N-way benchmarking with `agentv results compare` over completed runs |
 | [trials](trials/) | Configure repeated attempts with `evaluate_options.repeat` |
 | [trial-output-consistency](trial-output-consistency/) | Measure output consistency across trials using pairwise cosine similarity |
 | [compare](compare/) | Compare a run against a stored baseline |

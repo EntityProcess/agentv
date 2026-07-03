@@ -10,7 +10,7 @@ LLM graders use a language model to evaluate agent responses against custom crit
 ## Explicit LLM Graders
 
 Put semantic grading requirements in `assert`. Plain strings are
-handled by the built-in `llm-rubric` rubric grader. Use `type: llm-grader` when you
+handled by the built-in `llm-rubric` rubric grader. Use `type: llm-rubric` when you
 need a custom prompt, target, or grader-specific preprocessing:
 
 ```yaml
@@ -33,12 +33,12 @@ Reference an LLM grader in your eval file:
 ```yaml
 assert:
   - name: semantic_check
-    type: llm-grader
+    type: llm-rubric
     prompt: file://graders/correctness.md
     target: grader_gpt_5_mini   # optional: route this grader to a named LLM target
 ```
 
-Use `target:` when you want different `llm-grader` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
+Use `target:` when you want different `llm-rubric` entries in the same eval to run on different grader models. This is useful for grader panels, majority-vote ensembles, and grader A/B benchmarks.
 
 ## Prompt Files
 
@@ -77,8 +77,8 @@ Score the response from 0.0 to 1.0 based on:
 | `metadata` | Test metadata as formatted JSON |
 | `metadata_json` | Test metadata as compact JSON |
 | `rubric` | Rubric data as structured JSON when available, or criteria text otherwise |
-| `rubrics` | LLM-grader rubric items as formatted JSON |
-| `rubrics_json` | LLM-grader rubric items as compact JSON |
+| `rubrics` | `llm-rubric` rubric items as formatted JSON |
+| `rubrics_json` | `llm-rubric` rubric items as compact JSON |
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 | `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
 
@@ -103,25 +103,25 @@ tests:
       row: 1
     assert:
       - name: dexter_semantic
-        type: llm-grader
+        type: llm-rubric
         prompt: file://prompts/dexter-grader.md
-        rubrics:
+        value:
           - operator: correctness
-            criteria: Uses the provided ticker and company.
+            outcome: Uses the provided ticker and company.
 ```
 
 ## Per-Grader Target
 
-By default, an `llm-grader` uses the suite target's `grader_target`. Override it per grader when you need multiple grader models in one run:
+By default, an `llm-rubric` uses the suite target's `grader_target`. Override it per grader when you need multiple grader models in one run:
 
 ```yaml
 assert:
   - name: grader-gpt
-    type: llm-grader
+    type: llm-rubric
     target: grader_gpt_5_mini
     prompt: ./prompts/pass-fail.md
   - name: grader-haiku
-    type: llm-grader
+    type: llm-rubric
     target: grader_claude_haiku
     prompt: ./prompts/pass-fail.md
 ```
@@ -179,7 +179,7 @@ When using TypeScript templates, configure them in YAML with optional `config` d
 ```yaml
 assert:
   - name: custom-eval
-    type: llm-grader
+    type: llm-rubric
     prompt:
       command: [bun, run, ../prompts/custom-grader.ts]
       config:
@@ -191,7 +191,7 @@ The `config` object is available as `ctx.config` inside the template function.
 
 ## Preprocessing File Outputs
 
-If an agent returns a `ContentFile` block instead of plain text, you can preprocess that file into text before `llm-grader` builds the candidate prompt.
+If an agent returns a `ContentFile` block instead of plain text, you can preprocess that file into text before `llm-rubric` builds the candidate prompt.
 
 AgentV always tries a default UTF-8 text read first. That is enough for text-based formats such as CSV, JSON, SQL, Markdown, YAML, HTML, XML, and plain text. For binary formats such as `.xlsx`, `.pdf`, or `.docx`, add a preprocessor command:
 
@@ -206,7 +206,7 @@ tests:
     assert:
       - Output includes the revenue rows
       - name: spreadsheet-check
-        type: llm-grader
+        type: llm-rubric
         prompt: |
           Check whether the transformed spreadsheet text contains the revenue rows:
 

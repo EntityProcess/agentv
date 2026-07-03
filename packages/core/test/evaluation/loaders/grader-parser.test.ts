@@ -2276,6 +2276,36 @@ describe('parseGraders - composite assert field', () => {
     expect(evaluators).toHaveLength(1);
     expect(evaluators?.[0].type).toBe('composite');
   });
+
+  it('accepts llm-rubric as the authored LLM composite aggregator type', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            metric: 'combined',
+            type: 'composite',
+            assert: [
+              { metric: 'safety', type: 'llm-rubric', prompt: './safety.md' },
+              { metric: 'quality', type: 'llm-rubric', prompt: './quality.md' },
+            ],
+            aggregator: { type: 'llm-rubric', prompt: './quality.md' },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    expect(evaluators).toHaveLength(1);
+    const composite = evaluators?.[0] as CompositeGraderConfig;
+    expect(composite.type).toBe('composite');
+    expect(composite.assertions.map((assertion) => assertion.type)).toEqual([
+      'llm-rubric',
+      'llm-rubric',
+    ]);
+    expect(composite.aggregator.type).toBe('llm-grader');
+  });
 });
 
 describe('parseGraders - string shorthand in assert', () => {

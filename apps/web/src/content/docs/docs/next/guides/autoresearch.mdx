@@ -40,7 +40,7 @@ The chart above shows a real optimization run: an incident severity classifier s
 Each cycle:
 1. **Runs `agentv eval`** against the current version of the artifact
 2. **Analyzes** failures via the analyzer subagent
-3. **Decides** keep or discard using `agentv compare --json` (automated — no human needed)
+3. **Decides** keep or discard using `agentv results compare --json` (automated — no human needed)
 4. **Mutates** the artifact to address failing assertions, then loops back
 
 The system uses a **hill-climbing ratchet**: each mutation builds on the best-scoring version, never a failed candidate. Improvements compound; regressions get discarded.
@@ -98,10 +98,10 @@ Review the mutation history with `git log` after the run completes.
 
 ## The Keep/Drop Decision
 
-After each eval cycle, autoresearch runs `agentv compare` between the current candidate and the best baseline:
+After each eval cycle, autoresearch runs `agentv results compare` between the current candidate and the best baseline:
 
 ```bash
-agentv compare <baseline>/index.jsonl <candidate>/index.jsonl --json
+agentv results compare <baseline>/index.jsonl <candidate>/index.jsonl --json
 ```
 
 The decision rule:
@@ -198,7 +198,7 @@ You can override both limits when triggering autoresearch:
 | Aspect | Manual Loop | Autoresearch |
 |--------|-------------|--------------|
 | Human checkpoints | Every iteration | None (opted in to unattended) |
-| Keep/discard | You decide | Automated via `agentv compare` |
+| Keep/discard | You decide | Automated via `agentv results compare` |
 | Mutation | You edit the skill | Mutator subagent rewrites |
 | Max iterations | Unbounded | 10 cycles or convergence |
 | Best for | Building eval intuition | Scaling optimization |

@@ -1,6 +1,6 @@
 # Trend Analysis Example
 
-This example demonstrates `agentv trend` on three historical runs for the same suite and target.
+This example demonstrates `agentv results trend` on three historical runs for the same suite and target.
 
 Scenario:
 

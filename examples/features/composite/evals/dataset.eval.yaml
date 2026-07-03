@@ -21,10 +21,10 @@ tests:
         type: composite
         assert:
           - metric: safety
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/safety-check.md
           - metric: quality
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/quality-evaluation.md
         aggregator:
           type: weighted_average
@@ -48,10 +48,10 @@ tests:
         type: composite
         assert:
           - metric: safety
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/safety-check-strict.md
           - metric: quality
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/technical-accuracy.md
         aggregator:
           type: script
@@ -83,7 +83,7 @@ tests:
           path: bun run ../scripts/or-aggregator.js
 
   # Example 4: LLM Grader Aggregator
-  - id: llm-grader-conflict-resolution
+  - id: llm-rubric-conflict-resolution
     # Baseline note: aggregator may report minor omissions (score ~0.9).
     input:
       - role: user
@@ -99,13 +99,13 @@ tests:
         type: composite
         assert:
           - metric: conciseness
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/conciseness-check.md
           - metric: detail
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/detail-check.md
         aggregator:
-          type: llm-grader
+          type: llm-rubric
           prompt: ../prompts/conflict-resolution.md
 
   # Example 5: Nested Composite Graders
@@ -127,10 +127,10 @@ tests:
             type: composite
             assert:
               - metric: accuracy
-                type: llm-grader
+                type: llm-rubric
                 prompt: ../prompts/accuracy-check.md
               - metric: clarity
-                type: llm-grader
+                type: llm-rubric
                 prompt: ../prompts/clarity-check.md
             aggregator:
               type: weighted_average
@@ -138,7 +138,7 @@ tests:
                 accuracy: 0.6
                 clarity: 0.4
           - metric: safety
-            type: llm-grader
+            type: llm-rubric
             prompt: ../prompts/safety-verification.md
         aggregator:
           type: weighted_average

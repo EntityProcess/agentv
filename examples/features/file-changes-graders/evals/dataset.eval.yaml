@@ -2,8 +2,8 @@
 #
 # Proves that file_changes diffs are correctly passed to all grader types:
 #   1. llm-rubric   — LLM grader (Azure) evaluates the diff
-#   2. llm-grader    — built-in mode (Azure via AI SDK) sees file_changes in prompt
-#   3. llm-grader    — delegated mode (Copilot CLI with haiku) sees file_changes in prompt
+#   2. llm-rubric    — built-in mode (Azure via AI SDK) sees file_changes in prompt
+#   3. llm-rubric    — delegated mode (Copilot CLI with haiku) sees file_changes in prompt
 #
 # The mock agent adds a `subtract` function to calculator.ts, producing a small
 # diff (~10 lines) that fits comfortably in any LLM context window.
@@ -30,7 +30,7 @@ tests:
 
     assert:
       # 1. LLM rubric grader — Azure evaluates file_changes diff
-      - metric: llm-grader-rubrics
+      - metric: llm-rubric-rubrics
         type: llm-rubric
         value:
           - id: subtract-added
@@ -46,13 +46,13 @@ tests:
             weight: 0.5
 
       # 2. Built-in LLM grader — Azure via AI SDK with filesystem tools
-      - metric: llm-grader-builtin
-        type: llm-grader
+      - metric: llm-rubric-builtin
+        type: llm-rubric
         max_steps: 3
         temperature: 0
 
       # 3. Copilot CLI LLM grader — delegated via target
-      - metric: llm-grader-copilot
-        type: llm-grader
+      - metric: llm-rubric-copilot
+        type: llm-rubric
         target: copilot_grader
         temperature: 0

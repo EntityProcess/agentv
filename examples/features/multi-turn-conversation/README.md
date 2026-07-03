@@ -1,14 +1,14 @@
 # Multi-Turn Conversation Evaluation
 
 Demonstrates evaluating multi-turn conversation quality using composable
-`llm-grader` prompt templates with per-turn score breakdowns.
+`llm-rubric` prompt templates with per-turn score breakdowns.
 
 ## What this shows
 
 1. Multi-turn input with 4+ user/assistant turns where context retention matters
 2. Conversation-aware grader prompts that receive the full `{{ input }}` message array
 3. Per-turn score breakdown via structured `details`
-4. Composability: multiple `llm-grader` graders combined with deterministic assertions
+4. Composability: multiple `llm-rubric` graders combined with deterministic assertions
 
 ## Grader dimensions
 
@@ -30,4 +30,4 @@ bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation/evals/dat
 2. Use `{{ input }}` to receive the full conversation message array with roles
 3. Use `{{ criteria }}` for the test-specific evaluation criteria
 4. Instruct the grader to return `details` with per-turn metrics when useful
-5. Reference it in your YAML with `type: llm-grader` and `prompt: ./graders/your-grader.md`
+5. Reference it in your YAML with `type: llm-rubric` and `prompt: ./graders/your-grader.md`

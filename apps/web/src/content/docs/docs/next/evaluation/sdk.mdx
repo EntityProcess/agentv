@@ -59,7 +59,7 @@ from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_js
 def rag_faithfulness():
     return {
         "name": "rag-faithfulness",
-        "type": "llm-grader",
+        "type": "llm-rubric",
         "target": "grader-target",
         "prompt": "Grade whether the answer is supported by the retrieved context.",
     }
@@ -141,7 +141,7 @@ export default defineEval({
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
         graders.llmRubric(['Greets the user'], { name: 'rubric-review' }),
-        graders.llmGrader({
+        graders.llmRubric(undefined, {
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
           target: 'grader-target',
@@ -153,7 +153,7 @@ export default defineEval({
 });
 ```
 
-The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `llm-rubric`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `llm-rubric`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## AgentV-Native Helper Factories
 
@@ -163,7 +163,7 @@ If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusabl
 import { defineEval, graders } from '@agentv/sdk';
 
 function ragFaithfulness() {
-  return graders.llmGrader({
+  return graders.llmRubric(undefined, {
     name: 'rag-faithfulness',
     target: 'grader-target',
     prompt: [
@@ -197,7 +197,7 @@ assert:
     type: contains
     value: source
   - name: rag-faithfulness
-    type: llm-grader
+    type: llm-rubric
     target: grader-target
     prompt: |-
       Grade whether the answer is supported by the retrieved context.

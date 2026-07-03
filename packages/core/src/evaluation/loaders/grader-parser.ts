@@ -789,6 +789,7 @@ async function parseGraderList(
       if (
         normalizedAggregatorType !== 'weighted_average' &&
         normalizedAggregatorType !== 'script' &&
+        normalizedAggregatorType !== 'llm-rubric' &&
         normalizedAggregatorType !== 'llm-grader' &&
         normalizedAggregatorType !== 'threshold'
       ) {
@@ -891,7 +892,9 @@ async function parseGraderList(
           threshold: thresholdValue,
         };
       } else {
-        // llm-grader aggregator — same file:// prefix logic as evaluator prompts
+        // LLM aggregator — same file:// prefix logic as evaluator prompts.
+        // The authored type is llm-rubric; the composite runtime keeps the existing
+        // llm-grader aggregation implementation internally.
         const rawAggPrompt = asString(rawAggregator.prompt);
         let aggregatorPrompt: string | undefined;
         let promptPath: string | undefined;

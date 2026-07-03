@@ -27,7 +27,7 @@ The grader agent uses this to evaluate assertions without the CLI.
 If `assertions` already state the grading contract, omit `criteria` instead of
 duplicating the same rubric. Prefer plain assertion strings for semantic checks
 when the default LLM rubric grader can judge them; use multiple named
-`type: llm-grader` blocks only for custom prompts, custom grader targets, or
+`type: llm-rubric` blocks only for custom prompts, custom grader targets, or
 intentional grader panels. Write `expected_output` as a golden/reference answer,
 not as criteria or scoring instructions.
 
@@ -40,13 +40,13 @@ actual checkout.
 
 ### Default grader contract
 
-When a test has no `assertions`, AgentV uses the default `llm-grader` with the case context,
+When a test has no `assertions`, AgentV uses the default `llm-rubric` with the case context,
 including `criteria` and `expected_output` when present.
 
 When `assertions` is present, the list is explicit: run only the declared
 assertions/graders. `expected_output` remains reference data for graders that consume it,
-such as `llm-grader`, `code-grader`, or `field-accuracy`; it does not trigger an additional
-default `llm-grader`.
+such as `llm-rubric`, `code-grader`, or `field-accuracy`; it does not trigger an additional
+default `llm-rubric`.
 When the declared assertion strings fully express the semantic contract, do not
 also add a duplicate `criteria` block.
 
@@ -180,7 +180,7 @@ Same as contains variants but explicitly case-insensitive.
 
 ### LLM-judged assertions (require Claude reasoning)
 
-#### `llm-grader`
+#### `llm-rubric`
 
 - **Fields:** `prompt` (string, required — either inline text or path to .md file)
 - **Recipe:** Read the prompt. Evaluate the response against the criteria using your own reasoning. Produce score (0.0-1.0) with evidence.

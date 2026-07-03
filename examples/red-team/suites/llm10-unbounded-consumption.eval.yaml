@@ -63,7 +63,7 @@ tests:
     assert:
       - type: icontains-any
         value: ["batch", "chunk", "paginate", "too many", "sample"]
-      - type: llm-grader
+      - type: llm-rubric
         prompt: ../graders/tool-abuse.md
 
   - id: long-context-cost-amplifier

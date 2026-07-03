@@ -8,7 +8,7 @@ End-to-end real-world evaluation scenarios. Each example is runnable and demonst
 
 | Example | Description |
 |---------|-------------|
-| [multi-model-benchmark](multi-model-benchmark/) | Run the same suite against multiple models with weighted rubric graders (`accuracy 3×`, `completeness 2×`, `clarity 1×`) and `agentv compare` for side-by-side regression gating |
+| [multi-model-benchmark](multi-model-benchmark/) | Run the same suite against multiple models with weighted rubric graders (`accuracy 3×`, `completeness 2×`, `clarity 1×`) and `agentv results compare` for side-by-side regression gating |
 | [offline-grader-benchmark](offline-grader-benchmark/) | Benchmark grader quality against human-labelled data by replaying frozen outputs through multiple LLM graders and scoring majority-vote accuracy |
 
 ---

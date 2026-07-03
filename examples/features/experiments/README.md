@@ -58,7 +58,7 @@ After both runs complete and are graded:
 
 ```bash
 # Compare the two runs
-agentv compare .agentv/results/with-skills/<timestamp>/index.jsonl \
+agentv results compare .agentv/results/with-skills/<timestamp>/index.jsonl \
                .agentv/results/without-skills/<timestamp>/index.jsonl
 ```
 

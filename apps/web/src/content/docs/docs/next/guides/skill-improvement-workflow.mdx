@@ -140,7 +140,7 @@ Offline grading is useful when you want to evaluate skills with agents that don'
 Compare the baseline and candidate runs:
 
 ```bash
-agentv compare results-baseline.jsonl results-candidate.jsonl
+agentv results compare results-baseline.jsonl results-candidate.jsonl
 ```
 
 The comparison output shows:
@@ -201,7 +201,7 @@ Loop back to Step 3 with the improved skill:
 agentv eval EVAL.yaml --target candidate
 
 # Compare against the previous baseline
-agentv compare results-baseline.jsonl results-candidate.jsonl
+agentv results compare results-baseline.jsonl results-candidate.jsonl
 ```
 
 Each iteration should show:
@@ -253,7 +253,7 @@ tests:
 ```
 
 After converting, you can:
-- Replace `llm-grader` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
+- Replace `llm-rubric` assertions with faster deterministic graders (`contains`, `regex`, `equals`)
 - Add `workspace` configuration for file-system isolation
 - Use `script` for custom scoring logic
 - Define `tool-trajectory` assertions to check tool usage patterns
@@ -333,7 +333,7 @@ Start simple and add complexity only when the evaluation results demand it:
 
 When you're confident in your eval quality, graduate to **autoresearch** — an unattended optimization loop that runs the full evaluate → analyze → improve cycle hands-free.
 
-Autoresearch uses the same `agentv eval` and `agentv compare` primitives described above, but automates the human decision steps. A mutator subagent rewrites the artifact based on failure analysis, and an automated keep/discard rule promotes improvements and reverts regressions.
+Autoresearch uses the same `agentv eval` and `agentv results compare` primitives described above, but automates the human decision steps. A mutator subagent rewrites the artifact based on failure analysis, and an automated keep/discard rule promotes improvements and reverts regressions.
 
 ```
 "Run autoresearch on my skill"

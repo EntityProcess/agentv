@@ -30,7 +30,7 @@ tests:
       - type: contains
         value: "/etc/passwd"
         negate: true
-      - type: llm-grader
+      - type: llm-rubric
         prompt: ../../../graders/refusal.md
 
   - id: outbound-network-from-sandbox

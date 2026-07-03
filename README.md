@@ -35,43 +35,53 @@ agentv init
 
 ```yaml
 targets:
-  - label: copilot-sdk
-    provider: anthropic
-    model: claude-sonnet-4.6
+  - label: local-openai
+    provider: openai
+    api_format: chat
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
 ```
 
-**3. Create an eval** in `evals/`:
+**3. Create shared test defaults** in `evals/default-test.yaml`. This is a promptfoo-style partial test config that AgentV applies to each test:
+
+```yaml
+threshold: 0.8
+options:
+  rubric_prompt: |
+    You are an expert grader. Evaluate the candidate answer against each rubric item.
+    Award credit only when the answer directly supports the criterion.
+
+    [[ ## question ## ]]
+    {{ input }}
+
+    [[ ## rubric ## ]]
+    {{ rubrics }}
+
+    [[ ## answer ## ]]
+    {{ output }}
+```
+
+**4. Create an eval** in `evals/my-eval.eval.yaml`:
 ```yaml
 description: Code generation quality
 tags:
   experiment: with-skills
-target: copilot-sdk
+target: local-openai
 evaluate_options:
-  repeat:
-    count: 3
-    strategy: pass_any
-    early_exit: false
-  max_concurrency: 3
+  max_concurrency: 1
 
-default_test:
-  threshold: 0.8
-
-workspace:
-  scope: attempt
-  repos:
-    - path: ./fixture
-      repo: EntityProcess/agentv-contract-fixture
-      commit: 21a34daed7ebcfe36cbed053607622a55e5e94cb
+default_test: file://./default-test.yaml
 
 tests:
   - id: fizzbuzz
-    input: Write FizzBuzz in Python
+    input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz". Return only one Python code block.
     assert:
       - type: contains
         value: "fizz"
       - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: script
-        command: ["python3", "./validators/check_syntax.py"]
+        command: ["python3", "../validators/check_syntax.py"]
       - type: llm-rubric
         value:
           - outcome: Solution is simple and idiomatic Python
@@ -83,19 +93,19 @@ tests:
 Plain assertion strings are short-form rubric criteria: AgentV groups them into
 `llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
 Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
-`score_ranges`; use string `value` for promptfoo-compatible free-form rubric
-checks; use `type: llm-grader` only when you need a custom grader prompt,
-grader target, or preprocessing. Executable graders use `type: script`.
+`score_ranges`, or when you need a custom grader prompt, grader target, or
+preprocessing; use string `value` for promptfoo-compatible free-form rubric
+checks. Executable graders use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:
 
 ```yaml
-description: Code generation quality with Copilot target settings
+description: Code generation quality with eval-local target settings
 tags:
   experiment: with-skills
 target:
-  extends: copilot-sdk
-  model: claude-sonnet-4.6
+  extends: local-openai
+  model: gpt-5.4-mini
 evaluate_options:
   repeat:
     count: 2
@@ -109,7 +119,7 @@ tests:
     input: Write FizzBuzz in Python
 ```
 
-`target: copilot-sdk` resolves the target label from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
+`target: local-openai` resolves the target label from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `local-openai`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
 Use `default_test.threshold` for the inherited per-test pass cutoff. `default_test` can also point at a shared file, matching promptfoo's external defaults pattern:
 
@@ -126,22 +136,24 @@ refs:
 
 Then eval files in that project can use `default_test: ref://global-default`.
 
-**4. Run it:**
+The checked-in version of this quickstart lives in [`examples/features/readme-quickstart/`](examples/features/readme-quickstart/).
+
+**5. Run it:**
 ```bash
-agentv eval evals/my-eval.yaml
+agentv eval evals/my-eval.eval.yaml
 ```
 
-**5. Compare two runs** (pass two `index.jsonl` manifests — e.g. before and after a change):
+**6. Compare two runs** (pass two `index.jsonl` manifests — e.g. before and after a change):
 ```bash
-agentv compare .agentv/results/<baseline-run-id>/index.jsonl .agentv/results/<candidate-run-id>/index.jsonl
+agentv results compare .agentv/results/<baseline-run-id>/index.jsonl .agentv/results/<candidate-run-id>/index.jsonl
 ```
 
 ## Results
 
-Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `tags.experiment: with-skills` names the condition being measured and `target: copilot-sdk` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv compare`; per-case sidecars include the resolved eval and target configuration used for the run.
+Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `tags.experiment: with-skills` names the condition being measured and `target: local-openai` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv results compare`; per-case sidecars include the resolved eval and target configuration used for the run.
 
 ```bash
-agentv eval evals/my-eval.yaml
+agentv eval evals/my-eval.eval.yaml
 cat .agentv/results/<run_id>/index.jsonl
 ```
 
@@ -150,7 +162,7 @@ Run bundle layout:
 ```
 .agentv/results/
 ├── 2026-06-30T08-30-00-000Z/     # <run_id> — one committed run bundle
-│   ├── index.jsonl               # row index for scripts/CI and `agentv compare`
+│   ├── index.jsonl               # row index for scripts/CI and `agentv results compare`
 │   ├── summary.json              # run rollup: metadata, pass rate, counts, cost
 │   └── fizzbuzz--a1b2c3d4/       # <result_dir> for one test/target row
 │       ├── summary.json          # optional per-case rollup across attempts

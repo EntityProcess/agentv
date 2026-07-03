@@ -1,6 +1,6 @@
 # Baseline vs Candidate Comparison
 
-Demonstrates comparing completed run manifests using the `agentv compare` command.
+Demonstrates comparing completed run manifests using the `agentv results compare` command.
 
 ## What This Shows
 
@@ -16,7 +16,7 @@ Demonstrates comparing completed run manifests using the `agentv compare` comman
 # From repository root
 
 # Pairwise completed-run comparison
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl
 
 # N-way matrix from completed runs
@@ -25,14 +25,14 @@ agentv results combine \
   .agentv/results/default/<candidate-timestamp> \
   .agentv/results/default/<third-target-timestamp> \
   --output .agentv/results/default/combined
-agentv compare .agentv/results/default/combined/index.jsonl
+agentv results compare .agentv/results/default/combined/index.jsonl
 
 # With custom threshold for win/loss classification
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl --threshold 0.05
 
 # JSON output for CI pipelines
-agentv compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
+agentv results compare .agentv/results/default/<baseline-timestamp>/index.jsonl \
   .agentv/results/default/<candidate-timestamp>/index.jsonl --json
 ```
 

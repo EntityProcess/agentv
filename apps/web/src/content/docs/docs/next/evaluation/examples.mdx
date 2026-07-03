@@ -85,7 +85,7 @@ tests:
         command: [uv, run, validate_json.py]
         cwd: ./graders
       - name: content_evaluator
-        type: llm-grader
+        type: llm-rubric
         prompt: ./graders/semantic_correctness.md
 
     input: |-
@@ -102,7 +102,7 @@ tests:
 
 ## File Output Preprocessing
 
-Convert a binary file output into text before the `llm-grader` sees it:
+Convert a binary file output into text before the `llm-rubric` sees it:
 
 ```yaml
 description: Grade spreadsheet output via a preprocessor
@@ -176,15 +176,15 @@ assert:
       threshold: 0.6
     assert:
       - name: grader-gpt-5-mini
-        type: llm-grader
+        type: llm-rubric
         target: grader_gpt_5_mini
         prompt: ../prompts/grader-pass-fail-v1.md
       - name: grader-claude-haiku
-        type: llm-grader
+        type: llm-rubric
         target: grader_claude_haiku
         prompt: ../prompts/grader-pass-fail-v1.md
       - name: grader-gemini-flash
-        type: llm-grader
+        type: llm-rubric
         target: grader_gemini_flash
         prompt: ../prompts/grader-pass-fail-v1.md
 ```
@@ -413,5 +413,5 @@ See the [suite-level-input example](https://github.com/EntityProcess/agentv/tree
 
 For complete end-to-end workflows that combine multiple features, see the showcases in [`examples/showcase/`](https://github.com/EntityProcess/agentv/tree/main/examples/showcase):
 
-- **[Multi-Model Benchmark](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/multi-model-benchmark)** — weighted metrics × repeated runs × compare workflow. Run the same eval once per target, then use `agentv compare` or Dashboard analytics to review the completed runs side-by-side.
+- **[Multi-Model Benchmark](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/multi-model-benchmark)** — weighted metrics × repeated runs × compare workflow. Run the same eval once per target, then use `agentv results compare` or Dashboard analytics to review the completed runs side-by-side.
 - **[Export Screening](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/export-screening)** — classification eval with confusion matrix metrics and CI gating.

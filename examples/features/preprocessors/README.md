@@ -1,12 +1,12 @@
 # Content Preprocessors
 
-Demonstrates how `llm-grader` preprocessors turn `ContentFile` outputs into text before grading.
+Demonstrates how `llm-rubric` preprocessors turn `ContentFile` outputs into text before grading.
 
 ## What This Shows
 
 - top-level `preprocessors:` shared by all graders in an eval
 - an agent target returning a `ContentFile` block instead of plain text
-- an `llm-grader` receiving transformed spreadsheet text
+- an `llm-rubric` receiving transformed spreadsheet text
 - relative `ContentFile.path` resolution against the target workspace
 
 ## Running
