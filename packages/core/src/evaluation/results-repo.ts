@@ -1665,13 +1665,7 @@ async function countContributedRunDirs(
     return undefined;
   }
   const { stdout, exitCode } = await runGit(
-    [
-      'diff',
-      '--name-only',
-      `${remoteTargetCommit}...${sourceCommit}`,
-      '--',
-      RESULTS_REPO_RUNS_DIR,
-    ],
+    ['diff', '--name-only', `${remoteTargetCommit}...${sourceCommit}`, '--', RESULTS_REPO_RUNS_DIR],
     { cwd: repoDir, check: false },
   );
   if (exitCode !== 0) {
@@ -3823,7 +3817,9 @@ function buildGitManifestPaths(
 
 function gitRunDirForManifestPath(manifestPath: string): string {
   const manifestDir = path.posix.dirname(manifestPath);
-  return path.posix.basename(manifestDir) === '.internal' ? path.posix.dirname(manifestDir) : manifestDir;
+  return path.posix.basename(manifestDir) === '.internal'
+    ? path.posix.dirname(manifestDir)
+    : manifestDir;
 }
 
 function isV2ResultsRepoRunPath(relativeRunPath: string): boolean {

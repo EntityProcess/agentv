@@ -1792,7 +1792,6 @@ describe('results repo write path', () => {
     ).toBeUndefined();
     expect(buildResultsCompareUrl(undefined, 'main', 'temp')).toBeUndefined();
   });
-
 });
 
 describe('results branch stable genesis', () => {
