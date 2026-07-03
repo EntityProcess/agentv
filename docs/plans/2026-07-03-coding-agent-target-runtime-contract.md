@@ -122,8 +122,8 @@ boundaries.
 
 Also preserve the common and provider-specific knobs already used by AgentV:
 
-- common target behavior: `grader_target`, `fallback_targets`, `workers`,
-  `subagent_mode_allowed`, env interpolation, `cwd`, and `timeout_seconds`
+- common target behavior: `use_target`, `grader_target`, `fallback_targets`,
+  env interpolation, `cwd`, and `timeout_seconds`
 - artifact/log behavior: `stream_log`, `log_dir`/`log_directory`, stdout/stderr
   capture, raw protocol events, and partial logs on failure
 - Codex knobs: `model`, `reasoning_effort`/`model_reasoning_effort`,
@@ -139,6 +139,13 @@ Also preserve the common and provider-specific knobs already used by AgentV:
 Where the new normalized contract uses nested `config`, implement migration by
 normalizing the existing flat target fields into that internal shape. Do not
 drop existing accepted YAML fields as a side effect of adding `runtime`.
+
+Do not promote orchestration scheduler fields into the new target runtime
+contract. `workers`, `batch_requests`, and `subagent_mode_allowed` are existing
+compatibility/runtime-policy fields, not part of the target's coding-agent
+control boundary. Continue to handle them where AgentV already accepts them,
+but prefer `--workers`, project `execution.workers`, `evaluate_options`, or
+runtime policy for new scheduling behavior.
 
 ### Runtime Modes
 
