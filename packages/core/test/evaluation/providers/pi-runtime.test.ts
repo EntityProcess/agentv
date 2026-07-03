@@ -1,4 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import {
   createProvider,
@@ -15,6 +18,7 @@ import { extractLastAssistantContent } from '../../../src/evaluation/providers/t
 
 describe('Pi coding-agent runtime providers', () => {
   it('passes config.command argv and profile runtime env to pi-cli subprocesses', async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), 'agentv-pi-cli-test-'));
     let captured: PiProcessRunOptions | undefined;
     const runner = mock(async (options: PiProcessRunOptions) => {
       captured = options;
@@ -29,35 +33,44 @@ describe('Pi coding-agent runtime providers', () => {
     });
     const provider = new PiCliProvider('pi-cli-target', baseCliConfig(), runner);
 
-    const response = await provider.invoke({ question: 'hello', cwd: '/tmp/workspace' });
+    try {
+      const response = await provider.invoke({ question: 'hello', cwd: workspace });
 
-    expect(extractLastAssistantContent(response.output)).toBe('cli ok');
-    expect(captured?.command.slice(0, 3)).toEqual(['pi-shim', '--profile', 'clean']);
-    expect(captured?.command).toContain('--mode');
-    expect(captured?.command).toContain('json');
-    expect(captured?.env.HOME).toBe('/tmp/pi-profile');
-    expect(captured?.env.PI_TEST_FLAG).toBe('enabled');
-    expect(response.targetExecution?.status).toBe('success');
-    expect(response.targetExecution?.runtimeMode).toBe('profile');
-    expect(response.targetExecution?.command?.argv?.slice(0, 3)).toEqual([
-      'pi-shim',
-      '--profile',
-      'clean',
-    ]);
+      expect(extractLastAssistantContent(response.output)).toBe('cli ok');
+      expect(captured?.command.slice(0, 3)).toEqual(['pi-shim', '--profile', 'clean']);
+      expect(captured?.command).toContain('--mode');
+      expect(captured?.command).toContain('json');
+      expect(captured?.env.HOME).toBe('/tmp/pi-profile');
+      expect(captured?.env.PI_TEST_FLAG).toBe('enabled');
+      expect(response.targetExecution?.status).toBe('success');
+      expect(response.targetExecution?.runtimeMode).toBe('profile');
+      expect(response.targetExecution?.command?.argv?.slice(0, 3)).toEqual([
+        'pi-shim',
+        '--profile',
+        'clean',
+      ]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
   });
 
   it('returns structured pi-cli malformed-output errors', async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), 'agentv-pi-cli-test-'));
     const provider = new PiCliProvider('pi-cli-target', baseCliConfig(), async () => ({
       stdout: 'not json\n',
       stderr: '',
       exitCode: 0,
     }));
 
-    const response = await provider.invoke({ question: 'hello', cwd: '/tmp/workspace' });
+    try {
+      const response = await provider.invoke({ question: 'hello', cwd: workspace });
 
-    expect(response.targetExecution?.status).toBe('error');
-    expect(response.targetExecution?.errorKind).toBe('malformed_output');
-    expect(extractLastAssistantContent(response.output)).toMatch(/malformed output/i);
+      expect(response.targetExecution?.status).toBe('error');
+      expect(response.targetExecution?.errorKind).toBe('malformed_output');
+      expect(extractLastAssistantContent(response.output)).toMatch(/malformed output/i);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
   });
 
   it('runs pi-rpc over process stdio and returns fake RPC success', async () => {

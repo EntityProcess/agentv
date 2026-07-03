@@ -86,7 +86,7 @@ describe('CodexProvider (SDK)', () => {
 
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
 
     const request: ProviderRequest = {
       question: 'Write hello world',
@@ -121,7 +121,7 @@ describe('CodexProvider (SDK)', () => {
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
     const provider = new CodexProvider('test-target', {
-      executable: 'codex',
+      command: ['codex'],
       model: 'o4-mini',
     });
 
@@ -155,7 +155,7 @@ describe('CodexProvider (SDK)', () => {
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
     const provider = new CodexProvider('test-target', {
-      executable: 'codex',
+      command: ['codex'],
       model: 'gpt-5.3-codex-spark',
       modelReasoningEffort: 'medium',
       modelVerbosity: 'medium',
@@ -190,7 +190,7 @@ describe('CodexProvider (SDK)', () => {
     expect(threadOptions.approvalPolicy).toBe('never');
   });
 
-  it('passes executable config to Codex constructor as codexPathOverride', async () => {
+  it('passes command executable to Codex constructor as codexPathOverride', async () => {
     const thread = createMockThread({
       events: [
         {
@@ -213,7 +213,7 @@ describe('CodexProvider (SDK)', () => {
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
     const provider = new CodexProvider('test-target', {
-      executable: 'codex-eng',
+      command: ['codex-eng'],
     });
 
     await provider.invoke({ question: 'Test' });
@@ -243,7 +243,7 @@ describe('CodexProvider (SDK)', () => {
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
     const provider = new CodexProvider('test-target', {
-      executable: 'codex',
+      command: ['codex'],
       cwd: '/tmp/test-workspace',
     });
 
@@ -275,7 +275,7 @@ describe('CodexProvider (SDK)', () => {
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
     const provider = new CodexProvider('test-target', {
-      executable: 'codex',
+      command: ['codex'],
       modelReasoningEffort: 'low',
     });
 
@@ -307,7 +307,7 @@ describe('CodexProvider (SDK)', () => {
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
     const provider = new CodexProvider('test-target', {
-      executable: 'codex',
+      command: ['codex'],
       timeoutMs: 100,
     });
 
@@ -333,7 +333,7 @@ describe('CodexProvider (SDK)', () => {
     mock.module('@openai/codex-sdk', () => sdkMock);
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
     const controller = new AbortController();
     controller.abort();
 
@@ -361,7 +361,7 @@ describe('CodexProvider (SDK)', () => {
     mock.module('@openai/codex-sdk', () => sdkMock);
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
 
     const response = await provider.invoke({ question: 'Tokens' });
 
@@ -401,7 +401,7 @@ describe('CodexProvider (SDK)', () => {
     mock.module('@openai/codex-sdk', () => sdkMock);
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
 
     const response = await provider.invoke({ question: 'List files' });
 
@@ -444,7 +444,7 @@ describe('CodexProvider (SDK)', () => {
     mock.module('@openai/codex-sdk', () => sdkMock);
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
 
     const response = await provider.invoke({ question: 'Update file' });
 
@@ -473,7 +473,7 @@ describe('CodexProvider (SDK)', () => {
     mock.module('@openai/codex-sdk', () => sdkMock);
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
     const response = await provider.invoke({ question: 'Timing' });
 
     expect(response.startTime).toBeDefined();
@@ -497,7 +497,7 @@ describe('CodexProvider (SDK)', () => {
     mock.module('@openai/codex-sdk', () => sdkMock);
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
 
     await expect(provider.invoke({ question: 'Fail' })).rejects.toThrow(/turn failed/i);
   });
@@ -524,7 +524,7 @@ describe('CodexProvider (SDK)', () => {
 
     const { CodexProvider } = await import('../../../src/evaluation/providers/codex.js');
 
-    const provider = new CodexProvider('test-target', { executable: 'codex' });
+    const provider = new CodexProvider('test-target', { command: ['codex'] });
 
     await provider.invoke({ question: 'First' });
     await provider.invoke({ question: 'Second' });
