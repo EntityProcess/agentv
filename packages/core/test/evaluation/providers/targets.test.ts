@@ -918,6 +918,20 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
+  it('resolves codex-sdk as an explicit SDK provider kind', () => {
+    const target = resolveTargetDefinition({
+      name: 'codex-sdk-target',
+      provider: 'codex-sdk',
+      model: 'gpt-5-codex',
+    });
+
+    expect(target.kind).toBe('codex-sdk');
+    if (target.kind !== 'codex-sdk') {
+      throw new Error('expected codex-sdk target');
+    }
+    expect(target.config.model).toBe('gpt-5-codex');
+  });
+
   it('rejects unsupported codex reasoning_effort values', () => {
     expect(() =>
       resolveTargetDefinition(
@@ -1576,6 +1590,21 @@ describe('createProvider', () => {
     if (resolved.kind !== 'pi-coding-agent') throw new Error('expected pi-coding-agent');
     expect(resolved.config.model).toBe('gpt-5.5');
     expect(resolved.config.thinking).toBe('medium');
+  });
+
+  it('resolves pi-sdk as an explicit SDK provider kind', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-sdk-agent',
+        provider: 'pi-sdk',
+        model: 'gpt-5.5',
+      },
+      {},
+    );
+
+    expect(resolved.kind).toBe('pi-sdk');
+    if (resolved.kind !== 'pi-sdk') throw new Error('expected pi-sdk');
+    expect(resolved.config.model).toBe('gpt-5.5');
   });
 
   it('resolves pi-cli with azure subprovider and base_url', () => {

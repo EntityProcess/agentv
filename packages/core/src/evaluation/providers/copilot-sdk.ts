@@ -29,7 +29,8 @@ import type {
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import type
 let copilotSdkModule: any = null;
 
-async function loadCopilotSdk(): Promise<typeof import('@github/copilot-sdk')> {
+// biome-ignore lint/suspicious/noExplicitAny: optional SDK package is loaded only inside child runner
+async function loadCopilotSdk(): Promise<any> {
   if (!copilotSdkModule) {
     try {
       copilotSdkModule = await import('@github/copilot-sdk');

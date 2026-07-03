@@ -19,9 +19,12 @@ export type ProviderKind =
   | 'anthropic'
   | 'gemini'
   | 'codex'
+  | 'codex-cli'
+  | 'codex-sdk'
   | 'copilot-sdk'
   | 'copilot-cli'
   | 'copilot-log'
+  | 'pi-sdk'
   | 'pi-coding-agent'
   | 'pi-cli'
   | 'claude'
@@ -45,8 +48,11 @@ export type ProviderKind =
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
   'codex',
+  'codex-cli',
+  'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
+  'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
   'claude',
@@ -85,9 +91,12 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'anthropic',
   'gemini',
   'codex',
+  'codex-cli',
+  'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
   'copilot-log',
+  'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
   'claude',

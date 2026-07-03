@@ -22,7 +22,8 @@ import type {
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import type
 let codexSdkModule: any = null;
 
-async function loadCodexSdk(): Promise<typeof import('@openai/codex-sdk')> {
+// biome-ignore lint/suspicious/noExplicitAny: optional SDK package is loaded only inside child runner
+async function loadCodexSdk(): Promise<any> {
   if (!codexSdkModule) {
     try {
       codexSdkModule = await import('@openai/codex-sdk');

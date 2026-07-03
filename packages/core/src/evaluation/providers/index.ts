@@ -1,12 +1,9 @@
 import { AgentvProvider } from './agentv-provider.js';
 import { ClaudeCliProvider } from './claude-cli.js';
-import { ClaudeSdkProvider } from './claude-sdk.js';
-import { ClaudeProvider } from './claude.js';
 import { CliProvider } from './cli.js';
-import { CodexProvider } from './codex.js';
+import { CodexCliProvider } from './codex-cli.js';
 import { CopilotCliProvider } from './copilot-cli.js';
 import { CopilotLogProvider } from './copilot-log.js';
-import { CopilotSdkProvider } from './copilot-sdk.js';
 import {
   AnthropicProvider,
   AzureProvider,
@@ -16,9 +13,9 @@ import {
 } from './llm-providers.js';
 import { MockProvider } from './mock.js';
 import { PiCliProvider } from './pi-cli.js';
-import { PiCodingAgentProvider } from './pi-coding-agent.js';
 import { ProviderRegistry } from './provider-registry.js';
 import { ReplayProvider } from './replay.js';
+import { SdkChildProvider } from './sdk-child-provider.js';
 import type { ResolvedTarget } from './targets.js';
 import {
   COMMON_TARGET_SETTINGS,
@@ -110,17 +107,20 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('anthropic', (t) => new AnthropicProvider(t.name, t.config as never))
     .register('gemini', (t) => new GeminiProvider(t.name, t.config as never))
     .register('cli', (t) => new CliProvider(t.name, t.config as never))
-    .register('codex', (t) => new CodexProvider(t.name, t.config as never))
-    .register('copilot-sdk', (t) => new CopilotSdkProvider(t.name, t.config as never))
+    .register('codex', (t) => new CodexCliProvider(t.name, t.config as never))
+    .register('codex-cli', (t) => new CodexCliProvider(t.name, t.config as never))
+    .register('codex-sdk', (t) => new SdkChildProvider('codex-sdk', t.name, t.config))
+    .register('copilot-sdk', (t) => new SdkChildProvider('copilot-sdk', t.name, t.config))
     .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
     .register('copilot-log', (t) => new CopilotLogProvider(t.name, t.config as never))
-    .register('pi-coding-agent', (t) => new PiCodingAgentProvider(t.name, t.config as never))
+    .register('pi-sdk', (t) => new SdkChildProvider('pi-sdk', t.name, t.config))
+    .register('pi-coding-agent', (t) => new SdkChildProvider('pi-sdk', t.name, t.config))
     .register('pi-cli', (t) => new PiCliProvider(t.name, t.config as never))
     // claude-cli is the new default subprocess provider; claude is an alias
     .register('claude-cli', (t) => new ClaudeCliProvider(t.name, t.config as never))
     .register('claude', (t) => new ClaudeCliProvider(t.name, t.config as never))
-    // claude-sdk is the explicit SDK provider (requires @anthropic-ai/claude-agent-sdk)
-    .register('claude-sdk', (t) => new ClaudeSdkProvider(t.name, t.config as never))
+    // Explicit SDK providers are isolated behind an AgentV child runner.
+    .register('claude-sdk', (t) => new SdkChildProvider('claude-sdk', t.name, t.config))
     .register('mock', (t) => new MockProvider(t.name, t.config as never))
     .register('agentv', (t) => new AgentvProvider(t.name, t.config as never))
     .register('replay', (t) => new ReplayProvider(t.name, t.config as never))

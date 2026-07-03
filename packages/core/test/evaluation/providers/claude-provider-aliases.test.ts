@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
 import { ClaudeCliProvider } from '../../../src/evaluation/providers/claude-cli.js';
-import { ClaudeSdkProvider } from '../../../src/evaluation/providers/claude-sdk.js';
 import { ClaudeProvider } from '../../../src/evaluation/providers/claude.js';
 import { createBuiltinProviderRegistry } from '../../../src/evaluation/providers/index.js';
+import { SdkChildProvider } from '../../../src/evaluation/providers/sdk-child-provider.js';
 
 const mockClaudeConfig = {
   executable: 'claude',
@@ -41,13 +41,13 @@ describe('Claude provider alias resolution', () => {
     expect(provider.kind).toBe('claude-cli');
   });
 
-  it('creates a ClaudeSdkProvider for claude-sdk kind', () => {
+  it('creates an isolated child provider for claude-sdk kind', () => {
     const provider = registry.create({
       name: 'test-target',
       kind: 'claude-sdk',
       config: mockClaudeConfig,
     });
-    expect(provider).toBeInstanceOf(ClaudeSdkProvider);
+    expect(provider).toBeInstanceOf(SdkChildProvider);
     expect(provider.kind).toBe('claude-sdk');
     expect(provider.id).toBe('claude-sdk:test-target');
   });

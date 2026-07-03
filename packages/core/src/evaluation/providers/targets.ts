@@ -827,7 +827,10 @@ export type ResolvedTarget =
   | (ResolvedTargetBase & { readonly kind: 'azure'; readonly config: AzureResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'anthropic'; readonly config: AnthropicResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'gemini'; readonly config: GeminiResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'codex'; readonly config: CodexResolvedConfig })
+  | (ResolvedTargetBase & {
+      readonly kind: 'codex' | 'codex-cli' | 'codex-sdk';
+      readonly config: CodexResolvedConfig;
+    })
   | (ResolvedTargetBase & {
       readonly kind: 'copilot-sdk';
       readonly config: CopilotSdkResolvedConfig;
@@ -841,7 +844,7 @@ export type ResolvedTarget =
       readonly config: CopilotLogResolvedConfig;
     })
   | (ResolvedTargetBase & {
-      readonly kind: 'pi-coding-agent';
+      readonly kind: 'pi-sdk' | 'pi-coding-agent';
       readonly config: PiCodingAgentResolvedConfig;
     })
   | (ResolvedTargetBase & { readonly kind: 'pi-cli'; readonly config: PiCliResolvedConfig })
@@ -1079,8 +1082,10 @@ export function resolveTargetDefinition(
         config: resolveGeminiConfig(parsed, env),
       };
     case 'codex':
+    case 'codex-cli':
+    case 'codex-sdk':
       return {
-        kind: 'codex',
+        kind: provider as 'codex' | 'codex-cli' | 'codex-sdk',
         ...base,
         config: resolveCodexConfig(parsed, env, evalFilePath),
       };
@@ -1102,9 +1107,10 @@ export function resolveTargetDefinition(
         ...base,
         config: resolveCopilotLogConfig(parsed, env),
       };
+    case 'pi-sdk':
     case 'pi-coding-agent':
       return {
-        kind: 'pi-coding-agent',
+        kind: provider as 'pi-sdk' | 'pi-coding-agent',
         ...base,
         config: resolvePiCodingAgentConfig(parsed, env, evalFilePath),
       };
