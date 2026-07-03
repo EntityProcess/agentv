@@ -24,6 +24,6 @@ tests:
     input: >-
       List the files in the my-repo/ directory and read my-repo/package.json.
       Report the package name.
-    assertions:
+    assert:
       - type: contains
         value: "@agentv/workspace"

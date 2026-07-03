@@ -62,7 +62,7 @@ import {
 
 - `defineCodeGrader(fn)` - Wraps evaluation function with stdin/stdout handling
 - `defineEval(definition)` - Defines a YAML-aligned `.eval.ts` suite
-- `graders` - Helper catalog that returns ordinary AgentV `assertions` entries
+- `graders` - Helper catalog that returns ordinary AgentV `assert` entries
 - `createTargetClient()` - Returns LLM proxy client (when `target: {}` configured)
   - `.invoke({question, systemPrompt})` - Single LLM call
   - `.invokeBatch(requests)` - Batch LLM calls
@@ -74,7 +74,7 @@ For Python, the repo-local helper example in `examples/features/sdk-python/` kee
 
 ## YAML-Aligned Helper Example
 
-Use helper factories for reusable Braintrust/DeepEval-inspired checks, but keep the result as AgentV `assertions`:
+Use helper factories for reusable Braintrust/DeepEval-inspired checks, but keep the result as AgentV `assert` entries:
 
 ```typescript
 import { defineEval, graders } from '@agentv/sdk';
@@ -93,7 +93,7 @@ export default defineEval({
     {
       id: 'grounded-answer',
       input: 'Answer using the retrieved context.',
-      assertions: [
+      assert: [
         graders.contains('source', { name: 'mentions-source' }),
         ragFaithfulness(),
       ],
@@ -105,7 +105,7 @@ export default defineEval({
 The helper lowers to ordinary YAML:
 
 ```yaml
-assertions:
+assert:
   - name: mentions-source
     type: contains
     value: source

@@ -82,7 +82,7 @@ const RESULTS_REPO_GITATTRIBUTES_FILE = '.gitattributes';
 const RESULTS_REPO_GITATTRIBUTES_CONTENT = `# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
 # Append-only run manifests: union concurrent appends (lines are orthogonal).
 index.jsonl merge=union
-# Editable run overlay (tags/feedback): 3-way JSON set/field union via the
+# Editable run overlay (tags): 3-way JSON set/field union via the
 # agentv-json driver; a genuine scalar conflict falls through to a human merge.
 metadata/runs/**/*.json merge=agentv-json
 `;
@@ -94,8 +94,8 @@ const RESULTS_JSON_MERGE_DRIVER_NAME = 'agentv-json';
 const RESULTS_JSON_MERGE_DRIVER_SCRIPT = `#!/usr/bin/env node
 // AgentV results overlay merge driver (merge=agentv-json).
 //
-// Performs a 3-way merge of AgentV's editable JSON overlay files (run tags /
-// feedback). Tag lists merge as a 3-way set so concurrent add/remove are
+// Performs a 3-way merge of AgentV's editable JSON overlay files (run tags).
+// Tag lists merge as a 3-way set so concurrent add/remove are
 // commutative; display-only bookkeeping scalars that always differ between
 // writers (updated_at) are regenerated to the larger value instead of
 // conflicting. Content-derived concurrency tokens (tag_revision) are dropped on

@@ -1,13 +1,13 @@
 # Rubric Graders
 
-Rubrics are defined as `assertions` entries with plain strings, `type: g-eval`, or `type: llm-rubric`. They support binary checklist grading and score-range analytic grading.
+Rubrics are defined as `assert` entries with plain strings or `type: llm-rubric`. They support binary checklist grading and score-range analytic grading.
 
 ## Field Reference
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `type` | string | required | Use `g-eval` for grouped criteria or `llm-rubric` for a single structured rubric |
-| `criteria` | array | required | List of criterion strings or objects |
+| `type` | string | required | Use `llm-rubric` for a structured rubric; plain strings in `assert` use the same grader path |
+| `value` | array | required | List of criterion strings or objects |
 | `required` | boolean or number | - | Gate: `true` requires score >= 0.8; a number (0–1) sets a custom threshold |
 
 ### Criterion Object Fields
@@ -24,33 +24,33 @@ Rubrics are defined as `assertions` entries with plain strings, `type: g-eval`, 
 
 ## String Shorthand (Recommended)
 
-Plain strings in `assertions` are automatically treated as rubric criteria:
+Plain strings in `assert` are automatically treated as rubric criteria:
 
 ```yaml
-assertions:
+assert:
   - Mentions divide-and-conquer approach
   - Explains partition step
   - States time complexity
 ```
 
-Equivalent to the full form with `type: g-eval`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
+Equivalent to the full form with `type: llm-rubric`. Use the full form only when you need weights, `required: false`, or `score_ranges`.
 
-Mixed strings and objects are supported in `assertions` — strings are grouped into a single rubrics grader at the position of the first string:
+Mixed strings and objects are supported in `assert`: strings are grouped into a single rubric grader at the position of the first string:
 
 ```yaml
-assertions:
-  - Mentions divide-and-conquer approach  # grouped into rubrics
+assert:
+  - Mentions divide-and-conquer approach  # grouped into a rubric
   - type: script
     command: [check_syntax.py]
-  - States time complexity                # grouped into rubrics
+  - States time complexity                # grouped into a rubric
 ```
 
 ## Checklist Mode
 
 ```yaml
-assertions:
-  - type: g-eval
-    criteria:
+assert:
+  - type: llm-rubric
+    value:
       - Mentions divide-and-conquer approach
       - id: complexity
         outcome: States time complexity correctly
@@ -67,9 +67,9 @@ assertions:
 Use `operator` when outcome text should carry grading intent without embedding words like "must not contradict" in the outcome itself:
 
 ```yaml
-assertions:
-  - type: g-eval
-    criteria:
+assert:
+  - type: llm-rubric
+    value:
       - id: supported-fact
         operator: correctness
         outcome: States revenue increased to $10M
@@ -86,9 +86,9 @@ assertions:
 Shorthand map format (recommended):
 
 ```yaml
-assertions:
-  - type: g-eval
-    criteria:
+assert:
+  - type: llm-rubric
+    value:
       - id: correctness
         weight: 2.0
         min_score: 0.7

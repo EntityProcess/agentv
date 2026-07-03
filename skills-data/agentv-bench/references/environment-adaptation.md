@@ -42,7 +42,7 @@ tests:
   - id: should-trigger-codex
     input: "Analyze this CSV file"
     assertions:
-      - type: code-grader
+      - type: script
         command: [bun, run, ./judges/codex-skill-trigger.ts]
 ```
 

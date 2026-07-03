@@ -16,7 +16,7 @@ tests:
         content: "Always include the word 'Hello' in your response."
       - role: user
         content: Say hello world
-    assertions:
+    assert:
       - type: contains
         value: Hello
       - type: regex
@@ -32,7 +32,7 @@ tests:
         content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: 'Return a JSON object with fields: status set to "ok" and code set to 200.'
-    assertions:
+    assert:
       - type: is-json
         required: true
       - type: contains
@@ -48,7 +48,7 @@ tests:
     input:
       - role: user
         content: "Greet me with exactly one of: 'Good morning', 'Good afternoon', or 'Good evening'. Start your response with that greeting."
-    assertions:
+    assert:
       - type: regex
         value: "Good (morning|afternoon|evening)"
         required: true
@@ -63,7 +63,7 @@ tests:
         content: "You are a calculator. Respond with ONLY the numeric result. No words, no punctuation, no explanation, no newlines. Just the bare number."
       - role: user
         content: "What is 2 + 2?"
-    assertions:
+    assert:
       - type: equals
         value: "4"
         required: true

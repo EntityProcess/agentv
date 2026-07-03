@@ -5,7 +5,7 @@ Demonstrates authoring a `.eval.ts` suite with `defineEval()` from `@agentv/sdk`
 ## What It Shows
 
 1. `defineEval()` brands a TypeScript suite for the `.eval.ts` loader.
-2. The `graders` helper catalog returns ordinary `assertions` entries.
+2. The `graders` helper catalog returns ordinary `assert` entries.
 3. CamelCase authoring fields such as `inputFiles`, `expectedOutput`, `beforeAll`, and `beforeEach` lower to the canonical YAML/runtime keys.
 4. The suite still runs through the standard CLI and YAML parser path instead of a separate SDK runner.
 

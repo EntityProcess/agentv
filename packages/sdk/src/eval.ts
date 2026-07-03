@@ -116,10 +116,9 @@ export interface EvalDockerWorkspace {
 
 export interface EvalWorkspace {
   readonly template?: string;
-  readonly isolation?: 'shared' | 'per_case';
+  readonly scope?: 'suite' | 'attempt';
   readonly repos?: readonly EvalWorkspaceRepo[];
   readonly hooks?: EvalWorkspaceHooks;
-  readonly mode?: 'pooled' | 'temp' | 'static';
   readonly path?: string;
   readonly docker?: EvalDockerWorkspace;
 }
@@ -159,7 +158,7 @@ export type EvalRepeat = EvalTrials;
 export interface EvalExecution {
   readonly target?: string;
   readonly targets?: readonly (string | EvalTargetRef)[];
-  readonly assertions?: readonly EvalAssertionConfig[];
+  readonly assert?: readonly EvalAssertionConfig[];
   readonly skipDefaults?: boolean;
   readonly cache?: boolean;
   readonly trials?: EvalTrials;
@@ -172,7 +171,7 @@ export interface EvalExecution {
 export interface EvalTurn {
   readonly input: EvalMessageContent;
   readonly expectedOutput?: EvalMessageContent;
-  readonly assertions?: readonly (string | EvalAssertionConfig)[];
+  readonly assert?: readonly (string | EvalAssertionConfig)[];
 }
 
 export interface EvalTest {
@@ -182,7 +181,7 @@ export interface EvalTest {
   readonly input?: string | readonly EvalMessage[];
   readonly inputFiles?: readonly string[];
   readonly expectedOutput?: string | Readonly<Record<string, unknown>> | readonly EvalMessage[];
-  readonly assertions?: readonly EvalAssertionConfig[];
+  readonly assert?: readonly EvalAssertionConfig[];
   readonly execution?: EvalExecution;
   readonly workspace?: EvalWorkspace;
   readonly metadata?: Readonly<Record<string, unknown>>;
@@ -232,7 +231,7 @@ export interface EvalDefinition {
   readonly timeoutSeconds?: number;
   readonly threshold?: number;
   readonly budgetUsd?: number;
-  readonly assertions?: readonly EvalAssertionConfig[];
+  readonly assert?: readonly EvalAssertionConfig[];
   readonly preprocessors?: readonly EvalPreprocessor[];
   readonly workspace?: EvalWorkspace | string;
 }

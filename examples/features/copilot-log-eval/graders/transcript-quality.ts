@@ -12,7 +12,7 @@
  * Usage in eval YAML:
  *   assertions:
  *     - name: transcript-quality
- *       type: code-grader
+ *       type: script
  *       command: ["bun", "run", "../graders/transcript-quality.ts"]
  */
 import { defineCodeGrader } from '@agentv/sdk';

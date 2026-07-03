@@ -50,7 +50,7 @@ Use the simplest surface that matches the job:
 
 There is no separate first-party Python authoring SDK today. Python-facing workflows should either emit canonical YAML/JSONL or implement executable graders that consume the standard `snake_case` wire format.
 
-For example, the repo-local helper in `examples/features/sdk-python/` can build YAML-shaped cases while keeping `assertions` as the durable contract:
+For example, the repo-local helper in `examples/features/sdk-python/` can build YAML-shaped cases while keeping `assert` as the durable authored contract:
 
 ```python
 from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_jsonl
@@ -72,7 +72,7 @@ write_jsonl(
             id="grounded-answer",
             input=[{"role": "user", "content": "Answer using the retrieved context."}],
             expected_output=[{"role": "assistant", "content": "The answer cites the source material."}],
-            extra={"assertions": [rag_faithfulness()]},
+            extra={"assert": [rag_faithfulness()]},
         )
     ],
 )
@@ -109,7 +109,7 @@ export default defineEval({
       input: 'Say hello',
       inputFiles: ['../fixtures/per-test-note.md'],
       expectedOutput: 'Hello from the mock target',
-      assertions: [graders.contains('Hello')],
+      assert: [graders.contains('Hello')],
     },
   ],
 });
@@ -120,11 +120,11 @@ Useful companion helpers:
 - `toEvalYamlObject()` returns the canonical snake_case object.
 - `serializeEvalYaml()` returns YAML text using the same canonical field names.
 
-The durable field remains `assertions`. This helper does not introduce a second YAML vocabulary.
+The durable authored field remains `assert`. This helper does not introduce a second YAML vocabulary.
 
 ## Built-In Grader Helpers
 
-`@agentv/sdk` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assertions` entries and serialize to the same canonical YAML you could write by hand.
+`@agentv/sdk` includes a small `graders` catalog for common deterministic and LLM-backed grader configs. These helpers return ordinary `assert` entries and serialize to the same canonical YAML you could write by hand.
 
 ```typescript
 import { defineEval, graders } from '@agentv/sdk';
@@ -135,12 +135,12 @@ export default defineEval({
     {
       id: 'json-greeting',
       input: 'Return a JSON greeting.',
-      assertions: [
+      assert: [
         graders.contains('Hello', { name: 'mentions-hello' }),
         graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
-        graders.g-eval(['Greets the user'], { name: 'rubric-review' }),
+        graders.llmRubric(['Greets the user'], { name: 'rubric-review' }),
         graders.llmGrader({
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
@@ -153,11 +153,11 @@ export default defineEval({
 });
 ```
 
-The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `g-eval`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `llm-rubric`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## AgentV-Native Helper Factories
 
-If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusable logic AgentV-native: write helper factories that return `graders.*` configs, then let `defineEval()` lower them to ordinary `assertions`.
+If you are coming from Braintrust `scores` or DeepEval metrics, keep the reusable logic AgentV-native: write helper factories that return `graders.*` configs, then let `defineEval()` lower them to ordinary `assert` entries.
 
 ```typescript
 import { defineEval, graders } from '@agentv/sdk';
@@ -180,7 +180,7 @@ export default defineEval({
       id: 'grounded-answer',
       input: 'Answer the question using the retrieved context.',
       expectedOutput: 'The answer cites the source material.',
-      assertions: [
+      assert: [
         graders.contains('source', { name: 'mentions-source' }),
         ragFaithfulness(),
       ],
@@ -192,7 +192,7 @@ export default defineEval({
 The helper above serializes to the same shape you could write by hand:
 
 ```yaml
-assertions:
+assert:
   - name: mentions-source
     type: contains
     value: source
@@ -219,7 +219,7 @@ export default defineAssertion(({ output }) => {
   const pass = wordCount >= 3;
   return {
     pass,
-    assertions: [{ text: `Output has ${wordCount} words`, passed: pass }],
+    assert: [{ text: `Output has ${wordCount} words`, passed: pass }],
   };
 });
 ```
@@ -256,7 +256,7 @@ Convention-based discovery maps filename → assertion type:
 Reference directly in your eval file — no `command:` needed:
 
 ```yaml
-assertions:
+assert:
   - type: word-count
   - type: contains
     value: "Hello"
@@ -271,7 +271,7 @@ import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 && (traceSummary?.eventCount ?? 0) <= 5 ? 1.0 : 0.5,
-  assertions: [
+  assert: [
     { text: 'Answer is not empty', passed: (output ?? '').length > 0 },
     { text: 'Efficient tool usage', passed: (traceSummary?.eventCount ?? 0) <= 5 },
   ],
@@ -292,7 +292,7 @@ it('links to the dashboard', () => {
 ```
 
 ```yaml
-assertions:
+assert:
   - name: vitest-welcome-banner
     type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
@@ -346,7 +346,7 @@ const { results, summary } = await evaluate({
       id: 'greeting',
       input: 'Say hello',
       expectedOutput: 'Hello there!',
-      assertions: [{ type: 'contains', value: 'Hello' }],
+      assert: [{ type: 'contains', value: 'Hello' }],
     },
   ],
 });
@@ -365,7 +365,7 @@ const { summary } = await evaluate({
       id: 'capital',
       input: 'What is the capital of France?',
       expectedOutput: 'Paris',
-      assertions: [
+      assert: [
         ({ output }) => ({
           name: 'capital-or-phrase',
           score: ((output ?? '').includes('Paris') || /capital of france/i.test(output ?? '')) ? 1 : 0,

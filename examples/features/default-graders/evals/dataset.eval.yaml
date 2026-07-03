@@ -6,7 +6,7 @@ description: Root-level graders that automatically apply to every test
 
 target: llm
 
-assertions:
+assert:
   - Response has a professional, helpful, and polite tone
 
 tests:
@@ -20,8 +20,8 @@ tests:
     criteria: The assistant provides a helpful response about refunds
     input: "I want a refund"
     expected_output: "I'd be happy to help you with a refund. Could you provide your order number?"
-    assertions:
-      - name: helpfulness
+    assert:
+      - metric: helpfulness
         type: llm-grader
     # Also gets tone_check from root-level assertions
 
@@ -35,7 +35,7 @@ tests:
     expected_output: "I understand this is urgent. Let me help you right away. Can you tell me which system is affected so I can start troubleshooting?"
     execution:
       skip_defaults: true
-    assertions:
-      - name: urgency_check
+    assert:
+      - metric: urgency_check
         type: llm-grader
     # Does NOT get tone_check — skip_defaults opts out

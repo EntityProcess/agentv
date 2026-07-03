@@ -20,7 +20,7 @@ const suite = {
       id: 'sdk-define-eval',
       input: 'Say hello',
       expectedOutput: 'hello there',
-      assertions: [{ type: 'contains', value: 'hello' }],
+      assert: [{ type: 'contains', value: 'hello' }],
       workspace: {
         hooks: {
           beforeEach: {
@@ -44,7 +44,9 @@ export default Object.defineProperties(suite, {
       description: suite.description,
       tags: suite.tags,
       target: suite.target,
-      budget_usd: suite.budgetUsd,
+      evaluate_options: {
+        budget_usd: suite.budgetUsd,
+      },
       threshold: suite.threshold,
       workspace: {
         hooks: {
@@ -58,7 +60,7 @@ export default Object.defineProperties(suite, {
           id: 'sdk-define-eval',
           input: 'Say hello',
           expected_output: 'hello there',
-          assertions: [{ type: 'contains', value: 'hello' }],
+          assert: [{ type: 'contains', value: 'hello' }],
           workspace: {
             hooks: {
               before_each: {

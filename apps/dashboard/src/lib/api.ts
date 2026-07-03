@@ -25,7 +25,6 @@ import type {
   EvalRunResponse,
   EvalRunStatus,
   EvalTargetsResponse,
-  FeedbackData,
   FileContentResponse,
   FileTreeResponse,
   FilesystemBrowseResponse,
@@ -190,14 +189,6 @@ export const indexOptions = queryOptions({
   queryFn: () => fetchJson<IndexResponse>('/api/index'),
 });
 
-export function feedbackOptions(projectId?: string) {
-  const url = projectId ? `${projectApiBase(projectId)}/feedback` : '/api/feedback';
-  return queryOptions({
-    queryKey: ['feedback', projectId ?? ''],
-    queryFn: () => fetchJson<FeedbackData>(url),
-  });
-}
-
 /** Default tag key for the Tags-tab group-by selector. */
 export const DEFAULT_TAG_KEY = 'experiment';
 
@@ -354,10 +345,6 @@ export function useEvalDetail(runId: string, evalId: string, resultDir?: string)
 
 export function useIndex() {
   return useQuery(indexOptions);
-}
-
-export function useFeedback(projectId?: string) {
-  return useQuery(feedbackOptions(projectId));
 }
 
 export function useCompare() {

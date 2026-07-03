@@ -15,9 +15,9 @@ tests:
       Update app/page.tsx so the page shows "Status: All systems ready",
       includes the text "Open dashboard", links it to /dashboard, and leaves
       no TODO marker behind.
-    assertions:
-      - name: vitest-welcome-banner
-        type: code-grader
+    assert:
+      - metric: vitest-welcome-banner
+        type: script
         command:
           [
             "bun",

@@ -44,13 +44,13 @@ tests:
             amount: 5000
             currency: USD
 
-    assertions:
-      - name: decision-check
-        type: code-grader
+    assert:
+      - metric: decision-check
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
-      - name: tool-trajectory-check
+      - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -83,13 +83,13 @@ tests:
             amount: 2000
             currency: USD
 
-    assertions:
-      - name: decision-check
-        type: code-grader
+    assert:
+      - metric: decision-check
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
-      - name: tool-trajectory-check
+      - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -122,13 +122,13 @@ tests:
             amount: 25000
             currency: USD
 
-    assertions:
-      - name: decision-check
-        type: code-grader
+    assert:
+      - metric: decision-check
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
-      - name: tool-trajectory-check
+      - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -161,13 +161,13 @@ tests:
             amount: 25000
             currency: USD
 
-    assertions:
-      - name: decision-check
-        type: code-grader
+    assert:
+      - metric: decision-check
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
-      - name: tool-trajectory-check
+      - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:

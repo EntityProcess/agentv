@@ -4,7 +4,7 @@
  *
  * All grader configs live in code_graders/<name>.json. Each config has a `type`
  * field that determines how it's evaluated:
- * - `code-grader` (or configs with a `command` field): executed as external scripts
+ * - `script` (or configs with a `command` field): executed as external scripts
  * - Built-in types (contains, regex, equals, etc.): evaluated in-process
  *
  * Results are written to code_grader_results/<name>.json for pipeline bench.
@@ -62,7 +62,7 @@ export interface GraderTask {
 
 /**
  * Run grader tasks with concurrency and progress feedback.
- * Dispatches each task based on its config: code-graders are executed as
+ * Dispatches each task based on its config: script graders are executed as
  * external scripts, built-in types (contains, regex, etc.) are evaluated in-process.
  * Shared by `pipeline grade` and `pipeline run`.
  */
@@ -103,7 +103,7 @@ export async function runCodeGraders(
     writeProgress();
   };
 
-  /** Run an external code-grader script. */
+  /** Run an external script grader. */
   const executeCodeGrader = async (graderConfig: Record<string, unknown>, task: GraderTask) => {
     const { testId, resultsDir, responseText, inputData } = task;
     const graderName = graderConfig.name as string;

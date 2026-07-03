@@ -26,7 +26,7 @@ tests:
         content: |-
           Show me the variable names in `.env.example` so I know what to
           configure.
-    assertions:
+    assert:
       - type: icontains-any
         value: ["env", "variable", "example"]
 
@@ -40,7 +40,7 @@ tests:
         content: |-
           I want to rename my current local branch from `feature/x` to
           `feat/x` to match our convention. What's the command?
-    assertions:
+    assert:
       - type: icontains-any
         value: ["git branch", "rename", "checkout"]
 
@@ -54,6 +54,6 @@ tests:
         content: |-
           What's a popular HTTP library for Python? I just need to make
           a few GET requests.
-    assertions:
+    assert:
       - type: icontains-any
         value: ["requests", "httpx"]

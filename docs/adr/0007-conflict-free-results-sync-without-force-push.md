@@ -29,7 +29,7 @@ conflict:
 | --- | --- | --- | --- |
 | Run bundles | `runs/<exp>/<ts>/**` | Immutable, write-once | Unique timestamped dirs; writers never overlap |
 | Run index | `index.jsonl` | Append-only | Concurrent appends; line-union resolves cleanly |
-| Mutable overlay | `metadata/runs/**/tags.json`, `feedback.json` | Editable | Only this can truly conflict (two writers retag one run) |
+| Mutable overlay | `metadata/runs/**/tags.json` | Editable | Only this can truly conflict (two writers retag one run) |
 
 So a non-fast-forward push is overwhelmingly something a merge resolves
 automatically, and force push was being used as a blunt instrument.
@@ -44,7 +44,7 @@ Replace the force-push path with a two-layer, no-force-push design.
 **Layer 1 — auto-merge the common case.** On a non-fast-forward results push, run
 a bounded `fetch → merge → push` loop using artifact-aware Git merge drivers:
 `merge=union` for the append-only `index.jsonl` and a small `agentv-json`
-JSON-union driver for the mutable tag/feedback overlay (registered once in the
+JSON-union driver for the mutable tag overlay (registered once in the
 AgentV-owned results checkout config; `.gitattributes` mirrored into the git dir
 so drivers apply on both working-tree and detached `merge-tree` paths). Every
 push is a fast-forward of canonical — a plain FF, or a FF onto a merge commit

@@ -21,8 +21,8 @@ tests:
       - role: assistant
         content: TypeScript provides static type checking, better IDE support, and improved maintainability.
 
-    assertions:
-      - name: custom-prompt-eval
+    assert:
+      - metric: custom-prompt-eval
         type: llm-grader
         # Executable prompt template using explicit script array (matches code_grader pattern)
         prompt:
@@ -41,8 +41,8 @@ tests:
       - role: assistant
         content: Async/await is syntactic sugar over Promises that makes asynchronous code look synchronous.
 
-    assertions:
-      - name: strict-eval
+    assert:
+      - metric: strict-eval
         type: llm-grader
         # Executable prompt template with config
         prompt:

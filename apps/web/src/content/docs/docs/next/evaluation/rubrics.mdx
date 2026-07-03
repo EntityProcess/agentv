@@ -5,37 +5,37 @@ sidebar:
   order: 3
 ---
 
-Rubrics are defined with `assertions` entries and support binary checklist grading and score-range analytic grading.
+Rubrics are defined with `assert` entries and support binary checklist grading and score-range analytic grading.
 
 ## Basic Usage
 
-The simplest form — list plain strings in `assertions` and each one becomes a required criterion:
+The simplest form: list plain strings in `assert` and each one becomes a required criterion:
 
 ```yaml
 tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    assertions:
+    assert:
       - Mentions divide-and-conquer approach
       - Explains partition step
       - States time complexity
 ```
 
-All strings are collected into a single g-eval grader automatically.
+All strings are collected into a single llm-rubric grader automatically.
 
 ### Full form for advanced options
 
-Use `type: g-eval` explicitly when you need weights, required flags, or score ranges:
+Use `type: llm-rubric` explicitly when you need weights, required flags, or score ranges. Put structured rubric items in `value` so the assertion stays compatible with promptfoo's `llm-rubric.value` object/array field:
 
 ```yaml
 tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    assertions:
-      - type: g-eval
-        criteria:
+    assert:
+      - type: llm-rubric
+        value:
           - Mentions divide-and-conquer approach
           - Explains partition step
           - States time complexity
@@ -46,9 +46,9 @@ tests:
 For fine-grained control, use rubric objects with weights and requirements:
 
 ```yaml
-assertions:
-  - type: g-eval
-    criteria:
+assert:
+  - type: llm-rubric
+    value:
       - id: core-concept
         outcome: Explains divide-and-conquer
         weight: 2.0
@@ -69,22 +69,62 @@ assertions:
 | `outcome` | — | Description of what to check |
 | `operator` | — | Optional intent hint: `correctness` or `contradiction` |
 | `weight` | `1.0` | Relative importance for scoring |
-| `required` | `false` | If true, failing this criterion fails the entire eval |
+| `required` | `true` | If true, failing this criterion fails the entire eval |
 | `min_score` | — | Minimum score (0–1) for this criterion to pass |
 | `score_ranges` | — | Score range definitions (analytic mode) |
 
 :::note
-Use `min_score` for analytic rubric gating. The only 0–10 values in authored g-eval are `score_ranges` bands and grader outputs.
+Use `min_score` for analytic rubric gating. The only 0–10 values in authored llm-rubric are `score_ranges` bands and grader outputs.
 :::
+
+`weight` controls score contribution. `required` controls the verdict: a required checklist criterion can fail the eval even when the weighted score would otherwise pass.
+
+`llm-rubric.value` can also be free-form text or an arbitrary JSON/YAML object. AgentV uses structured scoring when `value` is an array of rubric strings or rubric objects with fields such as `outcome` and `score_ranges`; other objects are passed to the rubric prompt as rubric data.
+
+To replace AgentV's built-in rubric judge prompt for a suite, set a default prompt override:
+
+```yaml
+default_test:
+  options:
+    rubric_prompt: file://graders/judge-prompt.txt
+```
+
+For shared defaults, put the partial default test in a separate file:
+
+```yaml title=".agentv/default-test.yaml"
+options:
+  rubric_prompt: file://graders/judge-prompt.txt
+```
+
+Then reference it from each eval:
+
+```yaml
+default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+AgentV makes `AGENTV_REPO_ROOT` available while loading eval and config files. If a project wants a shorter name, add a reference in `.agentv/config.yaml`. Reference names are project-defined; `global-default` is just an example:
+
+```yaml
+refs:
+  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+Then use:
+
+```yaml
+default_test: ref://global-default
+```
+
+Most evals do not need this. Plain strings and structured `value` arrays use the built-in prompt automatically.
 
 ### Criterion Operators
 
 Use `operator` when the criterion outcome should be interpreted with a specific grading intent instead of relying on the wording in `outcome`.
 
 ```yaml
-assertions:
-  - type: g-eval
-    criteria:
+assert:
+  - type: llm-rubric
+    value:
       - id: supported-revenue
         operator: correctness
         outcome: States revenue increased to $10M
@@ -102,9 +142,9 @@ assertions:
 For quality gradients instead of binary pass/fail, use score ranges:
 
 ```yaml
-assertions:
-  - type: g-eval
-    criteria:
+assert:
+  - type: llm-rubric
+    value:
       - id: accuracy
         outcome: Provides correct answer
         weight: 2.0
@@ -141,11 +181,11 @@ score = sum(criterion_score / 10 * weight) / sum(total_weights)
 
 ## Authoring Rubrics
 
-Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic graders, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
+Write rubric criteria directly in `assert`. If you want help choosing between plain rubric strings, deterministic graders, and LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
 
 ## Context Available to Rubric Graders
 
-Rubric assertions automatically receive the full evaluation context, not just the agent's text answer. When present, the following are appended to the grader prompt:
+Rubric checks automatically receive the full evaluation context, not just the agent's text answer. When present, the following are appended to the grader prompt:
 
 - **`file_changes`** — unified diff of workspace file changes (when `workspace` is configured)
 - **`tool_calls`** — formatted summary of tool calls from agent execution (tool name + key inputs)
@@ -153,7 +193,7 @@ Rubric assertions automatically receive the full evaluation context, not just th
 This means rubric criteria can reason about *what the agent did*, not only what it said. For example, you can check whether an agent invoked a specific skill:
 
 ```yaml
-assertions:
+assert:
   - The agent invoked the acme-deploy skill
   - The agent used Read to inspect the config file before editing
 ```
@@ -162,16 +202,16 @@ This is a lightweight alternative to the `skill-trigger` evaluator when you want
 
 ## Combining with Other Graders
 
-Rubrics work alongside code and LLM graders:
+Rubrics work alongside script and LLM graders:
 
 ```yaml
 tests:
   - id: code-quality
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function
-    assertions:
-      - type: g-eval
-        criteria:
+    assert:
+      - type: llm-rubric
+        value:
           - Returns correct values for n=0,1,2,10
           - Uses meaningful variable names
           - Includes docstring

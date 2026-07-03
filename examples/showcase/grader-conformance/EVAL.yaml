@@ -16,16 +16,16 @@ tests:
     criteria: "Answer must name the capital city of France."
     input: "What is the capital of France?"
     expected_output: "Paris"
-    assertions:
-      - name: keyword-grader
-        type: code-grader
+    assert:
+      - metric: keyword-grader
+        type: script
         command: ["bun", "run", "graders/keyword-grader.ts"]
 
   - id: partial-match
     criteria: "Answer must mention red, blue, and yellow."
     input: "Name the primary colors."
     expected_output: "red, blue, yellow"
-    assertions:
-      - name: keyword-grader
-        type: code-grader
+    assert:
+      - metric: keyword-grader
+        type: script
         command: ["bun", "run", "graders/keyword-grader.ts"]

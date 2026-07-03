@@ -21,7 +21,6 @@ import { AGENT_PROVIDER_KINDS } from './providers/types.js';
 import type { EvalTest, JsonObject, RepoConfig, TargetHooksConfig } from './types.js';
 import {
   type SharedWorkspaceSetup,
-  type WorkspaceSetupCleanPolicy,
   type WorkspaceSetupHookExecution,
   type WorkspaceSetupMode,
   type WorkspaceSetupRetentionPolicy,
@@ -46,10 +45,7 @@ export interface PrepareEvalWorkspaceOptions {
   readonly maxConcurrency?: number;
   /** Legacy static workspace path override. */
   readonly workspace?: string;
-  readonly workspaceMode?: WorkspaceSetupMode;
   readonly workspacePath?: string;
-  readonly workspaceClean?: WorkspaceSetupCleanPolicy;
-  readonly poolMaxSlots?: number;
   readonly keepWorkspaces?: boolean;
   readonly cleanupWorkspaces?: boolean;
   readonly retainOnSuccess?: WorkspaceSetupRetentionPolicy;
@@ -85,12 +81,6 @@ export interface PreparedWorkspaceCleanupPolicy {
   readonly manualCleanup: boolean;
 }
 
-export interface PreparedWorkspacePoolMetadata {
-  readonly fingerprint: string;
-  readonly slotIndex: number;
-  readonly lockPath: string;
-}
-
 export interface PreparedEvalWorkspace {
   readonly evalPath: string;
   readonly testId: string;
@@ -107,7 +97,6 @@ export interface PreparedEvalWorkspace {
   readonly promptSource: PreparedWorkspacePromptSource;
   readonly cleanupPolicy: PreparedWorkspaceCleanupPolicy;
   readonly sharedWorkspace: boolean;
-  readonly pool?: PreparedWorkspacePoolMetadata;
 }
 
 function matchesFilter(id: string, filter: string | readonly string[]): boolean {
@@ -157,36 +146,6 @@ function toRepoPins(repos: readonly RepoConfig[] | undefined): readonly Prepared
   }));
 }
 
-function poolMetadata(
-  setup: SharedWorkspaceSetup,
-  selectedSlotPath: string | undefined,
-): PreparedWorkspacePoolMetadata | undefined {
-  const slot =
-    setup.poolSlot ?? setup.poolSlots.find((candidate) => candidate.path === selectedSlotPath);
-  if (!slot) {
-    return undefined;
-  }
-  return {
-    fingerprint: slot.fingerprint,
-    slotIndex: slot.index,
-    lockPath: slot.lockPath,
-  };
-}
-
-async function releaseUnselectedPoolSlots(
-  setup: SharedWorkspaceSetup,
-  selectedSlotPath: string | undefined,
-): Promise<void> {
-  if (!setup.poolManager) {
-    return;
-  }
-  for (const slot of setup.poolSlots) {
-    if (slot.path !== selectedSlotPath) {
-      await setup.poolManager.releaseSlot(slot).catch(() => {});
-    }
-  }
-}
-
 export async function prepareEvalWorkspace(
   options: PrepareEvalWorkspaceOptions,
 ): Promise<PreparedEvalWorkspace> {
@@ -221,19 +180,12 @@ export async function prepareEvalWorkspace(
       evalDir,
       verbose: options.verbose,
       workers,
-      poolMaxSlots: options.poolMaxSlots,
       workspacePath: options.workspacePath,
       legacyWorkspacePath: options.workspace,
-      workspaceMode: options.workspaceMode,
-      workspaceClean: options.workspaceClean,
     });
 
-    const testPoolSlot =
-      sharedSetup.availablePoolSlots.length > 0 ? sharedSetup.availablePoolSlots.pop() : undefined;
-    const selectedWorkspacePath = testPoolSlot?.path ?? sharedSetup.sharedWorkspacePath;
-    const selectedBaselineCommit = testPoolSlot
-      ? sharedSetup.poolSlotBaselines.get(testPoolSlot.path)
-      : sharedSetup.sharedBaselineCommit;
+    const selectedWorkspacePath = sharedSetup.sharedWorkspacePath;
+    const selectedBaselineCommit = sharedSetup.sharedBaselineCommit;
 
     const caseSetup = await prepareEvalCaseWorkspace({
       evalCase,
@@ -255,9 +207,6 @@ export async function prepareEvalWorkspace(
         `No workspace was materialized for test "${evalCase.id}". Add workspace.template, workspace.repos, or workspace.hooks before preparing an external attempt.`,
       );
     }
-
-    await releaseUnselectedPoolSlots(sharedSetup, caseSetup.workspacePath);
-    const pool = poolMetadata(sharedSetup, caseSetup.workspacePath);
 
     return {
       evalPath,
@@ -296,7 +245,6 @@ export async function prepareEvalWorkspace(
         manualCleanup: true,
       },
       sharedWorkspace: caseSetup.isSharedWorkspace,
-      ...(pool !== undefined && { pool }),
     };
   } catch (error) {
     if (sharedSetup) {

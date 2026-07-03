@@ -27,9 +27,9 @@ tests:
       - role: user
         content: Find information about the current weather in Tokyo and fetch the detailed forecast.
 
-    assertions:
+    assert:
       # Built-in: Check minimum tool calls
-      - name: trajectory-check
+      - metric: trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
@@ -37,8 +37,8 @@ tests:
           fetch: 1
 
       # Plugin: Semantic tool selection evaluation
-      - name: selection-quality
-        type: code-grader
+      - metric: selection-quality
+        type: script
         command: ["bun", "run", "scripts/tool-selection-grader.ts"]
 
   # ==========================================
@@ -56,10 +56,10 @@ tests:
       - role: user
         content: Get the current time.
 
-    assertions:
+    assert:
       # Plugin: Efficiency metrics scoring
-      - name: efficiency-check
-        type: code-grader
+      - metric: efficiency-check
+        type: script
         command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
@@ -80,9 +80,9 @@ tests:
       - role: user
         content: Analyze the quarterly sales data and generate a summary report.
 
-    assertions:
+    assert:
       # Built-in: Verify required workflow sequence
-      - name: workflow-trajectory
+      - metric: workflow-trajectory
         type: tool-trajectory
         mode: in_order
         expected:
@@ -91,13 +91,13 @@ tests:
           - tool: process
 
       # Plugin: Check if tools were appropriate choices
-      - name: selection-check
-        type: code-grader
+      - metric: selection-check
+        type: script
         command: ["bun", "run", "scripts/tool-selection-grader.ts"]
 
       # Plugin: Evaluate efficiency
-      - name: efficiency
-        type: code-grader
+      - metric: efficiency
+        type: script
         command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
@@ -124,8 +124,8 @@ tests:
           2. Configuration: Edit settings.json
           3. Usage: Run the main command
 
-    assertions:
+    assert:
       # Plugin: Pairwise comparison with position bias mitigation
-      - name: pairwise-quality
-        type: code-grader
+      - metric: pairwise-quality
+        type: script
         command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]

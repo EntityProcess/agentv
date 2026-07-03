@@ -9,7 +9,7 @@
  * ```yaml
  * graders:
  *   - name: party_names_fuzzy
- *     type: code-grader
+ *     type: script
  *     command: ["bun", "run", "../graders/multi_field_fuzzy.ts"]
  *     fields:
  *       - path: supplier.name

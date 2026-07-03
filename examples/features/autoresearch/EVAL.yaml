@@ -22,7 +22,7 @@ tests:
           All production servers are unreachable. The main database cluster has failed over
           but the failover node is also unresponsive. Customer-facing APIs return 503 for
           all requests. Estimated 100% of users affected. Data replication lag detected.
-    assertions:
+    assert:
       - type: contains
         value: '"P0"'
         id: CLASSIFIES_P0_OUTAGE
@@ -40,7 +40,7 @@ tests:
           Search functionality is returning incomplete results for approximately 60% of queries.
           Users report that recent items (last 2 hours) are not appearing in search results.
           The indexing pipeline appears to be stuck. No workaround available for affected users.
-    assertions:
+    assert:
       - type: contains
         value: '"P1"'
         id: CLASSIFIES_P1_DEGRADED
@@ -58,7 +58,7 @@ tests:
           The analytics dashboard is loading slowly (15-20 seconds instead of usual 2-3 seconds).
           Users can still access all data but the experience is degraded. The issue appears to be
           related to a recent deployment. Users can use the API directly as a workaround.
-    assertions:
+    assert:
       - type: contains
         value: '"P2"'
         id: CLASSIFIES_P2_SLOW
@@ -76,7 +76,7 @@ tests:
           A user reported that the footer on the settings page shows "Copyrigth 2024"
           instead of "Copyright 2024". This is visible on all pages with the settings layout.
           No functional impact.
-    assertions:
+    assert:
       - type: contains
         value: '"P3"'
         id: CLASSIFIES_P3_COSMETIC
@@ -94,7 +94,7 @@ tests:
           Approximately 15% of payment transactions are failing with a timeout error from the
           payment gateway. The issue is intermittent — retrying usually works on the second attempt.
           Revenue impact estimated at $50K/hour during peak hours. No permanent data loss detected.
-    assertions:
+    assert:
       - type: contains
         value: '"P1"'
         id: CLASSIFIES_P1_PAYMENTS
@@ -113,7 +113,7 @@ tests:
           at ~50MB/hour. Current usage is 2.1GB of 8GB available. At current rate, the service
           will need a restart in approximately 3 days. Automated restarts are configured as a
           safety net. No current user impact.
-    assertions:
+    assert:
       - type: contains
         value: '"P2"'
         id: CLASSIFIES_P2_MEMORY
@@ -132,7 +132,7 @@ tests:
           DNS validation timeout. If the cert expires, all HTTPS traffic to the production API
           will show security warnings and many clients will refuse to connect. The team has
           manual renewal steps documented but needs to act urgently.
-    assertions:
+    assert:
       - type: contains
         value: '"P1"'
         id: CLASSIFIES_P1_SSL

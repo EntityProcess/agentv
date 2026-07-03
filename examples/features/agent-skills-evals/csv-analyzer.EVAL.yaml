@@ -13,12 +13,12 @@ tests:
             value: evals/files/sales.csv
           - type: text
             value: "Analyze this CSV data. Use the csv-analyzer skill to find the top 3 months by revenue. Make sure to apply the seasonal weighting formula from the skill."
-    assertions:
+    assert:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: true
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - "Output applies seasonal weighting factors (Q1: 0.85, Q2: 1.00, Q3: 1.15, Q4: 1.25)"
           - "Output shows weighted revenue values, not just raw revenue"
       - type: icontains-any
@@ -26,7 +26,7 @@ tests:
 
   - id: irrelevant-query
     input: "What time is it?"
-    assertions:
+    assert:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: false

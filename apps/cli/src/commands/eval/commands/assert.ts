@@ -7,7 +7,7 @@ import { buildTraceFromMessages, executeScript } from '@agentv/core';
 
 export const evalAssertCommand = command({
   name: 'assert',
-  description: 'Run a single code-grader assertion from .agentv/graders/ and print the score',
+  description: 'Run a single script grader assertion from .agentv/graders/ and print the score',
   args: {
     graderName: positional({
       type: string,
@@ -62,8 +62,7 @@ export const evalAssertCommand = command({
       process.exit(1);
     }
 
-    // Build payload matching CodeGrader's expected format (snake_case).
-    // Include all fields that defineCodeGrader validates as required.
+    // Build payload matching the script grader protocol (snake_case).
     const messages = [{ role: 'assistant' as const, content: resolvedOutput }];
     const inputMessages = [{ role: 'user' as const, content: resolvedInput }];
     const trace = buildTraceFromMessages({

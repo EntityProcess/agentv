@@ -52,7 +52,7 @@ tests:
               Write a one-line summary to report.txt at the workspace root.
               Then add an add(a, b) function to my-lib/utils.ts.
 
-    assertions:
-      - name: check-root-and-repo-changes
-        type: code-grader
+    assert:
+      - metric: check-root-and-repo-changes
+        type: script
         command: ["bun", "run", "../scripts/check-file-changes.ts"]

@@ -29,9 +29,9 @@ description: Header field confusion metrics (TP/TN/FP/FN aggregation)
 
 target: mock_extractor
 
-assertions:
-  - name: header_confusion
-    type: code-grader
+assert:
+  - metric: header_confusion
+    type: script
     command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number

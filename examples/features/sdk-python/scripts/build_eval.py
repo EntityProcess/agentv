@@ -22,10 +22,10 @@ def main() -> None:
                     {"role": "assistant", "content": "AgentV Python helper says hi."}
                 ],
                 extra={
-                    "assertions": [
+                    "assert": [
                         {
-                            "name": "python-expected-output",
-                            "type": "code-grader",
+                            "metric": "python-expected-output",
+                            "type": "script",
                             "command": [
                                 "uv",
                                 "run",
@@ -44,7 +44,7 @@ def main() -> None:
         EvalDefinition(
             description="Python helper example that emits canonical AgentV YAML/JSONL.",
             name="python-helper",
-            execution={"target": "local_cli"},
+            target="local_cli",
             tags=["python", "sdk"],
             tests="./dataset.jsonl",
         ),

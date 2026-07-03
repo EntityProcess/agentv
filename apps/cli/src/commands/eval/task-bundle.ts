@@ -495,8 +495,20 @@ function parseSourceTestCase(test: EvalTest): Record<string, unknown> {
 
 function withoutLegacyAssertionKeys(testCase: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(testCase).filter(([key]) => key !== 'assert' && key !== 'evaluators'),
+    Object.entries(testCase).filter(([key]) => key !== 'assert' && key !== 'assertions'),
   );
+}
+
+function serializeGraderDefinition(
+  definition: Record<string, unknown>,
+  rewrites: ReadonlyMap<string, string>,
+): unknown {
+  const serialized = rewritePathsDeep(toSnakeCaseDeep(definition), rewrites);
+  if (!isRecord(serialized)) {
+    return serialized;
+  }
+  const { name, metric, ...rest } = serialized;
+  return typeof name === 'string' && metric === undefined ? { metric: name, ...rest } : serialized;
 }
 
 function buildEvalCase(
@@ -508,8 +520,8 @@ function buildEvalCase(
   if (graderDefinitions.length > 0) {
     return {
       ...withoutLegacyAssertionKeys(testCase),
-      assertions: graderDefinitions.map((grader) =>
-        rewritePathsDeep(toSnakeCaseDeep(grader.definition), rewrites),
+      assert: graderDefinitions.map((grader) =>
+        serializeGraderDefinition(grader.definition, rewrites),
       ),
     };
   }

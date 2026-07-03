@@ -8,12 +8,7 @@ import type { EvalTest, JsonObject, JsonValue, TestMessage } from '../types.js';
 import { isJsonObject, isTestMessage } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import { buildSearchRoots, fileExists, resolveToAbsolutePath } from './file-resolver.js';
-import {
-  coerceEvaluator,
-  parseGraders,
-  parseInlineRubrics,
-  warnUnconsumedCriteria,
-} from './grader-parser.js';
+import { coerceEvaluator, parseGraders, warnUnconsumedCriteria } from './grader-parser.js';
 import { processExpectedMessages, processMessages } from './message-processor.js';
 import { resolveExpectedMessages, resolveInputMessages } from './shorthand-expansion.js';
 
@@ -55,10 +50,7 @@ type RawJsonlEvalCase = JsonObject & {
   readonly input?: JsonValue;
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
-  readonly evaluators?: JsonValue;
   readonly assert?: JsonValue;
-  readonly assertions?: JsonValue;
-  readonly rubrics?: JsonValue;
 };
 
 /**
@@ -204,20 +196,12 @@ export async function loadTestsFromJsonl(
     // Resolve expected_output with shorthand support
     const expectedMessages = resolveExpectedMessages(testCaseConfig) ?? [];
 
-    const hasExplicitCaseGraders =
-      testCaseConfig.assert !== undefined ||
-      testCaseConfig.assertions !== undefined ||
-      testCaseConfig.evaluators !== undefined ||
-      testCaseConfig.rubrics !== undefined;
+    const hasExplicitCaseGraders = testCaseConfig.assert !== undefined;
     const executionObject = isJsonObject(testCaseConfig.execution)
       ? testCaseConfig.execution
       : undefined;
     const hasExplicitRootGraders =
-      executionObject?.skip_defaults === true
-        ? false
-        : globalExecution?.assert !== undefined ||
-          globalExecution?.assertions !== undefined ||
-          globalExecution?.evaluators !== undefined;
+      executionObject?.skip_defaults === true ? false : globalExecution?.assert !== undefined;
     const graderCase =
       outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
         ? ({ ...testCaseConfig, assert: [outcome] } satisfies RawJsonlEvalCase)
@@ -225,13 +209,10 @@ export async function loadTestsFromJsonl(
 
     // A test is complete when it has id, input, and at least one of: criteria,
     // expected_output, or assertions. Legacy test-level criteria is desugared to a
-    // bare-string assert above so it uses the canonical g-eval path instead of the
+    // bare-string assert above so it uses the canonical llm-rubric path instead of the
     // implicit default LLM grader.
     const hasEvaluationSpec =
-      !!outcome ||
-      expectedMessages.length > 0 ||
-      graderCase.assert !== undefined ||
-      graderCase.assertions !== undefined;
+      !!outcome || expectedMessages.length > 0 || graderCase.assert !== undefined;
     if (!id || !hasEvaluationSpec || !rawInputMessages || rawInputMessages.length === 0) {
       logError(
         `Skipping incomplete test at line ${lineNumber}: ${id ?? 'unknown'}. Missing required fields: id, input, and at least one of criteria/expected_output/assert`,
@@ -304,16 +285,6 @@ export async function loadTestsFromJsonl(
       const message = error instanceof Error ? error.message : String(error);
       logError(`Skipping test '${id}' at line ${lineNumber}: ${message}`);
       continue;
-    }
-
-    // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-    const inlineRubrics = testCaseConfig.rubrics;
-    if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
-      const rubricEvaluator = parseInlineRubrics(inlineRubrics);
-      if (rubricEvaluator) {
-        // Prepend rubric evaluator to existing evaluators
-        evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
-      }
     }
 
     warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');

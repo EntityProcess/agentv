@@ -119,15 +119,10 @@ export const evalRunCommand = command({
       long: 'verbose',
       description: 'Enable verbose logging',
     }),
-    workspaceMode: option({
-      type: optional(string),
-      long: 'workspace-mode',
-      description: "Workspace mode: 'temp' (default), 'pooled', or 'static'",
-    }),
     workspacePath: option({
       type: optional(string),
       long: 'workspace-path',
-      description: 'Static workspace directory path (used when workspace mode is static)',
+      description: 'Static workspace directory path to reuse for this run',
     }),
     keepWorkspaces: flag({
       long: 'keep-workspaces',
@@ -271,7 +266,6 @@ export const evalRunCommand = command({
       cachePath: args.cachePath,
       noCache: args.noCache,
       verbose: args.verbose,
-      workspaceMode: args.workspaceMode,
       workspacePath: args.workspacePath,
       keepWorkspaces: args.keepWorkspaces,
       trace: false,

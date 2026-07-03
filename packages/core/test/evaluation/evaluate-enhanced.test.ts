@@ -31,23 +31,18 @@ describe('evaluate() — enhanced features', () => {
     expect(summary.passed).toBe(1);
   });
 
-  it('rejects the removed assertion alias in inline tests', async () => {
-    const removedKey = ['ass', 'ert'].join('');
-    const removedAliasTest: {
-      readonly id: string;
-      readonly input: string;
-      readonly [key: string]: unknown;
-    } = {
-      id: 'removed-key',
-      input: 'hello',
-      [removedKey]: [{ type: 'contains', value: 'hello' }],
-    };
-    await expect(
-      evaluate({
-        tests: [removedAliasTest],
-        target: { name: 'default', provider: 'mock', response: 'hello world' },
-      }),
-    ).rejects.toThrow("'assert' has been removed");
+  it('supports canonical assert in inline tests', async () => {
+    const { summary } = await evaluate({
+      tests: [
+        {
+          id: 'canonical-assert',
+          input: 'hello',
+          assert: [{ type: 'contains', value: 'hello' }],
+        },
+      ],
+      target: { name: 'default', provider: 'mock', response: 'hello world' },
+    });
+    expect(summary.passed).toBe(1);
   });
 
   it('supports inline assertion functions', async () => {

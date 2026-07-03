@@ -65,7 +65,7 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].input).toHaveLength(1);
     expect(cases[0].input[0].role).toBe('user');
     expect(cases[0].input[0].content).toBe('Query');
-    expect(cases[0].assertions?.[0]?.type).toBe('g-eval');
+    expect(cases[0].assertions?.[0]?.type).toBe('llm-rubric');
     expect(cases[0].assertions?.[0]?.rubrics?.[0]?.outcome).toBe('Goal');
   });
 
@@ -172,7 +172,7 @@ describe('loadTestsFromJsonl', () => {
     );
     await writeFile(
       sidecarPath,
-      'description: Test dataset\nname: my-tests\nevaluator: llm_grader\n',
+      'description: Test dataset\nname: my-tests\nevaluator: llm-grader\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -213,11 +213,11 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].suite).toBe('my-dataset');
   });
 
-  it('supports per-case evaluators override', async () => {
-    const jsonlPath = path.join(tempDir, 'with-evaluators.jsonl');
+  it('supports per-case assert override', async () => {
+    const jsonlPath = path.join(tempDir, 'with-assert.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"metric": "rubric-check", "type": "llm-grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -227,39 +227,45 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].assertions?.[0].name).toBe('rubric-check');
   });
 
-  it('supports inline rubrics field', async () => {
-    const jsonlPath = path.join(tempDir, 'with-rubrics.jsonl');
+  it('supports structured llm-rubric value arrays', async () => {
+    const jsonlPath = path.join(tempDir, 'with-llm-rubric-value.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "rubrics": ["Must be polite", "Must be helpful"]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"metric": "rubric-check", "type": "llm-rubric", "value": ["Must be polite", "Must be helpful"]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
 
     expect(cases).toHaveLength(1);
     expect(cases[0].assertions).toHaveLength(1);
-    expect(cases[0].assertions?.[0].type).toBe('g-eval');
+    expect(cases[0].assertions?.[0].type).toBe('llm-rubric');
     const rubricEvaluator = cases[0].assertions?.[0] as { type: string; rubrics?: unknown[] };
     expect(rubricEvaluator.rubrics).toHaveLength(2);
   });
 
-  it('supports inline rubrics field with score_ranges', async () => {
-    const jsonlPath = path.join(tempDir, 'with-score-range-rubrics.jsonl');
+  it('supports structured llm-rubric value arrays with score_ranges', async () => {
+    const jsonlPath = path.join(tempDir, 'with-score-range-llm-rubric.jsonl');
     await writeFile(
       jsonlPath,
       `${JSON.stringify({
         id: 'test-1',
         criteria: 'Goal',
         input: [{ role: 'user', content: 'Query' }],
-        rubrics: [
+        assert: [
           {
-            id: 'quality',
-            outcome: 'Answer quality',
-            min_score: 0.8,
-            score_ranges: [
-              { score_range: [0, 4], outcome: 'Weak' },
-              { score_range: [5, 7], outcome: 'Adequate' },
-              { score_range: [8, 10], outcome: 'Strong' },
+            metric: 'quality',
+            type: 'llm-rubric',
+            value: [
+              {
+                id: 'quality',
+                outcome: 'Answer quality',
+                min_score: 0.8,
+                score_ranges: [
+                  { score_range: [0, 4], outcome: 'Weak' },
+                  { score_range: [5, 7], outcome: 'Adequate' },
+                  { score_range: [8, 10], outcome: 'Strong' },
+                ],
+              },
             ],
           },
         ],
@@ -271,8 +277,8 @@ describe('loadTestsFromJsonl', () => {
     expect(cases).toHaveLength(1);
     expect(cases[0].assertions).toHaveLength(1);
     expect(cases[0].assertions?.[0]).toMatchObject({
-      name: 'rubrics',
-      type: 'g-eval',
+      name: 'quality',
+      type: 'llm-rubric',
       rubrics: [
         {
           id: 'quality',
@@ -421,7 +427,7 @@ describe('loadTests with format detection', () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0].id).toBe('yaml-test');
-    expect(cases[0].assertions?.[0]?.type).toBe('g-eval');
+    expect(cases[0].assertions?.[0]?.type).toBe('llm-rubric');
     expect(cases[0].assertions?.[0]?.rubrics?.[0]?.outcome).toBe('Goal');
   });
 

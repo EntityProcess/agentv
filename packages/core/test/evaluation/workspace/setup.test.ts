@@ -106,7 +106,7 @@ describe('prepareSharedWorkspaceSetup', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('retains repo manager for pooled repo workspaces so reset hooks can reset nested repos', async () => {
+  it('retains repo manager for suite repo workspaces so reset hooks can reset nested repos', async () => {
     const sourceRepo = path.join(tmpDir, 'source-repo');
     const cleanCommit = createTestRepo(sourceRepo, { 'tracked.txt': 'clean\n' });
     const repos = [
@@ -127,17 +127,16 @@ describe('prepareSharedWorkspaceSetup', () => {
     };
 
     setup = await prepareSharedWorkspaceSetup({
-      evalRunId: 'test-pooled-repo-reset',
+      evalRunId: 'test-suite-repo-reset',
       evalCases: [evalCase],
       evalDir: tmpDir,
-      workspaceMode: 'pooled',
       workers: 1,
     });
 
     expect(setup.repoManager).toBeDefined();
     expect(setup.sharedWorkspacePath).toBeDefined();
     if (!setup.repoManager || !setup.sharedWorkspacePath) {
-      throw new Error('Expected pooled setup to include repo manager and workspace path');
+      throw new Error('Expected suite setup to include repo manager and workspace path');
     }
 
     const repoDir = path.join(setup.sharedWorkspacePath, 'repo-a');
@@ -171,8 +170,6 @@ describe('prepareSharedWorkspaceSetup', () => {
     });
 
     expect(setup.configuredMode).toBe('temp');
-    expect(setup.poolManager).toBeUndefined();
-    expect(setup.poolSlots).toHaveLength(0);
     expect(setup.sharedWorkspacePath).toBeDefined();
     if (!setup.sharedWorkspacePath) {
       throw new Error('Expected temp setup to include a workspace path');
@@ -248,16 +245,16 @@ describe('prepareSharedWorkspaceSetup', () => {
         evalDir: tmpDir,
         workers: 1,
       }),
-    ).rejects.toThrow(/multiple shared workspace owners/);
+    ).rejects.toThrow(/multiple suite workspace owners/);
   });
 
-  it('allows per-case isolated imported suites without shared setup', async () => {
+  it('allows attempt-scoped imported suites without shared setup', async () => {
     setup = await prepareSharedWorkspaceSetup({
-      evalRunId: 'test-per-case-imported-suites',
+      evalRunId: 'test-attempt-imported-suites',
       evalCases: [
         testCase(
           'a',
-          { isolation: 'per_case', template: path.join(tmpDir, 'missing-a') },
+          { scope: 'attempt', template: path.join(tmpDir, 'missing-a') },
           {
             evalFileAbsolutePath: path.join(tmpDir, 'child-a.eval.yaml'),
             importedSuiteName: 'child-a',
@@ -265,7 +262,7 @@ describe('prepareSharedWorkspaceSetup', () => {
         ),
         testCase(
           'b',
-          { isolation: 'per_case', template: path.join(tmpDir, 'missing-b') },
+          { scope: 'attempt', template: path.join(tmpDir, 'missing-b') },
           {
             evalFileAbsolutePath: path.join(tmpDir, 'child-b.eval.yaml'),
             importedSuiteName: 'child-b',
@@ -312,17 +309,17 @@ describe('prepareSharedWorkspaceSetup', () => {
     ).rejects.toThrow(/does not merge parent and child workspaces/);
   });
 
-  it('keeps imported per-case workspaces allowed beside parent-owned raw cases', async () => {
+  it('keeps imported attempt workspaces allowed beside parent-owned raw cases', async () => {
     const parentTemplate = path.join(tmpDir, 'parent-template');
     mkdirSync(parentTemplate, { recursive: true });
     writeFileSync(path.join(parentTemplate, 'parent-marker.txt'), 'parent\n', 'utf8');
 
     setup = await prepareSharedWorkspaceSetup({
-      evalRunId: 'test-parent-shared-imported-per-case',
+      evalRunId: 'test-parent-shared-imported-attempt',
       evalCases: [
         testCase(
           'child-case',
-          { isolation: 'per_case', template: path.join(tmpDir, 'child-template') },
+          { scope: 'attempt', template: path.join(tmpDir, 'child-template') },
           {
             evalFileAbsolutePath: path.join(tmpDir, 'child.eval.yaml'),
             importedSuiteName: 'child',
@@ -386,14 +383,14 @@ describe('prepareSharedWorkspaceSetup', () => {
     ).rejects.toThrow(/Docker workspace configured|docker pull failed|invalid reference/);
   });
 
-  it('runs per-case setup for env-only workspace configs', async () => {
+  it('runs attempt setup for env-only workspace configs', async () => {
     const missingCommand = `agentv-missing-command-${Date.now()}`;
 
     await expect(
       prepareEvalCaseWorkspace({
-        evalRunId: 'test-per-case-env-only-preflight',
-        evalCase: testCase('per-case-env-only-case', {
-          isolation: 'per_case',
+        evalRunId: 'test-attempt-env-only-preflight',
+        evalCase: testCase('attempt-env-only-case', {
+          scope: 'attempt',
           env: {
             required_commands: [missingCommand],
           },
@@ -403,12 +400,12 @@ describe('prepareSharedWorkspaceSetup', () => {
     ).rejects.toThrow(`command: ${missingCommand}`);
   });
 
-  it('runs per-case setup for docker-only workspace configs', async () => {
+  it('runs attempt setup for docker-only workspace configs', async () => {
     await expect(
       prepareEvalCaseWorkspace({
-        evalRunId: 'test-per-case-docker-only-preflight',
-        evalCase: testCase('per-case-docker-only-case', {
-          isolation: 'per_case',
+        evalRunId: 'test-attempt-docker-only-preflight',
+        evalCase: testCase('attempt-docker-only-case', {
+          scope: 'attempt',
           docker: {
             image: 'invalid image with spaces',
           },

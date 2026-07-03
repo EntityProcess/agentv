@@ -9,7 +9,6 @@
 import type React from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
-import { useFeedback } from '~/lib/api';
 import { evalResultPath } from '~/lib/navigation';
 import {
   RESULT_TABLE_VIEW_PRESETS,
@@ -25,7 +24,7 @@ import type { EvalCaseTrial, EvalResult, ScoreEntry } from '~/lib/types';
 import { EvalDetail } from './EvalDetail';
 import { PassRatePill } from './PassRatePill';
 
-type DetailTab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
+type DetailTab = 'checks' | 'transcript' | 'source' | 'files';
 
 interface ResultTableProps {
   results: readonly EvalResult[];
@@ -195,20 +194,14 @@ export function ResultTable({
   const [collapsedRepeatRows, setCollapsedRepeatRows] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const { data: feedback } = useFeedback(projectId);
-  const reviewedTestIds = useMemo(
-    () => feedback?.reviews.map((review) => review.test_id) ?? [],
-    [feedback?.reviews],
-  );
   const model = useMemo(
     () =>
       buildResultTableModel({
         results,
         passThreshold,
-        reviewedTestIds,
         state: urlState,
       }),
-    [passThreshold, results, reviewedTestIds, urlState],
+    [passThreshold, results, urlState],
   );
   const visibleColumnIds = new Set(model.state.visibleColumnIds);
   const selectedRow =
@@ -846,12 +839,6 @@ function ResultCell({
       );
     case 'cost_tokens':
       return <CostTokenCell row={row} repeatGroup={repeatGroup} />;
-    case 'review':
-      return (
-        <span className={row.reviewed ? 'text-emerald-300' : 'text-gray-500'}>
-          {row.reviewed ? 'Reviewed' : 'Unreviewed'}
-        </span>
-      );
     case 'error':
       return <TruncatedMuted value={row.result.error} tone="text-red-300" />;
     default:

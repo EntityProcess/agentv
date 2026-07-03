@@ -54,8 +54,13 @@ describe('containsTemplateVariables', () => {
     expect(containsTemplateVariables('Check if the response shows step-by-step work')).toBe(false);
   });
 
+  it('returns true for rubric template variables', () => {
+    expect(containsTemplateVariables('Evaluate {{output}} against {{rubric}}')).toBe(true);
+    expect(containsTemplateVariables('Evaluate {{rubrics_json}}')).toBe(true);
+  });
+
   it('returns false for text with unknown variable names', () => {
-    expect(containsTemplateVariables('Evaluate {{answer}} against {{rubric}}')).toBe(false);
+    expect(containsTemplateVariables('Evaluate {{answer}}')).toBe(false);
   });
 
   it('returns false for empty string', () => {

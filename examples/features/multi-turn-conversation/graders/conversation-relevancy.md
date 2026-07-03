@@ -16,7 +16,7 @@ Score each assistant turn:
 - 0.5 if the response is partially relevant but includes unnecessary information
 - 0.0 if the response is off-topic or fails to address the user's request
 
-In your `assertions`, include specific turn-level checks.
+In your `assertions` result array, include specific turn-level checks.
 In your `details`, return:
 - `scores_per_turn`: array of scores (0.0-1.0) for each assistant turn
 - `on_topic_turns`: count of turns scored 1.0

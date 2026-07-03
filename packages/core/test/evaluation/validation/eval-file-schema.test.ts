@@ -168,6 +168,41 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts default_test file and ref references', () => {
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: 'file://.agentv/default-test.yaml',
+        tests: [baseTest],
+      }).success,
+    ).toBe(true);
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: 'ref://global-default',
+        tests: [baseTest],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects bare default_test reference names', () => {
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: 'global-default',
+        tests: [baseTest],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects default_test.assertions', () => {
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: {
+          assertions: [{ type: 'contains', value: 'ok' }],
+        },
+        tests: [baseTest],
+      }).success,
+    ).toBe(false);
+  });
+
   it('accepts a snake_cased promptfoo-shaped eval config', () => {
     const result = EvalFileSchema.safeParse({
       description: 'Promptfoo-compatible authoring shape',
@@ -217,7 +252,7 @@ describe('EvalFileSchema input shorthand', () => {
               threshold: 0.5,
             },
             {
-              type: 'g-eval',
+              type: 'llm-rubric',
               value: ['Identifies user impact', 'Avoids unsupported claims'],
               score_ranges: [{ score_range: [0, 10], outcome: 'overall quality' }],
             },
@@ -308,15 +343,15 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts explicit rubrics criteria string shorthand', () => {
+  it('accepts explicit llm-rubric value string shorthand', () => {
     const result = EvalFileSchema.safeParse({
       tests: [
         {
           ...baseTest,
-          assertions: [
+          assert: [
             {
-              type: 'rubrics',
-              criteria: ['Must be polite', 'Must be accurate'],
+              type: 'llm-rubric',
+              value: ['Must be polite', 'Must be accurate'],
             },
           ],
         },

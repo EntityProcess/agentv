@@ -84,6 +84,58 @@ describe('loadConfig', () => {
     }
   });
 
+  it('interpolates AGENTV_REPO_ROOT into project refs', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-refs-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        [
+          'refs:',
+          '  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
+          '',
+        ].join('\n'),
+      );
+
+      await withOptionalEnv('AGENTV_REPO_ROOT', undefined, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.refs).toEqual({
+          'global-default': `file://${projectDir}/.agentv/default-test.yaml`,
+        });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not overwrite caller-provided AGENTV_REPO_ROOT in project config interpolation', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-refs-env-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        ['refs:', '  global-default: file://{{ env.AGENTV_REPO_ROOT }}/default-test.yaml', ''].join(
+          '\n',
+        ),
+      );
+
+      await withOptionalEnv('AGENTV_REPO_ROOT', '/custom/root', async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.refs?.['global-default']).toBe('file:///custom/root/default-test.yaml');
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('prefers project-local .agentv/config.yaml over AGENTV_HOME/config.yaml', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-config-'));
     try {
@@ -128,7 +180,6 @@ describe('loadConfig', () => {
           '  - "**/*.base.eval.yaml"',
           'execution:',
           '  verbose: true',
-          '  pool_slots: 2',
           'results:',
           '  path: .',
           '  branch: base-results',
@@ -156,7 +207,6 @@ describe('loadConfig', () => {
         verbose: true,
         keep_workspaces: true,
         workspace_path: '/tmp/agentv-local-workspace',
-        pool_slots: 2,
       });
       expect(config?.results).toEqual({
         mode: 'github',
@@ -245,7 +295,7 @@ describe('loadConfig', () => {
       mkdirSync(homeDir, { recursive: true });
       writeFileSync(
         path.join(homeDir, 'config.yaml'),
-        'execution:\n  verbose: true\n  pool_slots: 4\neval_patterns:\n  - "**/*.base.eval.yaml"\n',
+        'execution:\n  verbose: true\neval_patterns:\n  - "**/*.base.eval.yaml"\n',
       );
       writeFileSync(
         path.join(homeDir, 'config.local.yaml'),
@@ -258,7 +308,6 @@ describe('loadConfig', () => {
         expect(config?.execution).toEqual({
           verbose: true,
           keep_workspaces: true,
-          pool_slots: 4,
         });
       });
     } finally {
@@ -294,50 +343,6 @@ describe('loadConfig', () => {
         expect(resolveResultsConfigForProject(config, 'agentv')).toBeUndefined();
       });
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it('ignores removed configured experiment defaults', async () => {
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-default-experiment-'));
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const projectDir = path.join(tempDir, 'project');
-      const evalDir = path.join(projectDir, 'evals');
-      const localConfigDir = path.join(projectDir, '.agentv');
-      mkdirSync(evalDir, { recursive: true });
-      mkdirSync(localConfigDir, { recursive: true });
-      writeFileSync(path.join(localConfigDir, 'config.yaml'), 'experiments:\n  default: smoke\n');
-
-      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
-
-      expect(config).not.toHaveProperty('experiments');
-      expect(warnSpy.mock.calls.some((call) => String(call[0]).includes('experiments'))).toBe(true);
-    } finally {
-      warnSpy.mockRestore();
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  });
-
-  it('ignores removed top-level default_experiment shorthand', async () => {
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-default-experiment-alias-'));
-    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const projectDir = path.join(tempDir, 'project');
-      const evalDir = path.join(projectDir, 'evals');
-      const localConfigDir = path.join(projectDir, '.agentv');
-      mkdirSync(evalDir, { recursive: true });
-      mkdirSync(localConfigDir, { recursive: true });
-      writeFileSync(path.join(localConfigDir, 'config.yaml'), 'default_experiment: smoke\n');
-
-      const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
-
-      expect(config).not.toHaveProperty('default_experiment');
-      expect(
-        warnSpy.mock.calls.some((call) => String(call[0]).includes('default_experiment')),
-      ).toBe(true);
-    } finally {
-      warnSpy.mockRestore();
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
@@ -654,28 +659,28 @@ describe('extractBudgetUsd', () => {
     expect(extractBudgetUsd(suite)).toBe(10.0);
   });
 
-  it('prefers evaluate_options.budget_usd over legacy top-level budget_usd', () => {
+  it('rejects removed top-level budget_usd even when evaluate_options.budget_usd is present', () => {
     const suite: JsonObject = { evaluate_options: { budget_usd: 2.5 }, budget_usd: 10.0 };
-    expect(extractBudgetUsd(suite)).toBe(2.5);
+    expect(() => extractBudgetUsd(suite)).toThrow(/Top-level 'budget_usd'/);
   });
 
-  it('parses legacy top-level budget_usd', () => {
+  it('rejects removed top-level budget_usd', () => {
     const suite: JsonObject = { budget_usd: 10.0 };
-    expect(extractBudgetUsd(suite)).toBe(10.0);
+    expect(() => extractBudgetUsd(suite)).toThrow(/Top-level 'budget_usd'/);
   });
 
-  it('returns undefined for zero budget', () => {
-    const suite: JsonObject = { budget_usd: 0 };
+  it('returns undefined for zero evaluate_options budget', () => {
+    const suite: JsonObject = { evaluate_options: { budget_usd: 0 } };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('returns undefined for negative budget', () => {
-    const suite: JsonObject = { budget_usd: -1 };
+  it('returns undefined for negative evaluate_options budget', () => {
+    const suite: JsonObject = { evaluate_options: { budget_usd: -1 } };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
-  it('returns undefined for non-number budget', () => {
-    const suite: JsonObject = { budget_usd: 'ten' };
+  it('returns undefined for non-number evaluate_options budget', () => {
+    const suite: JsonObject = { evaluate_options: { budget_usd: 'ten' } };
     expect(extractBudgetUsd(suite)).toBeUndefined();
   });
 
@@ -796,16 +801,21 @@ describe('parseExecutionDefaults', () => {
     expect(result?.keep_workspaces).toBe(true);
   });
 
-  it('parses workspace runtime bindings', () => {
-    const result = parseExecutionDefaults(
-      {
-        workspace_mode: 'static',
-        workspace_path: '  /tmp/agentv-workspace  ',
-      },
-      '/test/config.local.yaml',
-    );
-    expect(result?.workspace_mode).toBe('static');
-    expect(result?.workspace_path).toBe('/tmp/agentv-workspace');
+  it('parses workspace_path and ignores removed workspace_mode', () => {
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = parseExecutionDefaults(
+        {
+          workspace_mode: 'static',
+          workspace_path: '  /tmp/agentv-workspace  ',
+        },
+        '/test/config.local.yaml',
+      );
+      expect(result?.workspace_path).toBe('/tmp/agentv-workspace');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('execution.workspace_mode'));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('ignores workspace runtime bindings outside local config', () => {
@@ -835,12 +845,11 @@ describe('parseExecutionDefaults', () => {
     expect(result?.otel_file).toBe('.agentv/results/otel.json');
   });
 
-  it('parses all fields together', () => {
+  it('parses all supported fields together', () => {
     const result = parseExecutionDefaults(
       {
         verbose: true,
         keep_workspaces: false,
-        workspace_mode: 'temp',
         otel_file: 'otel.json',
       },
       '/test/config.local.yaml',
@@ -848,7 +857,6 @@ describe('parseExecutionDefaults', () => {
     expect(result).toEqual({
       verbose: true,
       keep_workspaces: false,
-      workspace_mode: 'temp',
       otel_file: 'otel.json',
     });
   });

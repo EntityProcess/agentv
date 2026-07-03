@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Mock Agent CLI for tool_trajectory grader demos.
+ * Mock Agent CLI for tool-trajectory grader demos.
  *
  * This CLI simulates an agent that uses tools and returns trace data.
  * It demonstrates how real agent providers (codex, vscode) would return
- * trace events for tool_trajectory evaluation.
+ * trace events for tool-trajectory evaluation.
  *
  * Usage:
  *   bun run mock-agent.ts --prompt "..." --output output.json

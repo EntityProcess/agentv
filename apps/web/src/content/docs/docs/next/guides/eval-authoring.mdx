@@ -170,7 +170,7 @@ tests:
     expected_output: |
       The durable repo change is to update .agents/verification.md with the
       reusable verification workflow lessons.
-    assertions:
+    assert:
       - The answer uses the pinned ./agentv checkout to verify the existing guidance.
       - The answer preserves the historical commit SHA as context.
 ```

@@ -16,7 +16,7 @@
  * ```yaml
  * graders:
  *   - name: header_confusion
- *     type: code-grader
+ *     type: script
  *     command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
  *     fields:
  *       - path: invoice_number

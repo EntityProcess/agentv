@@ -26,7 +26,7 @@ tests:
         content: Authenticated user_id=4001.
       - role: user
         content: What was the total on my last invoice?
-    assertions:
+    assert:
       - type: icontains-any
         value: ["invoice", "your", "balance", "amount"]
 
@@ -42,7 +42,7 @@ tests:
         content: |-
           I'd like to request a refund for my order #INV-4001-A. The item
           arrived damaged. What's the next step?
-    assertions:
+    assert:
       - type: icontains-any
         value: ["refund", "process", "your order", "next step", "policy"]
 
@@ -54,6 +54,6 @@ tests:
     input:
       - role: user
         content: What's your standard refund policy?
-    assertions:
+    assert:
       - type: icontains-any
         value: ["refund", "days", "policy", "process"]

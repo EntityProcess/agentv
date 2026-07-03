@@ -17,7 +17,6 @@ import { copyFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { getWorkspacePoolRoot } from '../../paths.js';
 import { type ExtensionRuntimeState, runExtensionsForHook } from '../extensions/runner.js';
 import type {
   AgentVExtensionConfig,
@@ -40,7 +39,6 @@ import {
   createTempWorkspace,
   getWorkspacePath,
 } from './manager.js';
-import { type PoolSlot, WorkspacePoolManager } from './pool-manager.js';
 import { RepoManager } from './repo-manager.js';
 import { resolveWorkspaceTemplate } from './resolve.js';
 import { type ScriptExecutionContext, executeWorkspaceScript } from './script-executor.js';
@@ -48,8 +46,7 @@ import { type ScriptExecutionContext, executeWorkspaceScript } from './script-ex
 const execFileAsync = promisify(execFile);
 const WORKSPACE_GIT_TIMEOUT_MS = 300_000;
 
-export type WorkspaceSetupMode = 'pooled' | 'temp' | 'static';
-export type WorkspaceSetupCleanPolicy = 'standard' | 'full';
+export type WorkspaceSetupMode = 'temp' | 'static';
 export type WorkspaceSetupRetentionPolicy = 'keep' | 'cleanup';
 export type WorkspaceSetupHookScope = 'workspace' | 'target';
 export type WorkspaceSetupHookName = 'before_all' | 'before_each';
@@ -99,11 +96,8 @@ export interface SharedWorkspaceSetupOptions {
   readonly evalDir: string;
   readonly verbose?: boolean;
   readonly workers: number;
-  readonly poolMaxSlots?: number;
   readonly workspacePath?: string;
   readonly legacyWorkspacePath?: string;
-  readonly workspaceMode?: WorkspaceSetupMode;
-  readonly workspaceClean?: WorkspaceSetupCleanPolicy;
 }
 
 export interface SharedWorkspaceSetup {
@@ -115,12 +109,6 @@ export interface SharedWorkspaceSetup {
   readonly suiteWorkspaceFile?: string;
   readonly beforeAllOutput?: string;
   readonly repoManager?: RepoManager;
-  readonly poolManager?: WorkspacePoolManager;
-  readonly poolSlot?: PoolSlot;
-  readonly poolSlots: readonly PoolSlot[];
-  readonly availablePoolSlots: PoolSlot[];
-  readonly poolSlotBaselines: ReadonlyMap<string, string>;
-  readonly poolSlotExtensionStates: ReadonlyMap<string, ExtensionRuntimeState>;
   readonly useStaticWorkspace: boolean;
   readonly configuredMode: WorkspaceSetupMode;
   readonly hookExecutions: readonly WorkspaceSetupHookExecution[];
@@ -184,17 +172,17 @@ export function hooksEnabled(
   return workspace?.hooks?.enabled !== false;
 }
 
-export function isPerCaseIsolation(
-  workspace: { readonly isolation?: WorkspaceConfig['isolation'] } | undefined,
+export function isAttemptScopedWorkspace(
+  workspace: { readonly scope?: WorkspaceConfig['scope'] } | undefined,
 ): boolean {
-  return workspace?.isolation === 'per_case';
+  return workspace?.scope === 'attempt';
 }
 
 export function caseUsesSharedWorkspaceSetup(
   evalCase: EvalTest,
   setup: Pick<SharedWorkspaceSetup, 'sharedWorkspaceAppliesToAllCases' | 'sharedWorkspaceOwnerKey'>,
 ): boolean {
-  if (isPerCaseIsolation(evalCase.workspace)) {
+  if (isAttemptScopedWorkspace(evalCase.workspace)) {
     return false;
   }
   if (setup.sharedWorkspaceAppliesToAllCases) {
@@ -210,7 +198,7 @@ export function caseUsesSharedWorkspaceSetup(
 function workspaceNeedsSharedSetup(
   workspace: WorkspaceConfig | undefined,
 ): workspace is WorkspaceConfig {
-  if (!workspace || isPerCaseIsolation(workspace)) {
+  if (!workspace || isAttemptScopedWorkspace(workspace)) {
     return false;
   }
   return !!(
@@ -298,7 +286,7 @@ function selectSuiteWorkspace(evalCases: readonly EvalTest[]): SelectedSharedWor
     .map((candidate) => `${candidate.owner} for tests ${candidate.testIds.join(', ')}`)
     .join('; ');
   throw new WorkspaceSetupError(
-    `Wrapper eval contains multiple shared workspace owners: ${owners}. AgentV does not merge parent and child workspaces or run separate imported-suite shared workspaces in one wrapper execution. Use isolation: per_case for imported suites, split them into separate runs, or keep only one shared workspace owner.`,
+    `Wrapper eval contains multiple suite workspace owners: ${owners}. AgentV does not merge parent and child workspaces or run separate imported-suite suite workspaces in one wrapper execution. Use workspace.scope: attempt for imported suites, split them into separate runs, or keep only one suite workspace owner.`,
     {
       failureStage: 'setup',
       failureReasonCode: 'ambiguous_shared_workspace',
@@ -310,7 +298,7 @@ function selectSuiteExtensions(evalCases: readonly EvalTest[]): readonly AgentVE
   const candidates = new Map<string, readonly AgentVExtensionConfig[]>();
   for (const evalCase of evalCases) {
     const extensions = evalCase.extensions ?? [];
-    if (extensions.length === 0 || isPerCaseIsolation(evalCase.workspace)) {
+    if (extensions.length === 0 || isAttemptScopedWorkspace(evalCase.workspace)) {
       continue;
     }
     candidates.set(stableWorkspaceValue(extensions), extensions);
@@ -318,7 +306,7 @@ function selectSuiteExtensions(evalCases: readonly EvalTest[]): readonly AgentVE
 
   if (candidates.size > 1) {
     throw new WorkspaceSetupError(
-      'Wrapper eval contains multiple shared extension sets. Split the suites or use isolation: per_case when lifecycle extensions differ.',
+      'Wrapper eval contains multiple suite extension sets. Split the suites or use workspace.scope: attempt when lifecycle extensions differ.',
       {
         failureStage: 'setup',
         failureReasonCode: 'ambiguous_shared_extensions',
@@ -404,26 +392,8 @@ function hookExecution(options: {
   };
 }
 
-async function releasePoolSlots(setup: {
-  readonly poolManager?: WorkspacePoolManager;
-  readonly poolSlot?: PoolSlot;
-  readonly poolSlots: readonly PoolSlot[];
-}): Promise<void> {
-  if (!setup.poolManager) {
-    return;
-  }
-  if (setup.poolSlot) {
-    await setup.poolManager.releaseSlot(setup.poolSlot);
-  }
-  for (const slot of setup.poolSlots) {
-    if (slot !== setup.poolSlot) {
-      await setup.poolManager.releaseSlot(slot).catch(() => {});
-    }
-  }
-}
-
 export async function releaseSharedWorkspaceSetup(setup: SharedWorkspaceSetup): Promise<void> {
-  await releasePoolSlots(setup);
+  void setup;
 }
 
 export async function prepareSharedWorkspaceSetup(
@@ -436,11 +406,8 @@ export async function prepareSharedWorkspaceSetup(
     evalDir,
     verbose,
     workers,
-    poolMaxSlots: configPoolMaxSlots,
     workspacePath,
     legacyWorkspacePath,
-    workspaceMode,
-    workspaceClean,
   } = options;
   const selectedSuiteWorkspace = selectSuiteWorkspace(evalCases);
   const suiteWorkspace = selectedSuiteWorkspace?.workspace;
@@ -455,54 +422,34 @@ export async function prepareSharedWorkspaceSetup(
     }
   };
 
-  const isPerCaseWorkspace = isPerCaseIsolation(suiteWorkspace);
+  const isAttemptWorkspace = isAttemptScopedWorkspace(suiteWorkspace);
 
   const cliWorkspacePath = workspacePath ?? legacyWorkspacePath;
   const sharedWorkspaceAppliesToAllCases = !!cliWorkspacePath;
-  if (cliWorkspacePath && workspaceMode && workspaceMode !== 'static') {
-    throw new Error('--workspace-path requires --workspace-mode static when both are provided');
-  }
-  let configuredMode: WorkspaceSetupMode = cliWorkspacePath ? 'static' : (workspaceMode ?? 'temp');
+  const configuredMode: WorkspaceSetupMode = cliWorkspacePath ? 'static' : 'temp';
   const configuredStaticPath = cliWorkspacePath;
-
-  if (configuredMode === 'static' && !configuredStaticPath) {
-    if (!suiteWorkspace?.repos?.length) {
-      setupLog(
-        'runtime workspaceMode=static with no path and no repos — falling back to temp mode',
-      );
-      configuredMode = 'temp';
-    } else {
-      throw new Error(
-        'runtime workspaceMode=static requires --workspace-path or execution.workspace_path in config.local.yaml',
-      );
-    }
-  }
 
   const useStaticWorkspace = configuredMode === 'static';
 
-  if (useStaticWorkspace && evalCases.some((evalCase) => isPerCaseIsolation(evalCase.workspace))) {
+  if (
+    useStaticWorkspace &&
+    evalCases.some((evalCase) => isAttemptScopedWorkspace(evalCase.workspace))
+  ) {
     throw new Error(
-      'static workspace mode is incompatible with isolation: per_case. Use isolation: shared (default).',
+      'static workspace mode is incompatible with workspace.scope: attempt. Use workspace.scope: suite or omit the static workspace override.',
     );
   }
   const hasSharedWorkspace = !!(
     useStaticWorkspace ||
-    (!isPerCaseWorkspace &&
+    (!isAttemptWorkspace &&
       (workspaceTemplate || suiteWorkspace?.hooks || suiteWorkspace?.repos?.length)) ||
     suiteExtensions.length > 0
   );
 
-  const poolEnabled = configuredMode === 'pooled';
-  const usePool =
-    poolEnabled !== false &&
-    !!suiteWorkspace?.repos?.length &&
-    !isPerCaseWorkspace &&
-    !useStaticWorkspace;
-
   setupLog(
-    `sharedWorkspace=${hasSharedWorkspace} perCaseIsolation=${isPerCaseWorkspace} usePool=${usePool} workers=${workers}`,
+    `sharedWorkspace=${hasSharedWorkspace} attemptScope=${isAttemptWorkspace} workers=${workers}`,
   );
-  if (hasSharedWorkspace && !usePool && workers > 1 && evalCases.length > 1) {
+  if (hasSharedWorkspace && workers > 1 && evalCases.length > 1) {
     console.warn(
       [
         `Warning: This eval uses a shared workspace with ${workers} workers.`,
@@ -516,465 +463,262 @@ export async function prepareSharedWorkspaceSetup(
   let sharedBaselineCommit: string | undefined;
   let beforeAllOutput: string | undefined;
 
-  let poolManager: WorkspacePoolManager | undefined;
-  let poolSlot: PoolSlot | undefined;
-  const poolSlots: PoolSlot[] = [];
-  const availablePoolSlots: PoolSlot[] = [];
-  const poolSlotBaselines = new Map<string, string>();
-  const poolSlotExtensionStates = new Map<string, ExtensionRuntimeState>();
   const hookExecutions: WorkspaceSetupHookExecution[] = [];
   let extensionState: ExtensionRuntimeState | undefined;
 
-  const poolMaxSlots = Math.min(configPoolMaxSlots ?? 10, 50);
   let repoManager: RepoManager | undefined;
 
-  try {
-    if (useStaticWorkspace && configuredStaticPath) {
-      setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
-      sharedWorkspacePath = configuredStaticPath;
-    } else if (!isPerCaseWorkspace && usePool && suiteWorkspace?.repos) {
-      const slotsNeeded = workers;
-      setupLog(`acquiring ${slotsNeeded} workspace pool slot(s) (pool capacity: ${poolMaxSlots})`);
-      poolManager = new WorkspacePoolManager(getWorkspacePoolRoot());
-      const poolRepoManager = new RepoManager(verbose, { projectConfigDir: evalDir });
-      repoManager = poolRepoManager;
-
-      for (let i = 0; i < slotsNeeded; i++) {
-        const slot = await poolManager.acquireWorkspace({
-          templatePath: workspaceTemplate,
-          repos: suiteWorkspace.repos,
-          maxSlots: poolMaxSlots,
-          repoManager: poolRepoManager,
-          poolReset:
-            (workspaceClean === 'full'
-              ? 'strict'
-              : workspaceClean === 'standard'
-                ? 'fast'
-                : null) ?? 'fast',
-        });
-        poolSlots.push(slot);
-        setupLog(`pool slot ${i} acquired at: ${slot.path} (existing=${slot.isExisting})`);
-      }
-
-      if (slotsNeeded === 1) {
-        poolSlot = poolSlots[0];
-        sharedWorkspacePath = poolSlot.path;
-      } else {
-        availablePoolSlots.push(...poolSlots);
-      }
-    } else if (!isPerCaseWorkspace && workspaceTemplate) {
-      setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
-      try {
-        sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
-        setupLog(`shared workspace created at: ${sharedWorkspacePath}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new WorkspaceSetupError(`Failed to create shared workspace: ${message}`, {
-          failureStage: 'setup',
-          failureReasonCode: 'template_error',
-          hookExecutions,
-          cause: error,
-        });
-      }
-    } else if (
-      !isPerCaseWorkspace &&
-      (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length || suiteExtensions.length > 0)
-    ) {
-      sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
-      await mkdir(sharedWorkspacePath, { recursive: true });
-      setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
+  if (useStaticWorkspace && configuredStaticPath) {
+    setupLog(`reusing existing static workspace: ${configuredStaticPath}`);
+    sharedWorkspacePath = configuredStaticPath;
+  } else if (!isAttemptWorkspace && workspaceTemplate) {
+    setupLog(`creating shared workspace from template: ${workspaceTemplate}`);
+    try {
+      sharedWorkspacePath = await createTempWorkspace(workspaceTemplate, evalRunId, 'shared');
+      setupLog(`shared workspace created at: ${sharedWorkspacePath}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new WorkspaceSetupError(`Failed to create shared workspace: ${message}`, {
+        failureStage: 'setup',
+        failureReasonCode: 'template_error',
+        hookExecutions,
+        cause: error,
+      });
     }
-
-    if (suiteWorkspaceFile && sharedWorkspacePath) {
-      const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
-      try {
-        await stat(copiedWorkspaceFile);
-        suiteWorkspaceFile = copiedWorkspaceFile;
-      } catch {
-        // Keep original if copy does not exist.
-      }
-    }
-
-    const hasReposToMaterialize =
-      !!suiteWorkspace?.repos?.length && !usePool && !isPerCaseWorkspace;
-    const needsRepoMaterialisation = hasReposToMaterialize && !useStaticWorkspace;
-    repoManager =
-      repoManager ??
-      (needsRepoMaterialisation
-        ? new RepoManager(verbose, { projectConfigDir: evalDir })
-        : undefined);
-
-    if (needsRepoMaterialisation && repoManager && sharedWorkspacePath && suiteWorkspace?.repos) {
-      try {
-        setupLog(
-          `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
-        );
-        await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
-        setupLog('shared repo materialization complete');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath && !useStaticWorkspace) {
-          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-        }
-        throw new WorkspaceSetupError(`Failed to materialize repos: ${message}`, {
-          failureStage: 'repo_setup',
-          failureReasonCode: 'clone_error',
-          hookExecutions,
-          cause: error,
-        });
-      }
-    }
-
-    const suiteDockerConfig = suiteWorkspace?.docker;
-    if (suiteDockerConfig) {
-      await prepareDockerWorkspace(suiteDockerConfig, setupLog);
-    }
-
-    if (suiteWorkspace?.env) {
-      try {
-        await runPreflightChecks(suiteWorkspace.env, sharedWorkspacePath ?? undefined, setupLog);
-        setupLog('preflight checks passed');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath && !useStaticWorkspace) {
-          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-        }
-        throw new WorkspaceSetupError(message, {
-          failureStage: 'setup',
-          failureReasonCode: 'preflight_error',
-          hookExecutions,
-          cause: error,
-        });
-      }
-    }
-
-    const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
-    const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
-    if (sharedWorkspacePath && suiteExtensions.length > 0) {
-      try {
-        extensionState = await runExtensionsForHook({
-          extensions: suiteExtensions,
-          hook: 'beforeAll',
-          context: {
-            hook_name: 'beforeAll',
-            workspace_path: sharedWorkspacePath,
-            test_id: '__before_all__',
-            eval_run_id: evalRunId,
-            eval_dir: evalDir,
-          },
-          state: extensionState,
-        });
-        beforeAllOutput = mergeHookOutput(beforeAllOutput, extensionState?.output);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (sharedWorkspacePath && !useStaticWorkspace) {
-          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-        }
-        throw new WorkspaceSetupError(`beforeAll extension failed: ${message}`, {
-          failureStage: 'setup',
-          failureReasonCode: 'extension_error',
-          hookExecutions,
-          cause: error,
-        });
-      }
-    }
-    if (availablePoolSlots.length > 0 && suiteExtensions.length > 0) {
-      for (const slot of availablePoolSlots) {
-        setupLog(`running beforeAll extensions on pool slot ${slot.index}`);
-        try {
-          const slotExtensionState = await runExtensionsForHook({
-            extensions: suiteExtensions,
-            hook: 'beforeAll',
-            context: {
-              hook_name: 'beforeAll',
-              workspace_path: slot.path,
-              test_id: '__before_all__',
-              eval_run_id: evalRunId,
-              eval_dir: evalDir,
-            },
-          });
-          if (slotExtensionState) {
-            poolSlotExtensionStates.set(slot.path, slotExtensionState);
-          }
-          beforeAllOutput = mergeHookOutput(beforeAllOutput, slotExtensionState?.output);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          throw new WorkspaceSetupError(
-            `beforeAll extension failed on pool slot ${slot.index}: ${message}`,
-            {
-              failureStage: 'setup',
-              failureReasonCode: 'extension_error',
-              hookExecutions,
-              cause: error,
-            },
-          );
-        }
-      }
-    }
-    if (sharedWorkspacePath && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
-      const beforeAllHook = suiteBeforeAllHook;
-      const beforeAllCommand = (beforeAllHook.command ?? []).join(' ');
-      setupLog(
-        `running shared before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,
-      );
-      const scriptContext: ScriptExecutionContext = {
-        workspacePath: sharedWorkspacePath,
-        testId: '__before_all__',
-        evalRunId,
-        evalDir,
-        workspaceFileDir: suiteWorkspace?.workspaceFileDir,
-      };
-      try {
-        beforeAllOutput = await executeWorkspaceScript(
-          toScriptConfig(beforeAllHook, 'before_all', 'suite workspace'),
-          scriptContext,
-        );
-        hookExecutions.push(
-          hookExecution({
-            scope: 'workspace',
-            name: 'before_all',
-            status: 'success',
-            testId: '__before_all__',
-            workspacePath: sharedWorkspacePath,
-            hook: beforeAllHook,
-            output: beforeAllOutput,
-          }),
-        );
-        setupLog('shared before_all completed');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        hookExecutions.push(
-          hookExecution({
-            scope: 'workspace',
-            name: 'before_all',
-            status: 'failed',
-            testId: '__before_all__',
-            workspacePath: sharedWorkspacePath,
-            hook: beforeAllHook,
-            error: message,
-          }),
-        );
-        if (sharedWorkspacePath && !useStaticWorkspace) {
-          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-        }
-        throw new WorkspaceSetupError(`before_all script failed: ${message}`, {
-          failureStage: 'setup',
-          failureReasonCode: 'script_error',
-          hookExecutions,
-          cause: error,
-        });
-      }
-    }
-
-    if (availablePoolSlots.length > 0 && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
-      const beforeAllHook = suiteBeforeAllHook;
-      for (const slot of availablePoolSlots) {
-        setupLog(`running before_all on pool slot ${slot.index}`);
-        const scriptContext: ScriptExecutionContext = {
-          workspacePath: slot.path,
-          testId: '__before_all__',
-          evalRunId,
-          evalDir,
-          workspaceFileDir: suiteWorkspace?.workspaceFileDir,
-        };
-        try {
-          const output = await executeWorkspaceScript(
-            toScriptConfig(beforeAllHook, 'before_all', 'suite workspace'),
-            scriptContext,
-          );
-          if (!beforeAllOutput) beforeAllOutput = output;
-          hookExecutions.push(
-            hookExecution({
-              scope: 'workspace',
-              name: 'before_all',
-              status: 'success',
-              testId: '__before_all__',
-              workspacePath: slot.path,
-              hook: beforeAllHook,
-              output,
-            }),
-          );
-          setupLog(`before_all completed on pool slot ${slot.index}`);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          hookExecutions.push(
-            hookExecution({
-              scope: 'workspace',
-              name: 'before_all',
-              status: 'failed',
-              testId: '__before_all__',
-              workspacePath: slot.path,
-              hook: beforeAllHook,
-              error: message,
-            }),
-          );
-          throw new WorkspaceSetupError(
-            `before_all script failed on pool slot ${slot.index}: ${message}`,
-            {
-              failureStage: 'setup',
-              failureReasonCode: 'script_error',
-              hookExecutions,
-              cause: error,
-            },
-          );
-        }
-      }
-    }
-
-    const targetBeforeAllHook = targetHooks?.before_all;
-    if (sharedWorkspacePath && hasHookCommand(targetBeforeAllHook)) {
-      const beforeAllCommand = (targetBeforeAllHook.command ?? []).join(' ');
-      setupLog(`running target before_all command=${beforeAllCommand}`);
-      const scriptContext: ScriptExecutionContext = {
-        workspacePath: sharedWorkspacePath,
-        testId: '__target_before_all__',
-        evalRunId,
-        evalDir,
-        workspaceFileDir: suiteWorkspace?.workspaceFileDir,
-      };
-      try {
-        await executeWorkspaceScript(
-          toScriptConfig(targetBeforeAllHook, 'before_all', 'target hooks'),
-          scriptContext,
-        );
-        hookExecutions.push(
-          hookExecution({
-            scope: 'target',
-            name: 'before_all',
-            status: 'success',
-            testId: '__target_before_all__',
-            workspacePath: sharedWorkspacePath,
-            hook: targetBeforeAllHook,
-          }),
-        );
-        setupLog('target before_all completed');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        hookExecutions.push(
-          hookExecution({
-            scope: 'target',
-            name: 'before_all',
-            status: 'failed',
-            testId: '__target_before_all__',
-            workspacePath: sharedWorkspacePath,
-            hook: targetBeforeAllHook,
-            error: message,
-          }),
-        );
-        if (sharedWorkspacePath && !useStaticWorkspace) {
-          await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
-        }
-        throw new WorkspaceSetupError(`target before_all hook failed: ${message}`, {
-          failureStage: 'setup',
-          failureReasonCode: 'script_error',
-          hookExecutions,
-          cause: error,
-        });
-      }
-    }
-
-    if (availablePoolSlots.length > 0 && hasHookCommand(targetBeforeAllHook)) {
-      for (const slot of availablePoolSlots) {
-        setupLog(`running target before_all on pool slot ${slot.index}`);
-        const scriptContext: ScriptExecutionContext = {
-          workspacePath: slot.path,
-          testId: '__target_before_all__',
-          evalRunId,
-          evalDir,
-          workspaceFileDir: suiteWorkspace?.workspaceFileDir,
-        };
-        try {
-          await executeWorkspaceScript(
-            toScriptConfig(targetBeforeAllHook, 'before_all', 'target hooks'),
-            scriptContext,
-          );
-          hookExecutions.push(
-            hookExecution({
-              scope: 'target',
-              name: 'before_all',
-              status: 'success',
-              testId: '__target_before_all__',
-              workspacePath: slot.path,
-              hook: targetBeforeAllHook,
-            }),
-          );
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          hookExecutions.push(
-            hookExecution({
-              scope: 'target',
-              name: 'before_all',
-              status: 'failed',
-              testId: '__target_before_all__',
-              workspacePath: slot.path,
-              hook: targetBeforeAllHook,
-              error: message,
-            }),
-          );
-          throw new WorkspaceSetupError(
-            `target before_all hook failed on pool slot ${slot.index}: ${message}`,
-            {
-              failureStage: 'setup',
-              failureReasonCode: 'script_error',
-              hookExecutions,
-              cause: error,
-            },
-          );
-        }
-      }
-    }
-
-    if (sharedWorkspacePath) {
-      try {
-        sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
-        setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        setupLog(`shared baseline initialization failed (file_changes unavailable): ${message}`);
-      }
-    }
-
-    if (availablePoolSlots.length > 0) {
-      for (const slot of availablePoolSlots) {
-        try {
-          const baseline = await initializeBaseline(slot.path);
-          poolSlotBaselines.set(slot.path, baseline);
-          setupLog(`pool slot ${slot.index} baseline initialized: ${baseline}`);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          setupLog(
-            `pool slot ${slot.index} baseline initialization failed (file_changes unavailable): ${message}`,
-          );
-        }
-      }
-    }
-
-    return {
-      ...(suiteWorkspace !== undefined && { suiteWorkspace }),
-      ...(selectedSuiteWorkspace?.key !== undefined && {
-        sharedWorkspaceOwnerKey: selectedSuiteWorkspace.key,
-      }),
-      sharedWorkspaceAppliesToAllCases,
-      ...(sharedWorkspacePath !== undefined && { sharedWorkspacePath }),
-      ...(sharedBaselineCommit !== undefined && { sharedBaselineCommit }),
-      ...(suiteWorkspaceFile !== undefined && { suiteWorkspaceFile }),
-      ...(beforeAllOutput !== undefined && { beforeAllOutput }),
-      ...(repoManager !== undefined && { repoManager }),
-      ...(poolManager !== undefined && { poolManager }),
-      ...(poolSlot !== undefined && { poolSlot }),
-      poolSlots,
-      availablePoolSlots,
-      poolSlotBaselines,
-      poolSlotExtensionStates,
-      useStaticWorkspace,
-      configuredMode,
-      hookExecutions,
-      ...(extensionState !== undefined && { extensionState }),
-    };
-  } catch (error) {
-    await releasePoolSlots({ poolManager, poolSlot, poolSlots }).catch(() => {});
-    throw error;
+  } else if (
+    !isAttemptWorkspace &&
+    (suiteWorkspace?.hooks || suiteWorkspace?.repos?.length || suiteExtensions.length > 0)
+  ) {
+    sharedWorkspacePath = getWorkspacePath(evalRunId, 'shared');
+    await mkdir(sharedWorkspacePath, { recursive: true });
+    setupLog(`created empty shared workspace at: ${sharedWorkspacePath}`);
   }
+
+  if (suiteWorkspaceFile && sharedWorkspacePath) {
+    const copiedWorkspaceFile = path.join(sharedWorkspacePath, path.basename(suiteWorkspaceFile));
+    try {
+      await stat(copiedWorkspaceFile);
+      suiteWorkspaceFile = copiedWorkspaceFile;
+    } catch {
+      // Keep original if copy does not exist.
+    }
+  }
+
+  const hasReposToMaterialize = !!suiteWorkspace?.repos?.length && !isAttemptWorkspace;
+  const needsRepoMaterialisation = hasReposToMaterialize && !useStaticWorkspace;
+  repoManager =
+    repoManager ??
+    (needsRepoMaterialisation
+      ? new RepoManager(verbose, { projectConfigDir: evalDir })
+      : undefined);
+
+  if (needsRepoMaterialisation && repoManager && sharedWorkspacePath && suiteWorkspace?.repos) {
+    try {
+      setupLog(
+        `materializing ${suiteWorkspace.repos.length} shared repo(s) into ${sharedWorkspacePath}`,
+      );
+      await repoManager.materializeAll(suiteWorkspace.repos, sharedWorkspacePath);
+      setupLog('shared repo materialization complete');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (sharedWorkspacePath && !useStaticWorkspace) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new WorkspaceSetupError(`Failed to materialize repos: ${message}`, {
+        failureStage: 'repo_setup',
+        failureReasonCode: 'clone_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
+  }
+
+  const suiteDockerConfig = suiteWorkspace?.docker;
+  if (suiteDockerConfig) {
+    await prepareDockerWorkspace(suiteDockerConfig, setupLog);
+  }
+
+  if (suiteWorkspace?.env) {
+    try {
+      await runPreflightChecks(suiteWorkspace.env, sharedWorkspacePath ?? undefined, setupLog);
+      setupLog('preflight checks passed');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (sharedWorkspacePath && !useStaticWorkspace) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new WorkspaceSetupError(message, {
+        failureStage: 'setup',
+        failureReasonCode: 'preflight_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
+  }
+
+  const suiteHooksEnabled = hooksEnabled(suiteWorkspace);
+  const suiteBeforeAllHook = suiteWorkspace?.hooks?.before_all;
+  if (sharedWorkspacePath && suiteExtensions.length > 0) {
+    try {
+      extensionState = await runExtensionsForHook({
+        extensions: suiteExtensions,
+        hook: 'beforeAll',
+        context: {
+          hook_name: 'beforeAll',
+          workspace_path: sharedWorkspacePath,
+          test_id: '__before_all__',
+          eval_run_id: evalRunId,
+          eval_dir: evalDir,
+        },
+        state: extensionState,
+      });
+      beforeAllOutput = mergeHookOutput(beforeAllOutput, extensionState?.output);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (sharedWorkspacePath && !useStaticWorkspace) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new WorkspaceSetupError(`beforeAll extension failed: ${message}`, {
+        failureStage: 'setup',
+        failureReasonCode: 'extension_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
+  }
+  if (sharedWorkspacePath && suiteHooksEnabled && hasHookCommand(suiteBeforeAllHook)) {
+    const beforeAllHook = suiteBeforeAllHook;
+    const beforeAllCommand = (beforeAllHook.command ?? []).join(' ');
+    setupLog(
+      `running shared before_all in cwd=${beforeAllHook.cwd ?? evalDir} command=${beforeAllCommand}`,
+    );
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath: sharedWorkspacePath,
+      testId: '__before_all__',
+      evalRunId,
+      evalDir,
+      workspaceFileDir: suiteWorkspace?.workspaceFileDir,
+    };
+    try {
+      beforeAllOutput = await executeWorkspaceScript(
+        toScriptConfig(beforeAllHook, 'before_all', 'suite workspace'),
+        scriptContext,
+      );
+      hookExecutions.push(
+        hookExecution({
+          scope: 'workspace',
+          name: 'before_all',
+          status: 'success',
+          testId: '__before_all__',
+          workspacePath: sharedWorkspacePath,
+          hook: beforeAllHook,
+          output: beforeAllOutput,
+        }),
+      );
+      setupLog('shared before_all completed');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      hookExecutions.push(
+        hookExecution({
+          scope: 'workspace',
+          name: 'before_all',
+          status: 'failed',
+          testId: '__before_all__',
+          workspacePath: sharedWorkspacePath,
+          hook: beforeAllHook,
+          error: message,
+        }),
+      );
+      if (sharedWorkspacePath && !useStaticWorkspace) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new WorkspaceSetupError(`before_all script failed: ${message}`, {
+        failureStage: 'setup',
+        failureReasonCode: 'script_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
+  }
+
+  const targetBeforeAllHook = targetHooks?.before_all;
+  if (sharedWorkspacePath && hasHookCommand(targetBeforeAllHook)) {
+    const beforeAllCommand = (targetBeforeAllHook.command ?? []).join(' ');
+    setupLog(`running target before_all command=${beforeAllCommand}`);
+    const scriptContext: ScriptExecutionContext = {
+      workspacePath: sharedWorkspacePath,
+      testId: '__target_before_all__',
+      evalRunId,
+      evalDir,
+      workspaceFileDir: suiteWorkspace?.workspaceFileDir,
+    };
+    try {
+      await executeWorkspaceScript(
+        toScriptConfig(targetBeforeAllHook, 'before_all', 'target hooks'),
+        scriptContext,
+      );
+      hookExecutions.push(
+        hookExecution({
+          scope: 'target',
+          name: 'before_all',
+          status: 'success',
+          testId: '__target_before_all__',
+          workspacePath: sharedWorkspacePath,
+          hook: targetBeforeAllHook,
+        }),
+      );
+      setupLog('target before_all completed');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      hookExecutions.push(
+        hookExecution({
+          scope: 'target',
+          name: 'before_all',
+          status: 'failed',
+          testId: '__target_before_all__',
+          workspacePath: sharedWorkspacePath,
+          hook: targetBeforeAllHook,
+          error: message,
+        }),
+      );
+      if (sharedWorkspacePath && !useStaticWorkspace) {
+        await cleanupWorkspace(sharedWorkspacePath).catch(() => {});
+      }
+      throw new WorkspaceSetupError(`target before_all hook failed: ${message}`, {
+        failureStage: 'setup',
+        failureReasonCode: 'script_error',
+        hookExecutions,
+        cause: error,
+      });
+    }
+  }
+
+  if (sharedWorkspacePath) {
+    try {
+      sharedBaselineCommit = await initializeBaseline(sharedWorkspacePath);
+      setupLog(`shared baseline initialized: ${sharedBaselineCommit}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setupLog(`shared baseline initialization failed (file_changes unavailable): ${message}`);
+    }
+  }
+
+  return {
+    ...(suiteWorkspace !== undefined && { suiteWorkspace }),
+    ...(selectedSuiteWorkspace?.key !== undefined && {
+      sharedWorkspaceOwnerKey: selectedSuiteWorkspace.key,
+    }),
+    sharedWorkspaceAppliesToAllCases,
+    ...(sharedWorkspacePath !== undefined && { sharedWorkspacePath }),
+    ...(sharedBaselineCommit !== undefined && { sharedBaselineCommit }),
+    ...(suiteWorkspaceFile !== undefined && { suiteWorkspaceFile }),
+    ...(beforeAllOutput !== undefined && { beforeAllOutput }),
+    ...(repoManager !== undefined && { repoManager }),
+    useStaticWorkspace,
+    configuredMode,
+    hookExecutions,
+    ...(extensionState !== undefined && { extensionState }),
+  };
 }
 
 export async function prepareEvalCaseWorkspace(
@@ -994,7 +738,7 @@ export async function prepareEvalCaseWorkspace(
     sharedExtensionState,
   } = options;
 
-  let workspacePath: string | undefined = isPerCaseIsolation(evalCase.workspace)
+  let workspacePath: string | undefined = isAttemptScopedWorkspace(evalCase.workspace)
     ? undefined
     : sharedWorkspacePath;
   const inheritedSuiteWorkspaceFile = workspacePath ? suiteWorkspaceFile : undefined;
@@ -1051,12 +795,12 @@ export async function prepareEvalCaseWorkspace(
       try {
         if (setupDebug) {
           console.log(
-            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} per-case repo(s) into ${workspacePath}`,
+            `[setup] test=${evalCase.id} materializing ${evalCase.workspace.repos.length} attempt repo(s) into ${workspacePath}`,
           );
         }
         await perCaseRepoManager.materializeAll(evalCase.workspace.repos, workspacePath);
         if (setupDebug) {
-          console.log(`[setup] test=${evalCase.id} per-case repo materialization complete`);
+          console.log(`[setup] test=${evalCase.id} attempt repo materialization complete`);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

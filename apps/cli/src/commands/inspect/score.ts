@@ -67,8 +67,7 @@ function parseKeyValues(s: string): Record<string, string> {
  */
 export function parseAssertSpec(spec: string): GraderConfig {
   const colonIdx = spec.indexOf(':');
-  // Normalize snake_case to kebab-case for backward compat
-  const type = (colonIdx === -1 ? spec : spec.slice(0, colonIdx)).replace(/_/g, '-');
+  const type = colonIdx === -1 ? spec : spec.slice(0, colonIdx);
   const params = colonIdx === -1 ? '' : spec.slice(colonIdx + 1);
 
   switch (type) {

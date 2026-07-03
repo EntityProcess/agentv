@@ -18,7 +18,7 @@ export default defineEval({
       input: 'Use the attached notes and say hello.',
       inputFiles: ['../fixtures/per-test-note.md'],
       expectedOutput: 'Hello from the mock target',
-      assertions: [
+      assert: [
         graders.contains('Hello', { name: 'mentions-hello' }),
         graders.regex(/mock target/i, { name: 'mentions-mock-target' }),
       ],

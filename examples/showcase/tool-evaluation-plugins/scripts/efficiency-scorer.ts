@@ -16,7 +16,7 @@
  * Usage in eval YAML:
  *   graders:
  *     - name: efficiency
- *       type: code-grader
+ *       type: script
  *       command: ["bun", "run", "scripts/efficiency-scorer.ts"]
  */
 import { type TraceSummary, defineCodeGrader } from '@agentv/sdk';

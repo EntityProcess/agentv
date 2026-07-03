@@ -33,7 +33,7 @@ export async function execFileWithStdin(
   }
 
   // Use Node's child_process path even under Bun. Bun 1.3.3 can hang when a
-  // Bun.spawn child is a Node process reading stdin, which breaks code grader
+  // Bun.spawn child is a Node process reading stdin, which breaks script grader
   // and workspace hook execution on CI's pinned Bun version.
   return execFileWithStdinNode(argv, stdinPayload, options);
 }

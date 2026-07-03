@@ -16,14 +16,14 @@ tests:
           Machine learning is a subset of AI that enables systems to learn from data and improve performance without explicit programming. It uses algorithms to identify patterns, make predictions, and adapt based on experience.
     criteria: |
       The response should be both concise and detailed, balancing brevity with informative content.
-    assertions:
-      - name: release_gate
+    assert:
+      - metric: release_gate
         type: composite
-        assertions:
-          - name: safety
+        assert:
+          - metric: safety
             type: llm-grader
             prompt: ../prompts/safety-check.md
-          - name: quality
+          - metric: quality
             type: llm-grader
             prompt: ../prompts/quality-evaluation.md
         aggregator:
@@ -43,18 +43,18 @@ tests:
           Quantum computing uses quantum bits (qubits) that can exist in multiple states simultaneously, unlike classical bits that are either 0 or 1. This property, called superposition, along with entanglement, allows quantum computers to solve certain complex problems exponentially faster than classical computers.
     criteria: |
       The response should be accurate, accessible to non-experts, and pass safety checks.
-    assertions:
-      - name: safety_gate
+    assert:
+      - metric: safety_gate
         type: composite
-        assertions:
-          - name: safety
+        assert:
+          - metric: safety
             type: llm-grader
             prompt: ../prompts/safety-check-strict.md
-          - name: quality
+          - metric: quality
             type: llm-grader
             prompt: ../prompts/technical-accuracy.md
         aggregator:
-          type: code-grader
+          type: script
           path: bun run ../scripts/safety-gate-aggregator.js
 
   # Example 3: Strict OR with a local code-grader aggregator
@@ -68,18 +68,18 @@ tests:
           Paris is the capital city of France.
     criteria: |
       The response should include either Paris or the phrase "capital of France".
-    assertions:
-      - name: strict_or
+    assert:
+      - metric: strict_or
         type: composite
-        assertions:
-          - name: mentions-paris
+        assert:
+          - metric: mentions-paris
             type: contains
             value: Paris
-          - name: mentions-capital
+          - metric: mentions-capital
             type: contains
             value: capital
         aggregator:
-          type: code-grader
+          type: script
           path: bun run ../scripts/or-aggregator.js
 
   # Example 4: LLM Grader Aggregator
@@ -94,14 +94,14 @@ tests:
           Premium wireless headphones featuring active noise cancellation, 30-hour battery life, premium sound quality with enhanced bass, comfortable over-ear design, and seamless Bluetooth 5.0 connectivity.
     criteria: |
       The response should balance conciseness with detail effectively.
-    assertions:
-      - name: final_decision
+    assert:
+      - metric: final_decision
         type: composite
-        assertions:
-          - name: conciseness
+        assert:
+          - metric: conciseness
             type: llm-grader
             prompt: ../prompts/conciseness-check.md
-          - name: detail
+          - metric: detail
             type: llm-grader
             prompt: ../prompts/detail-check.md
         aggregator:
@@ -119,17 +119,17 @@ tests:
           Supervised learning uses labeled training data to learn patterns and make predictions, like classifying emails as spam or not spam. Unsupervised learning finds patterns in unlabeled data without predefined categories, like customer segmentation or anomaly detection.
     criteria: |
       The response should be accurate, clear, safe, and appropriately detailed.
-    assertions:
-      - name: comprehensive_evaluation
+    assert:
+      - metric: comprehensive_evaluation
         type: composite
-        assertions:
-          - name: content_quality
+        assert:
+          - metric: content_quality
             type: composite
-            assertions:
-              - name: accuracy
+            assert:
+              - metric: accuracy
                 type: llm-grader
                 prompt: ../prompts/accuracy-check.md
-              - name: clarity
+              - metric: clarity
                 type: llm-grader
                 prompt: ../prompts/clarity-check.md
             aggregator:
@@ -137,7 +137,7 @@ tests:
               weights:
                 accuracy: 0.6
                 clarity: 0.4
-          - name: safety
+          - metric: safety
             type: llm-grader
             prompt: ../prompts/safety-verification.md
         aggregator:

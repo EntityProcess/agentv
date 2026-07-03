@@ -75,7 +75,7 @@ describe('agentv eval bundle', () => {
           value: ../data/input.txt
         - type: text
           value: Answer using the fixture.
-  assertions:
+  assert:
     - type: contains
       value: Mock
 `,
@@ -184,7 +184,7 @@ tests: ../data/cases.yaml
 tests:
   - id: inline-case
     input: hello
-    assertions:
+    assert:
       - type: contains
         value: inline
 `,
@@ -226,7 +226,7 @@ tests:
 tests:
   - id: missing-template
     input: hello
-    assertions:
+    assert:
       - type: contains
         value: Mock
 `,

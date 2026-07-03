@@ -9,13 +9,7 @@
 import { isExecutionError } from './result-summary';
 import type { AssertionEntry, EvalCaseTrial, EvalResult, ScoreEntry } from './types';
 
-export type ResultTableViewId =
-  | 'all'
-  | 'passing'
-  | 'failing'
-  | 'errors'
-  | 'grader_errors'
-  | 'unreviewed';
+export type ResultTableViewId = 'all' | 'passing' | 'failing' | 'errors' | 'grader_errors';
 
 export const RESULT_TABLE_VIEW_PRESETS: readonly {
   id: ResultTableViewId;
@@ -26,7 +20,6 @@ export const RESULT_TABLE_VIEW_PRESETS: readonly {
   { id: 'failing', label: 'Failing' },
   { id: 'errors', label: 'Errors' },
   { id: 'grader_errors', label: 'Grader errors' },
-  { id: 'unreviewed', label: 'Unreviewed' },
 ];
 
 export interface ResultTableState {
@@ -65,7 +58,6 @@ export interface ResultTableRow {
   readonly passing: boolean;
   readonly executionError: boolean;
   readonly graderError: boolean;
-  readonly reviewed: boolean;
   readonly targetLabel: string;
   readonly modelLabel?: string;
   readonly evalLabel?: string;
@@ -109,7 +101,6 @@ export interface BuildResultTableModelInput {
   readonly results: readonly EvalResult[];
   readonly passThreshold: number;
   readonly state?: ResultTableStateInput;
-  readonly reviewedTestIds?: readonly string[];
 }
 
 const DEFAULT_TARGET = 'all';
@@ -254,12 +245,7 @@ function rowKey(result: EvalResult, index: number): string {
   ].join(':');
 }
 
-function buildRow(
-  result: EvalResult,
-  index: number,
-  passThreshold: number,
-  reviewedTestIds: ReadonlySet<string>,
-): ResultTableRow {
+function buildRow(result: EvalResult, index: number, passThreshold: number): ResultTableRow {
   const executionError = isExecutionError(result);
   const passing = !executionError && result.score >= passThreshold;
   const status: ResultTableRowStatus = executionError ? 'error' : passing ? 'passing' : 'failing';
@@ -296,7 +282,6 @@ function buildRow(
     passing,
     executionError,
     graderError,
-    reviewed: reviewedTestIds.has(result.testId),
     targetLabel: target,
     ...(model && { modelLabel: model }),
     ...(evalSource && { evalLabel: evalSource }),
@@ -397,7 +382,6 @@ function buildColumns(rows: readonly ResultTableRow[], graderOptions: readonly s
           },
         ]
       : []),
-    { id: 'review', label: 'Review', kind: 'base', defaultVisible: false },
     ...(hasError
       ? [{ id: 'error', label: 'Error', kind: 'base' as const, defaultVisible: false }]
       : []),
@@ -481,8 +465,6 @@ function matchesView(row: ResultTableRow, view: ResultTableViewId): boolean {
       return row.status === 'error';
     case 'grader_errors':
       return row.graderError;
-    case 'unreviewed':
-      return !row.reviewed;
     case 'all':
       return true;
   }
@@ -495,15 +477,11 @@ function viewCounts(rows: readonly ResultTableRow[]): Readonly<Record<ResultTabl
     failing: rows.filter((row) => row.status === 'failing').length,
     errors: rows.filter((row) => row.status === 'error').length,
     grader_errors: rows.filter((row) => row.graderError).length,
-    unreviewed: rows.filter((row) => !row.reviewed).length,
   };
 }
 
 export function buildResultTableModel(input: BuildResultTableModelInput): ResultTableModel {
-  const reviewedTestIds = new Set(input.reviewedTestIds ?? []);
-  const rows = input.results.map((result, index) =>
-    buildRow(result, index, input.passThreshold, reviewedTestIds),
-  );
+  const rows = input.results.map((result, index) => buildRow(result, index, input.passThreshold));
   const targetOptions = uniqueSorted(rows.map((row) => row.targetLabel));
   const graderOptions = uniqueSorted(rows.flatMap((row) => row.graderNames));
   const columns = buildColumns(rows, graderOptions);

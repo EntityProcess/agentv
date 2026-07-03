@@ -167,7 +167,7 @@ When reviewing failures, categorize them:
 | Category | Description | Action |
 |----------|-------------|--------|
 | **True failure** | The skill genuinely handled the case wrong | Improve the skill |
-| **False positive** | Got a passing score but the answer was wrong | Tighten assertions |
+| **False positive** | Got a passing score but the answer was wrong | Tighten checks |
 | **False negative** | Correct answer but scored as failing | Fix the evaluation criteria |
 | **Systematic pattern** | Multiple failures share the same root cause | Address the pattern, not individual cases |
 
@@ -237,10 +237,10 @@ tests:
     criteria: |-
       The function should handle division by zero.
     input: "Review this Python function for bugs:..."
-    assertions:
-      - name: agent-skills-criteria
-        type: g-eval
-        criteria:
+    assert:
+      - metric: agent-skills-criteria
+        type: llm-rubric
+        value:
           - id: expected-outcome
             outcome: "The function should handle division by zero."
             required: true
@@ -323,7 +323,7 @@ Evals are development-time artifacts. End users don't need them, and including t
 
 Start simple and add complexity only when the evaluation results demand it:
 
-1. **Start with EVAL.yaml** — 5-10 test cases, natural-language assertions
+1. **Start with EVAL.yaml** — 5-10 test cases, natural-language checks
 2. **Add deterministic checks** — when you find assertions that can be exact (`contains`, `regex`)
 3. **Run or convert existing `evals.json`** — when Agent Skills tooling owns the source file
 4. **Add tool trajectory checks** — when tool usage patterns matter

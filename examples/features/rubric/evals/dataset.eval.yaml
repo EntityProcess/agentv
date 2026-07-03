@@ -1,8 +1,8 @@
 # AgentV Rubric Grader Example
-# Demonstrates the rubric-based evaluation feature using type: rubrics under assertions
+# Demonstrates rubric-based evaluation using type: llm-rubric under assert
 
 name: rubric
-description: "Example showing rubric grader - string shorthand and type: rubrics"
+description: "Example showing rubric grader - string shorthand and type: llm-rubric"
 
 target: llm
 
@@ -33,7 +33,7 @@ tests:
           - Best/Average: O(n log n)
           - Worst case: O(n²) when poorly chosen pivots
 
-    assertions:
+    assert:
       - Mentions divide-and-conquer approach
       - Explains the partition step
       - States time complexity correctly
@@ -68,9 +68,9 @@ tests:
           - 500 Internal Server Error: Server-side error
 
     # Detailed rubric objects with weights and required flags
-    assertions:
-      - type: rubrics
-        criteria:
+    assert:
+      - type: llm-rubric
+        value:
           - id: structure
             outcome: Has clear headings and organization
             weight: 1.0
@@ -132,18 +132,18 @@ tests:
               pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
               return bool(re.match(pattern, email))
 
-    assertions:
+    assert:
       # Rubric grader for semantic checks
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - Uses regular expressions for email validation
           - Includes type hints
           - Has docstring documentation
           - Handles edge cases (None, empty string)
 
       # Additional code grader for syntax checking
-      - name: python_syntax
-        type: code-grader
+      - metric: python_syntax
+        type: script
         command: ["uv", "run", "python", "check_syntax.py"]
 
   # ==========================================
@@ -204,9 +204,9 @@ tests:
           more extreme weather. Scientists urge urgent emissions cuts and a transition
           to renewable energy.
 
-    assertions:
-      - type: rubrics
-        criteria:
+    assert:
+      - type: llm-rubric
+        value:
           - id: factual_accuracy
             weight: 2.0
             min_score: 0.8

@@ -30,7 +30,7 @@ describe('pipeline bench', () => {
       join(codeResultsDir, 'contains.json'),
       JSON.stringify({
         name: 'contains',
-        type: 'code-grader',
+        type: 'script',
         score: 1.0,
         weight: 1.0,
         assertions: [{ text: 'Found keyword', passed: true }],

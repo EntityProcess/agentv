@@ -14,7 +14,7 @@ Tool trajectory graders validate that an agent used the expected tools during ex
 Validates that each tool was called at least N times, regardless of order:
 
 ```yaml
-assertions:
+assert:
   - name: tool-usage
     type: tool-trajectory
     mode: any_order
@@ -30,7 +30,7 @@ Use `any_order` when you want to ensure required tools are used but don't care a
 Validates tools appear in the expected sequence, but allows gaps (other tools can appear between expected ones):
 
 ```yaml
-assertions:
+assert:
   - name: workflow-sequence
     type: tool-trajectory
     mode: in_order
@@ -48,7 +48,7 @@ Use `in_order` when you need to verify logical workflow order while allowing the
 Validates the exact tool sequence with no gaps or extra tools:
 
 ```yaml
-assertions:
+assert:
   - name: auth-sequence
     type: tool-trajectory
     mode: exact
@@ -65,7 +65,7 @@ Use `exact` for security-critical workflows, strict protocol validation, or regr
 For `in_order` and `exact` modes, you can optionally validate tool arguments:
 
 ```yaml
-assertions:
+assert:
   - name: search-validation
     type: tool-trajectory
     mode: in_order
@@ -93,7 +93,7 @@ assertions:
 For `in_order` and `exact` modes, you can validate per-tool timing with `max_duration_ms`:
 
 ```yaml
-assertions:
+assert:
   - name: perf-check
     type: tool-trajectory
     mode: in_order
@@ -188,7 +188,7 @@ tests:
 
     input: Research machine learning frameworks
 
-    assertions:
+    assert:
       # Check minimum tool usage
       - name: coverage
         type: tool-trajectory
@@ -217,7 +217,7 @@ tests:
 
     input: Process the customer dataset
 
-    assertions:
+    assert:
       - name: pipeline-check
         type: tool-trajectory
         mode: exact
@@ -237,7 +237,7 @@ tests:
 
     input: Process the customer dataset quickly
 
-    assertions:
+    assert:
       - name: pipeline-perf
         type: tool-trajectory
         mode: in_order

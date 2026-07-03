@@ -395,7 +395,7 @@ function rejectExperimentWorkspace(raw: unknown): void {
     return;
   }
   throw new Error(
-    'Experiment workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in top-level workspace.',
+    'Experiment workspace has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable task setup in top-level workspace.',
   );
 }
 

@@ -17,22 +17,22 @@ tests:
           Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and decreases dependence on finite fossil fuels.
     criteria: |
       The response should be accurate, concise, and cover key benefits of renewable energy.
-    assertions:
-      - name: flexible_gate
+    assert:
+      - metric: flexible_gate
         type: composite
         aggregator:
           type: threshold
           threshold: 0.5
-        assertions:
-          - name: accuracy_check
-            type: rubrics
-            criteria:
+        assert:
+          - metric: accuracy_check
+            type: llm-rubric
+            value:
               - Response accurately describes the benefits of renewable energy with correct facts
-          - name: completeness_check
-            type: rubrics
-            criteria:
+          - metric: completeness_check
+            type: llm-rubric
+            value:
               - Response covers at least 3 key benefits of renewable energy
-          - name: conciseness_check
-            type: rubrics
-            criteria:
+          - metric: conciseness_check
+            type: llm-rubric
+            value:
               - Response is concise and well-structured

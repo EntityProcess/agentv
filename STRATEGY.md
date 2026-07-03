@@ -28,7 +28,7 @@ AgentV stays repo-native and workspace-native: it runs or imports evaluations ar
 
 ### Workspace-native evaluation
 
-Make real repository workflows first-class: repo acquisition, hooks, pooled workspaces, replay/import paths, and reuse of existing harnesses.
+Make real repository workflows first-class: repo acquisition, hooks, suite/attempt workspaces, replay/import paths, and reuse of existing harnesses.
 
 _Why it serves the approach:_ This keeps AgentV attached to the actual work the agent is being judged on instead of collapsing it into a synthetic runner.
 

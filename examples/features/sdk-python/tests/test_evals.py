@@ -13,10 +13,10 @@ def test_render_eval_yaml_emits_canonical_shape() -> None:
         EvalDefinition(
             description="Example",
             name="python-helper",
-            execution={"target": "local_cli"},
+            target="local_cli",
             tags=["python"],
             tests="./dataset.jsonl",
-            extra={"defaults": {"assertions": [{"type": "code-grader", "command": ["python3", "grader.py"]}]}},
+            extra={"defaults": {"assert": [{"type": "script", "command": ["python3", "grader.py"]}]}},
         )
     )
 
@@ -24,11 +24,11 @@ def test_render_eval_yaml_emits_canonical_shape() -> None:
     assert parsed == {
         "description": "Example",
         "name": "python-helper",
-        "execution": {"target": "local_cli"},
+        "target": "local_cli",
         "tags": ["python"],
         "tests": "./dataset.jsonl",
         "defaults": {
-            "assertions": [{"type": "code-grader", "command": ["python3", "grader.py"]}]
+            "assert": [{"type": "script", "command": ["python3", "grader.py"]}]
         },
     }
 

@@ -79,7 +79,6 @@ import type {
   TrialsConfig,
 } from './types.js';
 import { cleanupEvalWorkspaces, cleanupWorkspace } from './workspace/manager.js';
-import type { PoolSlot } from './workspace/pool-manager.js';
 import type { RepoManager } from './workspace/repo-manager.js';
 import {
   type ScriptExecutionContext,
@@ -414,9 +413,9 @@ export interface RunEvalCaseOptions {
   readonly useCache?: boolean;
   readonly signal?: AbortSignal;
   readonly graderProvider?: Provider;
-  /** Resolver for target override in code graders */
+  /** Resolver for target override in script graders */
   readonly targetResolver?: (name: string) => Provider | undefined;
-  /** List of available target names for code graders */
+  /** List of available target names for script graders */
   readonly availableTargets?: readonly string[];
   /** Unique identifier for the evaluation run (used for workspace management) */
   readonly evalRunId?: string;
@@ -513,18 +512,10 @@ export interface RunEvaluationOptions {
   readonly runBudgetTracker?: RunBudgetTracker;
   /** Execution error tolerance: true halts on first error */
   readonly failOnError?: FailOnError;
-  /** Legacy workspace pooling toggle. Explicit workspaceMode=pooled opts in to pooled reuse. */
-  readonly poolWorkspaces?: boolean;
-  /** Maximum number of pool slots on disk (default: 10, max: 50) */
-  readonly poolMaxSlots?: number;
-  /** Pre-existing workspace directory to use directly (skips clone/copy/pool) */
+  /** Pre-existing workspace directory to use directly (skips clone/copy) */
   readonly workspace?: string;
-  /** Workspace materialization mode override */
-  readonly workspaceMode?: 'pooled' | 'temp' | 'static';
-  /** Static workspace path override (used when workspaceMode=static) */
+  /** Static workspace path override */
   readonly workspacePath?: string;
-  /** Workspace clean policy override for pooled reset */
-  readonly workspaceClean?: 'standard' | 'full';
   /** Retention policy override for successful cases */
   readonly retainOnSuccess?: 'keep' | 'cleanup';
   /** Retention policy override for failed cases */
@@ -798,12 +789,8 @@ export async function runEvaluation(
     budgetUsd,
     runBudgetTracker,
     failOnError,
-    poolWorkspaces,
-    poolMaxSlots: configPoolMaxSlots,
     workspace: legacyWorkspacePath,
-    workspaceMode,
     workspacePath,
-    workspaceClean,
     retainOnSuccess,
     retainOnFailure,
     graderTarget: cliGraderTarget,
@@ -882,7 +869,7 @@ export async function runEvaluation(
   // Disable batch mode when repeat count > 1 (batching is incompatible with separate attempts).
   if (trials && trials.count > 1 && providerSupportsBatch) {
     console.warn(
-      'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-case dispatch for attempts.',
+      'Warning: Batch mode is disabled when evaluate_options.repeat.count > 1. Using per-attempt dispatch.',
     );
     providerSupportsBatch = false;
     batchingDisabledByRuntimePolicy = true;
@@ -891,7 +878,6 @@ export async function runEvaluation(
   const requiresWorkspaceDispatch =
     workspacePath !== undefined ||
     legacyWorkspacePath !== undefined ||
-    workspaceMode !== undefined ||
     filteredEvalCases.some((evalCase) => evalCase.workspace !== undefined);
   if (providerSupportsBatch && requiresWorkspaceDispatch) {
     if (verbose) {
@@ -908,7 +894,7 @@ export async function runEvaluation(
     !batchingDisabledByRuntimePolicy
   ) {
     console.warn(
-      `Request batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
+      `Request batching requested for target '${target.name}', but provider does not advertise batch support. Using per-attempt dispatch.`,
     );
   }
 
@@ -949,7 +935,7 @@ export async function runEvaluation(
       if (verbose) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(
-          `Request batch execution failed, falling back to per-case dispatch: ${message}`,
+          `Request batch execution failed, falling back to per-attempt dispatch: ${message}`,
         );
       }
     }
@@ -966,11 +952,8 @@ export async function runEvaluation(
     evalDir,
     verbose,
     workers,
-    poolMaxSlots: configPoolMaxSlots,
     workspacePath,
     legacyWorkspacePath,
-    workspaceMode,
-    workspaceClean,
   });
   const {
     suiteWorkspace,
@@ -979,11 +962,6 @@ export async function runEvaluation(
     suiteWorkspaceFile,
     beforeAllOutput,
     repoManager,
-    poolSlot,
-    poolSlots,
-    availablePoolSlots,
-    poolSlotBaselines,
-    poolSlotExtensionStates,
     useStaticWorkspace,
     extensionState: sharedExtensionState,
   } = sharedSetup;
@@ -997,11 +975,6 @@ export async function runEvaluation(
     let nextWorkerId = 1;
     const workerIdByEvalId = new Map<string, number>();
     let beforeAllOutputAttached = false;
-    const unavailablePoolSlotPaths = new Set<string>();
-    const poolSlotWaiters: Array<(slot: PoolSlot | undefined) => void> = [];
-    if (poolSlot && availablePoolSlots.length === 0) {
-      availablePoolSlots.push(poolSlot);
-    }
 
     // Suite-level budget tracking
     let cumulativeBudgetCost = 0;
@@ -1063,97 +1036,6 @@ export async function runEvaluation(
         }
       }
       return { ok: allPassed, depResults };
-    }
-
-    function acquirePoolSlot(): Promise<PoolSlot | undefined> {
-      while (availablePoolSlots.length > 0) {
-        const candidate = availablePoolSlots.pop();
-        if (candidate && !unavailablePoolSlotPaths.has(candidate.path)) {
-          return Promise.resolve(candidate);
-        }
-      }
-
-      if (unavailablePoolSlotPaths.size >= poolSlots.length) {
-        return Promise.resolve(undefined);
-      }
-
-      return new Promise((resolve) => {
-        poolSlotWaiters.push(resolve);
-      });
-    }
-
-    function returnPoolSlot(slot: PoolSlot): void {
-      if (unavailablePoolSlotPaths.has(slot.path)) {
-        return;
-      }
-      const waiter = poolSlotWaiters.shift();
-      if (waiter) {
-        waiter(slot);
-      } else {
-        availablePoolSlots.push(slot);
-      }
-    }
-
-    function markPoolSlotUnavailable(slot: PoolSlot): void {
-      unavailablePoolSlotPaths.add(slot.path);
-      if (unavailablePoolSlotPaths.size >= poolSlots.length) {
-        while (poolSlotWaiters.length > 0) {
-          poolSlotWaiters.shift()?.(undefined);
-        }
-      }
-    }
-
-    async function emitSetupErrorResult(
-      evalCase: EvalTest,
-      workerId: number,
-      message: string,
-      failureReasonCode: string,
-    ): Promise<EvaluationResult> {
-      if (failOnError === true) {
-        failOnErrorTriggered = true;
-      }
-      const output = `Error occurred: ${message}`;
-      const result: EvaluationResult = {
-        timestamp: (now ?? (() => new Date()))().toISOString(),
-        testId: authoredResultTestId(evalCase),
-        suite: evalCase.suite,
-        category: evalCase.category,
-        prompt: evalCase.prompt,
-        score: 0,
-        assertions: [{ text: `Error: ${message}`, passed: false }],
-        output,
-        trace: buildTraceFromMessages({
-          input: evalCase.input as readonly Message[],
-          output: [{ role: 'assistant' as const, content: output }],
-          finalOutput: output,
-          target: target.name,
-          testId: authoredResultTestId(evalCase),
-          conversationId: evalCase.conversation_id,
-          error: message,
-        }),
-        target: target.name,
-        error: message,
-        executionStatus: 'execution_error',
-        failureStage: 'setup',
-        failureReasonCode,
-        executionError: { message, stage: 'setup' },
-      };
-
-      if (onProgress) {
-        await onProgress({
-          workerId,
-          testId: evalCase.id,
-          status: 'failed',
-          completedAt: Date.now(),
-          error: result.error,
-          score: result.score,
-          executionStatus: result.executionStatus,
-        });
-      }
-      if (onResult) {
-        await onResult(result);
-      }
-      return result;
     }
 
     function extractEvaluationCostUsd(result: EvaluationResult): number | undefined {
@@ -1329,35 +1211,12 @@ export async function runEvaluation(
         });
       }
 
-      // Multi-slot pool: each shared-workspace test grabs its own pool slot.
-      // Per-case isolated cases and raw/no-workspace cases outside the selected
-      // shared owner prepare without inheriting a child suite's workspace.
+      // Attempt-scoped cases and raw/no-workspace cases outside the selected
+      // suite owner prepare without inheriting a child suite's workspace.
       const usesSharedWorkspace = caseUsesSharedWorkspaceSetup(evalCase, sharedSetup);
-      const pooledWorkspaceRequired = usesSharedWorkspace && poolSlots.length > 0;
-      const testPoolSlot = pooledWorkspaceRequired ? await acquirePoolSlot() : undefined;
-      if (pooledWorkspaceRequired && !testPoolSlot) {
-        return emitSetupErrorResult(
-          evalCase,
-          workerId,
-          'No clean pooled workspace slot is available; prior slot reset failed.',
-          'workspace_pool_unavailable',
-        );
-      }
-      const testWorkspacePath = usesSharedWorkspace
-        ? pooledWorkspaceRequired
-          ? testPoolSlot?.path
-          : sharedWorkspacePath
-        : undefined;
-      const testBaselineCommit = usesSharedWorkspace
-        ? testPoolSlot
-          ? (poolSlotBaselines.get(testPoolSlot.path) ?? sharedBaselineCommit)
-          : sharedBaselineCommit
-        : undefined;
-      const testExtensionState = usesSharedWorkspace
-        ? testPoolSlot
-          ? poolSlotExtensionStates.get(testPoolSlot.path)
-          : sharedExtensionState
-        : undefined;
+      const testWorkspacePath = usesSharedWorkspace ? sharedWorkspacePath : undefined;
+      const testBaselineCommit = usesSharedWorkspace ? sharedBaselineCommit : undefined;
+      const testExtensionState = usesSharedWorkspace ? sharedExtensionState : undefined;
 
       try {
         const graderProvider = await resolveGraderProvider(target);
@@ -1463,32 +1322,6 @@ export async function runEvaluation(
           });
         }
         throw error;
-      } finally {
-        // Return pool slot for reuse by next test only after resetting it to
-        // the per-slot baseline. Pooling is a local performance optimization,
-        // not shared state between eval cases.
-        if (testPoolSlot) {
-          const resetMode = workspaceClean === 'full' ? 'strict' : 'fast';
-          let resetSucceeded = true;
-          try {
-            if (repoManager && suiteWorkspace?.repos?.length) {
-              await repoManager.reset(suiteWorkspace.repos, testPoolSlot.path, resetMode);
-            }
-            await resetWorkspaceRoot(testPoolSlot.path, resetMode, testBaselineCommit);
-          } catch (resetError) {
-            resetSucceeded = false;
-            markPoolSlotUnavailable(testPoolSlot);
-            if (verbose) {
-              const message = resetError instanceof Error ? resetError.message : String(resetError);
-              console.warn(
-                `Warning: failed to reset workspace pool slot ${testPoolSlot.index}; leaving it out of reuse: ${message}`,
-              );
-            }
-          }
-          if (resetSucceeded) {
-            returnPoolSlot(testPoolSlot);
-          }
-        }
       }
     }
 
@@ -1589,14 +1422,8 @@ export async function runEvaluation(
       }
     }
 
-    // --- Shared workspace after_all + cleanup ---
-    // For multi-slot pool, run after_all on each slot (symmetric with before_all)
-    const afterAllWorkspaces =
-      poolSlots.length > 1
-        ? poolSlots.map((s) => s.path)
-        : sharedWorkspacePath
-          ? [sharedWorkspacePath]
-          : [];
+    // --- Suite workspace after_all + cleanup ---
+    const afterAllWorkspaces = sharedWorkspacePath ? [sharedWorkspacePath] : [];
 
     // Execute target after_all (runs ONCE before workspace after_all)
     const targetAfterAllHook = targetHooks?.after_all;
@@ -1635,7 +1462,7 @@ export async function runEvaluation(
               eval_run_id: evalRunId,
               eval_dir: evalDir,
             },
-            state: poolSlotExtensionStates.get(wsPath) ?? sharedExtensionState,
+            state: sharedExtensionState,
           });
           if (afterAllState?.output && results.length > 0 && wsPath === afterAllWorkspaces[0]) {
             results[results.length - 1] = {
@@ -1677,8 +1504,8 @@ export async function runEvaluation(
       }
     }
 
-    // Cleanup shared workspace (skip for pooled workspaces and user-provided workspaces)
-    if (sharedWorkspacePath && !poolSlot && poolSlots.length === 0 && !useStaticWorkspace) {
+    // Cleanup suite workspace (skip user-provided static workspaces)
+    if (sharedWorkspacePath && !useStaticWorkspace) {
       const hasFailure = results.some((r) => !!r.error || r.score < 0.5);
       if (hasFailure) {
         if (resolvedRetainOnFailure === 'cleanup') {
@@ -1689,7 +1516,7 @@ export async function runEvaluation(
       }
     }
 
-    // Fallback cleanup for any per-case workspaces
+    // Fallback cleanup for any attempt workspaces
     if (cleanupWorkspaces) {
       await cleanupEvalWorkspaces(evalRunId).catch(() => {});
     }
@@ -2495,7 +2322,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     // Determine if this is a failure (has error or low score)
     const isFailure = !!finalResult.error || finalResult.score < 0.5;
 
-    // Cleanup workspace based on result and flags (only for per-case workspaces)
+    // Cleanup workspace based on result and flags (only for per-attempt workspaces)
     if (workspacePath && !isSharedWorkspace) {
       if (forceCleanup) {
         await cleanupWorkspace(workspacePath).catch(() => {});
@@ -2528,7 +2355,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
       verbose,
       { sampleIndex, retryIndex: attempt },
     );
-    // On error, keep workspace for debugging (only for per-case workspaces)
+    // On error, keep workspace for debugging (only for per-attempt workspaces)
     if (workspacePath && !isSharedWorkspace) {
       if (forceCleanup || (retainOnFailure ?? 'keep') === 'cleanup') {
         await cleanupWorkspace(workspacePath).catch(() => {});
@@ -3358,7 +3185,7 @@ async function runConversationMode(options: {
       // Turn skipped due to on_turn_failure: stop
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: 0,
         verdict: 'skip' as EvaluationVerdict,
         assertions: [{ text: 'Skipped due to previous turn failure', passed: false }],
@@ -3395,7 +3222,7 @@ async function runConversationMode(options: {
       const message = error instanceof Error ? error.message : String(error);
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: 0,
         verdict: 'fail' as EvaluationVerdict,
         assertions: [{ text: `Provider error: ${message}`, passed: false }],
@@ -3416,7 +3243,7 @@ async function runConversationMode(options: {
       // No assertions or expected_output — turn scores 1.0
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: 1.0,
         verdict: 'pass' as EvaluationVerdict,
         assertions: [],
@@ -3474,7 +3301,7 @@ async function runConversationMode(options: {
 
     turnScores.push({
       name: `turn-${turnIndex}`,
-      type: 'rubrics' as GraderKind,
+      type: 'llm-rubric' as GraderKind,
       score: turnScore,
       verdict: scoreToVerdict(turnScore, threshold ?? DEFAULT_THRESHOLD) as EvaluationVerdict,
       assertions: turnResult.assertions ? [...turnResult.assertions] : [],
@@ -3534,7 +3361,7 @@ async function runConversationMode(options: {
     conversationScores = [
       {
         name: 'conversation',
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: conversationResult.score,
         verdict: scoreToVerdict(
           conversationResult.score,
@@ -3625,7 +3452,7 @@ function buildTurnGraderInput(history: readonly ChatMessage[], windowSize?: numb
 
 /**
  * Convert per-turn assertions to GraderConfig[].
- * String assertions are grouped into a single rubrics evaluator.
+ * String assertions are grouped into a single llm-rubric evaluator.
  * Structured assertions pass through as-is.
  */
 function buildTurnAssertions(turn: ConversationTurn): GraderConfig[] {
@@ -3644,13 +3471,11 @@ function buildTurnAssertions(turn: ConversationTurn): GraderConfig[] {
 
   const result: GraderConfig[] = [];
 
-  // Group string assertions into a single llm-grader evaluator with rubrics.
-  // Uses llm-grader (not rubrics) because 'rubrics' is a YAML shorthand resolved by
-  // the grader-parser — at runtime we always dispatch through 'llm-grader'.
+  // Group string assertions into a single structured llm-rubric evaluator.
   if (stringCriteria.length > 0) {
     result.push({
-      name: 'turn-rubrics',
-      type: 'llm-grader' as GraderKind,
+      name: 'turn-llm-rubric',
+      type: 'llm-rubric' as GraderKind,
       rubrics: stringCriteria.map((text, idx) => ({
         id: `criterion-${idx + 1}`,
         outcome: text,

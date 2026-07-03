@@ -24,9 +24,9 @@ export type AssertionContext = CodeGraderInput;
 /**
  * Known built-in assertion types. Custom types are extensible via string.
  *
- * Use in EVAL.yaml `assertions` blocks:
+ * Use in EVAL.yaml `assert` blocks:
  * ```yaml
- * assertions:
+ * assert:
  *   - type: contains
  *     value: "Paris"
  * ```
@@ -38,11 +38,9 @@ export type AssertionContext = CodeGraderInput;
 export type AssertionType =
   // kebab-case (canonical internal form)
   | 'llm-grader'
-  | 'g-eval'
   | 'llm-rubric'
   | 'script'
   | 'assert-set'
-  | 'rubrics'
   | 'composite'
   | 'tool-trajectory'
   | 'field-accuracy'
@@ -66,20 +64,6 @@ export type AssertionType =
   | 'python'
   | 'webhook'
   | 'similar'
-  // legacy snake_case aliases (still accepted)
-  | 'llm_grader'
-  | 'code_grader'
-  | 'tool_trajectory'
-  | 'field_accuracy'
-  | 'token_usage'
-  | 'execution_metrics'
-  | 'contains_any'
-  | 'contains_all'
-  | 'icontains_any'
-  | 'icontains_all'
-  | 'starts_with'
-  | 'ends_with'
-  | 'is_json'
   | (string & {});
 
 /**

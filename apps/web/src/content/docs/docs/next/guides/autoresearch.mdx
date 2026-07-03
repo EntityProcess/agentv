@@ -130,13 +130,13 @@ And an eval with 7 test cases covering edge cases — payment failures, SSL cert
 # EVAL.yaml (stays fixed — only the prompt changes)
 tests:
   - id: total-outage
-    assertions:
+    assert:
       - type: contains
         value: '"P0"'
       - type: is-json
       - "Reasoning mentions complete service outage"
   - id: payment-failures
-    assertions:
+    assert:
       - type: contains
         value: '"P1"'
       - type: is-json

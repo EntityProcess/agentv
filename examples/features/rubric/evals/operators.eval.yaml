@@ -27,9 +27,9 @@ tests:
           Q4 revenue increased to $10M from $8M. Gross margin declined to 42%
           from 45%.
 
-    assertions:
-      - type: rubrics
-        criteria:
+    assert:
+      - type: llm-rubric
+        value:
           - id: supported-revenue
             operator: correctness
             outcome: States Q4 revenue increased to $10M from $8M.

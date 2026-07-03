@@ -3,11 +3,11 @@ description: |-
   Verifies correct selection of therapeutic framework based on client needs.
 target: gemini-llm
 
-assertions:
-  - name: json_schema_validator
-    type: code-grader
+assert:
+  - metric: json_schema_validator
+    type: script
     command: ["uv", "run", "validate_output.py"]
-  - name: content_evaluator
+  - metric: content_evaluator
     type: llm-grader
 
 tests:

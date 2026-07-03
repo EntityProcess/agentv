@@ -1,6 +1,6 @@
 # Deterministic Grader Examples
 # Shows built-in assertion types for common deterministic checks.
-# These replace the need for external code_grader scripts for simple assertions.
+# These replace the need for external script graders for simple assertions.
 
 name: deterministic-graders
 description: Built-in deterministic assertions — contains, regex, JSON validation, equals
@@ -16,7 +16,7 @@ tests:
         content: "Always start your response with 'Hello'."
       - role: user
         content: "Say hello to the user."
-    assertions:
+    assert:
       - type: contains
         value: "Hello"
 
@@ -28,7 +28,7 @@ tests:
         content: "You must include the email support@example.com in every response."
       - role: user
         content: "Provide your contact email."
-    assertions:
+    assert:
       - type: regex
         value: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
 
@@ -40,7 +40,7 @@ tests:
         content: "You are a calculator. Respond with ONLY the numeric result. No words, no punctuation, no explanation, no newlines. Just the bare number."
       - role: user
         content: "What is 2+2?"
-    assertions:
+    assert:
       - type: equals
         value: "4"
 
@@ -52,11 +52,11 @@ tests:
         content: "You MUST start every response with exactly 'Dear User,' followed by your message."
       - role: user
         content: "Thank the user for contacting support."
-    assertions:
+    assert:
       - type: regex
         value: "^Dear User"
 
-  # --- is_json ---
+  # --- is-json ---
   - id: is-json-valid
     criteria: Response is valid JSON
     input:
@@ -64,7 +64,7 @@ tests:
         content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: "Return a JSON object with a status field set to ok and code 200."
-    assertions:
+    assert:
       - type: is-json
 
   # --- combining multiple assertions on one test ---
@@ -75,7 +75,7 @@ tests:
         content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: 'Return a JSON object with a "result" key set to the number 42.'
-    assertions:
+    assert:
       - type: is-json
         required: true
       - type: contains
@@ -89,7 +89,7 @@ tests:
         content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks, or any text outside the JSON object."
       - role: user
         content: 'Return a JSON object with a "message" field set to "success".'
-    assertions:
+    assert:
       - type: is-json
         required: true
       - type: contains

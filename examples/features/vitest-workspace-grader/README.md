@@ -35,9 +35,9 @@ it('links to the dashboard', () => {
 The eval YAML calls AgentV's built-in adapter directly:
 
 ```yaml
-assertions:
+assert:
   - name: vitest-welcome-banner
-    type: code-grader
+    type: script
     command: [agentv, eval, graders/welcome-banner.test.ts]
 ```
 
