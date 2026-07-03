@@ -181,6 +181,27 @@ Project-local `.agentv/config.yaml` should remain the portable project policy
 file: defaults, `execution`, `eval_patterns`, `refs`, tags, result defaults, and
 other run-level settings. It may point at the default target/grader by name, but
 it should not become the registry that holds all target and grader definitions.
+Following Promptfoo's modular-config idiom, use direct field references rather
+than a named import table:
+
+```yaml
+# .agentv/config.yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
+
+defaults:
+  target: codex-local
+  grader: openai-grader
+
+execution:
+  workers: 3
+```
+
+Do not introduce a greenfield `files:` or `imports:` section for this unless
+AgentV needs a capability that direct field references cannot express.
+Promptfoo's pattern is `providers: file://configs/providers.yaml`,
+`tests: file://tests/`, and `defaultTest: file://configs/default-test.yaml`;
+the field being configured names the thing being loaded.
 
 `targets.yaml` should remain the registry of subjects under test. `graders.yaml`
 should be the registry of reusable grading providers. This keeps target runtime
@@ -188,20 +209,43 @@ contracts reviewable, keeps grader credentials/endpoints separate from agent
 runtimes, and matches AgentV's existing artifact model where run manifests carry
 explicit `targets_path` and `graders_path` entries.
 
+For Promptfoo-style field references, the referenced file should contain the
+value for that field. Greenfield examples:
+
+```yaml
+# .agentv/targets.yaml
+- id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex"]
+```
+
+```yaml
+# .agentv/graders.yaml
+- id: openai-grader
+  provider: openai
+  config:
+    model: gpt-5-mini
+```
+
+For compatibility with AgentV's existing standalone `targets.yaml` convention,
+the loader can also accept wrapped forms such as `targets: [...]` and
+`graders: [...]`, but the Promptfoo-like authored shape is the bare field value.
+
 The global `$AGENTV_HOME/config.yaml` is different: it owns Dashboard/operator
 state such as the `projects:` registry. Do not use the existence of global
 `projects:` as a reason to put project-local target/grader registries into
-project-local `.agentv/config.yaml`. If custom locations are needed, add
-project-local config pointers such as `targets_file` / `graders_file` rather
-than embedding both registries inline.
+project-local `.agentv/config.yaml`.
 
 Greenfield, the cleanest global shape would put Dashboard project registry
 state in `$AGENTV_HOME/projects.yaml` and leave `$AGENTV_HOME/config.yaml` for
-global settings. Current AgentV code and docs use `$AGENTV_HOME/config.yaml`
-with a top-level `projects:` registry, so do not migrate this as part of the
-coding-agent target-runtime work. If the team wants the cleaner split, create a
-separate migration Bead with backwards-compatible reading from current
-`projects:` locations and a clear write target.
+global settings. If using Promptfoo-style references, the global config would
+say `projects: file://projects.yaml`. Current AgentV code and docs use
+`$AGENTV_HOME/config.yaml` with a top-level `projects:` registry, so do not
+migrate this as part of the coding-agent target-runtime work. If the team wants
+the cleaner split, create a separate migration Bead with backwards-compatible
+reading from current `projects:` locations and a clear write target.
 
 Promptfoo's comparable file-structure guidance is simpler: a main
 `promptfooconfig.yaml` commonly contains `providers`, `prompts`, `defaultTest`,
