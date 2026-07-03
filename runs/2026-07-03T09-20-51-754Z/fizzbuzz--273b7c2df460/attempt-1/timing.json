@@ -1,0 +1,17 @@
+{
+  "total_tokens": 8704,
+  "duration_ms": 8809,
+  "total_duration_seconds": 8.809,
+  "cost_usd": null,
+  "token_usage": {
+    "input": 8558,
+    "output": 146,
+    "reasoning": 0
+  },
+  "usage_sources": {
+    "token_usage": "provider_reported",
+    "total_tokens": "provider_reported",
+    "duration": "provider_reported",
+    "cost": "unavailable"
+  }
+}

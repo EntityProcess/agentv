@@ -1,0 +1,58 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-f7d874c241d5665a9412",
+  "generated_at": "2026-07-03T09:21:07.835Z",
+  "test_id": "fizzbuzz",
+  "target": "pi-cli-openai",
+  "suite": "my-eval",
+  "category": "examples/features/readme-quickstart/my-eval",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-f7d874c241d5665a9412",
+    "trace_id": "6c7ce45a3b562cea40a8490dd3dd044d",
+    "root_span_id": "46c0021cc32db15d"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json",
+    "timing_path": "timing.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [],
+    "errors_encountered": 0,
+    "output_chars": 297,
+    "transcript_chars": 2806,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "timing": {
+    "total_tokens": 8704,
+    "duration_ms": 8809,
+    "total_duration_seconds": 8.809,
+    "cost_usd": null,
+    "token_usage": {
+      "input": 8558,
+      "output": 146,
+      "reasoning": 0
+    },
+    "usage_sources": {
+      "token_usage": "provider_reported",
+      "total_tokens": "provider_reported",
+      "duration": "provider_reported",
+      "cost": "unavailable"
+    }
+  }
+}
