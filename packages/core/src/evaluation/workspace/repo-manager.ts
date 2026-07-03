@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -47,7 +47,8 @@ interface AcquisitionSource {
     | 'registered-project'
     | 'mirror-cache'
     | 'remote'
-    | 'repo-resolver';
+    | 'repo-resolver-git'
+    | 'repo-resolver-directory';
   readonly sourceUrl: string;
   readonly originUrl: string;
 }
@@ -133,6 +134,7 @@ export class RepoManager {
   private readonly heartbeatMs: number;
   private readonly timeoutMs: number;
   private readonly projectConfigDir?: string;
+  private readonly materializedAcquisitions = new Map<string, AcquisitionSource>();
 
   constructor(verbose = false, options: RepoManagerOptions = {}) {
     this.verbose = verbose;
@@ -650,12 +652,8 @@ export class RepoManager {
       workspacePath,
       this.timeoutMs,
     );
-    if (result.handled) {
-      return {
-        kind: 'repo-resolver',
-        sourceUrl: result.source.path,
-        originUrl: result.source.origin ?? originUrl,
-      };
+    if (result.status === 'handled') {
+      return this.repoResolverAcquisitionSource(result.path, originUrl);
     }
 
     if (selection.kind === 'pattern') {
@@ -667,17 +665,44 @@ export class RepoManager {
           workspacePath,
           this.timeoutMs,
         );
-        if (defaultResult.handled) {
-          return {
-            kind: 'repo-resolver',
-            sourceUrl: defaultResult.source.path,
-            originUrl: defaultResult.source.origin ?? originUrl,
-          };
+        if (defaultResult.status === 'handled') {
+          return this.repoResolverAcquisitionSource(defaultResult.path, originUrl);
         }
       }
     }
 
     return undefined;
+  }
+
+  private async repoResolverAcquisitionSource(
+    sourcePath: string,
+    originUrl: string,
+  ): Promise<AcquisitionSource> {
+    return {
+      kind: (await this.isGitCloneSource(sourcePath))
+        ? 'repo-resolver-git'
+        : 'repo-resolver-directory',
+      sourceUrl: sourcePath,
+      originUrl,
+    };
+  }
+
+  private async isGitCloneSource(sourcePath: string): Promise<boolean> {
+    try {
+      await stat(sourcePath);
+    } catch {
+      return false;
+    }
+
+    try {
+      await this.runGit(['rev-parse', '--git-dir'], {
+        cwd: sourcePath,
+        timeout: 10_000,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private assertNoUserOwnedAlternates(targetDir: string, acquisition: AcquisitionSource): void {
@@ -757,12 +782,23 @@ export class RepoManager {
 
     const targetDir = path.join(workspacePath, repo.path);
     const acquisition = await this.resolveAcquisition(repo, workspacePath);
+    this.materializedAcquisitions.set(targetDir, acquisition);
     const startedAt = Date.now();
 
     if (this.verbose) {
       console.log(
         `[repo] materialize start path=${repo.path} repo=${repo.repo} acquisition=${acquisition.kind} workspace=${workspacePath}`,
       );
+    }
+
+    if (acquisition.kind === 'repo-resolver-directory') {
+      await this.copyDirectorySnapshot(acquisition.sourceUrl, targetDir);
+      if (this.verbose) {
+        console.log(
+          `[repo] materialize done path=${repo.path} target=${targetDir} durationMs=${Date.now() - startedAt}`,
+        );
+      }
+      return;
     }
 
     // Plain local clones hardlink objects on the same filesystem and copy
@@ -776,7 +812,10 @@ export class RepoManager {
     });
     this.assertNoUserOwnedAlternates(targetDir, acquisition);
 
-    if (acquisition.sourceUrl !== acquisition.originUrl) {
+    if (
+      acquisition.kind !== 'repo-resolver-git' &&
+      acquisition.sourceUrl !== acquisition.originUrl
+    ) {
       assertSafeGitOperand(acquisition.originUrl, 'repo origin URL');
       await this.runGit(['remote', 'set-url', 'origin', acquisition.originUrl], { cwd: targetDir });
     }
@@ -829,9 +868,25 @@ export class RepoManager {
     for (const repo of repos) {
       if (!repo.path || !repo.repo) continue;
       const targetDir = path.join(workspacePath, repo.path);
+      const acquisition = this.materializedAcquisitions.get(targetDir);
+      if (acquisition?.kind === 'repo-resolver-directory') {
+        await this.copyDirectorySnapshot(acquisition.sourceUrl, targetDir);
+        continue;
+      }
       const resetSha = await this.resolveCheckoutCommit(repo, targetDir);
       await this.runGit(['reset', '--hard', resetSha], { cwd: targetDir });
       await this.runGit(['clean', cleanFlag], { cwd: targetDir });
     }
+  }
+
+  private async copyDirectorySnapshot(sourceDir: string, targetDir: string): Promise<void> {
+    assertSafeGitOperand(sourceDir, 'repo resolver directory source');
+    const sourceStat = await stat(sourceDir);
+    if (!sourceStat.isDirectory()) {
+      throw new Error(`Repo resolver directory source is not a directory: ${sourceDir}`);
+    }
+    await rm(targetDir, { recursive: true, force: true });
+    await mkdir(path.dirname(targetDir), { recursive: true });
+    await cp(sourceDir, targetDir, { recursive: true, force: true });
   }
 }
