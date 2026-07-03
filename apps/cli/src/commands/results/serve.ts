@@ -637,12 +637,18 @@ function manifestRecordSelection(
 
 function relativeRunPathFromNormalizedManifestPath(manifestPath: string): string | undefined {
   const parts = manifestPath.split('/').filter(Boolean);
-  const runsIndex = parts.lastIndexOf('runs');
   const manifestName = parts.at(-1);
-  if (runsIndex === -1 || !manifestName || !isRunManifestPath(manifestName)) {
+  if (!manifestName || !isRunManifestPath(manifestName)) {
     return undefined;
   }
-  const runParts = parts.slice(runsIndex + 1, -1);
+  const manifestDirParts = parts.slice(0, -1);
+  if (manifestDirParts.at(-1) === '.internal') {
+    manifestDirParts.pop();
+  }
+  if (manifestDirParts.length === 0 || manifestDirParts[0]?.startsWith('.')) {
+    return undefined;
+  }
+  const runParts = manifestDirParts;
   return runParts.length > 0 ? runParts.join('/') : undefined;
 }
 
@@ -669,7 +675,7 @@ function sidecarArtifactKeyForPointer(
   artifact: ResolvedArtifactPointer,
 ): string | undefined {
   const publishedKey = artifact.key ? normalizeArtifactRelativePath(artifact.key) : undefined;
-  if (publishedKey?.startsWith('runs/')) {
+  if (publishedKey) {
     return publishedKey;
   }
   if (!artifact.path) {
@@ -680,7 +686,7 @@ function sidecarArtifactKeyForPointer(
   if (!relativeArtifactPath || !relativeRunPath) {
     return undefined;
   }
-  return ['runs', relativeRunPath, relativeArtifactPath].join('/');
+  return [relativeRunPath, relativeArtifactPath].join('/');
 }
 
 async function readSidecarArtifactText(
@@ -756,7 +762,7 @@ function displayPathFromArtifactKey(key: string | undefined, runPath: string | u
   const normalizedKey = key ? normalizeArtifactRelativePath(key) : undefined;
   if (!normalizedKey) return undefined;
   if (!runPath) return normalizedKey;
-  const runPrefix = `runs/${runPath}/`;
+  const runPrefix = `${runPath}/`;
   if (!normalizedKey.startsWith(runPrefix)) return normalizedKey;
   return normalizeArtifactRelativePath(normalizedKey.slice(runPrefix.length)) ?? normalizedKey;
 }

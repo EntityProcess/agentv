@@ -30,16 +30,16 @@ const execFileAsync = promisify(execFile);
 // write runs here. This is NOT the on-branch layout — see RESULTS_REPO_RUNS_DIR.
 const RESULTS_REPO_RESULTS_DIR = '.agentv/results';
 // On-branch / results-repo-clone storage layout. The results branch (e.g.
-// agentv/results/v1) already namespaces results, so runs are stored flat at
-// runs/<run_id>/ and the editable tag overlays at metadata/runs/<run_id>/ —
-// no redundant `.agentv/results/` prefix.
-const RESULTS_REPO_RUNS_DIR = 'runs';
-const RESULTS_REPO_METADATA_DIR = 'metadata';
+// agentv/results/v1) already namespaces results, so run bundles are stored at
+// the branch root as <run_id>/ with ADR-0017 internals preserved.
+const RESULTS_REPO_RUNS_DIR = '.';
+const RESULTS_REPO_INDEXES_DIR = '.indexes';
+const RESULTS_REPO_CACHE_DIR = '.cache';
 // Top-level directories AgentV owns on the results branch. The auto-sync
 // dirty-commit path stages only these so it never touches unrelated repo files.
-const RESULTS_REPO_TRACKED_DIRS = [RESULTS_REPO_RUNS_DIR, RESULTS_REPO_METADATA_DIR] as const;
+const RESULTS_REPO_TRACKED_DOT_DIRS = [RESULTS_REPO_INDEXES_DIR, RESULTS_REPO_CACHE_DIR] as const;
 const GIT_RESULTS_INDEX_CACHE_SCHEMA_VERSION = 'agentv.git_results_index_cache.v1';
-const GIT_RESULTS_INDEX_LAYOUT_VERSION = 'agentv.results_repo_runs.v1';
+const GIT_RESULTS_INDEX_LAYOUT_VERSION = 'agentv.results_repo_branch_root.v1';
 const FALLBACK_RESULTS_REPO_COMMIT_EMAIL = 'agentv@results-repo';
 const FALLBACK_RESULTS_REPO_COMMIT_NAME = 'AgentV Results';
 const GIT_COMMIT_IDENTITY_ENV_KEYS = [
@@ -68,135 +68,15 @@ const RESULTS_REPO_GENESIS_MESSAGE = 'chore(results): initialize AgentV results 
 const RESULTS_REPO_GENESIS_DATE = '@0 +0000';
 const RESULT_INDEX_FILENAME = 'index.jsonl';
 
-// Artifact-aware merge config for the AgentV-owned results checkout. These two
-// pieces let `git merge` reconcile concurrent result writes automatically so
-// results sync never has to force-push (see resolveResultBranchPushConflict):
-//   - `.gitattributes` (committed on the results branch) maps the append-only
-//     run index to git's stock `union` driver and the editable JSON overlay to
-//     our `agentv-json` driver.
-//   - `merge.agentv-json.driver` (registered once in the checkout's local git
-//     config) points at a tiny 3-way JSON set/field union script.
-// Run bundles under runs/<run_id>/** are uniquely pathed, so a 3-way merge
-// never conflicts on them and they need no attribute.
+// Artifact-aware merge config for the AgentV-owned results checkout. Concurrent
+// writers append to rebuildable cross-run JSONL catalogs and each run's
+// per-run JSONL index; git's stock `union` driver can reconcile those appends.
+// Run bundles under <run_id>/** are uniquely pathed, so a 3-way merge usually
+// never conflicts on them.
 const RESULTS_REPO_GITATTRIBUTES_FILE = '.gitattributes';
 const RESULTS_REPO_GITATTRIBUTES_CONTENT = `# Managed by AgentV. Artifact-aware merge so results sync never force-pushes.
-# Append-only run manifests: union concurrent appends (lines are orthogonal).
-index.jsonl merge=union
-# Editable run overlay (tags): 3-way JSON set/field union via the
-# agentv-json driver; a genuine scalar conflict falls through to a human merge.
-metadata/runs/**/*.json merge=agentv-json
-`;
-const RESULTS_JSON_MERGE_DRIVER_NAME = 'agentv-json';
-// Materialized into the results checkout's git dir and invoked by git as
-// `node <script> %O %A %B %P`. Kept dependency-free and self-describing so it
-// runs under any Node without bundling. To extend the overlay merge, add cases
-// to merge3 below (e.g. new regenerable bookkeeping fields).
-const RESULTS_JSON_MERGE_DRIVER_SCRIPT = `#!/usr/bin/env node
-// AgentV results overlay merge driver (merge=agentv-json).
-//
-// Performs a 3-way merge of AgentV's editable JSON overlay files (run tags).
-// Tag lists merge as a 3-way set so concurrent add/remove are
-// commutative; display-only bookkeeping scalars that always differ between
-// writers (updated_at) are regenerated to the larger value instead of
-// conflicting. Content-derived concurrency tokens (tag_revision) are dropped on
-// merge so the reader recomputes a token matching the merged content rather than
-// carrying a stale token that could bypass optimistic-concurrency checks. Any
-// other genuinely diverging scalar exits non-zero, leaving the file conflicted
-// so the caller can route it to a human GitHub merge.
-//
-// Invoked by git as: node json-merge-driver.mjs %O %A %B %P
-//   %O ancestor, %A current (overwritten with the result), %B other, %P path.
-import { readFileSync, writeFileSync } from 'node:fs';
-
-const [, , ancestorFile, currentFile, otherFile] = process.argv;
-const CONFLICT = Symbol('conflict');
-// Scalars that legitimately differ on every write and carry no merge meaning.
-const REGENERABLE_SCALARS = new Set(['updated_at']);
-// Content-derived tokens (a hash of {tags, updated_at}) that guard optimistic
-// concurrency. Carrying either side's pre-merge token forward would let a stale
-// client whose token happens to match bypass the concurrency check and silently
-// overwrite the merged set, so we drop them and let the reader recompute a token
-// that matches the merged content.
-const DROP_ON_MERGE = new Set(['tag_revision']);
-
-function readJson(file) {
-  try {
-    return JSON.parse(readFileSync(file, 'utf8'));
-  } catch {
-    return undefined;
-  }
-}
-
-function isPrimitiveArray(value) {
-  return (
-    Array.isArray(value) &&
-    value.every((entry) => entry === null || ['string', 'number', 'boolean'].includes(typeof entry))
-  );
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function mergeSet(base, a, b) {
-  const baseSet = new Set((isPrimitiveArray(base) ? base : []).map(String));
-  const aSet = new Set(a.map(String));
-  const bSet = new Set(b.map(String));
-  const removed = new Set();
-  for (const value of baseSet) {
-    if (!aSet.has(value) || !bSet.has(value)) removed.add(value);
-  }
-  const merged = [];
-  const seen = new Set();
-  for (const value of [...a, ...b]) {
-    const key = String(value);
-    if (!removed.has(key) && !seen.has(key)) {
-      seen.add(key);
-      merged.push(value);
-    }
-  }
-  return merged;
-}
-
-function merge3(base, a, b, key) {
-  if (JSON.stringify(a) === JSON.stringify(b)) return a;
-  if (JSON.stringify(a) === JSON.stringify(base)) return b;
-  if (JSON.stringify(b) === JSON.stringify(base)) return a;
-  if (isPrimitiveArray(a) && isPrimitiveArray(b)) return mergeSet(base, a, b);
-  if (isPlainObject(a) && isPlainObject(b)) {
-    const keys = new Set([
-      ...Object.keys(a),
-      ...Object.keys(b),
-      ...(isPlainObject(base) ? Object.keys(base) : []),
-    ]);
-    const out = {};
-    for (const childKey of keys) {
-      if (DROP_ON_MERGE.has(childKey)) continue;
-      const merged = merge3(
-        isPlainObject(base) ? base[childKey] : undefined,
-        a[childKey],
-        b[childKey],
-        childKey,
-      );
-      if (merged === CONFLICT) return CONFLICT;
-      if (merged !== undefined) out[childKey] = merged;
-    }
-    return out;
-  }
-  if (REGENERABLE_SCALARS.has(key)) {
-    return [a, b].filter((value) => value !== undefined).sort().pop();
-  }
-  return CONFLICT;
-}
-
-const ancestor = readJson(ancestorFile) ?? {};
-const current = readJson(currentFile);
-const other = readJson(otherFile);
-if (current === undefined || other === undefined) process.exit(1);
-const result = merge3(ancestor, current, other, '');
-if (result === CONFLICT) process.exit(1);
-writeFileSync(currentFile, \`\${JSON.stringify(result, null, 2)}\\n\`);
-process.exit(0);
+${RESULTS_REPO_INDEXES_DIR}/*.jsonl merge=union
+*/.internal/index.jsonl merge=union
 `;
 
 export interface ResultsRepoLocalPaths {
@@ -801,12 +681,10 @@ async function resolveGitTopLevel(repoDir: string): Promise<string> {
   return stdout.trim() || repoDir;
 }
 
-// Register the artifact-aware `agentv-json` merge driver in the AgentV-owned
-// results checkout. This is a one-time, idempotent local-config write (never a
-// global/user config change) plus materializing the dependency-free driver
-// script into the checkout's git dir. `.gitattributes` on the branch maps the
-// overlay paths to this driver; together they let resolveResultBranchPushConflict
-// auto-merge concurrent writes without ever force-pushing.
+// Install artifact-aware merge attributes in the AgentV-owned results checkout.
+// This is a one-time, idempotent local-config write (never global/user config).
+// The committed `.gitattributes` keeps the same JSONL union rules portable to
+// other clients.
 async function ensureResultsMergeConfig(repoDir: string): Promise<void> {
   let gitDir: string;
   try {
@@ -821,30 +699,8 @@ async function ensureResultsMergeConfig(repoDir: string): Promise<void> {
     return;
   }
 
-  const driverScriptPath = path.join(gitDir, 'agentv', 'json-merge-driver.mjs');
-  let scriptCurrent = false;
-  try {
-    scriptCurrent = readFileSync(driverScriptPath, 'utf8') === RESULTS_JSON_MERGE_DRIVER_SCRIPT;
-  } catch {
-    scriptCurrent = false;
-  }
-  if (!scriptCurrent) {
-    mkdirSync(path.dirname(driverScriptPath), { recursive: true });
-    writeFileSync(driverScriptPath, RESULTS_JSON_MERGE_DRIVER_SCRIPT, { mode: 0o755 });
-  }
-
-  const driverCommand = `node ${JSON.stringify(driverScriptPath)} %O %A %B %P`;
-  await runGit(
-    ['config', `merge.${RESULTS_JSON_MERGE_DRIVER_NAME}.name`, 'AgentV results overlay JSON union'],
-    { cwd: repoDir, check: false },
-  );
-  await runGit(['config', `merge.${RESULTS_JSON_MERGE_DRIVER_NAME}.driver`, driverCommand], {
-    cwd: repoDir,
-    check: false,
-  });
-
   // Also mirror the merge attributes into the repo-local `info/attributes`. The
-  // committed `.gitattributes` makes the drivers portable to other clients, but
+  // committed `.gitattributes` makes the rules portable to other clients, but
   // info/attributes guarantees they apply to *this* checkout's merges even on
   // branches committed before `.gitattributes` existed, and for both the
   // working-tree merge and the detached `merge-tree` paths.
@@ -1577,28 +1433,58 @@ function withActionFlags(
 }
 
 function isSafeResultsRepoPath(p: string): boolean {
+  const normalized = p.split(path.sep).join('/');
+  const segments = normalized.split('/').filter(Boolean);
+  const isRunBundlePath =
+    segments.length >= 2 &&
+    !segments[0]?.startsWith('.') &&
+    segments[0] !== RESULTS_REPO_GITATTRIBUTES_FILE;
   return (
-    p === RESULTS_REPO_GITATTRIBUTES_FILE ||
-    RESULTS_REPO_TRACKED_DIRS.some((dir) => p === dir || p.startsWith(`${dir}/`))
+    normalized === RESULTS_REPO_GITATTRIBUTES_FILE ||
+    RESULTS_REPO_TRACKED_DOT_DIRS.some(
+      (dir) => normalized === dir || normalized.startsWith(`${dir}/`),
+    ) ||
+    isRunBundlePath
   );
 }
 
 // git errors on a pathspec that matches nothing, so when staging AgentV's result
-// trees we only pass the ones that currently exist on disk or in the index. A run
-// commit may have no tag overlays yet (no `metadata/`), and vice versa.
-async function existingTrackedResultsDirs(repoDir: string): Promise<string[]> {
-  const targets: string[] = [];
-  for (const dir of RESULTS_REPO_TRACKED_DIRS) {
+// trees we only pass the ones that currently exist on disk or in the index.
+async function existingTrackedResultsPathspecs(repoDir: string): Promise<string[]> {
+  const targets = new Set<string>();
+  if (existsSync(path.join(repoDir, RESULTS_REPO_GITATTRIBUTES_FILE))) {
+    targets.add(RESULTS_REPO_GITATTRIBUTES_FILE);
+  }
+  for (const dir of RESULTS_REPO_TRACKED_DOT_DIRS) {
     if (existsSync(path.join(repoDir, dir))) {
-      targets.push(dir);
+      targets.add(dir);
       continue;
     }
     const { stdout } = await runGit(['ls-files', '--', dir], { cwd: repoDir, check: false });
     if (stdout.trim().length > 0) {
-      targets.push(dir);
+      targets.add(dir);
     }
   }
-  return targets;
+  for (const entry of await readdir(repoDir, { withFileTypes: true }).catch(() => [])) {
+    if (entry.name.startsWith('.') || !entry.isDirectory()) {
+      continue;
+    }
+    if (existsSync(path.join(repoDir, entry.name, 'summary.json'))) {
+      targets.add(entry.name);
+    }
+  }
+  const { stdout } = await runGit(['ls-files'], { cwd: repoDir, check: false });
+  for (const file of stdout.split(/\r?\n/)) {
+    const normalized = file.trim();
+    if (!normalized) {
+      continue;
+    }
+    const segments = normalized.split('/');
+    if (segments.length >= 2 && segments[0] && !segments[0].startsWith('.')) {
+      targets.add(segments[0]);
+    }
+  }
+  return [...targets].sort();
 }
 
 function areSafeResultsRepoPaths(paths: readonly string[]): boolean {
@@ -1691,7 +1577,7 @@ function buildNeedsHumanMergeReason(
   remoteCommit: string | undefined,
   localCommit: string | undefined,
 ): string {
-  return `Results branch ${targetBranch} diverged from the remote and could not be auto-merged: a genuine content conflict in the editable overlay remains (remote ${formatShortSha(
+  return `Results branch ${targetBranch} diverged from the remote and could not be auto-merged: a genuine results content conflict remains (remote ${formatShortSha(
     remoteCommit,
   )}, local ${formatShortSha(
     localCommit,
@@ -1767,7 +1653,7 @@ async function resolveRemotePushUrl(repoDir: string, remote: string): Promise<st
   return undefined;
 }
 
-// Count the unique top-level `runs/<run_id>` run directories that the diverged
+// Count the unique top-level `<run_id>` run directories that the diverged
 // local commit adds on top of the remote target tip. Best-effort: returns
 // undefined when the diff cannot be computed.
 async function countContributedRunDirs(
@@ -1779,13 +1665,7 @@ async function countContributedRunDirs(
     return undefined;
   }
   const { stdout, exitCode } = await runGit(
-    [
-      'diff',
-      '--name-only',
-      `${remoteTargetCommit}...${sourceCommit}`,
-      '--',
-      `${RESULTS_REPO_RUNS_DIR}/`,
-    ],
+    ['diff', '--name-only', `${remoteTargetCommit}...${sourceCommit}`, '--', RESULTS_REPO_RUNS_DIR],
     { cwd: repoDir, check: false },
   );
   if (exitCode !== 0) {
@@ -1798,9 +1678,9 @@ async function countContributedRunDirs(
       continue;
     }
     const segments = file.split('/');
-    // runs/<run_id>/...
-    if (segments[0] === RESULTS_REPO_RUNS_DIR && segments.length >= 2 && segments[1]) {
-      runDirs.add(`${segments[0]}/${segments[1]}`);
+    // <run_id>/...
+    if (segments.length >= 2 && segments[0] && !segments[0].startsWith('.')) {
+      runDirs.add(segments[0]);
     }
   }
   return runDirs.size;
@@ -1892,8 +1772,8 @@ async function mergeRemoteIntoCheckedOutBranch(
 // Layer 1 of the no-force-push results sync (see
 // docs/adr/0007-conflict-free-results-sync-without-force-push.md). A bounded
 // fetch → merge → push loop: fast-forward when possible, otherwise commit a real
-// 3-way merge using the artifact-aware drivers (union index, agentv-json
-// overlay) and fast-forward the canonical branch onto it. A genuine overlay
+// 3-way merge using the artifact-aware JSONL union rules and fast-forward the
+// canonical branch onto it. A genuine results content
 // conflict returns a `needs_human_merge` blocked outcome — never a force push.
 async function resolveResultBranchPushConflict(params: {
   readonly normalized: StorageBranchResultsConfig;
@@ -2513,10 +2393,16 @@ export async function syncResultsRepoForProject(config: ResultsConfig): Promise<
       }
 
       if (inspection.syncStatus === 'dirty') {
-        const trackedDirs = await existingTrackedResultsDirs(repoDir);
-        await runGit(['add', '--all', '--', ...trackedDirs], { cwd: repoDir });
+        const trackedPathspecs = await existingTrackedResultsPathspecs(repoDir);
+        await runGit(['add', '--all', '--', ...trackedPathspecs], { cwd: repoDir });
         await runGitWithFallbackCommitIdentity(
-          ['commit', '-m', 'chore(results): sync local result metadata', '--', ...trackedDirs],
+          [
+            'commit',
+            '-m',
+            'chore(results): sync local results branch changes',
+            '--',
+            ...trackedPathspecs,
+          ],
           {
             cwd: repoDir,
           },
@@ -3039,12 +2925,21 @@ function resolveLocalResultManifestPath(sourceDir: string): string | undefined {
   try {
     const summary = JSON.parse(readFileSync(path.join(sourceDir, 'summary.json'), 'utf8')) as {
       manifest_path?: unknown;
+      index_path?: unknown;
     };
-    const manifestPath = safeLocalSummaryManifestPath(sourceDir, summary.manifest_path);
+    const manifestPath = safeLocalSummaryManifestPath(
+      sourceDir,
+      summary.index_path ?? summary.manifest_path,
+    );
     if (manifestPath && existsSync(manifestPath)) {
       return manifestPath;
     }
   } catch {}
+
+  const internalManifestPath = path.join(sourceDir, '.internal', RESULT_INDEX_FILENAME);
+  if (existsSync(internalManifestPath)) {
+    return internalManifestPath;
+  }
 
   const manifestPath = path.join(sourceDir, RESULT_INDEX_FILENAME);
   if (existsSync(manifestPath)) {
@@ -3201,7 +3096,7 @@ async function preparePublishedResultsSource(params: {
     for (const sourceFile of sourceFiles) {
       const relativeFile = path.relative(params.sourceDir, sourceFile).split(path.sep).join('/');
       const destinationFile = path.join(publishedRoot, ...relativeFile.split('/'));
-      if (isResultManifestFilename(relativeFile)) {
+      if (isResultManifestFilename(path.posix.basename(relativeFile))) {
         const original = readFileSync(sourceFile, 'utf8');
         const rewritten = original
           .split(/\r?\n/)
@@ -3851,6 +3746,7 @@ type GitBatchBlob = {
 
 type GitRunSummary = {
   readonly manifest_path?: string;
+  readonly index_path?: string;
   readonly metadata?: {
     readonly display_name?: string;
     readonly timestamp?: string;
@@ -3893,7 +3789,9 @@ function buildGitManifestPaths(
     if (!isV2ResultsRepoRunPath(relativeRunPath)) {
       continue;
     }
-    const manifestPath = safeGitSummaryManifestPath(runDir, summary.manifest_path);
+    const manifestPath =
+      safeGitSummaryManifestPath(runDir, summary.index_path ?? summary.manifest_path) ??
+      fallbackGitManifestPath(runDir, treePathSet);
     if (manifestPath && treePathSet.has(manifestPath)) {
       manifestByRunDir.set(runDir, manifestPath);
     }
@@ -3903,7 +3801,7 @@ function buildGitManifestPaths(
     if (!treePath.endsWith(`/${RESULT_INDEX_FILENAME}`)) {
       continue;
     }
-    const runDir = path.posix.dirname(treePath);
+    const runDir = gitRunDirForManifestPath(treePath);
     const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);
     if (!isV2ResultsRepoRunPath(relativeRunPath)) {
       continue;
@@ -3914,6 +3812,28 @@ function buildGitManifestPaths(
   }
 
   return [...manifestByRunDir.values()].sort();
+}
+
+function fallbackGitManifestPath(
+  runDir: string,
+  treePathSet: ReadonlySet<string>,
+): string | undefined {
+  for (const candidate of [
+    path.posix.join(runDir, '.internal', RESULT_INDEX_FILENAME),
+    path.posix.join(runDir, RESULT_INDEX_FILENAME),
+  ]) {
+    if (treePathSet.has(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function gitRunDirForManifestPath(manifestPath: string): string {
+  const manifestDir = path.posix.dirname(manifestPath);
+  return path.posix.basename(manifestDir) === '.internal'
+    ? path.posix.dirname(manifestDir)
+    : manifestDir;
 }
 
 function isV2ResultsRepoRunPath(relativeRunPath: string): boolean {
@@ -4097,7 +4017,7 @@ export async function readGitResultArtifact(
 //
 // Manual recovery: if a pod is lost mid-run, an operator can clone the results
 // repo, checkout `agentv/wip/<hostname>/<run-dir>`, and resume with:
-//   cp -r runs/<run-dir> <local-workspace>
+//   cp -r <run-dir> <local-workspace>
 //   agentv eval <eval-file> --output <local-workspace>/<run-dir> --resume
 
 export function buildWipBranchName(runDir: string): string {
@@ -4183,8 +4103,11 @@ export async function pushWipCheckpoint(params: {
     sourceDir: params.sourceDir,
     destinationDir,
   });
-  const trackedDirs = await existingTrackedResultsDirs(params.handle.worktreeDir);
-  await runGit(['add', '--all', '--', ...trackedDirs], {
+  writeFileSync(
+    path.join(params.handle.worktreeDir, RESULTS_REPO_GITATTRIBUTES_FILE),
+    RESULTS_REPO_GITATTRIBUTES_CONTENT,
+  );
+  await runGit(['add', '--all', '--', RESULTS_REPO_GITATTRIBUTES_FILE, params.destinationPath], {
     cwd: params.handle.worktreeDir,
   });
   const { stdout: status } = await runGit(['status', '--porcelain'], {
@@ -4456,7 +4379,7 @@ export async function listGitRuns(repoDir: string, ref = 'origin/main'): Promise
 
   const runs = blobs.flatMap((blob, index): GitListedRun[] => {
     const manifestPath = indexPaths[index];
-    const runDir = path.posix.dirname(manifestPath);
+    const runDir = gitRunDirForManifestPath(manifestPath);
     const summaryPath = path.posix.join(runDir, 'summary.json');
     const summary = summaryByPath.get(summaryPath);
     const relativeRunPath = path.posix.relative(RESULTS_REPO_RUNS_DIR, runDir);

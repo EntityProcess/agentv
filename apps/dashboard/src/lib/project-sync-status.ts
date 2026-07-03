@@ -218,13 +218,13 @@ export function getProjectSyncView(
     return {
       state: 'dirty',
       label: 'Dirty',
-      actionLabel: 'Sync Metadata',
+      actionLabel: 'Sync Results',
       tone: 'warn',
-      summary: status.block_reason ?? 'Local result metadata has pending edits.',
+      summary: status.block_reason ?? 'Local result artifacts have pending edits.',
       nextAction:
         status.auto_push === true
-          ? 'Sync Project will commit safe result metadata changes before syncing.'
-          : 'Review or commit the pending result metadata; no reset will be performed.',
+          ? 'Sync Project will commit safe result artifact changes before syncing.'
+          : 'Review or commit the pending result artifacts; no reset will be performed.',
       canSync: true,
     };
   }
@@ -261,7 +261,7 @@ export function getProjectSyncView(
     label: 'Clean',
     actionLabel: 'Sync Project',
     tone: 'good',
-    summary: 'Local and remote result metadata are in sync.',
+    summary: 'Local and remote results are in sync.',
     canSync: true,
   };
 }
@@ -332,7 +332,7 @@ export function buildProjectSyncFeedback(status: RemoteStatusResponse): {
   }
 
   const actions = [
-    status.commit_created ? 'committed pending metadata' : undefined,
+    status.commit_created ? 'committed pending results' : undefined,
     status.pull_performed ? 'pulled remote results' : undefined,
     status.auto_merged_remote ? 'Merged remote (auto)' : undefined,
     status.push_performed ? 'pushed local results' : undefined,
