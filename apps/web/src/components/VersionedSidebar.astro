@@ -5,10 +5,9 @@ import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
 import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
 import v4Routes from '../data/docs-v4.42.4-routes.json';
 
-// The Starlight sidebar config autogenerates from docs/next/*, so the base
-// sidebar's hrefs already point at the live /docs/next/ tree unmodified.
-// Only genuinely archived versions below need their hrefs remapped.
-const LIVE_PREFIX = '/docs/next/';
+// The Starlight sidebar config autogenerates from docs/next/*, but those files
+// publish with root /docs/* slugs. Only archived versions need href remapping.
+const LIVE_PREFIX = '/docs/';
 const ARCHIVED_VERSIONS = [{ slug: 'v4.42.4', routes: v4Routes }];
 
 const { sidebar } = Astro.locals.starlightRoute;

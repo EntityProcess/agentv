@@ -6,6 +6,7 @@
     "dev": "astro dev",
     "docs:snapshot:v4.42.4": "node ../../scripts/snapshot-docs-version.mjs v4.42.4",
     "build": "astro build",
+    "check:routes": "node scripts/check-doc-routes.mjs",
     "preview": "astro preview"
   },
   "dependencies": {

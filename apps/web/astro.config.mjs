@@ -1,27 +1,58 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 
-// Static builds can't redirect an open-ended `/docs/[...slug]` wildcard to
-// v4.42.4 (that requires enumerable paths), so generate one concrete
-// redirect per known v4.42.4 route from its route manifest instead.
-const v4RoutesPath = fileURLToPath(new URL('./src/data/docs-v4.42.4-routes.json', import.meta.url));
-const v4Routes = JSON.parse(readFileSync(v4RoutesPath, 'utf8'));
-const v4Redirects = Object.fromEntries(
-  v4Routes.map((route) => {
-    const bareRoute = route.replace('/docs/v4.42.4/', '/docs/');
-    const from = bareRoute === '/docs/' ? '/docs' : bareRoute.replace(/\/$/, '');
-    return [from, route];
+const currentDocsRoot = fileURLToPath(new URL('./src/content/docs/docs/next', import.meta.url));
+
+const currentRoutes = collectDocsRoutes(currentDocsRoot, '/docs');
+const nextRedirects = Object.fromEntries(
+  currentRoutes.map((route) => {
+    const suffix = route === '/docs/' ? '' : route.slice('/docs/'.length);
+    const from = suffix ? `/docs/next/${suffix}` : '/docs/next';
+    return [from.replace(/\/$/, ''), route];
   }),
 );
+
+function collectDocsRoutes(root, base) {
+  return collectMarkdownFiles(root)
+    .map((file) => {
+      const slug = getFrontmatterSlug(file);
+      if (slug) return `/${slug.replace(/^\/|\/$/g, '')}/`;
+
+      const relative = path.relative(root, file).replace(/\\/g, '/');
+      const suffix = relative
+        .replace(/\.mdx?$/, '')
+        .replace(/(^|\/)index$/, '')
+        .replace(/\/$/, '');
+      return suffix ? `${base}/${suffix}/` : `${base}/`;
+    })
+    .sort();
+}
+
+function getFrontmatterSlug(file) {
+  const source = readFileSync(file, 'utf8');
+  return source
+    .split('---')[1]
+    ?.match(/^slug:\s*(.+)$/m)?.[1]
+    ?.trim();
+}
+
+function collectMarkdownFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return collectMarkdownFiles(fullPath);
+    return /\.mdx?$/.test(entry.name) ? [fullPath] : [];
+  });
+}
 
 export default defineConfig({
   site: 'https://agentv.dev',
   image: { service: { entrypoint: 'astro/assets/services/noop' } },
   redirects: {
     '/docs/v4': '/docs/v4.42.4/',
-    ...v4Redirects,
+    ...nextRedirects,
   },
   integrations: [
     starlight({
