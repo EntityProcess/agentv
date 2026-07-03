@@ -256,7 +256,7 @@ function writeRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, 'runs', timestamp);
+  const runDir = path.join(cloneDir, timestamp);
   mkdirSync(runDir, { recursive: true });
   const records = Array.isArray(resultRecords) ? resultRecords : [resultRecords];
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(...records));
@@ -297,7 +297,7 @@ function writeDirtyRemoteRunArtifact(
     /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
     '$1T$2:$3:$4.$5Z',
   );
-  const runDir = path.join(cloneDir, 'runs', timestamp);
+  const runDir = path.join(cloneDir, timestamp);
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'index.jsonl'), toJsonl(resultRecord));
   writeFileSync(
@@ -1489,12 +1489,7 @@ describe('serve app', () => {
 
       writeResultsConfig(tempDir, { remote: `file://${remoteDir}`, path: cloneDir });
 
-      const runManifestPath = path.join(
-        cloneDir,
-        'runs',
-        '2026-03-26T11-00-00-000Z',
-        'index.jsonl',
-      );
+      const runManifestPath = path.join(cloneDir, '2026-03-26T11-00-00-000Z', 'index.jsonl');
       expect(existsSync(runManifestPath)).toBe(false);
 
       const app = createApp([], tempDir, tempDir, undefined, { studioDir });
@@ -1893,7 +1888,7 @@ describe('serve app', () => {
           '2026-03-26T11-00-00-000Z',
           RESULT_A,
         );
-        git('git add runs && git commit --quiet -m "remote result"', seedDir);
+        git('git add . && git commit --quiet -m "remote result"', seedDir);
         git('git push --quiet origin main', seedDir);
 
         const app = createApp([], tempDir, tempDir, undefined, { studioDir });
@@ -1918,7 +1913,7 @@ describe('serve app', () => {
           blocked: false,
           run_count: 1,
         });
-        expect(existsSync(path.join(cloneDir, 'runs', runId, 'index.jsonl'))).toBe(true);
+        expect(existsSync(path.join(cloneDir, runId, 'index.jsonl'))).toBe(true);
       } finally {
         if (previousHome === undefined) {
           process.env.AGENTV_HOME = undefined;
@@ -1979,7 +1974,7 @@ describe('serve app', () => {
           run_count: 1,
         });
         expect(git(`git --git-dir "${remoteDir}" ls-tree -r --name-only main`, tempDir)).toContain(
-          `runs/${runTimestamp}/index.jsonl`,
+          `${runTimestamp}/index.jsonl`,
         );
       } finally {
         if (previousHome === undefined) {
@@ -2080,14 +2075,14 @@ describe('serve app', () => {
         const cloneRunPath = path.join(cloneDir, relativeRunPath);
         mkdirSync(path.dirname(seedRunPath), { recursive: true });
         writeFileSync(seedRunPath, `${JSON.stringify({ ...RESULT_A, score: 0.5 })}\n`);
-        git('git add runs && git commit --quiet -m "seed run artifact"', seedDir);
+        git('git add . && git commit --quiet -m "seed run artifact"', seedDir);
         git('git push --quiet origin main', seedDir);
         git('git pull --ff-only --quiet', cloneDir);
 
         writeFileSync(cloneRunPath, `${JSON.stringify({ ...RESULT_A, score: 0.75 })}\n`);
-        git('git add runs && git commit --quiet -m "local run edit"', cloneDir);
+        git('git add . && git commit --quiet -m "local run edit"', cloneDir);
         writeFileSync(seedRunPath, `${JSON.stringify({ ...RESULT_A, score: 0.25 })}\n`);
-        git('git add runs && git commit --quiet -m "remote run edit"', seedDir);
+        git('git add . && git commit --quiet -m "remote run edit"', seedDir);
         git('git push --quiet origin main', seedDir);
         git('git fetch --quiet origin --prune', cloneDir);
         git('git merge origin/main || true', cloneDir);
@@ -2156,9 +2151,7 @@ describe('serve app', () => {
       expect(data.sync_status).toBe('clean');
       expect(data.blocked).toBe(false);
       expect(data.run_count).toBe(1);
-      expect(
-        existsSync(path.join(cloneDir, 'runs', '2026-03-26T14-00-00-000Z', 'index.jsonl')),
-      ).toBe(true);
+      expect(existsSync(path.join(cloneDir, '2026-03-26T14-00-00-000Z', 'index.jsonl'))).toBe(true);
       expect(runId).toBe('2026-03-26T14-00-00-000Z');
     }, 15000);
 
@@ -2212,7 +2205,7 @@ describe('serve app', () => {
           blocked: false,
           run_count: 1,
         });
-        expect(existsSync(path.join(cloneDir, 'runs', runId, 'index.jsonl'))).toBe(true);
+        expect(existsSync(path.join(cloneDir, runId, 'index.jsonl'))).toBe(true);
       } finally {
         if (previousHome === undefined) {
           process.env.AGENTV_HOME = undefined;
@@ -3176,8 +3169,8 @@ describe('serve app', () => {
       const runId = `remote::${timestamp}`;
       const transcriptArtifactPath = 'demo/test-greeting/transcript.jsonl';
       const traceArtifactPath = 'demo/test-greeting/trace.json';
-      const transcriptKey = `runs/${timestamp}/${transcriptArtifactPath}`;
-      const traceKey = `runs/${timestamp}/${traceArtifactPath}`;
+      const transcriptKey = `${timestamp}/${transcriptArtifactPath}`;
+      const traceKey = `${timestamp}/${traceArtifactPath}`;
       const transcriptJsonl = `${JSON.stringify({
         schema_version: 'agentv.transcript.v1',
         test_id: 'test-greeting',
@@ -3197,7 +3190,7 @@ describe('serve app', () => {
 
       git(`git switch --quiet --orphan ${resultsBranch}`, seedDir);
       git('git rm -rf --quiet . 2>/dev/null || true', seedDir);
-      const runDir = path.join(seedDir, 'runs', timestamp);
+      const runDir = path.join(seedDir, timestamp);
       mkdirSync(runDir, { recursive: true });
       writeFileSync(
         path.join(runDir, 'index.jsonl'),
@@ -3235,7 +3228,7 @@ describe('serve app', () => {
           2,
         ),
       );
-      git('git add runs && git commit --quiet -m "seed metadata-only results"', seedDir);
+      git('git add . && git commit --quiet -m "seed metadata-only results"', seedDir);
       git(`git push --quiet origin HEAD:${resultsBranch}`, seedDir);
 
       git(`git switch --quiet --orphan ${AGENTV_RESULTS_ARTIFACTS_REF}`, seedDir);
@@ -3245,7 +3238,7 @@ describe('serve app', () => {
       mkdirSync(path.dirname(transcriptPath), { recursive: true });
       writeFileSync(transcriptPath, transcriptJsonl);
       writeFileSync(tracePath, traceJson);
-      git('git add runs && git commit --quiet -m "seed artifact sidecars"', seedDir);
+      git('git add . && git commit --quiet -m "seed artifact sidecars"', seedDir);
       git(`git push --quiet origin HEAD:${AGENTV_RESULTS_ARTIFACTS_REF}`, seedDir);
       git('git switch --quiet main', seedDir);
 

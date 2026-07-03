@@ -496,10 +496,15 @@ export async function ensureRemoteRunAvailable(
     throw new Error(`Remote manifest path is outside the results repo clone: ${meta.path}`);
   }
 
-  // On the results branch runs live flat under `runs/` (the branch namespaces
-  // results), so strip that prefix to recover <run_id>.
-  const relativeRunPath = path.posix.relative('runs', path.posix.dirname(relativeManifestPath));
+  const relativeRunPath = relativeRunPathFromManifestPath(relativeManifestPath);
   await materializeGitRun(config.path, relativeRunPath, getResultsStorageRef(config));
+}
+
+function relativeRunPathFromManifestPath(relativeManifestPath: string): string {
+  const manifestDir = path.posix.dirname(relativeManifestPath);
+  return path.posix.basename(manifestDir) === '.internal'
+    ? path.posix.dirname(manifestDir)
+    : manifestDir;
 }
 
 export async function maybeAutoExportRunArtifacts(

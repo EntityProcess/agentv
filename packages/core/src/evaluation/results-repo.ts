@@ -3789,17 +3789,16 @@ function buildGitManifestPaths(
     if (!isV2ResultsRepoRunPath(relativeRunPath)) {
       continue;
     }
-    const manifestPath = safeGitSummaryManifestPath(
-      runDir,
-      summary.index_path ?? summary.manifest_path,
-    );
+    const manifestPath =
+      safeGitSummaryManifestPath(runDir, summary.index_path ?? summary.manifest_path) ??
+      fallbackGitManifestPath(runDir, treePathSet);
     if (manifestPath && treePathSet.has(manifestPath)) {
       manifestByRunDir.set(runDir, manifestPath);
     }
   }
 
   for (const treePath of treePaths) {
-    if (!treePath.endsWith(`/.internal/${RESULT_INDEX_FILENAME}`)) {
+    if (!treePath.endsWith(`/${RESULT_INDEX_FILENAME}`)) {
       continue;
     }
     const runDir = gitRunDirForManifestPath(treePath);
@@ -3813,6 +3812,21 @@ function buildGitManifestPaths(
   }
 
   return [...manifestByRunDir.values()].sort();
+}
+
+function fallbackGitManifestPath(
+  runDir: string,
+  treePathSet: ReadonlySet<string>,
+): string | undefined {
+  for (const candidate of [
+    path.posix.join(runDir, '.internal', RESULT_INDEX_FILENAME),
+    path.posix.join(runDir, RESULT_INDEX_FILENAME),
+  ]) {
+    if (treePathSet.has(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
 }
 
 function gitRunDirForManifestPath(manifestPath: string): string {
