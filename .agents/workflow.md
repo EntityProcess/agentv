@@ -76,6 +76,7 @@ bd where
 
 - Before declaring a repo change complete or opening or finalizing a PR, complete manual E2E verification first, then run a final review pass when warranted. If E2E fails, fix that before spending time on review.
 - When making functionality changes, update the human docs in `apps/web/src/content/docs/`.
+- Human docs should describe the current supported contract directly. Avoid migration-story phrasing such as "not deprecated", "formerly", or abandoned intermediate names unless the file is explicitly a migration guide, changelog, or ADR.
 - If the change affects YAML schema, grader types, or CLI commands, update `plugins/agentv-dev/skills/agentv-eval-builder/` as the AI-focused reference card.
 - Update `examples/` when example code, scripts, or eval YAML files exercise the changed functionality.
 - Keep `README.md` minimal and link out to agentv.dev for full human-facing docs.

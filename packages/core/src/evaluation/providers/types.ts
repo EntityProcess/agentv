@@ -359,8 +359,8 @@ export interface TargetDefinition {
   readonly use_target?: string | unknown | undefined;
   readonly grader_target?: string | undefined;
   readonly workers?: number | undefined;
-  // Provider batching
-  readonly provider_batching?: boolean | undefined;
+  // Request batching
+  readonly batch_requests?: boolean | undefined;
   readonly subagent_mode_allowed?: boolean | undefined;
   // Azure fields
   readonly endpoint?: string | unknown | undefined;

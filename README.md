@@ -17,7 +17,7 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Eval suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
-- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by name from `targets.yaml` or with an eval-local target object.
+- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by label from `targets.yaml` or with an eval-local target object.
 - **Experiment** is the run/result grouping label being measured over that corpus, such as `with-skills` or `without-skills`. Keep suite/category and target/model names out of this label.
 - **Evaluate options** configure runner-level behavior such as repeat policy, optional timeouts, and `max_concurrency` under `evaluate_options`.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
@@ -58,7 +58,7 @@ agentv init
 
 ```yaml
 targets:
-  - name: copilot-sdk
+  - label: copilot-sdk
     provider: anthropic
     model: claude-sonnet-4.6
 ```
@@ -93,11 +93,22 @@ tests:
       - type: contains
         value: "fizz"
       - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
-      - type: code-grader
+      - type: script
         command: ["python3", "./validators/check_syntax.py"]
-      - type: llm-grader
-        prompt: ./graders/correctness.md
+      - type: g-eval
+        criteria:
+          - outcome: Solution is simple and idiomatic Python
+            weight: 0.5
+          - outcome: Handles the 3, 5, and 15 branches correctly
+            weight: 1.5
 ```
+
+Plain assertion strings are short-form rubric criteria: AgentV groups them into
+`g-eval` and writes each criterion to `grading.json.assertion_results` for the
+Dashboard. Use explicit `type: g-eval` when you need weights, required flags, or
+`score_ranges`; use `type: llm-rubric` for promptfoo-compatible free-form rubric
+assertions; use `type: llm-grader` only when you need a custom grader prompt,
+grader target, or preprocessing. Executable graders use `type: script`.
 
 The target can be an eval-local object when this eval needs target settings of its own:
 
@@ -121,7 +132,7 @@ tests:
     input: Write FizzBuzz in Python
 ```
 
-`target: copilot-sdk` resolves the named target from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
+`target: copilot-sdk` resolves the target label from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
 Use `default_test.threshold` for the inherited per-test pass cutoff. Existing eval files with a top-level `threshold` still load during migration, and `--threshold` on the CLI still overrides YAML thresholds for a run.
 
@@ -157,12 +168,12 @@ Run bundle layout:
 │       │   ├── EVAL.yaml         #   resolved eval spec
 │       │   ├── targets.yaml      #   resolved target config
 │       │   └── graders/          #   grader files used
-│       └── run-1/                # one attempt (run-N for repeats/trials)
+│       └── attempt-1/            # one materialized attempt
 │           ├── result.json       # compact attempt manifest
-│           ├── grading.json      # per-assertion grading detail
+│           ├── grading.json      # assertion_results and grader evidence
 │           ├── metrics.json      # tool calls, transcript stats, behavior metrics
 │           ├── timing.json       # duration, token usage, cost
-│           ├── transcript.jsonl       # parsed agent transcript
+│           ├── transcript.json        # normalized agent transcript
 │           ├── transcript-raw.jsonl   # raw agent output (debugging)
 │           └── outputs/          # captured stdout and grader outputs
 ├── .indexes/                     # reserved local/rebuildable indexes
@@ -187,8 +198,8 @@ const { results, summary } = await evaluate({
       assertions: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
-        { type: 'code-grader', command: ['python3', './validators/check_syntax.py'] },
-        { type: 'llm-grader', prompt: './graders/correctness.md' },
+        { type: 'script', command: ['python3', './validators/check_syntax.py'] },
+        { type: 'g-eval', criteria: ['Solution is simple and idiomatic Python'] },
       ],
     },
   ],
@@ -232,8 +243,8 @@ export default defineEval({
       assertions: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
-        { type: 'code-grader', command: ['python3', './validators/check_syntax.py'] },
-        { type: 'llm-grader', prompt: './graders/correctness.md' },
+        { type: 'script', command: ['python3', './validators/check_syntax.py'] },
+        { type: 'g-eval', criteria: ['Solution is simple and idiomatic Python'] },
       ],
     },
   ],
@@ -245,7 +256,7 @@ export default defineEval({
 Full docs at [agentv.dev/docs](https://agentv.dev/docs/getting-started/introduction/).
 
 - [Eval files](https://agentv.dev/docs/evaluation/eval-files/) — format and structure
-- [Custom graders](https://agentv.dev/docs/graders/custom-graders/) — code graders in any language
+- [Custom graders](https://agentv.dev/docs/graders/custom-graders/) — script graders in any language
 - [Rubrics](https://agentv.dev/docs/evaluation/rubrics/) — structured criteria scoring
 - [Targets](https://agentv.dev/docs/targets/configuration/) — configure agents and providers
 - [Compare results](https://agentv.dev/docs/tools/compare/) — A/B testing and regression detection

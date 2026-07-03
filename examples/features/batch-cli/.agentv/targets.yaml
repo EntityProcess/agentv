@@ -1,7 +1,7 @@
 targets:
   - name: batch_cli
     provider: cli
-    provider_batching: true
+    batch_requests: true
     verbose: true
     # Runs once for the whole panel.
     # The runner reads ./AmlScreeningInput.csv and writes JSONL to {OUTPUT_FILE}.

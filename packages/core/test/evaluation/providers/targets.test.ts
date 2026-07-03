@@ -747,18 +747,31 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/GOOGLE_API_KEY/i);
   });
 
-  it('honors provider_batching flag in settings', () => {
+  it('honors batch_requests flag in settings', () => {
     const target = resolveTargetDefinition(
       {
         name: 'batched',
         provider: 'mock',
-        provider_batching: true,
+        batch_requests: true,
       },
       {},
     );
 
     expect(target.kind).toBe('mock');
     expect(target.providerBatching).toBe(true);
+  });
+
+  it('rejects removed provider_batching flag in settings', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'batched',
+          provider: 'mock',
+          provider_batching: true,
+        },
+        {},
+      ),
+    ).toThrow(/provider_batching.*batch_requests/);
   });
 
   it('resolves cli settings including cwd and timeout', () => {

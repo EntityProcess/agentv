@@ -11,7 +11,7 @@ Human review sits between automated scoring and the next iteration. Automated gr
 
 Review after every eval run where you plan to iterate on the skill or agent. The workflow:
 
-1. **Run evals** — `agentv eval EVAL.yaml` or `agentv eval evals.json`
+1. **Run evals** — `agentv eval EVAL.yaml` or another AgentV-native eval file
 2. **Inspect results** — open the HTML report or scan the results JSONL
 3. **Write feedback** — create `feedback.json` alongside the results
 4. **Iterate** — use the feedback to guide prompt changes, grader tuning, or test case additions
@@ -49,14 +49,14 @@ open results/2026-03-14T10-32-00_claude/report.html
 
 The report itself is documented under [Results](/docs/tools/results/). Use that page for the command surface and visual walkthrough; use this page for the review loop that happens after you open it.
 
-For simple skill evaluations (evals.json), scan the results JSONL:
+For simple converted skill evaluations, scan the run manifest:
 
 ```bash
 # Show failing tests
-cat results/output.jsonl | jq 'select(.score < 0.8)'
+jq 'select(.score < 0.8)' results/2026-03-14T10-32-00_claude/index.jsonl
 
 # Show all scores
-cat results/output.jsonl | jq '{id: .test_id, score: .score, verdict: .verdict}'
+jq '{id: .test_id, score: .score, verdict: .verdict}' results/2026-03-14T10-32-00_claude/index.jsonl
 ```
 
 ### Write feedback
@@ -178,7 +178,7 @@ This creates a traceable record of what changed between iterations and why. When
 The review checkpoint fits into the broader eval iteration loop:
 
 ```
-Define tests (EVAL.yaml / evals.json)
+Define tests (EVAL.yaml or converted adapter input)
         ↓
   Run automated evals
         ↓

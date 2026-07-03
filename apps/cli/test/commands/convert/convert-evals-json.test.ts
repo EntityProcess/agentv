@@ -4,6 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { convertEvalsJsonToYaml } from '../../../src/commands/convert/index.js';
+import {
+  agentSkillsToAgentVYamlObject,
+  readAgentSkillsEvalsFile,
+} from '../../../src/commands/read-adapters/agent-skills-evals.js';
 
 describe('convertEvalsJsonToYaml', () => {
   function writeTempJson(data: unknown): string {
@@ -22,6 +26,7 @@ describe('convertEvalsJsonToYaml', () => {
           prompt: 'Do something',
           expected_output: 'Something done',
           assertions: ['Check A', 'Check B'],
+          expectations: ['Check C'],
         },
       ],
     });
@@ -29,17 +34,29 @@ describe('convertEvalsJsonToYaml', () => {
     const yaml = convertEvalsJsonToYaml(filePath);
     expect(yaml).toContain('Converted from Agent Skills evals.json');
     expect(yaml).toContain('description: "Evals for test-skill skill"');
+    expect(yaml).toContain('tags:');
+    expect(yaml).toContain('skill: "test-skill"');
+    expect(yaml).toContain('source_adapter: "agent-skills-evals-json"');
+    expect(yaml).not.toContain('agent_skills_skill_name');
     expect(yaml).toContain('id: "1"');
-    expect(yaml).toContain('role: user');
+    expect(yaml).toContain('input: "Do something"');
     expect(yaml).toContain('Do something');
+    expect(yaml).toContain('criteria: |-');
+    expect(yaml).toContain('Something done');
+    expect(yaml).toContain('agent-skills-criteria');
+    expect(yaml).toContain('type: g-eval');
+    expect(yaml).toContain('expected-outcome');
     expect(yaml).toContain('assertion-1');
-    expect(yaml).toContain('type: llm-grader');
+    expect(yaml).toContain('expectation-1');
     expect(yaml).toContain('Check A');
     expect(yaml).toContain('Check B');
+    expect(yaml).toContain('Check C');
+    expect(yaml).not.toContain('expected_output:');
   });
 
   it('handles evals without assertions or expected_output', () => {
     const filePath = writeTempJson({
+      skill_name: 'test-skill',
       evals: [{ id: 1, prompt: 'Just a prompt' }],
     });
 
@@ -50,8 +67,9 @@ describe('convertEvalsJsonToYaml', () => {
     expect(yaml).not.toContain('expected_output:');
   });
 
-  it('adds TODO comments for files', () => {
+  it('maps files to input_files', () => {
     const filePath = writeTempJson({
+      skill_name: 'test-skill',
       evals: [
         {
           id: 1,
@@ -62,12 +80,26 @@ describe('convertEvalsJsonToYaml', () => {
     });
 
     const yaml = convertEvalsJsonToYaml(filePath);
-    expect(yaml).toContain('# TODO:');
+    expect(yaml).toContain('input_files:');
     expect(yaml).toContain('data/input.csv');
+  });
+
+  it('maps skill_name to tags.skill in the read adapter', () => {
+    const filePath = writeTempJson({
+      skill_name: 'test-skill',
+      evals: [{ id: 1, prompt: 'Just a prompt' }],
+    });
+
+    const yamlObject = agentSkillsToAgentVYamlObject(readAgentSkillsEvalsFile(filePath));
+
+    expect(yamlObject.tags).toEqual({ skill: 'test-skill' });
+    expect(yamlObject.metadata).toEqual({ source_adapter: 'agent-skills-evals-json' });
   });
 
   it('throws on invalid format', () => {
     const filePath = writeTempJson({ not_evals: true });
-    expect(() => convertEvalsJsonToYaml(filePath)).toThrow("missing 'evals' array");
+    expect(() => convertEvalsJsonToYaml(filePath)).toThrow(
+      "top-level 'skill_name' string and 'evals' array",
+    );
   });
 });

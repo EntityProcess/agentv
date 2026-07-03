@@ -55,9 +55,12 @@ keep AgentV's only where its semantics are genuinely better.**
    object shape + AgentV extensions). `provider`/`apiId` = the **backend** kind (never a
    SUT). No runtime top-level `providers` alias (would overload the backend term); the
    codemod/conversion remaps promptfoo `providers:` → `targets:`.
-6. **Prompts + vars, not `input`**: adopt top-level `prompts` (string/chat-array/file/
-   fn, nunjucks `{{vars}}`); collapse `tests[].input` into `prompts`+`vars`. `input_files`
-   survives as prompt content.
+6. **Prompts + vars plus direct `input`**: adopt top-level `prompts` (string/chat-array/file/
+   fn, nunjucks `{{vars}}`) for prompt matrices, while keeping `input` as the
+   supported direct-task shorthand for one-prompt suites. When `prompts` is
+   present, tests supply matrix data through `vars`; `tests[].input` and
+   `tests[].input_files` are mutually exclusive with top-level `prompts`.
+   `input_files` remains supported for direct task suites.
 7. **Templating**: nunjucks for BOTH vars and env (promptfoo-native), via the `nunjucks`
    package. `{{ var }}` = eval-time vars (array-var expansion, `nunjucks_filters`, autoescape
    off, render-then-parse for chat arrays); `{{ env.VAR }}` = config-time env, rendered at
@@ -69,9 +72,12 @@ keep AgentV's only where its semantics are genuinely better.**
 8. **Optional test `id`**, layered identity: content identity = `test_id` (content hash,
    derived when unauthored); governance/trend identity = an author `tag`/`metadata` key
    (Dashboard keys comparison on this); display label = `description` → vars → `Test #n`.
-9. **Keep AgentV where better**: first-class `expected_output` as passive golden/reference
-   answer data (DeepEval-aligned; not moved into `vars`, and not sent to target prompts
-   unless the author separately places it in `vars`); `repeat: { count, strategy, early_exit }` (map promptfoo
+9. **Keep AgentV where better**: first-class `expected_output` as passive gold/reference
+   data (DeepEval-aligned; not moved into `vars`, and not sent to target prompts
+   unless the author separately places it in `vars`). A specific grader may use
+   it as a strict target, semantic reference, structured expected object, or
+   supporting context, but the field itself is not an active assertion.
+   `repeat: { count, strategy, early_exit }` (map promptfoo
    `repeat:int` → `count`+`pass_all`); executable `gate` release policy (alongside per-test
    `threshold`); `imports`/`select`; `depends_on`. `experiment` is authored as `tags.experiment` — a plain tag with **no structural privilege** (not a bucket/field/storage path; not a privileged grouping key; tags alphabetical; default compare key is a user preference). `--experiment X` = sugar for `--tag experiment=X`. Its **value** is auto-defaulted to the eval/suite name when unset so runs are always groupable (ADR-0009 derivation) — a default value, not a privileged key (ADR-0017).
 10. **Workspace repo provisioning is a declarative FIELD, not an extension.**
@@ -95,11 +101,12 @@ keep AgentV's only where its semantics are genuinely better.**
     treated as unrecognized fields, not stubbed. Superset holds over the *implemented*
     surface.
 
-Removed (hard): `assertions`, `composite`, `eval_cases`, `tests[].input`,
+Removed (hard): `assertions`, `composite`, `eval_cases`,
 `workspace.hooks` (→ `extensions`), `on_run_complete`, `preprocessors`, `${{ ENV }}`,
 top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, the
 `z.never()` rejection stubs. **Kept** as declarative fields: `workspace.repos` (provenance),
-`workspace.isolation`, `workspace.docker`, `workspace.template`.
+`workspace.isolation`, `workspace.docker`, `workspace.template`, direct-suite
+`input`, and direct-suite `input_files`.
 
 ## Consequences
 

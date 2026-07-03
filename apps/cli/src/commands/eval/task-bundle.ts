@@ -56,7 +56,7 @@ const AUTHORING_TOP_LEVEL_TARGET_FIELDS = new Set([
   'grader_target',
   'max_budget_usd',
   'workers',
-  'provider_batching',
+  'batch_requests',
   'subagent_mode_allowed',
   'max_retries',
   'retry_initial_delay_ms',

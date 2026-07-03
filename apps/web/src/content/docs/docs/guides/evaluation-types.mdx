@@ -13,7 +13,7 @@ Agent evaluation has two fundamentally different concerns: **execution quality**
 
 Execution quality evaluates output quality, correctness, and completeness once an agent or skill is invoked. Given a specific input, does the agent produce the right output?
 
-This is what AgentV's eval tooling measures. When you write an `EVAL.yaml`, define assertions in `evals.json`, or run `agentv eval`, you are evaluating execution quality.
+This is what AgentV's eval tooling measures. When you write an `EVAL.yaml`, run or convert an external `evals.json`, or run `agentv eval`, you are evaluating execution quality.
 
 **Examples:**
 - Does the code-review skill produce accurate, actionable feedback?
@@ -62,7 +62,7 @@ Mixing these concerns in a single eval config creates problems:
 AgentV's eval tooling is designed for **execution quality**:
 
 - **`EVAL.yaml`** — define test cases with inputs, expected outputs, and assertions
-- **`evals.json`** — lightweight skill evaluation format (prompt/expected-output pairs)
+- **Agent Skills `evals.json` adapter** — run lightweight skill evaluation datasets directly or convert them into AgentV YAML
 - **`agentv eval`** — execute evaluations and collect results
 - **Graders** — `llm-grader`, `script`, `tool-trajectory`, `g-eval`, `contains`, `regex`, and others all measure execution behavior
 
@@ -95,6 +95,6 @@ For now, trigger quality optimization belongs in **skill-creator's domain** — 
 - Keep trigger evaluation in a separate workflow from execution evaluation
 
 **Keep your eval configs focused:**
-- `EVAL.yaml` and `evals.json` → execution quality only
+- `EVAL.yaml` and Agent Skills `evals.json` adapter cases → execution quality only
 - Assertions should test output correctness, not routing behavior
 - If an eval is flaky, check whether you've accidentally mixed trigger concerns into execution tests

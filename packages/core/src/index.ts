@@ -19,10 +19,6 @@ export { parseYamlValue } from './evaluation/yaml-loader.js';
 export * from './evaluation/experiment.js';
 export * from './evaluation/yaml-parser.js';
 export {
-  isAgentSkillsFormat,
-  parseAgentSkillsEvals,
-} from './evaluation/loaders/agent-skills-parser.js';
-export {
   loadConfig,
   resolveResultsConfigForProject,
   type AgentVConfig as AgentVYamlConfig,

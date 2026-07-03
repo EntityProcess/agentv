@@ -1,10 +1,18 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { isAgentSkillsFormat, normalizeLineEndings, parseAgentSkillsEvals } from '@agentv/core';
 import { command, option, optional, positional, string } from 'cmd-ts';
 import { stringify as stringifyYaml } from 'yaml';
 
 import { HtmlWriter } from '../eval/html-writer.js';
+import { readAgentSkillsEvalsFile } from '../read-adapters/agent-skills-evals.js';
+
+function quoteYamlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n?/g, '\n');
+}
 
 async function convertJsonlToHtml(inputPath: string, outputPath: string): Promise<number> {
   const content = readFileSync(inputPath, 'utf8');
@@ -53,107 +61,78 @@ function convertJsonlToYaml(inputPath: string, outputPath: string): number {
  * Returns the YAML string.
  */
 export function convertEvalsJsonToYaml(inputPath: string): string {
-  const content = readFileSync(inputPath, 'utf8');
-  const parsed = JSON.parse(content);
-
-  if (!isAgentSkillsFormat(parsed)) {
-    throw new Error(`Not a valid Agent Skills evals.json: missing 'evals' array`);
-  }
-
-  const tests = parseAgentSkillsEvals(parsed, inputPath, path.dirname(path.resolve(inputPath)));
+  const suite = readAgentSkillsEvalsFile(inputPath);
   const lines: string[] = [];
 
   lines.push('# Converted from Agent Skills evals.json');
   lines.push('# See: https://agentskills.io/skill-creation/evaluating-skills');
+  lines.push('# Agent Skills expected_output is treated as expected outcome/rubric context,');
+  lines.push('# not as AgentV expected_output reference data.');
   lines.push('#');
   lines.push('# AgentV features you can add:');
-  lines.push('#   - type: is_json, contains, regex for deterministic evaluators');
-  lines.push('#   - type: code-grader for custom scoring scripts');
+  lines.push('#   - type: is-json, contains, regex for deterministic graders');
+  lines.push('#   - type: script for custom scoring scripts');
+  lines.push('#   - type: g-eval criteria with weights and score ranges for rubrics');
   lines.push('#   - Multi-turn conversations via input message arrays');
-  lines.push('#   - Composite evaluators with weighted scoring');
+  lines.push('#   - Multiple assertions with weighted scoring');
   lines.push('#   - Workspace isolation with repos and hooks');
   lines.push('');
 
-  if (parsed.skill_name) {
-    lines.push(`description: "Evals for ${parsed.skill_name} skill"`);
-    lines.push('');
-  }
+  lines.push(`description: ${quoteYamlString(`Evals for ${suite.skillName} skill`)}`);
+  lines.push('tags:');
+  lines.push(`  skill: ${quoteYamlString(suite.skillName)}`);
+  lines.push('metadata:');
+  lines.push('  source_adapter: "agent-skills-evals-json"');
+  lines.push('');
 
   lines.push('tests:');
 
-  for (const test of tests) {
+  for (const test of suite.tests) {
     lines.push(`  - id: "${test.id}"`);
     lines.push('');
 
-    // Emit criteria
-    if (test.criteria) {
+    // Emit criteria from Agent Skills expected_output.
+    if (test.expectedOutcome) {
       lines.push('    criteria: |-');
-      for (const line of test.criteria.split('\n')) {
+      for (const line of test.expectedOutcome.split('\n')) {
         lines.push(`      ${line}`);
       }
       lines.push('');
     }
 
-    // Emit input as simple user message
-    lines.push('    input:');
-    for (const msg of test.input) {
-      lines.push(`      - role: ${msg.role}`);
-      if (typeof msg.content === 'string' && msg.content.includes('\n')) {
-        lines.push('        content: |-');
-        for (const line of msg.content.split('\n')) {
-          lines.push(`          ${line}`);
-        }
-      } else {
-        lines.push(
-          `        content: "${typeof msg.content === 'string' ? msg.content.replace(/"/g, '\\"') : msg.content}"`,
-        );
+    // Emit input as shorthand so input_files can attach to the same user prompt.
+    if (test.prompt.includes('\n')) {
+      lines.push('    input: |-');
+      for (const line of test.prompt.split('\n')) {
+        lines.push(`      ${line}`);
       }
+    } else {
+      lines.push(`    input: ${quoteYamlString(test.prompt)}`);
     }
     lines.push('');
 
-    // Emit expected_output
-    if (test.expected_output && test.expected_output.length > 0) {
-      lines.push('    expected_output:');
-      for (const msg of test.expected_output) {
-        lines.push(`      - role: ${msg.role}`);
-        if (typeof msg.content === 'string' && msg.content.includes('\n')) {
-          lines.push('        content: |-');
-          for (const line of msg.content.split('\n')) {
-            lines.push(`          ${line}`);
-          }
-        } else {
-          lines.push(
-            `        content: "${typeof msg.content === 'string' ? msg.content.replace(/"/g, '\\"') : msg.content}"`,
-          );
-        }
+    if (test.files.length > 0) {
+      lines.push('    input_files:');
+      for (const file of test.files) {
+        lines.push(`      - ${quoteYamlString(file)}`);
       }
       lines.push('');
     }
 
-    // Emit assertions as llm-grader evaluators
-    if (test.assertions && test.assertions.length > 0) {
-      lines.push('    # Promoted from evals.json assertions[]');
-      lines.push('    # Replace with type: is_json, contains, or regex for deterministic checks');
+    // Emit expected_output / assertions / expectations as rubric criteria.
+    if (test.criteria.length > 0) {
+      lines.push(
+        '    # Promoted from evals.json expected_output, assertions[], and expectations[]',
+      );
+      lines.push('    # Replace with type: is-json, contains, or regex for deterministic checks');
       lines.push('    assertions:');
-      for (const assertion of test.assertions) {
-        lines.push(`      - name: ${assertion.name}`);
-        lines.push(`        type: ${assertion.type}`);
-        if (assertion.type === 'llm-grader' && 'prompt' in assertion) {
-          const prompt = (assertion as { prompt: string }).prompt;
-          lines.push(`        prompt: "${prompt.replace(/"/g, '\\"')}"`);
-        }
-      }
-      lines.push('');
-    }
-
-    // Note about files
-    if (test.file_paths && test.file_paths.length > 0) {
-      lines.push('    # TODO: Configure workspace.repos or file references for these files:');
-      const agentSkillsFiles = test.metadata?.agent_skills_files as readonly string[] | undefined;
-      if (agentSkillsFiles) {
-        for (const file of agentSkillsFiles) {
-          lines.push(`    #   - ${file}`);
-        }
+      lines.push('      - name: agent-skills-criteria');
+      lines.push('        type: g-eval');
+      lines.push('        criteria:');
+      for (const criterion of test.criteria) {
+        lines.push(`          - id: ${quoteYamlString(criterion.id)}`);
+        lines.push(`            outcome: ${quoteYamlString(criterion.outcome)}`);
+        lines.push('            required: true');
       }
       lines.push('');
     }

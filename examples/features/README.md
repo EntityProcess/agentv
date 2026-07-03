@@ -61,7 +61,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 |---------|-------------|
 | [copilot-log-eval](copilot-log-eval/) | Replay Copilot CLI session transcripts from disk — no LLM API key needed |
 | [trace-analysis](trace-analysis/) | Inspect eval results with `agentv trace` — summaries, trees, latency percentiles |
-| [agent-skills-evals](agent-skills-evals/) | Evaluate Claude Code skills using `evals.json` or `EVAL.yaml` format |
+| [agent-skills-evals](agent-skills-evals/) | Evaluate Claude Code skills with `EVAL.yaml` or Agent Skills `evals.json` |
 
 ---
 

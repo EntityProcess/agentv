@@ -318,6 +318,15 @@ function validateUnknownSettings(
       });
       continue;
     }
+    if (key === 'provider_batching') {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.${key}`,
+        message: "The 'provider_batching' field has been removed. Use 'batch_requests' instead.",
+      });
+      continue;
+    }
     if (removedForProvider?.has(key)) {
       errors.push({
         severity: 'error',

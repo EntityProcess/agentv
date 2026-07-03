@@ -51,7 +51,7 @@ Any file or directory artifact: SKILL.md, prompt template, agent config, system 
 
 ## Prerequisites
 
-- An eval file (EVAL.yaml or evals.json) that covers the behavior you care about
+- An AgentV eval file (`EVAL.yaml`, `.eval.yaml`, JSONL, or TypeScript) that covers the behavior you care about, or an Agent Skills `evals.json` file handled by the built-in read adapter.
 - The artifact must be a file or directory within a git repository (autoresearch uses git for versioning)
 - Run at least one manual eval cycle first to validate your test cases
 

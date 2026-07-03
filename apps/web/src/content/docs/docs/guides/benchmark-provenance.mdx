@@ -31,7 +31,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.hooks.after_each.reset` | Yes | Controls workspace reset policy after each case. |
 | `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
-| `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and passive reference answer. |
+| `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and carries passive gold/reference data for graders. |
 | `assertions` | Yes | Runs deterministic, LLM, composite, or script graders. |
 | Top-level `name`, `version`, `tags`, `license`, `requires` | Informational | Identifies and categorizes the suite. |
 | `tests[].metadata` | Informational to AgentV | Passes arbitrary case data through to results and extension context; in-process custom assertions can also read it. |
@@ -73,7 +73,7 @@ Benchmark task packs map cleanly onto AgentV fields at authoring time:
 | Prompt or instruction | `input`, usually with `type: file` blocks for long prompts |
 | Source checkout | `workspace.repos[].repo` and `workspace.repos[].commit` |
 | Per-case setup | `extensions: ["file://scripts/setup.mjs:beforeEach"]` reading `case_metadata` |
-| Gold answer | `expected_output` when the answer is passive reference data |
+| Gold answer or reference context | `expected_output` when the data is passive grader context |
 | Active verification | `assertions`, especially `script` for commands or artifact checks |
 | Provenance | `tests[].metadata` with source pins, generator rows, and curation labels |
 | Bulky task files | Optional `tests: ./cases/` with per-case directories and supporting files |

@@ -3,7 +3,32 @@ import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 import fg from 'fast-glob';
 
-export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promise<string[]> {
+import { isAgentSkillsEvalsJsonFile } from '../read-adapters/agent-skills-evals.js';
+
+export interface ResolveEvalPathOptions {
+  readonly allowReadAdapters?: boolean;
+}
+
+function isNativeEvalFile(filePath: string): boolean {
+  return /\.(ya?ml|jsonl|[cm]?ts)$/i.test(filePath);
+}
+
+function shouldInspectJsonPath(filePath: string): boolean {
+  const base = path.basename(filePath).toLowerCase();
+  return base === 'evals.json' || base.endsWith('.evals.json');
+}
+
+function jsonEvalPathError(pattern: string): Error {
+  return new Error(
+    `Unsupported .json eval file: ${pattern}. Agent Skills evals.json read adapters require top-level 'skill_name' and 'evals'. Use YAML, JSONL, TypeScript, or run 'agentv convert ${pattern} --out EVAL.yaml'.`,
+  );
+}
+
+export async function resolveEvalPaths(
+  evalPaths: string[],
+  cwd: string,
+  options: ResolveEvalPathOptions = {},
+): Promise<string[]> {
   const normalizedInputs = evalPaths.map((value) => value?.trim()).filter((value) => value);
   if (normalizedInputs.length === 0) {
     throw new Error('No eval paths provided.');
@@ -32,18 +57,31 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     const candidatePath = path.isAbsolute(pattern)
       ? path.normalize(pattern)
       : path.resolve(cwd, pattern);
+    let candidateStats: Awaited<ReturnType<typeof stat>> | undefined;
     try {
-      const stats = await stat(candidatePath);
-      if (stats.isFile() && /\.(ya?ml|jsonl|json|[cm]?ts)$/i.test(candidatePath)) {
+      candidateStats = await stat(candidatePath);
+    } catch {
+      candidateStats = undefined;
+    }
+
+    if (candidateStats) {
+      if (candidateStats.isFile() && path.extname(candidatePath).toLowerCase() === '.json') {
+        if (options.allowReadAdapters && isAgentSkillsEvalsJsonFile(candidatePath)) {
+          results.add(candidatePath);
+          continue;
+        }
+        throw jsonEvalPathError(pattern);
+      }
+      if (candidateStats.isFile() && isNativeEvalFile(candidatePath)) {
         results.add(candidatePath);
         continue;
       }
-      if (stats.isDirectory()) {
+      if (candidateStats.isDirectory()) {
         // Auto-expand directory to recursive eval file glob
-        const dirGlob = path.posix.join(
-          candidatePath.replace(/\\/g, '/'),
-          '**/{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}',
-        );
+        const filePattern = options.allowReadAdapters
+          ? '{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts,evals.json,*.evals.json}'
+          : '{*.eval.yaml,*.eval.yml,eval.yaml,eval.yml,*.eval.ts,*.eval.mts}';
+        const dirGlob = path.posix.join(candidatePath.replace(/\\/g, '/'), `**/${filePattern}`);
         const dirMatches = await fg(dirGlob, {
           absolute: true,
           onlyFiles: true,
@@ -57,8 +95,6 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
         }
         continue;
       }
-    } catch {
-      // fall through to glob matching
     }
 
     const globPattern = pattern.includes('\\') ? pattern.replace(/\\/g, '/') : pattern;
@@ -72,10 +108,18 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
       ignore: ignorePatterns,
     });
 
-    const yamlMatches = matches.filter((filePath) =>
-      /\.(ya?ml|jsonl|json|[cm]?ts)$/i.test(filePath),
-    );
-    for (const filePath of yamlMatches) {
+    const supportedMatches = matches.filter((filePath) => {
+      if (isNativeEvalFile(filePath)) {
+        return true;
+      }
+      return (
+        options.allowReadAdapters &&
+        path.extname(filePath).toLowerCase() === '.json' &&
+        shouldInspectJsonPath(filePath) &&
+        isAgentSkillsEvalsJsonFile(filePath)
+      );
+    });
+    for (const filePath of supportedMatches) {
       results.add(path.normalize(filePath));
     }
   }
@@ -99,7 +143,7 @@ export async function resolveEvalPaths(evalPaths: string[], cwd: string): Promis
     throw new Error(
       `No eval files matched any provided paths or globs: ${includePatterns.join(
         ', ',
-      )}. Provide YAML, JSONL, JSON, or TypeScript paths or globs (e.g., "evals/**/eval.yaml", "evals/**/*.eval.ts").`,
+      )}. Provide YAML, JSONL, TypeScript, or supported read-adapter paths/globs (e.g., "evals/**/eval.yaml", "evals/**/*.eval.ts", "skills/**/evals.json").`,
     );
   }
 

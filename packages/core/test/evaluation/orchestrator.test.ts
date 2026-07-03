@@ -1128,7 +1128,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     expect(case2?.error).toBe("Batch output missing id 'case-2'");
   });
 
-  it('disables provider batching when cases require workspace setup', async () => {
+  it('disables request batching when cases require workspace setup', async () => {
     class BatchCapableProvider implements Provider {
       readonly id = 'batch:workspace';
       readonly kind = 'mock' as const;
@@ -1185,7 +1185,7 @@ console.log('spreadsheet: revenue,total\\nQ1,42');`,
     }
   });
 
-  it('disables provider batching when repeat attempts are configured', async () => {
+  it('disables request batching when repeat attempts are configured', async () => {
     class BatchCapableProvider implements Provider {
       readonly id = 'batch:repeat';
       readonly kind = 'mock' as const;

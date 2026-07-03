@@ -350,7 +350,7 @@ tests:
 
 ### Batch CLI Pattern Notes
 
-- `target: batch_cli` -- configure the CLI provider with `provider_batching: true`
+- `target: batch_cli` -- configure the CLI provider with `batch_requests: true`
 - The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
 - Put structured data in `user.content` as objects for the runner to extract
 - Use `expected_output` with object fields for structured expected output

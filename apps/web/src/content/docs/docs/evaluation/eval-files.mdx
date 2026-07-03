@@ -118,7 +118,9 @@ tests:
 | `suite` | Optional suite identifier |
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
-| `experiment` | Optional run/result grouping label |
+| `tags` | Optional promptfoo-style metadata map. Use `tags.experiment` as the run/result grouping label. |
+| `prompts` | Optional top-level prompt matrix. Entries can be strings, chat message arrays, files, or generated prompt functions. |
+| `targets` | Optional target matrix. Entries reference target labels or inline target objects. |
 | `evaluate_options.repeat` | Optional repeat policy as a positive integer shorthand or object with `count`, `strategy`, `early_exit`, and `cost_limit_usd` |
 | `timeout_seconds` | Optional per-case timeout |
 | `evaluate_options` | Optional evaluation runtime options such as `budget_usd` and `max_concurrency` |
@@ -139,6 +141,48 @@ For historical or repo-state evals, put the checkout under
 `workspace.repos[].commit` or `workspace.repos[].base_commit`. A commit SHA in
 the prompt or metadata is useful context, but it does not materialize a repo for
 the agent to inspect.
+
+### Prompts, Vars, and Target Expansion
+
+Use top-level `prompts` when you want promptfoo-style prompt variants. AgentV
+renders each prompt with each test's `vars`, then expands the run as
+`prompts x targets x tests x repeat` before execution. Each expanded row keeps
+the original `test_id` plus prompt and target identity for Dashboard filtering,
+reruns, and comparisons.
+
+```yaml
+description: Release-note summarization
+tags:
+  experiment: prompt-matrix
+
+prompts:
+  - id: direct
+    label: Direct
+    prompt: "Summarize {{ vars.topic }}."
+  - id: terse
+    label: Terse
+    prompt: "In one sentence, summarize {{ vars.topic }}."
+
+targets:
+  - label: local-mini
+    id: openai:gpt-5.4-mini
+  - label: local-codex
+    id: codex-auto-review
+
+tests:
+  - id: release-notes
+    vars:
+      topic: the July release notes
+    expected_output: concise release-note summary
+    assertions:
+      - Identifies the most important change
+      - Avoids unsupported details
+```
+
+If `prompts` is present, put per-case data in `tests[].vars` rather than
+`tests[].input`. For direct task suites, `input` remains the supported shorthand
+for the target task and can be a string, object, or message array. Use
+`prompts` only when you want a prompt matrix rendered from `tests[].vars`.
 
 ### Lifecycle Extensions
 
@@ -217,7 +261,7 @@ category paths.
 
 The `assertions` field is the canonical way to define suite-level graders. Suite-level assertions are appended to every test's graders unless a test sets `execution.skip_defaults: true`.
 For semantic or agent-behavior checks, prefer plain assertion strings first;
-AgentV treats them as rubric criteria. Use deterministic assertions or code
+AgentV treats them as rubric criteria. Use deterministic assertions or script
 graders when the expected output is exact or requires programmatic inspection.
 If the assertion strings already state the grading contract, omit a duplicate
 `criteria` field on each test. Use explicit `type: llm-grader` entries only
@@ -240,7 +284,7 @@ tests:
 ```
 
 `assertions` supports rubric shorthand strings, deterministic assertion types
-(`contains`, `regex`, `is_json`, `equals`), `g-eval`, LLM graders, and code
+(`contains`, `regex`, `is-json`, `equals`), `g-eval`, LLM graders, and script
 graders. See [Tests](/docs/evaluation/eval-cases/#per-test-assertions) for
 per-test assertions usage.
 
@@ -396,8 +440,8 @@ mini-DSL (`contains:*`, `icontains:*`, `contains-any:*`, `contains-all:*`,
 `file://*.py`; file paths inside CSV cells are resolved relative to the CSV
 file). Unsupported promptfoo assertion forms such as `similar:*` are rejected
 during validation instead of being skipped at runtime.
-`__provider_output` becomes first-class `expected_output`, `__metric` names the
-generated assertions, `__threshold` sets the test threshold,
+`__provider_output` becomes first-class `expected_output` reference data,
+`__metric` names the generated assertions, `__threshold` sets the test threshold,
 `__metadata:<key>` adds metadata, and `__config:__expectedN:threshold` sets an
 assertion `min_score`. Ordinary columns become `vars`, so CSV rows can rely on
 suite-level `input` that interpolates those variables.

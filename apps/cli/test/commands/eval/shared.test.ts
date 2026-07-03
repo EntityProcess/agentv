@@ -65,6 +65,37 @@ describe('resolveEvalPaths', () => {
     ).rejects.toThrow('No eval files matched any provided paths or globs');
   });
 
+  it('rejects direct .json eval paths with conversion guidance', async () => {
+    const evalFile = path.join(tempDir, 'evals.json');
+    writeFileSync(evalFile, '{"skill_name":"demo","evals": []}');
+
+    await expect(resolveEvalPaths([evalFile], tempDir)).rejects.toThrow('agentv convert');
+  });
+
+  it('accepts Agent Skills evals.json when read adapters are enabled', async () => {
+    const evalFile = path.join(tempDir, 'evals.json');
+    writeFileSync(
+      evalFile,
+      JSON.stringify({
+        skill_name: 'demo',
+        evals: [{ id: 1, prompt: 'Do the thing', expected_output: 'Thing done' }],
+      }),
+    );
+
+    const resolved = await resolveEvalPaths([evalFile], tempDir, { allowReadAdapters: true });
+
+    expect(resolved).toEqual([path.normalize(evalFile)]);
+  });
+
+  it('rejects evals.json without skill_name even when read adapters are enabled', async () => {
+    const evalFile = path.join(tempDir, 'evals.json');
+    writeFileSync(evalFile, '{"evals": []}');
+
+    await expect(
+      resolveEvalPaths([evalFile], tempDir, { allowReadAdapters: true }),
+    ).rejects.toThrow("top-level 'skill_name' and 'evals'");
+  });
+
   it('discovers *.eval.ts files from directory auto-expansion', async () => {
     const evalDir = path.join(tempDir, 'evals');
     mkdirSync(evalDir, { recursive: true });
@@ -75,6 +106,24 @@ describe('resolveEvalPaths', () => {
     const resolved = await resolveEvalPaths([tempDir], tempDir);
 
     expect(resolved).toEqual([path.normalize(tsFile)]);
+  });
+
+  it('discovers Agent Skills evals.json from directory auto-expansion when read adapters are enabled', async () => {
+    const evalDir = path.join(tempDir, 'skills', 'demo', 'evals');
+    mkdirSync(evalDir, { recursive: true });
+
+    const evalFile = path.join(evalDir, 'evals.json');
+    writeFileSync(
+      evalFile,
+      JSON.stringify({
+        skill_name: 'demo',
+        evals: [{ id: 1, prompt: 'Do the thing', expected_output: 'Thing done' }],
+      }),
+    );
+
+    const resolved = await resolveEvalPaths([tempDir], tempDir, { allowReadAdapters: true });
+
+    expect(resolved).toEqual([path.normalize(evalFile)]);
   });
 
   it('accepts a direct .mts file path', async () => {
