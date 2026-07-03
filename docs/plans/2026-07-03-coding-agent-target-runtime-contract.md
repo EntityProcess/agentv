@@ -147,6 +147,25 @@ control boundary. Continue to handle them where AgentV already accepts them,
 but prefer `--workers`, project `execution.workers`, `evaluate_options`, or
 runtime policy for new scheduling behavior.
 
+`grader_target` is different. It is not a coding-agent runtime field, but the
+concept is not redundant: coding-agent targets usually cannot act as structured
+LLM graders, and AgentV workspaces often contain multiple LLM providers or
+endpoints. AgentV still needs a default grader target selection. Preserve the
+current resolution behavior while cleaning up provider runtimes:
+
+- CLI `--grader-target` is the strongest run-level override.
+- Per-evaluator `target` remains the specific grader override.
+- Target-level `grader_target` remains the compatibility/default grader for
+  that target until a clearer eval/project-level default is introduced.
+- If a new canonical default is added later, prefer a grader/eval policy field
+  such as `default_grader_target` over putting grader selection inside
+  `runtime` or coding-agent provider `config`.
+
+Promptfoo's comparable mechanism is assertion/test grading provider selection:
+assertions can set a `provider`, tests/defaultTest can provide fallback grading
+providers, and model-graded matchers fall back to type-specific default grading
+providers. It does not put grader selection in the target provider runtime.
+
 ### Runtime Modes
 
 | Runtime | Boundary | Use case |
