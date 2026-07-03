@@ -12,7 +12,11 @@ const versionsByBaseLength = [...versions].sort((a, b) => b.base.length - a.base
 const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 
 function getCurrentVersion(path) {
-  return versionsByBaseLength.find((version) => path === version.base || path.startsWith(`${version.base}/`)) ?? versions[0];
+  return (
+    versionsByBaseLength.find(
+      (version) => path === version.base || path.startsWith(`${version.base}/`),
+    ) ?? versions[0]
+  );
 }
 
 function getVersionSuffix(path) {

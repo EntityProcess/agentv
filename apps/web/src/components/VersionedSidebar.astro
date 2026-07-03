@@ -16,7 +16,10 @@ const pathname = withTrailingSlash(Astro.url.pathname);
 const archiveVersion = ARCHIVED_VERSIONS.find((version) => isArchivePath(pathname, version.slug));
 const renderedSidebar = archiveVersion ? toArchiveSidebar(sidebar, archiveVersion) : sidebar;
 
-function toArchiveSidebar(entries: SidebarEntry[], archiveVersion: (typeof ARCHIVED_VERSIONS)[number]): SidebarEntry[] {
+function toArchiveSidebar(
+  entries: SidebarEntry[],
+  archiveVersion: (typeof ARCHIVED_VERSIONS)[number],
+): SidebarEntry[] {
   const routeSet = new Set(archiveVersion.routes);
 
   return entries.flatMap((entry) => {
