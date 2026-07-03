@@ -86,9 +86,9 @@ import BrandWordmark from './BrandWordmark.astro';
               <div class="av-line av-line-out av-line-delay-4"><span class="av-fail">FAIL</span> division <span class="av-dim">score: 0.4</span></div>
               <div class="av-line av-line-out av-line-delay-5"><span class="av-dim">Results:</span> <span class="av-pass">2 passed</span> <span class="av-fail">1 failed</span></div>
             </div>
-            <!-- Scene 2: agentv compare -->
+            <!-- Scene 2: agentv results compare -->
             <div class="av-scene av-scene-2">
-              <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv compare run-a run-b</span></div>
+              <div class="av-line av-line-cmd"><span class="av-prompt">$</span> <span class="av-typing">agentv results compare run-a run-b</span></div>
               <div class="av-line av-line-out av-line-delay-1"><span class="av-dim">Comparing 2 runs...</span></div>
               <div class="av-line av-line-out av-line-delay-2">correctness <span class="av-pass">+12.5%</span> <span class="av-dim">(0.72 -> 0.81)</span></div>
               <div class="av-line av-line-out av-line-delay-3">latency     <span class="av-pass"> -340ms</span> <span class="av-dim">(1.2s -> 0.86s)</span></div>
@@ -184,8 +184,7 @@ import BrandWordmark from './BrandWordmark.astro';
             <div class="av-mini-terminal">
               <div class="av-mini-bar"><span class="av-mini-dots"></span></div>
               <pre><code>{`description: Math evaluation
-execution:
-  target: default
+target: default
 
 tests:
   - id: addition
