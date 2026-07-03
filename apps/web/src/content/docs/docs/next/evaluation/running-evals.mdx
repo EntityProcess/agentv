@@ -177,122 +177,29 @@ then grade the final state with `agentv grade --prepared` without rerunning the
 target provider. See [Prepare](/docs/tools/prepare/) for the full workflow,
 manifest shape, and optional trace/session input with `--trace`.
 
-### Trace Persistence
+### Trace Correlation
 
-Export execution traces (tool calls, timing, spans) to files for debugging and analysis:
-
-By default, AgentV writes a per-run workspace with `index.jsonl` as the canonical manifest for
-result-oriented workflows. For full-fidelity span inspection, export OTLP JSON explicitly.
+AgentV writes a per-run workspace with `index.jsonl`, `summary.json`, and
+per-case sidecars as the canonical record for result-oriented workflows. For
+full-fidelity span inspection in systems such as Phoenix, Langfuse, Braintrust,
+Jaeger, or Grafana, instrument the system under test or provider wrapper to emit
+OpenTelemetry/OpenInference spans directly to that backend during execution.
 
 ```bash
 # Summary-level inspection from the run manifest
 agentv inspect stats .agentv/results/<run_id>/index.jsonl
 
-# Full-fidelity OTLP JSON trace (importable by OTel backends like Jaeger, Grafana)
-agentv eval evals/my-eval.yaml --otel-file traces/eval.otlp.json
-
-# Inspect the OTLP export
-agentv inspect show traces/eval.otlp.json --tree
+# Inspect AgentV-owned per-case artifacts and transcript sidecars
+agentv inspect show .agentv/results/<run_id>/index.jsonl --tree
 ```
 
-`index.jsonl` contains aggregate metrics such as score, latency, cost, token usage, and summary
-trace counters. `--otel-file` writes standard OTLP JSON that can be imported into any
-OpenTelemetry-compatible backend.
-
-For Opik specifically, use `--otel-file` for post-run import or provide your own local backend resolver. AgentV does not currently ship a built-in `opik` backend name.
-
-### Live OTel Export
-
-Stream traces directly to an observability backend during evaluation using `--export-otel`:
-
-```bash
-# Use a built-in CLI backend resolver (braintrust, langfuse, confident)
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust
-
-# Include message content and tool I/O in spans (disabled by default for privacy)
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
-
-# Group messages into turn spans for multi-turn evaluations
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-group-turns
-```
-
-#### Braintrust
-
-Set up your environment:
-
-```bash
-export BRAINTRUST_API_KEY=sk-...
-export BRAINTRUST_PROJECT=my-project    # associates traces with a Braintrust project
-```
-
-Run an eval with traces sent to Braintrust:
-
-```bash
-agentv eval evals/my-eval.yaml --export-otel --otel-backend braintrust --otel-capture-content
-```
-
-The following environment variables control project association (at least one is required):
-
-| Variable | Format | Example |
-|----------|--------|---------|
-| `BRAINTRUST_PROJECT` | Project name | `my-evals` |
-| `BRAINTRUST_PROJECT_ID` | Project UUID | `proj_abc123` |
-| `BRAINTRUST_PARENT` | Raw `x-bt-parent` header | `project_name:my-evals` |
-
-Each eval test case produces a trace with:
-- **Root span** (`agentv.eval`) — test ID, target, score, duration
-- **LLM call spans** (`chat <model>`) — model name, token usage (input/output/cached)
-- **Tool call spans** (`execute_tool <name>`) — tool name, arguments, results (with `--otel-capture-content`)
-- **Turn spans** (`agentv.turn.N`) — groups messages by conversation turn (with `--otel-group-turns`)
-- **Grader events** — per-grader scores attached to the root span
-
-:::tip[Claude provider + trace-claude-code plugin]
-When using the Claude provider, AgentV injects `CC_PARENT_SPAN_ID` and `CC_ROOT_SPAN_ID` into the Claude subprocess. If the [trace-claude-code](https://github.com/braintrustdata/braintrust-claude-plugin) plugin is installed, it attaches Claude Code CLI-level tool spans (Read, Write, Bash, etc.) as children of the AgentV eval trace, giving you full visibility into both the eval framework and the agent's internal actions.
-:::
-
-#### Langfuse
-
-```bash
-export LANGFUSE_PUBLIC_KEY=pk-...
-export LANGFUSE_SECRET_KEY=sk-...
-# Optional: export LANGFUSE_HOST=https://cloud.langfuse.com
-
-agentv eval evals/my-eval.yaml --export-otel --otel-backend langfuse --otel-capture-content
-```
-
-#### Local Backend Resolvers
-
-For project-specific backend routing, create `.agentv/otel-backends/<name>.mjs` and select it
-with `--otel-backend <name>`:
-
-```js
-export default {
-  name: 'my-backend',
-  resolve: ({ env }) => ({
-    endpoint: env.MY_OTEL_ENDPOINT ?? 'https://otel.example.com/v1/traces',
-    headers: { Authorization: `Bearer ${env.MY_OTEL_TOKEN ?? ''}` },
-  }),
-};
-```
-
-```bash
-agentv eval evals/my-eval.yaml --export-otel --otel-backend my-backend
-```
-
-Backend resolvers keep platform-specific endpoint, header, and project-routing logic outside
-AgentV core. AgentV also loads Node-compatible `.js` resolver files when you prefer
-CommonJS or your project configures `.js` as ESM.
-
-#### Custom OTLP Endpoint
-
-For generic OTLP export without a backend resolver, configure via environment variables:
-
-```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://your-backend/v1/traces
-export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer token"
-
-agentv eval evals/my-eval.yaml --export-otel
-```
+`index.jsonl` contains aggregate metrics such as score, latency, cost, token
+usage, summary trace counters, and paths to generated artifacts. When another
+observability system emitted spans independently, include safe `external_trace`
+metadata in the result or trace artifact so AgentV can correlate a case to the
+external trace ID, span ID, or UI URL without making that backend the source of
+truth. AgentV does not synthesize OTLP from completed eval transcripts as the
+primary observability path.
 
 ### Parallelism
 
@@ -556,7 +463,6 @@ Use `config.yaml` for portable defaults that can be committed with the eval proj
 execution:
   verbose: true
   keep_workspaces: false
-  otel_file: .agentv/results/otel-{timestamp}.json
 refs:
   global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
 ```
@@ -577,7 +483,6 @@ eval_patterns:
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `workspace_path` | `--workspace-path` | string | none | Machine-local existing workspace directory |
-| `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
 | `refs` | none | object | none | Project-defined named references for fields that support `ref://name`, such as shared `default_test` files |
 
 ### TypeScript config (`agentv.config.ts`)
@@ -589,12 +494,9 @@ export default defineConfig({
   execution: {
     verbose: true,
     keepWorkspaces: false,
-    otelFile: '.agentv/results/otel-{timestamp}.json',
   },
 });
 ```
-
-The `{timestamp}` placeholder is replaced with an ISO-like timestamp (e.g., `2026-03-05T14-30-00-000Z`) at execution time.
 
 **Precedence:** CLI flags > project-local `.agentv/config.local.yaml` over `.agentv/config.yaml` > home/global `$AGENTV_HOME/config.local.yaml` over `$AGENTV_HOME/config.yaml` (or `~/.agentv/...`) > `agentv.config.ts` > built-in defaults.
 

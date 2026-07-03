@@ -163,7 +163,6 @@ conversion_warnings:
 
 artifacts:
   trace_path: outputs/trace.json
-  otlp_path: outputs/trace.otlp.json
   answer_path: outputs/answer.md
   transcript_path: outputs/transcript.jsonl
   raw_evidence_dir: raw/
@@ -244,8 +243,8 @@ explicit known-field conversion plus Zod validation. It should not look like
 | Final answer | The final assistant answer is the last relevant LLM output plus an envelope artifact pointer. | `gen_ai.output.messages` opt-in on the final LLM/root span; OpenInference `output.value`/`output.mime_type`. | `artifacts.answer_path`; optional root event `agentv.final_answer` with `agentv.artifact_path`. | `outputs/answer.md` is the generated human-readable projection; spans remain the trace source of truth. |
 | Provider error | Set `status.code=ERROR` and message on the failed span and root span. Add exception event when details are available. | OTel exception event attributes `exception.type`, `exception.message`, `exception.stacktrace`; OpenInference reserves `exception.message`, `exception.stacktrace`, `exception.escaped`; span status `ERROR`. | `agentv.failure_stage`, `agentv.failure_reason_code`, envelope `conversion_warnings` when import is lossy rather than execution-failed. | A grader failure is score provenance, not provider execution error. Keep these separate. |
 | Subagent/nested tool evidence | Nested root-like span under the calling tool span, e.g. `execute_tool runSubagent` -> `invoke_agent <subagent>`. Preserve imported parentage. | `gen_ai.operation.name=invoke_agent`; `gen_ai.agent.name`; `gen_ai.provider.name`; `openinference.span.kind=AGENT`; `session.id`. | `agentv.parent_tool_call_id`, `agentv.subagent=true` if needed for derived grader views. | VS Code/Copilot documents subagent invocations as nested `invoke_agent` spans under the parent `execute_tool runSubagent`; use that pattern when AgentV has enough evidence. |
-| Score/evaluator provenance | Keep v1 score provenance in envelope `scores[]`. For OTLP export, also emit either root events or evaluator spans. | OTel GenAI evaluation event: `gen_ai.evaluation.name`, `gen_ai.evaluation.score.value`, `gen_ai.evaluation.score.label`, `gen_ai.evaluation.explanation`, `gen_ai.response.id`; OpenInference `openinference.span.kind=EVALUATOR`. | Existing `agentv.score` and `agentv.grader.*` root events remain compatibility output. Envelope `scores[].target_span_id`, `scores[].evidence.span_ids`, and `scores[].evidence.tool_call_ids` are the AgentV provenance contract. | Do not require `agentv.score` to import or score an external trace. Existing `inspect` OTLP import currently does; `.6` should remove that limitation for trace-only scoring. |
-| Token usage | Put model token usage on the LLM span; aggregate usage can be repeated on root if useful for dashboards. | `gen_ai.usage.input_tokens`; `gen_ai.usage.output_tokens`; `gen_ai.usage.cache_read.input_tokens`; `gen_ai.usage.cache_creation.input_tokens`; `gen_ai.usage.reasoning.output_tokens`; OpenInference `llm.token_count.prompt`, `llm.token_count.completion`, `llm.token_count.total`, `llm.token_count.prompt_details.cache_read`, `llm.token_count.prompt_details.cache_write`, `llm.token_count.completion_details.reasoning`. | Envelope can carry no separate token summary; derive `TraceSummary`/timing artifacts from spans. | Use OTel GenAI attributes first because AgentV already exports them. Add OpenInference aliases only where an adapter/backend requires them. |
+| Score/evaluator provenance | Keep v1 score provenance in envelope `scores[]`. Optional post-run adapters may project scores as root events or evaluator spans. | OTel GenAI evaluation event: `gen_ai.evaluation.name`, `gen_ai.evaluation.score.value`, `gen_ai.evaluation.score.label`, `gen_ai.evaluation.explanation`, `gen_ai.response.id`; OpenInference `openinference.span.kind=EVALUATOR`. | Existing `agentv.score` and `agentv.grader.*` root events are compatibility input when importing historical AgentV-shaped OTLP. Envelope `scores[].target_span_id`, `scores[].evidence.span_ids`, and `scores[].evidence.tool_call_ids` are the AgentV provenance contract. | Do not require `agentv.score` to import or score an external trace. |
+| Token usage | Put model token usage on the LLM span; aggregate usage can be repeated on root if useful for dashboards. | `gen_ai.usage.input_tokens`; `gen_ai.usage.output_tokens`; `gen_ai.usage.cache_read.input_tokens`; `gen_ai.usage.cache_creation.input_tokens`; `gen_ai.usage.reasoning.output_tokens`; OpenInference `llm.token_count.prompt`, `llm.token_count.completion`, `llm.token_count.total`, `llm.token_count.prompt_details.cache_read`, `llm.token_count.prompt_details.cache_write`, `llm.token_count.completion_details.reasoning`. | Envelope can carry no separate token summary; derive `TraceSummary`/timing artifacts from spans. | Prefer OTel GenAI attributes for imported OTLP and add OpenInference aliases only where an adapter/backend requires them. |
 | Cost | Prefer OpenInference cost attributes when writing OpenInference-rich spans. Root aggregate cost may remain `agentv.trace.cost_usd` for compatibility. | OpenInference `llm.cost.prompt`, `llm.cost.completion`, `llm.cost.total`, `llm.cost.prompt_details.*`, `llm.cost.completion_details.*`. | `agentv.trace.cost_usd` compatibility attribute; result JSONL `cost_usd` remains derived/stable. | OTel GenAI cost attributes are not stable in current AgentV usage. Mark any new OTel cost key uncertain unless pinned to the current spec. |
 | Duration/timing | Span start/end times are canonical. Derived `duration_ms` comes from `end_time_unix_nano - start_time_unix_nano`. | OTLP span `start_time_unix_nano`, `end_time_unix_nano`; optional `gen_ai.response.time_to_first_chunk` for streaming LLM latency. | `agentv.duration_inferred=true` and conversion warning when timing was inferred from source order. | Do not store a separate authored duration as canonical when spans have times. |
 | Redaction/capture | Redaction is envelope policy plus omitted/filtered content attributes. | OTel GenAI docs mark message content attributes sensitive; VS Code/Copilot defaults content capture off and gates it via explicit settings/env. OpenInference supports privacy/masking concepts, but exact field-level masking keys should be pinned during implementation. | Envelope `capture.*`; span attributes `agentv.redaction.level`, `agentv.redaction.fields`, `agentv.content_ref` where useful. | Default should be metadata-only. Do not persist prompts, tool args/results, screenshots, or thinking blocks by default. |
@@ -315,10 +314,9 @@ Minimal code slices:
    leave index JSONL unchanged unless a later discovery surface needs an additive
    index pointer.
 
-6. OTLP import/export bridge.
-   Reuse `packages/core/src/observability/otel-exporter.ts` and
-   `otlp-json-file-exporter.ts` where possible, but move reusable span assembly
-   below the exporter so envelope writing and `--otel-file` do not drift.
+6. OTLP import bridge.
+   Keep reusable span mapping in trace-envelope or trace-normalization modules so
+   envelope writing and external trace mapping do not drift.
 
 Sequencing:
 
@@ -362,9 +360,8 @@ bun test packages/core/test/evaluation/trace-trajectory.test.ts \
   packages/core/test/evaluation/replay-fixtures.test.ts \
   packages/core/test/import/transcript-provider.test.ts
 
-bun test packages/core/test/observability/otel-exporter.test.ts \
-  packages/core/test/observability/file-exporters.test.ts \
-  packages/core/test/observability/streaming-observer.test.ts
+bun test packages/core/test/evaluation/trace-envelope.test.ts \
+  packages/core/test/evaluation/trace-normalization.test.ts
 
 bun test apps/cli/test/commands/eval/artifact-writer.test.ts \
   apps/cli/test/commands/eval/output-messages.test.ts
@@ -411,7 +408,7 @@ Artifacts to inspect:
 - per-test `outputs/trace.json`
 - per-test `outputs/transcript.jsonl`
 - per-test `outputs/answer.md`
-- generated OTLP JSON, if the implementation writes an OTLP sidecar
+- external OTLP JSON import evidence, if the implementation imports an OTLP file
 - `examples/showcase/trace-evaluation/fixtures/replay-target-output.jsonl`
   remains unchanged unless a migration is explicitly accepted
 
@@ -440,9 +437,10 @@ Recommended defaults are included so implementation is not blocked.
    that relationship from `Message.toolCalls`; preserve imported source parentage
    for external OTLP.
 
-3. Should score provenance be root events or evaluator spans in OTLP export?
-   Recommended default: keep envelope `scores[]` authoritative; emit current
-   `agentv.grader.*` root events for compatibility; add
+3. Should score provenance be root events or evaluator spans in a post-run
+   adapter?
+   Recommended default: keep envelope `scores[]` authoritative; preserve
+   `agentv.grader.*` root events only as historical import compatibility; add
    `gen_ai.evaluation.result` events or OpenInference `EVALUATOR` spans only
    when a consumer needs them.
 
@@ -458,8 +456,6 @@ Local AgentV inputs read for this spec:
 - `docs/plans/trace-evaluation-architecture.md`
 - `docs/adr/0001-keep-phoenix-observability-integration-out-of-core.md`
 - `packages/core/src/evaluation/trace.ts`
-- `packages/core/src/observability/otel-exporter.ts`
-- `packages/core/src/observability/otlp-json-file-exporter.ts`
 - `packages/core/src/import/types.ts`
 - `packages/core/src/import/claude-parser.ts`
 - `packages/core/src/import/codex-parser.ts`

@@ -58,9 +58,9 @@ contract avoids that persisted trace sidecar surface.
 
 This is the right source for Opik trace/span projection.
 
-### Current OTel export surface
+### Removed OTel export surface
 
-`packages/core/src/observability/otel-exporter.ts` is a runtime OTel emitter. It is useful for live export, but it is the wrong boundary for the AgentV-to-Opik completed-run exporter because:
+`packages/core/src/observability/otel-exporter.ts` was a runtime OTel emitter. It has been removed from the eval-run path, and it was the wrong boundary for the AgentV-to-Opik completed-run exporter because:
 
 - it runs during execution rather than after a completed run;
 - it does not preserve AgentV grading/assertion artifacts as first-class export inputs;

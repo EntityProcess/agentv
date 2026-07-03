@@ -73,7 +73,7 @@ Use `--response` when the final answer text should be graded independently of th
 `prepare` is not a replacement for live observability. Configure live tracing in the harness or target itself:
 
 - Use provider-native settings, target hooks, or environment variables to enable session logs.
-- Use AgentV's OTLP options during normal eval runs, such as `--otel-file` or `--export-otel`, when AgentV is the runner.
+- Emit OpenTelemetry/OpenInference spans from the system under test or provider when you need external trace inspection.
 - For Opik, Langfuse, or another export-capable backend, treat their traces as external artifacts that can be imported or projected back into AgentV later.
 - For Phoenix, use only optional link-out correlation when safe `external_trace` metadata points to spans already emitted independently by Codex, Arize, or another hook.
 

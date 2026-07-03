@@ -110,10 +110,9 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 
 ---
 
-### Export results to an observability platform
+### Extract structured data
 | Example | Description |
 |---------|-------------|
-| [langfuse-export](langfuse-export/) | Export eval traces to Langfuse via OpenTelemetry OTLP/HTTP |
 | [document-extraction](document-extraction/) | Evaluate structured data extracted from documents |
 
 ---
@@ -147,7 +146,7 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [copilot-log-eval](copilot-log-eval/) | Offline evaluation |
 | [default-graders](default-graders/) | Getting started |
 | [deterministic-graders](deterministic-graders/) | Deterministic assertions |
-| [document-extraction](document-extraction/) | Observability & export |
+| [document-extraction](document-extraction/) | Document extraction |
 | [env-interpolation](env-interpolation/) | Dataset & input |
 | [eval-assert-demo](eval-assert-demo/) | Custom graders |
 | [execution-metrics](execution-metrics/) | Cost, latency & tokens |
@@ -156,7 +155,6 @@ Focused examples for specific AgentV capabilities. Find your use case below, the
 | [file-changes-graders](file-changes-graders/) | Workspace & targets |
 | [functional-grading](functional-grading/) | Custom graders |
 | [input-files-shorthand](input-files-shorthand/) | Dataset & input |
-| [langfuse-export](langfuse-export/) | Observability & export |
 | [latency-assertions](latency-assertions/) | Tool & agent evaluation |
 | [local-cli](local-cli/) | Workspace & targets |
 | [multi-turn-conversation](multi-turn-conversation/) | LLM grading |

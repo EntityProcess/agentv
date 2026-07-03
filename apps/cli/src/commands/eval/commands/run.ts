@@ -129,29 +129,6 @@ export const evalRunCommand = command({
       description:
         'Preserve per-test workspaces after eval (default: keep on failure, cleanup on success)',
     }),
-    otelFile: option({
-      type: optional(string),
-      long: 'otel-file',
-      description: 'Write OTLP JSON trace to file (importable by OTel backends)',
-    }),
-    exportOtel: flag({
-      long: 'export-otel',
-      description: 'Export evaluation traces via OTLP/HTTP to configured endpoint',
-    }),
-    otelBackend: option({
-      type: optional(string),
-      long: 'otel-backend',
-      description: 'Use an OTel backend resolver (langfuse, braintrust, confident, or local)',
-    }),
-    otelCaptureContent: flag({
-      long: 'otel-capture-content',
-      description: 'Include message content in exported OTel spans (privacy: disabled by default)',
-    }),
-    otelGroupTurns: flag({
-      long: 'otel-group-turns',
-      description:
-        'Group messages into turn spans for multi-turn evaluations (requires --export-otel)',
-    }),
     retryErrors: option({
       type: optional(string),
       long: 'retry-errors',
@@ -269,11 +246,6 @@ export const evalRunCommand = command({
       workspacePath: args.workspacePath,
       keepWorkspaces: args.keepWorkspaces,
       trace: false,
-      otelFile: args.otelFile,
-      exportOtel: args.exportOtel,
-      otelBackend: args.otelBackend,
-      otelCaptureContent: args.otelCaptureContent,
-      otelGroupTurns: args.otelGroupTurns,
       retryErrors: args.retryErrors,
       resume: args.resume,
       rerunFailed: args.rerunFailed,

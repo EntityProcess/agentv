@@ -14,9 +14,11 @@ Supported sources:
 
 - Run workspaces or `index.jsonl` manifests for summary-level fallback
 - Legacy simple trace JSONL files for read-only migration scenarios
-- OTLP JSON files written via `agentv eval --otel-file ...`
+- External OTLP JSON files
 
-For full tool-call inspection, prefer OTLP JSON exports over eval manifests.
+For full external span inspection, use an OTLP JSON trace emitted by the system
+under test or provider. For AgentV-owned evidence, prefer run manifests and
+their transcript sidecars.
 
 ## Subcommands
 

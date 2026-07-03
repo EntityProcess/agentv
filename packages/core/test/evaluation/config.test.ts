@@ -13,11 +13,12 @@ describe('defineConfig execution defaults', () => {
     expect(config.execution?.keepWorkspaces).toBe(true);
   });
 
-  it('accepts otelFile string', () => {
-    const config = defineConfig({
-      execution: { otelFile: '.agentv/results/otel-{timestamp}.json' },
-    });
-    expect(config.execution?.otelFile).toBe('.agentv/results/otel-{timestamp}.json');
+  it('rejects removed otelFile export config', () => {
+    expect(() =>
+      defineConfig({
+        execution: { otelFile: '.agentv/results/otel-{timestamp}.json' },
+      } as never),
+    ).toThrow(/execution\.otelFile has been removed/);
   });
 
   it('accepts all execution fields together', () => {
@@ -28,7 +29,6 @@ describe('defineConfig execution defaults', () => {
         agentTimeoutMs: 120_000,
         verbose: true,
         keepWorkspaces: false,
-        otelFile: 'otel.json',
       },
     });
     expect(config.execution).toEqual({
@@ -37,7 +37,6 @@ describe('defineConfig execution defaults', () => {
       agentTimeoutMs: 120_000,
       verbose: true,
       keepWorkspaces: false,
-      otelFile: 'otel.json',
     });
   });
 
