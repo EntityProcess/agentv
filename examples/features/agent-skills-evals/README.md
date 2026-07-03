@@ -62,12 +62,12 @@ tests:
             value: evals/files/sales.csv
           - type: text
             value: "Find the top 3 months by revenue."
-    assertions:
+    assert:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: true
-      - type: rubrics
-        criteria: "Output identifies November as the highest revenue month"
+      - type: llm-rubric
+        value: "Output identifies November as the highest revenue month"
       - type: contains
         value: "$22,500"
 ```

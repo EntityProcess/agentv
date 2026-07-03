@@ -25,14 +25,14 @@ tests:
           threshold: 0.5
         assert:
           - metric: accuracy_check
-            type: rubrics
-            criteria:
+            type: llm-rubric
+            value:
               - Response accurately describes the benefits of renewable energy with correct facts
           - metric: completeness_check
-            type: rubrics
-            criteria:
+            type: llm-rubric
+            value:
               - Response covers at least 3 key benefits of renewable energy
           - metric: conciseness_check
-            type: rubrics
-            criteria:
+            type: llm-rubric
+            value:
               - Response is concise and well-structured

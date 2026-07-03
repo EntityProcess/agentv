@@ -113,7 +113,7 @@ describe('resolveFileReference', () => {
       threshold: 0.7,
       vars: { locale: 'en-US' },
       metadata: { category: 'math', tags: ['smoke', 'regression'], threshold: 0.6 },
-      assertions: [
+      assert: [
         { type: 'equals', value: '4', metric: 'accuracy' },
         { type: 'icontains', value: 'four', metric: 'accuracy', min_score: 0.6 },
       ],
@@ -133,7 +133,7 @@ describe('resolveFileReference', () => {
 
     const cases = await resolveFileReference('file://cases/expected-dsl.csv', tempDir);
 
-    expect(cases[0].assertions).toEqual([
+    expect(cases[0].assert).toEqual([
       { type: 'latency', threshold: 1000 },
       { type: 'cost', budget: 0.01 },
       { type: 'script', command: ['uv', 'run', 'python', graderPath] },

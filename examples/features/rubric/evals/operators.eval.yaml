@@ -28,8 +28,8 @@ tests:
           from 45%.
 
     assert:
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - id: supported-revenue
             operator: correctness
             outcome: States Q4 revenue increased to $10M from $8M.

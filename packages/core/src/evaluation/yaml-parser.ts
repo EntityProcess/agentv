@@ -2479,12 +2479,14 @@ function collectSingleGraderSourceReferences(
   }
 
   if (evaluator.type === 'llm-grader') {
-    const promptPath = evaluator.resolvedPromptPath ?? evaluator.promptPath;
-    if (promptPath) {
+    const resolvedPromptPath = evaluator.resolvedPromptPath ?? evaluator.promptPath;
+    if (resolvedPromptPath) {
       references.push({
         kind: 'llm_grader_prompt',
-        displayPath: typeof evaluator.prompt === 'string' ? evaluator.prompt : promptPath,
-        resolvedPath: promptPath,
+        displayPath:
+          evaluator.promptPath ??
+          (typeof evaluator.prompt === 'string' ? evaluator.prompt : resolvedPromptPath),
+        resolvedPath: resolvedPromptPath,
         graderName: evaluator.name,
       });
     }

@@ -18,33 +18,10 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
 - **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by label from `targets.yaml` or with an eval-local target object.
-- **Experiment** is the run/result grouping label being measured over that corpus, such as `with-skills` or `without-skills`. Keep suite/category and target/model names out of this label.
+- **Tags** are run/result grouping labels. `tags.experiment` is the default experiment namespace, such as `with-skills` or `without-skills`; keep suite/category and target/model names out of that tag.
 - **Evaluate options** configure runner-level behavior such as repeat policy, optional timeouts, and `max_concurrency` under `evaluate_options`.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
-- **Run** is one concrete execution of an experiment against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
-
-```mermaid
-flowchart LR
-  corpus["Eval suite / imports / tests<br/>task corpus"]
-  category["Category<br/>path-derived grouping"]
-  context["Workspace / fixtures / graders<br/>task-owned context"]
-  experiment["Experiment<br/>named run condition"]
-  target["Target<br/>system under test"]
-  controls["Run controls<br/>execution + gates"]
-  run["Run<br/>concrete execution"]
-  artifacts["Run artifacts<br/>summary.json + index.jsonl + sidecars"]
-  readers["Dashboard / compare / trend<br/>derived readers"]
-
-  corpus --> category
-  corpus --> run
-  context --> run
-  category --> run
-  experiment --> run
-  target --> run
-  controls --> run
-  run --> artifacts
-  artifacts --> readers
-```
+- **Run** is one concrete execution of a tagged eval against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
 ## Quick start
 

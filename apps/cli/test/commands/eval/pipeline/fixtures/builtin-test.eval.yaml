@@ -3,12 +3,12 @@ tests:
   - id: test-01
     input: hello world
     criteria: Response echoes the input
-    assertions:
-      - name: has_hello
+    assert:
+      - metric: has_hello
         type: contains
         value: hello
-      - name: matches_pattern
+      - metric: matches_pattern
         type: regex
         value: "h[aeiou]llo"
-      - name: is_valid_json
+      - metric: is_valid_json
         type: is-json

@@ -1713,7 +1713,8 @@ async function parseGraderList(
     const rawPrompt =
       rawEvaluator.prompt ?? (typeValue === 'llm-rubric' ? defaultRubricPrompt : undefined);
     const parsedPrompt = await parsePromptField(rawPrompt, name, evalId, searchRoots);
-    const { prompt, promptPath, resolvedPromptScript, promptScriptConfig } = parsedPrompt;
+    const { prompt, promptPath, resolvedPromptPath, resolvedPromptScript, promptScriptConfig } =
+      parsedPrompt;
 
     const _model = asString(rawEvaluator.model);
 
@@ -1816,7 +1817,7 @@ async function parseGraderList(
         type: 'llm-rubric',
         prompt,
         promptPath,
-        ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
+        ...(resolvedPromptPath ? { resolvedPromptPath } : {}),
         ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
         ...(value !== undefined ? { value } : {}),
         ...(structuredRubrics && structuredRubrics.length > 0
@@ -1840,7 +1841,7 @@ async function parseGraderList(
       type: 'llm-grader',
       prompt,
       promptPath,
-      ...(promptPath ? { resolvedPromptPath: promptPath } : {}),
+      ...(resolvedPromptPath ? { resolvedPromptPath } : {}),
       ...(resolvedPromptScript ? { resolvedPromptScript } : {}),
       ...(parsedRubrics && parsedRubrics.length > 0 ? { rubrics: parsedRubrics } : {}),
       ...(graderTargetName ? { target: graderTargetName } : {}),
@@ -1861,6 +1862,7 @@ async function parseGraderList(
 interface ParsedPromptField {
   readonly prompt?: string;
   readonly promptPath?: string;
+  readonly resolvedPromptPath?: string;
   readonly resolvedPromptScript?: readonly string[];
   readonly promptScriptConfig?: Record<string, unknown>;
   readonly promptConfig: {
@@ -1879,6 +1881,7 @@ async function parsePromptField(
 ): Promise<ParsedPromptField> {
   let prompt: string | undefined;
   let promptPath: string | undefined;
+  let resolvedPromptPath: string | undefined;
   let resolvedPromptScript: readonly string[] | undefined;
   let promptScriptConfig: Record<string, unknown> | undefined;
 
@@ -1895,8 +1898,9 @@ async function parsePromptField(
           `Grader '${evaluatorName}' in '${evalId}': prompt file not found: ${resolved.displayPath}`,
         );
       }
-      promptPath = path.resolve(resolved.resolvedPath);
-      await validateCustomPromptContent(promptPath);
+      promptPath = resolved.displayPath;
+      resolvedPromptPath = path.resolve(resolved.resolvedPath);
+      await validateCustomPromptContent(resolvedPromptPath);
     } else {
       prompt = rawPrompt;
     }
@@ -1936,13 +1940,15 @@ async function parsePromptField(
 
   const promptConfig = {
     ...(prompt !== undefined ? { prompt } : {}),
-    ...(promptPath !== undefined ? { promptPath, resolvedPromptPath: promptPath } : {}),
+    ...(promptPath !== undefined ? { promptPath } : {}),
+    ...(resolvedPromptPath !== undefined ? { resolvedPromptPath } : {}),
     ...(resolvedPromptScript !== undefined ? { resolvedPromptScript } : {}),
   };
 
   return {
     prompt,
     promptPath,
+    resolvedPromptPath,
     resolvedPromptScript,
     promptScriptConfig,
     promptConfig,

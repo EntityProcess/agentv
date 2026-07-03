@@ -217,7 +217,7 @@ tests:
     input:
       company: Apple
       ticker: AAPL
-    assertions:
+    assert:
       - name: dexter_rubric
         type: llm-grader
         rubrics:

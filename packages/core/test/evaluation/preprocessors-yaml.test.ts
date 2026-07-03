@@ -28,7 +28,7 @@ tests:
   - id: report
     input: "grade this"
     criteria: "works"
-    assertions:
+    assert:
       - name: grade
         type: llm-grader
         prompt: "Evaluate {{ output }}"
@@ -68,7 +68,7 @@ tests:
   - id: report
     input: "grade this"
     criteria: "works"
-    assertions:
+    assert:
       - name: grade
         type: llm-grader
         prompt: "Evaluate {{ output }}"

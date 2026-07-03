@@ -2404,7 +2404,7 @@ describe('writeArtifactsFromResults', () => {
 
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
-    const [assertion] = testCase.assertions as Record<string, unknown>[];
+    const [assertion] = testCase.assert as Record<string, unknown>[];
     expect(parsedEval.target).toBe('gpt-4o');
     expect(testCase.input).toBe('file://files/src/input.txt');
     expect(assertion.prompt).toBe('file://graders/src/grader.md');

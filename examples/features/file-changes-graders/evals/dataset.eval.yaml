@@ -1,14 +1,14 @@
 # File changes + graders integration test
 #
 # Proves that file_changes diffs are correctly passed to all grader types:
-#   1. rubrics      — LLM grader (Azure) evaluates the diff
+#   1. llm-rubric   — LLM grader (Azure) evaluates the diff
 #   2. llm-grader    — built-in mode (Azure via AI SDK) sees file_changes in prompt
 #   3. llm-grader    — delegated mode (Copilot CLI with haiku) sees file_changes in prompt
 #
 # The mock agent adds a `subtract` function to calculator.ts, producing a small
 # diff (~10 lines) that fits comfortably in any LLM context window.
 
-description: Verify file_changes diffs are accessible to LLM grader (rubrics, built-in, and copilot-cli)
+description: Verify file_changes diffs are accessible to LLM grader (llm-rubric, built-in, and copilot-cli)
 
 workspace:
   template: ../workspace-template
@@ -29,10 +29,10 @@ tests:
             value: Add a subtract function to src/calculator.ts
 
     assert:
-      # 1. LLM grader with rubrics — Azure evaluates file_changes diff
+      # 1. LLM rubric grader — Azure evaluates file_changes diff
       - metric: llm-grader-rubrics
-        type: rubrics
-        criteria:
+        type: llm-rubric
+        value:
           - id: subtract-added
             outcome: "The diff shows a new subtract function was added to calculator.ts"
             weight: 1.0

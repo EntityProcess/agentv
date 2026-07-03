@@ -121,7 +121,7 @@ describe('materializeTaskBundle', () => {
     const taskTargets = await readFile(paths?.targetsPath ?? '', 'utf8');
     const parsedEval = parseYamlValue(taskEval) as Record<string, unknown>;
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
-    const [assertion] = testCase.assertions as Record<string, unknown>[];
+    const [assertion] = testCase.assert as Record<string, unknown>[];
 
     expect(parsedEval.target).toBe('selected');
     expect(parsedEval.execution).toBeUndefined();

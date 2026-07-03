@@ -1,8 +1,8 @@
 # AgentV Rubric Grader Example
-# Demonstrates the rubric-based evaluation feature using type: rubrics under assertions
+# Demonstrates rubric-based evaluation using type: llm-rubric under assert
 
 name: rubric
-description: "Example showing rubric grader - string shorthand and type: rubrics"
+description: "Example showing rubric grader - string shorthand and type: llm-rubric"
 
 target: llm
 
@@ -69,8 +69,8 @@ tests:
 
     # Detailed rubric objects with weights and required flags
     assert:
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - id: structure
             outcome: Has clear headings and organization
             weight: 1.0
@@ -134,8 +134,8 @@ tests:
 
     assert:
       # Rubric grader for semantic checks
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - Uses regular expressions for email validation
           - Includes type hints
           - Has docstring documentation
@@ -205,8 +205,8 @@ tests:
           to renewable energy.
 
     assert:
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - id: factual_accuracy
             weight: 2.0
             min_score: 0.8
