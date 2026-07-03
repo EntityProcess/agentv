@@ -22,6 +22,7 @@ export interface EvaluationSummary {
   readonly passedCount: number;
   readonly byFailureStage: Readonly<Record<string, number>>;
   readonly byFailureReason: Readonly<Record<string, number>>;
+  readonly byTargetErrorKind: Readonly<Record<string, number>>;
 }
 
 const HISTOGRAM_BREAKPOINTS = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -112,6 +113,7 @@ export function calculateEvaluationSummary(
       passedCount: 0,
       byFailureStage: {},
       byFailureReason: {},
+      byTargetErrorKind: {},
     };
   }
 
@@ -150,6 +152,7 @@ export function calculateEvaluationSummary(
   // Aggregate by failure stage and reason (execution errors only)
   const byFailureStage: Record<string, number> = {};
   const byFailureReason: Record<string, number> = {};
+  const byTargetErrorKind: Record<string, number> = {};
   for (const result of executionErrors) {
     if (result.failureStage) {
       byFailureStage[result.failureStage] = (byFailureStage[result.failureStage] ?? 0) + 1;
@@ -157,6 +160,10 @@ export function calculateEvaluationSummary(
     if (result.failureReasonCode) {
       byFailureReason[result.failureReasonCode] =
         (byFailureReason[result.failureReasonCode] ?? 0) + 1;
+    }
+    const targetErrorKind = result.targetExecution?.errorKind;
+    if (targetErrorKind) {
+      byTargetErrorKind[targetErrorKind] = (byTargetErrorKind[targetErrorKind] ?? 0) + 1;
     }
   }
 
@@ -177,6 +184,7 @@ export function calculateEvaluationSummary(
     passedCount,
     byFailureStage,
     byFailureReason,
+    byTargetErrorKind,
   };
 }
 
@@ -294,6 +302,14 @@ export function formatEvaluationSummary(
     lines.push('\nExecution errors by reason:');
     for (const [reason, count] of failureReasonEntries) {
       lines.push(`  ${reason}: ${count}`);
+    }
+  }
+
+  const targetErrorEntries = Object.entries(summary.byTargetErrorKind);
+  if (targetErrorEntries.length > 0) {
+    lines.push('\nTarget runtime errors by kind:');
+    for (const [kind, count] of targetErrorEntries) {
+      lines.push(`  ${kind}: ${count}`);
     }
   }
 

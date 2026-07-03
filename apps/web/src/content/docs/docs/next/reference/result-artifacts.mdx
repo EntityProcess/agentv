@@ -46,6 +46,9 @@ The default local layout is:
         result.json
         grading.json
         metrics.json
+        target-execution.json     # optional target runtime envelope
+        stdout.txt                # optional captured target stdout
+        stderr.txt                # optional captured target stderr
         transcript.json
         transcript-raw.jsonl
         outputs/
@@ -55,6 +58,9 @@ The default local layout is:
         result.json
         grading.json
         metrics.json
+        target-execution.json
+        stdout.txt
+        stderr.txt
         transcript.json
         transcript-raw.jsonl
         outputs/
@@ -92,6 +98,8 @@ reserved for rebuildable local state and are skipped by run discovery.
 | `result.json` | Compact per-attempt manifest for one attempt directory, including AgentV `execution_status` and `verdict`. | Loading one attempt without scanning the whole run index. |
 | `grading.json` | Grader outputs, `assertion_results`, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
 | `metrics.json` | Duration, token usage, cost, execution status, trajectory, and derived executor behavior such as tool calls, files touched, shell commands, errors, turns, and output sizes. | Dashboard behavior views, cost/latency reporting, metric-style graders, adapter projections, and lightweight analysis. |
+| `target-execution.json` | Provider-neutral target runtime envelope, including command, cwd, timeout, exit code or signal, error kind, timestamps, log truncation metadata, and artifact paths. | Distinguishing target task failures, target crashes, timeouts, cancellation, malformed provider output, and sandbox/runner failures from AgentV orchestrator failures. |
+| `stdout.txt` / `stderr.txt` | Captured target process logs when the runtime exposes them, with truncation metadata recorded in `target-execution.json`. | Debugging crashed, timed-out, cancelled, or malformed target runs without treating raw logs as the canonical row index. |
 | `outputs/file_changes.diff` | Full unified diff of workspace file changes when file changes are captured. | Human review and external artifact inspection; LLM and script graders still receive the same full diff through `file_changes`. |
 | `transcript.json` | AgentV-normalized transcript/timeline document with canonical `tool_name` values and `transcript_summary`. | Portable human review, transcript-aware graders, and tool-trajectory analysis. |
 | `transcript-raw.jsonl` | Native provider or harness evidence when available. | Parser debugging, forensic review, and preserving source bytes without making provider schemas public AgentV fields. |
@@ -193,6 +201,15 @@ Example row:
   "summary_path": "refund-eligibility--4f9a7c2d1b6e/summary.json",
   "grading_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/grading.json",
   "metrics_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/metrics.json",
+  "target_execution_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/target-execution.json",
+  "stdout_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/stdout.txt",
+  "stderr_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/stderr.txt",
+  "target_execution": {
+    "schema_version": "agentv.target_execution.v1",
+    "status": "success",
+    "provider_kind": "cli",
+    "target_id": "codex-gpt5"
+  },
   "transcript_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/transcript.json",
   "transcript_raw_path": "refund-eligibility--4f9a7c2d1b6e/sample-1/transcript-raw.jsonl",
   "transcript_summary": {

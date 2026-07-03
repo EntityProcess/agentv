@@ -39,6 +39,8 @@ const RESULT_ROW_ALIASES = {
   responsePath: 'response_path',
   startTime: 'start_time',
   summaryPath: 'summary_path',
+  targetExecution: 'target_execution',
+  targetExecutionPath: 'target_execution_path',
   targetsPath: 'targets_path',
   taskDir: 'task_dir',
   testDir: 'test_dir',
@@ -50,6 +52,8 @@ const RESULT_ROW_ALIASES = {
   transcriptRawPath: 'transcript_raw_path',
   transcriptSummary: 'transcript_summary',
   workspacePath: 'workspace_path',
+  stdoutPath: 'stdout_path',
+  stderrPath: 'stderr_path',
 } as const;
 
 const NEW_SNAKE_CASE_ONLY_FIELDS = {

@@ -70,6 +70,41 @@ export interface TokenUsage {
   cached?: number;
 }
 
+export interface TargetExecutionEnvelope {
+  schema_version?: 'agentv.target_execution.v1';
+  status?: 'success' | 'error' | string;
+  target_id?: string;
+  provider_id?: string;
+  provider_kind?: string;
+  runtime_mode?: string;
+  runtimeMode?: string;
+  error_kind?: string;
+  errorKind?: string;
+  message?: string;
+  exit_code?: number | null;
+  exitCode?: number | null;
+  signal?: string | null;
+  duration_ms?: number;
+  durationMs?: number;
+  command?: {
+    argv?: string[];
+    command_line?: string;
+    cwd?: string;
+  };
+  artifacts?: {
+    target_execution_path?: string;
+    stdout_path?: string;
+    stderr_path?: string;
+    transcript_path?: string;
+    transcript_raw_path?: string;
+    summary_path?: string;
+    metrics_path?: string;
+    file_changes_path?: string;
+    output_path?: string;
+    answer_path?: string;
+  };
+}
+
 export interface ScoreEntry {
   name?: string;
   type?: string;
@@ -100,6 +135,11 @@ export interface EvalCaseTrial {
   scores?: ScoreEntry[];
   assertions?: AssertionEntry[];
   error?: string;
+  targetExecution?: TargetExecutionEnvelope;
+  target_execution?: TargetExecutionEnvelope;
+  target_execution_path?: string;
+  stdout_path?: string;
+  stderr_path?: string;
   execution_status?: string;
   cost_usd?: number;
   total_tokens?: number;
@@ -228,6 +268,11 @@ export interface EvalResult {
   score: number;
   executionStatus?: string;
   error?: string;
+  targetExecution?: TargetExecutionEnvelope;
+  target_execution?: TargetExecutionEnvelope;
+  target_execution_path?: string;
+  stdout_path?: string;
+  stderr_path?: string;
   costUsd?: number;
   durationMs?: number;
   tokenUsage?: TokenUsage;

@@ -1,3 +1,4 @@
+import type { TargetExecutionEnvelope } from './providers/types.js';
 import type { TokenUsage, ToolTrajectoryGraderConfig, Trace } from './trace.js';
 
 /** A single assertion verdict with optional evidence. */
@@ -1305,6 +1306,8 @@ export interface EvaluationResult {
    * as raw, non-canonical evidence.
    */
   readonly rawProviderLogPath?: string;
+  /** Structured target runtime outcome for process/protocol-backed providers. */
+  readonly targetExecution?: TargetExecutionEnvelope;
   /** Path to the temporary workspace directory (included on failure for debugging) */
   readonly workspacePath?: string;
   /** Input messages sent to the agent. Always Message[] for consistent shape with output. */

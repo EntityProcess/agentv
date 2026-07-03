@@ -146,6 +146,14 @@ function extractProviderRawLogPath(response: ProviderResponse): string | undefin
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function targetExecutionFailureReasonCode(response: ProviderResponse): string {
+  const kind = response.targetExecution?.errorKind;
+  if (!kind || kind === 'agentv_orchestrator_failure') {
+    return 'provider_error';
+  }
+  return `target_${kind}`;
+}
+
 function mergeMetadata(
   base: Record<string, unknown> | undefined,
   overlay: JsonObject | Record<string, unknown> | undefined,
@@ -1691,18 +1699,22 @@ async function runBatchEvaluation(options: {
       });
 
       if (providerError) {
+        const failureReasonCode = targetExecutionFailureReasonCode(providerResponse);
         result = {
           ...result,
+          targetExecution: providerResponse.targetExecution,
           trace: appendErrorEventToTrace(result.trace, providerError, {
             failure_stage: 'agent',
-            failure_reason_code: 'provider_error',
+            failure_reason_code: failureReasonCode,
           }),
           error: providerError,
           executionStatus: 'execution_error' as const,
           failureStage: 'agent' as const,
-          failureReasonCode: 'provider_error',
+          failureReasonCode: failureReasonCode,
           executionError: { message: providerError, stage: 'agent' as const },
         };
+      } else if (providerResponse.targetExecution) {
+        result = { ...result, targetExecution: providerResponse.targetExecution };
       }
     } catch (error) {
       const errorResult = buildErrorResult(
@@ -2269,19 +2281,25 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
     // Include targetUsed only when a fallback target served the response
     const targetUsedField = targetUsed ? { targetUsed } : {};
 
+    const providerFailureReasonCode = targetExecutionFailureReasonCode(providerResponse);
+    const targetExecutionField = providerResponse.targetExecution
+      ? { targetExecution: providerResponse.targetExecution }
+      : {};
+
     const finalResult = providerError
       ? {
           ...result,
           ...targetUsedField,
+          ...targetExecutionField,
           evalRun,
           trace: appendErrorEventToTrace(result.trace, providerError, {
             failure_stage: 'agent',
-            failure_reason_code: 'provider_error',
+            failure_reason_code: providerFailureReasonCode,
           }),
           error: providerError,
           executionStatus,
           failureStage: 'agent' as const,
-          failureReasonCode: 'provider_error',
+          failureReasonCode: providerFailureReasonCode,
           executionError: { message: providerError, stage: 'agent' as const },
           ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
           beforeAllOutput,
@@ -2292,6 +2310,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         ? {
             ...result,
             ...targetUsedField,
+            ...targetExecutionField,
             score: 0,
             evalRun,
             trace: appendErrorEventToTrace(result.trace, skippedEvaluatorError, {
@@ -2311,6 +2330,7 @@ export async function runEvalCase(options: RunEvalCaseOptions): Promise<Evaluati
         : {
             ...result,
             ...targetUsedField,
+            ...targetExecutionField,
             evalRun,
             executionStatus,
             ...(resultMetadata !== undefined ? { metadata: resultMetadata } : {}),
@@ -3661,6 +3681,15 @@ function buildErrorResult(
 }
 
 function extractProviderError(response: ProviderResponse): string | undefined {
+  const targetExecution = response.targetExecution;
+  if (targetExecution?.status === 'error') {
+    const message = targetExecution.message?.trim();
+    if (message && message.length > 0) {
+      return message;
+    }
+    return targetExecution.errorKind ?? 'target execution failed';
+  }
+
   const raw = response.raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return undefined;
