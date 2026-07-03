@@ -20,8 +20,9 @@ bead: av-y7eq
   providers, when retained, default to internal process isolation rather than
   importing risky agent SDKs in the AgentV orchestrator process.
 - **Primary Bead:** `av-y7eq`
-- **Implementation Beads:** `av-y7eq.1` through `av-y7eq.5`; existing SDK
-  subprocess follow-up `av-57i` / `av-57i.1`.
+- **Implementation Beads:** `av-y7eq.2` through `av-y7eq.7`; config contract
+  prerequisite `av-y7eq.1`; existing SDK subprocess follow-up `av-57i` /
+  `av-57i.1`.
 - **Non-goal:** Do not replace AgentV with Promptfoo, Symphony, Kata, Margin, or
   Vercel agent-eval. Borrow their proven boundaries and keep AgentV's
   repo-native run bundle model.
@@ -77,6 +78,10 @@ targets:
       command: ["pi"]
       model: gpt-5-codex
 ```
+
+For config graph, file layout, `eval.yaml` relationship, and field-level
+`file://...` references, see
+[AgentV composable config contract](2026-07-03-agentv-config-contract.md).
 
 ## Product Contract
 
@@ -150,112 +155,6 @@ Promptfoo's comparable mechanism is assertion/test grading provider selection:
 assertions can set a `provider`, tests/defaultTest can provide fallback grading
 providers, and model-graded matchers fall back to type-specific default grading
 providers. It does not put grader selection in the target provider runtime.
-
-### Project File Layout
-
-Support composable/decomposable configuration. A single `.agentv/config.yaml`
-and split files should be two authoring forms of the same config graph:
-
-```text
-.agentv/
-  config.yaml
-```
-
-Project-local `.agentv/config.yaml` should be able to hold the full project
-contract: targets, graders, defaults, `execution`, `eval_patterns`, refs, tags,
-result defaults, and other run-level settings. This matches Promptfoo's primary
-authoring model, where `promptfooconfig.yaml` commonly contains providers,
-prompts, tests, defaultTest, and run options in one file.
-
-In other words, `.agentv/config.yaml` can technically contain every supported
-field that an `eval.yaml` can contain. An eval file is a focused, shareable
-slice of the same config graph, while `.agentv/config.yaml` is the project-root
-manifest that can also carry project defaults and policy. Avoid creating two
-competing top-level schemas for "project config" versus "eval config" unless a
-field is intentionally scoped to one of those contexts.
-
-The `.agentv/` folder still matters even though Promptfoo does not have the same
-project/global split. It gives AgentV a conventional project root for automatic
-discovery, checked-in defaults, repo-local policy, result/artifact adjacency,
-and composable config without requiring every command to pass explicit file
-paths. The global AgentV config can provide operator/user defaults across
-projects, while `.agentv/config.yaml` overrides or composes project-specific
-targets, graders, tests, datasets, and execution policy.
-
-```yaml
-# .agentv/config.yaml
-targets:
-  - id: codex-local
-    provider: codex-app-server
-    runtime: host
-    config:
-      command: ["codex"]
-      model: gpt-5-codex
-
-graders:
-  - id: openai-grader
-    provider: openai
-    config:
-      model: gpt-5-mini
-
-defaults:
-  target: codex-local
-  grader: openai-grader
-
-execution:
-  max_concurrency: 3
-```
-
-For larger projects, generated configs, or secret-splitting workflows, any
-supported config field can be decomposed into a Promptfoo-style direct field
-reference whose target file contains that field's value. Do not introduce a
-greenfield `files:` or `imports:` section unless AgentV needs a capability that
-direct field references cannot express. Promptfoo's pattern is `providers:
-file://configs/providers.yaml`, `tests: file://tests/`, and `defaultTest:
-file://configs/default-test.yaml`; the field being configured names the thing
-being loaded.
-
-For Promptfoo-style field references, the referenced file should contain the
-value for that field. Optional split-file examples:
-
-```yaml
-# .agentv/targets.yaml
-- id: codex-local
-  provider: codex-app-server
-  runtime: host
-  config:
-    command: ["codex"]
-```
-
-```yaml
-# .agentv/graders.yaml
-- id: openai-grader
-  provider: openai
-  config:
-    model: gpt-5-mini
-```
-
-Do not accept wrapped forms such as `targets: [...]` inside a file already
-loaded through `targets: file://targets.yaml`, or `tests: [...]` inside a file
-already loaded through `tests: file://tests.yaml`. The referenced file is the
-field value.
-
-The global `$AGENTV_HOME/config.yaml` can also use the same direct-field style,
-including inline `projects:` for small installations or `projects:
-file://projects.yaml` for larger registries. Do not add a separate import table
-for global config either.
-
-Greenfield, the cleanest default is one readable config graph. Inline and split
-forms should normalize to the same internal shape.
-
-Do not add `dashboard.app_name` or other user-configurable AgentV branding to
-the clean config contract. Dashboard product identity is not project policy.
-
-Promptfoo's comparable file-structure guidance is the closest reference here:
-a main `promptfooconfig.yaml` commonly contains `providers`, `prompts`,
-`defaultTest`, `tests`, and run options, while larger configs can reference
-external files with `file://...`. AgentV should follow that authoring posture
-while keeping cleaner AgentV field names.
 
 ### Runtime Modes
 
