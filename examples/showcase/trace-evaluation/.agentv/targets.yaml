@@ -1,10 +1,10 @@
 targets:
-  - name: live_coding_agent
+  - label: live_coding_agent
     provider: codex
     model: gpt-5
     timeout_seconds: 300
 
-  - name: replay_coding_agent
+  - label: replay_coding_agent
     provider: replay
     fixtures: ../fixtures/replay-target-output.jsonl
     suite: trace-evaluation-showcase

@@ -1,0 +1,35 @@
+# Environment Variable Interpolation Example
+#
+# Config-load fields support {{ env.VAR }} syntax for env variable interpolation.
+# Missing variables resolve to empty string.
+#
+# Usage:
+#   export EVAL_ASSERTION="Responds with a friendly greeting"
+#   export CUSTOM_SYSTEM_PROMPT="You are a helpful assistant who always greets warmly."
+#   agentv eval examples/features/env-interpolation/evals/suite.yaml
+#
+# Or use a .env file in the project root:
+#   EVAL_ASSERTION=Responds with a friendly greeting
+#   CUSTOM_SYSTEM_PROMPT=You are a helpful assistant who always greets warmly.
+
+description: Demonstrates {{ env.VAR }} interpolation in eval fields
+
+target: llm
+
+tests:
+  # Full-value interpolation: entire field value from env var
+  - id: full-value
+    assert:
+      - "{{ env.EVAL_ASSERTION | default(\"Responds with a friendly greeting\") }}"
+    input: "Hello!"
+    expected_output: "{{ env.EXPECTED_GREETING }}"
+
+  # Partial/inline interpolation: env var embedded in a larger string
+  - id: partial-value
+    assert:
+      - Response uses the system prompt persona
+    input:
+      - role: system
+        content: "{{ env.CUSTOM_SYSTEM_PROMPT }}"
+      - role: user
+        content: "Hi there!"

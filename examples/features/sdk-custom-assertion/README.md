@@ -16,7 +16,7 @@ cd examples/features/sdk-custom-assertion
 bun install
 
 # Run the evaluation (uses mock_agent)
-agentv eval evals/dataset.eval.yaml
+agentv eval evals/suite.yaml
 ```
 
 ## Key Patterns

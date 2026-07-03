@@ -54,7 +54,7 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-/** Find eval YAML files by naming convention (*.eval.yaml / *.eval.yml) */
+/** Find eval YAML files by naming convention (suite.yaml or *.eval.yaml / *.eval.yml). */
 async function findEvalYamlFiles(dir: string, results: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
@@ -63,7 +63,13 @@ async function findEvalYamlFiles(dir: string, results: string[] = []): Promise<s
       await findEvalYamlFiles(fullPath, results);
       continue;
     }
-    if (entry.isFile() && (entry.name.endsWith('.eval.yaml') || entry.name.endsWith('.eval.yml'))) {
+    if (
+      entry.isFile() &&
+      (entry.name === 'suite.yaml' ||
+        entry.name === 'suite.yml' ||
+        entry.name.endsWith('.eval.yaml') ||
+        entry.name.endsWith('.eval.yml'))
+    ) {
       results.push(fullPath);
     }
   }
@@ -227,7 +233,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Collect dataset file → baseline path pairs
+  // Collect eval file → baseline path pairs
   const pairs: Array<{ evalFile: string; baselinePath: string }> = [];
 
   if (options.evalFile) {
@@ -237,8 +243,8 @@ async function main(): Promise<void> {
     // Discover eval YAML files: by naming convention + by existing baselines
     const byConvention = await findEvalYamlFiles(examplesRoot);
     const byBaseline = await findBaselinedYamlFiles(examplesRoot);
-    const allDatasetFiles = [...new Set([...byConvention, ...byBaseline])];
-    for (const df of allDatasetFiles) {
+    const allEvalFiles = [...new Set([...byConvention, ...byBaseline])];
+    for (const df of allEvalFiles) {
       pairs.push({ evalFile: df, baselinePath: baselinePathFor(df) });
     }
 

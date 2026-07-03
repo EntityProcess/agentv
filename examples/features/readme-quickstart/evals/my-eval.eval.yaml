@@ -9,13 +9,14 @@ default_test: file://./default-test.yaml
 
 tests:
   - id: fizzbuzz
-    input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz". Return only one Python code block.
+    input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz",
+      and "fizzbuzz". Return only one Python code block.
     assert:
       - type: contains
         value: "fizz"
       - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: script
-        command: ["python3", "../validators/check_syntax.py"]
+        command: [ "python3", "../validators/check_syntax.py" ]
       - type: llm-rubric
         value:
           - outcome: Solution is simple and idiomatic Python

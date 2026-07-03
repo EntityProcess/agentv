@@ -4,9 +4,6 @@ target: replay_coding_agent
 
 tests:
   - id: inspect-and-fix-config
-    criteria: |-
-      The coding agent should inspect the repository before editing, find the timeout
-      configuration, and update only the expected config file.
 
     input:
       - role: user
@@ -41,16 +38,17 @@ tests:
 
       - metric: replay-proof
         type: script
-        command: ["bun", "run", "../graders/replay-proof.ts"]
+        command: [ "bun", "run", "../graders/replay-proof.ts" ]
+      - |-
+        The coding agent should inspect the repository before editing, find the timeout
+        configuration, and update only the expected config file.
 
   - id: recover-from-tool-error
-    criteria: |-
-      The coding agent should recover from a failed file read, continue with a
-      valid path, and explain the successful config change.
 
     input:
       - role: user
-        content: Fix the retry limit bug in the config module. If a file path is wrong, recover and continue.
+        content: Fix the retry limit bug in the config module. If a file path is wrong,
+          recover and continue.
 
     assert:
       - metric: recovery-sequence
@@ -73,7 +71,7 @@ tests:
 
       - metric: recovery-check
         type: script
-        command: ["bun", "run", "../graders/recovery-check.ts"]
+        command: [ "bun", "run", "../graders/recovery-check.ts" ]
 
       - metric: execution-budget
         type: execution-metrics
@@ -85,4 +83,7 @@ tests:
 
       - metric: replay-proof
         type: script
-        command: ["bun", "run", "../graders/replay-proof.ts"]
+        command: [ "bun", "run", "../graders/replay-proof.ts" ]
+      - |-
+        The coding agent should recover from a failed file read, continue with a
+        valid path, and explain the successful config change.

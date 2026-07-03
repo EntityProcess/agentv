@@ -17,13 +17,13 @@ Each grader is a standalone TypeScript file that uses `defineCodeGrader` from `@
 
 ```bash
 # From the repository root
-bun agentv eval examples/features/nlp-metrics/evals/dataset.eval.yaml
+bun agentv eval examples/features/nlp-metrics/evals/suite.yaml
 ```
 
 Run a single test:
 
 ```bash
-bun agentv eval examples/features/nlp-metrics/evals/dataset.eval.yaml --test-id summarisation-rouge
+bun agentv eval examples/features/nlp-metrics/evals/suite.yaml --test-id summarisation-rouge
 ```
 
 ### Inspect Grading Criteria
@@ -32,7 +32,7 @@ Use `--grading-brief` to see what assertions a test will be evaluated against:
 
 ```bash
 bun agentv eval prompt eval --grading-brief \
-  examples/features/nlp-metrics/evals/dataset.eval.yaml \
+  examples/features/nlp-metrics/evals/suite.yaml \
   --test-id summarisation-rouge
 ```
 
@@ -46,4 +46,4 @@ Each grader receives the candidate answer and reference text via the `defineCode
 
 ## Combining Metrics
 
-The `multi-metric-evaluation` test in `dataset.eval.yaml` shows how to attach multiple graders to a single test case. AgentV runs each grader independently and reports all scores.
+The `multi-metric-evaluation` test in `suite.yaml` shows how to attach multiple graders to a single test case. AgentV runs each grader independently and reports all scores.

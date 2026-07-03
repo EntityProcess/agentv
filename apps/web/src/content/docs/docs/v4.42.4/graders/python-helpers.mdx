@@ -66,7 +66,7 @@ if __name__ == "__main__":
 from agentv_py.evals import EvalDefinition, JsonlCase, write_eval_yaml, write_jsonl
 
 write_jsonl(
-    "evals/dataset.jsonl",
+    "evals/cases.jsonl",
     [
         JsonlCase(
             id="hello",
@@ -77,11 +77,11 @@ write_jsonl(
 )
 
 write_eval_yaml(
-    "evals/dataset.eval.yaml",
+    "evals/suite.yaml",
     EvalDefinition(
         name="python-helper",
         execution={"target": "local_cli"},
-        tests="./dataset.jsonl",
+        tests="./cases.jsonl",
     ),
 )
 ```

@@ -17,6 +17,7 @@ describe('deriveCategory', () => {
 
   test('returns Uncategorized when only directory is evals', () => {
     expect(deriveCategory('evals/dataset.eval.yaml')).toBe(DEFAULT_CATEGORY);
+    expect(deriveCategory('evals/suite.yaml')).toBe(DEFAULT_CATEGORY);
   });
 
   test('strips evals segment and appends meaningful named eval files as a leaf', () => {
@@ -37,6 +38,9 @@ describe('deriveCategory', () => {
     expect(deriveCategory('examples/showcase/export-screening/evals/dataset.eval.yaml')).toBe(
       'examples/showcase/export-screening',
     );
+    expect(deriveCategory('examples/showcase/export-screening/evals/suite.yaml')).toBe(
+      'examples/showcase/export-screening',
+    );
   });
 
   test('returns Uncategorized for empty string', () => {
@@ -51,6 +55,7 @@ describe('deriveCategory', () => {
     expect(deriveCategory('security/eval.yaml')).toBe('security');
     expect(deriveCategory('security/network.eval.yaml')).toBe('security/network');
     expect(deriveCategory('security/network/dataset.eval.yaml')).toBe('security/network');
+    expect(deriveCategory('security/network/suite.yaml')).toBe('security/network');
   });
 });
 

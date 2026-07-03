@@ -5,7 +5,7 @@ Demonstrates the preferred deterministic workspace grader path: write normal Vit
 ## Files
 
 - `graders/welcome-banner.test.ts`: plain Vitest verifier that reads `app/page.tsx`
-- `evals/dataset.eval.yaml`: eval case that runs the verifier through `agentv eval <verifier.test.ts>`
+- `evals/suite.yaml`: eval case that runs the verifier through `agentv eval <verifier.test.ts>`
 - `.agentv/targets.yaml`: mock CLI target that updates the workspace
 
 ## Run
@@ -15,7 +15,7 @@ From this example directory:
 ```bash
 bun install
 cd ../../..
-bun apps/cli/src/cli.ts eval examples/features/vitest-workspace-grader/evals/dataset.eval.yaml --target mock_agent
+bun apps/cli/src/cli.ts eval examples/features/vitest-workspace-grader/evals/suite.yaml --target mock_agent
 ```
 
 ## Pattern

@@ -76,7 +76,7 @@ async function validateSingleFile(filePath: string): Promise<ValidationResult> {
           severity: 'warning',
           filePath: absolutePath,
           message:
-            'File type not recognized. Eval files must end in .eval.yaml. Skipping validation.',
+            'File type not recognized. Eval files should be named suite.yaml or end in .eval.yaml. Skipping validation.',
         },
       ],
     };
@@ -164,8 +164,13 @@ function isYamlFile(filePath: string): boolean {
   return ext === '.yaml' || ext === '.yml';
 }
 
-/** Returns true only for *.eval.yaml / *.eval.yml files (used for directory scanning). */
+/** Returns true for native eval YAML suite files used during directory scanning. */
 function isEvalYamlFile(filePath: string): boolean {
   const lower = path.basename(filePath).toLowerCase();
-  return lower.endsWith('.eval.yaml') || lower.endsWith('.eval.yml');
+  return (
+    lower === 'suite.yaml' ||
+    lower === 'suite.yml' ||
+    lower.endsWith('.eval.yaml') ||
+    lower.endsWith('.eval.yml')
+  );
 }

@@ -4,7 +4,7 @@ Demonstrates how a TypeScript `code-grader` can use `defineCodeGrader` from `@ag
 
 ## Files
 
-- `evals/dataset.eval.yaml`: Example test that uses a `code-grader`.
+- `evals/suite.yaml`: Example test that uses a `code-grader`.
 - `scripts/verify-attachments.ts`: Code grader script using `defineCodeGrader`.
 - `evals/example.txt`, `evals/python.instructions.md`: Attachment fixtures.
 
@@ -42,7 +42,7 @@ From the repository root:
 
 ```bash
 cd examples/features
-bun agentv eval code-grader-sdk/evals/dataset.eval.yaml --target local_cli
+bun agentv eval code-grader-sdk/evals/suite.yaml --target local_cli
 ```
 
 This requires a CLI target named `local_cli` configured in `.agentv/targets.yaml`.

@@ -146,7 +146,7 @@ After this review is applied, create Beads from U1-U5 and record one orchestrato
 
 - **Goal:** Create the public coding-agent harness demo that checks out previous commits, applies baseline/plugin variants, and runs Codex-vs-Pi comparisons.
 - **Primary outputs:** `swe-evals/.agentv/targets.yaml`, `swe-evals/evals/*.eval.yaml`, `swe-evals/scripts/*`, `swe-evals/.env.example`, `swe-evals/README.md`, and variant setup scripts/config/templates that materialize baseline, compound, and superpowers workspaces at run time.
-- **Patterns to follow:** `examples/showcase/bug-fix-benchmark/evals/bug-fixes.eval.yaml`, `examples/showcase/bug-fix-benchmark/scripts/setup-variant.sh`, `examples/features/repo-lifecycle/evals/dataset.eval.yaml`, and `examples/showcase/cross-repo-sync/scripts/setup.ts`.
+- **Patterns to follow:** `examples/showcase/bug-fix-benchmark/evals/bug-fixes.eval.yaml`, `examples/showcase/bug-fix-benchmark/scripts/setup-variant.sh`, `examples/features/repo-lifecycle/evals/suite.yaml`, and `examples/showcase/cross-repo-sync/scripts/setup.ts`.
 - **Test scenarios:**
   - Baseline, compound, and superpowers variants all start from the same selected previous commit for a given task.
   - `AGENT_TARGET` or equivalent target selection can switch between Codex and Pi without editing the eval file.
@@ -275,7 +275,7 @@ Out of scope:
 
 - Origin requirements: `docs/brainstorms/2026-06-04-public-agentv-demo-projects-requirements.md`
 - Existing plugin-variant pattern: `examples/showcase/bug-fix-benchmark/evals/bug-fixes.eval.yaml`, `examples/showcase/bug-fix-benchmark/scripts/setup-variant.sh`
-- Existing previous-commit workspace pattern: `examples/features/repo-lifecycle/evals/dataset.eval.yaml`, `examples/showcase/cross-repo-sync/evals/dataset.eval.yaml`, `examples/showcase/cross-repo-sync/scripts/setup.ts`
+- Existing previous-commit workspace pattern: `examples/features/repo-lifecycle/evals/suite.yaml`, `examples/showcase/cross-repo-sync/evals/suite.yaml`, `examples/showcase/cross-repo-sync/scripts/setup.ts`
 - Existing multi-provider skill eval pattern: `examples/features/agent-skills-evals/multi-provider-skill-trigger.EVAL.yaml`
 - Project registry and wire format: `packages/core/src/projects.ts`, `packages/core/test/projects.test.ts`
 - Existing private results-repo wiring: `agentv-deploy` repository setup scripts and result config blocks

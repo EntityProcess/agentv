@@ -11,36 +11,36 @@ targets:
   # redirects to a named target, controlled via AGENT_TARGET env var.
   # One env var switches the entire provider config (auth, model, etc.).
   # Example: AGENT_TARGET=copilot-cli  or  AGENT_TARGET=claude
-  - name: default
+  - label: default
     use_target: ${{ AGENT_TARGET }}
 
-  - name: agent
+  - label: agent
     use_target: ${{ AGENT_TARGET }}
 
   # ── LLM target (text generation, no agent binary needed) ────────────
   # Delegates to LLM_TARGET — same provider used for grading and LLM evals.
-  - name: llm
+  - label: llm
     use_target: ${{ LLM_TARGET }}
 
   # ── Grader (LLM-as-judge) ──────────────────────────────────────────
   # Used by agent targets via grader_target. Switch provider via GRADER_TARGET.
-  - name: grader
+  - label: grader
     use_target: ${{ GRADER_TARGET }}
 
   # ── Named agent targets ───────────────────────────────────────────
-  - name: copilot
+  - label: copilot
     provider: copilot-cli
     model: ${{ COPILOT_MODEL }}
     grader_target: grader
     stream_log: raw
 
-  - name: copilot-sdk
+  - label: copilot-sdk
     provider: copilot-sdk
     model: ${{ COPILOT_MODEL }}
     grader_target: grader
     stream_log: raw
 
-  - name: copilot-sdk-azure
+  - label: copilot-sdk-azure
     provider: copilot-sdk
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     subprovider: azure
@@ -49,40 +49,22 @@ targets:
     grader_target: grader
     stream_log: raw
 
-  - name: claude
+  - label: claude
     provider: claude-cli
     grader_target: grader
 
-  # Claude via Z.ai provider (GLM models). Requires cc-mirror:
-  #   npx cc-mirror quick --provider zai --api-key "$Z_AI_API_KEY"
-  # Alternative: set Z_AI_API_KEY in ~/.cc-mirror/claude-zai/config/settings.json
-  # See https://github.com/numman-ali/cc-mirror
-  - name: claude-zai
-    provider: cc-mirror
-    executable: claude-zai
-    grader_target: grader
-
-  # Generic cc-mirror target. Set CC_MIRROR_VARIANT to the installed variant
-  # name (the directory under ~/.cc-mirror/, e.g. claude-zai, my-kimi).
-  # Setup: npx cc-mirror quick --provider <provider> --name <variant-name> --api-key "$KEY"
-  # See https://github.com/numman-ali/cc-mirror
-  - name: cc-mirror
-    provider: cc-mirror
-    variant: ${{ CC_MIRROR_VARIANT }}
-    grader_target: grader
-
-  - name: claude-sdk
+  - label: claude-sdk
     provider: claude-sdk
     grader_target: grader
 
-  - name: pi
+  - label: pi
     provider: pi-cli
     subprovider: openrouter
     model: ${{ OPENROUTER_MODEL }}
     api_key: ${{ OPENROUTER_API_KEY }}
     grader_target: grader
 
-  - name: pi-sdk
+  - label: pi-sdk
     provider: pi-coding-agent
     subprovider: openai
     base_url: ${{ OPENAI_ENDPOINT }}
@@ -93,7 +75,7 @@ targets:
     stream_log: raw
 
 
-  - name: pi-azure
+  - label: pi-azure
     provider: pi-cli
     subprovider: azure
     base_url: ${{ AZURE_OPENAI_ENDPOINT }}
@@ -101,7 +83,7 @@ targets:
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     grader_target: grader
 
-  - name: pi-sdk-azure
+  - label: pi-sdk-azure
     provider: pi-coding-agent
     subprovider: azure
     base_url: ${{ AZURE_OPENAI_ENDPOINT }}
@@ -111,7 +93,7 @@ targets:
     thinking: low
     stream_log: raw
 
-  - name: codex
+  - label: codex
     provider: codex
     executable: ${{ CODEX_EXECUTABLE }}
     model: ${{ CODEX_MODEL }}
@@ -122,7 +104,7 @@ targets:
     stream_log: raw
 
   # ── LLM targets (direct model access) ─────────────────────────────
-  - name: gh-models
+  - label: gh-models
     provider: openai
     base_url: https://models.github.ai/inference
     api_key: ${{ GH_MODELS_TOKEN }}
@@ -133,43 +115,87 @@ targets:
   # overridden via AZURE_OPENAI_API_VERSION. Chat-completions-only Azure
   # deployments must use `provider: openai` with a deployment-scoped
   # `base_url` instead.
-  - name: azure
+  - label: azure
     provider: azure
     endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
     api_key: ${{ AZURE_OPENAI_API_KEY }}
     model: ${{ AZURE_DEPLOYMENT_NAME }}
     version: ${{ AZURE_OPENAI_API_VERSION }}
 
-  - name: gemini
+  - label: gemini
     provider: gemini
     api_key: ${{ GOOGLE_GENERATIVE_AI_API_KEY }}
     model: ${{ GEMINI_MODEL_NAME }}
 
-  - name: openai
+  - label: openai
     provider: openai
     endpoint: ${{ OPENAI_ENDPOINT }}
     api_key: ${{ OPENAI_API_KEY }}
     model: ${{ OPENAI_MODEL }}
 
-  - name: openrouter
+  # Local OpenAI-compatible endpoint. Useful for dogfood against a local proxy
+  # without changing provider-specific target labels.
+  - label: local-openai
+    provider: openai
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    grader_target: local-openai-grader
+
+  - label: local-openai-grader
+    provider: openai
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+
+  - label: pi-cli-openai
+    provider: pi-cli
+    subprovider: openai
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    grader_target: local-openai-grader
+    thinking: low
+    stream_log: raw
+
+  - label: codex-sdk-openai
+    provider: codex
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    api_format: responses
+    model_reasoning_effort: low
+    grader_target: local-openai-grader
+    stream_log: raw
+
+  - label: copilot-sdk-openai
+    provider: copilot-sdk
+    subprovider: openai
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    grader_target: local-openai-grader
+    stream_log: raw
+
+  - label: openrouter
     provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: ${{ OPENROUTER_MODEL }}
 
   # ── MiMo (Xiaomi) via OpenRouter ───────────────────────────────────
-  - name: mimo
+  - label: mimo
     provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: xiaomi/mimo-v2.5-pro
     grader_target: grader
 
-  - name: mimo-flash
+  - label: mimo-flash
     provider: openrouter
     api_key: ${{ OPENROUTER_API_KEY }}
     model: xiaomi/mimo-v2-flash
     grader_target: grader
 
-  - name: mimo-direct
+  - label: mimo-direct
     provider: openai
     base_url: https://token-plan-sgp.xiaomimimo.com/v1
     api_key: ${{ XIAOMI_MIMO_API_KEY }}

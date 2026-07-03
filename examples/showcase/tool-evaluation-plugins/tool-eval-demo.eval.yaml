@@ -19,13 +19,10 @@ tests:
   # ==========================================
   - id: tool-selection-demo
 
-    criteria: |-
-      Agent should search for relevant information and fetch data from APIs.
-      Uses search and fetch tools appropriately for the research task.
-
     input:
       - role: user
-        content: Find information about the current weather in Tokyo and fetch the detailed forecast.
+        content: Find information about the current weather in Tokyo and fetch the
+          detailed forecast.
 
     assert:
       # Built-in: Check minimum tool calls
@@ -39,18 +36,16 @@ tests:
       # Plugin: Semantic tool selection evaluation
       - metric: selection-quality
         type: script
-        command: ["bun", "run", "scripts/tool-selection-grader.ts"]
+        command: [ "bun", "run", "scripts/tool-selection-grader.ts" ]
+      - |-
+        Agent should search for relevant information and fetch data from APIs.
+        Uses search and fetch tools appropriately for the research task.
 
   # ==========================================
   # Example 2: Efficiency Scoring
   # Use case: Evaluate resource efficiency of agent execution
   # ==========================================
   - id: efficiency-demo
-    # Baseline note: exploration ratio can flag this as slightly suboptimal (~0.93).
-
-    criteria: |-
-      Agent efficiently processes the request with minimal redundant operations.
-      Simple task requiring straightforward tool usage.
 
     input:
       - role: user
@@ -60,21 +55,16 @@ tests:
       # Plugin: Efficiency metrics scoring
       - metric: efficiency-check
         type: script
-        command: ["bun", "run", "scripts/efficiency-scorer.ts"]
+        command: [ "bun", "run", "scripts/efficiency-scorer.ts" ]
+      - |-
+        Agent efficiently processes the request with minimal redundant operations.
+        Simple task requiring straightforward tool usage.
 
   # ==========================================
   # Example 3: Combined Built-in + Plugin Evaluation
   # Use case: Comprehensive tool usage assessment
   # ==========================================
   - id: combined-evaluation
-    # Baseline note: selection + efficiency checks are strict; partial failures yield lower score (~0.78).
-
-    criteria: |-
-      Agent performs comprehensive data analysis:
-      1. Search multiple sources
-      2. Validate data quality
-      3. Process and transform results
-      4. Output formatted report
 
     input:
       - role: user
@@ -93,12 +83,18 @@ tests:
       # Plugin: Check if tools were appropriate choices
       - metric: selection-check
         type: script
-        command: ["bun", "run", "scripts/tool-selection-grader.ts"]
+        command: [ "bun", "run", "scripts/tool-selection-grader.ts" ]
 
       # Plugin: Evaluate efficiency
       - metric: efficiency
         type: script
-        command: ["bun", "run", "scripts/efficiency-scorer.ts"]
+        command: [ "bun", "run", "scripts/efficiency-scorer.ts" ]
+      - |-
+        Agent performs comprehensive data analysis:
+        1. Search multiple sources
+        2. Validate data quality
+        3. Process and transform results
+        4. Output formatted report
 
   # ==========================================
   # Example 4: Pairwise Comparison
@@ -106,9 +102,6 @@ tests:
   # Requires expected_output to supply a reference answer
   # ==========================================
   - id: pairwise-demo
-
-    criteria: |-
-      Agent should retrieve and summarize the document efficiently.
 
     input:
       - role: user
@@ -128,4 +121,6 @@ tests:
       # Plugin: Pairwise comparison with position bias mitigation
       - metric: pairwise-quality
         type: script
-        command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
+        command: [ "bun", "run", "scripts/pairwise-tool-compare.ts" ]
+      - |-
+        Agent should retrieve and summarize the document efficiently.

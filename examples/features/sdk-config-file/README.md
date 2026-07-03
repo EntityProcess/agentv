@@ -16,7 +16,7 @@ cd examples/features/sdk-config-file
 bun install
 
 # Run the evaluation (picks up agentv.config.ts automatically)
-agentv eval evals/dataset.eval.yaml
+agentv eval evals/suite.yaml
 ```
 
 ## Key Patterns

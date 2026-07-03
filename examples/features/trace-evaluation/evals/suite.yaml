@@ -1,0 +1,122 @@
+# Trace-Based Evaluation Examples
+#
+# Demonstrates how to evaluate agent internals (LLM calls, tool executions,
+# errors, and durations) using code graders that inspect trace.
+#
+# Validate with:
+#   bun agentv validate examples/features/trace-evaluation/evals/suite.yaml
+
+description: Trace-based evaluation of agent internals using code graders
+
+target: llm
+
+tests:
+  # ==========================================
+  # Span Count - verify LLM/tool call counts
+  # ==========================================
+  - id: span-count-check
+
+    input:
+      - role: user
+        content: Summarize the key points of this document.
+
+    assert:
+      - metric: span-count
+        type: script
+        command: [ "bun", "run", "../graders/span-count.ts" ]
+        config:
+          maxLlmCalls: 5
+          maxToolCalls: 10
+      - |-
+        Agent completes the task with a reasonable number of
+        LLM calls and tool executions.
+
+  # ==========================================
+  # Error Spans - detect errors in traces
+  # ==========================================
+  - id: error-free-execution
+
+    input:
+      - role: user
+        content: Look up the weather forecast for today.
+
+    assert:
+      - metric: error-check
+        type: script
+        command: [ "bun", "run", "../graders/error-spans.ts" ]
+        config:
+          maxErrors: 0
+      - |-
+        Agent completes the task without any errors in the trace.
+
+  # ==========================================
+  # Error Spans with forbidden tools
+  # ==========================================
+  - id: no-forbidden-tools
+
+    input:
+      - role: user
+        content: Answer the question using only approved data sources.
+
+    assert:
+      - metric: error-and-tool-check
+        type: script
+        command: [ "bun", "run", "../graders/error-spans.ts" ]
+        config:
+          maxErrors: 0
+          forbiddenTools:
+            - execute_code
+            - shell_command
+      - |-
+        Agent completes the task without calling any forbidden tools
+        and without producing errors.
+
+  # ==========================================
+  # Span Duration - no step exceeds threshold
+  # ==========================================
+  - id: duration-check
+
+    input:
+      - role: user
+        content: Retrieve and format the latest sales data.
+
+    assert:
+      - metric: duration-check
+        type: script
+        command: [ "bun", "run", "../graders/span-duration.ts" ]
+        config:
+          maxSpanMs: 3000
+          maxTotalMs: 15000
+      - |-
+        No individual tool call exceeds the time threshold,
+        ensuring responsive agent behavior.
+
+  # ==========================================
+  # Combined - all trace checks together
+  # ==========================================
+  - id: comprehensive-trace-check
+
+    input:
+      - role: user
+        content: Process this data and generate a summary report.
+
+    assert:
+      - metric: span-count
+        type: script
+        command: [ "bun", "run", "../graders/span-count.ts" ]
+        config:
+          maxLlmCalls: 8
+          maxToolCalls: 20
+
+      - metric: error-check
+        type: script
+        command: [ "bun", "run", "../graders/error-spans.ts" ]
+
+      - metric: duration-check
+        type: script
+        command: [ "bun", "run", "../graders/span-duration.ts" ]
+        config:
+          maxSpanMs: 5000
+      - |-
+        Agent completes the task efficiently with no errors,
+        reasonable call counts, and fast execution.

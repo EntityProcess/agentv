@@ -6,6 +6,19 @@ import path from 'node:path';
 import { detectFileType } from '../../../src/evaluation/validation/file-type.js';
 
 describe('detectFileType', () => {
+  it('treats suite.yaml as an eval file', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-file-type-suite-'));
+    try {
+      const evalPath = path.join(tempDir, 'evals', 'suite.yaml');
+      mkdirSync(path.dirname(evalPath), { recursive: true });
+      writeFileSync(evalPath, 'tests:\n  - id: sample\n    input: test\n');
+
+      await expect(detectFileType(evalPath)).resolves.toBe('eval');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('treats .agentv/config.local.yaml as AgentV config', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-file-type-'));
     try {

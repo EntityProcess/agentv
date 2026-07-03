@@ -13,7 +13,6 @@ defaults:
 
 tests:
   - id: total-outage
-    criteria: Should classify a complete production outage as P0
     input:
       - role: system
         content: *system_prompt
@@ -29,9 +28,9 @@ tests:
       - type: is-json
         id: RETURNS_VALID_JSON
       - "Reasoning mentions complete service outage or total unavailability"
+      - Should classify a complete production outage as P0
 
   - id: degraded-search
-    criteria: Should classify degraded search with no workaround as P1
     input:
       - role: system
         content: *system_prompt
@@ -47,9 +46,9 @@ tests:
       - type: is-json
         id: RETURNS_VALID_JSON_P1
       - "Reasoning explains the user impact and lack of workaround"
+      - Should classify degraded search with no workaround as P1
 
   - id: slow-dashboard
-    criteria: Should classify slow dashboard with workaround as P2
     input:
       - role: system
         content: *system_prompt
@@ -65,9 +64,9 @@ tests:
       - type: is-json
         id: RETURNS_VALID_JSON_P2
       - "Reasoning mentions the workaround availability"
+      - Should classify slow dashboard with workaround as P2
 
   - id: typo-in-footer
-    criteria: Should classify a cosmetic typo as P3
     input:
       - role: system
         content: *system_prompt
@@ -83,9 +82,9 @@ tests:
       - type: is-json
         id: RETURNS_VALID_JSON_P3
       - "Reasoning identifies this as a cosmetic or non-functional issue"
+      - Should classify a cosmetic typo as P3
 
   - id: payment-failures
-    criteria: Should classify intermittent payment failures as P1 due to revenue impact
     input:
       - role: system
         content: *system_prompt
@@ -100,10 +99,11 @@ tests:
         id: CLASSIFIES_P1_PAYMENTS
       - type: is-json
         id: RETURNS_VALID_JSON_PAYMENTS
-      - "Reasoning weighs the revenue impact despite the issue being intermittent"
+      - "Reasoning weighs the revenue impact despite the issue being
+        intermittent"
+      - Should classify intermittent payment failures as P1 due to revenue impact
 
   - id: memory-leak-gradual
-    criteria: Should classify a gradual memory leak with days until impact as P2
     input:
       - role: system
         content: *system_prompt
@@ -120,9 +120,9 @@ tests:
       - type: is-json
         id: RETURNS_VALID_JSON_MEMORY
       - "Reasoning considers the time buffer and automated mitigations"
+      - Should classify a gradual memory leak with days until impact as P2
 
   - id: ssl-cert-expiry
-    criteria: Should classify imminent SSL cert expiry as P1
     input:
       - role: system
         content: *system_prompt
@@ -139,3 +139,4 @@ tests:
       - type: is-json
         id: RETURNS_VALID_JSON_SSL
       - "Reasoning mentions the time urgency and potential service disruption"
+      - Should classify imminent SSL cert expiry as P1

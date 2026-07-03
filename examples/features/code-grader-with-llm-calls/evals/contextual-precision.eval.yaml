@@ -20,7 +20,7 @@
 assert:
   - metric: contextual_precision
     type: script
-    command: [bun, run, ../scripts/contextual-precision.ts]
+    command: [ bun, run, ../scripts/contextual-precision.ts ]
     # Target access config - allows script to invoke configured targets
     # max_calls should be >= number of retrieval context nodes
     target:
@@ -35,7 +35,8 @@ tests:
   # Node 3: Irrelevant (Python)
   # Score = 1.0 (perfect - only relevant node is ranked first)
   - id: perfect-ranking
-    criteria: TypeScript is based on JavaScript
+    assert:
+      - TypeScript is based on JavaScript
     input:
       - role: user
         content: What programming language is TypeScript based on?
@@ -47,9 +48,12 @@ tests:
               query: TypeScript based on
             output:
               results:
-                - "TypeScript is a strongly typed programming language that builds on JavaScript."
-                - "TypeScript was developed by Microsoft and first released in 2012."
-                - "Python is a high-level programming language known for its readability."
+                - "TypeScript is a strongly typed programming language that
+                  builds on JavaScript."
+                - "TypeScript was developed by Microsoft and first released in
+                  2012."
+                - "Python is a high-level programming language known for its
+                  readability."
       - role: assistant
         content: TypeScript is a superset of JavaScript.
 
@@ -60,7 +64,8 @@ tests:
   # Precision@1 = 1/1 = 1.0, Precision@3 = 2/3 = 0.667
   # Score = (1/2) * (1.0 + 0.667) = 0.833
   - id: mixed-ranking
-    criteria: The capital of France is Paris.
+    assert:
+      - The capital of France is Paris.
     input:
       - role: user
         content: What is the capital of France?
@@ -86,7 +91,8 @@ tests:
   # Score = (1/1) * 0.333 = 0.333
   # NOTE: Low score is intentional — demonstrates precision penalty for poor ranking
   - id: relevant-node-last
-    criteria: The sky is blue
+    assert:
+      - The sky is blue
     input:
       - role: user
         content: What color is the sky?

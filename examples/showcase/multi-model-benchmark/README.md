@@ -192,13 +192,13 @@ bun agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yam
 
 ### Adding a grader
 
-Add a new grader prompt in `prompts/` and reference it in the eval's `assertions` block:
+Add a new grader prompt in `prompts/` and reference it in the eval's `assert` block:
 
 ```yaml
-assertions:
+assert:
   - name: safety
     type: llm-rubric
-    prompt: ../prompts/safety-rubric.md
+    prompt: file://../prompts/safety-rubric.md
     weight: 4.0    # Highest priority
 ```
 

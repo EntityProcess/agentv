@@ -33,7 +33,8 @@ tests:
         should_trigger: true
 
   - id: should-trigger-casual-phrasing
-    input: "I need to roll back user-service in staging, what's the Acme deploy procedure for that?"
+    input: "I need to roll back user-service in staging, what's the Acme deploy
+      procedure for that?"
     assert:
       - type: skill-trigger
         skill: acme-deploy

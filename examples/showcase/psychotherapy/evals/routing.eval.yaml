@@ -6,7 +6,7 @@ target: gemini-llm
 assert:
   - metric: json_schema_validator
     type: script
-    command: ["uv", "run", "validate_output.py"]
+    command: [ "uv", "run", "validate_output.py" ]
   - metric: content_evaluator
     type: llm-rubric
 
@@ -14,9 +14,10 @@ tests:
   # Case 1: Routing to Listening (Ah Yang)
   # Rationale: Client is venting grievance and describing a complex dynamic. Needs understanding first.
   - id: route-to-listening
-    criteria: |-
-      Must select 'three_levels_listening'.
-      Rationale should mention "complex grievance", "venting", or "need for understanding".
+    assert:
+      - |-
+        Must select 'three_levels_listening'.
+        Rationale should mention "complex grievance", "venting", or "need for understanding".
     input:
       - role: user
         content:
@@ -61,9 +62,10 @@ tests:
   # Case 2: Routing to Encouragement (Restrained Father)
   # Rationale: Client is expressing hopelessness ("raised son for nothing") but hides a resource (Restraint). Needs Reframing.
   - id: route-to-encouragement-father
-    criteria: |-
-      Must select 'resource_focused_encouragement'.
-      Rationale should mention "finding the resource", "reframing self-blame", or "validating restraint".
+    assert:
+      - |-
+        Must select 'resource_focused_encouragement'.
+        Rationale should mention "finding the resource", "reframing self-blame", or "validating restraint".
     input:
       - role: user
         content:
@@ -108,9 +110,10 @@ tests:
   # Case 3: Routing to Encouragement (Job Seeker)
   # Rationale: Client expresses "I am useless/broken". Needs Normalization and Empowerment.
   - id: route-to-encouragement-job
-    criteria: |-
-      Must select 'resource_focused_encouragement'.
-      Rationale should mention "low self-efficacy", "empowerment", or "normalization of failure".
+    assert:
+      - |-
+        Must select 'resource_focused_encouragement'.
+        Rationale should mention "low self-efficacy", "empowerment", or "normalization of failure".
     input:
       - role: user
         content:
@@ -155,10 +158,10 @@ tests:
   # Case 4: Routing to Listening (Gatekeeper)
   # Rationale: Client presents a distorted reality ("I am doing good") that hides dysfunction. Needs Process Analysis, not Encouragement (which would enable the dysfunction).
   - id: route-to-listening-gatekeeper
-    # Baseline note: intended failure if model selects encouragement (score ~0.5).
-    criteria: |-
-      Must select 'three_levels_listening'.
-      Rationale should mention "dysfunctional dynamic", "lack of insight", or "need to analyze the process". Encouragement here would likely reinforce the triangulation.
+    assert:
+      - |-
+        Must select 'three_levels_listening'.
+        Rationale should mention "dysfunctional dynamic", "lack of insight", or "need to analyze the process". Encouragement here would likely reinforce the triangulation.
     input:
       - role: user
         content:

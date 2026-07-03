@@ -33,7 +33,7 @@ interface TraceSummary {
 
 ```bash
 # From the repository root
-bun agentv validate examples/features/trace-evaluation/evals/dataset.eval.yaml
+bun agentv validate examples/features/trace-evaluation/evals/suite.yaml
 ```
 
 ## Patterns
@@ -79,4 +79,4 @@ graders:
 ```
 
 ### Combining graders
-Stack multiple trace graders on a single test for comprehensive checks — see the `comprehensive-trace-check` test in `evals/dataset.eval.yaml`.
+Stack multiple trace graders on a single test for comprehensive checks — see the `comprehensive-trace-check` test in `evals/suite.yaml`.

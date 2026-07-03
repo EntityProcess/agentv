@@ -1,0 +1,30 @@
+description: >-
+  Demonstrates a multi-repo workspace. Two repos (agentv and allagents) are
+  cloned into the workspace.
+
+workspace:
+  template: ../workspace-template
+  hooks:
+    after_each:
+      reset: fast
+  repos:
+    - path: ./agentv
+      repo: https://github.com/EntityProcess/agentv.git
+      commit: main
+    - path: ./allagents
+      repo: https://github.com/EntityProcess/allagents.git
+      commit: main
+
+tags: [ agent ]
+
+tests:
+  - id: verify-multi-repo
+    input: >-
+      Read agentv/package.json and allagents/package.json. Report the name field
+      from each.
+    assert:
+      - type: contains
+        value: agentv
+      - >-
+        The agent should confirm both repos are present in the workspace and
+        report the package name from each repo's package.json.

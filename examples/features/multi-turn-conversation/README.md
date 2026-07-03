@@ -21,7 +21,7 @@ Demonstrates evaluating multi-turn conversation quality using composable
 ## Running
 
 ```bash
-bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation/evals/dataset.eval.yaml
+bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation/evals/suite.yaml
 ```
 
 ## Creating your own conversation grader
@@ -30,4 +30,4 @@ bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation/evals/dat
 2. Use `{{ input }}` to receive the full conversation message array with roles
 3. Use `{{ criteria }}` for the test-specific evaluation criteria
 4. Instruct the grader to return `details` with per-turn metrics when useful
-5. Reference it in your YAML with `type: llm-rubric` and `prompt: ./graders/your-grader.md`
+5. Reference it in your YAML with `type: llm-rubric` and `prompt: file://./graders/your-grader.md`

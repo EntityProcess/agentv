@@ -576,7 +576,7 @@ index 25a5ae0..6a4e779 100644
 -For large evaluations, use JSONL format with one case per line:
 +For large evaluations, use JSONL format with one test per line:
  
- **dataset.jsonl:**
+ **cases.jsonl:**
  ```jsonl
 -{"id": "case-1", "criteria": "...", "input": [{"role": "user", "content": "..."}]}
 -{"id": "case-2", "criteria": "...", "input": [{"role": "user", "content": "..."}]}
@@ -715,7 +715,7 @@ index d38787c..1c97a87 100644
 -│   │       └── sample.pdf
 -│   └── rag-accuracy/
 -│       ├── EVAL.yaml
--│       └── dataset.jsonl
+-│       └── cases.jsonl
 -├── .agentv/
 -│   ├── targets.yaml
 -│   └── config.yaml
@@ -763,7 +763,7 @@ index d38787c..1c97a87 100644
 +│       └── sample.pdf
 +└── rag-accuracy/
 +    ├── EVAL.yaml
-+    └── dataset.jsonl
++    └── cases.jsonl
  ```
  
 -## Pattern 3: Domain-Grouped
@@ -804,7 +804,7 @@ index d38787c..1c97a87 100644
 +| `prompts/` | LLM judge prompts |
 +| `judges/` | Code judge scripts |
 +| `fixtures/` | Test data and samples |
-+| `dataset.jsonl` | Large test datasets |
++| `cases.jsonl` | Large test datasets |
  
 -Use the `metadata.skill` field to link evaluations to skills:
 +## Discovery

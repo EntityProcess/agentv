@@ -14,7 +14,7 @@
 # The copilot-log provider discovers the latest session from
 # ~/.copilot/session-state/ and parses events.jsonl into Message[].
 
-tags: [agent]
+tags: [ agent ]
 
 target: copilot-log
 
@@ -43,4 +43,4 @@ tests:
         should_trigger: false
       - metric: transcript-quality
         type: script
-        command: ["bun", "run", "../graders/transcript-quality.ts"]
+        command: [ "bun", "run", "../graders/transcript-quality.ts" ]

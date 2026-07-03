@@ -5,7 +5,7 @@
  * A configurable code-grader that compares multiple fields using Levenshtein similarity.
  * Configuration is passed via YAML properties that become stdin config.
  *
- * Usage in dataset.eval.yaml:
+ * Usage in suite.yaml:
  * ```yaml
  * graders:
  *   - name: party_names_fuzzy

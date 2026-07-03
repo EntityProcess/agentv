@@ -9,12 +9,14 @@ tests:
       function getUser(users: Map<string, User>, id: string) {
         return users.get(id).name;
       }
-    criteria: Identifies the potential undefined access when the key is missing from the map
     assert:
       - metric: mentions_undefined
         type: contains
         value: "undefined"
-      - Review identifies that users.get(id) can return undefined and suggests a fix
+      - Review identifies that users.get(id) can return undefined and suggests a
+        fix
+      - Identifies the potential undefined access when the key is missing from
+        the map
 
   - id: review-clean-function
     input: |
@@ -23,6 +25,7 @@ tests:
       function add(a: number, b: number): number {
         return a + b;
       }
-    criteria: Recognizes the function is correct and does not flag false issues
     assert:
-      - Review correctly identifies the function as simple and correct without flagging false issues
+      - Review correctly identifies the function as simple and correct without
+        flagging false issues
+      - Recognizes the function is correct and does not flag false issues

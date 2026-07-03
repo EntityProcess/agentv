@@ -1,5 +1,5 @@
 targets:
-  - name: github-models-contract
+  - label: github-models-contract
     provider: openai
     api_format: chat
     base_url: https://models.github.ai/inference

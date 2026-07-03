@@ -14,12 +14,12 @@ Demonstrates loading raw test cases from external files using `imports.tests`.
 
 ```bash
 # From repository root
-bun agentv eval examples/features/external-datasets/evals/dataset.eval.yaml
+bun agentv eval examples/features/external-datasets/evals/suite.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` — Main eval with inline tests and `imports.tests` references
+- `evals/suite.yaml` — Main eval with inline tests and `imports.tests` references
 - `evals/cases/accuracy.yaml` — YAML array of test cases
 - `evals/cases/regression.jsonl` — JSONL test data (one test per line)
 - `evals/cases/magic.csv` — CSV test data with promptfoo-style magic columns
@@ -30,18 +30,20 @@ bun agentv eval examples/features/external-datasets/evals/dataset.eval.yaml
 External YAML files must contain an array of test objects:
 ```yaml
 - id: test-1
-  criteria: "Expected outcome"
+  assert:
+    - "Expected outcome"
   input: "User input"
 - id: test-2
-  criteria: "Another outcome"
+  assert:
+    - "Another outcome"
   input: "Another input"
 ```
 
 ### JSONL (.jsonl)
 One JSON test object per line:
 ```jsonl
-{"id": "test-1", "criteria": "Expected outcome", "input": "User input"}
-{"id": "test-2", "criteria": "Another outcome", "input": "Another input"}
+{"id": "test-1", "assert": ["Expected outcome"], "input": "User input"}
+{"id": "test-2", "assert": ["Another outcome"], "input": "Another input"}
 ```
 
 ### CSV (.csv)

@@ -13,7 +13,7 @@ A Node.js lifecycle extension exports `beforeAll(context)`. AgentV runs it after
 ```
 workspace-setup-script/
 ├── evals/
-│   └── dataset.eval.yaml        # Eval with beforeAll extension
+│   └── suite.yaml        # Eval with beforeAll extension
 ├── plugins/
 │   └── my-plugin/               # Plugin content (AGENTS + prompt)
 │       ├── AGENTS.md

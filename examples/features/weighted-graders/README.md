@@ -13,9 +13,9 @@ Demonstrates weighted grader configurations for prioritizing different evaluatio
 
 ```bash
 # From repository root
-bun agentv eval examples/features/weighted-graders/evals/dataset.eval.yaml
+bun agentv eval examples/features/weighted-graders/evals/suite.yaml
 ```
 
 ## Key Files
 
-- `evals/dataset.eval.yaml` - Test cases with weighted grader configurations
+- `evals/suite.yaml` - Test cases with weighted grader configurations

@@ -38,7 +38,7 @@ assert:
         weight: 2.0
       - path: invoice_date
         match: date
-        formats: ["DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY"]
+        formats: [ "DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY" ]
         required: true
         weight: 1.0
       - path: currency
@@ -80,7 +80,6 @@ assert:
         weight: 3.0
 
     aggregation: weighted_average
-
   # Alternative: Rubric-based evaluation ("Rubric as Object" pattern)
   # Demonstrates AgentV's structured evaluation goal with human-readable criteria
   # - name: invoice_extraction_rubric
@@ -118,11 +117,12 @@ tests:
   # ============================================
   - id: invoice-001
     conversation_id: document-extraction
-    criteria: |
-      Extractor produces clean data matching expected ground truth.
-      Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
-      All numeric values rounded to integers (1889 not 1889.00).
-      Tests that exact matching passes when extractor normalizes data correctly.
+    assert:
+      - |
+        Extractor produces clean data matching expected ground truth.
+        Mock extractor rounds supplier name from "Acme - Shipping" to "Acme Shipping" in HTML.
+        All numeric values rounded to integers (1889 not 1889.00).
+        Tests that exact matching passes when extractor normalizes data correctly.
     expected_output:
       - role: assistant
         content:
@@ -134,10 +134,24 @@ tests:
           gross_total: 1889
           supplier:
             name: "Acme Shipping"
-            address: "Acme - Shipping\n123 Harbor Boulevard\nSuite 400\n90001  Los Angeles\nUSA"
+            address: "Acme - Shipping
+
+              123 Harbor Boulevard
+
+              Suite 400
+
+              90001  Los Angeles
+
+              USA"
           importer:
             name: "Global Trade Co"
-            address: "Global Trade Co\n456 Commerce Street\n10001  New York\nUSA"
+            address: "Global Trade Co
+
+              456 Commerce Street
+
+              10001  New York
+
+              USA"
           line_items:
             - description: "OCEAN FREIGHT"
               quantity: 1
@@ -203,17 +217,11 @@ tests:
   # ============================================
   - id: invoice-002
     conversation_id: document-extraction
-    criteria: |
-      ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves document punctuation)
-      EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
-
-      This simulates OCR output that preserves document formatting.
-      Uses code-grader with config pass-through for multi-field fuzzy matching.
     assert:
       # Multi-field fuzzy match with config pass-through
       - metric: party_names_fuzzy
         type: script
-        command: ["bun", "run", "../graders/multi_field_fuzzy.ts"]
+        command: [ "bun", "run", "../graders/multi_field_fuzzy.ts" ]
         # These properties are passed to the script via stdin config
         fields:
           - path: supplier.name
@@ -230,12 +238,18 @@ tests:
             required: true
           - path: invoice_date
             match: date
-            formats: ["DD-MMM-YYYY", "YYYY-MM-DD"]
+            formats: [ "DD-MMM-YYYY", "YYYY-MM-DD" ]
           - path: currency
             match: exact
           - path: net_total
             match: numeric_tolerance
             tolerance: 1.0
+      - |
+        ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves document punctuation)
+        EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
+
+        This simulates OCR output that preserves document formatting.
+        Uses code-grader with config pass-through for multi-field fuzzy matching.
     expected_output:
       - role: assistant
         content:
@@ -267,12 +281,13 @@ tests:
   # ============================================
   - id: invoice-003
     conversation_id: document-extraction
-    criteria: |
-      ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
-      EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
+    assert:
+      - |
+        ACTUAL EXTRACTOR OUTPUT: net_total = 1889.5, gross_total = 1889.5
+        EXPECTED GROUND TRUTH: net_total = 1889, gross_total = 1889
 
-      Mock extractor output sample (`invoice-003.json`) contains 1889.5 USD (preserved decimals).
-      Numeric tolerance (±1.0) should accept 0.5 difference and pass.
+        Mock extractor output sample (`invoice-003.json`) contains 1889.5 USD (preserved decimals).
+        Numeric tolerance (±1.0) should accept 0.5 difference and pass.
     expected_output:
       - role: assistant
         content:
@@ -303,16 +318,17 @@ tests:
   # ============================================
   - id: invoice-004
     conversation_id: document-extraction
-    criteria: |
-      ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
-      EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
+    assert:
+      - |
+        ACTUAL EXTRACTOR OUTPUT: invoice_number = undefined (field missing in fixture)
+        EXPECTED GROUND TRUTH: invoice_number = "INV-2025-001234"
 
-      Tests required field validation. Score should drop significantly due to
-      missing critical field (weight 2.0). Expected score ~0.85 (lose 2/13 weight).
+        Tests required field validation. Score should drop significantly due to
+        missing critical field (weight 2.0). Expected score ~0.85 (lose 2/13 weight).
     expected_output:
       - role: assistant
         content:
-          invoice_number: "INV-2025-001234"  # Expected but missing in candidate
+          invoice_number: "INV-2025-001234" # Expected but missing in candidate
           invoice_date: "15-JAN-2025"
           currency: "USD"
           net_total: 1889
@@ -335,9 +351,6 @@ tests:
   # ============================================
   - id: invoice-005
     conversation_id: document-extraction
-    criteria: |
-      Extractor correctly extracts first two line items with proper array structure.
-      Field paths like line_items[0].description should resolve correctly.
     assert:
       - metric: line_items_check
         type: field-accuracy
@@ -361,6 +374,9 @@ tests:
             required: true
             weight: 1.0
         aggregation: weighted_average
+      - |
+        Extractor correctly extracts first two line items with proper array structure.
+        Field paths like line_items[0].description should resolve correctly.
     expected_output:
       - role: assistant
         content:
@@ -383,21 +399,21 @@ tests:
   # ============================================
   - id: invoice-006
     conversation_id: document-extraction
-    criteria: |
-      ACTUAL EXTRACTOR OUTPUT: line_items in different order than expected
-      EXPECTED GROUND TRUTH: line_items in original order
-
-      This test demonstrates greedy matching for line items.
-      Index-based comparison would incorrectly penalize the extractor,
-      but greedy matching correctly aligns items by description similarity.
     assert:
       - metric: line_items_matched
         type: script
-        command: ["bun", "run", "../graders/line_item_matching.ts"]
-        match_fields: ["description"]
-        score_fields: ["description", "quantity", "line_total"]
+        command: [ "bun", "run", "../graders/line_item_matching.ts" ]
+        match_fields: [ "description" ]
+        score_fields: [ "description", "quantity", "line_total" ]
         threshold: 0.8
         line_items_path: line_items
+      - |
+        ACTUAL EXTRACTOR OUTPUT: line_items in different order than expected
+        EXPECTED GROUND TRUTH: line_items in original order
+
+        This test demonstrates greedy matching for line items.
+        Index-based comparison would incorrectly penalize the extractor,
+        but greedy matching correctly aligns items by description similarity.
     expected_output:
       - role: assistant
         content:

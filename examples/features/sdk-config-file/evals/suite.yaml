@@ -1,0 +1,27 @@
+# Config File Demo
+# This eval uses project-level configuration from agentv.config.ts
+
+name: sdk-config-file
+description: Demonstrates defineConfig() for typed project configuration
+
+target: llm
+
+tests:
+  - id: config-greeting
+    input: "Hello!"
+    expected_output: "Hello! How can I help you?"
+    assert:
+      - type: contains
+        value: "Hello"
+      - Agent responds with a greeting
+
+  - id: config-json
+    input:
+      - role: system
+        content: "Respond only with valid JSON."
+      - role: user
+        content: "Return status ok"
+    expected_output: '{"status": "ok"}'
+    assert:
+      - type: is-json
+      - Agent returns valid JSON

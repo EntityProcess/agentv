@@ -15,8 +15,8 @@ This example demonstrates **live turn-by-turn conversation evaluation** where th
 
 ```bash
 # With default target
-bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation-live/evals/dataset.eval.yaml
+bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation-live/evals/suite.yaml
 
 # With specific test
-bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation-live/evals/dataset.eval.yaml --test-id context-retention
+bun apps/cli/src/cli.ts eval examples/features/multi-turn-conversation-live/evals/suite.yaml --test-id context-retention
 ```

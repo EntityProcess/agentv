@@ -1,0 +1,151 @@
+# Execution Metrics Grader Demo
+# Demonstrates the built-in execution_metrics grader for declarative threshold-based checks.
+#
+# The execution_metrics grader allows you to set limits on:
+# - max_tool_calls: Maximum number of tool invocations
+# - max_llm_calls: Maximum number of LLM calls (assistant messages)
+# - max_tokens: Maximum total tokens (input + output)
+# - max_cost_usd: Maximum cost in USD
+# - max_duration_ms: Maximum execution duration in milliseconds
+# - target_exploration_ratio: Target ratio of read-only tool calls (with tolerance)
+#
+# Only specified thresholds are checked; omitted ones are ignored.
+# Score is proportional: hits / (hits + misses)
+#
+# Run with the included mock metrics target:
+#   bun agentv eval examples/features/execution-metrics/evals/suite.yaml --target mock_metrics_agent
+
+name: execution-metrics
+description: Demonstrates the built-in execution_metrics grader
+
+# Mock agent that returns realistic execution metrics
+target: mock_metrics_agent
+
+tests:
+  # ==========================================
+  # Example 1: Simple threshold check - PASS
+  # Check that an efficient agent stays within limits
+  # ==========================================
+  - id: simple-thresholds-pass
+
+    input:
+      - role: user
+        content: Hello, this is a simple question.
+
+    assert:
+      - metric: efficiency-check
+        type: execution-metrics
+        max_tool_calls: 10
+        max_tokens: 2000
+        max_duration_ms: 10000
+      - |-
+        Agent responds efficiently within all specified limits.
+
+  # ==========================================
+  # Example 2: Multiple thresholds - PASS
+  # Comprehensive check with all threshold types
+  # ==========================================
+  - id: comprehensive-thresholds
+
+    input:
+      - role: user
+        content: Hello, give me a simple response.
+
+    assert:
+      - metric: full-efficiency-check
+        type: execution-metrics
+        max_tool_calls: 15
+        max_llm_calls: 5
+        max_tokens: 3000
+        max_cost_usd: 0.1
+        max_duration_ms: 30000
+      - |-
+        Agent performs a task within all efficiency constraints.
+
+  # ==========================================
+  # Example 3: Research task with tool trajectory + metrics
+  # Combines multiple grader types
+  # ==========================================
+  - id: research-with-metrics
+
+    input:
+      - role: user
+        content: Research and analyze the topic of machine learning.
+
+    assert:
+      # Check tool trajectory
+      - metric: trajectory-check
+        type: tool-trajectory
+        mode: any_order
+        minimums:
+          search: 1
+
+      # Check execution efficiency
+      - metric: metrics-check
+        type: execution-metrics
+        max_tool_calls: 20
+        max_tokens: 5000
+      - |-
+        Agent performs research and uses tools efficiently.
+        Metrics reflect reasonable token usage and tool calls.
+
+  # ==========================================
+  # Example 4: Exploration ratio check
+  # Validates the balance between read-only and write operations
+  # ==========================================
+  - id: exploration-ratio-check
+
+    input:
+      - role: user
+        content: Implement a small code improvement based on the existing file.
+
+    assert:
+      - metric: exploration-balance
+        type: execution-metrics
+        target_exploration_ratio: 0.5 # 50% should be read-only tools
+        exploration_tolerance: 0.3 # Allow +/- 30% variance
+      - |-
+        Agent maintains a good balance of exploration (reading) vs
+        action (writing/editing) tool calls.
+
+  # ==========================================
+  # Example 5: Strict cost budget
+  # Useful for cost-sensitive applications
+  # ==========================================
+  - id: cost-budget-check
+
+    input:
+      - role: user
+        content: Generate a brief summary.
+
+    assert:
+      - metric: cost-check
+        type: execution-metrics
+        max_cost_usd: 0.05
+        weight: 2.0 # Double weight for cost compliance
+      - |-
+        Agent completes the task within the specified cost budget.
+
+  # ==========================================
+  # Example 6: Combining with code_grader
+  # Use execution_metrics for thresholds, code_grader for custom logic
+  # ==========================================
+  - id: hybrid-evaluation
+
+    input:
+      - role: user
+        content: Process the data efficiently.
+
+    assert:
+      # Declarative threshold checks
+      - metric: metric-thresholds
+        type: execution-metrics
+        max_tool_calls: 10
+        max_duration_ms: 5000
+
+      # Custom evaluation logic (for more complex checks)
+      - metric: custom-check
+        type: script
+        command: [ "bun", "run", "../scripts/check-metrics-present.ts" ]
+      - |-
+        Agent passes both declarative thresholds and custom evaluation.

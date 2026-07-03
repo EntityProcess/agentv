@@ -1,0 +1,39 @@
+name: threshold-grader-example
+description: Demonstrates the threshold aggregator — pass if N% of child graders pass
+
+# Demonstrates the threshold aggregator: pass if N% of child graders pass.
+# Borderline verdicts count as passing (lenient).
+
+target: llm
+
+tests:
+  - id: flexible-gate
+    input:
+      - role: user
+        content: "Summarize the benefits of renewable energy."
+    expected_output:
+      - role: assistant
+        content: |
+          Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and decreases dependence on finite fossil fuels.
+    assert:
+      - metric: flexible_gate
+        type: composite
+        aggregator:
+          type: threshold
+          threshold: 0.5
+        assert:
+          - metric: accuracy_check
+            type: llm-rubric
+            value:
+              - Response accurately describes the benefits of renewable energy
+                with correct facts
+          - metric: completeness_check
+            type: llm-rubric
+            value:
+              - Response covers at least 3 key benefits of renewable energy
+          - metric: conciseness_check
+            type: llm-rubric
+            value:
+              - Response is concise and well-structured
+      - |
+        The response should be accurate, concise, and cover key benefits of renewable energy.

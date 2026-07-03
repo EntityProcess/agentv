@@ -1,0 +1,59 @@
+# File changes + graders integration test
+#
+# Proves that file_changes diffs are correctly passed to all grader types:
+#   1. llm-rubric   — LLM grader (Azure) evaluates the diff
+#   2. llm-rubric    — built-in mode (Azure via AI SDK) sees file_changes in prompt
+#   3. llm-rubric    — delegated mode (Copilot CLI with haiku) sees file_changes in prompt
+#
+# The mock agent adds a `subtract` function to calculator.ts, producing a small
+# diff (~10 lines) that fits comfortably in any LLM context window.
+
+description: Verify file_changes diffs are accessible to LLM grader (llm-rubric,
+  built-in, and copilot-cli)
+
+workspace:
+  template: ../workspace-template
+
+target: mock_agent
+
+tests:
+  - id: verify-file-changes-graders
+
+    input:
+      - role: user
+        content:
+          - type: text
+            value: Add a subtract function to src/calculator.ts
+
+    assert:
+      # 1. LLM rubric grader — Azure evaluates file_changes diff
+      - metric: llm-rubric-rubrics
+        type: llm-rubric
+        value:
+          - id: subtract-added
+            outcome: "The diff shows a new subtract function was added to calculator.ts"
+            weight: 1.0
+            required: true
+          - id: add-preserved
+            outcome: "The diff does not remove or modify the existing add function"
+            weight: 1.0
+            required: true
+          - id: valid-diff
+            outcome: "The file_changes contains a valid unified diff format"
+            weight: 0.5
+
+      # 2. Built-in LLM grader — Azure via AI SDK with filesystem tools
+      - metric: llm-rubric-builtin
+        type: llm-rubric
+        max_steps: 3
+        temperature: 0
+
+      # 3. Copilot CLI LLM grader — delegated via target
+      - metric: llm-rubric-copilot
+        type: llm-rubric
+        target: copilot_grader
+        temperature: 0
+      - >-
+        The agent must add a subtract function to src/calculator.ts. The
+        file_changes diff should show the new subtract function was added. The
+        existing add function must remain unchanged.

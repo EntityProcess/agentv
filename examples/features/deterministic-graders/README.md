@@ -32,7 +32,7 @@ Set `negated: true` in config to invert any assertion.
 ## Files
 
 - `graders/assertions.ts` — Parameterised script grader using `defineCodeGrader` from `@agentv/sdk`
-- `evals/dataset.eval.yaml` — Example tests covering every assertion type
+- `evals/suite.yaml` — Example tests covering every assertion type
 
 ## Setup
 
@@ -47,7 +47,7 @@ bun run build
 
 ```bash
 # From examples/features
-bun agentv eval deterministic-graders/evals/dataset.eval.yaml --target <your-target>
+bun agentv eval deterministic-graders/evals/suite.yaml --target <your-target>
 ```
 
 ## Standalone Test

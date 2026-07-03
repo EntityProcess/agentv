@@ -15,7 +15,7 @@ def test_render_eval_yaml_emits_canonical_shape() -> None:
             name="python-helper",
             target="local_cli",
             tags=["python"],
-            tests="./dataset.jsonl",
+            tests="./cases.jsonl",
             extra={"defaults": {"assert": [{"type": "script", "command": ["python3", "grader.py"]}]}},
         )
     )
@@ -26,7 +26,7 @@ def test_render_eval_yaml_emits_canonical_shape() -> None:
         "name": "python-helper",
         "target": "local_cli",
         "tags": ["python"],
-        "tests": "./dataset.jsonl",
+        "tests": "./cases.jsonl",
         "defaults": {
             "assert": [{"type": "script", "command": ["python3", "grader.py"]}]
         },
@@ -56,17 +56,17 @@ def test_render_jsonl_emits_canonical_lines() -> None:
 
 def test_write_helpers_persist_expected_files(tmp_path: Path) -> None:
     eval_path = write_eval_yaml(
-        tmp_path / "dataset.eval.yaml",
-        EvalDefinition(name="python-helper", tests="./dataset.jsonl"),
+        tmp_path / "suite.yaml",
+        EvalDefinition(name="python-helper", tests="./cases.jsonl"),
     )
     jsonl_path = write_jsonl(
-        tmp_path / "dataset.jsonl",
+        tmp_path / "cases.jsonl",
         [JsonlCase(id="case-1", input="hello")],
     )
 
     assert yaml.safe_load(eval_path.read_text(encoding="utf-8")) == {
         "name": "python-helper",
-        "tests": "./dataset.jsonl",
+        "tests": "./cases.jsonl",
     }
     assert json.loads(jsonl_path.read_text(encoding="utf-8").strip()) == {
         "id": "case-1",

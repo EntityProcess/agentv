@@ -1,5 +1,6 @@
 name: repo-materialization-contract
-description: Release gate for public repo materialization, previous-commit checkout, and file input substitution.
+description: Release gate for public repo materialization, previous-commit
+  checkout, and file input substitution.
 
 workspace:
   repos:
@@ -11,7 +12,6 @@ target: github-models-contract
 
 tests:
   - id: repo-materializes-previous-commit
-    criteria: The workspace materializes an owned public fixture repo at a pinned previous commit.
     input:
       - role: system
         content: Reply with exactly the uppercase word READY.
@@ -26,4 +26,6 @@ tests:
         value: READY
       - metric: repo-materialized-previous-commit
         type: script
-        command: ["bun", "../scripts/check-repo-materialization.ts"]
+        command: [ "bun", "../scripts/check-repo-materialization.ts" ]
+      - The workspace materializes an owned public fixture repo at a pinned
+        previous commit.

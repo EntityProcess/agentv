@@ -5,7 +5,7 @@ Demonstrates `tests[].vars` with `{{ vars.name }}` placeholders in eval files.
 ## Usage
 
 ```bash
-agentv eval examples/features/test-vars-templating/evals/dataset.eval.yaml
+agentv eval examples/features/test-vars-templating/evals/suite.yaml
 ```
 
 ## Features

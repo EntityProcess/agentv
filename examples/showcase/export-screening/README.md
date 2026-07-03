@@ -26,7 +26,7 @@ export-screening/
 ├── skills/
 │   └── export-risk-assessment.md       # Classification guidelines
 ├── evals/
-│   ├── dataset.eval.yaml                    # Tests with expert assessments
+│   ├── suite.yaml                    # Tests with expert assessments
 │   ├── validate_risk_output.ts         # JSON validator + accuracy checker
 │   └── ci_check.ts                     # CI/CD threshold checker
 └── .agentv/
@@ -41,7 +41,7 @@ From the repository root:
 cd examples/showcase/export-screening
 
 # Run evaluation (produces a run workspace with index.jsonl)
-bun agentv eval ./evals/dataset.eval.yaml
+bun agentv eval ./evals/suite.yaml
 ```
 
 ### Computing Metrics
@@ -60,7 +60,7 @@ Run the eval multiple times and aggregate results for higher-confidence CI gates
 
 ```bash
 # Run eval 3 times, aggregate, and gate on High-class F1 >= 90%
-bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --samples 3 --threshold 0.90 --check-class High
+bun run ./evals/ci_check.ts --eval ./evals/suite.yaml --samples 3 --threshold 0.90 --check-class High
 ```
 
 This is useful when LLM outputs are non-deterministic — aggregating over multiple runs produces more stable metrics for CI gates.
@@ -69,14 +69,14 @@ This is useful when LLM outputs are non-deterministic — aggregating over multi
 
 ```mermaid
 flowchart LR
-    A[dataset.eval.yaml] --> B[bun agentv eval]
+    A[suite.yaml] --> B[bun agentv eval]
     B --> C[index.jsonl<br/>run manifest]
     C --> D[ci_check.ts<br/>confusion matrix + P/R/F1 + policy-weighted overall]
 ```
 
 ## How It Works
 
-### 1. Tests (`dataset.eval.yaml`)
+### 1. Tests (`suite.yaml`)
 
 Each case contains:
 - **Input**: Shipment details (origin, destination, product, HS code)
@@ -106,13 +106,14 @@ The `ci_check.ts` script:
 
 ### Adding tests
 
-Add cases to `dataset.eval.yaml` following the existing pattern:
+Add cases to `suite.yaml` following the existing pattern:
 
 ```yaml
 - id: exp-custom-001
   conversation_id: export-screening
-  criteria: |
-    Description of expected behavior for reviewers.
+  assert:
+    - |
+      Description of expected behavior for reviewers.
   expected_output:
     - role: assistant
       content:
@@ -147,10 +148,10 @@ The `ci_check.ts` script provides threshold-based quality gates for CI/CD pipeli
 
 ```bash
 # Full flow: run eval and check threshold in one command
-bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --threshold 0.95
+bun run ./evals/ci_check.ts --eval ./evals/suite.yaml --threshold 0.95
 
 # Multi-sample gate: run 5 times, aggregate, then check
-bun run ./evals/ci_check.ts --eval ./evals/dataset.eval.yaml --samples 5 --threshold 0.90
+bun run ./evals/ci_check.ts --eval ./evals/suite.yaml --samples 5 --threshold 0.90
 
 # Or check an existing run manifest
 bun run ./evals/ci_check.ts .agentv/results/default/<timestamp>/index.jsonl --threshold 0.95
@@ -191,7 +192,7 @@ bun run ./evals/ci_check.ts .agentv/results/default/<timestamp>/index.jsonl --th
 
 ```mermaid
 flowchart LR
-    A[dataset.eval.yaml] --> B[ci_check.ts<br/>--eval]
+    A[suite.yaml] --> B[ci_check.ts<br/>--eval]
     B --> C{F1 >= 95%?}
     C -->|Yes| D[Pass<br/>exit 0]
     C -->|No| E[Fail<br/>exit 1]
@@ -209,7 +210,7 @@ jobs:
       - name: Run eval and check quality gate
         run: |
           bun run ./evals/ci_check.ts \
-            --eval ./evals/dataset.eval.yaml \
+            --eval ./evals/suite.yaml \
             --samples 3 \
             --threshold 0.95 \
             --check-class High

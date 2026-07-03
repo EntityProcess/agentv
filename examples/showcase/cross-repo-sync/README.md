@@ -26,14 +26,14 @@ When **agentv** (EntityProcess/agentv) ships a feature, the **agentevals** (agen
 
 ```bash
 bun install
-bun agentv eval ./evals/dataset.eval.yaml
+bun agentv eval ./evals/suite.yaml
 ```
 
 ## Structure
 
 ```
 ├── evals/
-│   ├── dataset.eval.yaml          # 3 test cases
+│   ├── suite.yaml          # 3 test cases
 │   └── ground-truth/              # Real diffs from commit history
 ├── workspace-template/
 │   ├── AGENTS.md                  # Multi-repo context

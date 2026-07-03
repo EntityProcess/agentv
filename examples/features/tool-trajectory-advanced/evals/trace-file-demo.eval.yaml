@@ -22,15 +22,12 @@ tests:
   # Expected score: 1.0 (webSearch before fetchPage is satisfied)
   # =============================================================================
   - id: in-order-validation
-    # Validates that the agent performs web search before fetching page details.
-    # Mode 'in_order' allows other tool calls between expected tools.
-    criteria: |-
-      Agent searches for product information, then fetches detailed specs.
 
     # Input messages are ignored by the static trace provider but required by schema
     input:
       - role: user
-        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a
+          recommendation.
 
     assert:
       - metric: search-then-fetch
@@ -39,6 +36,8 @@ tests:
         expected:
           - tool: webSearch
           - tool: fetchPage
+      - |-
+        Agent searches for product information, then fetches detailed specs.
 
   # =============================================================================
   # Example 2: Exact Sequence Validation
@@ -46,14 +45,11 @@ tests:
   # Expected score: 1.0 (matches full trace exactly)
   # =============================================================================
   - id: exact-sequence-validation
-    # Validates the exact sequence of all tool calls in the trace.
-    # Mode 'exact' requires the trace to match precisely.
-    criteria: |-
-      Agent follows the exact research workflow: search, fetch, search reviews, summarize.
 
     input:
       - role: user
-        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a
+          recommendation.
 
     assert:
       - metric: exact-workflow
@@ -64,6 +60,8 @@ tests:
           - tool: fetchPage
           - tool: webSearch
           - tool: summarize
+      - |-
+        Agent follows the exact research workflow: search, fetch, search reviews, summarize.
 
   # =============================================================================
   # Example 3: Any-Order with Minimums
@@ -71,14 +69,11 @@ tests:
   # Expected score: 1.0 (meets all minimums)
   # =============================================================================
   - id: any-order-with-minimums
-    # Validates that the agent performs adequate research by checking minimum
-    # tool call counts. Mode 'any_order' with minimums is flexible on sequence.
-    criteria: |-
-      Agent performs at least 2 web searches and 1 page fetch for thorough research.
 
     input:
       - role: user
-        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a
+          recommendation.
 
     assert:
       - metric: research-depth
@@ -87,6 +82,8 @@ tests:
         minimums:
           webSearch: 2
           fetchPage: 1
+      - |-
+        Agent performs at least 2 web searches and 1 page fetch for thorough research.
 
   # =============================================================================
   # Example 4: Tool Input Validation
@@ -94,14 +91,11 @@ tests:
   # Expected score: 1.0 (inputs match expected patterns)
   # =============================================================================
   - id: tool-input-validation
-    # Validates that tool calls include appropriate input parameters.
-    # Useful for ensuring the agent provides correct context to tools.
-    criteria: |-
-      Agent searches with relevant product keywords and fetches from authoritative source.
 
     input:
       - role: user
-        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a
+          recommendation.
 
     assert:
       - metric: input-validator
@@ -114,6 +108,8 @@ tests:
           - tool: fetchPage
             input:
               url: "https://www.lenovo.com/thinkpad-x1-carbon-gen11"
+      - |-
+        Agent searches with relevant product keywords and fetches from authoritative source.
 
   # =============================================================================
   # Example 5: Tool Output Validation
@@ -121,14 +117,11 @@ tests:
   # Expected score: 1.0 (outputs contain expected fields)
   # =============================================================================
   - id: tool-output-validation
-    # Validates that tool outputs contain expected data.
-    # Useful for regression testing when tool behavior changes.
-    criteria: |-
-      Web search returns results with links and snippets; fetch returns product specs.
 
     input:
       - role: user
-        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a
+          recommendation.
 
     assert:
       - metric: output-validator
@@ -143,6 +136,8 @@ tests:
           - tool: fetchPage
             output:
               title: "ThinkPad X1 Carbon Gen 11 | Premium Business Laptop"
+      - |-
+        Web search returns results with links and snippets; fetch returns product specs.
 
   # =============================================================================
   # Example 6: Combined Validation (Real-World Pattern)
@@ -150,18 +145,11 @@ tests:
   # This mirrors patterns used in complex agent pipelines
   # =============================================================================
   - id: combined-validation
-    # Production-style evaluation combining sequence validation with input/output
-    # checks. Demonstrates a realistic multi-turn agent workflow.
-    criteria: |-
-      Agent performs comprehensive product research:
-      1. Initial web search for product specs
-      2. Fetches detailed information from manufacturer
-      3. Searches for user reviews
-      4. Summarizes findings with recommendation
 
     input:
       - role: user
-        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a recommendation.
+        content: Research the ThinkPad X1 Carbon Gen 11 laptop and provide a
+          recommendation.
 
     # Expected messages show the full agent conversation pattern
     # (Similar to golden dataset format for reference)
@@ -252,3 +240,9 @@ tests:
         minimums:
           webSearch: 2
           fetchPage: 1
+      - |-
+        Agent performs comprehensive product research:
+        1. Initial web search for product specs
+        2. Fetches detailed information from manufacturer
+        3. Searches for user reviews
+        4. Summarizes findings with recommendation
