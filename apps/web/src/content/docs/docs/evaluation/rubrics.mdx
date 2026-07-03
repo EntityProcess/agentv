@@ -89,6 +89,32 @@ default_test:
     rubric_prompt: file://graders/judge-prompt.txt
 ```
 
+For shared defaults, put the partial default test in a separate file:
+
+```yaml title=".agentv/default-test.yaml"
+options:
+  rubric_prompt: file://graders/judge-prompt.txt
+```
+
+Then reference it from each eval:
+
+```yaml
+default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+AgentV makes `AGENTV_REPO_ROOT` available while loading eval and config files. If a project wants a shorter name, add a reference in `.agentv/config.yaml`. Reference names are project-defined; `global-default` is just an example:
+
+```yaml
+refs:
+  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+Then use:
+
+```yaml
+default_test: ref://global-default
+```
+
 Most evals do not need this. Plain strings and structured `value` arrays use the built-in prompt automatically.
 
 ### Criterion Operators

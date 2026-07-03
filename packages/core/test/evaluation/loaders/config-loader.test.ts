@@ -84,6 +84,58 @@ describe('loadConfig', () => {
     }
   });
 
+  it('interpolates AGENTV_REPO_ROOT into project refs', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-refs-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        [
+          'refs:',
+          '  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
+          '',
+        ].join('\n'),
+      );
+
+      await withOptionalEnv('AGENTV_REPO_ROOT', undefined, async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.refs).toEqual({
+          'global-default': `file://${projectDir}/.agentv/default-test.yaml`,
+        });
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not overwrite caller-provided AGENTV_REPO_ROOT in project config interpolation', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-refs-env-config-'));
+    try {
+      const projectDir = path.join(tempDir, 'project');
+      const evalDir = path.join(projectDir, 'evals');
+      const localConfigDir = path.join(projectDir, '.agentv');
+      mkdirSync(evalDir, { recursive: true });
+      mkdirSync(localConfigDir, { recursive: true });
+      writeFileSync(
+        path.join(localConfigDir, 'config.yaml'),
+        ['refs:', '  global-default: file://{{ env.AGENTV_REPO_ROOT }}/default-test.yaml', ''].join(
+          '\n',
+        ),
+      );
+
+      await withOptionalEnv('AGENTV_REPO_ROOT', '/custom/root', async () => {
+        const config = await loadConfig(path.join(evalDir, 'suite.eval.yaml'), projectDir);
+        expect(config?.refs?.['global-default']).toBe('file:///custom/root/default-test.yaml');
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('prefers project-local .agentv/config.yaml over AGENTV_HOME/config.yaml', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-local-config-'));
     try {

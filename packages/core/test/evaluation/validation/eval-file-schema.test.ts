@@ -168,6 +168,41 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts default_test file and ref references', () => {
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: 'file://.agentv/default-test.yaml',
+        tests: [baseTest],
+      }).success,
+    ).toBe(true);
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: 'ref://global-default',
+        tests: [baseTest],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects bare default_test reference names', () => {
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: 'global-default',
+        tests: [baseTest],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects default_test.assertions', () => {
+    expect(
+      EvalFileSchema.safeParse({
+        default_test: {
+          assertions: [{ type: 'contains', value: 'ok' }],
+        },
+        tests: [baseTest],
+      }).success,
+    ).toBe(false);
+  });
+
   it('accepts a snake_cased promptfoo-shaped eval config', () => {
     const result = EvalFileSchema.safeParse({
       description: 'Promptfoo-compatible authoring shape',

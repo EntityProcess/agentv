@@ -557,6 +557,8 @@ execution:
   verbose: true
   keep_workspaces: false
   otel_file: .agentv/results/otel-{timestamp}.json
+refs:
+  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
 ```
 
 Example local overlay:
@@ -576,6 +578,7 @@ eval_patterns:
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `workspace_path` | `--workspace-path` | string | none | Machine-local existing workspace directory |
 | `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
+| `refs` | none | object | none | Project-defined named references for fields that support `ref://name`, such as shared `default_test` files |
 
 ### TypeScript config (`agentv.config.ts`)
 

@@ -16,6 +16,7 @@ import { executeScript } from './graders/code-grader.js';
 import { collectResolvedInputFilePaths } from './input-message-utils.js';
 import {
   type NunjucksFilterMap,
+  createEvalConfigEnv,
   interpolateEnv,
   interpolateTemplateVars,
 } from './interpolation.js';
@@ -25,6 +26,7 @@ import {
   loadCasesFromFile,
 } from './loaders/case-file-loader.js';
 import {
+  type ReferenceMap,
   extractBudgetUsd,
   extractCacheConfig,
   extractDefaultTestRubricPrompt,
@@ -393,6 +395,119 @@ function safePromptId(value: string): string {
 
 function stripFileProtocol(value: string): string {
   return value.startsWith('file://') ? value.slice('file://'.length) : value;
+}
+
+const REF_PROTOCOL = 'ref://';
+
+function expandNamedReference(rawValue: string, refs?: ReferenceMap): string {
+  const trimmed = rawValue.trim();
+  if (!trimmed.startsWith(REF_PROTOCOL)) {
+    return trimmed;
+  }
+
+  const name = trimmed.slice(REF_PROTOCOL.length).trim();
+  if (name.length === 0) {
+    throw new Error(`Invalid ref reference '${rawValue}'. Use ref://name.`);
+  }
+  const value = refs?.[name];
+  if (!value) {
+    throw new Error(`Unknown ref '${name}' in default_test. Define refs.${name} in config.yaml.`);
+  }
+  return value.trim();
+}
+
+type DefaultTestResolution = {
+  readonly value: JsonValue | undefined;
+  readonly references: readonly EvalSourceReference[];
+};
+
+async function loadDefaultTestFile(
+  rawReference: string,
+  displayReference: string,
+  searchRoots: readonly string[],
+  refs: ReferenceMap | undefined,
+  env: ReturnType<typeof createEvalConfigEnv>,
+): Promise<DefaultTestResolution> {
+  const expandedReference = expandNamedReference(rawReference, refs);
+  if (!expandedReference.startsWith('file://')) {
+    throw new Error(
+      `Invalid default_test reference '${rawReference}'. Use file://... or ref://name that resolves to file://... .`,
+    );
+  }
+
+  const fileReference = stripFileProtocol(expandedReference);
+  const { displayPath, resolvedPath, attempted } = await resolveFileReference(
+    fileReference,
+    searchRoots,
+  );
+  if (!resolvedPath) {
+    const attempts = attempted.length
+      ? ['  Tried:', ...attempted.map((candidate) => `    ${candidate}`)]
+      : undefined;
+    logError(`default_test file not found: ${displayPath}`, attempts);
+    throw new Error(`default_test file not found: ${displayPath}`);
+  }
+
+  const loaded = interpolateEnv(parseYamlValue(await readFile(resolvedPath, 'utf8')), env);
+  if (!isJsonObject(loaded)) {
+    throw new Error(`default_test file must contain a YAML object: ${displayPath}`);
+  }
+  if (loaded.description !== undefined) {
+    throw new Error(`default_test file must not define description: ${displayPath}`);
+  }
+  if (loaded.assertions !== undefined) {
+    throw new Error(`default_test file must use assert, not assertions: ${displayPath}`);
+  }
+  return {
+    value: loaded,
+    references: [
+      {
+        kind: 'default_test',
+        displayPath: displayReference,
+        resolvedPath,
+      },
+    ],
+  };
+}
+
+async function resolveDefaultTestValue(
+  rawDefaultTest: JsonValue | undefined,
+  displayReference: string | undefined,
+  searchRoots: readonly string[],
+  refs: ReferenceMap | undefined,
+  env: ReturnType<typeof createEvalConfigEnv>,
+): Promise<DefaultTestResolution> {
+  if (typeof rawDefaultTest === 'string') {
+    return loadDefaultTestFile(
+      rawDefaultTest,
+      displayReference ?? rawDefaultTest,
+      searchRoots,
+      refs,
+      env,
+    );
+  }
+  return { value: rawDefaultTest, references: [] };
+}
+
+function combineInheritedAssertions(
+  defaultTest: JsonValue | undefined,
+  suiteAssert: JsonValue | undefined,
+): JsonValue | undefined {
+  const defaultAssert = isJsonObject(defaultTest) ? defaultTest.assert : undefined;
+  const parts: JsonValue[] = [];
+
+  for (const value of [defaultAssert, suiteAssert]) {
+    if (value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      parts.push(...value);
+    } else {
+      parts.push(value);
+    }
+  }
+
+  return parts.length > 0 ? parts : undefined;
 }
 
 function isChatPromptArray(value: readonly JsonValue[]): boolean {
@@ -986,18 +1101,31 @@ async function loadTestsFromParsedYamlValue(
 
   const repoRootPath = resolveToAbsolutePath(repoRoot);
   const searchRoots = buildSearchRoots(absoluteTestPath, repoRootPath);
+  const configEnv = createEvalConfigEnv(repoRootPath);
 
   // Load configuration (walks up directory tree to repo root)
   const config = await loadConfig(absoluteTestPath, repoRootPath);
 
   const rawCaseSnapshots = buildRawInlineTestSnapshots(rawParsed);
-  const interpolated = interpolateEnv(rawParsed, process.env) as unknown;
+  const interpolated = interpolateEnv(rawParsed, configEnv) as unknown;
   if (!isJsonObject(interpolated)) {
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
   rejectAuthoredWorkers(interpolated);
 
-  const suite = interpolated as RawTestSuite;
+  const rawSuite = rawParsed as RawTestSuite;
+  const resolvedDefaultTest = await resolveDefaultTestValue(
+    (interpolated as RawTestSuite).default_test,
+    typeof rawSuite.default_test === 'string' ? rawSuite.default_test : undefined,
+    searchRoots,
+    config?.refs,
+    configEnv,
+  );
+  const suite = {
+    ...(interpolated as RawTestSuite),
+    default_test: resolvedDefaultTest.value,
+  } as RawTestSuite;
+  const defaultTestReferences = resolvedDefaultTest.references;
   const suiteNameFromFile = asString(suite.name)?.trim();
   const fallbackSuiteName =
     path
@@ -1074,7 +1202,7 @@ async function loadTestsFromParsedYamlValue(
   readSuiteRuntimeBlock(suite, evalFilePath);
 
   // Build global execution context, including suite-level assert entries (which are siblings of execution)
-  const suiteAssertions = suite.assert;
+  const suiteAssertions = combineInheritedAssertions(suite.default_test, suite.assert);
   const globalExecution: JsonObject | undefined =
     suiteAssertions !== undefined ? { assert: suiteAssertions } : undefined;
 
@@ -1205,6 +1333,7 @@ async function loadTestsFromParsedYamlValue(
         !!outcome ||
         expectedMessages.length > 0 ||
         graderCase.assert !== undefined ||
+        hasExplicitRootGraders ||
         (Array.isArray(renderedCase.turns) && renderedCase.turns.length > 0);
       const hasInputMessages =
         testInputMessages.length > 0 ||
@@ -1395,6 +1524,7 @@ async function loadTestsFromParsedYamlValue(
           inputMessages,
           evaluators,
           assertionTemplateReferences,
+          defaultTestReferences,
         }),
       };
 
@@ -2186,6 +2316,7 @@ function buildEvalTestSource(params: {
   readonly inputMessages: readonly TestMessage[];
   readonly evaluators: readonly GraderConfig[] | undefined;
   readonly assertionTemplateReferences: readonly EvalSourceReference[];
+  readonly defaultTestReferences: readonly EvalSourceReference[];
 }): EvalTestSource {
   const evalFileRepoPath = toPortableRelativePath(params.repoRootPath, params.absoluteTestPath);
   const testSnapshotYaml =
@@ -2196,6 +2327,7 @@ function buildEvalTestSource(params: {
     ...inputReferences,
     ...evaluatorReferences,
     ...params.assertionTemplateReferences,
+    ...params.defaultTestReferences,
   ]);
 
   return {

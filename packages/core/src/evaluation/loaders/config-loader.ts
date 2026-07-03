@@ -10,7 +10,7 @@ import {
   mergeConfigObjects,
 } from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
-import { interpolateEnv } from '../interpolation.js';
+import { createEvalConfigEnv, interpolateEnv } from '../interpolation.js';
 import { normalizeTargetDefinition } from '../providers/targets.js';
 import type { TargetDefinition } from '../providers/types.js';
 import type {
@@ -65,12 +65,15 @@ export type HooksConfig = {
   readonly before_session?: string;
 };
 
+export type ReferenceMap = Readonly<Record<string, string>>;
+
 export type AgentVConfig = {
   readonly required_version?: string;
   readonly eval_patterns?: readonly string[];
   readonly execution?: ExecutionDefaults;
   readonly results?: ResultsConfig;
   readonly hooks?: HooksConfig;
+  readonly refs?: ReferenceMap;
   /**
    * Promptfoo-shaped tags map applied to every run. Merged between eval `tags`
    * and CLI `--tag key=value` (precedence CLI > project config > eval). The
@@ -108,10 +111,12 @@ export async function loadConfig(
       continue;
     }
 
-    return readConfigFilePair(configPath);
+    return readConfigFilePair(configPath, repoRoot);
   }
 
-  return (await configPairExists(globalConfigPath)) ? readConfigFilePair(globalConfigPath) : null;
+  return (await configPairExists(globalConfigPath))
+    ? readConfigFilePair(globalConfigPath, repoRoot)
+    : null;
 }
 
 async function configPairExists(configPath: string): Promise<boolean> {
@@ -139,7 +144,10 @@ async function readConfigObjectFile(
   }
 }
 
-async function readConfigFilePair(configPath: string): Promise<AgentVConfig | null> {
+async function readConfigFilePair(
+  configPath: string,
+  repoRoot: string,
+): Promise<AgentVConfig | null> {
   const localConfigPath = getLocalConfigPath(configPath);
   const base = stripLocalOnlyExecutionDefaults(await readConfigObjectFile(configPath), configPath);
   const local = stripLocalOnlyExecutionDefaults(
@@ -150,15 +158,16 @@ async function readConfigFilePair(configPath: string): Promise<AgentVConfig | nu
   if (!rawMerged) {
     return null;
   }
-  return parseConfigObject(rawMerged, local ? localConfigPath : configPath);
+  return parseConfigObject(rawMerged, local ? localConfigPath : configPath, repoRoot);
 }
 
 function parseConfigObject(
   rawConfig: Record<string, unknown>,
   configPath: string,
+  repoRoot: string,
 ): AgentVConfig | null {
   try {
-    const parsed = interpolateEnv(rawConfig, process.env) as unknown;
+    const parsed = interpolateEnv(rawConfig, createEvalConfigEnv(repoRoot)) as unknown;
 
     if (!isJsonObject(parsed)) {
       logWarning(`Invalid AgentV config format at ${configPath}`);
@@ -191,6 +200,7 @@ function parseConfigObject(
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
     const tags = parseTagsConfig((parsed as Record<string, unknown>).tags, configPath);
+    const refs = parseRefsConfig((parsed as Record<string, unknown>).refs, configPath);
 
     return {
       required_version: requiredVersion as string | undefined,
@@ -198,12 +208,33 @@ function parseConfigObject(
       execution: executionDefaults,
       results,
       ...(hooks && { hooks }),
+      ...(refs && { refs }),
       ...(tags && { tags }),
     };
   } catch (error) {
     logWarning(`Could not parse AgentV config at ${configPath}: ${(error as Error).message}`);
     return null;
   }
+}
+
+function parseRefsConfig(raw: unknown, configPath: string): ReferenceMap | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (!isJsonObject(raw)) {
+    logWarning(`Invalid refs in ${configPath}, expected object`);
+    return undefined;
+  }
+
+  const refs: Record<string, string> = {};
+  for (const [name, value] of Object.entries(raw)) {
+    if (name.trim().length === 0 || typeof value !== 'string' || value.trim().length === 0) {
+      logWarning(`Invalid refs entry in ${configPath}: ${name}`);
+      continue;
+    }
+    refs[name] = value;
+  }
+  return Object.keys(refs).length > 0 ? refs : undefined;
 }
 
 function isLocalConfigPath(configPath: string): boolean {

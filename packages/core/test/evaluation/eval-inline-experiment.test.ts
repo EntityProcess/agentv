@@ -113,6 +113,118 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     expect(suite.experimentConfig?.threshold).toBe(0.9);
   });
 
+  it('loads default_test from a repo-root env file reference', async () => {
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'default-test.yaml'),
+      ['threshold: 0.6', 'options:', '  rubric_prompt: Shared judge prompt', ''].join('\n'),
+    );
+    const evalPath = path.join(tempDir, 'default-test-file.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: default-test-file-suite',
+        'default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '    criteria: ok',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.defaultTest).toEqual({ threshold: 0.6, rubricPrompt: 'Shared judge prompt' });
+    expect(suite.tests[0]?.source?.references).toContainEqual(
+      expect.objectContaining({
+        kind: 'default_test',
+        displayPath: 'file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
+        resolvedPath: path.join(agentvDir, 'default-test.yaml'),
+      }),
+    );
+  });
+
+  it('loads default_test through a project ref and inherits its assertions', async () => {
+    const evalDir = path.join(tempDir, 'evals');
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(evalDir, { recursive: true });
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'config.yaml'),
+      [
+        'refs:',
+        '  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(
+      path.join(agentvDir, 'default-test.yaml'),
+      [
+        'assert:',
+        '  - type: contains',
+        '    value: hello',
+        'options:',
+        '  rubric_prompt: Alias judge prompt',
+        '',
+      ].join('\n'),
+    );
+    const evalPath = path.join(evalDir, 'default-test-alias.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: default-test-alias-suite',
+        'default_test: ref://global-default',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.defaultTest).toEqual({ rubricPrompt: 'Alias judge prompt' });
+    expect(suite.tests).toHaveLength(1);
+    expect(suite.tests[0]?.assertions?.[0]).toMatchObject({
+      type: 'contains',
+      value: 'hello',
+    });
+    expect(suite.tests[0]?.source?.references).toContainEqual(
+      expect.objectContaining({
+        kind: 'default_test',
+        displayPath: 'ref://global-default',
+        resolvedPath: path.join(agentvDir, 'default-test.yaml'),
+      }),
+    );
+  });
+
+  it('rejects assertions in file-backed default_test', async () => {
+    const agentvDir = path.join(tempDir, '.agentv');
+    await mkdir(agentvDir, { recursive: true });
+    await writeFile(
+      path.join(agentvDir, 'default-test.yaml'),
+      ['assertions:', '  - type: contains', '    value: hello', ''].join('\n'),
+    );
+    const evalPath = path.join(tempDir, 'default-test-assertions.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: default-test-assertions-suite',
+        'default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
+        'tests:',
+        '  - id: one',
+        '    input: hello',
+        '',
+      ].join('\n'),
+    );
+
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(
+      /default_test file must use assert, not assertions/,
+    );
+  });
+
   it('expands top-level prompts across tests with per-test vars', async () => {
     const evalPath = path.join(tempDir, 'prompt-matrix.eval.yaml');
     await writeFile(
@@ -835,7 +947,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'workspace:',
         '  template: ./child-workspace',
         'input: child shared input',
-        'assertions:',
+        'assert:',
         '  - type: contains',
         '    value: child',
         'tests:',
@@ -859,7 +971,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  budget_usd: 1.5',
         'timeout_seconds: 30',
         'input: parent shared input',
-        'assertions:',
+        'assert:',
         '  - type: contains',
         '    value: parent',
         'tests:',
@@ -1196,7 +1308,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'workspace:',
         '  template: ./child-workspace',
         'input: child shared input',
-        'assertions:',
+        'assert:',
         '  - type: contains',
         '    value: child',
         'threshold: 0.2',
@@ -1263,7 +1375,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'workspace:',
         '  template: ./parent-workspace',
         'input: parent shared input',
-        'assertions:',
+        'assert:',
         '  - type: contains',
         '    value: parent',
         'imports:',
@@ -1447,7 +1559,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'name: child-suite',
         'input: child shared input',
-        'assertions:',
+        'assert:',
         '  - type: contains',
         '    value: child',
         'tests:',
@@ -1465,7 +1577,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'workspace:',
         '  template: ./parent-workspace',
         'input: parent shared input',
-        'assertions:',
+        'assert:',
         '  - type: contains',
         '    value: parent',
         'tests:',

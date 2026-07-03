@@ -123,6 +123,85 @@ tests:
     expect(result.errors).toHaveLength(0);
   });
 
+  it('rejects default_test.assertions in favor of default_test.assert', async () => {
+    const filePath = path.join(tempDir, 'default-test-assertions.yaml');
+    await writeFile(
+      filePath,
+      `default_test:
+  assertions:
+    - type: contains
+      value: ok
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'default_test.assertions' }),
+    );
+  });
+
+  it('validates string default_test references', async () => {
+    const filePath = path.join(tempDir, 'default-test-reference.yaml');
+    await writeFile(
+      filePath,
+      `default_test: file://.agentv/default-test.yaml
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates ref default_test references', async () => {
+    const filePath = path.join(tempDir, 'default-test-ref-reference.yaml');
+    await writeFile(
+      filePath,
+      `default_test: ref://global-default
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects bare default_test reference names', async () => {
+    const filePath = path.join(tempDir, 'default-test-bare-reference.yaml');
+    await writeFile(
+      filePath,
+      `default_test: global-default
+tests:
+  - id: test-1
+    criteria: Goal
+    input: Query
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ severity: 'error', location: 'default_test' }),
+    );
+  });
+
   it('rejects invalid default_test threshold values and unsupported default fields', async () => {
     const filePath = path.join(tempDir, 'invalid-default-test-threshold.yaml');
     await writeFile(

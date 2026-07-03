@@ -985,6 +985,7 @@ export interface EvalSourceReference {
     /** @deprecated New eval loads emit script_grader_cwd. */
     | 'code_grader_cwd'
     | 'assertion_template'
+    | 'default_test'
     | 'preprocessor_command';
   readonly displayPath: string;
   readonly resolvedPath?: string;

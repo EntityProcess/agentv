@@ -134,7 +134,20 @@ tests:
 
 `target: copilot-sdk` resolves the target label from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `copilot-sdk`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
-Use `default_test.threshold` for the inherited per-test pass cutoff. Existing eval files with a top-level `threshold` still load during migration, and `--threshold` on the CLI still overrides YAML thresholds for a run.
+Use `default_test.threshold` for the inherited per-test pass cutoff. `default_test` can also point at a shared file, matching promptfoo's external defaults pattern:
+
+```yaml
+default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+AgentV makes `AGENTV_REPO_ROOT` available during eval/config interpolation. Projects that prefer a short name can define their own reference in `.agentv/config.yaml`; `global-default` below is just an example key:
+
+```yaml
+refs:
+  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+```
+
+Then eval files in that project can use `default_test: ref://global-default`.
 
 **4. Run it:**
 ```bash

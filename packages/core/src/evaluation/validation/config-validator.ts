@@ -76,6 +76,7 @@ export async function validateConfigFile(
 
     validateResultsConfig(errors, filePath, config.results, 'results');
     validateRepoResolversConfig(errors, filePath, config.repo_resolvers);
+    validateRefsConfig(errors, filePath, config.refs);
 
     const projects = config.projects;
     if (projects !== undefined) {
@@ -106,6 +107,7 @@ export async function validateConfigFile(
       'execution',
       'results',
       'repo_resolvers',
+      'refs',
       'projects',
       'dashboard',
       'studio',
@@ -133,6 +135,25 @@ export async function validateConfigFile(
       message: `Failed to parse config file: ${(error as Error).message}`,
     });
     return { valid: false, filePath, fileType: 'config', errors };
+  }
+}
+
+function validateRefsConfig(errors: ValidationError[], filePath: string, rawRefs: unknown): void {
+  if (rawRefs === undefined) {
+    return;
+  }
+  if (!isPlainObject(rawRefs)) {
+    addError(errors, filePath, 'refs', "Field 'refs' must be an object");
+    return;
+  }
+
+  for (const [name, value] of Object.entries(rawRefs)) {
+    if (name.trim().length === 0) {
+      addError(errors, filePath, 'refs', "Field 'refs' has an empty ref name");
+    }
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      addError(errors, filePath, `refs.${name}`, `Field 'refs.${name}' must be a non-empty string`);
+    }
   }
 }
 

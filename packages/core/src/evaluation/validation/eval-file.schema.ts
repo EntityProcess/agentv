@@ -536,6 +536,10 @@ const DefaultTestSchema = z
   })
   .strict();
 
+const DefaultTestReferenceSchema = z
+  .string()
+  .regex(/^\s*(file|ref):\/\//, 'default_test string must start with file:// or ref://');
+
 const EvaluateOptionsSchema = z
   .object({
     budget_usd: z.number().gt(0).optional(),
@@ -721,7 +725,7 @@ export const EvalFileSchema: z.ZodType = z
     evaluate_options: EvaluateOptionsSchema.optional(),
     budget_usd: z.never().optional(),
     threshold: z.number().min(0).max(1).optional(),
-    default_test: DefaultTestSchema.optional(),
+    default_test: z.union([DefaultTestReferenceSchema, DefaultTestSchema]).optional(),
     scenarios: z.array(ScenarioSchema).optional(),
     derived_metrics: z.array(DerivedMetricSchema).optional(),
     output_path: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),

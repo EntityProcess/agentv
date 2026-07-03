@@ -1161,12 +1161,26 @@ function validateDefaultTest(
   if (defaultTest === undefined) {
     return;
   }
+  if (typeof defaultTest === 'string') {
+    const trimmed = defaultTest.trim();
+    if (trimmed.length === 0 || (!trimmed.startsWith('file://') && !trimmed.startsWith('ref://'))) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: 'default_test',
+        message:
+          "Invalid 'default_test' field (must be an object, file:// reference, or ref:// reference)",
+      });
+    }
+    return;
+  }
   if (!isObject(defaultTest)) {
     errors.push({
       severity: 'error',
       filePath,
       location: 'default_test',
-      message: "Invalid 'default_test' field (must be an object)",
+      message:
+        "Invalid 'default_test' field (must be an object, file:// reference, or ref:// reference)",
     });
     return;
   }

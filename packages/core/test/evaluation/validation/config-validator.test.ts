@@ -90,6 +90,42 @@ describe('validateConfigFile', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('accepts refs field without warnings', async () => {
+    const filePath = path.join(tempDir, 'config-refs.yaml');
+    await writeFile(
+      filePath,
+      `refs:
+  global-default: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('errors on invalid refs config', async () => {
+    const filePath = path.join(tempDir, 'config-invalid-refs.yaml');
+    await writeFile(
+      filePath,
+      `refs:
+  empty:
+  count: 3
+`,
+    );
+
+    const result = await validateConfigFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: 'error', location: 'refs.empty' }),
+        expect.objectContaining({ severity: 'error', location: 'refs.count' }),
+      ]),
+    );
+  });
+
   it('errors on invalid repo_resolvers config', async () => {
     const filePath = path.join(tempDir, 'config-invalid-repo-resolvers.yaml');
     await writeFile(
