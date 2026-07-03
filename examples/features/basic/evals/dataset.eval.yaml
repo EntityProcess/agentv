@@ -71,7 +71,7 @@ tests:
     # Multiple graders - supports both code-based and LLM graders
     assertions:
       - name: keyword_check
-        type: code-grader  # Code graders handle regex, keywords, linting, etc.
+        type: script  # Code graders handle regex, keywords, linting, etc.
         command: ["uv", "run", "check_python_keywords.py"]
         cwd: .  # Working directory for script execution
       - name: code_correctness

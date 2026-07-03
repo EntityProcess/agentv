@@ -29,5 +29,5 @@ tests:
       with working implementations.
     assertions:
       - name: functional-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../scripts/functional-check.ts"]

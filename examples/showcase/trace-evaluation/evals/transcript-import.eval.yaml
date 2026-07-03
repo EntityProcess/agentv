@@ -33,6 +33,6 @@ tests:
         max_duration_ms: 5000
 
       - name: replay-proof
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/replay-proof.ts"]
         require_metrics: false

@@ -80,7 +80,7 @@ default_test:
   threshold: 0.8
 
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./fixture
       repo: EntityProcess/agentv-contract-fixture
@@ -89,7 +89,7 @@ workspace:
 tests:
   - id: fizzbuzz
     input: Write FizzBuzz in Python
-    assertions:
+    assert:
       - type: contains
         value: "fizz"
       - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
@@ -227,7 +227,7 @@ export default defineEval({
   },
   threshold: 0.8,
   workspace: {
-    isolation: 'per_case',
+    scope: 'attempt',
     repos: [
       {
         path: './fixture',

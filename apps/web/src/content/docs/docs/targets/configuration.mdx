@@ -83,6 +83,22 @@ tests:
   - id: test-2
 ```
 
+The string is a target `label` from `.agentv/targets.yaml` or `targets.yaml`.
+Use object form when an eval needs a local target variant:
+
+```yaml
+target:
+  extends: azure-base
+  label: azure-high-reasoning
+  model: gpt-5.4
+  reasoning_effort: high
+```
+
+`extends` names the base target label. `label` names the eval-local variant for
+results and comparison. If `label` is omitted, the eval overrides the base target
+under the same label. If `extends` is omitted, the object is a complete inline
+target definition and must include enough provider configuration to run.
+
 ## Grader Target
 
 Agent targets that need LLM-based evaluation specify a `grader_target` — the LLM used to run LLM grader graders:
@@ -166,7 +182,7 @@ workspace:
   hooks:
     after_each:
       reset: fast             # none | fast | strict
-  isolation: shared           # shared (default) | per_case
+  scope: suite                # suite (default) | attempt
 ```
 
 `repo` declares the repository identity. Acquisition is harness-owned: AgentV first applies configured `repo_resolvers`, then uses the built-in git path of registered projects, configured mirrors, AgentV's git cache, and remote clone. See [Workspace Architecture](/docs/guides/workspace-architecture/#acquisition-resolver) for the resolver order, command resolver protocol, and `git_cache.mirrors` config.
@@ -180,18 +196,14 @@ workspace:
 | `repos[].ancestor` | Walk N commits back from the checked-out ref (e.g., `1` for parent) |
 | `repos[].sparse` | Sparse checkout paths |
 | `hooks.after_each.reset` | Reset policy after each test: `none`, `fast`, `strict` |
-| `isolation` | `shared` reuses one workspace; `per_case` creates a fresh copy per test case |
+| `scope` | `suite` reuses one harness-managed workspace for the suite; `attempt` creates a clean workspace for each resolved execution attempt |
 | `hooks.enabled` | Boolean (default: `true`). Set `false` to skip all lifecycle hooks. |
 
-`isolation: per_case` is the spelling for fresh workspace state per test case.
-
-**Workspace mode:** shared workspaces with `repos` use fresh temp workspaces by default. Use `--workspace-mode pooled` or `execution.workspace_mode: pooled` in local config only when you explicitly want pool-slot reuse.
+Use `scope: attempt` when mutating agents need clean filesystem state for every prompt-target-test-repeat execution. Use `scope: suite` when the suite intentionally shares state across tests.
 
 **Existing local workspaces:** do not commit local paths in eval YAML. Use `--workspace-path /path/to/workspace` for a one-off run, or put `execution.workspace_path` in `.agentv/config.local.yaml`.
 
-Pool management commands:
-- `agentv workspace list` — list all pool entries with size and repo info
-- `agentv workspace clean` — remove all pool entries
+Workspace command:
 - `agentv workspace deps <eval-paths>` — scan eval files and output a JSON manifest of required git repos (for CI pre-cloning)
 
 **Common patterns:**

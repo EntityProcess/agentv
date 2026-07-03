@@ -54,5 +54,5 @@ tests:
 
     assertions:
       - name: check-root-and-repo-changes
-        type: code-grader
+        type: script
         command: ["bun", "run", "../scripts/check-file-changes.ts"]

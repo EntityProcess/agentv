@@ -5,18 +5,18 @@ sidebar:
   order: 3
 ---
 
-Rubrics are defined with `assertions` entries and support binary checklist grading and score-range analytic grading.
+Rubrics are defined with `assert` entries and support binary checklist grading and score-range analytic grading.
 
 ## Basic Usage
 
-The simplest form — list plain strings in `assertions` and each one becomes a required criterion:
+The simplest form: list plain strings in `assert` and each one becomes a required criterion:
 
 ```yaml
 tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    assertions:
+    assert:
       - Mentions divide-and-conquer approach
       - Explains partition step
       - States time complexity
@@ -33,7 +33,7 @@ tests:
   - id: quicksort-explain
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
-    assertions:
+    assert:
       - type: g-eval
         criteria:
           - Mentions divide-and-conquer approach
@@ -46,7 +46,7 @@ tests:
 For fine-grained control, use rubric objects with weights and requirements:
 
 ```yaml
-assertions:
+assert:
   - type: g-eval
     criteria:
       - id: core-concept
@@ -82,7 +82,7 @@ Use `min_score` for analytic rubric gating. The only 0–10 values in authored g
 Use `operator` when the criterion outcome should be interpreted with a specific grading intent instead of relying on the wording in `outcome`.
 
 ```yaml
-assertions:
+assert:
   - type: g-eval
     criteria:
       - id: supported-revenue
@@ -102,7 +102,7 @@ assertions:
 For quality gradients instead of binary pass/fail, use score ranges:
 
 ```yaml
-assertions:
+assert:
   - type: g-eval
     criteria:
       - id: accuracy
@@ -141,11 +141,11 @@ score = sum(criterion_score / 10 * weight) / sum(total_weights)
 
 ## Authoring Rubrics
 
-Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic graders, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
+Write rubric criteria directly in `assert`. If you want help choosing between plain rubric strings, deterministic graders, and LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
 
 ## Context Available to Rubric Graders
 
-Rubric assertions automatically receive the full evaluation context, not just the agent's text answer. When present, the following are appended to the grader prompt:
+Rubric checks automatically receive the full evaluation context, not just the agent's text answer. When present, the following are appended to the grader prompt:
 
 - **`file_changes`** — unified diff of workspace file changes (when `workspace` is configured)
 - **`tool_calls`** — formatted summary of tool calls from agent execution (tool name + key inputs)
@@ -153,7 +153,7 @@ Rubric assertions automatically receive the full evaluation context, not just th
 This means rubric criteria can reason about *what the agent did*, not only what it said. For example, you can check whether an agent invoked a specific skill:
 
 ```yaml
-assertions:
+assert:
   - The agent invoked the acme-deploy skill
   - The agent used Read to inspect the config file before editing
 ```
@@ -162,14 +162,14 @@ This is a lightweight alternative to the `skill-trigger` evaluator when you want
 
 ## Combining with Other Graders
 
-Rubrics work alongside code and LLM graders:
+Rubrics work alongside script and LLM graders:
 
 ```yaml
 tests:
   - id: code-quality
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function
-    assertions:
+    assert:
       - type: g-eval
         criteria:
           - Returns correct values for n=0,1,2,10

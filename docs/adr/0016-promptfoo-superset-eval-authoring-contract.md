@@ -47,8 +47,8 @@ keep AgentV's only where its semantics are genuinely better.**
    Dashboard can show criterion-level evidence, using the same mechanism as code
    graders, field accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
-   `code-grader` = the subprocess power tool (workspace-`cwd`, arbitrary language) —
-   `javascript` is NOT desugared to `code-grader`.
+   `script` = the subprocess power tool (workspace-`cwd`, arbitrary language).
+   `javascript` is NOT desugared to `script`.
 4. **`metric` is the named-score field** (nunjucks-templated); grader `name` becomes
    display-only. Add `named_scores` + `derived_metrics`.
 5. **`targets` is the canonical system-under-test** axis (promptfoo target/`ProviderOptions`
@@ -89,8 +89,8 @@ keep AgentV's only where its semantics are genuinely better.**
     first-class via a registered custom backend or a `beforeAll` escape hatch, and the
     built-in acquisition may itself be a swappable plugin — this is the correction of an
     earlier over-absolute "not an extension" claim; provenance stays a declarative field,
-    acquisition stays extensible. `isolation` (shared/pooled/fresh) is a `workspace`
-    config field, not a hook choice.
+    acquisition stays extensible. `workspace.scope` (`suite` or `attempt`) is the portable
+    workspace lifetime field.
     **Extensions are for pluggable non-provisioning setup only**: promptfoo lifecycle
     (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
     e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
@@ -105,7 +105,7 @@ Removed (hard): `assertions`, `composite`, `eval_cases`,
 `workspace.hooks` (→ `extensions`), `on_run_complete`, `preprocessors`, `${{ ENV }}`,
 top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, the
 `z.never()` rejection stubs. **Kept** as declarative fields: `workspace.repos` (provenance),
-`workspace.isolation`, `workspace.docker`, `workspace.template`, direct-suite
+`workspace.scope`, `workspace.docker`, `workspace.template`, direct-suite
 `input`, and direct-suite `input_files`.
 
 ## Consequences
@@ -115,6 +115,6 @@ top-level `budget_usd`, scalar top-level `threshold`, grader `name`-as-metric, t
   message pointing at the replacement.
 - promptfoo authors get a near-drop-in contract (snake_case); AgentV keeps repo/agent
   differentiation as documented extensions.
-- FizzBuzz/SWE-bench-style test grading needs no new assertion primitive — a
-  workspace-`cwd` `code-grader` runs the tests (see ADR 0017 note on SWE-bench
+- FizzBuzz/SWE-bench-style test grading needs no new assertion primitive -- a
+  workspace-`cwd` `script` grader runs the tests (see ADR 0017 note on SWE-bench
   `FAIL_TO_PASS`/`PASS_TO_PASS`).

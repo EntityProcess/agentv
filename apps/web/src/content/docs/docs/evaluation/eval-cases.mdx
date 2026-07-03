@@ -255,7 +255,7 @@ run without an LLM call and produce binary (0 or 1) scores:
 | `is-json` | — | Pass if output is valid JSON |
 | `equals` | `string` | Pass if output exactly equals the value (trimmed) |
 
-Underscore variants (`contains_all`, `is_json`, etc.) are also accepted.
+Multi-word assertion types use kebab-case (`contains-all`, `is-json`, etc.).
 
 ```yaml
 tests:
@@ -321,7 +321,7 @@ tests:
         value: ["true/false", "boolean", "expected value"]
 ```
 
-Assertion graders auto-generate a `name` when one is not provided (e.g., `contains-DENIED`, `is_json`).
+Assertion graders auto-generate a `name` when one is not provided (e.g., `contains-DENIED`, `is-json`).
 
 ### Advanced Rubric Assertions
 

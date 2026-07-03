@@ -169,11 +169,11 @@ describe('repo lifecycle schema validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts workspace with isolation field', () => {
+  it('accepts workspace with scope field', () => {
     const result = EvalFileSchema.safeParse({
       ...baseEval,
       workspace: {
-        isolation: 'per_case',
+        scope: 'attempt',
         repos: [
           {
             path: './repo-a',

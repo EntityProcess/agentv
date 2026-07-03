@@ -30,7 +30,7 @@ tests:
 
     assertions:
       - name: tool-f1
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/tool-call-f1.ts"]
         expected_tools: ["search", "fetch"]
 
@@ -48,7 +48,7 @@ tests:
 
     assertions:
       - name: tool-args-f1
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/tool-args-f1.ts"]
         expected_tools:
           - tool: search
@@ -77,6 +77,6 @@ tests:
 
       # Plugin: F1 score over expected tools
       - name: tool-f1
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/tool-call-f1.ts"]
         expected_tools: ["search", "validate", "process"]

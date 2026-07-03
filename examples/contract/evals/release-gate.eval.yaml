@@ -38,5 +38,5 @@ tests:
       - type: contains
         value: workspace ready
       - name: workspace-template-materialized
-        type: code-grader
+        type: script
         command: ["bun", "../scripts/check-workspace.ts"]

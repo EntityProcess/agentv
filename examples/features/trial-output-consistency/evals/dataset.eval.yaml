@@ -24,7 +24,7 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
@@ -47,7 +47,7 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
@@ -70,7 +70,7 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token
@@ -91,7 +91,7 @@ tests:
 
     assertions:
       - name: trial-consistency
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/trial-consistency.ts"]
         config:
           fallback: token

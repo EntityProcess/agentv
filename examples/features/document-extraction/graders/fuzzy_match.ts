@@ -10,7 +10,7 @@
  * ```yaml
  * graders:
  *   - name: vendor_name_fuzzy
- *     type: code-grader
+ *     type: script
  *     command: ["bun", "run", "../graders/fuzzy_match.ts"]
  * ```
  *

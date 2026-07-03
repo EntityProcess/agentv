@@ -25,5 +25,5 @@ tests:
       - type: contains
         value: READY
       - name: repo-materialized-previous-commit
-        type: code-grader
+        type: script
         command: ["bun", "../scripts/check-repo-materialization.ts"]

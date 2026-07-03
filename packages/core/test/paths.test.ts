@@ -7,7 +7,6 @@ import {
   getAgentvDataDir,
   getSubagentsRoot,
   getTraceStateRoot,
-  getWorkspacePoolRoot,
   getWorkspacesRoot,
 } from '../src/paths.js';
 
@@ -67,13 +66,11 @@ describe('paths', () => {
     expect(getWorkspacesRoot()).toBe(path.join('/custom/agentv-data', 'workspaces'));
     expect(getSubagentsRoot()).toBe(path.join('/custom/agentv-data', 'subagents'));
     expect(getTraceStateRoot()).toBe(path.join('/custom/agentv-data', 'trace-state'));
-    expect(getWorkspacePoolRoot()).toBe(path.join('/custom/agentv-data', 'workspace-pool'));
   });
 
   it('heavy data helpers default to ~/.agentv subpaths', () => {
     expect(getWorkspacesRoot()).toBe(path.join(os.homedir(), '.agentv', 'workspaces'));
     expect(getSubagentsRoot()).toBe(path.join(os.homedir(), '.agentv', 'subagents'));
     expect(getTraceStateRoot()).toBe(path.join(os.homedir(), '.agentv', 'trace-state'));
-    expect(getWorkspacePoolRoot()).toBe(path.join(os.homedir(), '.agentv', 'workspace-pool'));
   });
 });

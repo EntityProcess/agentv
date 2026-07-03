@@ -42,11 +42,6 @@
           "description": "Machine-local existing workspace directory for eval runs (equivalent to --workspace-path). Only honored in .agentv/config.local.yaml; do not commit local paths.",
           "examples": ["/home/user/workspaces/my-eval"]
         },
-        "workspace_mode": {
-          "type": "string",
-          "description": "Machine-local workspace preparation override (equivalent to --workspace-mode). Only honored in .agentv/config.local.yaml. Use static with workspace_path, temp for fresh materialization, or pooled for default shared repo pooling.",
-          "enum": ["pooled", "temp", "static"]
-        },
         "otel_file": {
           "type": "string",
           "description": "Write OTLP JSON trace to this path (equivalent to --otel-file). Supports {timestamp} placeholder.",

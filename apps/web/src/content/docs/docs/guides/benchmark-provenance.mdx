@@ -29,7 +29,7 @@ Use this split when deciding where a benchmark key belongs:
 | `workspace.template` | Yes | Copies a workspace template into the run workspace. |
 | `extensions` | Yes | Runs Promptfoo-style lifecycle setup after `workspace.template` and `workspace.repos` materialize. |
 | `workspace.hooks.after_each.reset` | Yes | Controls workspace reset policy after each case. |
-| `workspace.isolation` | Yes | Controls shared vs per-case folder isolation. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
+| `workspace.scope` | Yes | Controls suite vs per-attempt workspace lifetime. Runtime workspace paths are machine-local config/CLI bindings, not benchmark provenance. |
 | `experiment` | Yes | Selects targets, thresholds, repeat policy, budgets, and default grader behavior. Concurrency is an operator/run setting from `--workers` or project config. |
 | `input`, `input_files`, `expected_output` | Yes | Builds the target prompt and carries passive gold/reference data for graders. |
 | `assertions` | Yes | Runs deterministic, LLM, composite, or script graders. |
@@ -99,7 +99,7 @@ name: swe-style-regression
 description: Regression tasks against pinned source commits.
 
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git
@@ -154,7 +154,7 @@ primitives.
 name: repo-regressions
 
 workspace:
-  isolation: per_case
+  scope: attempt
   repos:
     - path: ./repo
       repo: https://github.com/example/widget.git

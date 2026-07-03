@@ -2,7 +2,7 @@
  * Convention-based discovery of custom assertion scripts.
  *
  * Scans `.agentv/assertions/` for TypeScript/JavaScript files and registers
- * them as code graders in the registry. The file name (without
+ * them as script graders in the registry. The file name (without
  * extension) becomes the grader type name.
  *
  * Example: `.agentv/assertions/sentiment.ts` → type "sentiment" in EVAL.yaml

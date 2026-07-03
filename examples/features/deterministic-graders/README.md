@@ -1,15 +1,15 @@
 # Deterministic Graders
 
-Demonstrates how a single, parameterised `code_grader` script can replace a family of built-in assertion graders (contains, regex, JSON validation, etc.).
+Demonstrates how a single parameterised `script` grader can replace a family of built-in assertion graders (contains, regex, JSON validation, etc.).
 
-## Why a Code Grader?
+## Why a Script Grader?
 
 AgentV's design philosophy keeps the core minimal. Instead of adding `contains`, `regex`, `is-json` as built-in grader types, you write a small code grader and drive it with YAML `config`:
 
 ```yaml
 graders:
   - name: has-keyword
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/assertions.ts"]
     config:
       type: contains
@@ -31,7 +31,7 @@ Set `negated: true` in config to invert any assertion.
 
 ## Files
 
-- `graders/assertions.ts` — Parameterised code grader using `defineCodeGrader` from `@agentv/sdk`
+- `graders/assertions.ts` — Parameterised script grader using `defineCodeGrader` from `@agentv/sdk`
 - `evals/dataset.eval.yaml` — Example tests covering every assertion type
 
 ## Setup

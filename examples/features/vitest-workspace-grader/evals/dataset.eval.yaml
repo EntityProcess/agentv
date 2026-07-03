@@ -17,7 +17,7 @@ tests:
       no TODO marker behind.
     assertions:
       - name: vitest-welcome-banner
-        type: code-grader
+        type: script
         command:
           [
             "bun",

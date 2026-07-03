@@ -5,7 +5,7 @@ tests:
     criteria: Response echoes the input
     assertions:
       - name: contains_hello
-        type: code-grader
+        type: script
         command: node grader-score-1.js
         weight: 1.0
       - name: relevance

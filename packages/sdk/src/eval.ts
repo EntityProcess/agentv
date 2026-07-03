@@ -116,10 +116,9 @@ export interface EvalDockerWorkspace {
 
 export interface EvalWorkspace {
   readonly template?: string;
-  readonly isolation?: 'shared' | 'per_case';
+  readonly scope?: 'suite' | 'attempt';
   readonly repos?: readonly EvalWorkspaceRepo[];
   readonly hooks?: EvalWorkspaceHooks;
-  readonly mode?: 'pooled' | 'temp' | 'static';
   readonly path?: string;
   readonly docker?: EvalDockerWorkspace;
 }

@@ -54,7 +54,7 @@ tests:
             type: llm-grader
             prompt: ../prompts/technical-accuracy.md
         aggregator:
-          type: code-grader
+          type: script
           path: bun run ../scripts/safety-gate-aggregator.js
 
   # Example 3: Strict OR with a local code-grader aggregator
@@ -79,7 +79,7 @@ tests:
             type: contains
             value: capital
         aggregator:
-          type: code-grader
+          type: script
           path: bun run ../scripts/or-aggregator.js
 
   # Example 4: LLM Grader Aggregator

@@ -34,8 +34,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    count: 2',
         '    strategy: pass_any',
         '    early_exit: true',
+        '  budget_usd: 1.5',
         'timeout_seconds: 30',
-        'budget_usd: 1.5',
         'tests:',
         '  - id: one',
         '    input: hello',
@@ -257,14 +257,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/tests\[\]\.input/);
   });
 
-  it('parses evaluate_options.budget_usd and prefers it over legacy top-level budget_usd', async () => {
+  it('parses evaluate_options.budget_usd', async () => {
     const evalPath = path.join(tempDir, 'evaluate-options-budget.eval.yaml');
     await writeFile(
       evalPath,
       [
         'name: evaluate-options-budget-suite',
         'target: codex',
-        'budget_usd: 99',
         'evaluate_options:',
         '  budget_usd: 2.5',
         'tests:',
@@ -831,7 +830,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'target: child-target',
         'threshold: 0.2',
         'timeout_seconds: 10',
-        'budget_usd: 0.5',
+        'evaluate_options:',
+        '  budget_usd: 0.5',
         'workspace:',
         '  template: ./child-workspace',
         'input: child shared input',
@@ -856,8 +856,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  repeat:',
         '    count: 3',
         '    strategy: pass_any',
+        '  budget_usd: 1.5',
         'timeout_seconds: 30',
-        'budget_usd: 1.5',
         'input: parent shared input',
         'assertions:',
         '  - type: contains',
@@ -1037,7 +1037,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: child-suite',
         'threshold: 0.2',
         'timeout_seconds: 10',
-        'budget_usd: 0.5',
+        'evaluate_options:',
+        '  budget_usd: 0.5',
         'tests:',
         '  - id: child-default',
         '    input: default',
@@ -1066,7 +1067,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: child-suite',
         'threshold: 0.2',
         'timeout_seconds: 10',
-        'budget_usd: 0.5',
+        'evaluate_options:',
+        '  budget_usd: 0.5',
         'tests:',
         '  - id: child-default',
         '    input: default',
@@ -1104,7 +1106,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: child-suite',
         'threshold: 0.2',
         'timeout_seconds: 10',
-        'budget_usd: 0.5',
+        'evaluate_options:',
+        '  budget_usd: 0.5',
         'tests:',
         '  - id: child-default',
         '    input: default',

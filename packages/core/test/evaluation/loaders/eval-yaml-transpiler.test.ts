@@ -315,7 +315,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions).toContain('Agent called tools in order: read_file, write_file');
   });
 
-  it('converts code-grader with name to assert instruction', () => {
+  it('converts script grader with name to assert instruction', () => {
     const suite = {
       tests: [
         {
@@ -324,7 +324,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'code-grader',
+              type: 'script',
               name: 'skill-trigger',
               description: 'Checks skill was triggered',
             },
@@ -337,7 +337,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions[0]).toContain('agentv eval assert skill-trigger');
   });
 
-  it('converts code-grader to agentv assert instruction with description', () => {
+  it('converts script grader to agentv assert instruction with description', () => {
     const suite = {
       tests: [
         {
@@ -346,7 +346,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'code-grader',
+              type: 'script',
               name: 'format-checker',
               description: 'Validates output CSV format',
               command: ['bun', 'run', '.agentv/graders/format-checker.ts'],
@@ -363,7 +363,7 @@ describe('transpileEvalYaml — NL assertions', () => {
     expect(evals[0].assertions[0]).toContain('Validates output CSV format');
   });
 
-  it('derives grader name from command when code-grader has no name', () => {
+  it('derives grader name from command when script grader has no name', () => {
     const suite = {
       tests: [
         {
@@ -372,7 +372,7 @@ describe('transpileEvalYaml — NL assertions', () => {
           assertions: [
             { type: 'skill-trigger', skill: 's', should_trigger: true },
             {
-              type: 'code-grader',
+              type: 'script',
               command: ['bun', 'run', '.agentv/graders/output-validator.ts'],
             },
           ],

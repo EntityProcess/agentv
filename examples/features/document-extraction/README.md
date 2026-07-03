@@ -58,7 +58,7 @@ Uses a custom `code-grader` that emits `details.metrics` with TP/TN/FP/FN per fi
 ```yaml
 graders:
   - name: header_confusion
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/header_confusion_metrics.ts"]
     fields:
       - path: invoice_number

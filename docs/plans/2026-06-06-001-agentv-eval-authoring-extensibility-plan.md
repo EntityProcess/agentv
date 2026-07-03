@@ -129,7 +129,7 @@ Architecture conclusion:
 - Near-term core schema addition: optional rubric criterion `operator`, initially enough to preserve Dexter `correctness` and `contradiction` semantics.
 - CLI templates should be static scaffolds that generate ordinary files, not a runtime plugin host.
 - Peer-framework adapters should remain private scripts/packages until hand ports prove stable non-lossy subsets.
-- Public docs should carry most DX improvement: benchmark provenance patterns, operational vs informational metadata, case directories, workspace pooling, Docker image reuse, and adapter limitations.
+- Public docs should carry most DX improvement: benchmark provenance patterns, operational vs informational metadata, case directories, workspace scope, Docker image reuse, and adapter limitations.
 
 ### 2. Add a small authoring-template layer, not a runtime plugin platform
 

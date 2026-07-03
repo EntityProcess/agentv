@@ -154,12 +154,12 @@ Enable target access by adding a `target` block to your `code_grader` grader:
 ```yaml
 graders:
   - name: contextual_precision
-    type: code-grader
+    type: script
     command: [bun, run, scripts/contextual-precision.ts]
     target:
       max_calls: 10  # At least N nodes to evaluate
   - name: contextual_recall
-    type: code-grader
+    type: script
     command: [bun, run, scripts/contextual-recall.ts]
     target:
       max_calls: 15  # 1 for extraction + N statements for attribution

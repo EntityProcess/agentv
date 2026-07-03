@@ -38,7 +38,7 @@ tests:
 
       # Plugin: Semantic tool selection evaluation
       - name: selection-quality
-        type: code-grader
+        type: script
         command: ["bun", "run", "scripts/tool-selection-grader.ts"]
 
   # ==========================================
@@ -59,7 +59,7 @@ tests:
     assertions:
       # Plugin: Efficiency metrics scoring
       - name: efficiency-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
@@ -92,12 +92,12 @@ tests:
 
       # Plugin: Check if tools were appropriate choices
       - name: selection-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "scripts/tool-selection-grader.ts"]
 
       # Plugin: Evaluate efficiency
       - name: efficiency
-        type: code-grader
+        type: script
         command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 
   # ==========================================
@@ -127,5 +127,5 @@ tests:
     assertions:
       # Plugin: Pairwise comparison with position bias mitigation
       - name: pairwise-quality
-        type: code-grader
+        type: script
         command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]

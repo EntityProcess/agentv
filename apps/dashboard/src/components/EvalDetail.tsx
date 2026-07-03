@@ -1,5 +1,5 @@
 /**
- * Eval detail view with checks, source traceability, artifact files, and feedback.
+ * Eval detail view with checks, source traceability, artifact files, and artifacts.
  *
  * Layout: compact header → tabs → full-height content area.
  * Scores and assertions are only visible in the Checks tab.
@@ -31,7 +31,6 @@ import type {
   SourceTraceability,
 } from '~/lib/types';
 
-import { FeedbackPanel } from './FeedbackPanel';
 import type { FileNode } from './FileTree';
 import { FileTree } from './FileTree';
 import { MonacoViewer } from './MonacoViewer';
@@ -49,7 +48,7 @@ interface EvalDetailProps {
   onSelectTrial?: (trial: EvalCaseTrial, initialTab?: Tab) => void;
 }
 
-type Tab = 'checks' | 'transcript' | 'source' | 'files' | 'feedback';
+type Tab = 'checks' | 'transcript' | 'source' | 'files';
 
 /** Recursively find the first file node in the tree. */
 function findFirstFile(nodes: FileNode[]): string | null {
@@ -138,8 +137,6 @@ export function EvalDetail({
 }: EvalDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(initialSelectedFilePath);
-  const { data: config } = useStudioConfig(projectId);
-  const isReadOnly = config?.read_only === true;
   const detailResult = selectedTrial ? selectedTrialResult(result, selectedTrial) : result;
   const showAggregateRepeat = repeatGroup != null && selectedTrial == null;
 
@@ -153,7 +150,6 @@ export function EvalDetail({
     { id: 'transcript', label: 'Transcript' },
     { id: 'source', label: 'Source' },
     { id: 'files', label: 'Files' },
-    ...(isReadOnly ? [] : [{ id: 'feedback' as const, label: 'Feedback' }]),
   ];
 
   const openFile = (filePath: string) => {
@@ -248,11 +244,6 @@ export function EvalDetail({
         {activeTab === 'source' && (
           <div className="overflow-auto p-4">
             <SourceTab result={detailResult} />
-          </div>
-        )}
-        {!isReadOnly && activeTab === 'feedback' && (
-          <div className="p-4">
-            <FeedbackPanel testId={detailResult.testId} projectId={projectId} />
           </div>
         )}
       </div>

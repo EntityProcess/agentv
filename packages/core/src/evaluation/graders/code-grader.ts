@@ -22,7 +22,7 @@ const FILE_BACKED_OUTPUT_THRESHOLD = 50_000;
 const DATA_URI_RE = /^data:([^;]+);base64,(.+)$/s;
 
 /**
- * Convert ContentImage blocks in message arrays for code grader consumption.
+ * Convert ContentImage blocks in message arrays for script grader consumption.
  *
  * - Data URI images (`data:image/png;base64,...`) → decoded, written to temp file, replaced with file path.
  * - Non-URI images (already a path or URL) → `source` carried through as `path`.
@@ -106,7 +106,7 @@ export interface CodeGraderOptions {
 }
 
 export class CodeGrader implements Grader {
-  readonly kind = 'code-grader';
+  readonly kind = 'script';
 
   private readonly command: readonly string[];
   private readonly cwd?: string;

@@ -84,13 +84,13 @@ interface RawSuite {
 // ---------------------------------------------------------------------------
 
 /**
- * Build an NL instruction string for a code grader that tells the grading agent
+ * Build an NL instruction string for a script grader that tells the grading agent
  * how to execute it via `agentv eval assert`.
  *
  * The `<agent_output>` and `<original_prompt>` placeholders are substituted
  * by the grading agent at evaluation time.
  */
-function codeGraderInstruction(graderName: string, description?: string): string {
+function scriptGraderInstruction(graderName: string, description?: string): string {
   const desc = description ? ` This grader: ${description}.` : '';
   return `Run \`agentv eval assert ${graderName} --agent-output <agent_output> --agent-input <original_prompt>\` and check the result.${desc} The command accepts --agent-output (the agent's full response text) and --agent-input (the original user prompt). It returns JSON on stdout: {"score": 0-1, "reasoning": "..."}. A score >= 0.5 means pass (exit 0); below 0.5 means fail (exit 1).`;
 }
@@ -128,16 +128,14 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
     case 'contains':
       return `Output contains '${entry.value}'`;
 
-    case 'contains-any':
-    case 'contains_any': {
+    case 'contains-any': {
       const values = Array.isArray(entry.value)
         ? (entry.value as string[]).join("', '")
         : entry.value;
       return `Output contains any of: '${values}'`;
     }
 
-    case 'contains-all':
-    case 'contains_all': {
+    case 'contains-all': {
       const values = Array.isArray(entry.value)
         ? (entry.value as string[]).join("', '")
         : entry.value;
@@ -154,29 +152,23 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
       return `Output exactly equals: ${entry.value}`;
 
     case 'is-json':
-    case 'is_json':
       return 'Output is valid JSON';
 
     case 'starts-with':
-    case 'starts_with':
       return `Output starts with '${entry.value}'`;
 
     case 'ends-with':
-    case 'ends_with':
       return `Output ends with '${entry.value}'`;
 
     case 'llm-grader':
-    case 'llm_grader': {
       // Expand each rubric item to its own assertion string
       // Return the first one — callers handle arrays via assertionToNaturalLanguageList
       if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
         return null; // handled by list expansion below
       }
       return typeof entry.prompt === 'string' ? entry.prompt : null;
-    }
 
-    case 'tool-trajectory':
-    case 'tool_trajectory': {
+    case 'tool-trajectory': {
       const expectedArr = Array.isArray(entry.expected) ? entry.expected : [];
       const tools = (expectedArr as Array<{ tool?: string }>)
         .map((e) => e.tool)
@@ -187,15 +179,13 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
         : 'Agent followed expected tool trajectory';
     }
 
-    case 'code-grader':
-    case 'code_grader': {
-      const graderName = entry.name ?? deriveGraderNameFromCommand(entry.command) ?? 'code-grader';
+    case 'script': {
+      const graderName = entry.name ?? deriveGraderNameFromCommand(entry.command) ?? 'script';
       const desc = typeof entry.description === 'string' ? entry.description : undefined;
-      return codeGraderInstruction(graderName, desc);
+      return scriptGraderInstruction(graderName, desc);
     }
 
-    case 'field-accuracy':
-    case 'field_accuracy': {
+    case 'field-accuracy': {
       const fieldPaths = Array.isArray(entry.fields)
         ? (entry.fields as Array<{ path?: string }>)
             .map((f) => f.path)
@@ -218,17 +208,15 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
         : 'Cost within budget';
 
     case 'token-usage':
-    case 'token_usage':
       return 'Token usage within limits';
 
     case 'execution-metrics':
-    case 'execution_metrics':
       return 'Execution within metric bounds';
 
     default: {
-      // Unknown type with a command → treat as code grader
+      // Unknown type with a command -> treat as a script grader.
       if (entry.command !== undefined && type) {
-        return codeGraderInstruction(deriveGraderNameFromCommand(entry.command) ?? type);
+        return scriptGraderInstruction(deriveGraderNameFromCommand(entry.command) ?? type);
       }
       // Fallback: try to produce something readable
       if (typeof entry.criteria === 'string') return entry.criteria;
@@ -243,7 +231,7 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
  * Most assertions produce exactly one string; llm-grader with rubrics expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
-  if (entry.type === 'llm-grader' || entry.type === 'llm_grader') {
+  if (entry.type === 'llm-grader') {
     if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
       return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)
         .map((r) => r.outcome ?? r.criteria ?? r.id)

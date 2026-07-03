@@ -42,5 +42,5 @@ tests:
         skill: csv-analyzer
         should_trigger: false
       - name: transcript-quality
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/transcript-quality.ts"]

@@ -18,7 +18,7 @@ tests:
     expected_output: "Paris"
     assertions:
       - name: keyword-grader
-        type: code-grader
+        type: script
         command: ["bun", "run", "graders/keyword-grader.ts"]
 
   - id: partial-match
@@ -27,5 +27,5 @@ tests:
     expected_output: "red, blue, yellow"
     assertions:
       - name: keyword-grader
-        type: code-grader
+        type: script
         command: ["bun", "run", "graders/keyword-grader.ts"]

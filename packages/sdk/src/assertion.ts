@@ -66,20 +66,6 @@ export type AssertionType =
   | 'python'
   | 'webhook'
   | 'similar'
-  // legacy snake_case aliases (still accepted)
-  | 'llm_grader'
-  | 'code_grader'
-  | 'tool_trajectory'
-  | 'field_accuracy'
-  | 'token_usage'
-  | 'execution_metrics'
-  | 'contains_any'
-  | 'contains_all'
-  | 'icontains_any'
-  | 'icontains_all'
-  | 'starts_with'
-  | 'ends_with'
-  | 'is_json'
   | (string & {});
 
 /**

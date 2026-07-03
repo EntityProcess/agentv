@@ -40,9 +40,9 @@ Covers tool call correctness, argument validity, execution path, and redundancy.
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Tool sequence | `tool_trajectory` (`in_order`, `exact`) |
-| Minimum tool usage | `tool_trajectory` (`any_order`) |
-| Argument correctness | `tool_trajectory` with `args` matching |
+| Tool sequence | `tool-trajectory` (`in_order`, `exact`) |
+| Minimum tool usage | `tool-trajectory` (`any_order`) |
+| Argument correctness | `tool-trajectory` with `args` matching |
 | Custom validation logic | `script` |
 
 ```yaml
@@ -73,8 +73,8 @@ Covers task completion, output correctness, step efficiency, latency, and cost. 
 | Concern | AgentV grader |
 |---------|-----------------|
 | Output correctness | `g-eval`, `equals`, `contains`, `regex` |
-| Structured data accuracy | `field_accuracy` |
-| Efficiency budgets | `execution_metrics` |
+| Structured data accuracy | `field-accuracy` |
+| Efficiency budgets | `execution-metrics` |
 | Multi-signal rollup | `composite` |
 
 ```yaml

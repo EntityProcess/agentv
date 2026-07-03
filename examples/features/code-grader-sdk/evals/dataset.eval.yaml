@@ -32,5 +32,5 @@ tests:
 
     assertions:
       - name: attachment-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../scripts/verify-attachments.ts"]

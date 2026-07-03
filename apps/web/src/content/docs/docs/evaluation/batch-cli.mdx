@@ -112,7 +112,7 @@ The `id` field must match the test `id` for AgentV to route output to the correc
 
 ### Output with Tool Trajectory
 
-To enable `tool_trajectory` evaluation, include `output` with `tool_calls`:
+To enable `tool-trajectory` evaluation, include `output` with `tool_calls`:
 
 ```json
 {
@@ -137,7 +137,7 @@ To enable `tool_trajectory` evaluation, include `output` with `tool_calls`:
 }
 ```
 
-AgentV extracts tool calls directly from `output[].tool_calls[]` for `tool_trajectory` graders.
+AgentV extracts tool calls directly from `output[].tool_calls[]` for `tool-trajectory` graders.
 
 ## Grader Implementation
 

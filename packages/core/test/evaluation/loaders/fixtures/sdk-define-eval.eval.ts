@@ -44,7 +44,9 @@ export default Object.defineProperties(suite, {
       description: suite.description,
       tags: suite.tags,
       target: suite.target,
-      budget_usd: suite.budgetUsd,
+      evaluate_options: {
+        budget_usd: suite.budgetUsd,
+      },
       threshold: suite.threshold,
       workspace: {
         hooks: {

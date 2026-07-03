@@ -85,7 +85,7 @@ target:
       command: ["bun", "../scripts/hook.ts", "target_before_each"]
 assertions:
   - name: secret-grader
-    type: code-grader
+    type: script
     command: ["bun", "../scripts/grader.ts"]
 tests:
   - id: case-1

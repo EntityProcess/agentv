@@ -449,7 +449,6 @@ export function createBuiltinRegistry(): GraderRegistry {
     .register('llm-grader', llmGraderFactory)
     .register('g-eval', gEvalFactory)
     .register('llm-rubric', llmRubricFactory)
-    .register('code-grader', codeFactory)
     .register('script', codeFactory)
     .register('composite', compositeFactory)
     .register('tool-trajectory', toolTrajectoryFactory)

@@ -1,5 +1,5 @@
 /**
- * `agentv pipeline bench` — Merge code-grader and LLM grader scores into final
+ * `agentv pipeline bench` — Merge script and LLM grader scores into final
  * benchmark artifacts.
  *
  * Reads code_grader_results and llm_grader_results from disk per test.
@@ -64,7 +64,7 @@ export const evalBenchCommand = command({
       const evaluators: EvaluatorScore[] = [];
       const allAssertions: { text: string; passed: boolean; evidence: string }[] = [];
 
-      // Collect code grader results
+      // Collect script grader results
       const codeResultsDir = join(testDir, 'code_grader_results');
       try {
         const resultFiles = (await readdir(codeResultsDir)).filter((f) => f.endsWith('.json'));
@@ -72,7 +72,7 @@ export const evalBenchCommand = command({
           const result = JSON.parse(await readFile(join(codeResultsDir, file), 'utf8'));
           evaluators.push({
             name: result.name,
-            type: result.type ?? 'code-grader',
+            type: result.type ?? 'script',
             score: result.score,
             weight: result.weight ?? 1.0,
             assertions: result.assertions ?? [],
@@ -82,7 +82,7 @@ export const evalBenchCommand = command({
           }
         }
       } catch {
-        // No code grader results
+        // No script grader results.
       }
 
       // Collect LLM grader scores from per-test disk results

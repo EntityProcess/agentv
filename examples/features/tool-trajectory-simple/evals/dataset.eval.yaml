@@ -1,7 +1,7 @@
 # AgentV Tool Trajectory Grader Demo
-# Demonstrates trace events and tool_trajectory grader for agent execution tracking
+# Demonstrates trace events and the tool-trajectory grader for agent execution tracking
 #
-# The tool_trajectory grader validates that an agent used the expected tools
+# The tool-trajectory grader validates that an agent used the expected tools
 # during execution. It works with trace data returned by agent providers.
 #
 # Five trajectory matching modes are available:
@@ -20,7 +20,7 @@
 #
 # Legacy shorthand:
 # - args: any - validate tool name only, ignore arguments
-# Note: For pattern/regex matching, use a code_grader grader instead.
+# Note: For pattern/regex matching, use a script grader instead.
 #
 # This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
 # The mock agent generates different traces based on the prompt content.

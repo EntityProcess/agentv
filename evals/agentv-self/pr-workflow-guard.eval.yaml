@@ -52,7 +52,7 @@ tests:
       you used, the safe merge path for #9001, and what happens to #9002.
     assertions:
       - name: required-guidance-reads
-        type: code-grader
+        type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]
         cwd: .
         required: true
@@ -61,7 +61,7 @@ tests:
             - AGENTS.md
             - .agents/workflow.md
       - name: pr-workflow-safety
-        type: code-grader
+        type: script
         command: ["bun", "run", "./graders/pr-workflow-safety.ts"]
         cwd: .
         required: true

@@ -127,7 +127,7 @@ describe('agentv grade prepared attempts', () => {
       tempDir,
       `
 - name: workspace-check
-  type: code-grader
+  type: script
   command: ["bun", "../scripts/workspace-grader.ts"]
 `,
     );

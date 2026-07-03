@@ -15,7 +15,7 @@
  * ```yaml
  * graders:
  *   - name: line_items_matched
- *     type: code-grader
+ *     type: script
  *     command: ["bun", "run", "../graders/line_item_matching.ts"]
  *     match_fields: ["description"]  # Fields used for matching
  *     score_fields: ["description", "quantity", "line_total"]  # Fields to score

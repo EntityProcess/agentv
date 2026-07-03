@@ -6,5 +6,5 @@ tests:
     criteria: "Transcript contains meaningful assistant messages with tool calls"
     assertions:
       - name: transcript-quality
-        type: code-grader
+        type: script
         command: [bun, graders/transcript-quality.ts]

@@ -153,5 +153,5 @@ tests:
 
       # Custom evaluation logic (for more complex checks)
       - name: custom-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../scripts/check-metrics-present.ts"]

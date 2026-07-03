@@ -18,11 +18,9 @@ Partially superseded by
 experiment bucket precedence, result row identity, and run bundle path naming.
 
 Superseded for the current eval authoring contract by
-[ADR 0013](0013-stabilize-eval-authoring-contract.md): top-level
-`experiment:` remains the optional string run/result grouping label, top-level
-authoring `tags` are removed from the preferred contract, `cases` / `case_id`
-replace `tests` / `test_id` as preferred vocabulary, and top-level `gate`
-replaces scalar `threshold`.
+[ADR 0016](0016-promptfoo-superset-eval-authoring-contract.md): `tests`,
+`prompts`/`vars`, `assert`, direct `input`, `target`/`targets`, and
+`evaluate_options` are the current promptfoo-aligned authoring surface.
 
 ## Context
 
@@ -68,17 +66,21 @@ The only runnable authoring artifact is `eval.yaml` or another `*.eval.yaml`
 file. A project may place wrapper eval files under an `experiments/` directory
 when their main job is to bind runtime policy over reusable suites, but those
 files are still ordinary eval YAML files. AgentV must not infer behavior from
-that directory name. Runtime controls live in top-level `target` and `policy`
-fields:
+that directory name. Runtime controls live in top-level `target`,
+`timeout_seconds`, `threshold`, and `evaluate_options` fields:
 
 ```yaml
 name: cargowise-sql-migration-codex
-target: agent
-model: gpt-5-codex
-policy:
-  threshold: 0.8
-  runs: 3
-  timeout_seconds: 900
+target:
+  provider: copilot-sdk
+  model: gpt-5-codex
+timeout_seconds: 900
+threshold: 0.8
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: false
   budget_usd: 2.00
 
 tests:
@@ -104,16 +106,15 @@ tests:
     type: tests
 ```
 
-Top-level `target`, `model`, and `policy:` are canonical for new eval YAML.
-`experiment:` is rejected. `execution:` remains a legacy alias only for
-already-existing eval files and target matrices. New surfaces should not teach
-`execution:` except when documenting compatibility for old eval files.
+Top-level `target`, `timeout_seconds`, `threshold`, and `evaluate_options:` are
+canonical for new eval YAML. `policy:` and `execution:` are rejected in authored
+eval files.
 
 The old experiment runtime fields are ported into the parent eval file:
 
 - target or target matrix
 - thresholds
-- repeated run count through `policy.runs`
+- repeated run count through `evaluate_options.repeat.count`
 - timeout
 - budget
 - other run-time controls that do not define the task itself
@@ -158,8 +159,8 @@ must stay with the lifecycle surface that actually owns that work:
   belong here.
 - Top-level `target` selects the system under test. Top-level `policy` selects
   runtime and gating controls: repeat strategy, threshold, timeout, budget, and
-  early-exit behavior. Workspace state reuse stays under
-  `workspace.isolation`, and Docker/container binding stays under
+  early-exit behavior. Workspace lifetime stays under
+  `workspace.scope`, and Docker/container binding stays under
   `workspace.docker`.
 
 This differs from external experiment formats that allow generic scripts on the
@@ -295,15 +296,16 @@ child-child workspace merging.
 
 ## Runtime Overrides
 
-The parent top-level `target`, `model`, and `policy:` fields are the default
-runtime policy for the whole eval. Some evals need stricter or looser policy for
-a selected group of tests. AgentV supports scoped runtime overrides for scoring
-and scheduling policy without creating separate experiment files.
+The parent top-level `target`, `timeout_seconds`, `threshold`, and
+`evaluate_options:` fields are the default runtime policy for the whole eval.
+Some evals need stricter or looser policy for a selected group of tests. AgentV
+supports scoped runtime overrides for scoring and scheduling policy without
+creating separate experiment files.
 
 Runtime override precedence is:
 
 ```text
-test.run > tests[].run > parent policy
+test.run > tests[].run > parent evaluate_options/top-level controls
 ```
 
 Group-level overrides live beside `include`, `type`, and `select`:

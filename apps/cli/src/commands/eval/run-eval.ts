@@ -294,7 +294,6 @@ interface NormalizedOptions {
   readonly resume: boolean;
   readonly rerunFailed: boolean;
   readonly rerunFailedSource?: string;
-  readonly workspaceMode?: 'pooled' | 'temp' | 'static';
   readonly workspacePath?: string;
   readonly keepWorkspaces: boolean;
   /** Removed: use --output instead */
@@ -378,10 +377,6 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
     }
   }
   return undefined;
-}
-
-function normalizeWorkspaceMode(value: unknown): 'pooled' | 'temp' | 'static' | undefined {
-  return value === 'pooled' || value === 'temp' || value === 'static' ? value : undefined;
 }
 
 function normalizeStringArray(value: unknown): readonly string[] {
@@ -696,21 +691,7 @@ function normalizeOptions(
   const configOutputDir = normalizeString(config?.output?.dir);
   const cliWorkspacePath = normalizeString(rawOptions.workspacePath);
   const configWorkspacePath = normalizeString(yamlExecution?.workspace_path);
-  const cliWorkspaceModeRaw = normalizeString(rawOptions.workspaceMode);
-  const cliWorkspaceMode = normalizeWorkspaceMode(rawOptions.workspaceMode);
-  if (cliWorkspacePath && cliWorkspaceModeRaw && cliWorkspaceMode !== 'static') {
-    throw new Error('--workspace-path requires --workspace-mode=static (or omit --workspace-mode)');
-  }
-  const configWorkspaceMode = normalizeWorkspaceMode(yamlExecution?.workspace_mode);
-  if (configWorkspacePath && configWorkspaceMode && configWorkspaceMode !== 'static') {
-    throw new Error(
-      'execution.workspace_path requires execution.workspace_mode: static when both are provided',
-    );
-  }
-  const useConfigWorkspacePath = cliWorkspaceMode === undefined || cliWorkspaceMode === 'static';
-  const workspacePath =
-    cliWorkspacePath ?? (useConfigWorkspacePath ? configWorkspacePath : undefined);
-  const workspaceMode = workspacePath ? 'static' : (cliWorkspaceMode ?? configWorkspaceMode);
+  const workspacePath = cliWorkspacePath ?? configWorkspacePath;
   const resultsRepo = normalizeString(rawOptions.resultsRepo);
   const resultsPush = normalizeBoolean(rawOptions.resultsPush);
   const resultsNoPush = normalizeBoolean(rawOptions.noResultsPush);
@@ -772,7 +753,6 @@ function normalizeOptions(
       normalizeBoolean(rawOptions.resume) || normalizeString(rawOptions.rerunFailed) !== undefined,
     rerunFailed: normalizeString(rawOptions.rerunFailed) !== undefined,
     rerunFailedSource: normalizeString(rawOptions.rerunFailed),
-    workspaceMode,
     workspacePath,
     // Precedence: CLI > YAML config > TS config
     keepWorkspaces:
@@ -865,7 +845,6 @@ const CLI_RUNTIME_SOURCE_OPTION_KEYS = [
   'recordReplay',
   'recordReplayVariant',
   'workspacePath',
-  'workspaceMode',
 ] as const;
 
 function hasCliRuntimeSource(rawOptions: Record<string, unknown>): boolean {
@@ -1031,7 +1010,6 @@ function applyExperimentOptions(
     ...options,
     target: options.target,
     agentTimeoutSeconds: options.agentTimeoutSeconds ?? experiment.timeoutSeconds,
-    workspaceMode: options.workspaceMode,
     workspacePath: options.workspacePath,
     budgetUsd: options.budgetUsd ?? experiment.budgetUsd,
     threshold: options.threshold ?? experiment.threshold,
@@ -1760,7 +1738,6 @@ async function runSingleEvalFile(params: {
     evalCases: testCases,
     verbose: options.verbose,
     maxConcurrency: resolvedWorkers,
-    workspaceMode: options.workspaceMode,
     workspacePath: options.workspacePath,
     keepWorkspaces: options.keepWorkspaces,
     trials: trialsConfig,
@@ -2830,9 +2807,7 @@ export async function runEvalCommand(
     }
 
     // Hint about --keep-workspaces when workspaces were used but some cleaned up
-    const usedWorkspaces =
-      resultsWithWorkspaces.length > 0 ||
-      (options.workspaceMode && options.workspaceMode !== 'static');
+    const usedWorkspaces = resultsWithWorkspaces.length > 0;
     if (!options.keepWorkspaces && usedWorkspaces) {
       console.log('Use --keep-workspaces to preserve all workspaces for inspection.');
     }

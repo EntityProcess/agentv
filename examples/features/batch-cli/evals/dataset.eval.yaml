@@ -46,7 +46,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
@@ -85,7 +85,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
@@ -124,7 +124,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output
@@ -163,7 +163,7 @@ tests:
 
     assertions:
       - name: decision-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/check-batch-cli-output.ts"]
         cwd: .
       # Verify the aml_screening tool was called using trace extracted from output

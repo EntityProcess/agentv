@@ -164,7 +164,6 @@ export function isTestMessage(value: unknown): value is TestMessage {
 }
 
 const GRADER_KIND_VALUES = [
-  'code-grader',
   'script',
   'llm-grader',
   'rubric',
@@ -207,7 +206,7 @@ export function isGraderKind(value: unknown): value is GraderKind {
 }
 
 /**
- * Configuration for enabling target access in code-grader evaluators.
+ * Configuration for enabling target access in script evaluators.
  * When present, the runtime will start a local proxy server that allows
  * the script to invoke configured targets without direct credential access.
  */
@@ -346,7 +345,7 @@ export type EvalTargetRef = {
 
 /**
  * Docker-based workspace configuration.
- * When present, code-grader commands run inside a Docker container
+ * When present, script commands run inside a Docker container
  * instead of on the host.
  */
 export type DockerWorkspaceConfig = {
@@ -383,8 +382,8 @@ export type WorkspaceConfig = {
   /** Template directory or .code-workspace file. Directories are copied to temp workspace.
    *  .code-workspace files are used by VS Code providers; CLI providers use the parent directory. */
   readonly template?: string;
-  /** Isolation strategy for workspace: shared (default) or per_case. */
-  readonly isolation?: 'shared' | 'per_case';
+  /** Workspace lifetime: suite (default) or attempt. */
+  readonly scope?: 'suite' | 'attempt';
   /** Repository definitions to clone/checkout into workspace */
   readonly repos?: readonly RepoConfig[];
   /** Workspace lifecycle hooks */
@@ -420,14 +419,12 @@ export type ScriptGraderConfig = {
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
 
-/** @deprecated Use ScriptGraderConfig with type: 'script'. */
-export type CodeGraderConfig = Omit<ScriptGraderConfig, 'type'> & {
-  readonly type: 'code-grader';
-};
+/** @deprecated Use ScriptGraderConfig. */
+export type CodeGraderConfig = ScriptGraderConfig;
 
 /**
  * Executable prompt template configuration.
- * Matches code-grader pattern for consistency.
+ * Matches script grader command patterns for consistency.
  */
 export type PromptScriptConfig = {
   /** Command array to execute (e.g., ["bun", "run", "template.ts"]) */
@@ -453,7 +450,7 @@ export type LlmGraderConfig = {
   readonly promptPath?: string;
   /** Resolved absolute path for prompt file (used for text template prompts) */
   readonly resolvedPromptPath?: string;
-  /** Resolved script array for executable prompts (matches code-grader pattern) */
+  /** Resolved script array for executable prompts (matches script grader pattern) */
   readonly resolvedPromptScript?: readonly string[];
   readonly rubrics?: readonly RubricItem[];
   readonly weight?: number;
@@ -540,8 +537,6 @@ export type RubricItem = {
 export type CompositeAggregatorConfig =
   | { readonly type: 'weighted_average'; readonly weights?: Record<string, number> }
   | { readonly type: 'script'; readonly path: string; readonly cwd?: string }
-  /** @deprecated Use the script aggregator type. */
-  | { readonly type: 'code-grader'; readonly path: string; readonly cwd?: string }
   | {
       readonly type: 'llm-grader';
       readonly prompt?: string;
@@ -565,7 +560,7 @@ export type CompositeGraderConfig = {
 
 /**
  * Match type for field accuracy evaluation.
- * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a code-grader evaluator.
+ * Note: For fuzzy string matching (Levenshtein, Jaro-Winkler, etc.), use a script evaluator.
  * See examples/features/document-extraction/fuzzy_match.ts for an example.
  */
 export type FieldMatchType = 'exact' | 'numeric_tolerance' | 'date';
@@ -715,7 +710,7 @@ export type ContainsGraderConfig = {
 };
 
 /**
- * Configuration for the contains_any assertion evaluator.
+ * Configuration for the contains-any assertion evaluator.
  * Checks whether the candidate output contains ANY of the specified substrings.
  */
 export type ContainsAnyGraderConfig = {
@@ -731,7 +726,7 @@ export type ContainsAnyGraderConfig = {
 };
 
 /**
- * Configuration for the contains_all assertion evaluator.
+ * Configuration for the contains-all assertion evaluator.
  * Checks whether the candidate output contains ALL of the specified substrings.
  */
 export type ContainsAllGraderConfig = {
@@ -763,7 +758,7 @@ export type IcontainsGraderConfig = {
 };
 
 /**
- * Configuration for the icontains_any assertion evaluator.
+ * Configuration for the icontains-any assertion evaluator.
  * Case-insensitive check whether the candidate output contains ANY of the specified substrings.
  */
 export type IcontainsAnyGraderConfig = {
@@ -779,7 +774,7 @@ export type IcontainsAnyGraderConfig = {
 };
 
 /**
- * Configuration for the icontains_all assertion evaluator.
+ * Configuration for the icontains-all assertion evaluator.
  * Case-insensitive check whether the candidate output contains ALL of the specified substrings.
  */
 export type IcontainsAllGraderConfig = {
@@ -795,7 +790,7 @@ export type IcontainsAllGraderConfig = {
 };
 
 /**
- * Configuration for the starts_with assertion evaluator.
+ * Configuration for the starts-with assertion evaluator.
  * Checks whether the candidate output starts with a specified string (both trimmed).
  */
 export type StartsWithGraderConfig = {
@@ -811,7 +806,7 @@ export type StartsWithGraderConfig = {
 };
 
 /**
- * Configuration for the ends_with assertion evaluator.
+ * Configuration for the ends-with assertion evaluator.
  * Checks whether the candidate output ends with a specified string (both trimmed).
  */
 export type EndsWithGraderConfig = {
@@ -845,7 +840,7 @@ export type RegexGraderConfig = {
 };
 
 /**
- * Configuration for the is_json assertion evaluator.
+ * Configuration for the is-json assertion evaluator.
  * Checks whether the candidate output is valid JSON.
  */
 export type IsJsonGraderConfig = {
@@ -931,7 +926,7 @@ export type AssertSetGraderConfig = {
  * Configuration for the skill-trigger evaluator.
  * Detects whether the agent invoked a named skill as its first tool call.
  * Tool-name resolution is automatic based on the provider kind.
- * For providers not covered by the built-in mapping, use a code-grader.
+ * For providers not covered by the built-in mapping, use a script grader.
  */
 export type SkillTriggerGraderConfig = {
   readonly name: string;
@@ -1395,7 +1390,7 @@ export interface GraderResult {
   /** Target name used for grading (e.g., the LLM provider name). */
   readonly target?: string;
   readonly scores?: readonly GraderResult[];
-  /** Optional structured details from code graders (e.g., TP/TN/FP/FN counts). */
+  /** Optional structured details from script graders (e.g., TP/TN/FP/FN counts). */
   readonly details?: JsonObject;
   /** Token usage from LLM calls made by this evaluator (optional). */
   readonly tokenUsage?: TokenUsage;

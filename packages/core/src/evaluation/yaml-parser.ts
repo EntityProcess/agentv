@@ -131,8 +131,8 @@ type SuiteImportStackEntry = {
 };
 
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
+  'assert',
   'assertions',
-  'evaluators',
   'skip_defaults',
   'cache',
   'trials',
@@ -245,7 +245,6 @@ type RawEvalCase = JsonObject & {
   readonly evaluator?: JsonValue;
   readonly execution?: JsonValue;
   readonly run?: JsonValue;
-  readonly evaluators?: JsonValue;
   readonly assertions?: JsonValue;
   readonly assert?: JsonValue;
   readonly rubrics?: JsonValue;
@@ -348,9 +347,6 @@ function interpolateRawEvalCase(
       : {}),
     ...(raw.assertions !== undefined
       ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
-      : {}),
-    ...(raw.evaluators !== undefined
-      ? { evaluators: interpolateCaseField(raw.evaluators, vars, filters) }
       : {}),
     ...(raw.rubrics !== undefined
       ? { rubrics: interpolateCaseField(raw.rubrics, vars, filters) }
@@ -1131,7 +1127,7 @@ async function loadTestsFromParsedYamlValue(
       rejectUnsupportedTestExecutionFields(caseExecution, id);
       if (caseExecution?.workspace !== undefined) {
         throw new Error(
-          `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in test workspace or suite workspace.`,
+          `test '${id ?? 'unknown'}'.execution.workspace has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable task setup in test workspace or suite workspace.`,
         );
       }
       const skipDefaults = caseExecution?.skip_defaults === true;
@@ -1202,14 +1198,11 @@ async function loadTestsFromParsedYamlValue(
       const hasExplicitCaseGraders =
         renderedCase.assert !== undefined ||
         renderedCase.assertions !== undefined ||
-        renderedCase.evaluators !== undefined ||
         renderedCase.rubrics !== undefined;
       const hasExplicitRootGraders =
         skipDefaults === true
           ? false
-          : globalExecution?.assert !== undefined ||
-            globalExecution?.assertions !== undefined ||
-            globalExecution?.evaluators !== undefined;
+          : globalExecution?.assert !== undefined || globalExecution?.assertions !== undefined;
       const graderCase =
         outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
           ? ({ ...renderedCase, assert: [outcome] } satisfies RawEvalCase)
@@ -2347,7 +2340,7 @@ function collectSingleGraderSourceReferences(
 ): readonly EvalSourceReference[] {
   const references: EvalSourceReference[] = [];
 
-  if (evaluator.type === 'script' || evaluator.type === 'code-grader') {
+  if (evaluator.type === 'script') {
     const command = evaluator.command ?? [];
     references.push({
       kind: 'script_grader_command',
@@ -2404,7 +2397,7 @@ function collectSingleGraderSourceReferences(
     for (const member of evaluator.assertions) {
       references.push(...collectSingleGraderSourceReferences(member));
     }
-    if (evaluator.aggregator.type === 'script' || evaluator.aggregator.type === 'code-grader') {
+    if (evaluator.aggregator.type === 'script') {
       references.push({
         kind: 'script_grader_command',
         displayPath: evaluator.aggregator.path,
@@ -2752,7 +2745,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('pool' in obj) {
     throw new Error(
-      'workspace.pool has been removed from eval YAML. Shared repo workspaces use fresh temp materialization by default; use --workspace-mode pooled or config.local.yaml execution.workspace_mode for machine-local pooled reuse.',
+      'workspace.pool has been removed from eval YAML. Use workspace.scope: suite|attempt for workspace lifetime, or --workspace-path for a machine-local static workspace.',
     );
   }
   if ('static' in obj) {
@@ -2762,7 +2755,7 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   }
   if ('mode' in obj) {
     throw new Error(
-      'workspace.mode has been removed from eval YAML. Use workspace.isolation: shared|per_case for folder isolation; use --workspace-mode or config.local.yaml execution.workspace_mode only for machine-local runtime overrides.',
+      'workspace.mode has been removed from eval YAML. Use workspace.scope: suite|attempt for workspace lifetime.',
     );
   }
   if ('path' in obj) {
@@ -2776,11 +2769,13 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
     template = path.resolve(evalFileDir, template);
   }
 
-  if (obj.isolation !== undefined && obj.isolation !== 'shared' && obj.isolation !== 'per_case') {
-    throw new Error("workspace.isolation must be 'shared' or 'per_case'.");
+  if ('isolation' in obj) {
+    throw new Error('workspace.isolation has been removed. Use workspace.scope: suite|attempt.');
   }
-  const isolation =
-    obj.isolation === 'shared' || obj.isolation === 'per_case' ? obj.isolation : undefined;
+  if (obj.scope !== undefined && obj.scope !== 'suite' && obj.scope !== 'attempt') {
+    throw new Error("workspace.scope must be 'suite' or 'attempt'.");
+  }
+  const scope = obj.scope === 'suite' || obj.scope === 'attempt' ? obj.scope : undefined;
 
   const repos = Array.isArray(obj.repos)
     ? ((obj.repos as Record<string, unknown>[])
@@ -2793,11 +2788,11 @@ function parseWorkspaceConfig(raw: unknown, evalFileDir: string): WorkspaceConfi
   const docker = parseDockerWorkspaceConfig(obj.docker);
   const env = parseWorkspaceEnvConfig(obj.env);
 
-  if (!template && !isolation && !repos && !hooks && !docker && !env) return undefined;
+  if (!template && !scope && !repos && !hooks && !docker && !env) return undefined;
 
   return {
     ...(template !== undefined && { template }),
-    ...(isolation !== undefined && { isolation }),
+    ...(scope !== undefined && { scope }),
     ...(repos !== undefined && { repos }),
     ...(hooks !== undefined && { hooks }),
     ...(docker !== undefined && { docker }),
@@ -2876,7 +2871,7 @@ function mergeWorkspaceConfigs(
 
   return {
     template: caseLevel.template ?? suiteLevel.template,
-    isolation: caseLevel.isolation ?? suiteLevel.isolation,
+    scope: caseLevel.scope ?? suiteLevel.scope,
     repos: caseLevel.repos ?? suiteLevel.repos,
     ...(hasHooks && { hooks: mergedHooks as WorkspaceHooksConfig }),
     docker: caseLevel.docker ?? suiteLevel.docker,

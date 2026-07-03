@@ -96,7 +96,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'early_exit',
   'timeout_seconds',
   'evaluate_options',
-  'budget_usd',
   'threshold',
   'default_test',
   'assert',
@@ -108,7 +107,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'extensions',
   'on_run_complete',
   'assertions',
-  'evaluators',
   'preprocessors',
   'workspace',
   'metadata',
@@ -149,7 +147,6 @@ const KNOWN_REPEAT_STRATEGIES = new Set(['pass_any', 'pass_all', 'mean', 'confid
 const KNOWN_TEST_EXECUTION_FIELDS = new Set([
   'assert',
   'assertions',
-  'evaluators',
   'skip_defaults',
   'cache',
   'trials',
@@ -186,13 +183,14 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     'early_exit',
     "Top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
   ],
+  ['budget_usd', "Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd."],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
 const DEPRECATED_TOP_LEVEL_FIELDS = new Map<string, string>([
   ['eval_cases', "'eval_cases' is deprecated. Use 'tests' instead."],
   ['evalcases', "'evalcases' is deprecated. Use 'tests' instead."],
-  ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
+  ['evaluator', "'evaluator' is deprecated. Use 'assert' instead."],
 ]);
 
 /** Known fields at the test level. */
@@ -213,7 +211,6 @@ const KNOWN_TEST_FIELDS = new Set([
   'assert_scoring_function',
   'options',
   'threshold',
-  'evaluators',
   'rubrics',
   'execution',
   'run',
@@ -235,7 +232,7 @@ const REMOVED_TEST_FIELDS = new Map<string, string>([]);
 
 /** Deprecated test-level fields with migration hints. */
 const DEPRECATED_TEST_FIELDS = new Map<string, string>([
-  ['evaluator', "'evaluator' is deprecated. Use 'assertions' instead."],
+  ['evaluator', "'evaluator' is deprecated. Use 'assert' instead."],
   ['expected_outcome', "'expected_outcome' is deprecated. Use 'assert' instead."],
 ]);
 
@@ -752,7 +749,7 @@ function rejectRuntimeWorkspaceConfig(
     severity: 'error',
     filePath,
     location,
-    message: `${location} has been removed from eval YAML. Put machine-local workspace_path/workspace_mode in .agentv/config.local.yaml under execution, or pass --workspace-path/--workspace-mode. Keep portable task setup in top-level workspace.`,
+    message: `${location} has been removed from eval YAML. Put machine-local workspace_path in .agentv/config.local.yaml under execution, or pass --workspace-path. Keep portable task setup in top-level workspace.`,
   });
 }
 
@@ -972,7 +969,6 @@ const WRAPPER_RUNTIME_CONTROL_FIELDS = [
   'repeat',
   'timeout_seconds',
   'evaluate_options',
-  'budget_usd',
   'threshold',
   'default_test',
   'on_run_complete',
@@ -1564,7 +1560,7 @@ function validateWorkspaceRepoConfig(
   const repos = workspace.repos;
   const hooks = workspace.hooks;
   const afterEachHook = isObject(hooks) ? hooks.after_each : undefined;
-  const isolation = workspace.isolation;
+  const scope = workspace.scope;
 
   const docker = workspace.docker;
 
@@ -1574,7 +1570,16 @@ function validateWorkspaceRepoConfig(
       filePath,
       location: `${location}.mode`,
       message:
-        'workspace.mode has been removed from eval YAML. Use workspace.isolation: shared|per_case for folder isolation; use --workspace-mode or config.local.yaml execution.workspace_mode only for machine-local runtime overrides.',
+        'workspace.mode has been removed from eval YAML. Use workspace.scope: suite|attempt.',
+    });
+  }
+
+  if ('isolation' in workspace) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.isolation`,
+      message: 'workspace.isolation has been removed. Use workspace.scope: suite|attempt.',
     });
   }
 
@@ -1588,12 +1593,12 @@ function validateWorkspaceRepoConfig(
     });
   }
 
-  if (isolation !== undefined && isolation !== 'shared' && isolation !== 'per_case') {
+  if (scope !== undefined && scope !== 'suite' && scope !== 'attempt') {
     errors.push({
       severity: 'error',
       filePath,
-      location: `${location}.isolation`,
-      message: "workspace.isolation must be 'shared' or 'per_case'.",
+      location: `${location}.scope`,
+      message: "workspace.scope must be 'suite' or 'attempt'.",
     });
   }
 
@@ -1683,14 +1688,14 @@ function validateWorkspaceRepoConfig(
     }
   }
 
-  // after_each reset with per-case isolation warning
-  if (isObject(afterEachHook) && afterEachHook.reset && isolation === 'per_case') {
+  // after_each reset with per-attempt scope warning.
+  if (isObject(afterEachHook) && afterEachHook.reset && scope === 'attempt') {
     errors.push({
       severity: 'warning',
       filePath,
       location: `${location}.hooks.after_each`,
       message:
-        'hooks.after_each.reset is redundant with isolation: per_case (each test gets a fresh workspace).',
+        'hooks.after_each.reset is redundant with workspace.scope: attempt (each attempt gets a fresh workspace).',
     });
   }
 }

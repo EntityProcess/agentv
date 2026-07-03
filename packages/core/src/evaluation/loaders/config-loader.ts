@@ -37,15 +37,12 @@ export type ExecutionDefaults = {
   readonly workers?: number;
   readonly verbose?: boolean;
   readonly keep_workspaces?: boolean;
-  readonly workspace_mode?: 'pooled' | 'temp' | 'static';
   readonly workspace_path?: string;
   readonly otel_file?: string;
   readonly export_otel?: boolean;
   readonly otel_backend?: string;
   readonly otel_capture_content?: boolean;
   readonly otel_group_turns?: boolean;
-  readonly pool_workspaces?: boolean;
-  readonly pool_slots?: number;
 };
 
 export type ResultPushConflictPolicy = 'block';
@@ -190,16 +187,6 @@ function parseConfigObject(
       (parsed as Record<string, unknown>).execution,
       configPath,
     );
-    warnRemovedExperimentPointer(
-      (parsed as Record<string, unknown>).default_experiment,
-      configPath,
-      'default_experiment',
-    );
-    warnRemovedExperimentPointer(
-      (parsed as Record<string, unknown>).experiments,
-      configPath,
-      'experiments',
-    );
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
     const tags = parseTagsConfig((parsed as Record<string, unknown>).tags, configPath);
@@ -248,7 +235,19 @@ function stripLocalOnlyExecutionDefaults(
   if ('workspace_mode' in execution) {
     stripped = true;
     logWarning(
-      `execution.workspace_mode in ${configPath} is machine-local and only supported in config.local.yaml; ignoring.`,
+      `execution.workspace_mode in ${configPath} has been removed; use execution.workspace_path for a static workspace override.`,
+    );
+  }
+  if ('pool_workspaces' in execution) {
+    stripped = true;
+    logWarning(
+      `execution.pool_workspaces in ${configPath} has been removed; use workspace.scope for portable workspace lifetime.`,
+    );
+  }
+  if ('pool_slots' in execution) {
+    stripped = true;
+    logWarning(
+      `execution.pool_slots in ${configPath} has been removed; use workspace.scope for portable workspace lifetime.`,
     );
   }
 
@@ -259,7 +258,11 @@ function stripLocalOnlyExecutionDefaults(
   const nextConfig = { ...rawConfig };
   const nextExecution = Object.fromEntries(
     Object.entries(execution).filter(
-      ([key]) => key !== 'workspace_path' && key !== 'workspace_mode',
+      ([key]) =>
+        key !== 'workspace_path' &&
+        key !== 'workspace_mode' &&
+        key !== 'pool_workspaces' &&
+        key !== 'pool_slots',
     ),
   );
   if (Object.keys(nextExecution).length === 0) {
@@ -277,6 +280,9 @@ function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
     throw new Error(
       "Top-level 'policy' is not part of eval YAML. Put repeat under evaluate_options.repeat, timeout_seconds and threshold at the top level, and budget_usd under evaluate_options.",
     );
+  }
+  if (suite.budget_usd !== undefined) {
+    throw new Error("Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd.");
   }
   if (suite.execution !== undefined) {
     throw new Error(
@@ -533,22 +539,11 @@ export function extractCacheConfig(suite: JsonObject): CacheConfig | undefined {
 /**
  * Extract suite-level total budget from eval YAML.
  *
- * Preferred authoring uses evaluate_options.budget_usd. Legacy top-level
- * budget_usd remains accepted for compatibility, but the nested option wins
- * when both are present.
+ * Preferred authoring uses evaluate_options.budget_usd.
  * Returns undefined when not specified.
  */
 export function extractBudgetUsd(suite: JsonObject): number | undefined {
-  const evaluateOptionsBudgetUsd = getSuiteEvaluateOptionsNumber(
-    suite,
-    'budget_usd',
-    (value) => value > 0,
-    'budget_usd. Must be a positive number',
-  );
-  if (evaluateOptionsBudgetUsd !== undefined) {
-    return evaluateOptionsBudgetUsd;
-  }
-  return getSuiteTopLevelNumber(
+  return getSuiteEvaluateOptionsNumber(
     suite,
     'budget_usd',
     (value) => value > 0,
@@ -638,18 +633,9 @@ export function parseExecutionDefaults(
     logWarning(`Invalid execution.keep_workspaces in ${configPath}, expected boolean`);
   }
 
-  const workspaceMode = obj.workspace_mode;
-  if (workspaceMode === 'pooled' || workspaceMode === 'temp' || workspaceMode === 'static') {
-    if (isLocalConfigPath(configPath)) {
-      result.workspace_mode = workspaceMode;
-    } else {
-      logWarning(
-        `execution.workspace_mode in ${configPath} is machine-local and only supported in config.local.yaml; ignoring.`,
-      );
-    }
-  } else if (workspaceMode !== undefined) {
+  if (obj.workspace_mode !== undefined) {
     logWarning(
-      `Invalid execution.workspace_mode in ${configPath}, expected 'pooled', 'temp', or 'static'`,
+      `execution.workspace_mode in ${configPath} has been removed; use execution.workspace_path for a static workspace override.`,
     );
   }
 
@@ -698,34 +684,19 @@ export function parseExecutionDefaults(
     logWarning(`Invalid execution.otel_group_turns in ${configPath}, expected boolean`);
   }
 
-  if (typeof obj.pool_workspaces === 'boolean') {
-    result.pool_workspaces = obj.pool_workspaces;
-  } else if (obj.pool_workspaces !== undefined) {
-    logWarning(`Invalid execution.pool_workspaces in ${configPath}, expected boolean`);
+  if (obj.pool_workspaces !== undefined) {
+    logWarning(
+      `execution.pool_workspaces in ${configPath} has been removed; use workspace.scope for portable workspace lifetime.`,
+    );
   }
 
-  const poolSlots = obj.pool_slots;
-  if (
-    typeof poolSlots === 'number' &&
-    Number.isInteger(poolSlots) &&
-    poolSlots >= 1 &&
-    poolSlots <= 50
-  ) {
-    result.pool_slots = poolSlots;
-  } else if (poolSlots !== undefined) {
-    logWarning(`Invalid execution.pool_slots in ${configPath}, expected integer 1-50`);
+  if (obj.pool_slots !== undefined) {
+    logWarning(
+      `execution.pool_slots in ${configPath} has been removed; use workspace.scope for portable workspace lifetime.`,
+    );
   }
 
   return Object.keys(result).length > 0 ? (result as ExecutionDefaults) : undefined;
-}
-
-function warnRemovedExperimentPointer(raw: unknown, configPath: string, key: string): void {
-  if (raw === undefined || raw === null) {
-    return;
-  }
-  logWarning(
-    `${key} in ${configPath} is ignored. Runtime configuration belongs in eval.yaml under top-level target and run controls.`,
-  );
 }
 
 export function parseResultsConfig(raw: unknown, configPath: string): ResultsConfig | undefined {

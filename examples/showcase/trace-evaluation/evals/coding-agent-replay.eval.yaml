@@ -40,7 +40,7 @@ tests:
         max_duration_ms: 2000
 
       - name: replay-proof
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/replay-proof.ts"]
 
   - id: recover-from-tool-error
@@ -72,7 +72,7 @@ tests:
             max_duration_ms: 100
 
       - name: recovery-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/recovery-check.ts"]
 
       - name: execution-budget
@@ -84,5 +84,5 @@ tests:
         max_duration_ms: 2500
 
       - name: replay-proof
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/replay-proof.ts"]

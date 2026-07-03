@@ -273,8 +273,8 @@ tests:
     expect(results[0].afterEachOutput).toContain('conversation afterEach output');
   });
 
-  it('scopes pooled beforeAll extension state to the selected workspace slot', async () => {
-    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-extensions-pool-'));
+  it('scopes beforeAll extension state to the suite workspace', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agentv-extensions-suite-'));
     tempDirs.push(dir);
     const previousDataDir = process.env.AGENTV_DATA_DIR;
     process.env.AGENTV_DATA_DIR = path.join(dir, 'agentv-data');
@@ -318,13 +318,11 @@ tests:
         evaluators: passEvaluators,
         evalCases: suite.tests,
         maxConcurrency: 2,
-        workspaceMode: 'pooled',
-        poolMaxSlots: 2,
       });
 
       expect(requests).toHaveLength(2);
       const workspacePaths = new Set(requests.map((request) => request.cwd));
-      expect(workspacePaths.size).toBe(2);
+      expect(workspacePaths.size).toBe(1);
       for (const request of requests) {
         expect(request.cwd).toBeDefined();
         const rules = request.metadata?.agent_rules_paths as { skills?: string[] } | undefined;

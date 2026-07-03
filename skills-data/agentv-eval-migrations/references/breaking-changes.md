@@ -27,27 +27,24 @@ New:
 
 ```yaml
 name: backend-with-skills
-target: copilot--claude-opus-4.8
-model: claude-opus-4.8
-
-workspace:
-  isolation: per_case
-
-repeat:
-  count: 3
-  strategy: pass_any
-  early_exit: false
+target:
+  provider: copilot-sdk
+  model: claude-opus-4.8
 
 timeout_seconds: 600
 threshold: 0.8
 evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: false
   budget_usd: 5
 ```
 
-## Repeat Policy Uses `repeat`
+## Repeat Policy Uses `evaluate_options.repeat`
 
 Do not author top-level `runs`, top-level `early_exit`, or
-`repeat.strategy: pass_at_k`.
+top-level `repeat`.
 
 Old:
 
@@ -59,35 +56,37 @@ early_exit: true
 New:
 
 ```yaml
-repeat:
-  count: 3
-  strategy: pass_any
-  early_exit: true
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
+    early_exit: true
 ```
 
-Use `repeat.strategy: pass_any` for "pass if any completed sample passes" and
-`repeat.strategy: pass_all` for "pass only if every completed sample passes".
-`repeat.early_exit` is only a scheduling optimization; omit it or set it to
-`false` when you want every sample collected for variance analysis.
+Use `evaluate_options.repeat.strategy: pass_any` for "pass if any completed
+sample passes" and `evaluate_options.repeat.strategy: pass_all` for "pass only
+if every completed sample passes". `evaluate_options.repeat.early_exit` is only
+a scheduling optimization; omit it or set it to `false` when you want every
+sample collected for variance analysis.
 
-## Workspace Isolation Spelling
+## Workspace Scope Replaces Isolation
 
 Old:
-
-```yaml
-workspace:
-  isolation: per_test
-```
-
-New:
 
 ```yaml
 workspace:
   isolation: per_case
 ```
 
-Use `per_case` for a fresh workspace folder per eval case. Use `shared` when
-cases share one prepared workspace.
+New:
+
+```yaml
+workspace:
+  scope: attempt
+```
+
+Use `scope: attempt` for a clean workspace per resolved execution attempt. Use
+`scope: suite` when cases intentionally share one prepared workspace.
 
 ## Suite Wrapper Workspace Ownership
 
@@ -125,7 +124,6 @@ agentv eval evals/my-eval.yaml --workspace-path /path/to/local/workspace
 # .agentv/config.local.yaml
 execution:
   workspace_path: /path/to/local/workspace
-  workspace_mode: static
 ```
 
 Keep portable task setup under top-level or case-level `workspace`.
@@ -151,7 +149,7 @@ workspace:
     - path: ./repo
       repo: org/repo
       commit: main
-  isolation: shared
+  scope: suite
 ```
 
 Optional local binding:
@@ -162,16 +160,14 @@ execution:
   workspace_path: /path/to/local/workspace
 ```
 
-Shared repo workspaces use fresh temp materialization by default. Use
-`--workspace-mode pooled` or `execution.workspace_mode: pooled` in local config
-only when pool-slot reuse is intentional. Use
-`--workspace-path` or `execution.workspace_path` when an existing directory
-should be used as-is.
+Harness-managed repo workspaces use temp materialization by default. Use
+`workspace.scope: suite | attempt` for portable lifetime. Use `--workspace-path`
+or `execution.workspace_path` when an existing directory should be used as-is.
 
 ## Docker Is Not Folder Isolation
 
 `workspace.docker` describes environment, preflight, or container bindings. It
-does not replace `workspace.isolation`.
+does not replace `workspace.scope`.
 
-Use `workspace.isolation: shared | per_case` for workspace folder reuse versus
-per-case folders, regardless of whether Docker is configured.
+Use `workspace.scope: suite | attempt` for workspace lifetime, regardless of
+whether Docker is configured.

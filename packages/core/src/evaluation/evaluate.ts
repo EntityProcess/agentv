@@ -128,10 +128,10 @@ export interface ConversationTurnInput {
 
 /**
  * Inline assertion definition for the programmatic API.
- * Matches the YAML `assertions` block structure.
+ * Matches the YAML `assert` block structure.
  */
 export interface EvalAssertionInput {
-  /** Assertion type (e.g., 'contains', 'llm-grader', 'code-grader') */
+  /** Assertion type (e.g., 'contains', 'llm-grader', 'script') */
   readonly type: string;
   /** Display name */
   readonly name?: string;
@@ -143,9 +143,9 @@ export interface EvalAssertionInput {
   readonly required?: boolean;
   /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
   readonly min_score?: number;
-  /** Prompt file for llm_grader */
+  /** Prompt file for llm-grader */
   readonly prompt?: string;
-  /** Command for code_grader */
+  /** Command for script grader */
   readonly command?: string | readonly string[];
   /** Additional config passed to the assertion */
   readonly config?: Record<string, unknown>;
@@ -666,12 +666,9 @@ function matchesFilter(id: string, filter: string | readonly string[]): boolean 
     : filter.some((pattern) => micromatch.isMatch(id, pattern));
 }
 
-/**
- * Map user-facing assertion type names to internal grader type names.
- * Handles snake_case to kebab-case normalization (e.g., 'llm_grader' -> 'llm-grader').
- */
+/** Map user-facing assertion type names to internal grader type names. */
 function mapAssertionType(type: string): string {
-  return type.replace(/_/g, '-');
+  return type;
 }
 
 /**

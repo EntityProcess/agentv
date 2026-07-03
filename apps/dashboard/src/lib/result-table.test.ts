@@ -16,10 +16,9 @@ function result(overrides: Partial<EvalResult>): EvalResult {
 }
 
 describe('result-table model', () => {
-  it('builds canonical preset counts from execution status, quality score, grader failures, and review state', () => {
+  it('builds canonical preset counts from execution status, quality score, and grader failures', () => {
     const model = buildResultTableModel({
       passThreshold: 0.8,
-      reviewedTestIds: ['passing-case'],
       results: [
         result({ testId: 'passing-case', score: 0.95 }),
         result({ testId: 'failing-case', score: 0.4, executionStatus: 'quality_failure' }),
@@ -46,12 +45,10 @@ describe('result-table model', () => {
       failing: 1,
       errors: 1,
       grader_errors: 1,
-      unreviewed: 3,
     });
 
     const graderErrors = buildResultTableModel({
       passThreshold: 0.8,
-      reviewedTestIds: ['passing-case'],
       results: model.rows.map((row) => row.result),
       state: { view: 'grader_errors' },
     });
@@ -110,7 +107,6 @@ describe('result-table model', () => {
       'category',
       'duration',
       'cost_tokens',
-      'review',
       'grader:correctness',
     ]);
     expect(model.visibleColumns.map((column) => column.id)).toContain('grader:correctness');

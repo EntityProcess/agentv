@@ -9,7 +9,7 @@ function parseCommand(value: string | undefined): readonly string[] | undefined 
 
 export const evalVitestCommand = command({
   name: 'vitest',
-  description: 'Run Vitest workspace verifier files as an AgentV code-grader protocol adapter',
+  description: 'Run Vitest workspace verifier files as an AgentV script grader adapter',
   args: {
     testFiles: restPositionals({
       type: string,

@@ -494,9 +494,7 @@ function parseSourceTestCase(test: EvalTest): Record<string, unknown> {
 }
 
 function withoutLegacyAssertionKeys(testCase: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(testCase).filter(([key]) => key !== 'assert' && key !== 'evaluators'),
-  );
+  return Object.fromEntries(Object.entries(testCase).filter(([key]) => key !== 'assert'));
 }
 
 function buildEvalCase(

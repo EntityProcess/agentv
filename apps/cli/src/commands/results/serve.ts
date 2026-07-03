@@ -14,8 +14,6 @@
  *     or as raw/downloadable text with ?raw=1 / ?download=1
  *   - GET /api/runs/:filename/evals/:evalId/trace-session — read an AgentV
  *     trace sidecar through the Dashboard trace/session read model
- *   - GET /api/feedback  — read feedback reviews
- *   - POST /api/feedback — write feedback reviews
  *   - GET /api/projects  — list registered projects
  *   - POST /api/projects — register a project by path
  *   - DELETE /api/projects/:projectId — unregister a project
@@ -207,39 +205,6 @@ function bootstrapCurrentProject(
   const entry = addProject(cwd);
   touchProject(entry.id);
   return { currentProjectId: entry.id };
-}
-
-// ── Feedback persistence ─────────────────────────────────────────────────
-
-interface FeedbackReview {
-  test_id: string;
-  comment: string;
-  updated_at: string;
-}
-
-interface FeedbackData {
-  reviews: FeedbackReview[];
-}
-
-function feedbackPath(resultDir: string): string {
-  return path.join(resultDir, 'feedback.json');
-}
-
-function readFeedback(cwd: string): FeedbackData {
-  const fp = feedbackPath(cwd);
-  if (!existsSync(fp)) {
-    return { reviews: [] };
-  }
-  try {
-    return JSON.parse(readFileSync(fp, 'utf8')) as FeedbackData;
-  } catch (err) {
-    console.error(`Warning: could not parse ${fp}, starting fresh: ${(err as Error).message}`);
-    return { reviews: [] };
-  }
-}
-
-function writeFeedback(cwd: string, data: FeedbackData): void {
-  writeFileSync(feedbackPath(cwd), `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
 // ── Shared utilities (used by handler functions) ─────────────────────────
@@ -2698,61 +2663,6 @@ function handleConfig(
   });
 }
 
-function handleFeedbackRead(c: C, { searchDir }: DataContext) {
-  return c.json(readFeedback(feedbackStoreDir(searchDir)));
-}
-
-function feedbackStoreDir(searchDir: string): string {
-  const resultsDir = path.join(searchDir, '.agentv', 'results');
-  return existsSync(resultsDir) ? resultsDir : searchDir;
-}
-
-async function handleFeedbackWrite(c: C, resultDir: string) {
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'Invalid JSON' }, 400);
-  }
-
-  if (!body || typeof body !== 'object') {
-    return c.json({ error: 'Invalid payload' }, 400);
-  }
-
-  const payload = body as Record<string, unknown>;
-  if (!Array.isArray(payload.reviews)) {
-    return c.json({ error: 'Missing reviews array' }, 400);
-  }
-
-  const incoming = payload.reviews as Record<string, unknown>[];
-  for (const review of incoming) {
-    if (typeof review.test_id !== 'string' || typeof review.comment !== 'string') {
-      return c.json({ error: 'Each review must have test_id and comment strings' }, 400);
-    }
-  }
-
-  const existing = readFeedback(resultDir);
-  const now = new Date().toISOString();
-
-  for (const review of incoming) {
-    const newReview: FeedbackReview = {
-      test_id: review.test_id as string,
-      comment: review.comment as string,
-      updated_at: now,
-    };
-
-    const idx = existing.reviews.findIndex((r) => r.test_id === newReview.test_id);
-    if (idx >= 0) {
-      existing.reviews[idx] = newReview;
-    } else {
-      existing.reviews.push(newReview);
-    }
-  }
-
-  writeFeedback(resultDir, existing);
-  return c.json(existing);
-}
-
 function expandHomePath(inputPath: string): string {
   if (inputPath === '~') return homedir();
   if (inputPath.startsWith('~/') || inputPath.startsWith('~\\')) {
@@ -3007,7 +2917,7 @@ async function handleRunsCombine(c: C, { searchDir, projectId }: DataContext) {
 // ── Hono app factory ─────────────────────────────────────────────────────
 
 /**
- * Create a Hono app with dashboard, result picker, and feedback API routes.
+ * Create a Hono app with dashboard and result picker API routes.
  * Accepts an empty results array for the empty-state dashboard.
  */
 export function createApp(
@@ -3326,19 +3236,6 @@ export function createApp(
   app.get('/api/compare', (c) => handleCompare(c, defaultCtx));
   app.get('/api/targets', (c) => handleTargets(c, defaultCtx));
 
-  // Feedback (unscoped — read uses defaultCtx.searchDir as resultDir)
-  app.get('/api/feedback', (c) => {
-    const data = readFeedback(resultDir);
-    return c.json(data);
-  });
-
-  app.post('/api/feedback', async (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return handleFeedbackWrite(c, resultDir);
-  });
-
   // Aggregated index (unscoped only)
   app.get('/api/index', async (c) => {
     const { runs: metas } = await listMergedResultFiles(searchDir, undefined, defaultCtx.projectId);
@@ -3449,16 +3346,6 @@ export function createApp(
   app.get('/api/projects/:projectId/experiments', (c) => withProject(c, handleExperiments));
   app.get('/api/projects/:projectId/compare', (c) => withProject(c, handleCompare));
   app.get('/api/projects/:projectId/targets', (c) => withProject(c, handleTargets));
-  app.get('/api/projects/:projectId/feedback', (c) => withProject(c, handleFeedbackRead));
-  app.post('/api/projects/:projectId/feedback', (c) => {
-    if (readOnly) {
-      return c.json({ error: 'Dashboard is running in read-only mode' }, 403);
-    }
-    return withProject(c, (projectContext, ctx) =>
-      handleFeedbackWrite(projectContext, feedbackStoreDir(ctx.searchDir)),
-    );
-  });
-
   // ── Eval runner routes (discovery, launch, status) ────────────────────
 
   registerEvalRoutes(
@@ -3682,7 +3569,6 @@ export const resultsServeCommand = command({
         }
       }
 
-      // Use the run directory for feedback storage (matches #764 behavior)
       const resultDir = sourceFile ? path.dirname(path.resolve(sourceFile)) : cwd;
       const app = createApp(results, resultDir, cwd, sourceFile, {
         readOnly,

@@ -117,7 +117,7 @@ const CodeGraderSchema = EvaluatorCommonSchema.extend({
 });
 
 const LlmGraderSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['llm-grader', 'llm_grader']),
+  type: z.literal('llm-grader'),
   prompt: PromptSchema.optional(),
   rubrics: z.array(RubricItemSchema).optional(),
   model: z.string().optional(),
@@ -162,7 +162,6 @@ const CompositeSchema: z.ZodType = z.lazy(() =>
     type: z.literal('composite'),
     assert: z.array(EvaluatorSchema).optional(),
     assertions: z.array(EvaluatorSchema).optional(),
-    evaluators: z.array(EvaluatorSchema).optional(),
     aggregator: AggregatorSchema,
   }),
 );
@@ -182,7 +181,7 @@ const ToolTrajectoryExpectedItemSchema = z.object({
 });
 
 const ToolTrajectorySchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['tool-trajectory', 'tool_trajectory']),
+  type: z.literal('tool-trajectory'),
   mode: z.enum(['any_order', 'in_order', 'exact', 'subset', 'superset']),
   minimums: z.record(z.number().int().min(0)).optional(),
   expected: z.array(ToolTrajectoryExpectedItemSchema).optional(),
@@ -201,7 +200,7 @@ const FieldConfigSchema = z.object({
 });
 
 const FieldAccuracySchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['field-accuracy', 'field_accuracy']),
+  type: z.literal('field-accuracy'),
   fields: z.array(FieldConfigSchema).min(1),
   aggregation: z.enum(['weighted_average', 'all_or_nothing']).optional(),
 });
@@ -217,14 +216,14 @@ const CostSchema = EvaluatorCommonSchema.extend({
 });
 
 const TokenUsageSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['token-usage', 'token_usage']),
+  type: z.literal('token-usage'),
   max_total: z.number().min(0).optional(),
   max_input: z.number().min(0).optional(),
   max_output: z.number().min(0).optional(),
 });
 
 const ExecutionMetricsSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['execution-metrics', 'execution_metrics']),
+  type: z.literal('execution-metrics'),
   max_tool_calls: z.number().min(0).optional(),
   max_llm_calls: z.number().min(0).optional(),
   max_tokens: z.number().min(0).optional(),
@@ -245,7 +244,7 @@ const RegexSchema = EvaluatorCommonSchema.extend({
 });
 
 const IsJsonSchema = EvaluatorCommonSchema.extend({
-  type: z.enum(['is-json', 'is_json']),
+  type: z.literal('is-json'),
 });
 
 const EqualsSchema = EvaluatorCommonSchema.extend({
@@ -443,7 +442,7 @@ const WorkspaceEnvSchema = z
 const WorkspaceSchema = z
   .object({
     template: z.string().optional(),
-    isolation: z.enum(['shared', 'per_case']).optional(),
+    scope: z.enum(['suite', 'attempt']).optional(),
     repos: z.array(RepoSchema).optional(),
     hooks: WorkspaceHooksSchema.optional(),
     docker: DockerWorkspaceSchema.optional(),
@@ -507,10 +506,9 @@ const ExecutionSchema = z.object({
   workers: z.never().optional(),
   assert: z.array(AssertionItemSchema).optional(),
   assertions: z.array(AssertionItemSchema).optional(),
-  evaluators: z.array(EvaluatorSchema).optional(),
   skip_defaults: z.boolean().optional(),
   cache: z.boolean().optional(),
-  /** Removed before stable release. Repeat counts belong under top-level repeat.count. */
+  /** Removed before stable release. Repeat counts belong under evaluate_options.repeat.count. */
   trials: z.never().optional(),
   budget_usd: z.number().min(0).optional(),
   budgetUsd: z.number().min(0).optional(),
@@ -599,7 +597,6 @@ const EvalTestSchema = z.object({
   assert_scoring_function: z.union([z.string().min(1), JsonObjectSchema]).optional(),
   options: JsonObjectSchema.optional(),
   threshold: z.number().min(0).max(1).optional(),
-  evaluators: z.array(EvaluatorSchema).optional(),
   execution: TestExecutionSchema.optional(),
   run: RunOverrideSchema.optional(),
   workspace: WorkspaceSchema.optional(),
@@ -742,7 +739,7 @@ export const EvalFileSchema: z.ZodType = z
     early_exit: z.never().optional(),
     timeout_seconds: z.number().gt(0).optional(),
     evaluate_options: EvaluateOptionsSchema.optional(),
-    budget_usd: z.number().gt(0).optional(),
+    budget_usd: z.never().optional(),
     threshold: z.number().min(0).max(1).optional(),
     default_test: DefaultTestSchema.optional(),
     scenarios: z.array(ScenarioSchema).optional(),

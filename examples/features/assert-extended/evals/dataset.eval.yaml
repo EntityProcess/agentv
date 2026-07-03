@@ -1,6 +1,6 @@
 # Extended Assertion Examples
-# Demonstrates new assertion types: contains_any, contains_all, icontains,
-# icontains_any, icontains_all, starts_with, ends_with, and regex flags.
+# Demonstrates assertion types: contains-any, contains-all, icontains,
+# icontains-any, icontains-all, starts-with, ends-with, and regex flags.
 
 name: assert-extended
 description: Extended deterministic assertions for natural language validation
@@ -9,7 +9,7 @@ target: llm
 
 tests:
   # ==========================================
-  # contains_any — pass if output includes ANY of the strings
+  # contains-any — pass if output includes ANY of the strings
   # ==========================================
   - id: contains-any-greeting
     criteria: Response should include some form of greeting
@@ -19,7 +19,7 @@ tests:
         value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
 
   # ==========================================
-  # contains_all — pass if output includes ALL of the strings
+  # contains-all — pass if output includes ALL of the strings
   # ==========================================
   - id: contains-all-fields
     criteria: Response must mention both name and email
@@ -43,7 +43,7 @@ tests:
         value: "error"
 
   # ==========================================
-  # icontains_any — case-insensitive ANY match
+  # icontains-any — case-insensitive ANY match
   # ==========================================
   - id: icontains-any-missing-input
     criteria: Agent asks for missing data
@@ -58,7 +58,7 @@ tests:
         required: true
 
   # ==========================================
-  # icontains_all — case-insensitive ALL match
+  # icontains-all — case-insensitive ALL match
   # ==========================================
   - id: icontains-all-required-fields
     criteria: Response mentions all required field types
@@ -72,7 +72,7 @@ tests:
         value: ["country code", "rule code", "expected value"]
 
   # ==========================================
-  # starts_with — output begins with expected prefix
+  # starts-with — output begins with expected prefix
   # ==========================================
   - id: starts-with-greeting
     criteria: Response starts with a formal prefix
@@ -82,7 +82,7 @@ tests:
         value: "Dear"
 
   # ==========================================
-  # ends_with — output ends with expected suffix
+  # ends-with — output ends with expected suffix
   # ==========================================
   - id: ends-with-sign-off
     criteria: Response ends with a professional sign-off

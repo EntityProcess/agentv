@@ -1,6 +1,11 @@
 # Plan (DRAFT): Restructure AgentV eval authoring to clone promptfoo
 
-Status: draft for review. Not started. No code changed.
+Status: historical draft. Beads plus ADR-0016/ADR-0017 are the current source of
+truth. Final workspace decision: `workspace.repos` remains first-class
+declarative provenance, `workspace.scope` is `suite | attempt`, pooled
+workspaces and `workspace_mode` are removed from the user-facing contract, and
+`--workspace-path` / `execution.workspace_path` are the only static local
+workspace override.
 
 Sources analyzed (all cloned locally, read-only):
 - promptfoo v0.121.17 — `/home/christso/projects/promptfoo-clone` (authoring format — the thing we clone)
@@ -154,7 +159,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
   - "Each test is unique" (agent tasks) → a passthrough prompt (e.g. `"{{task}}"`) + `vars: { task: … }`, or a per-test prompt override. No bespoke `input` field.
   - `input_files`/attachments (file/image content) survive as a **prompt-content** convenience (part of the prompt/vars), not a separate top-level concept.
   - **Removes a concept** (hard, major version): `tests[].input` and suite-level `input` go away; codemod rewrites `input:` message arrays into a per-test prompt.
-- **Concurrency/workspace model (owner):** workers either **share one workspace** or draw from a **workspace pool**, where a checked-out workspace is **reset to original** between uses (git clean / snapshot restore). This is the reset-based pool, not container-per-instance — see §4.
+- **Concurrency/workspace model (owner):** `workspace.scope: suite` shares one harness-managed workspace for the run; `workspace.scope: attempt` creates a clean workspace for each resolved execution attempt. Existing local workspace reuse is explicit through `--workspace-path` / `execution.workspace_path`.
 
 ### 2.c `assert` vs `assertions`, and grader type names — NAMING (reverses ADR-0013)
 - **promptfoo:** key is `assert`; types are `llm-rubric`, `javascript`, `python`, `assert-set`, `model-graded-*`.
@@ -255,7 +260,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
       - path: ./CargoWise
         repo: https://github.com/WiseTechGlobal/CargoWise.git
         commit: 953adb9         # immutable SHA (base_commit input alias); sparse/ancestor optional
-    isolation: fresh            # fresh (default) | pooled | shared
+    scope: attempt              # suite (default) | attempt
   extensions:                   # non-provisioning setup only
     - agentv:agent-rules:beforeAll
   tests: file://cases.yaml
@@ -268,7 +273,7 @@ Applying that principle, the decisions are below (D = decided, ▸ = still a jud
 
 These have no promptfoo equivalent and are AgentV's differentiation. Keep them, document them as extensions layered above the promptfoo-compatible core:
 
-- **Repo provisioning — a declarative `workspace.repos` field the harness materializes before hooks** (ADR-0016 pt10 / ADR-0017; git repos at pinned commits + resolver backends + mirror cache; `isolation` field). NOT an extension. `agentv:agent-rules` + custom `file://` hooks remain extensions for non-provisioning setup.
+- **Repo provisioning — a declarative `workspace.repos` field the harness materializes before hooks** (ADR-0016 pt10 / ADR-0017; git repos at pinned commits + resolver backends + mirror cache; `workspace.scope` for suite/attempt lifetime). NOT an extension. `agentv:agent-rules` + custom `file://` hooks remain extensions for non-provisioning setup.
 - **Executable `gate`** release policy (`min_test_pass_rate`, `max_execution_errors`, command receiving run JSON).
 - **Agent target providers**: CLI/SDK/codex/copilot/claude/replay/transcript, `use_target` indirection, `fallback_targets`, `grader_target`.
 - **First-class `expected_output`** golden/reference answers (DeepEval-aligned). Keep them distinct from `vars` so gold labels are grader context, not target prompt variables, unless the author explicitly duplicates them into `vars`.
@@ -291,11 +296,10 @@ Removed (folded into promptfoo `extensions`, see 2.l): top-level `workspace:` bl
 - **Instance = unit of work.** Expand `(prompt × target × test × sample)` into flat **instances** at compile time. `samples_per_case`/`repeat.count` → `instance_key = "<test_id>#<sample_index>"` (margin-lab's `BuildInstanceKey`). Subsumes AgentV's current repeat handling and gives pass@k for free.
 - **Simple in-process worker pool**, `max_concurrency` = worker count. No lease/heartbeat/store.
 - **Resumability via the run-index JSON, not a store (owner):** each instance's status is tracked in `index.jsonl` as it completes. "Rerun failed" = read the run index, filter failed/errored `test_id`s, re-run just those into the same/new bundle (`--rerun-failed <run_id>`). Cheap, laptop-native, no DB.
-- **Workspace: separate *materialization* from *reuse/pooling* (owner clarification, ties to §2.b/§2.l).**
-  - **Materialization = always-on core (local + CI):** acquire repo(s) via a resolver + **git-mirror cache** (parity example's `git_cache.mirrors`), then check out into the workspace. Mirror caching makes even a *fresh* workspace fast — so **clone speed is decoupled from reuse**.
-  - **Pooling = reuse a workspace + quick-reset between cases** (git clean / snapshot restore). Needed *only* when reusing. It's a **performance optimization** that amortizes expensive *setup* (checkout + setup scripts + installed state), **mainly for local evals** (fast iteration, limited parallelism, large repos). CI usually prefers fresh-per-case for correctness and relies on the mirror cache for speed. Trade-off: pooling risks state leakage if reset is imperfect (isolation-safety vs speed).
-  - **Three isolation levels:** `shared` (one workspace for all cases) · **pooled** (N reused, reset between) · **fresh per-case** (new each time, margin-lab style).
-  - The `agentv:workspace` extension owns materialization + reset; `beforeAll` = shared, `beforeEach` = per-case (fresh, or pooled+reset).
+- **Workspace: separate portable lifetime from local override (owner clarification, ties to §2.b/§2.l).**
+  - **Materialization = always-on core (local + CI):** acquire repo(s) via a resolver + **git-mirror cache** (parity example's `git_cache.mirrors`), then check out into the workspace. Mirror caching keeps clean workspaces fast without making reuse a correctness semantic.
+  - **Portable lifetime = `workspace.scope`:** `suite` creates one workspace for the run; `attempt` creates a clean workspace for each resolved prompt-target-test-repeat execution.
+  - **Local reuse = explicit static path:** use `--workspace-path` / `execution.workspace_path` only for user-managed local reuse. It is shared mutable state, not parallel-safe, and not a third workspace scope.
 - **Retry = infra-only.** Test failures are valid graded outcomes; only infra failures requeue (`retry_count`). Adopt margin's `domain.NextRunState` state machine (run `completed` unless `infra_failed > 0`).
 - **Per-instance hard timeout** covering setup+agent+grade (`instance_timeout_seconds`).
 - **Caveat:** margin-lab's `fail_fast` is declared-but-inert — if we want fail-fast, implement it (don't copy the dead field).
@@ -435,10 +439,10 @@ PR #1592 (`docs/plans/2026-07-01-001-feat-promptfoo-compatible-extensions-plan.m
 2. **Built-in + auto-registered vs bring-your-own `file://`.** #1592 has users reference local `file://extensions/workspace.ts`. This plan wants a **shipped, auto-registered `agentv:workspace` / `agentv:agent-rules`** built-in (zero-config, overridable) so the common case needs no copied script. Amend #1592 to add a built-in `agentv:` reference scheme alongside `file://` (keep `file://` for custom).
 5. **Rename `skills` → `agent-rules` (owner).** The staging extension isn't skills-only — it stages **skills, hooks, subagents/agents, and other agent rules** into the workspace. Rename the built-in to **`agentv:agent-rules`** (kebab — identifier token, like grader types `llm-rubric`/`tool-trajectory`; NOT snake_case), the package to `packages/extensions/agent-rules`, and the provider context field from `skill_paths` to `agent_rules_paths` (snake_case — this IS a data field). `skills` survives only as one *kind* of agent rule, not the extension name.
    - **Naming convention (general):** identifier/reference tokens are **kebab-case** (`agentv:agent-rules`, `llm-rubric`, `is-json`, `assert-set`); data fields/keys are **snake_case** (`agent_rules_paths`, `vars.workspace`, `max_budget_usd`); npm packages are kebab.
-3. **Isolation model.** #1592 treats `isolation: per_case` as extension config returned by the workspace extension. This plan derives shared-vs-per-case from **which hook** (`beforeAll` vs `beforeEach`) and uses a **reset-based workspace pool** (§4). Reconcile the two: hook selects shared/per-case; pool+reset is the mechanism; `isolation` config, if kept, must not contradict the hook.
+3. **Workspace lifetime model.** Superseded by the final Beads/ADR decision: `workspace.scope: suite | attempt` is the portable field; pooled workspace mode is removed; local reuse is explicit static `workspace_path`.
 4. **Sequencing vs the wider restructure.** #1592 cites ADR-0013 as authority and proposes ADR-0014. This plan *reverses* parts of ADR-0013 (`assert`, grader names, `input` removal — §2.c/§2.b). #1592 doesn't touch those, so no direct conflict, but ADR-0014 should note the broader superseding ADR is coming so it doesn't re-entrench `input`/`assertions`.
 
-**Verdict:** reasonable and mergeable as the extensions/workspace slice. **Amended (2026-07-02)** — an "Amendments (agreed)" section was added to the #1592 doc capturing A1–A6: hook-derived isolation + reset-based workspace pool (drop the `isolation` config knob), per-case spec in `vars.workspace`, built-in auto-registered `agentv:workspace`/`agentv:agent-rules` scheme alongside `file://`, grading contract unchanged (`EvaluationScore`), ADR-0014 sequencing note, and **rename `skills`→`agent-rules`** (stages skills + hooks + agents + rules). No rewrite required.
+**Verdict:** reasonable as historical context only. Current work should follow Beads and ADR-0016/ADR-0017: `workspace.repos` stays first-class, `workspace.scope` is `suite | attempt`, and pooled workspace mode is removed.
 
 ---
 
@@ -469,7 +473,7 @@ Since this is a major version with nothing in production, **remove** the accumul
 **C. Duplicate types to consolidate (judgment, not blind delete):**
 - `EvaluationScore` vs `ChildGraderResult` (`graders/types.ts`) are near-identical (`score`/`verdict`/`assertions`/`graderRawRequest`/`scores`/`details`/`tokenUsage`). Consider one recursive type.
 - **`timing.json` + `metrics.json` → one `metrics.json`** (see §6.0.1). `timing.json` already holds tokens/cost, overlapping `metrics.json`; merge into sections, drop `timing_path`. Supersedes the ADR-0011/0012 split.
-- `orchestrator.ts:495` "legacy workspace pooling toggle" (`workspaceMode`) — reconcile with §4's reset-based pool (one pooling model, not two).
+- Removed workspace pooling toggle (`workspaceMode`) — use `workspace.scope` for portable lifetime or `workspace_path` for explicit static local reuse.
 
 **Sequencing:** land **group A** as its own small, tested, dogfooded cleanup PR *now* (independent of the schema work — pure removal of dead aliases, shrinks the surface the restructure must touch). Handle **group B** inside the restructure phases (they need the new schema first). Do **group C** as targeted refactors with tests. Every deletion needs a green test run + a live dogfood per `.agents/verification.md` before merge.
 

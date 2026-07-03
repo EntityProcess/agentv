@@ -23,7 +23,7 @@ Evaluates whether the agent selected the **right tools** for the task. Uses heur
 ```yaml
 graders:
   - name: tool-selection
-    type: code-grader
+    type: script
     command: ["bun", "run", "scripts/tool-selection-grader.ts"]
 ```
 
@@ -34,7 +34,7 @@ Computes efficiency metrics and scores based on configurable thresholds. Demonst
 ```yaml
 graders:
   - name: efficiency
-    type: code-grader
+    type: script
     command: ["bun", "run", "scripts/efficiency-scorer.ts"]
 ```
 
@@ -45,7 +45,7 @@ Compares two agent responses for tool usage quality with position bias mitigatio
 ```yaml
 graders:
   - name: pairwise-compare
-    type: code-grader
+    type: script
     command: ["bun", "run", "scripts/pairwise-tool-compare.ts"]
 ```
 

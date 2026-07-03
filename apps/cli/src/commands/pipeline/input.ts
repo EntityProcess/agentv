@@ -16,7 +16,7 @@
  *           ├── criteria.md
  *           ├── expected_output.json    (if present)
  *           ├── llm_graders/<name>.json
- *           └── code_graders/<name>.json
+ *           └── code_graders/<name>.json   # script/deterministic grader configs
  */
 import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -142,7 +142,7 @@ export const evalInputCommand = command({
       await mkdir(testDir, { recursive: true });
       testIds.push(test.id);
 
-      // input.json — aligned with eval YAML schema and code grader SDK field names
+      // input.json - aligned with eval YAML schema and script grader payload fields.
       const inputMessages = test.input.map((m) => ({
         role: m.role,
         content: typeof m.content === 'string' ? m.content : m.content,
@@ -215,7 +215,7 @@ export const evalInputCommand = command({
       console.log('  1. Dispatch executor subagents — one per test case (all in parallel):');
       console.log('     - Each reads <run-dir>/<test-id>/input.json');
       console.log('     - Executes the task, writes <run-dir>/<test-id>/response.md');
-      console.log('  2. Run code graders:  agentv pipeline grade <run-dir>');
+      console.log('  2. Run script graders: agentv pipeline grade <run-dir>');
       console.log(
         '  3. Dispatch grader subagents — one per (test × LLM grader) pair (all in parallel):',
       );
@@ -252,7 +252,7 @@ async function writeGraderConfigs(
   let hasLlmGraders = false;
 
   for (const assertion of assertions) {
-    if (assertion.type === 'script' || assertion.type === 'code-grader') {
+    if (assertion.type === 'script') {
       if (!hasCodeGraders) {
         await mkdir(codeGradersDir, { recursive: true });
         hasCodeGraders = true;

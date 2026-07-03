@@ -32,7 +32,7 @@ tests:
       Reply with one path and title per line and nothing else.
     assertions:
       - name: required-guidance-reads
-        type: code-grader
+        type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]
         cwd: .
         required: true
@@ -60,7 +60,7 @@ tests:
       Reply with one command per line and nothing else.
     assertions:
       - name: required-guidance-reads
-        type: code-grader
+        type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]
         cwd: .
         required: true
@@ -81,7 +81,7 @@ tests:
       Reply with just the convention name.
     assertions:
       - name: required-guidance-reads
-        type: code-grader
+        type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]
         cwd: .
         required: true

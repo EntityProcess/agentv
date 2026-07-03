@@ -73,7 +73,7 @@ const CODEX_RESULT = {
   scores: [
     {
       name: 'edit_quality',
-      type: 'code-grader',
+      type: 'script',
       score: 0.9,
       assertions: [{ text: 'File edited correctly', passed: true }],
     },

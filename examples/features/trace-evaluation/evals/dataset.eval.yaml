@@ -25,7 +25,7 @@ tests:
 
     assertions:
       - name: span-count
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 5
@@ -44,7 +44,7 @@ tests:
 
     assertions:
       - name: error-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
         config:
           maxErrors: 0
@@ -63,7 +63,7 @@ tests:
 
     assertions:
       - name: error-and-tool-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
         config:
           maxErrors: 0
@@ -85,7 +85,7 @@ tests:
 
     assertions:
       - name: duration-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/span-duration.ts"]
         config:
           maxSpanMs: 3000
@@ -105,18 +105,18 @@ tests:
 
     assertions:
       - name: span-count
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/span-count.ts"]
         config:
           maxLlmCalls: 8
           maxToolCalls: 20
 
       - name: error-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/error-spans.ts"]
 
       - name: duration-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/span-duration.ts"]
         config:
           maxSpanMs: 5000

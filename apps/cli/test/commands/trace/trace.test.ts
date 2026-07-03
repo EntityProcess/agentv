@@ -601,7 +601,7 @@ describe('parseAssertSpec', () => {
     });
 
     it('should parse token-usage spec with params', () => {
-      const config = parseAssertSpec('token_usage:max_total=2000,max_input=1500');
+      const config = parseAssertSpec('token-usage:max_total=2000,max_input=1500');
       expect(config.type).toBe('token-usage');
       expect((config as { max_total: number }).max_total).toBe(2000);
       expect((config as { max_input: number }).max_input).toBe(1500);
@@ -613,7 +613,7 @@ describe('parseAssertSpec', () => {
     });
 
     it('should parse execution-metrics spec', () => {
-      const config = parseAssertSpec('execution_metrics:max_tool_calls=10,max_tokens=3000');
+      const config = parseAssertSpec('execution-metrics:max_tool_calls=10,max_tokens=3000');
       expect(config.type).toBe('execution-metrics');
       expect((config as { max_tool_calls: number }).max_tool_calls).toBe(10);
       expect((config as { max_tokens: number }).max_tokens).toBe(3000);

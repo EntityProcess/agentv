@@ -17,11 +17,11 @@ tests:
 
     assertions:
       - name: keyword-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../.agentv/graders/keyword-check.ts"]
         description: "Checks that the answer mentions Paris and France"
       - name: length-check
-        type: code-grader
+        type: script
         command: ["bun", "run", "../.agentv/graders/length-check.ts"]
         description: "Ensures answer is between 5 and 50 words"
       - type: contains

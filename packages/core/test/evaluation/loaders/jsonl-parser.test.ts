@@ -172,7 +172,7 @@ describe('loadTestsFromJsonl', () => {
     );
     await writeFile(
       sidecarPath,
-      'description: Test dataset\nname: my-tests\nevaluator: llm_grader\n',
+      'description: Test dataset\nname: my-tests\nevaluator: llm-grader\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);
@@ -213,11 +213,11 @@ describe('loadTestsFromJsonl', () => {
     expect(cases[0].suite).toBe('my-dataset');
   });
 
-  it('supports per-case evaluators override', async () => {
-    const jsonlPath = path.join(tempDir, 'with-evaluators.jsonl');
+  it('supports per-case assert override', async () => {
+    const jsonlPath = path.join(tempDir, 'with-assert.jsonl');
     await writeFile(
       jsonlPath,
-      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "evaluators": [{"name": "rubric-check", "type": "llm_grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
+      '{"id": "test-1", "criteria": "Goal", "input": [{"role": "user", "content": "Query"}], "assert": [{"name": "rubric-check", "type": "llm-grader", "rubrics": [{"id": "r1", "description": "Must be polite", "weight": 1.0, "required": true}]}]}\n',
     );
 
     const cases = await loadTestsFromJsonl(jsonlPath, tempDir);

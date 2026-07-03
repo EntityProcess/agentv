@@ -311,19 +311,15 @@ agentv eval evals/my-eval.yaml --target gpt --target claude --workers 4
 
 This matches the standard model used by eval frameworks (promptfoo, deepeval, OpenAI Evals) and avoids cross-file workspace races without any special configuration.
 
-### Workspace Modes and Finish Policy
+### Workspace Path and Finish Policy
 
-Use runtime workspace flags and finish policies instead of multiple conflicting booleans:
+Use `--workspace-path` only when a run should use an existing machine-local
+directory as-is. Use finish policies to control cleanup for harness-managed temp
+workspaces:
 
 ```bash
-# Mode: temp (default) | pooled | static
-agentv eval evals/my-eval.yaml --workspace-mode pooled
-
 # Existing local workspace path for this run
 agentv eval evals/my-eval.yaml --workspace-path /path/to/workspace
-
-# Pooled reset policy override: standard | full (CLI override)
-agentv eval evals/my-eval.yaml --workspace-clean full
 
 # Finish policy overrides: keep | cleanup (CLI)
 agentv eval evals/my-eval.yaml --retain-on-success cleanup --retain-on-failure keep
@@ -337,19 +333,17 @@ extensions:
   - file://scripts/setup.mjs:beforeAll
 
 workspace:
-  isolation: shared      # shared | per_case
+  scope: suite           # suite | attempt
   hooks:
     after_each:
       reset: fast        # none | fast | strict
 ```
 
 Notes:
-- Temp workspace materialization is the default for shared workspaces with repos.
-- Pooled mode is an explicit machine-local optimization.
-- `--workspace-path` uses an existing machine-local directory as-is and implies static runtime mode.
-- Runtime static mode is incompatible with `isolation: per_case`.
+- Temp workspace materialization is the default for harness-managed workspaces with repos.
+- `--workspace-path` uses an existing machine-local directory as-is.
+- Runtime workspace paths are incompatible with `workspace.scope: attempt`.
 - `workspace.hooks.after_each.reset` resets file state after each case.
-- Pool slots are managed separately (`agentv workspace list|clean`).
 
 ### Resume an Interrupted Run
 
@@ -572,7 +566,6 @@ execution:
   keep_workspaces: true
   # Machine-local existing workspace binding. Do not commit this file.
   workspace_path: /home/user/workspaces/my-eval
-  workspace_mode: static
 eval_patterns:
   - "local-evals/**/*.eval.yaml"
 ```
@@ -582,7 +575,6 @@ eval_patterns:
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `workspace_path` | `--workspace-path` | string | none | Machine-local existing workspace directory |
-| `workspace_mode` | `--workspace-mode` | `pooled` / `temp` / `static` | none | Machine-local workspace preparation override |
 | `otel_file` | `--otel-file` | string | none | Write OTLP JSON trace to file |
 
 ### TypeScript config (`agentv.config.ts`)
@@ -707,7 +699,7 @@ This keeps `.env` parsing in Bun's dotenv loader and avoids executing shell synt
 
 ### AGENTV_DATA_DIR
 
-Override the heavy runtime data directory for workspaces, workspace pool, subagents, trace state, git caches, downloaded dependencies, and results repository clones. If `AGENTV_DATA_DIR` is unset, AgentV stores heavy data in `AGENTV_HOME` (or `~/.agentv`) for backward compatibility.
+Override the heavy runtime data directory for workspaces, subagents, trace state, git caches, downloaded dependencies, and results repository clones. If `AGENTV_DATA_DIR` is unset, AgentV stores heavy data in `AGENTV_HOME` (or `~/.agentv`) for backward compatibility.
 
 ```bash
 # Linux/macOS

@@ -7,10 +7,10 @@ sidebar:
 
 Built-in graders for grading structured outputs and gating on execution metrics:
 
-- `field_accuracy` -- compare JSON fields against ground truth
+- `field-accuracy` -- compare JSON fields against ground truth
 - `latency` -- gate on response time
 - `cost` -- gate on monetary cost
-- `token_usage` -- gate on token consumption
+- `token-usage` -- gate on token consumption
 
 ## Ground Truth
 
@@ -26,7 +26,7 @@ tests:
 
 ## Field Accuracy
 
-Use `field_accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_output`.
+Use `field-accuracy` to compare fields in the candidate JSON against the ground-truth object in `expected_output`.
 
 ```yaml
 assertions:
@@ -54,7 +54,7 @@ assertions:
 | `date` | Compares dates after parsing | `formats` -- list of accepted date formats |
 | `numeric_tolerance` | Numeric compare within tolerance | `tolerance` -- absolute threshold; `relative: true` for relative tolerance |
 
-For fuzzy string matching, use a `script` grader (e.g. Levenshtein distance) instead of adding a fuzzy mode to `field_accuracy`.
+For fuzzy string matching, use a `script` grader (e.g. Levenshtein distance) instead of adding a fuzzy mode to `field-accuracy`.
 
 ### Aggregation
 

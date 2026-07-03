@@ -7,9 +7,9 @@ sidebar:
 
 AgentV provides built-in graders for checking execution metrics against thresholds. These are useful for enforcing efficiency constraints without writing custom code.
 
-## execution_metrics
+## execution-metrics
 
-The `execution_metrics` grader provides declarative threshold-based checks on multiple metrics in a single grader.
+The `execution-metrics` grader provides declarative threshold-based checks on multiple metrics in a single grader.
 
 ```yaml
 assertions:
@@ -96,7 +96,7 @@ Fails if execution duration exceeds the threshold.
 
 Fails if execution cost exceeds the threshold.
 
-### token_usage
+### token-usage
 
 ```yaml
 - name: tokens
@@ -110,8 +110,8 @@ Fails if total token usage exceeds the threshold.
 
 | Scenario | Recommended Grader |
 |----------|----------------------|
-| Check multiple metrics at once | `execution_metrics` |
-| Simple single-threshold check | `latency`, `cost`, or `token_usage` |
+| Check multiple metrics at once | `execution-metrics` |
+| Simple single-threshold check | `latency`, `cost`, or `token-usage` |
 | Complex custom formulas | `script` with custom command |
 
 ## Combining with Other Graders

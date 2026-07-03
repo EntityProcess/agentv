@@ -62,7 +62,7 @@ tests:
             apiKey: should-not-persist
             secret-token: should-not-persist
       - name: code-check
-        type: code-grader
+        type: script
         command: ["bun", "graders/code.ts"]
         cwd: graders
       - name: preprocessed

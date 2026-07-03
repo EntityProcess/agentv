@@ -1243,7 +1243,7 @@ tests:
   - id: test-1
     input: "Return JSON"
     assertions:
-      - type: is_json
+      - type: is-json
 `,
       );
 
@@ -1420,7 +1420,7 @@ tests:
     assertions:
       - type: contains
         value: DENIED
-      - type: is_json
+      - type: is-json
       - type: regex
         value: "\\\\d+"
 `,

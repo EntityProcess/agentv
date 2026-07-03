@@ -55,7 +55,6 @@ type RawJsonlEvalCase = JsonObject & {
   readonly input?: JsonValue;
   readonly expected_output?: JsonValue;
   readonly execution?: JsonValue;
-  readonly evaluators?: JsonValue;
   readonly assert?: JsonValue;
   readonly assertions?: JsonValue;
   readonly rubrics?: JsonValue;
@@ -207,7 +206,6 @@ export async function loadTestsFromJsonl(
     const hasExplicitCaseGraders =
       testCaseConfig.assert !== undefined ||
       testCaseConfig.assertions !== undefined ||
-      testCaseConfig.evaluators !== undefined ||
       testCaseConfig.rubrics !== undefined;
     const executionObject = isJsonObject(testCaseConfig.execution)
       ? testCaseConfig.execution
@@ -215,9 +213,7 @@ export async function loadTestsFromJsonl(
     const hasExplicitRootGraders =
       executionObject?.skip_defaults === true
         ? false
-        : globalExecution?.assert !== undefined ||
-          globalExecution?.assertions !== undefined ||
-          globalExecution?.evaluators !== undefined;
+        : globalExecution?.assert !== undefined || globalExecution?.assertions !== undefined;
     const graderCase =
       outcome && !hasExplicitCaseGraders && !hasExplicitRootGraders
         ? ({ ...testCaseConfig, assert: [outcome] } satisfies RawJsonlEvalCase)

@@ -212,7 +212,7 @@ tests:
     assertions:
       # Multi-field fuzzy match with config pass-through
       - name: party_names_fuzzy
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/multi_field_fuzzy.ts"]
         # These properties are passed to the script via stdin config
         fields:
@@ -392,7 +392,7 @@ tests:
       but greedy matching correctly aligns items by description similarity.
     assertions:
       - name: line_items_matched
-        type: code-grader
+        type: script
         command: ["bun", "run", "../graders/line_item_matching.ts"]
         match_fields: ["description"]
         score_fields: ["description", "quantity", "line_total"]

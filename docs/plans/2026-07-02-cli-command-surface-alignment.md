@@ -194,7 +194,7 @@ Recommended stable top-level groups:
 | `agentv results <summary|failures|show|report|export|compare|trend|combine|delete|validate>` | CLI operations over completed run bundles, including comparison and score movement analysis. |
 | `agentv runs rerun <run>` | Replay captured test bundles with replacement targets. |
 | `agentv doctor` | Check dependencies and environment readiness. |
-| `agentv workspace <list|deps|clean>` | Manage workspace pools and dependencies. |
+| `agentv workspace deps` | Inspect eval workspace repository dependencies. |
 
 Commands to hide, de-emphasize, or reconsider:
 

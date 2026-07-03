@@ -190,7 +190,7 @@ async function placePreparedWorkspace(
   await mkdir(path.dirname(destinationPath), { recursive: true });
   await rm(destinationPath, { recursive: true, force: true });
 
-  if (prepared.cleanupPolicy.mode !== 'static' && prepared.pool === undefined) {
+  if (prepared.cleanupPolicy.mode !== 'static') {
     await moveDirectory(sourcePath, destinationPath);
     return destinationPath;
   }
@@ -333,7 +333,6 @@ async function prepareAttempt(options: {
     evalCases: suite.tests,
     testId: options.testId,
     verbose: false,
-    workspaceMode: 'temp',
     retainOnSuccess: 'keep',
     retainOnFailure: 'keep',
   });

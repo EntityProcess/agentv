@@ -136,16 +136,16 @@ Before adding a new pointer family, verify that the artifact is large enough or 
 
 Grader types use kebab-case everywhere.
 
-- YAML config: `type: llm-grader`, `type: is-json`, `type: execution-metrics`
+- YAML config: `type: g-eval`, `type: llm-rubric`, `type: script`, `type: is-json`
 - Internal TypeScript: `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
 - Output `scores[].type`: `"llm-grader"`, `"is-json"`
 - Registry keys: `registry.register('llm-grader', ...)`
 
-Source of truth: `EVALUATOR_KIND_VALUES` in `packages/core/src/evaluation/types.ts`.
+Source of truth: `GRADER_KIND_VALUES` in `packages/core/src/evaluation/types.ts`.
 
 Backward compatibility:
 
-- Snake_case is accepted in YAML by `normalizeGraderType()` in `grader-parser.ts`, for example `llm_judge` -> `llm-grader`.
+- Snake_case is accepted in YAML by `normalizeGraderType()` in `grader-parser.ts`, for example `llm_rubric` -> `llm-rubric`.
 - Single-word types such as `contains`, `equals`, `regex`, `latency`, and `cost` are unchanged.
 
 Two type definitions exist and must stay in sync:

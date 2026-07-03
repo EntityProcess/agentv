@@ -44,7 +44,7 @@ Pass configurable limits via `config` in the YAML grader block:
 ```yaml
 graders:
   - name: span-count
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/span-count.ts"]
     config:
       maxLlmCalls: 5
@@ -57,7 +57,7 @@ Check for zero errors and block forbidden tools:
 ```yaml
 graders:
   - name: error-check
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/error-spans.ts"]
     config:
       maxErrors: 0
@@ -71,7 +71,7 @@ Ensure no individual step or total execution exceeds time budgets:
 ```yaml
 graders:
   - name: duration-check
-    type: code-grader
+    type: script
     command: ["bun", "run", "../graders/span-duration.ts"]
     config:
       maxSpanMs: 3000

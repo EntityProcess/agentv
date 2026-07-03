@@ -10,9 +10,11 @@ fixtures, repositories, and lifecycle hooks. Targets run inside that substrate.
 When `workspace.repos` is present, the eval declares repository identity and
 checkout pins; AgentV decides how to acquire the bytes.
 
-By default, repo workspaces are materialized into fresh temp workspaces. A
-machine-local pooled mode remains available for runs that explicitly opt into
-slot reuse.
+By default, repo workspaces are harness-managed temp workspaces. `workspace.scope`
+selects the portable lifetime: `suite` creates one workspace for the run, and
+`attempt` creates a clean workspace for each resolved execution attempt. Use
+`--workspace-path` only when you intentionally want to point a run at an existing
+machine-local directory.
 
 ## Eval setup lifecycle
 
@@ -23,7 +25,7 @@ eval start
   |
   v
 +---------------------------+
-| 1. Workspace setup        |  Create temp workspace or acquire explicit pool slot
+| 1. Workspace setup        |  Create suite workspace or attempt workspace
 +---------------------------+
   |
   v
@@ -57,7 +59,10 @@ eval start
 +---------------------------+
 ```
 
-With `--workspace-mode pooled`, steps 2-3 only happen on the first run. Subsequent runs reset the pool slot in-place, skipping clone and checkout entirely. The default repo workspace mode is `temp`, which materializes a fresh workspace for each run.
+With `workspace.scope: suite`, steps 2-4 run once and the test loop shares that
+workspace. With `workspace.scope: attempt`, AgentV repeats setup for each
+prompt-target-test-repeat attempt so mutating agents do not share filesystem
+state.
 
 ## Repo provenance vs acquisition
 
@@ -173,8 +178,7 @@ resolver writes JSON on stdout:
 
 Only `source.type: "git"` is supported. Resolver scripts should prepare or
 locate source directories independently from the final workspace; AgentV still
-materializes the repo into every shared, per-case, or explicitly pooled
-workspace it creates.
+materializes the repo into every suite or attempt workspace it creates.
 
 ### Configured mirrors
 
@@ -315,21 +319,24 @@ workspace clone from user-owned storage.
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| Clone progress runs for minutes | Large repo acquired from remote | Register a matching local project or configure `git_cache.mirrors`; optionally use `--workspace-mode pooled` for repeated local runs. |
+| Clone progress runs for minutes | Large repo acquired from remote | Register a matching local project or configure `git_cache.mirrors`; use `--workspace-path` only when an existing local workspace is acceptable. |
 | Heartbeat ends with a clone/fetch timeout | Remote network or missing local cache | Use the timeout guidance in the error: local checkout, configured mirror, or network fix. |
-| Stuck at checkout for 2+ minutes | Large repo file materialization after objects are present | Expected for 100k+ files; use Dev Drive on Windows. Subsequent runs use pool. |
+| Stuck at checkout for 2+ minutes | Large repo file materialization after objects are present | Expected for 100k+ files; use Dev Drive on Windows or a local mirror. |
 | `Filename too long` during checkout | Missing `core.longpaths` | `git config --global core.longpaths true` |
-| Slow every run despite pooling | Pool not matching (config drift) | Check with `agentv workspace list`; ensure workspace config is stable |
 | Before_all timeout | Setup script exceeds default 60s | Increase `timeout_ms` in workspace config |
 
-## Workspace pooling
+## Existing local workspace
 
-Workspace pooling is an explicit machine-local optimization for shared workspaces with repos. The first pooled run materializes from scratch. Subsequent pooled runs reset the existing workspace in-place (`git reset --hard` + `git clean -fd`) — typically reducing setup from minutes to seconds.
+`--workspace-path` points AgentV at an existing local directory and skips
+harness-managed materialization for that run. It is useful for local debugging,
+but it is shared mutable state, not a portable benchmark contract and not a
+clean per-attempt workspace.
 
-To opt into pooling for a run:
+To reuse an existing workspace for a run:
 
 ```bash
-agentv eval evals/my-eval.yaml --workspace-mode pooled
+agentv eval evals/my-eval.yaml --workspace-path /path/to/workspace
 ```
 
-See the [Workspace Pool](/docs/guides/workspace-pool/) guide for details on pool configuration, clean modes, concurrency, and drift detection.
+Do not commit local paths in eval YAML. Use `.agentv/config.local.yaml` when a
+workspace path is part of your machine-local setup.

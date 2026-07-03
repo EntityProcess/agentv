@@ -45,5 +45,5 @@ tests:
 
     assertions:
       - name: csv-in-file-changes
-        type: code-grader
+        type: script
         command: ["bun", "run", "../scripts/check-csv-artifact.ts"]

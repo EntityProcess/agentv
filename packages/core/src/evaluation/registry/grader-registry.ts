@@ -21,7 +21,7 @@ export interface GraderDispatchContext {
   readonly graderProvider?: Provider;
   /** Function to resolve target names to providers */
   readonly targetResolver?: TargetResolver;
-  /** Available target names for code graders */
+  /** Available target names for script graders */
   readonly availableTargets?: readonly string[];
   /** Agent timeout in ms */
   readonly agentTimeoutMs?: number;
@@ -38,7 +38,7 @@ export interface GraderDispatchContext {
  *
  * Factory functions handle all type-specific initialization logic:
  * - Reading prompt files for LLM graders
- * - Resolving script paths for code graders
+ * - Resolving script paths for script graders
  * - Creating adapter evaluators for deterministic assertions
  */
 export type GraderFactoryFn = (

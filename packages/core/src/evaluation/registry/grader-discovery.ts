@@ -2,7 +2,7 @@
  * Convention-based discovery of custom grader scripts.
  *
  * Scans `.agentv/graders/` (and legacy `.agentv/judges/`) for TypeScript/JavaScript
- * files and registers them as code graders in the registry. The file name
+ * files and registers them as script graders in the registry. The file name
  * (without extension) becomes the grader type name.
  *
  * Example: `.agentv/graders/custom-grader.ts` → type "custom-grader" in EVAL.yaml

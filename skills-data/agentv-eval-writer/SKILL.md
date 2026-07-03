@@ -378,7 +378,7 @@ workspace:
   hooks:
     after_each:
       reset: fast          # none | fast | strict
-  isolation: shared        # shared | per_case
+  scope: suite             # suite | attempt
 ```
 
 - `repo`: full clone URL or GitHub `org/name` shorthand
@@ -389,11 +389,9 @@ workspace:
 - `sparse`: sparse checkout paths array
 - Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
 - Do not author `workspace.mode`, `workspace.path`, `experiment.workspace`, or `execution.workspace` in eval YAML
-- Shared repo workspaces use fresh temp materialization by default; use `--workspace-mode pooled` or local `execution.workspace_mode: pooled` only when pool-slot reuse is intentional
+- Harness-managed repo workspaces use temp materialization by default; use `workspace.scope: suite | attempt` for portable lifetime
 - Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks
-- Pool reset defaults to `fast` (`git clean -fd`); use `--workspace-clean full` for strict reset (`git clean -fdx`)
-- Pool entries are managed separately via `agentv workspace list` and `agentv workspace clean`
 - `agentv workspace deps <eval-paths>` scans eval files and outputs a JSON manifest of required git repos (useful for CI pre-cloning)
 
 See https://agentv.dev/targets/configuration/#repository-lifecycle
@@ -455,7 +453,7 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
 Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `safety_gate`
 - `safety_gate`: fails immediately if the named gate grader scores below threshold (default 1.0)
 
-### tool_trajectory
+### tool-trajectory
 ```yaml
 - name: tool_check
   type: tool-trajectory
@@ -471,7 +469,7 @@ Aggregator types: `weighted_average`, `all_or_nothing`, `minimum`, `maximum`, `s
     - tool: summarize                  # omit args to skip argument checking
 ```
 
-### field_accuracy
+### field-accuracy
 ```yaml
 - name: fields
   type: field-accuracy
@@ -495,14 +493,14 @@ Compares `output` fields against `expected_output` fields.
   max_usd: 0.10
 ```
 
-### token_usage
+### token-usage
 ```yaml
 - name: tokens
   type: token-usage
   max_total_tokens: 4000
 ```
 
-### execution_metrics
+### execution-metrics
 ```yaml
 - name: efficiency
   type: execution-metrics
@@ -539,7 +537,7 @@ Binary check: does output match the regex pattern?
 ```
 Binary check: does output exactly equal the value (both trimmed)?
 
-### is_json
+### is-json
 ```yaml
 - type: is-json
   required: true
@@ -775,34 +773,6 @@ agentv create eval <name>       # → evals/<name>.eval.yaml + .cases.jsonl
 ## Skill Improvement Workflow
 
 For a complete guide to iterating on skills using evaluations — writing scenarios, running baselines, comparing results, and improving — see the [Skill Improvement Workflow](https://agentv.dev/guides/skill-improvement-workflow/) guide.
-## Human Review Checkpoint
-
-After running evals, perform a human review before iterating. Create `feedback.json` in the results directory:
-
-```json
-{
-  "run_id": "2026-03-14T10-32-00_claude",
-  "reviewer": "engineer-name",
-  "timestamp": "2026-03-14T12:00:00Z",
-  "overall_notes": "Summary of observations",
-  "per_case": [
-    {
-      "test_id": "test-id",
-      "verdict": "acceptable | needs_improvement | incorrect | flaky",
-      "notes": "Why this verdict",
-      "evaluator_overrides": { "script:name": "Override note" },
-      "workspace_notes": "Workspace state observations"
-    }
-  ]
-}
-```
-
-Use `evaluator_overrides` for workspace evaluations to annotate specific grader results (e.g., "script grader was too strict"). Use `workspace_notes` for observations about workspace state.
-
-Review workflow: run evals → inspect results (`agentv inspect show`) → write feedback → tune prompts/graders → re-run.
-
-Full guide: https://agentv.dev/guides/human-review/
-
 ## Observability Export
 
 AgentV exports observability data via OpenTelemetry:

@@ -278,7 +278,7 @@ describe('buildGradingArtifact', () => {
   it('includes evaluators list with AgentV extensions', () => {
     const result = makeResult({
       scores: [
-        makeEvaluatorResult({ name: 'format-check', type: 'code-grader', score: 1.0 }),
+        makeEvaluatorResult({ name: 'format-check', type: 'script', score: 1.0 }),
         makeEvaluatorResult({ name: 'quality', type: 'llm-grader', score: 0.7 }),
       ],
     });
@@ -287,7 +287,7 @@ describe('buildGradingArtifact', () => {
 
     expect(grading.graders).toHaveLength(2);
     expect(grading.graders?.[0].name).toBe('format-check');
-    expect(grading.graders?.[0].type).toBe('code-grader');
+    expect(grading.graders?.[0].type).toBe('script');
     expect(grading.graders?.[1].score).toBe(0.7);
   });
 

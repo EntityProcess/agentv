@@ -183,7 +183,6 @@ export {
   getWorkspacesRoot,
   getSubagentsRoot,
   getTraceStateRoot,
-  getWorkspacePoolRoot,
 } from './paths.js';
 export {
   type ProjectEntry,

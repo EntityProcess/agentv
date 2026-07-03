@@ -15,12 +15,12 @@ against the current portable contract:
 
 - Keep committed eval YAML portable: prompts, cases, assertions, workspace
   templates, repos, hooks, env checks, Docker preflight/container config, and
-  `workspace.isolation`.
+  `workspace.scope`.
 - Do not put machine-local existing workspace directories in eval YAML. Use
   `--workspace-path` for one-off runs or `.agentv/config.local.yaml` with
   `execution.workspace_path` for persistent local binding.
-- Use `workspace.isolation: shared | per_case` for folder isolation. Docker
-  config is not a replacement for workspace folder isolation.
+- Use `workspace.scope: suite | attempt` for portable workspace lifetime. Docker
+  config is not a replacement for workspace folder lifetime.
 - Keep wire-format fields in `snake_case` and TypeScript internals in
   `camelCase`.
 

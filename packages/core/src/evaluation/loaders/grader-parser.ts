@@ -33,19 +33,31 @@ const MAX_ASSERTION_INCLUDE_DEPTH = 3;
  */
 const PROMPT_FILE_PREFIX = 'file://';
 
-/**
- * Normalize grader type names from legacy snake_case to internal kebab-case.
- * Accepts both forms for backward compatibility:
- *   - snake_case: 'llm_grader' -> 'llm-grader' (legacy, still accepted)
- *   - kebab-case: 'llm-grader' -> 'llm-grader' (preferred, passes through)
- *   - single-word: 'contains' -> 'contains' (unchanged)
- */
 export function normalizeGraderType(type: string): string {
-  return type.replace(/_/g, '-');
+  return type;
 }
 
-function isDeprecatedJudgeType(type: string): boolean {
-  return type === 'code-judge' || type === 'llm-judge';
+function removedGraderReplacement(type: string): string | undefined {
+  const replacements: Record<string, string> = {
+    'code-grader': 'script',
+    'code-judge': 'script',
+    code_grader: 'script',
+    code_judge: 'script',
+    llm_judge: 'llm-grader',
+    llm_grader: 'llm-grader',
+    tool_trajectory: 'tool-trajectory',
+    field_accuracy: 'field-accuracy',
+    token_usage: 'token-usage',
+    execution_metrics: 'execution-metrics',
+    contains_any: 'contains-any',
+    contains_all: 'contains-all',
+    icontains_any: 'icontains-any',
+    icontains_all: 'icontains-all',
+    starts_with: 'starts-with',
+    ends_with: 'ends-with',
+    is_json: 'is-json',
+  };
+  return replacements[type];
 }
 
 const UNSUPPORTED_PROMPTFOO_ASSERTION_TYPES = new Set([
@@ -121,7 +133,6 @@ export async function parseGraders(
     readonly execution?: JsonValue;
     readonly assert?: JsonValue;
     readonly assertions?: JsonValue;
-    readonly evaluators?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -131,19 +142,17 @@ export async function parseGraders(
   const execution = rawEvalCase.execution;
   const executionObject = isJsonObject(execution) ? execution : undefined;
 
-  // Case-level graders priority: assert > assertions > legacy execution/top-level assertion lists
+  // Case-level graders priority: assert > legacy assertions > execution assert.
   const caseEvaluators =
     rawEvalCase.assert ??
     rawEvalCase.assertions ??
-    (executionObject ? executionObject.assert : undefined) ??
-    (executionObject ? executionObject.evaluators : undefined) ?? // deprecated: use assertions
-    rawEvalCase.evaluators; // deprecated: use assertions
+    (executionObject ? executionObject.assert : undefined);
 
-  // Root-level default graders: assert > assertions > legacy execution assertion list
+  // Root-level default graders: assert > legacy assertions.
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assert ?? globalExecution?.assertions ?? globalExecution?.evaluators); // deprecated: use assertions
+    : (globalExecution?.assert ?? globalExecution?.assertions);
 
   // Parse case-level evaluators
   const parsedCase = await parseGraderList(
@@ -317,7 +326,6 @@ export async function collectAssertionTemplateSourceReferences(
     readonly execution?: JsonValue;
     readonly assert?: JsonValue;
     readonly assertions?: JsonValue;
-    readonly evaluators?: JsonValue;
   },
   globalExecution: JsonObject | undefined,
   searchRoots: readonly string[],
@@ -328,13 +336,11 @@ export async function collectAssertionTemplateSourceReferences(
   const caseEvaluators =
     rawEvalCase.assert ??
     rawEvalCase.assertions ??
-    (executionObject ? executionObject.assert : undefined) ??
-    (executionObject ? executionObject.evaluators : undefined) ??
-    rawEvalCase.evaluators;
+    (executionObject ? executionObject.assert : undefined);
   const skipDefaults = executionObject?.skip_defaults === true;
   const rootEvaluators = skipDefaults
     ? undefined
-    : (globalExecution?.assert ?? globalExecution?.assertions ?? globalExecution?.evaluators);
+    : (globalExecution?.assert ?? globalExecution?.assertions);
 
   return [
     ...(await collectAssertionTemplateReferencesFromValue(caseEvaluators, searchRoots, evalId)),
@@ -435,7 +441,7 @@ async function collectAssertionTemplateReferencesFromObject(
   includeContext: IncludeContext,
 ): Promise<readonly EvalSourceReference[]> {
   const references: EvalSourceReference[] = [];
-  for (const key of ['assert', 'assertions', 'evaluators'] as const) {
+  for (const key of ['assert', 'assertions'] as const) {
     references.push(
       ...(await collectAssertionTemplateReferencesFromValue(
         value[key],
@@ -478,7 +484,7 @@ async function parseGraderList(
             if (typeof item === 'string') {
               const trimmed = item.trim();
               if (trimmed.length === 0) {
-                logWarning(`Skipping empty string criterion in assertions array for '${evalId}'`);
+                logWarning(`Skipping empty string criterion in assert array for '${evalId}'`);
               } else {
                 strings.push(trimmed);
               }
@@ -518,17 +524,15 @@ async function parseGraderList(
 
     const rawName = asString(rawEvaluator.name);
     const rawType = rawEvaluator.type;
-    // Normalize legacy snake_case YAML type names to internal kebab-case (e.g., 'llm_grader' -> 'llm-grader')
     const typeValue = typeof rawType === 'string' ? normalizeGraderType(rawType) : rawType;
 
-    if (typeof typeValue === 'string' && isDeprecatedJudgeType(typeValue)) {
-      logWarning(
-        `Skipping evaluator '${rawName ?? '<unnamed>'}' in '${evalId}': '${rawType}' is deprecated. Use '${typeValue.replace('-judge', '-grader')}' instead`,
-      );
-      continue;
-    }
-
     if (typeof typeValue === 'string') {
+      const replacement = removedGraderReplacement(typeValue);
+      if (replacement) {
+        throw new Error(
+          `Unsupported grader '${rawType}' in '${evalId}'. Use '${replacement}' instead.`,
+        );
+      }
       assertSupportedPromptfooType(typeValue, evalId, rawName);
     }
 
@@ -636,13 +640,7 @@ async function parseGraderList(
       continue;
     }
 
-    if (typeValue === 'code-grader' || typeValue === 'script') {
-      const isLegacyCodeGrader = typeValue === 'code-grader';
-      if (isLegacyCodeGrader) {
-        logWarning(
-          `Evaluator '${name}' in '${evalId}': 'code-grader' is deprecated. Use 'script' instead.`,
-        );
-      }
+    if (typeValue === 'script') {
       const displayType = 'script';
       let command: string[] | undefined;
       if (rawEvaluator.script !== undefined) {
@@ -770,11 +768,10 @@ async function parseGraderList(
     }
 
     if (typeValue === 'composite') {
-      // Accept assert > assertions > evaluators (deprecated)
-      const rawMembers = rawEvaluator.assert ?? rawEvaluator.assertions ?? rawEvaluator.evaluators; // evaluators deprecated
+      const rawMembers = rawEvaluator.assert ?? rawEvaluator.assertions;
       if (!Array.isArray(rawMembers)) {
         logWarning(
-          `Skipping composite evaluator '${name}' in '${evalId}': missing assertions (or evaluators) array`,
+          `Skipping composite evaluator '${name}' in '${evalId}': missing assertions array`,
         );
         continue;
       }
@@ -792,19 +789,17 @@ async function parseGraderList(
             ? aggregatorType
             : normalizeGraderType(aggregatorType)
           : aggregatorType;
-      if (
-        typeof normalizedAggregatorType === 'string' &&
-        isDeprecatedJudgeType(normalizedAggregatorType)
-      ) {
-        logWarning(
-          `Skipping composite evaluator '${name}' in '${evalId}': aggregator type '${aggregatorType}' is deprecated. Use '${normalizedAggregatorType.replace('-judge', '-grader')}' instead`,
-        );
-        continue;
+      if (typeof normalizedAggregatorType === 'string') {
+        const replacement = removedGraderReplacement(normalizedAggregatorType);
+        if (replacement) {
+          throw new Error(
+            `Unsupported composite aggregator '${aggregatorType}' in '${evalId}'. Use '${replacement}' instead.`,
+          );
+        }
       }
       if (
         normalizedAggregatorType !== 'weighted_average' &&
         normalizedAggregatorType !== 'script' &&
-        normalizedAggregatorType !== 'code-grader' &&
         normalizedAggregatorType !== 'llm-grader' &&
         normalizedAggregatorType !== 'threshold'
       ) {
@@ -839,9 +834,9 @@ async function parseGraderList(
           continue;
         }
 
-        // Parse member evaluator (reuse existing logic for code, llm-grader, script)
+        // Parse member evaluator (reuse existing logic for script, llm-grader, etc.)
         const memberConfigs = await parseGraders(
-          { evaluators: [rawMember] },
+          { assert: [rawMember] },
           undefined,
           searchRoots,
           `${evalId}:${name}:${memberName}`,
@@ -878,15 +873,7 @@ async function parseGraderList(
           type: 'weighted_average',
           ...(Object.keys(parsedWeights).length > 0 ? { weights: parsedWeights } : {}),
         };
-      } else if (
-        normalizedAggregatorType === 'script' ||
-        normalizedAggregatorType === 'code-grader'
-      ) {
-        if (normalizedAggregatorType === 'code-grader') {
-          logWarning(
-            `Composite evaluator '${name}' in '${evalId}': aggregator type 'code-grader' is deprecated. Use 'script' instead.`,
-          );
-        }
+      } else if (normalizedAggregatorType === 'script') {
         const aggregatorPath = asString(rawAggregator.path);
         if (!aggregatorPath) {
           logWarning(
@@ -1171,7 +1158,7 @@ async function parseGraderList(
 
         if (!match || !isValidFieldMatchType(match)) {
           logWarning(
-            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a code-grader evaluator.`,
+            `Skipping field '${fieldPath}' with invalid match type '${match}' in evaluator '${name}' (must be exact, numeric_tolerance, or date). For fuzzy matching, use a script evaluator.`,
           );
           continue;
         }
@@ -2147,7 +2134,7 @@ function generateAssertionName(typeValue: string, rawEvaluator: JsonObject): str
     case 'rubrics':
       return 'rubrics';
     default:
-      // For all other grader types (llm-grader, code-grader, latency, etc.),
+      // For all other grader types (llm-grader, script, latency, etc.),
       // use the type name itself as the auto-derived name.
       return typeValue;
   }
@@ -2163,15 +2150,14 @@ export function coerceEvaluator(
   if (typeof candidate !== 'string') {
     return undefined;
   }
-  // Normalize legacy snake_case to kebab-case
-  const normalized = normalizeGraderType(candidate);
-  if (isDeprecatedJudgeType(normalized)) {
+  const replacement = removedGraderReplacement(candidate);
+  if (replacement) {
     throw new Error(
-      `Unsupported grader '${candidate}' in ${contextId}. Use '${normalized.replace('-judge', '-grader')}' instead.`,
+      `Unsupported grader '${candidate}' in ${contextId}. Use '${replacement}' instead.`,
     );
   }
-  if (isGraderKind(normalized)) {
-    return normalized;
+  if (isGraderKind(candidate)) {
+    return candidate;
   }
   logWarning(`Unknown grader '${candidate}' in ${contextId}, falling back to default`);
   return undefined;
