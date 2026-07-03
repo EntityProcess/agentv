@@ -9,6 +9,51 @@ Coding agent targets evaluate AI coding assistants and CLI-based agents. Use `de
 
 AgentV's recommended coding-agent targets use process or protocol boundaries such as `claude-cli`, `codex-cli`, `copilot-cli`, and `pi-cli`. SDK-backed targets are opt-in provider kinds: `claude-sdk`, `codex-sdk`, `copilot-sdk`, and `pi-sdk`. When selected, AgentV runs the SDK adapter in an AgentV-owned child process and communicates with it through a structured protocol, so SDK crashes, malformed output, timeouts, and missing optional SDK packages are scoped to that target run instead of the AgentV orchestrator process.
 
+## Runtime isolation
+
+Coding-agent targets can use three runtime placements:
+
+- `runtime: host` runs the installed CLI or child runner on the current machine
+  with the configured local environment. Use this to evaluate the same agent
+  profile you use manually.
+- `runtime.mode: profile` keeps host process execution but points the agent at
+  an explicit home/config/profile directory.
+- `runtime.mode: sandbox` runs through a separate substrate such as Docker. The
+  first built-in sandbox path supports `provider: cli` with explicit
+  `runtime.image`, `runtime.mounts`, `runtime.env`, and `runtime.secrets`.
+  Provider-specific adapters such as `codex-cli`, `claude-cli`, `copilot-cli`,
+  and `pi-cli` currently return a structured unsupported target error in
+  sandbox mode until their transcript handling is sandbox-aware.
+
+Sandbox mode never reuses host credentials implicitly. For reproducible CI,
+prefer API keys or explicit secrets injected through `runtime.secrets`.
+Subscription OAuth can be evaluated only by intentionally mounting or seeding
+the profile directory the agent needs, which trades reproducibility for fidelity
+to a local authenticated setup.
+
+```yaml
+targets:
+  - id: codex-ci-sandbox
+    provider: cli
+    runtime:
+      mode: sandbox
+      engine: docker
+      image: ghcr.io/acme/codex-agent:sha256
+      workdir: /workspace
+      mounts:
+        - source: ./workspace
+          target: /workspace
+          access: rw
+        - source: ./.agentv/results
+          target: /results
+          access: rw
+      secrets:
+        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+    config:
+      command: "codex exec --json --output-file {OUTPUT_FILE} {PROMPT_FILE}"
+      timeout_seconds: 300
+```
+
 ## Prompt format
 
 Agent providers receive a structured prompt document with two sections: a **preread block** listing files the agent must read, and the **user query** containing the eval input.

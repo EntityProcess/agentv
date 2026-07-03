@@ -258,6 +258,139 @@ describe('CliProvider', () => {
     expect(response.targetExecution?.message).toBe('task failed');
   });
 
+  it('runs sandbox runtime commands without inheriting host env', async () => {
+    process.env.AGENTV_SANDBOX_SHOULD_NOT_LEAK = 'host-secret';
+    let capturedRuntime: Record<string, unknown> | undefined;
+    const sandboxRunner = mock(async (command: string, options): Promise<CommandRunResult> => {
+      capturedRuntime = options.runtime as Record<string, unknown>;
+      const match = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        await writeFile(outputFilePath, JSON.stringify({ text: 'sandbox response' }), 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+      return {
+        stdout: 'sandbox stdout',
+        stderr: 'sandbox stderr',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      {
+        mode: 'sandbox',
+        image: 'agentv-target:sha256',
+        env: { SAFE_ENV: '1' },
+        secrets: { OPENAI_API_KEY: 'explicit-key' },
+        mounts: [{ source: '/host/workspace', target: '/workspace', access: 'rw' }],
+      },
+      sandboxRunner,
+    );
+
+    const response = await provider.invoke(baseRequest);
+
+    expect(sandboxRunner).toHaveBeenCalledTimes(1);
+    expect(capturedRuntime?.env).toEqual({ SAFE_ENV: '1' });
+    expect(capturedRuntime?.secrets).toEqual({ OPENAI_API_KEY: 'explicit-key' });
+    expect(JSON.stringify(capturedRuntime)).not.toContain('host-secret');
+    expect(response.targetExecution?.runtimeMode).toBe('sandbox');
+    expect(response.targetExecution?.status).toBe('success');
+    expect(response.targetExecution?.logs?.stdout?.text).toBe('sandbox stdout');
+    expect(response.targetExecution?.logs?.stderr?.text).toBe('sandbox stderr');
+    expect(extractLastAssistantContent(response.output)).toBe('sandbox response');
+    process.env.AGENTV_SANDBOX_SHOULD_NOT_LEAK = undefined;
+  });
+
+  it('distinguishes sandbox infra failure from target nonzero exit', async () => {
+    const infraRunner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: '',
+        stderr: 'docker daemon unavailable',
+        exitCode: 125,
+        failed: true,
+        sandboxInfraFailure: true,
+      }),
+    );
+    const targetFailureRunner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: 'target stdout',
+        stderr: 'target failed',
+        exitCode: 2,
+        failed: true,
+      }),
+    );
+    const runtime = { mode: 'sandbox' as const, image: 'agentv-target:sha256' };
+
+    const infraResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      infraRunner,
+    ).invoke(baseRequest);
+    const targetResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      targetFailureRunner,
+    ).invoke(baseRequest);
+
+    expect(infraResponse.targetExecution?.runtimeMode).toBe('sandbox');
+    expect(infraResponse.targetExecution?.errorKind).toBe('sandbox_infra_failure');
+    expect(targetResponse.targetExecution?.runtimeMode).toBe('sandbox');
+    expect(targetResponse.targetExecution?.errorKind).toBe('nonzero_exit');
+    expect(targetResponse.targetExecution?.logs?.stdout?.text).toBe('target stdout');
+  });
+
+  it('returns timeout and cancellation envelopes for sandbox work', async () => {
+    const timeoutRunner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: 'partial transcript',
+        stderr: '',
+        exitCode: null,
+        failed: true,
+        timedOut: true,
+      }),
+    );
+    const controller = new AbortController();
+    const cancelRunner = mock(async (_command, _options): Promise<CommandRunResult> => {
+      controller.abort();
+      return {
+        stdout: 'cancel partial',
+        stderr: '',
+        exitCode: null,
+        failed: true,
+        signal: 'SIGTERM',
+      };
+    });
+    const runtime = { mode: 'sandbox' as const, image: 'agentv-target:sha256' };
+
+    const timeoutResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      timeoutRunner,
+    ).invoke(baseRequest);
+    const cancelResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      cancelRunner,
+    ).invoke({ ...baseRequest, signal: controller.signal });
+
+    expect(timeoutResponse.targetExecution?.errorKind).toBe('timeout');
+    expect(timeoutResponse.targetExecution?.logs?.stdout?.text).toBe('partial transcript');
+    expect(cancelResponse.targetExecution?.errorKind).toBe('cancelled');
+    expect(cancelResponse.targetExecution?.logs?.stdout?.text).toBe('cancel partial');
+  });
+
   it('uses request.cwd as working directory override in invoke', async () => {
     let capturedCwd: string | undefined;
     const runner = mock(async (command: string, options): Promise<CommandRunResult> => {

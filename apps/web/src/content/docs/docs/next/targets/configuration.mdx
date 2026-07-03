@@ -48,6 +48,62 @@ the shorthand for the current machine, or object form when you need
 settings belong under `config`. Process-backed providers use
 `config.command` as a non-empty argv array.
 
+## Runtime Modes
+
+Use `runtime: host` when you want AgentV to run the target exactly as it is
+installed on the current machine. This is the best fit for local research,
+subscription-auth workflows, and evaluating the same CLI profile an engineer
+uses manually.
+
+Use `runtime.mode: profile` when the target still runs as a host process but
+should use an isolated home/config directory, such as a dedicated `CODEX_HOME`
+or `HOME`.
+
+Use `runtime.mode: sandbox` when the target should run inside a separate
+execution substrate. The built-in sandbox runner currently supports Docker for
+`provider: cli`; provider-specific coding-agent adapters such as `codex-cli`,
+`claude-cli`, `copilot-cli`, and `pi-cli` return a structured unsupported target
+error until their transcript parsers are wired through sandbox-aware runners.
+
+```yaml
+targets:
+  - id: codex-sandbox
+    provider: cli
+    runtime:
+      mode: sandbox
+      engine: docker
+      image: ghcr.io/acme/codex-agent:sha256
+      workdir: /workspace
+      network: none
+      mounts:
+        - source: ./workspace
+          target: /workspace
+          access: rw
+        - source: ./.agentv/results
+          target: /results
+          access: rw
+      env:
+        AGENTV_RESULT_DIR: /results
+      secrets:
+        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+    config:
+      command: "codex exec --json --output-file {OUTPUT_FILE} {PROMPT_FILE}"
+      timeout_seconds: 300
+```
+
+Sandbox mode does not inherit host credentials by default. Mount only the
+workspace, results, cache, or credential paths the target needs, and pass only
+the environment variables and secrets listed under `runtime.env` and
+`runtime.secrets`. Install the target CLI by using an image that already
+contains it or by adding explicit setup under `runtime.setup`; locate the CLI
+with `config.command`.
+
+For CI, API-key or explicitly injected secret auth is the most reproducible
+path. Subscription OAuth can work in a sandbox only when you intentionally mount
+or seed the relevant profile directory into the sandbox. That makes the run less
+portable than API-key CI and should be reserved for workflows where matching a
+local subscription profile is the point of the evaluation.
+
 Any supported top-level field can be moved to a file reference:
 
 ```yaml

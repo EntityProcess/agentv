@@ -175,6 +175,65 @@ describe('loadConfig', () => {
     }
   });
 
+  it('accepts sandbox runtime settings under runtime without top-level install fields', async () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-sandbox-'));
+    try {
+      const configPath = path.join(tempDir, 'sandbox.eval.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'targets:',
+          '  - id: agent-sandbox',
+          '    provider: cli',
+          '    runtime:',
+          '      mode: sandbox',
+          '      engine: docker',
+          '      image: ghcr.io/example/agent-cli:sha256',
+          '      workdir: /workspace',
+          '      setup:',
+          '        - agent-cli --version',
+          '      mounts:',
+          '        - source: ./workspace',
+          '          target: /workspace',
+          '          access: rw',
+          '        - source: ./.agentv/results',
+          '          target: /results',
+          '          access: rw',
+          '      env:',
+          '        AGENTV_RESULT_DIR: /results',
+          '      secrets:',
+          '        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}',
+          '    config:',
+          '      command: "agent-cli run {PROMPT_FILE} {OUTPUT_FILE}"',
+          '',
+        ].join('\n'),
+      );
+
+      const graph = await loadComposableConfigGraph(configPath);
+
+      expect(graph.targets?.[0]).toEqual({
+        id: 'agent-sandbox',
+        provider: 'cli',
+        runtime: {
+          mode: 'sandbox',
+          engine: 'docker',
+          image: 'ghcr.io/example/agent-cli:sha256',
+          workdir: '/workspace',
+          setup: ['agent-cli --version'],
+          mounts: [
+            { source: './workspace', target: '/workspace', access: 'rw' },
+            { source: './.agentv/results', target: '/results', access: 'rw' },
+          ],
+          env: { AGENTV_RESULT_DIR: '/results' },
+          secrets: { OPENAI_API_KEY: '${{ OPENAI_API_KEY }}' },
+        },
+        config: { command: 'agent-cli run {PROMPT_FILE} {OUTPUT_FILE}' },
+      });
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects wrapped referenced field files', async () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'agentv-config-graph-wrapped-'));
     try {

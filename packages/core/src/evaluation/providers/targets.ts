@@ -2,6 +2,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { renderEnvTemplateString } from '../interpolation.js';
+import type { TargetRuntimeConfig, TargetRuntimeMode } from './sandbox-runner.js';
 import type { EnvLookup, TargetDefinition } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -695,7 +696,7 @@ export function normalizeTargetDefinition(
     typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
   const legacyName =
     typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : undefined;
-  const name = label ?? legacyName ?? options.defaultName;
+  const name = label ?? legacyName ?? id ?? options.defaultName;
   if (!name || name.trim().length === 0) {
     throw new Error("Target definition is missing a valid 'label' field");
   }
@@ -813,6 +814,7 @@ export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 interface ResolvedTargetBase {
   readonly name: string;
   readonly label?: string;
+  readonly runtime?: TargetRuntimeConfig;
   readonly graderTarget?: string;
   readonly workers?: number;
   readonly providerBatching?: boolean;
@@ -879,6 +881,7 @@ export type ResolvedTarget =
  */
 export const COMMON_TARGET_SETTINGS = [
   'use_target',
+  'runtime',
   'batch_requests',
   'subagent_mode_allowed',
   'fallback_targets',
@@ -894,6 +897,7 @@ const BASE_TARGET_SCHEMA = z
     label: z.string().optional(),
     provider: z.string().optional(),
     config: z.record(z.unknown()).optional(),
+    runtime: z.unknown().optional(),
     use_target: z.string().optional(),
     grader_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
@@ -907,6 +911,7 @@ const BASE_TARGET_SCHEMA = z
 // (`2024-12-01-preview`) is no longer reachable from the Azure provider here.
 const DEFAULT_AZURE_API_VERSION = 'v1';
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const TARGET_RUNTIME_MODE_VALUES = new Set<TargetRuntimeMode>(['host', 'profile', 'sandbox']);
 
 function normalizeAzureApiVersion(value: string | undefined): string {
   if (!value) {
@@ -959,6 +964,30 @@ function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryCo
     backoffFactor,
     retryableStatusCodes,
   };
+}
+
+function resolveTargetRuntime(
+  rawRuntime: unknown,
+  targetName: string,
+): TargetRuntimeConfig | undefined {
+  if (rawRuntime === undefined || rawRuntime === null) {
+    return undefined;
+  }
+  if (typeof rawRuntime === 'string') {
+    const mode = rawRuntime.trim();
+    if (TARGET_RUNTIME_MODE_VALUES.has(mode as TargetRuntimeMode)) {
+      return { mode: mode as TargetRuntimeMode };
+    }
+  }
+  if (isRecord(rawRuntime)) {
+    const mode = typeof rawRuntime.mode === 'string' ? rawRuntime.mode.trim() : '';
+    if (TARGET_RUNTIME_MODE_VALUES.has(mode as TargetRuntimeMode)) {
+      return { ...rawRuntime, mode: mode as TargetRuntimeMode };
+    }
+  }
+  throw new Error(
+    `Invalid runtime for target "${targetName}": use 'host' or an object with mode: host|profile|sandbox.`,
+  );
 }
 
 export function resolveDelegatedTargetDefinition(
@@ -1054,6 +1083,7 @@ export function resolveTargetDefinition(
   const base = {
     name: parsed.name,
     label: parsed.label,
+    runtime: resolveTargetRuntime(parsed.runtime, parsed.name),
     graderTarget: parsed.grader_target,
     workers: parsed.workers,
     providerBatching,

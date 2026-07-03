@@ -222,7 +222,9 @@ function parseTarget(value: unknown, location: string): NormalizedTargetConfig {
   }
 
   const config = readOptionalObject(value.config, `${location}.config`) ?? {};
-  validateCommand(config.command, `${location}.config.command`);
+  validateCommand(config.command, `${location}.config.command`, {
+    allowString: provider === 'cli',
+  });
 
   return {
     id,
@@ -356,8 +358,15 @@ function readOptionalObject(value: unknown, location: string): Record<string, un
   return value;
 }
 
-function validateCommand(value: unknown, location: string): void {
+function validateCommand(
+  value: unknown,
+  location: string,
+  options: { readonly allowString?: boolean } = {},
+): void {
   if (value === undefined) {
+    return;
+  }
+  if (options.allowString && typeof value === 'string' && value.trim().length > 0) {
     return;
   }
   if (

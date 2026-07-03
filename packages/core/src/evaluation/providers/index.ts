@@ -22,7 +22,14 @@ import {
   resolveDelegatedTargetDefinition,
   resolveTargetDefinition,
 } from './targets.js';
-import type { EnvLookup, Provider, TargetDefinition } from './types.js';
+import type {
+  EnvLookup,
+  Provider,
+  ProviderKind,
+  ProviderRequest,
+  ProviderResponse,
+  TargetDefinition,
+} from './types.js';
 import { VSCodeProvider } from './vscode-provider.js';
 
 export type {
@@ -94,6 +101,78 @@ export { discoverProviders } from './provider-discovery.js';
 export { discoverCopilotSessions, type CopilotSession } from './copilot-session-discovery.js';
 export { ReplayProvider } from './replay.js';
 
+class UnsupportedSandboxProvider implements Provider {
+  readonly id: string;
+  readonly kind: ProviderKind;
+  readonly targetName: string;
+
+  constructor(
+    private readonly providerKind: ProviderKind,
+    targetName: string,
+    private readonly message: string,
+  ) {
+    this.kind = providerKind;
+    this.targetName = targetName;
+    this.id = `${providerKind}:${targetName}`;
+  }
+
+  async invoke(_request: ProviderRequest): Promise<ProviderResponse> {
+    const now = Date.now();
+    const content = `Error: ${this.message}`;
+    return {
+      output: [{ role: 'assistant', content }],
+      durationMs: 0,
+      raw: {
+        error: this.message,
+        unsupported_provider: this.providerKind,
+        runtime_mode: 'sandbox',
+      },
+      targetExecution: {
+        schemaVersion: 'agentv.target_execution.v1',
+        status: 'error',
+        targetId: this.targetName,
+        providerId: this.id,
+        providerKind: this.providerKind,
+        runtimeMode: 'sandbox',
+        startedAt: new Date(now).toISOString(),
+        endedAt: new Date(now).toISOString(),
+        durationMs: 0,
+        errorKind: 'sandbox_infra_failure',
+        message: this.message,
+        logs: {
+          stdout: { text: '', truncated: false, bytes: 0, storedBytes: 0 },
+          stderr: {
+            text: this.message,
+            truncated: false,
+            bytes: Buffer.byteLength(this.message, 'utf8'),
+            storedBytes: Buffer.byteLength(this.message, 'utf8'),
+          },
+        },
+        transcript: {
+          messages: [{ role: 'assistant', content }],
+          finalOutput: content,
+        },
+        details: {
+          unsupported_provider: this.providerKind,
+          supported_sandbox_provider: 'cli',
+        },
+      },
+    };
+  }
+}
+
+function usesSandboxRuntime(target: ResolvedTarget): boolean {
+  return target.runtime?.mode === 'sandbox';
+}
+
+function unsupportedSandboxProvider(target: ResolvedTarget): Provider {
+  return new UnsupportedSandboxProvider(
+    target.kind as ProviderKind,
+    target.name,
+    `runtime.mode: sandbox is not implemented for provider '${target.kind}' yet. Use provider: cli with an explicit sandbox runtime and config.command, or switch this target to runtime: host/profile until this provider has a sandbox-aware runner.`,
+  );
+}
+
 /**
  * Create and return the default provider registry with all built-in providers.
  */
@@ -106,21 +185,65 @@ export function createBuiltinProviderRegistry(): ProviderRegistry {
     .register('azure', (t) => new AzureProvider(t.name, t.config as never))
     .register('anthropic', (t) => new AnthropicProvider(t.name, t.config as never))
     .register('gemini', (t) => new GeminiProvider(t.name, t.config as never))
-    .register('cli', (t) => new CliProvider(t.name, t.config as never))
-    .register('codex-cli', (t) => new CodexCliProvider(t.name, t.config as never))
-    .register('codex-app-server', (t) => new CodexAppServerProvider(t.name, t.config as never))
-    .register('codex-sdk', (t) => new SdkChildProvider('codex-sdk', t.name, t.config))
-    .register('copilot-sdk', (t) => new SdkChildProvider('copilot-sdk', t.name, t.config))
-    .register('copilot-cli', (t) => new CopilotCliProvider(t.name, t.config as never))
+    .register('cli', (t) => new CliProvider(t.name, t.config as never, undefined, t.runtime))
+    .register('codex-cli', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new CodexCliProvider(t.name, t.config as never),
+    )
+    .register('codex-app-server', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new CodexAppServerProvider(t.name, t.config as never),
+    )
+    .register('codex-sdk', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new SdkChildProvider('codex-sdk', t.name, t.config),
+    )
+    .register('copilot-sdk', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new SdkChildProvider('copilot-sdk', t.name, t.config),
+    )
+    .register('copilot-cli', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new CopilotCliProvider(t.name, t.config as never),
+    )
     .register('copilot-log', (t) => new CopilotLogProvider(t.name, t.config as never))
-    .register('pi-sdk', (t) => new SdkChildProvider('pi-sdk', t.name, t.config))
-    .register('pi-coding-agent', (t) => new SdkChildProvider('pi-sdk', t.name, t.config))
-    .register('pi-cli', (t) => new PiCliProvider(t.name, t.config as never))
+    .register('pi-sdk', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new SdkChildProvider('pi-sdk', t.name, t.config),
+    )
+    .register('pi-coding-agent', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new SdkChildProvider('pi-sdk', t.name, t.config),
+    )
+    .register('pi-cli', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new PiCliProvider(t.name, t.config as never),
+    )
     // claude-cli is the new default subprocess provider; claude is an alias
-    .register('claude-cli', (t) => new ClaudeCliProvider(t.name, t.config as never))
-    .register('claude', (t) => new ClaudeCliProvider(t.name, t.config as never))
+    .register('claude-cli', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new ClaudeCliProvider(t.name, t.config as never),
+    )
+    .register('claude', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new ClaudeCliProvider(t.name, t.config as never),
+    )
     // Explicit SDK providers are isolated behind an AgentV child runner.
-    .register('claude-sdk', (t) => new SdkChildProvider('claude-sdk', t.name, t.config))
+    .register('claude-sdk', (t) =>
+      usesSandboxRuntime(t)
+        ? unsupportedSandboxProvider(t)
+        : new SdkChildProvider('claude-sdk', t.name, t.config),
+    )
     .register('mock', (t) => new MockProvider(t.name, t.config as never))
     .register('agentv', (t) => new AgentvProvider(t.name, t.config as never))
     .register('replay', (t) => new ReplayProvider(t.name, t.config as never))

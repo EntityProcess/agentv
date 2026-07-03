@@ -435,6 +435,7 @@ export interface TargetDefinition {
   readonly label?: string | undefined;
   /** Promptfoo-shaped provider options bag. Provider settings are flattened at the boundary. */
   readonly config?: unknown | undefined;
+  readonly runtime?: unknown | undefined;
   readonly prompts?: unknown | undefined;
   readonly transform?: unknown | undefined;
   readonly delay?: number | unknown | undefined;

@@ -8,6 +8,11 @@ import { z } from 'zod';
 import type { Content } from '../content.js';
 import { isContentArray } from '../content.js';
 import { readTextFile } from '../file-utils.js';
+import {
+  type SandboxCommandRunOptions,
+  type TargetRuntimeConfig,
+  runDockerSandboxCommand,
+} from './sandbox-runner.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -170,11 +175,18 @@ export interface CommandRunResult {
   readonly timedOut?: boolean;
   readonly signal?: NodeJS.Signals | null;
   readonly spawnErrorCode?: string;
+  readonly sandboxInfraFailure?: boolean;
+  readonly sandboxDetails?: Record<string, unknown>;
 }
 
 export type CommandRunner = (
   command: string,
   options: CommandRunOptions,
+) => Promise<CommandRunResult>;
+
+export type SandboxCommandRunner = (
+  command: string,
+  options: SandboxCommandRunOptions,
 ) => Promise<CommandRunResult>;
 
 async function defaultCommandRunner(
@@ -321,6 +333,7 @@ function commandEnvelopeBase(params: {
   timeoutMs?: number;
   startedAt: number;
   endedAt: number;
+  runtimeMode?: string;
   result?: CommandRunResult;
 }): Omit<TargetExecutionEnvelope, 'status'> {
   const argv =
@@ -332,7 +345,7 @@ function commandEnvelopeBase(params: {
     targetId: params.targetName,
     providerId: params.providerId,
     providerKind: params.providerKind,
-    runtimeMode: 'host',
+    runtimeMode: params.runtimeMode ?? 'host',
     command: {
       argv,
       commandLine: params.command,
@@ -361,6 +374,9 @@ function classifyCommandFailure(
   if (result.timedOut) {
     return 'timeout';
   }
+  if (result.sandboxInfraFailure) {
+    return 'sandbox_infra_failure';
+  }
   if (result.spawnErrorCode) {
     return 'spawn_failure';
   }
@@ -376,6 +392,9 @@ function commandFailureMessage(result: CommandRunResult, errorKind: TargetExecut
   }
   if (errorKind === 'timeout') {
     return 'CLI provider timed out';
+  }
+  if (errorKind === 'sandbox_infra_failure') {
+    return result.stderr.trim() || result.stdout.trim() || 'Sandbox runtime failed';
   }
   if (errorKind === 'spawn_failure') {
     return (
@@ -400,6 +419,8 @@ export class CliProvider implements Provider {
 
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
+  private readonly runSandboxCommand: SandboxCommandRunner;
+  private readonly runtime?: TargetRuntimeConfig;
   private readonly verbose: boolean;
   private readonly keepTempFiles: boolean;
   private healthcheckPromise?: Promise<void>;
@@ -408,11 +429,15 @@ export class CliProvider implements Provider {
     targetName: string,
     config: CliResolvedConfig,
     runner: CommandRunner = defaultCommandRunner,
+    runtime?: TargetRuntimeConfig,
+    sandboxRunner: SandboxCommandRunner = runDockerSandboxCommand,
   ) {
     this.targetName = targetName;
     this.id = `cli:${targetName}`;
     this.config = config;
     this.runCommand = runner;
+    this.runSandboxCommand = sandboxRunner;
+    this.runtime = runtime;
     this.verbose = config.verbose ?? false;
     this.keepTempFiles = config.keepTempFiles ?? false;
   }
@@ -444,7 +469,7 @@ export class CliProvider implements Provider {
     // Measure wall-clock time as fallback for duration
     try {
       const startTime = Date.now();
-      const result = await this.runCommand(renderedCommand, {
+      const result = await this.runCommandForRuntime(renderedCommand, {
         cwd: effectiveCwd,
         env: process.env,
         timeoutMs: this.config.timeoutMs,
@@ -472,6 +497,7 @@ export class CliProvider implements Provider {
               timeoutMs: this.config.timeoutMs,
               startedAt: startTime,
               endedAt: Date.now(),
+              runtimeMode: this.runtimeMode(),
               result,
             }),
             status: 'error',
@@ -484,6 +510,7 @@ export class CliProvider implements Provider {
             details: {
               outputFile: outputFilePath,
               spawnErrorCode: result.spawnErrorCode,
+              sandbox: result.sandboxDetails,
             },
           },
           raw: {
@@ -518,6 +545,7 @@ export class CliProvider implements Provider {
               timeoutMs: this.config.timeoutMs,
               startedAt: startTime,
               endedAt: Date.now(),
+              runtimeMode: this.runtimeMode(),
               result,
             }),
             status: 'error',
@@ -559,6 +587,7 @@ export class CliProvider implements Provider {
             timeoutMs: this.config.timeoutMs,
             startedAt: startTime,
             endedAt: Date.now(),
+            runtimeMode: this.runtimeMode(),
             result,
           }),
           status: targetTaskFailure ? 'error' : 'success',
@@ -638,7 +667,7 @@ export class CliProvider implements Provider {
     // Measure wall-clock time for batch (used as fallback if records don't provide duration)
     try {
       const startTime = Date.now();
-      const result = await this.runCommand(renderedCommand, {
+      const result = await this.runCommandForRuntime(renderedCommand, {
         cwd: effectiveCwd,
         env: process.env,
         timeoutMs: this.config.timeoutMs,
@@ -738,6 +767,7 @@ export class CliProvider implements Provider {
                 timeoutMs: this.config.timeoutMs,
                 startedAt: startTime,
                 endedAt: Date.now(),
+                runtimeMode: this.runtimeMode(),
                 result,
               }),
               status: 'success',
@@ -779,6 +809,7 @@ export class CliProvider implements Provider {
                 timeoutMs: this.config.timeoutMs,
                 startedAt: startTime,
                 endedAt: Date.now(),
+                runtimeMode: this.runtimeMode(),
                 result,
               }),
               status: 'error',
@@ -817,6 +848,7 @@ export class CliProvider implements Provider {
               timeoutMs: this.config.timeoutMs,
               startedAt: startTime,
               endedAt: Date.now(),
+              runtimeMode: this.runtimeMode(),
               result,
             }),
             status: parsed.error ? 'error' : 'success',
@@ -1022,6 +1054,7 @@ export class CliProvider implements Provider {
           timeoutMs: this.config.timeoutMs,
           startedAt: params.startedAt,
           endedAt: params.startedAt + params.durationMs,
+          runtimeMode: this.runtimeMode(),
           result: params.result,
         }),
         status: 'error',
@@ -1035,6 +1068,7 @@ export class CliProvider implements Provider {
           outputFile: params.outputFilePath,
           recordId: params.request.evalCaseId,
           spawnErrorCode: params.result.spawnErrorCode,
+          sandbox: params.result.sandboxDetails,
         },
       },
       raw: {
@@ -1133,7 +1167,7 @@ export class CliProvider implements Provider {
     }
 
     try {
-      const result = await this.runCommand(renderedCommand, {
+      const result = await this.runCommandForRuntime(renderedCommand, {
         cwd: hcCwd ?? this.config.cwd,
         env: process.env,
         timeoutMs,
@@ -1151,6 +1185,25 @@ export class CliProvider implements Provider {
     } finally {
       await cleanupTempFile(promptFilePath, this.keepTempFiles);
     }
+  }
+
+  private runtimeMode(): string {
+    return this.runtime?.mode ?? 'host';
+  }
+
+  private async runCommandForRuntime(
+    command: string,
+    options: CommandRunOptions,
+  ): Promise<CommandRunResult> {
+    if (this.runtime?.mode !== 'sandbox') {
+      return this.runCommand(command, options);
+    }
+    return this.runSandboxCommand(command, {
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      signal: options.signal,
+      runtime: this.runtime,
+    });
   }
 }
 

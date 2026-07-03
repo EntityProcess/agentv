@@ -106,6 +106,26 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.response).toBe('ok');
   });
 
+  it('uses clean target id as identity when label and legacy name are absent', () => {
+    const target = resolveTargetDefinition(
+      {
+        id: 'sandbox-cli',
+        provider: 'cli',
+        runtime: { mode: 'sandbox', image: 'agentv-target:sha256' },
+        config: {
+          command: 'agent run {PROMPT_FILE} {OUTPUT_FILE}',
+        },
+      } as never,
+      {},
+    );
+
+    expect(target.name).toBe('sandbox-cli');
+    expect(target.label).toBe('sandbox-cli');
+    expect(target.kind).toBe('cli');
+    expect(target.runtime).toEqual({ mode: 'sandbox', image: 'agentv-target:sha256' });
+    expect(target.config.command).toBe('agent run {PROMPT_FILE} {OUTPUT_FILE}');
+  });
+
   it('treats provider as backend kind while id remains a provider locator', () => {
     const target = resolveTargetDefinition(
       {
