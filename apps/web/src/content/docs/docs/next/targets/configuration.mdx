@@ -5,10 +5,22 @@ sidebar:
   order: 1
 ---
 
-Targets define which agent or LLM provider to evaluate. Project manifests can
-keep targets inline in `.agentv/config.yaml` or decompose them into a direct
-field reference such as `targets: file://targets.yaml`. Both forms normalize to
-the same config graph.
+Targets define which agent or LLM provider to evaluate. AgentV uses one
+composable config graph across project manifests and eval files:
+
+- `.agentv/config.yaml` is the project-local discovery and composition root. It
+  can hold targets, graders, tests, defaults, execution policy, results
+  settings, and repo-local project policy.
+- `$AGENTV_HOME/config.yaml` is the user/operator config. Use it for defaults
+  that apply across projects, project registry data, default result locations,
+  and provider defaults that should not be copied into each repo.
+- `eval.yaml` is a focused, shareable slice of the same graph. Use it for a
+  suite-specific target, grader, tests, evaluator settings, or run controls
+  that should travel with the eval.
+
+Any supported top-level field can stay inline or become a direct field
+reference such as `targets: file://targets.yaml`. Both forms normalize to the
+same config graph.
 
 ## Structure
 
@@ -45,7 +57,7 @@ Use `id` for the stable AgentV target identity. `provider` selects the adapter
 or control boundary. `runtime` describes where the provider runs; use `host` as
 the shorthand for the current machine, or object form when you need
 `mode: host | profile | sandbox` plus runtime-specific settings. Provider
-settings belong under `config`. Process-backed providers use
+settings belong under `config`. Process-backed coding-agent providers use
 `config.command` as a non-empty argv array.
 
 ## Runtime Modes
@@ -68,7 +80,7 @@ error until their transcript parsers are wired through sandbox-aware runners.
 ```yaml
 targets:
   - id: codex-sandbox
-    provider: cli
+    provider: codex-cli
     runtime:
       mode: sandbox
       engine: docker
@@ -87,7 +99,7 @@ targets:
       secrets:
         OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
     config:
-      command: "codex exec --json --output-file {OUTPUT_FILE} {PROMPT_FILE}"
+      command: ["codex", "exec", "--json"]
       timeout_seconds: 300
 ```
 
@@ -104,16 +116,62 @@ or seed the relevant profile directory into the sandbox. That makes the run less
 portable than API-key CI and should be reserved for workflows where matching a
 local subscription profile is the point of the evaluation.
 
-Any supported top-level field can be moved to a file reference:
+Inline and decomposed forms are equivalent. This single-file config:
+
+```yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+tests:
+  - id: smoke
+    input: Fix the failing test.
+
+defaults:
+  target: codex-local
+  grader: openai-grader
+```
+
+can be decomposed like this:
 
 ```yaml
 targets: file://targets.yaml
 graders: file://graders.yaml
+tests: file://tests.yaml
 defaults: file://defaults.yaml
 ```
 
 Referenced field files contain the field value directly. `targets.yaml` contains
-a bare array, not an object wrapped in `targets:`.
+a bare array, not an object wrapped in `targets:`:
+
+```yaml
+# .agentv/targets.yaml
+- id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+    model: gpt-5-codex
+```
+
+```yaml
+# .agentv/defaults.yaml
+target: codex-local
+grader: openai-grader
+```
+
+File refs are optional. Use them when a config field is large, reused, or owned
+by a separate team; keep fields inline when that is easier to read.
 
 ## Environment Variables
 

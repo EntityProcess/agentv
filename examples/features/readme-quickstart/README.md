@@ -24,6 +24,5 @@ Run it against a local OpenAI-compatible endpoint:
 LOCAL_OPENAI_PROXY_BASE_URL=http://127.0.0.1:10531/v1 \
 LOCAL_OPENAI_PROXY_API_KEY=dummy-local-key \
 LOCAL_OPENAI_PROXY_MODEL=gpt-5.3-codex-spark \
-bun apps/cli/src/cli.ts eval examples/features/readme-quickstart/evals/my-eval.eval.yaml \
-  --targets examples/features/readme-quickstart/targets.yaml
+bun apps/cli/src/cli.ts eval examples/features/readme-quickstart/evals/my-eval.eval.yaml
 ```

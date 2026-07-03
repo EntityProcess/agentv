@@ -3,9 +3,6 @@ title: LLM Providers
 description: Direct LLM API provider targets
 sidebar:
   order: 2
-slug: docs/v4.42.4/targets/llm-providers
-editUrl: false
-pagefind: false
 ---
 
 LLM provider targets call language model APIs directly. These are used both as evaluation targets and as grader targets for scoring.
@@ -14,10 +11,12 @@ LLM provider targets call language model APIs directly. These are used both as e
 
 ```yaml
 targets:
-  - name: openai-target
+  - id: openai-target
     provider: openai
-    api_key: ${{ OPENAI_API_KEY }}
-    model: gpt-4o
+    runtime: host
+    config:
+      api_key: ${{ OPENAI_API_KEY }}
+      model: gpt-4o
 ```
 
 | Field | Required | Description |
@@ -41,30 +40,57 @@ Most users should leave this unset. The default `chat` format is universally sup
 ```yaml
 # OpenAI-compatible endpoint (default chat format works)
 targets:
-  - name: github-models
+  - id: github-models
     provider: openai
-    api_format: chat
-    base_url: https://models.github.ai/inference/v1
-    api_key: ${{ GH_MODELS_TOKEN }}
-    model: ${{ GH_MODELS_MODEL }}
+    runtime: host
+    config:
+      api_format: chat
+      base_url: https://models.github.ai/inference/v1
+      api_key: ${{ GH_MODELS_TOKEN }}
+      model: ${{ GH_MODELS_MODEL }}
 
   # Opt in to Responses API for api.openai.com
-  - name: openai-responses
+  - id: openai-responses
     provider: openai
-    api_format: responses
-    api_key: ${{ OPENAI_API_KEY }}
-    model: gpt-4o
+    runtime: host
+    config:
+      api_format: responses
+      api_key: ${{ OPENAI_API_KEY }}
+      model: gpt-4o
 ```
+
+### Local OpenAI-compatible endpoints
+
+For smoke tests and dogfood runs against a local OpenAI-compatible proxy, keep
+the endpoint, model, and placeholder key in environment variables:
+
+```yaml
+graders:
+  - id: local-openai-grader
+    provider: openai
+    config:
+      api_format: chat
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+```
+
+If the local proxy does not require authentication, set
+`LOCAL_OPENAI_PROXY_API_KEY` to a non-secret placeholder such as
+`dummy-local-key`; do not commit literal keys or machine-local model choices to
+shared eval files.
 
 ## Azure OpenAI
 
 ```yaml
 targets:
-  - name: azure-base
+  - id: azure-base
     provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
+    runtime: host
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
 ```
 
 | Field | Required | Description |
@@ -82,12 +108,14 @@ If your Azure deployment only exposes `/chat/completions` (older deployments, ce
 
 ```yaml
 targets:
-  - name: azure-chat
+  - id: azure-chat
     provider: openai
-    base_url: https://<resource>.openai.azure.com/openai/deployments/<deployment>
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: <deployment>
-    api_format: chat
+    runtime: host
+    config:
+      base_url: https://<resource>.openai.azure.com/openai/deployments/<deployment>
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: <deployment>
+      api_format: chat
 ```
 
 The `api_format` field was previously available on `provider: azure` but has been removed — Azure targets always go through the Responses API.
@@ -96,10 +124,12 @@ The `api_format` field was previously available on `provider: azure` but has bee
 
 ```yaml
 targets:
-  - name: claude_target
+  - id: claude-target
     provider: anthropic
-    api_key: ${{ ANTHROPIC_API_KEY }}
-    model: claude-sonnet-4-20250514
+    runtime: host
+    config:
+      api_key: ${{ ANTHROPIC_API_KEY }}
+      model: claude-sonnet-4-20250514
 ```
 
 | Field | Required | Description |
@@ -111,10 +141,12 @@ targets:
 
 ```yaml
 targets:
-  - name: gemini_target
+  - id: gemini-target
     provider: gemini
-    api_key: ${{ GEMINI_API_KEY }}
-    model: gemini-2.0-flash
+    runtime: host
+    config:
+      api_key: ${{ GEMINI_API_KEY }}
+      model: gemini-2.0-flash
 ```
 
 | Field | Required | Description |

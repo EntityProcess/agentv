@@ -3,32 +3,175 @@ title: Targets Configuration
 description: Configure execution targets for providers and agents
 sidebar:
   order: 1
-slug: docs/v4.42.4/targets/configuration
-editUrl: false
-pagefind: false
 ---
 
-Targets define which agent or LLM provider to evaluate. They are configured in `.agentv/targets.yaml` to decouple eval files from provider details.
+Targets define which agent or LLM provider to evaluate. AgentV uses one
+composable config graph across project manifests and eval files:
+
+- `.agentv/config.yaml` is the project-local discovery and composition root. It
+  can hold targets, graders, tests, defaults, execution policy, results
+  settings, and repo-local project policy.
+- `$AGENTV_HOME/config.yaml` is the user/operator config. Use it for defaults
+  that apply across projects, project registry data, default result locations,
+  and provider defaults that should not be copied into each repo.
+- `eval.yaml` is a focused, shareable slice of the same graph. Use it for a
+  suite-specific target, grader, tests, evaluator settings, or run controls
+  that should travel with the eval.
+
+Any supported top-level field can stay inline or become a direct field
+reference such as `targets: file://targets.yaml`. Both forms normalize to the
+same config graph.
 
 ## Structure
 
 ```yaml
 targets:
-  - name: azure-base
-    provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
+  - id: local-openai
+    provider: openai
+    runtime: host
+    config:
+      api_format: chat
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
 
-  - name: vscode_dev
-    provider: vscode
-    grader_target: azure-base
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
 
-  - name: local_agent
-    provider: cli
-    command: 'python agent.py --prompt {PROMPT}'
-    grader_target: azure-base
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+defaults:
+  target: codex-local
+  grader: openai-grader
 ```
+
+Use `id` for the stable AgentV target identity. `provider` selects the adapter
+or control boundary. `runtime` describes where the provider runs; use `host` as
+the shorthand for the current machine, or object form when you need
+`mode: host | profile | sandbox` plus runtime-specific settings. Provider
+settings belong under `config`. Process-backed coding-agent providers use
+`config.command` as a non-empty argv array.
+
+## Runtime Modes
+
+Use `runtime: host` when you want AgentV to run the target exactly as it is
+installed on the current machine. This is the best fit for local research,
+subscription-auth workflows, and evaluating the same CLI profile an engineer
+uses manually.
+
+Use `runtime.mode: profile` when the target still runs as a host process but
+should use an isolated home/config directory, such as a dedicated `CODEX_HOME`
+or `HOME`.
+
+Use `runtime.mode: sandbox` when the target should run inside a separate
+execution substrate. The built-in sandbox runner currently supports Docker for
+`provider: cli`; provider-specific coding-agent adapters such as `codex-cli`,
+`claude-cli`, `copilot-cli`, and `pi-cli` return a structured unsupported target
+error until their transcript parsers are wired through sandbox-aware runners.
+
+```yaml
+targets:
+  - id: codex-sandbox
+    provider: codex-cli
+    runtime:
+      mode: sandbox
+      engine: docker
+      image: ghcr.io/acme/codex-agent:sha256
+      workdir: /workspace
+      network: none
+      mounts:
+        - source: ./workspace
+          target: /workspace
+          access: rw
+        - source: ./.agentv/results
+          target: /results
+          access: rw
+      env:
+        AGENTV_RESULT_DIR: /results
+      secrets:
+        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+    config:
+      command: ["codex", "exec", "--json"]
+      timeout_seconds: 300
+```
+
+Sandbox mode does not inherit host credentials by default. Mount only the
+workspace, results, cache, or credential paths the target needs, and pass only
+the environment variables and secrets listed under `runtime.env` and
+`runtime.secrets`. Install the target CLI by using an image that already
+contains it or by adding explicit setup under `runtime.setup`; locate the CLI
+with `config.command`.
+
+For CI, API-key or explicitly injected secret auth is the most reproducible
+path. Subscription OAuth can work in a sandbox only when you intentionally mount
+or seed the relevant profile directory into the sandbox. That makes the run less
+portable than API-key CI and should be reserved for workflows where matching a
+local subscription profile is the point of the evaluation.
+
+Inline and decomposed forms are equivalent. This single-file config:
+
+```yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+tests:
+  - id: smoke
+    input: Fix the failing test.
+
+defaults:
+  target: codex-local
+  grader: openai-grader
+```
+
+can be decomposed like this:
+
+```yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
+tests: file://tests.yaml
+defaults: file://defaults.yaml
+```
+
+Referenced field files contain the field value directly. `targets.yaml` contains
+a bare array, not an object wrapped in `targets:`:
+
+```yaml
+# .agentv/targets.yaml
+- id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+    model: gpt-5-codex
+```
+
+```yaml
+# .agentv/defaults.yaml
+target: codex-local
+grader: openai-grader
+```
+
+File refs are optional. Use them when a config field is large, reused, or owned
+by a separate team; keep fields inline when that is easier to read.
 
 ## Environment Variables
 
@@ -38,10 +181,12 @@ eval directory hierarchy when present:
 
 ```yaml
 targets:
-  - name: my_target
+  - id: my-target
     provider: anthropic
-    api_key: ${{ ANTHROPIC_API_KEY }}
-    model: ${{ ANTHROPIC_MODEL }}
+    runtime: host
+    config:
+      api_key: ${{ ANTHROPIC_API_KEY }}
+      model: ${{ ANTHROPIC_MODEL }}
 ```
 
 This keeps secrets out of version-controlled files and avoids requiring a CI step that rewrites
@@ -54,92 +199,97 @@ already-exported secrets into `.env`.
 | `azure` | LLM | Azure OpenAI |
 | `anthropic` | LLM | Anthropic Claude API |
 | `gemini` | LLM | Google Gemini |
-| `claude` | Agent | Claude Agent SDK |
-| `codex` | Agent | Codex CLI |
-| `pi-coding-agent` | Agent | Pi Coding Agent |
+| `claude-cli` | Agent | Claude CLI subprocess |
+| `claude-sdk` | Agent | Claude Agent SDK in an isolated child runner |
+| `codex-cli` | Agent | Codex CLI subprocess |
+| `codex-app-server` | Agent | Codex app-server subprocess |
+| `codex-sdk` | Agent | Codex SDK in an isolated child runner |
+| `copilot-cli` | Agent | Copilot CLI subprocess |
+| `copilot-log` | Agent | Passive Copilot CLI session log reader |
+| `copilot-sdk` | Agent | Copilot SDK in an isolated child runner |
+| `pi-sdk` | Agent | Pi SDK in an isolated child runner |
+| `pi-cli` | Agent | Pi CLI subprocess |
+| `pi-rpc` | Agent | Pi RPC subprocess over stdio |
 | `vscode` | Agent | VS Code with Copilot |
 | `vscode-insiders` | Agent | VS Code Insiders |
-| `cli` | Agent | Any CLI command — see [CLI Provider](/docs/v4.42.4/targets/cli-provider/) |
-| `mock` | Testing | Mock provider for dry runs |
+| `cli` | Agent | Any CLI command — see [CLI Provider](/docs/targets/cli-provider) |
+| `mock` | Testing | Explicit mock target for examples and tests |
 
 ## Referencing Targets in Evals
 
-Set the default target at the top level or override per case:
+Select the system under test with `defaults.target`, top-level `target`, or CLI
+`--target`, depending on the command flow. Test cases do not choose targets;
+split target-specific cases into separate eval suites, select them with
+tags/filters, or run the same eval with different `--target` values.
 
 ```yaml
-# Top-level default
-execution:
-  target: azure-base
+target: local-openai
 
 tests:
   - id: test-1
-    # Uses azure-base
-
   - id: test-2
-    execution:
-      target: vscode_dev  # Override for this case
 ```
 
-## Grader Target
-
-Agent targets that need LLM-based evaluation specify a `grader_target` (also accepts `judge_target` for backward compatibility) — the LLM used to run LLM grader graders:
+The string is a configured target `id`. Use object form when an eval needs a
+local target variant:
 
 ```yaml
-targets:
-  - id: codex_target
-    provider: codex-cli
-    runtime: host
-    config:
-      command: ["codex"]
+target:
+  id: codex-high-reasoning
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+    model: gpt-5-codex
+    reasoning_effort: high
 ```
 
-### Workspace Lifecycle Hooks
+Use `defaults.grader` for the project default grader. A specific evaluator can
+still choose its own grader target when the evaluator supports that override.
 
-Run commands and reset/cleanup policies at different lifecycle points using `workspace.hooks`. This can be defined at the suite level (applies to all tests) or per test (overrides suite-level).
+### Lifecycle Extensions
+
+Run non-provisioning setup at Promptfoo-compatible lifecycle points using
+top-level `extensions`. The harness materializes `workspace.template` and
+`workspace.repos` first, then runs `beforeAll` extensions. Use extensions for
+dependency installs, builds, fixture generation, and agent-rule staging. Use
+target hooks for runner-specific setup. Keep repo identity and checkout pins in
+`workspace.repos`; extensions must not become the default repo acquisition path.
 
 ```yaml
+extensions:
+  - file://scripts/workspace.mjs:beforeAll
+  - file://scripts/workspace.mjs:beforeEach
+  - file://scripts/workspace.mjs:afterEach
+  - file://scripts/workspace.mjs:afterAll
+  - id: agentv:agent-rules
+    hook: beforeAll
+    skills: agent-rules/skills
+    rules: agent-rules/AGENTS.md
+
 workspace:
   template: ./workspace-templates/my-project
   hooks:
-    before_all:
-      command: ["bun", "run", "setup.ts"]
-      timeout_ms: 120000
-      cwd: ./scripts
     after_each:
-      command: ["bun", "run", "reset.ts"]
-      timeout_ms: 5000
       reset: fast
-    after_all:
-      command: ["bun", "run", "cleanup.ts"]
-      timeout_ms: 30000
 ```
 
 | Field | Description |
 |-------|-------------|
 | `template` | Directory to copy as workspace |
-| `hooks.before_all` | Runs once after workspace creation, before the first test |
-| `hooks.after_all` | Runs once after the last test, before cleanup |
-| `hooks.before_each` | Runs before each test |
-| `hooks.after_each` | Runs after each test (supports both `command` and `reset`) |
+| `extensions[]` | `file://...:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, or `agentv:agent-rules` |
+| `hooks.after_each.reset` | Reset mode: `none`, `fast`, `strict` |
 
-Each hook config accepts:
-
-| Field | Description |
-|-------|-------------|
-| `command` | Command array (e.g., `["bun", "run", "setup.ts"]`) |
-| `reset` | Reset mode: `none`, `fast`, `strict` |
-| `timeout_ms` | Timeout in milliseconds (default: 60000 for setup hooks, 30000 for teardown hooks) |
-| `cwd` | Working directory (relative paths resolved against eval file directory) |
-
-**Lifecycle order:** template copy → repo materialization → workspace `hooks.before_all` → target `hooks.before_all` → git baseline → (`hooks.before_each` → target `hooks.before_each` → agent runs → file changes captured → target `hooks.after_each` → `hooks.after_each`) × N tests → target `hooks.after_all` → `hooks.after_all` → cleanup
+**Lifecycle order:** template copy → repo materialization → `extensions.beforeAll` → target `hooks.before_all` → git baseline → (`extensions.beforeEach` → target `hooks.before_each` → agent runs → file changes captured → target `hooks.after_each` → `extensions.afterEach` → `workspace.hooks.after_each.reset`) × N tests → target `hooks.after_all` → `extensions.afterAll` → cleanup
 
 **Shared workspace:** The workspace is created once and shared across all tests in a suite. Use `hooks.after_each.reset` to reset state between tests (e.g., `fast`/`strict`).
 
 **Error handling:**
-- `hooks.before_all` / `hooks.before_each` command failure aborts the test with an error result
-- `hooks.after_all` / `hooks.after_each` command failure is non-fatal (warning only)
+- `beforeAll` / `beforeEach` extension failure aborts the affected run with an error result
+- `afterAll` / `afterEach` extension failure is non-fatal
 
-**Script context:** All scripts receive a JSON object on stdin with case context:
+**File hook context:** Exported functions receive a JSON-compatible object with
+case context:
 
 ```json
 {
@@ -147,11 +297,13 @@ Each hook config accepts:
   "test_id": "case-01",
   "eval_run_id": "run-123",
   "case_input": "Fix the bug",
-  "case_metadata": { "repo": "sympy/sympy", "base_commit": "abc123" }
+  "case_metadata": { "repo": "sympy/sympy", "source_commit": "abc123" }
 }
 ```
 
-**Suite vs per-test:** When both are defined, test-level fields replace suite-level fields. See [Per-Test Workspace Config](/docs/v4.42.4/evaluation/eval-cases/#per-case-workspace-config) for examples.
+`workspace.hooks` remains the reset-policy home for `after_each.reset`. Legacy
+command hooks still parse for existing local suites, but new portable evals
+should use `extensions` for executable setup.
 
 ### Repository Lifecycle
 
@@ -167,34 +319,27 @@ workspace:
   hooks:
     after_each:
       reset: fast             # none | fast | strict
-  isolation: shared           # shared (default) | per_test
-  mode: pooled                # pooled | temp | static
-  path: /tmp/my-ws            # workspace path for mode=static
+  scope: suite                # suite (default) | attempt
 ```
 
-`repo` declares the repository identity. Acquisition is harness-owned: AgentV first looks for matching registered projects and configured mirrors, then uses its git cache, then falls back to remote clone. See [Workspace Architecture](/docs/v4.42.4/guides/workspace-architecture/#repo-provenance-vs-acquisition) for the resolver order and `git_cache.mirrors` config.
+`repo` declares the repository identity. Acquisition is harness-owned: AgentV first applies configured `repo_resolvers`, then uses the built-in git path of registered projects, configured mirrors, AgentV's git cache, and remote clone. See [Workspace Architecture](/docs/guides/workspace-architecture/#acquisition-resolver) for the resolver order, command resolver protocol, and `git_cache.mirrors` config.
 
 | Field | Description |
 |-------|-------------|
 | `repos[].path` | Directory within the workspace to clone into |
 | `repos[].repo` | Repository identity: full clone URL or GitHub `org/name` shorthand |
 | `repos[].commit` | Branch, tag, or SHA to check out (default: `HEAD`) |
-| `repos[].base_commit` | Alias for `commit`, useful for SWE-bench-style datasets |
 | `repos[].ancestor` | Walk N commits back from the checked-out ref (e.g., `1` for parent) |
 | `repos[].sparse` | Sparse checkout paths |
 | `hooks.after_each.reset` | Reset policy after each test: `none`, `fast`, `strict` |
-| `isolation` | `shared` reuses one workspace; `per_test` creates a fresh copy per test |
-| `mode` | Workspace mode: `pooled`, `temp`, `static` |
-| `path` | Workspace path for `mode=static`. When empty or missing, the workspace is auto-materialised (template copied + repos cloned). Populated directories are reused as-is. |
+| `scope` | `suite` reuses one harness-managed workspace for the suite; `attempt` creates a clean workspace for each resolved execution attempt |
 | `hooks.enabled` | Boolean (default: `true`). Set `false` to skip all lifecycle hooks. |
 
-**Pooling:** `mode: pooled` (or default shared repo mode) reuses pool slots between runs. Use `mode: temp` to disable pooling for fresh clone/checkouts each run.
+Use `scope: attempt` when mutating agents need clean filesystem state for every prompt-target-test-repeat execution. Use `scope: suite` when the suite intentionally shares state across tests.
 
-**Static auto-materialisation:** When `mode: static` and `path` points to an empty or missing directory, AgentV automatically copies the template and clones repos into it. If the directory already exists and is populated, it is reused as-is.
+**Existing local workspaces:** do not commit local paths in eval YAML. Use `--workspace-path /path/to/workspace` for a one-off run, or put `execution.workspace_path` in `.agentv/config.local.yaml`.
 
-Pool management commands:
-- `agentv workspace list` — list all pool entries with size and repo info
-- `agentv workspace clean` — remove all pool entries
+Workspace command:
 - `agentv workspace deps <eval-paths>` — scan eval files and output a JSON manifest of required git repos (for CI pre-cloning)
 
 **Common patterns:**
@@ -218,12 +363,12 @@ workspace:
     after_each:
       reset: fast
 
-# GitHub shorthand with a base_commit alias
+# GitHub shorthand with a pinned commit
 workspace:
   repos:
     - path: ./repo
       repo: org/repo
-      base_commit: abc123def
+      commit: abc123def
 ```
 
 ### Cleanup Behavior
@@ -244,31 +389,23 @@ Use `cwd` on a target to run in an existing directory (shared across tests). If 
 
 Eval files can define per-target hooks that run setup/teardown scripts to customize the workspace for each target variant. This enables comparing different harness configurations (e.g., baseline vs with-plugins) in a single eval file.
 
-Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as copying skills, enabling wrappers, or changing provider-local config.
+Targets do not declare `repos`. Repositories belong to the shared eval workspace so every target runs in the same world; target hooks customize the harness under evaluation. Use hooks for per-target setup such as enabling wrappers or changing provider-local config. Keep installs, builds, fixture generation, and case setup in top-level lifecycle `extensions`.
 
-Target hooks are defined in the eval file's `execution.targets` array using object form:
+Target hooks can be scoped to an eval-local target object:
 
 ```yaml
-execution:
-  targets:
-    - baseline                          # string shorthand (no hooks)
-    - name: with-skills                 # object form with hooks
-      use_target: default
-      hooks:
-        before_each:
-          command: ["setup-plugins.sh", "skills"]
-    - name: with-guidelines
-      use_target: default
-      hooks:
-        before_each:
-          command: ["sh", "-c", "cp guidelines.md {{workspace_path}}/.claude/"]
+target:
+  extends: default
+  hooks:
+    before_each:
+      command: ["setup-plugins.sh", "skills"]
 ```
 
 ### Hook execution order
 
 Target hooks run after workspace hooks on setup, before workspace hooks on teardown:
 
-1. Workspace `before_all`
+1. Extension `beforeAll`
 2. **Target `before_all`**
 3. For each test:
    - Workspace `before_each`

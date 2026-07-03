@@ -620,9 +620,11 @@ targets:
 
   - id: replay_coding_agent
     provider: replay
-    fixtures: ../fixtures/legal-review-target-output.jsonl
-    source_target: live_coding_agent
-    suite: legal-review
+    runtime: host
+    config:
+      fixtures: ../fixtures/legal-review-target-output.jsonl
+      source_target: live_coding_agent
+      suite: legal-review
 ```
 
 Run the same eval against the replay alias:

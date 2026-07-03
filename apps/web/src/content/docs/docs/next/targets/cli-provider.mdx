@@ -12,12 +12,25 @@ Because the contract is "we invoke a command and read a file," almost any useful
 ## Minimal example
 
 ```yaml
-# .agentv/targets.yaml
+# .agentv/config.yaml
 targets:
-  - label: my_agent
+  - id: my-agent
     provider: cli
-    command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
-    grader_target: azure-base   # required if your evals use LLM graders
+    runtime: host
+    config:
+      command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
+
+graders:
+  - id: azure-grader
+    provider: azure
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+defaults:
+  target: my-agent
+  grader: azure-grader
 ```
 
 Your `agent.py` reads the prompt, writes its response to the path passed as `--out`, and exits `0`. That's it.
@@ -70,18 +83,17 @@ echo "Hello, world!" > {OUTPUT_FILE}
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `label` | string | yes | — | AgentV target name used by eval `target`, CLI `--target`, and comparisons. |
+| `id` | string | yes | — | AgentV target identity used by eval `target`, CLI `--target`, and comparisons. |
 | `provider` | literal `"cli"` | yes | — | Selects this provider. |
-| `command` | string | yes | — | Shell command template. |
-| `timeout_seconds` | number | no | — | Kill the process if it runs longer than this. |
-| `cwd` | string | no | eval dir | Working directory. Relative paths resolve against the eval file. |
-| `files_format` | string | no | `{path}` | How each entry in `{FILES}` is formatted. Placeholders: `{path}`, `{basename}`. |
-| `verbose` | boolean | no | `false` | Log the rendered command and cwd to stdout. Useful for debugging template substitution. |
-| `keep_temp_files` | boolean | no | `false` | Preserve `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run — handy while iterating on your command. |
-| `healthcheck` | object | no | — | Pre-run health check (HTTP or command); the eval aborts if it fails. |
-| `workers` | number | no | — | Concurrent test-case executions against this target. |
-| `batch_requests` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
-| `grader_target` | string | no | — | LLM target used by this target's LLM graders. Required if your evals use LLM-based graders. |
+| `runtime` | string or object | no | `host` | Target runtime placement. |
+| `config.command` | string | yes | — | Shell command template. |
+| `config.timeout_seconds` | number | no | — | Kill the process if it runs longer than this. |
+| `config.cwd` | string | no | eval dir | Working directory. Relative paths resolve against the eval file. |
+| `config.files_format` | string | no | `{path}` | How each entry in `{FILES}` is formatted. Placeholders: `{path}`, `{basename}`. |
+| `config.verbose` | boolean | no | `false` | Log the rendered command and cwd to stdout. Useful for debugging template substitution. |
+| `config.keep_temp_files` | boolean | no | `false` | Preserve `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run — handy while iterating on your command. |
+| `config.healthcheck` | object | no | — | Pre-run health check (HTTP or command); the eval aborts if it fails. |
+| `config.batch_requests` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
 
 ## Batching
 
@@ -89,10 +101,12 @@ For targets where spin-up cost dominates per-case work (e.g. loading a model, au
 
 ```yaml
 targets:
-  - label: batched_agent
+  - id: batched-agent
     provider: cli
-    batch_requests: true
-    command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
+    runtime: host
+    config:
+      batch_requests: true
+      command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
 ```
 
 `{PROMPT_FILE}` contains one JSON object per line with an `id` and the case's inputs; your command writes one line per case to `{OUTPUT_FILE}`, each carrying the matching `id` plus the same output shape as the non-batched case.
@@ -104,17 +118,30 @@ A common question when building a new eval: **"if my grader scores my agent poor
 AgentV has no dedicated "oracle" feature because the `cli` provider already composes into one. Declare a second target that prints your known-good answer into `{OUTPUT_FILE}`, run the same eval against it, and assert a perfect score:
 
 ```yaml
-# .agentv/targets.yaml
+# .agentv/config.yaml
 targets:
-  - label: my_agent
+  - id: my-agent
     provider: cli
-    command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: python agent.py --prompt {PROMPT} --out {OUTPUT_FILE}
 
-  - label: oracle
+  - id: oracle
     provider: cli
-    command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
-    grader_target: azure-base
+    runtime: host
+    config:
+      command: cp fixtures/{EVAL_ID}.expected.txt {OUTPUT_FILE}
+
+graders:
+  - id: azure-grader
+    provider: azure
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+defaults:
+  grader: azure-grader
 ```
 
 ```bash
@@ -123,7 +150,7 @@ targets:
 agentv eval my.EVAL.yaml --target oracle
 
 # Then run the real target.
-agentv eval my.EVAL.yaml --target my_agent
+agentv eval my.EVAL.yaml --target my-agent
 ```
 
 A few practical notes:

@@ -109,7 +109,8 @@ tests:
 
 ## Per-Grader Target
 
-By default, an `llm-grader` uses the suite target's `grader_target`. Override it per grader when you need multiple grader models in one run:
+By default, an `llm-grader` uses `defaults.grader` from the resolved config graph.
+Override it per grader when you need multiple grader models in one run:
 
 ```yaml
 assertions:
@@ -123,7 +124,8 @@ assertions:
     prompt: ./prompts/pass-fail.md
 ```
 
-Each `target:` value must match a named LLM target in `.agentv/targets.yaml`.
+Each `target:` value must match a grader `id` from `.agentv/config.yaml`, an
+eval-local `graders` entry, or a directly referenced `graders: file://...` field.
 
 ### TypeScript Template
 
@@ -165,7 +167,7 @@ Evaluate and provide a score from 0 to 1.`;
 ## How It Works
 
 1. AgentV renders the prompt template with variables from the test
-2. The rendered prompt is sent to the grader target (configured in targets.yaml)
+2. The rendered prompt is sent to the selected grader target
 3. The LLM returns a structured evaluation with score, assertions array, and reasoning
 4. Results are recorded in the output JSONL
 
