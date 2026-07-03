@@ -244,9 +244,7 @@ export type RepoConfig = {
   readonly repo?: string;
   /** Commit, branch, or tag to check out after materialization. */
   readonly commit?: string;
-  /** SWE-bench-friendly alias for commit when pinning a dataset snapshot commit. */
-  readonly base_commit?: string;
-  /** Walk this many ancestors back after checking out commit/base_commit. */
+  /** Walk this many ancestors back after checking out commit. */
   readonly ancestor?: number;
   /** Optional sparse-checkout paths. */
   readonly sparse?: readonly string[];

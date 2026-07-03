@@ -61,7 +61,7 @@ tests:
     criteria: "Bug should be fixed"
     metadata:
       repo: sympy/sympy
-      base_commit: "abc123def"
+      source_commit: "abc123def"
 `,
     );
 
@@ -69,7 +69,7 @@ tests:
     expect(cases).toHaveLength(1);
     expect(cases[0].metadata).toEqual({
       repo: 'sympy/sympy',
-      base_commit: 'abc123def',
+      source_commit: 'abc123def',
     });
   });
 
@@ -234,7 +234,7 @@ tests:
         image: swebench/sweb.eval.django__django:latest
       repos:
         - path: /testbed
-          base_commit: abc123def
+          commit: abc123def
 `,
     );
 
@@ -246,7 +246,7 @@ tests:
     expect(cases[0].workspace?.repos).toHaveLength(1);
     expect(cases[0].workspace?.repos?.[0].path).toBe('/testbed');
     expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
-    expect(cases[0].workspace?.repos?.[0].base_commit).toBe('abc123def');
+    expect(cases[0].workspace?.repos?.[0].commit).toBe('abc123def');
   });
 
   it('should parse Docker repos with path + commit but no repo', async () => {
@@ -272,28 +272,6 @@ tests:
     expect(cases[0].workspace?.repos?.[0].path).toBe('/workspace/project');
     expect(cases[0].workspace?.repos?.[0].repo).toBeUndefined();
     expect(cases[0].workspace?.repos?.[0].commit).toBe('v2.0.0');
-  });
-
-  it('should parse repo base_commit alias', async () => {
-    const evalFile = path.join(testDir, 'workspace-repo-base-commit.yaml');
-    await writeFile(
-      evalFile,
-      `
-tests:
-  - id: repo-base-commit
-    input: "Do something"
-    criteria: "Should work"
-    workspace:
-      repos:
-        - path: /testbed
-          repo: https://github.com/org/repo.git
-          base_commit: abc123def
-`,
-    );
-
-    const cases = await loadTests(evalFile, testDir);
-    expect(cases).toHaveLength(1);
-    expect(cases[0].workspace?.repos?.[0].base_commit).toBe('abc123def');
   });
 
   it('parses workspace repos from YAML', async () => {

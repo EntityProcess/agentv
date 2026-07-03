@@ -386,14 +386,10 @@ const RepoSchema = z
     path: z.string().optional(),
     repo: z.string().min(1).optional(),
     commit: z.string().min(1).optional(),
-    base_commit: z.string().min(1).optional(),
     ancestor: z.number().int().min(0).optional(),
     sparse: z.array(z.string()).optional(),
   })
-  .strict()
-  .refine((repo) => !repo.commit || !repo.base_commit || repo.commit === repo.base_commit, {
-    message: 'commit and base_commit must match when both are set',
-  });
+  .strict();
 
 const WorkspaceHookSchema = z
   .object({

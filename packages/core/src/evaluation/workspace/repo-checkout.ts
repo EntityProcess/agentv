@@ -6,7 +6,7 @@ export interface RepoCheckoutTarget {
 }
 
 export function getRepoCheckoutRef(repo: RepoConfig | undefined): string {
-  return repo?.commit ?? repo?.base_commit ?? 'HEAD';
+  return repo?.commit ?? 'HEAD';
 }
 
 export function getRepoCheckoutTargets(
@@ -14,7 +14,7 @@ export function getRepoCheckoutTargets(
 ): RepoCheckoutTarget[] {
   if (!repos) return [];
   return repos
-    .filter((repo) => repo.commit || repo.base_commit)
+    .filter((repo) => repo.commit)
     .map((repo) => ({
       path: repo.path,
       ref: getRepoCheckoutRef(repo),

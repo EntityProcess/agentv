@@ -212,7 +212,7 @@ rl.on('close', () => {
       testId: 'sympy-20590',
       evalRunId: 'run-123',
       caseInput: 'Fix the bug in issue #20590...',
-      caseMetadata: { repo: 'sympy/sympy', base_commit: '9aabb237' },
+      caseMetadata: { repo: 'sympy/sympy' },
     };
 
     const output = await executeWorkspaceScript(config, context);

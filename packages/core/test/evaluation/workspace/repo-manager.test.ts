@@ -619,7 +619,7 @@ describe('RepoManager', () => {
       expect(existsSync(path.join(targetDir, 'third.txt'))).toBe(false);
     }, 30_000);
 
-    it('checks out raw base_commit SHAs', async () => {
+    it('checks out raw commit SHAs', async () => {
       const repoDir = path.join(tmpDir, 'source-repo');
       createTestRepo(repoDir);
       writeFileSync(path.join(repoDir, 'second.txt'), 'second');
@@ -635,7 +635,7 @@ describe('RepoManager', () => {
         {
           path: './my-repo',
           repo: `file://${remoteDir}`,
-          base_commit: secondSha,
+          commit: secondSha,
         },
         workspaceDir,
       );

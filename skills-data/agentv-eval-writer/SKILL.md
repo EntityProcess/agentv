@@ -336,7 +336,7 @@ workspace:
   repos:
     - path: ./repo
       repo: sympy/sympy
-      base_commit: "abc123"
+      commit: "abc123"
   hooks:
     before_all:
       command: ["bun", "run", "setup.ts"]
@@ -358,10 +358,10 @@ tests:
 **Merge:** Case-level fields replace suite-level fields.
 **Commands receive stdin JSON:** `{workspace_path, test_id, eval_run_id, case_input, case_metadata}`
 **Setup failure:** aborts case. **Teardown failure:** non-fatal (warning).
-For SWE-bench-style evals, keep operational checkout state under `workspace.repos[].base_commit`; treat `metadata.source_commit` as informational only.
-For historical repo-state evals, pin `workspace.repos[].commit` or
-`workspace.repos[].base_commit` to the commit under test. A SHA in the prompt or
-metadata without a matching workspace repo pin is not an operational checkout.
+For SWE-bench-style evals, put operational checkout state under
+`workspace.repos[].commit`; treat `metadata.source_commit` as informational
+only. A SHA in the prompt or metadata without a matching workspace repo pin is
+not an operational checkout.
 
 ### Repository Lifecycle
 
@@ -372,7 +372,6 @@ workspace:
   repos:
     - path: ./repo
       repo: https://github.com/org/repo.git
-      resolver: org_snapshots  # optional repo_resolvers[].name override
       commit: main
       ancestor: 1       # parent commit
   hooks:
@@ -382,13 +381,9 @@ workspace:
 ```
 
 - `repo`: full clone URL or GitHub `org/name` shorthand
-- `resolver`: optional configured repo resolver name; omit for pattern/default/built-in selection
 - `commit`: branch, tag, or SHA to check out
-- `base_commit`: alias for `commit` for SWE-bench-style datasets
 - `ancestor`: walk N commits back from the checked-out ref
 - `sparse`: sparse checkout paths array
-- Do not use legacy `source`, `type`, `checkout`, `resolve`, or `clone` fields under `workspace.repos[]`
-- Do not author `workspace.mode`, `workspace.path`, `experiment.workspace`, or `execution.workspace` in eval YAML
 - Harness-managed repo workspaces use temp materialization by default; use `workspace.scope: suite | attempt` for portable lifetime
 - Existing local workspace directories are machine-local bindings; use `--workspace-path` or `.agentv/config.local.yaml` with `execution.workspace_path`
 - `hooks.enabled`: boolean (default `true`); set `false` to skip all lifecycle hooks

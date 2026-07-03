@@ -37,7 +37,6 @@ interface RepoPin {
   readonly path?: string;
   readonly repo?: string;
   readonly commit?: string;
-  readonly baseCommit?: string;
   readonly ancestor?: number;
   readonly sparse?: readonly string[];
 }
@@ -89,7 +88,6 @@ interface RepoPinWire {
   readonly path?: string;
   readonly repo?: string;
   readonly commit?: string;
-  readonly base_commit?: string;
   readonly ancestor?: number;
   readonly sparse?: readonly string[];
 }
@@ -129,7 +127,6 @@ function toRepoPins(pins: readonly PreparedWorkspaceRepoPin[]): readonly RepoPin
     ...(pin.path !== undefined && { path: pin.path }),
     ...(pin.repo !== undefined && { repo: pin.repo }),
     ...(pin.commit !== undefined && { commit: pin.commit }),
-    ...(pin.baseCommit !== undefined && { baseCommit: pin.baseCommit }),
     ...(pin.ancestor !== undefined && { ancestor: pin.ancestor }),
     ...(pin.sparse !== undefined && { sparse: pin.sparse }),
   }));
@@ -242,7 +239,6 @@ function toManifestWire(result: PrepareResult): PrepareManifestWire {
       ...(pin.path !== undefined && { path: pin.path }),
       ...(pin.repo !== undefined && { repo: pin.repo }),
       ...(pin.commit !== undefined && { commit: pin.commit }),
-      ...(pin.baseCommit !== undefined && { base_commit: pin.baseCommit }),
       ...(pin.ancestor !== undefined && { ancestor: pin.ancestor }),
       ...(pin.sparse !== undefined && { sparse: pin.sparse }),
     })),

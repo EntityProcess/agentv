@@ -7,7 +7,6 @@ const KNOWN_SNAKE_CASE_KEYS = {
   afterAll: 'after_all',
   afterEach: 'after_each',
   argsMatch: 'args_match',
-  baseCommit: 'base_commit',
   beforeAll: 'before_all',
   beforeEach: 'before_each',
   budgetUsd: 'budget_usd',
@@ -102,7 +101,6 @@ export interface EvalWorkspaceRepo {
   readonly path?: string;
   readonly repo?: string;
   readonly commit?: string;
-  readonly baseCommit?: string;
   readonly ancestor?: number;
   readonly sparse?: readonly string[];
 }

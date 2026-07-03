@@ -2433,10 +2433,6 @@
                                   "type": "string",
                                   "minLength": 1
                                 },
-                                "base_commit": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
                                 "ancestor": {
                                   "type": "integer",
                                   "minimum": 0
@@ -4470,10 +4466,6 @@
                                   "minLength": 1
                                 },
                                 "commit": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "base_commit": {
                                   "type": "string",
                                   "minLength": 1
                                 },
@@ -10237,10 +10229,6 @@
                                 "type": "string",
                                 "minLength": 1
                               },
-                              "base_commit": {
-                                "type": "string",
-                                "minLength": 1
-                              },
                               "ancestor": {
                                 "type": "integer",
                                 "minimum": 0
@@ -10882,10 +10870,6 @@
                         "minLength": 1
                       },
                       "commit": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "base_commit": {
                         "type": "string",
                         "minLength": 1
                       },

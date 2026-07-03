@@ -138,9 +138,8 @@ checks, scope, and repo provenance in `workspace`. Put lifecycle setup that
 does not acquire repos in `extensions`.
 
 For historical or repo-state evals, put the checkout under
-`workspace.repos[].commit` or `workspace.repos[].base_commit`. A commit SHA in
-the prompt or metadata is useful context, but it does not materialize a repo for
-the agent to inspect.
+`workspace.repos[].commit`. A commit SHA in the prompt or metadata is useful
+context, but it does not materialize a repo for the agent to inspect.
 
 ### Prompts, Vars, and Target Expansion
 

@@ -1,59 +1,296 @@
-# AgentV Eval YAML Breaking Changes
+# AgentV Eval YAML Breaking Changes From v4.42.4
 
-This reference tracks schema changes that eval authors and migration agents
-should apply when modernizing AgentV eval files.
+This reference is for migrating eval YAML authored against AgentV v4.42.4 to
+the current schema. It is intentionally migration-specific: each section states
+the v4.42.4-era shape, the current shape, migration steps, verification, and
+compatibility notes.
 
-## Eval Runtime Policy Moved Out Of `experiment`
+Evidence audited for this guide:
 
-Do not author top-level `experiment:` in eval YAML. The whole eval file defines
-the experiment; top-level `name` is the result namespace, top-level `target`
-identifies the system under test, and top-level runtime/gating controls own
-repeat behavior, timeout, threshold, and budget.
+- v4.42.4 docs under `apps/web/src/content/docs/docs/v4.42.4/`.
+- Current docs under `apps/web/src/content/docs/docs/next/`.
+- v4.42.4 source from the local `v4.42.4` git tag.
+- Current parser, validator, and schema code in `packages/core/src/evaluation/`.
 
-Old:
+Use the current clone as the final source of truth. Do not claim a migration is
+required only because the current docs prefer a newer convention; require it
+only when the current schema, validator, or loader rejects the old shape or the
+old shape no longer means the same thing.
+
+## Quick Migration Checklist
+
+For a v4.42.4-era eval:
+
+1. Move top-level `execution.target` to top-level `target`.
+2. Move top-level `execution.targets` to top-level `targets`, and rename target
+   object `name` to `label`.
+3. Rename suite/test/turn `assertions` to `assert`.
+4. If a test uses `tests[].execution.assertions` or
+   `tests[].execution.evaluators`, rename that nested list to
+   `tests[].execution.assert`; prefer top-level or per-test `assert` for normal
+   grader authoring.
+5. Replace `type: rubrics` or `type: rubric` with `type: llm-rubric` and move
+   rubric arrays from `criteria`/`rubrics` to `value`.
+6. Replace `type: code-grader` and `type: code-judge` with `type: script`.
+7. Move repeat/trial policy from `execution.trials` to
+   `evaluate_options.repeat`.
+8. Move suite budget from `execution.budget_usd` to
+   `evaluate_options.budget_usd`.
+9. Move authored suite concurrency from `execution.workers` to
+   `evaluate_options.max_concurrency`, or leave it to `--workers` /
+   project config if it is operator policy.
+10. Remove top-level `execution`; current eval YAML rejects it.
+11. Replace `workspace.isolation: shared|per_test` with
+    `workspace.scope: suite|attempt`.
+12. Remove `workspace.mode` and `workspace.path` from committed eval YAML.
+    Use `--workspace-path` or `.agentv/config.local.yaml` for local static
+    directories.
+13. Replace workspace hook `script:` with `command:`.
+14. For executable setup, prefer top-level `extensions`; keep
+    `workspace.hooks.after_each.reset` for reset policy.
+15. Keep raw cases under `tests` or `imports.tests`; import full eval suites
+    with `imports.suites`.
+16. Validate with `bun apps/cli/src/cli.ts validate <eval-file>`.
+
+## Assertions Renamed To `assert`
+
+### v4.42.4 Shape
+
+v4.42.4 docs and schema used `assertions` for suite-level and per-test graders:
 
 ```yaml
-name: backend-with-skills
-experiment:
-  target: copilot--claude-opus-4.8
-  model: claude-opus-4.8
-  runs: 3
-  timeout_seconds: 600
-  threshold: 0.8
-  budget_usd: 5
+assertions:
+  - name: correctness
+    type: llm-grader
+    prompt: ./graders/correctness.md
+
+tests:
+  - id: addition
+    criteria: Correctly calculates 15 + 27 = 42
+    input: What is 15 + 27?
+    expected_output: "42"
+    assertions:
+      - type: contains
+        value: "42"
 ```
 
-New:
+v4.42.4 also accepted `execution.assertions`, `execution.evaluators`, and
+case-level `evaluators` as legacy grader lists.
+
+### Current Shape
+
+Current eval YAML uses `assert`:
 
 ```yaml
-name: backend-with-skills
-target:
-  provider: copilot-sdk
-  model: claude-opus-4.8
+assert:
+  - name: correctness
+    type: llm-rubric
+    prompt: ./graders/correctness.md
 
-timeout_seconds: 600
+tests:
+  - id: addition
+    input: What is 15 + 27?
+    expected_output: "42"
+    assert:
+      - type: contains
+        value: "42"
+      - Correctly calculates the answer
+```
+
+Current `EvalFileSchema` has top-level `assert` and test-level `assert`; it
+does not define top-level or test-level `assertions`. Current parser code reads
+case `assert` and `execution.assert`; assertion template files are expected to
+contain top-level `assert`.
+
+### Migration Steps
+
+- Rename top-level `assertions:` to `assert:`.
+- Rename every test-level `assertions:` to `assert:`.
+- Rename conversation turn `assertions:` to `assert:`.
+- Rename assertion template files from:
+
+  ```yaml
+  assertions:
+    - type: is-json
+  ```
+
+  to:
+
+  ```yaml
+  assert:
+    - type: is-json
+  ```
+
+- Replace `evaluators:` with `assert:`.
+- If a test had `execution.skip_defaults: true`, keep it; that flag still
+  controls whether suite-level defaults are appended.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "assertions:|evaluators:" path/to/evals path/to/.agentv/templates
+```
+
+### Compatibility Notes
+
+Result artifacts and grader stdout still contain `assertions` arrays. Do not
+rename result JSON or script-grader output fields to `assert`; this migration is
+for authored eval YAML and assertion template YAML.
+
+`criteria` remains a valid optional case field, but it is no longer the
+preferred way to express the whole semantic contract. Put actual grading checks
+in `assert`, usually as plain strings.
+
+## `criteria` Is Optional, `expected_output` Is Passive
+
+### v4.42.4 Shape
+
+v4.42.4 docs treated `criteria` as required, and when no `assertions` were
+present a default `llm-grader` evaluated the case against `criteria`:
+
+```yaml
+tests:
+  - id: simple-eval
+    criteria: Assistant correctly explains the bug and proposes a fix
+    input: "Debug this function..."
+```
+
+### Current Shape
+
+Current docs and schema make `criteria` optional. Authored graders live under
+`assert`. Plain strings in `assert` become an `llm-rubric` check. `expected_output`
+is reference data available to graders; by itself it does not choose a grader.
+
+```yaml
+tests:
+  - id: simple-eval
+    input: "Debug this function..."
+    expected_output: The answer explains the root cause and fix.
+    assert:
+      - Assistant correctly explains the bug
+      - Assistant proposes a concrete fix
+```
+
+### Migration Steps
+
+- If old `criteria` is the only grading contract, move or copy it into
+  `assert` as one or more plain strings.
+- Keep `criteria` only when multiple graders need shared context that is not
+  itself the asserted checklist.
+- If `expected_output` was being used as "the rubric", add explicit `assert`
+  entries that state how the reference should be used.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "criteria:" path/to/evals
+```
+
+For any remaining `criteria`, confirm it is shared grader context and not a
+duplicate of `assert`.
+
+### Compatibility Notes
+
+Current runtime still carries `EvalTest.criteria` internally because prompt
+templates and custom graders can consume it. The breaking authoring change is
+that workers should not depend on missing `assert` plus `criteria` to define
+the whole grading contract for new migrated YAML.
+
+## Top-Level `execution` Removed From Eval YAML
+
+### v4.42.4 Shape
+
+v4.42.4 docs used top-level `execution` for target selection, workers, error
+tolerance, thresholds, budgets, trials, and suite-level graders:
+
+```yaml
+execution:
+  target: azure-base
+  workers: 4
+  fail_on_error: false
+  threshold: 0.8
+  budget_usd: 2.00
+  trials:
+    count: 3
+    strategy: pass_at_k
+
+assertions:
+  - type: contains
+    value: READY
+```
+
+### Current Shape
+
+Current eval YAML rejects top-level `execution`. Move run controls to their
+dedicated fields:
+
+```yaml
+target: azure-base
 threshold: 0.8
 evaluate_options:
+  max_concurrency: 4
+  budget_usd: 2.00
   repeat:
     count: 3
     strategy: pass_any
-    early_exit: false
-  budget_usd: 5
+
+assert:
+  - type: contains
+    value: READY
 ```
 
-## Repeat Policy Uses `evaluate_options.repeat`
+### Migration Steps
 
-Do not author top-level `runs`, top-level `early_exit`, or
-top-level `repeat`.
+- `execution.target` -> top-level `target`.
+- `execution.targets` -> top-level `targets`.
+- `execution.threshold` -> top-level `threshold`.
+- `execution.budget_usd` -> `evaluate_options.budget_usd`.
+- `execution.workers` -> `evaluate_options.max_concurrency` when authored
+  suite concurrency is part of the eval. If it is operator policy, use
+  `--workers` or `.agentv/config.yaml` / `agentv.config.*` `execution.workers`
+  instead.
+- `execution.fail_on_error` has no current eval-YAML home. Treat it as
+  operational policy; do not commit it into migrated eval YAML.
+- `execution.cache` has no current eval-YAML home. Use project/operator config
+  if cache policy is needed.
+- Delete top-level `execution` after moving supported fields.
 
-Old:
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "^execution:|fail_on_error:|cache:" path/to/evals
+```
+
+### Compatibility Notes
+
+Per-test `execution` still exists, but it is narrow: current schema allows
+case-level `execution.assert`, `skip_defaults`, cache/fail fields, budget, and
+threshold, while target selection belongs at top level or CLI. Do not keep
+target selection under `tests[].execution.target` when migrating.
+
+## Repeat Policy Replaces `trials`, `runs`, And `early_exit`
+
+### v4.42.4 Shape
+
+v4.42.4 used `execution.trials` with strategies such as `pass_at_k`:
 
 ```yaml
-runs: 3
-early_exit: true
+execution:
+  trials:
+    count: 3
+    strategy: pass_at_k
+    cost_limit_usd: 1.00
 ```
 
-New:
+Some stale evals from later intermediate branches may instead have top-level
+`runs`, `repeat`, or `early_exit`.
+
+### Current Shape
+
+Current authoring uses `evaluate_options.repeat`:
 
 ```yaml
 evaluate_options:
@@ -61,87 +298,171 @@ evaluate_options:
     count: 3
     strategy: pass_any
     early_exit: true
+    cost_limit_usd: 1.00
 ```
 
-Use `evaluate_options.repeat.strategy: pass_any` for "pass if any completed
-sample passes" and `evaluate_options.repeat.strategy: pass_all` for "pass only
-if every completed sample passes". `evaluate_options.repeat.early_exit` is only
-a scheduling optimization; omit it or set it to `false` when you want every
-sample collected for variance analysis.
-
-## Workspace Scope Replaces Isolation
-
-Old:
+The shorthand is also accepted:
 
 ```yaml
-workspace:
-  isolation: per_case
+evaluate_options:
+  repeat: 3
 ```
 
-New:
+### Migration Steps
 
-```yaml
-workspace:
-  scope: attempt
+- `execution.trials.count` -> `evaluate_options.repeat.count`.
+- `execution.trials.strategy: pass_at_k` -> `pass_any`.
+- `execution.trials.strategy: mean` -> `mean`.
+- `execution.trials.strategy: confidence_interval` -> `confidence_interval`.
+- `execution.trials.cost_limit_usd` -> `evaluate_options.repeat.cost_limit_usd`.
+- Top-level `runs` -> `evaluate_options.repeat.count`.
+- Top-level `repeat` -> `evaluate_options.repeat`.
+- Top-level `early_exit` -> `evaluate_options.repeat.early_exit`.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "trials:|pass_at_k|^runs:|^repeat:|^early_exit:" path/to/evals
 ```
 
-Use `scope: attempt` for a clean workspace per resolved execution attempt. Use
-`scope: suite` when cases intentionally share one prepared workspace.
+### Compatibility Notes
 
-## Suite Wrapper Workspace Ownership
+Runtime types and some result artifacts still use the internal word `trials`.
+Authored YAML should use `repeat`; produced executions are attempts.
 
-Eval files that import child eval suites with `type: suite` cannot define a
-parent `workspace`. Imported suites own their task environment, including repos,
-templates, hooks, Docker config, env checks, and isolation.
+## `experiment` Is A Label, Not A Runtime Container
 
-If the parent should own workspace context, import raw cases with `type: tests`
-or direct path shorthand instead of importing suites.
+### v4.42.4 Shape
 
-## Runtime Workspace Blocks Removed From Eval YAML
-
-Do not author these blocks in eval YAML:
+v4.42.4 public eval docs did not use a top-level `experiment` object for eval
+runtime policy; runtime policy lived mostly under top-level `execution`. Some
+stale evals from later development snapshots may have an object like:
 
 ```yaml
 experiment:
-  workspace:
-    mode: static
-    path: /path/to/local/workspace
-
-execution:
-  workspace:
-    mode: static
-    path: /path/to/local/workspace
+  target: codex
+  model: gpt-5
+  runs: 3
+  timeout_seconds: 600
 ```
 
-Existing local workspace directories are machine-local runtime bindings. Use one
-of these instead:
+### Current Shape
 
-```bash
-agentv eval evals/my-eval.yaml --workspace-path /path/to/local/workspace
-```
+Current schema accepts top-level `experiment` only as a non-empty string run
+grouping label. Current docs also support promptfoo-shaped `tags.experiment`.
 
 ```yaml
-# .agentv/config.local.yaml
-execution:
-  workspace_path: /path/to/local/workspace
+experiment: with-skills
+target: codex
+timeout_seconds: 600
+evaluate_options:
+  repeat:
+    count: 3
+    strategy: pass_any
 ```
 
-Keep portable task setup under top-level or case-level `workspace`.
+or:
 
-## Workspace Mode and Path Removed From Eval YAML
+```yaml
+tags:
+  experiment: with-skills
+target: codex
+```
 
-Do not author `workspace.mode`, `workspace.path`, `workspace.static_path`,
-`workspace.static`, or `workspace.pool` in eval YAML.
+### Migration Steps
 
-Old:
+- If `experiment` is an object, move runtime fields out:
+  - target identity -> top-level `target` or `targets`
+  - repeat/runs -> `evaluate_options.repeat`
+  - budget -> `evaluate_options.budget_usd`
+  - timeout -> top-level `timeout_seconds`
+  - threshold -> top-level `threshold`
+- Keep only a string label in `experiment`, or use `tags.experiment`.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "^experiment:" path/to/evals
+```
+
+### Compatibility Notes
+
+Do not describe a v4.42.4 eval as if `experiment:` was already the main runtime
+object unless you verified that exact file or commit. For v4.42.4 migrations,
+the common source shape is `execution:`.
+
+## Workspace Lifetime: `isolation` To `scope`
+
+### v4.42.4 Shape
+
+v4.42.4 workspace docs used `isolation`:
 
 ```yaml
 workspace:
-  mode: static
-  path: /path/to/local/workspace
+  repos:
+    - path: ./repo
+      repo: org/repo
+      commit: main
+  hooks:
+    after_each:
+      reset: fast
+  isolation: shared       # shared | per_test
 ```
 
-New portable eval YAML:
+### Current Shape
+
+Current workspace docs and schema use `scope`:
+
+```yaml
+workspace:
+  repos:
+    - path: ./repo
+      repo: org/repo
+      commit: main
+  hooks:
+    after_each:
+      reset: fast
+  scope: suite            # suite | attempt
+```
+
+### Migration Steps
+
+- `workspace.isolation: shared` -> `workspace.scope: suite`.
+- `workspace.isolation: per_test` -> `workspace.scope: attempt`.
+- If `isolation` is omitted, preserve behavior by omitting `scope` or setting
+  `scope: suite`.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "isolation:" path/to/evals
+```
+
+### Compatibility Notes
+
+`scope: attempt` means a clean workspace for each resolved execution attempt:
+prompt/target/test/repeat expansion. Docker configuration does not replace
+workspace lifetime; use `workspace.scope` even when `workspace.docker` exists.
+
+## Local Workspace Modes Removed From Eval YAML
+
+### v4.42.4 Shape
+
+v4.42.4 workspace docs allowed `mode` and `path`:
+
+```yaml
+workspace:
+  mode: static            # pooled | temp | static
+  path: /tmp/my-ws
+```
+
+### Current Shape
+
+Current committed eval YAML must keep portable workspace setup under
+`workspace` and put machine-local existing directories outside the eval:
 
 ```yaml
 workspace:
@@ -152,22 +473,449 @@ workspace:
   scope: suite
 ```
 
-Optional local binding:
+One-off local binding:
+
+```bash
+bun apps/cli/src/cli.ts eval path/to/eval.eval.yaml --workspace-path /tmp/my-ws
+```
+
+Persistent local binding:
 
 ```yaml
 # .agentv/config.local.yaml
 execution:
-  workspace_path: /path/to/local/workspace
+  workspace_path: /tmp/my-ws
 ```
 
-Harness-managed repo workspaces use temp materialization by default. Use
-`workspace.scope: suite | attempt` for portable lifetime. Use `--workspace-path`
-or `execution.workspace_path` when an existing directory should be used as-is.
+### Migration Steps
 
-## Docker Is Not Folder Isolation
+- Remove `workspace.mode`.
+- Remove `workspace.path`, `workspace.static_path`, `workspace.static`, and
+  `workspace.pool` if present.
+- Convert portable setup to `workspace.template`, `workspace.repos`,
+  `workspace.hooks.after_each.reset`, `workspace.env`, and `workspace.scope`.
+- Put existing local paths in `--workspace-path` or `.agentv/config.local.yaml`.
 
-`workspace.docker` describes environment, preflight, or container bindings. It
-does not replace `workspace.scope`.
+### Verification
 
-Use `workspace.scope: suite | attempt` for workspace lifetime, regardless of
-whether Docker is configured.
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "workspace:|mode:|path:|static_path:|pool:" path/to/evals
+```
+
+Inspect matches manually because `repos[].path` is still valid.
+
+### Compatibility Notes
+
+Current project config intentionally strips `execution.workspace_path` from
+committed `.agentv/config.yaml`; it is only supported in `config.local.yaml`.
+
+## Workspace Hooks And Lifecycle Extensions
+
+### v4.42.4 Shape
+
+v4.42.4 workspace hooks allowed `command` and `script` fields, and docs used
+workspace hooks for executable setup:
+
+```yaml
+workspace:
+  hooks:
+    before_all:
+      script: ["bun", "run", "setup.ts"]
+    after_each:
+      command: ["bun", "run", "reset.ts"]
+      reset: fast
+```
+
+### Current Shape
+
+Current hook configs reject `script`; use `command`. Current docs prefer
+top-level `extensions` for executable setup and keep
+`workspace.hooks.after_each.reset` for reset policy:
+
+```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+
+workspace:
+  hooks:
+    after_each:
+      reset: fast
+```
+
+Legacy command hooks still parse for existing suites when they use `command`:
+
+```yaml
+workspace:
+  hooks:
+    before_all:
+      command: ["bun", "run", "setup.ts"]
+```
+
+### Migration Steps
+
+- Rename any hook `script:` field to `command:`.
+- Prefer moving setup/fixture/build/install commands to top-level
+  `extensions`.
+- Keep `workspace.hooks.after_each.reset` for `none`, `fast`, or `strict`.
+- Extension file references must use `file://path/to/hook.ts:beforeAll` style
+  and a Promptfoo-compatible hook name: `beforeAll`, `beforeEach`,
+  `afterEach`, or `afterAll`.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "script:|extensions:" path/to/evals
+```
+
+### Compatibility Notes
+
+`workspace.hooks` and `target.hooks` use snake_case lifecycle keys such as
+`before_all`; top-level `extensions` use Promptfoo-compatible camel-case hook
+suffixes in `file://...:beforeAll`.
+
+## Repository Entries Are Provenance Only
+
+### v4.42.4 Shape
+
+v4.42.4 documented `workspace.repos[].repo`, `commit`, `base_commit`,
+`ancestor`, and `sparse` as repo provenance. Treat `base_commit` as a legacy
+authoring alias during migration; normalize it to `commit` instead of carrying
+it forward. The v4.42.4 parser rejected some acquisition fields such as
+`source`, `checkout`, and `clone`.
+
+### Current Shape
+
+Current parser continues to keep acquisition out of eval YAML and additionally
+rejects `type`, `resolve`, and `resolver`:
+
+```yaml
+workspace:
+  repos:
+    - path: ./repo
+      repo: org/repo
+      commit: abc123def
+      ancestor: 1
+      sparse:
+        - packages/core
+```
+
+### Migration Steps
+
+- `workspace.repos[].source` -> `workspace.repos[].repo`.
+- `workspace.repos[].checkout.ref` or similar -> `commit`.
+- `workspace.repos[].base_commit` -> `commit`.
+- `workspace.repos[].clone.sparse` -> top-level `sparse`.
+- Remove `type`, `resolve`, and `resolver` from repo entries.
+- Configure acquisition policy in repo resolver/project config, not in eval
+  YAML.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "source:|checkout:|clone:|base_commit:|type:|resolve:|resolver:" path/to/evals
+```
+
+Inspect `type:` matches manually because grader entries still use `type`.
+
+### Compatibility Notes
+
+`repos[].path` remains valid and means the target directory inside the
+materialized workspace. It is not the removed local `workspace.path`.
+Current eval YAML accepts a single checkout pin field, `commit`, so workers
+should not preserve a second spelling in examples or generated evals.
+
+## Target And Runtime Separation
+
+### v4.42.4 Shape
+
+v4.42.4 docs selected targets under `execution` and used `name` in target
+objects:
+
+```yaml
+execution:
+  target: azure-base
+  targets:
+    - baseline
+    - name: with-skills
+      use_target: default
+      hooks:
+        before_each:
+          command: ["setup-plugins.sh", "skills"]
+```
+
+v4.42.4 `.agentv/targets.yaml` examples also used `name` and provider settings
+as top-level target fields:
+
+```yaml
+targets:
+  - name: azure-base
+    provider: azure
+    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+    api_key: ${{ AZURE_OPENAI_API_KEY }}
+    model: ${{ AZURE_DEPLOYMENT_NAME }}
+```
+
+### Current Shape
+
+Current eval YAML uses top-level `target` or `targets`. Target references use
+`label`; `id` is reserved for provider/backend identity when needed:
+
+```yaml
+target: azure-base
+
+targets:
+  - label: with-skills
+    use_target: default
+    hooks:
+      before_each:
+        command: ["setup-plugins.sh", "skills"]
+```
+
+Current `.agentv/targets.yaml` uses `label` and nests provider settings under
+`config`:
+
+```yaml
+targets:
+  - label: azure-base
+    provider: azure
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
+```
+
+### Migration Steps
+
+- Eval YAML: `execution.target` -> top-level `target`.
+- Eval YAML: `execution.targets` -> top-level `targets`.
+- Eval target object `name` -> `label`.
+- If an eval-local target object has provider configuration, include a
+  `label`; use `extends` to derive from a base target.
+- Targets file: rename `name` to `label` and move provider-specific settings
+  into `config`.
+- Keep AgentV target extensions such as `grader_target`, `use_target`,
+  `fallback_targets`, `workers`, and `batch_requests` as top-level fields on
+  target objects.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+bun apps/cli/src/cli.ts validate .agentv/targets.yaml
+rg -n "execution:|name:|endpoint:|api_key:|model:" path/to/evals .agentv/targets.yaml
+```
+
+Inspect `name:` matches manually because grader names still exist.
+
+### Compatibility Notes
+
+Do not put target selection in test cases when migrating. Split
+target-specific cases into separate eval suites, use tags/filters, or run the
+same eval with different `--target` values.
+
+## Grader Type And Rubric Shape Changes
+
+### v4.42.4 Shape
+
+v4.42.4 docs used:
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: accuracy
+        outcome: Correctly identifies the denied party
+        weight: 5
+
+  - type: code-grader
+    command: ["python", "check.py"]
+```
+
+v4.42.4 accepted snake_case grader types such as `is_json`.
+
+### Current Shape
+
+Current authored grader types are kebab-case. Semantic rubric grading uses
+plain assertion strings or `llm-rubric`:
+
+```yaml
+assert:
+  - type: llm-rubric
+    value:
+      - id: accuracy
+        outcome: Correctly identifies the denied party
+        weight: 5
+
+  - type: script
+    command: ["python", "check.py"]
+```
+
+### Migration Steps
+
+- `type: rubrics` or `type: rubric` -> `type: llm-rubric`.
+- `criteria:` / `rubrics:` / `rubric_item:` under `llm-rubric` ->
+  `value:`.
+- `type: g-eval` -> `type: llm-rubric`.
+- `type: code-grader`, `code-judge`, `code_grader`, or `code_judge` ->
+  `type: script`.
+- `type: llm_judge` or `llm_grader` -> `type: llm-grader`.
+- Convert multi-word snake_case deterministic types to kebab-case:
+  `is_json` -> `is-json`, `contains_all` -> `contains-all`,
+  `starts_with` -> `starts-with`, and so on.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "type: (rubrics|rubric|g-eval|code-grader|code-judge|code_grader|code_judge|llm_judge|llm_grader|.*_.*)" path/to/evals
+```
+
+### Compatibility Notes
+
+Current `grader-parser.ts` contains replacement hints for several removed type
+names, but current schema and generated references are stricter than v4.42.4.
+Migrate authored YAML instead of relying on parser leniency.
+
+Script grader output still returns JSON with an `assertions` array; do not
+rename grader output to `assert`.
+
+## Prompt File Paths And `file://`
+
+### v4.42.4 Shape
+
+v4.42.4 LLM grader docs allowed both:
+
+```yaml
+assertions:
+  - type: llm-grader
+    prompt: ./graders/correctness.md
+  - type: llm-grader
+    prompt: file://graders/correctness.md
+```
+
+### Current Shape
+
+Current LLM grader docs keep the same prompt path behavior:
+
+```yaml
+assert:
+  - type: llm-rubric
+    prompt: ./graders/correctness.md
+  - type: llm-rubric
+    prompt: file://graders/correctness.md
+```
+
+Other current file-reference surfaces are stricter:
+
+```yaml
+extensions:
+  - file://scripts/setup.mjs:beforeAll
+
+default_test: file://defaults.yaml
+
+tests:
+  - file://cases.yaml
+```
+
+### Migration Steps
+
+- Do not add `file://` to ordinary `prompt: ./path.md` only for migration; the
+  current prompt resolver still treats path-like strings as file references.
+- Keep `file://` when you need explicit file-reference resolution.
+- Add `file://` for top-level `extensions` entries.
+- Use `file://` or `ref://` for `default_test` string references.
+- In `tests` arrays, use `file://...` for file include entries. A top-level
+  `tests: ./cases.yaml` string remains accepted for raw case files.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "prompt:|extensions:|default_test:|file://" path/to/evals
+```
+
+### Compatibility Notes
+
+This is partly a non-breaking area: v4.42.4 and current docs both allow
+relative prompt paths. The breaking part is the newer surfaces that require
+`file://`, especially `extensions`.
+
+## Imports, Raw Cases, And Suite Ownership
+
+### v4.42.4 Shape
+
+v4.42.4 eval files used `tests` for inline cases or external raw case files:
+
+```yaml
+name: my-eval
+execution:
+  target: default
+tests: ./cases.yaml
+```
+
+The external file contained raw case rows.
+
+### Current Shape
+
+Current eval YAML still accepts inline `tests` and `tests: ./cases.yaml`, but
+adds explicit imports for composition:
+
+```yaml
+imports:
+  suites:
+    - path: ../suites/refunds.eval.yaml
+  tests:
+    - path: ../cases/refund-smoke.cases.yaml
+
+tests:
+  - id: local-edge-case
+    input: Can a final-sale item be refunded after damage in transit?
+    assert:
+      - Explains the final-sale exception
+```
+
+### Migration Steps
+
+- Keep `tests: ./cases.yaml` when the file is a raw case array, JSONL, CSV,
+  directory, glob, or script-backed dataset.
+- Use `imports.tests` when importing raw rows into the parent suite context.
+- Use `imports.suites` when importing full child eval suites that own their
+  own `workspace`, input, assertions, and task environment.
+- Do not define a parent `workspace` in a wrapper eval that imports child
+  suites through `imports.suites`; child suites own their environments.
+- Replace legacy `tests[].include` entries with `imports.suites` or
+  `imports.tests` where possible.
+- Use `run:` on import entries only for scoped overrides:
+  `threshold`, `repeat`, `timeout_seconds`, and `budget_usd`.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "include:|imports:|tests:" path/to/evals
+```
+
+### Compatibility Notes
+
+`eval_cases` remains a deprecated alias in the current schema, but migrated
+YAML should use `tests`. The current convention is that runnable suites use
+`*.eval.yaml`; reusable raw case files commonly use `*.cases.yaml` or JSONL.
+
+## Result Artifact Path Changes Are Not Eval YAML Migrations
+
+v4.42.4 docs described local run workspaces under
+`.agentv/results/runs/<experiment>/<run-id>/`. Current docs describe v2 run
+workspaces under `.agentv/results/<run_id>/`, with experiment metadata stored
+in `summary.json` / rows rather than inferred from the path.
+
+Do not edit eval YAML just to chase result artifact path changes. Migrate only
+authored fields that the eval parser reads. Use:
+
+```bash
+bun apps/cli/src/cli.ts results validate path/to/run-dir
+```
+
+for existing run artifacts.
