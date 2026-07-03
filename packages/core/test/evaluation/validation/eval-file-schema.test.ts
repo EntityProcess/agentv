@@ -50,7 +50,18 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects eval-level execution blocks', () => {
+  it('accepts eval-level execution.max_concurrency', () => {
+    const result = EvalFileSchema.safeParse({
+      execution: {
+        max_concurrency: 2,
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects removed eval-level execution fields', () => {
     const result = EvalFileSchema.safeParse({
       execution: {
         trials: {
@@ -62,6 +73,33 @@ describe('EvalFileSchema input shorthand', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('accepts shared composable graph fields in eval YAML', () => {
+    const result = EvalFileSchema.safeParse({
+      targets: [
+        {
+          id: 'codex-local',
+          provider: 'codex-app-server',
+          runtime: 'host',
+          config: { command: ['codex', 'app-server'] },
+        },
+      ],
+      graders: [
+        {
+          id: 'openai-grader',
+          provider: 'openai',
+          config: { model: 'gpt-5-mini' },
+        },
+      ],
+      defaults: {
+        target: 'codex-local',
+        grader: 'openai-grader',
+      },
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it('rejects removed top-level runs and early_exit controls', () => {
@@ -218,8 +256,9 @@ describe('EvalFileSchema input shorthand', () => {
       targets: [
         {
           id: 'local-agent',
-          provider: 'codex',
+          provider: 'codex-cli',
           config: {
+            command: ['codex'],
             model: 'gpt-5.4-mini',
           },
         },

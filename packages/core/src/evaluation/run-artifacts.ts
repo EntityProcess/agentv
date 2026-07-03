@@ -17,7 +17,11 @@ import {
   traceEnvelopeToNormalizedTranscriptJson,
   traceEnvelopeToTranscriptJsonLines,
 } from '../import/types.js';
-import { parseEvaluationResultBoundary, toCamelCaseDeep } from './case-conversion.js';
+import {
+  parseEvaluationResultBoundary,
+  toCamelCaseDeep,
+  toSnakeCaseDeep,
+} from './case-conversion.js';
 import type { ExperimentArtifactMetadata } from './experiment.js';
 import {
   type ExternalTraceMetadataWire,
@@ -35,7 +39,11 @@ import {
   toProjectionIdentityIssueWire,
   toProjectionIdentityWire,
 } from './projection-identity.js';
-import type { Message } from './providers/types.js';
+import type {
+  Message,
+  TargetExecutionArtifacts,
+  TargetExecutionEnvelope,
+} from './providers/types.js';
 import { extractLastAssistantContent } from './providers/types.js';
 import {
   CANONICAL_FILE_CHANGES_ARTIFACT_PATH,
@@ -65,6 +73,17 @@ export const RUN_INTERNAL_DIRNAME = '.internal';
 export const CROSS_RUN_INDEX_DIRNAME = '.indexes';
 export const CROSS_RUN_RUNS_INDEX_FILENAME = 'runs.jsonl';
 export const CROSS_RUN_CASES_INDEX_FILENAME = 'cases.jsonl';
+const TARGET_EXECUTION_ARTIFACT_PATH = 'target-execution.json';
+const TARGET_STDOUT_ARTIFACT_PATH = 'stdout.txt';
+const TARGET_STDERR_ARTIFACT_PATH = 'stderr.txt';
+
+type TargetExecutionWire = Record<string, unknown>;
+
+function toTargetExecutionWire(
+  envelope: TargetExecutionEnvelope | undefined,
+): TargetExecutionWire | undefined {
+  return envelope ? (toSnakeCaseDeep(envelope) as TargetExecutionWire) : undefined;
+}
 
 export function runInternalPath(runDir: string, filename: string): string {
   return path.join(runDir, RUN_INTERNAL_DIRNAME, filename);
@@ -535,6 +554,7 @@ export interface RunSummaryArtifact {
     }
   >;
   readonly per_grader_summary?: Record<string, { readonly mean: number; readonly stddev: number }>;
+  readonly target_error_summary?: Record<string, number>;
   readonly metrics: TimingArtifact;
   readonly notes: readonly string[];
 }
@@ -587,6 +607,10 @@ export interface IndexArtifactEntry {
   readonly error?: string;
   readonly failure_stage?: string;
   readonly failure_reason_code?: string;
+  readonly target_execution?: TargetExecutionWire;
+  readonly target_execution_path?: string;
+  readonly stdout_path?: string;
+  readonly stderr_path?: string;
   readonly workspace_path?: string;
   readonly result_dir?: string;
   readonly grading_path?: string;
@@ -648,6 +672,10 @@ export interface AgentVRunResultArtifact {
   readonly verdict: TrialResult['verdict'];
   readonly sample_index?: number;
   readonly retry_index?: number;
+  readonly target_execution?: TargetExecutionWire;
+  readonly target_execution_path?: string;
+  readonly stdout_path?: string;
+  readonly stderr_path?: string;
   readonly duration_ms?: number;
   readonly duration_seconds: number;
   readonly model: string;
@@ -1111,6 +1139,10 @@ function buildAgentVRunResultArtifact(params: {
   readonly hasTranscript: boolean;
   readonly hasOutput: boolean;
   readonly hasFileChanges: boolean;
+  readonly targetExecution?: TargetExecutionEnvelope;
+  readonly targetExecutionPath?: string;
+  readonly stdoutPath?: string;
+  readonly stderrPath?: string;
 }): AgentVRunResultArtifact {
   const metrics = params.metricsArtifact.metrics;
   const fileChangesPath = params.hasFileChanges
@@ -1121,6 +1153,12 @@ function buildAgentVRunResultArtifact(params: {
     verdict: params.trial.verdict,
     sample_index: params.result.sampleIndex,
     retry_index: params.result.retryIndex,
+    target_execution: toTargetExecutionWire(params.targetExecution),
+    target_execution_path: params.targetExecutionPath
+      ? `./${params.targetExecutionPath}`
+      : undefined,
+    stdout_path: params.stdoutPath ? `./${params.stdoutPath}` : undefined,
+    stderr_path: params.stderrPath ? `./${params.stderrPath}` : undefined,
     duration_ms: resultDurationMs(params.result),
     duration_seconds: resultDurationSeconds(params.result),
     model: params.result.target ?? 'unknown',
@@ -1172,6 +1210,74 @@ function singleRunTrial(result: EvaluationResult): TrialResult {
 function materializedRunTrials(result: EvaluationResult): readonly TrialResult[] {
   const persisted = (result.trials ?? []).filter((trial) => trial.result !== undefined);
   return persisted.length > 0 ? persisted : [singleRunTrial(result)];
+}
+
+function withTargetExecutionArtifacts(
+  envelope: TargetExecutionEnvelope | undefined,
+  artifacts: TargetExecutionArtifacts,
+): TargetExecutionEnvelope | undefined {
+  if (!envelope) {
+    return undefined;
+  }
+  return {
+    ...envelope,
+    artifacts: {
+      ...(envelope.artifacts ?? {}),
+      ...(dropUndefined(
+        artifacts as unknown as Record<string, unknown>,
+      ) as TargetExecutionArtifacts),
+    },
+  };
+}
+
+async function writeTargetExecutionArtifacts(params: {
+  readonly result: EvaluationResult;
+  readonly sampleDir: string;
+  readonly hasTranscript: boolean;
+  readonly hasOutput: boolean;
+  readonly hasFileChanges: boolean;
+}): Promise<{
+  readonly targetExecution?: TargetExecutionEnvelope;
+  readonly targetExecutionPath?: string;
+  readonly stdoutPath?: string;
+  readonly stderrPath?: string;
+}> {
+  const envelope = params.result.targetExecution;
+  if (!envelope) {
+    return {};
+  }
+
+  const stdoutPath = path.join(params.sampleDir, TARGET_STDOUT_ARTIFACT_PATH);
+  const stderrPath = path.join(params.sampleDir, TARGET_STDERR_ARTIFACT_PATH);
+  const targetExecutionPath = path.join(params.sampleDir, TARGET_EXECUTION_ARTIFACT_PATH);
+  const artifactPaths = {
+    targetExecutionPath: TARGET_EXECUTION_ARTIFACT_PATH,
+    stdoutPath: TARGET_STDOUT_ARTIFACT_PATH,
+    stderrPath: TARGET_STDERR_ARTIFACT_PATH,
+    transcriptPath: params.hasTranscript ? CANONICAL_TRANSCRIPT_ARTIFACT_PATH : undefined,
+    transcriptRawPath: params.hasTranscript ? 'transcript-raw.jsonl' : undefined,
+    summaryPath: RUN_SUMMARY_FILENAME,
+    metricsPath: CANONICAL_METRICS_ARTIFACT_PATH,
+    fileChangesPath: params.hasFileChanges ? CANONICAL_FILE_CHANGES_ARTIFACT_PATH : undefined,
+    outputPath: params.hasOutput ? 'outputs/answer.md' : undefined,
+    answerPath: params.hasOutput ? 'outputs/answer.md' : undefined,
+  };
+  const targetExecution = withTargetExecutionArtifacts(envelope, artifactPaths);
+
+  await writeFile(stdoutPath, envelope.logs?.stdout?.text ?? '', 'utf8');
+  await writeFile(stderrPath, envelope.logs?.stderr?.text ?? '', 'utf8');
+  await writeFile(
+    targetExecutionPath,
+    `${JSON.stringify(toTargetExecutionWire(targetExecution), null, 2)}\n`,
+    'utf8',
+  );
+
+  return {
+    targetExecution,
+    targetExecutionPath,
+    stdoutPath,
+    stderrPath,
+  };
 }
 
 async function writeTrialRunArtifacts(params: {
@@ -1232,6 +1338,13 @@ async function writeTrialRunArtifacts(params: {
     await writeNormalizedTranscriptJson(transcriptPath, envelope, result);
     await writeRawTranscriptJsonl(transcriptRawPath, result, envelope);
   }
+  const targetExecutionArtifacts = await writeTargetExecutionArtifacts({
+    result,
+    sampleDir: runDir,
+    hasTranscript,
+    hasOutput: result.output.length > 0,
+    hasFileChanges: result.fileChanges !== undefined && result.fileChanges.length > 0,
+  });
   const metricsArtifact = await writeMetricsArtifact({
     filePath: metricsPath,
     result,
@@ -1253,6 +1366,12 @@ async function writeTrialRunArtifacts(params: {
         hasTranscript,
         hasOutput: result.output.length > 0,
         hasFileChanges: result.fileChanges !== undefined && result.fileChanges.length > 0,
+        targetExecution: targetExecutionArtifacts.targetExecution,
+        targetExecutionPath: targetExecutionArtifacts.targetExecutionPath
+          ? TARGET_EXECUTION_ARTIFACT_PATH
+          : undefined,
+        stdoutPath: targetExecutionArtifacts.stdoutPath ? TARGET_STDOUT_ARTIFACT_PATH : undefined,
+        stderrPath: targetExecutionArtifacts.stderrPath ? TARGET_STDERR_ARTIFACT_PATH : undefined,
       }),
       null,
       2,
@@ -1606,10 +1725,20 @@ export function buildRunSummaryArtifact(
   }
 
   const errorCount = results.filter((r) => r.executionStatus === 'execution_error').length;
+  const targetErrorSummary: Record<string, number> = {};
+  for (const result of results) {
+    const kind = result.targetExecution?.errorKind;
+    if (kind) {
+      targetErrorSummary[kind] = (targetErrorSummary[kind] ?? 0) + 1;
+    }
+  }
   if (errorCount > 0) {
     notes.push(
       `${errorCount} test(s) had execution errors and are excluded from quality pass_rate`,
     );
+  }
+  if (Object.keys(targetErrorSummary).length > 0) {
+    notes.push('Target runtime errors are reported separately from AgentV orchestrator errors');
   }
   if (results.length === 0) {
     notes.push('No results to summarize');
@@ -1757,6 +1886,8 @@ export function buildRunSummaryArtifact(
     },
     run_summary: runSummary,
     per_grader_summary: perEvaluatorSummary,
+    target_error_summary:
+      Object.keys(targetErrorSummary).length > 0 ? targetErrorSummary : undefined,
     metrics: runMetrics,
     notes,
   };
@@ -2047,6 +2178,9 @@ export function buildIndexArtifactEntry(
     transcriptRawPath?: string;
     metricsPath?: string;
     fileChangesPath?: string;
+    targetExecutionPath?: string;
+    stdoutPath?: string;
+    stderrPath?: string;
     artifactPointers?: ResultArtifactPointersWire;
     rawProviderLogPath?: string;
     extraIndexFields?: AdditionalResultIndexFields;
@@ -2055,6 +2189,39 @@ export function buildIndexArtifactEntry(
     duplicatePolicy?: ExportDuplicatePolicy;
   },
 ): IndexArtifactEntry {
+  const targetExecution = withTargetExecutionArtifacts(result.targetExecution, {
+    targetExecutionPath: options.targetExecutionPath
+      ? toRelativeArtifactPath(options.outputDir, options.targetExecutionPath)
+      : undefined,
+    stdoutPath: options.stdoutPath
+      ? toRelativeArtifactPath(options.outputDir, options.stdoutPath)
+      : undefined,
+    stderrPath: options.stderrPath
+      ? toRelativeArtifactPath(options.outputDir, options.stderrPath)
+      : undefined,
+    transcriptPath: options.transcriptPath
+      ? toRelativeArtifactPath(options.outputDir, options.transcriptPath)
+      : undefined,
+    transcriptRawPath: options.transcriptRawPath
+      ? toRelativeArtifactPath(options.outputDir, options.transcriptRawPath)
+      : undefined,
+    summaryPath: options.summaryPath
+      ? toRelativeArtifactPath(options.outputDir, options.summaryPath)
+      : undefined,
+    metricsPath: options.metricsPath
+      ? toRelativeArtifactPath(options.outputDir, options.metricsPath)
+      : undefined,
+    fileChangesPath: options.fileChangesPath
+      ? toRelativeArtifactPath(options.outputDir, options.fileChangesPath)
+      : undefined,
+    outputPath: options.outputPath
+      ? toRelativeArtifactPath(options.outputDir, options.outputPath)
+      : undefined,
+    answerPath: options.answerPath
+      ? toRelativeArtifactPath(options.outputDir, options.answerPath)
+      : undefined,
+  });
+
   return {
     timestamp: result.timestamp,
     test_id: result.testId ?? 'unknown',
@@ -2079,6 +2246,16 @@ export function buildIndexArtifactEntry(
     error: result.error,
     failure_stage: result.failureStage,
     failure_reason_code: result.failureReasonCode,
+    target_execution: toTargetExecutionWire(targetExecution),
+    target_execution_path: options.targetExecutionPath
+      ? toRelativeArtifactPath(options.outputDir, options.targetExecutionPath)
+      : undefined,
+    stdout_path: options.stdoutPath
+      ? toRelativeArtifactPath(options.outputDir, options.stdoutPath)
+      : undefined,
+    stderr_path: options.stderrPath
+      ? toRelativeArtifactPath(options.outputDir, options.stderrPath)
+      : undefined,
     workspace_path: result.workspacePath,
     result_dir: options.resultDir
       ? toRelativeArtifactPath(options.outputDir, options.resultDir)
@@ -2146,6 +2323,37 @@ export function buildResultIndexArtifact(
   const hasTranscript = resultHasExecutionTraceTranscript(result);
   const isSingleRun = !hasPersistedTrialRuns(result);
   const singleRunDir = path.posix.join(artifactSubdir, sampleDirName(0));
+  const targetExecution = result.targetExecution
+    ? withTargetExecutionArtifacts(result.targetExecution, {
+        targetExecutionPath: path.posix.join(singleRunDir, TARGET_EXECUTION_ARTIFACT_PATH),
+        stdoutPath: path.posix.join(singleRunDir, TARGET_STDOUT_ARTIFACT_PATH),
+        stderrPath: path.posix.join(singleRunDir, TARGET_STDERR_ARTIFACT_PATH),
+        transcriptPath:
+          isSingleRun && hasTranscript
+            ? path.posix.join(singleRunDir, CANONICAL_TRANSCRIPT_ARTIFACT_PATH)
+            : undefined,
+        transcriptRawPath:
+          isSingleRun && hasTranscript
+            ? path.posix.join(singleRunDir, 'transcript-raw.jsonl')
+            : undefined,
+        summaryPath: path.posix.join(artifactSubdir, RUN_SUMMARY_FILENAME),
+        metricsPath: isSingleRun
+          ? path.posix.join(singleRunDir, CANONICAL_METRICS_ARTIFACT_PATH)
+          : undefined,
+        fileChangesPath:
+          isSingleRun && hasFileChanges
+            ? path.posix.join(singleRunDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
+            : undefined,
+        outputPath:
+          isSingleRun && hasAnswer
+            ? path.posix.join(singleRunDir, 'outputs', 'answer.md')
+            : undefined,
+        answerPath:
+          isSingleRun && hasAnswer
+            ? path.posix.join(singleRunDir, 'outputs', 'answer.md')
+            : undefined,
+      })
+    : undefined;
 
   return {
     timestamp: result.timestamp,
@@ -2171,6 +2379,16 @@ export function buildResultIndexArtifact(
     error: result.error,
     failure_stage: result.failureStage,
     failure_reason_code: result.failureReasonCode,
+    target_execution: toTargetExecutionWire(targetExecution),
+    target_execution_path: result.targetExecution
+      ? path.posix.join(singleRunDir, TARGET_EXECUTION_ARTIFACT_PATH)
+      : undefined,
+    stdout_path: result.targetExecution
+      ? path.posix.join(singleRunDir, TARGET_STDOUT_ARTIFACT_PATH)
+      : undefined,
+    stderr_path: result.targetExecution
+      ? path.posix.join(singleRunDir, TARGET_STDERR_ARTIFACT_PATH)
+      : undefined,
     workspace_path: result.workspacePath,
     result_dir: artifactSubdir,
     summary_path: path.posix.join(artifactSubdir, RUN_SUMMARY_FILENAME),
@@ -2835,6 +3053,18 @@ export async function writePerTestArtifacts(
       isSingleRun && result.fileChanges
         ? path.join(singleRunDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
         : undefined;
+    const singleTargetExecutionPath =
+      isSingleRun && result.targetExecution
+        ? path.join(singleRunDir, TARGET_EXECUTION_ARTIFACT_PATH)
+        : undefined;
+    const singleStdoutPath =
+      isSingleRun && result.targetExecution
+        ? path.join(singleRunDir, TARGET_STDOUT_ARTIFACT_PATH)
+        : undefined;
+    const singleStderrPath =
+      isSingleRun && result.targetExecution
+        ? path.join(singleRunDir, TARGET_STDERR_ARTIFACT_PATH)
+        : undefined;
 
     const extraIndexFields = await collectAdditionalIndexFields(
       result,
@@ -2856,6 +3086,9 @@ export async function writePerTestArtifacts(
         transcriptPath: singleTranscriptPath,
         transcriptRawPath: singleTranscriptRawPath,
         fileChangesPath: singleFileChangesPath,
+        targetExecutionPath: singleTargetExecutionPath,
+        stdoutPath: singleStdoutPath,
+        stderrPath: singleStderrPath,
         extraIndexFields,
         runtimeSource: options?.runtimeSource,
         projectionIdentity,
@@ -2949,6 +3182,18 @@ export async function writeArtifactsFromResults(
       isSingleRun && result.fileChanges
         ? path.join(singleRunDir, CANONICAL_FILE_CHANGES_ARTIFACT_PATH)
         : undefined;
+    const singleTargetExecutionPath =
+      isSingleRun && result.targetExecution
+        ? path.join(singleRunDir, TARGET_EXECUTION_ARTIFACT_PATH)
+        : undefined;
+    const singleStdoutPath =
+      isSingleRun && result.targetExecution
+        ? path.join(singleRunDir, TARGET_STDOUT_ARTIFACT_PATH)
+        : undefined;
+    const singleStderrPath =
+      isSingleRun && result.targetExecution
+        ? path.join(singleRunDir, TARGET_STDERR_ARTIFACT_PATH)
+        : undefined;
     return {
       result,
       testDir,
@@ -2961,6 +3206,9 @@ export async function writeArtifactsFromResults(
       singleGradingPath,
       singleMetricsPath,
       singleFileChangesPath,
+      singleTargetExecutionPath,
+      singleStdoutPath,
+      singleStderrPath,
       identityId,
     };
   });
@@ -3035,6 +3283,9 @@ export async function writeArtifactsFromResults(
         transcriptPath: plan.singleTranscriptPath,
         transcriptRawPath: plan.singleTranscriptRawPath,
         fileChangesPath: plan.singleFileChangesPath,
+        targetExecutionPath: plan.singleTargetExecutionPath,
+        stdoutPath: plan.singleStdoutPath,
+        stderrPath: plan.singleStderrPath,
         extraIndexFields,
         runtimeSource: options?.runtimeSource,
         projectionIdentity: plan.projectionIdentity,

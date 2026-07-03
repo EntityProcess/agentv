@@ -1624,7 +1624,7 @@ function rejectAuthoredWorkers(parsed: JsonObject): void {
   }
 
   throw new Error(
-    `${locations[0]} has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency, or operational defaults with --workers, agentv.config.*, .agentv/config.yaml execution.workers, or target-level runtime config.`,
+    `${locations[0]} has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.`,
   );
 }
 
@@ -2182,9 +2182,18 @@ function readSuiteRuntimeBlock(suite: RawTestSuite, evalFilePath: string): JsonO
     );
   }
   if (suite.execution !== undefined) {
-    throw new Error(
-      `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.`,
-    );
+    if (!isJsonObject(suite.execution)) {
+      throw new Error(
+        `Invalid eval runtime config in ${evalFilePath}: top-level 'execution' must be an object with max_concurrency.`,
+      );
+    }
+    for (const key of Object.keys(suite.execution)) {
+      if (key !== 'max_concurrency') {
+        throw new Error(
+          `Invalid eval runtime config in ${evalFilePath}: top-level 'execution.${key}' is not part of eval YAML. Use execution.max_concurrency for eval parallelism.`,
+        );
+      }
+    }
   }
   if (suite.providers !== undefined) {
     throw new Error(

@@ -24,7 +24,7 @@ describe('defineConfig execution defaults', () => {
   it('accepts all execution fields together', () => {
     const config = defineConfig({
       execution: {
-        workers: 5,
+        maxConcurrency: 5,
         maxRetries: 2,
         agentTimeoutMs: 120_000,
         verbose: true,
@@ -32,7 +32,7 @@ describe('defineConfig execution defaults', () => {
       },
     });
     expect(config.execution).toEqual({
-      workers: 5,
+      maxConcurrency: 5,
       maxRetries: 2,
       agentTimeoutMs: 120_000,
       verbose: true,
@@ -44,9 +44,14 @@ describe('defineConfig execution defaults', () => {
     expect(() => defineConfig({ execution: { verbose: 'yes' } } as never)).toThrow();
   });
 
-  it('drops legacy traceFile fields from typed config', () => {
-    const config = defineConfig({ execution: { traceFile: 'trace.jsonl' } } as never);
-    expect(config.execution).toEqual({});
+  it('rejects removed execution.workers', () => {
+    expect(() => defineConfig({ execution: { workers: 5 } } as never)).toThrow(/workers/);
+  });
+
+  it('rejects legacy traceFile fields from typed config', () => {
+    expect(() => defineConfig({ execution: { traceFile: 'trace.jsonl' } } as never)).toThrow(
+      /traceFile/,
+    );
   });
 
   it('rejects removed output.format', () => {

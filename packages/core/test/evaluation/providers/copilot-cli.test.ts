@@ -35,6 +35,21 @@ function createMockChildProcess(): ChildProcess {
   return child as unknown as ChildProcess;
 }
 
+function createErroredChildProcess(error: NodeJS.ErrnoException): ChildProcess {
+  const child = new EventEmitter() as EventEmitter & {
+    stdin: PassThrough;
+    stdout: PassThrough;
+    stderr: PassThrough;
+    kill: ReturnType<typeof mock>;
+  };
+  child.stdin = new PassThrough();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.kill = mock(() => true);
+  queueMicrotask(() => child.emit('error', error));
+  return child as unknown as ChildProcess;
+}
+
 beforeAll(async () => {
   spawnMock = mock(() => createMockChildProcess());
   mock.module('@agentclientprotocol/sdk', () => ({
@@ -194,6 +209,8 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
     });
 
     expect(extractLastAssistantContent(response.output)).toBe('agentv-copilot-gateway-ok');
+    expect(response.targetExecution?.status).toBe('success');
+    expect(response.targetExecution?.providerKind).toBe('copilot-cli');
     expect(runner).not.toHaveBeenCalled();
     expect(spawnMock).toHaveBeenCalledTimes(1);
 
@@ -224,6 +241,28 @@ describe('CopilotCliProvider custom provider ACP mode', () => {
     expect(options.env.COPILOT_PROVIDER_BASE_URL).toBe('https://api.openai.example/v1');
     expect(options.env.COPILOT_PROVIDER_API_KEY).toBe('secret-key');
     expect(options.env.COPILOT_PROVIDER_WIRE_API).toBe('responses');
+  });
+
+  it('maps spawn failures to target execution errors', async () => {
+    const error = new Error('spawn copilot ENOENT') as NodeJS.ErrnoException;
+    error.code = 'ENOENT';
+    const failingSpawn = mock(() => createErroredChildProcess(error));
+    const provider = new CopilotCliProvider(
+      'copilot-cli-missing',
+      {
+        command: ['copilot-missing'],
+        executable: 'copilot-missing',
+      },
+      undefined,
+      failingSpawn as unknown as typeof spawn,
+    );
+
+    const response = await provider.invoke({ question: 'Return done' });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('spawn_failure');
+    expect(response.targetExecution?.command?.argv?.[0]).toBe('copilot-missing');
+    expect(extractLastAssistantContent(response.output)).toContain('Error:');
   });
 
   it('uses configured cwd for ACP spawn when request cwd is omitted', async () => {

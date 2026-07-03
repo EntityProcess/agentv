@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 
 import { ClaudeCliProvider } from '../../../src/evaluation/providers/claude-cli.js';
-import { ClaudeSdkProvider } from '../../../src/evaluation/providers/claude-sdk.js';
 import { ClaudeProvider } from '../../../src/evaluation/providers/claude.js';
 import { createBuiltinProviderRegistry } from '../../../src/evaluation/providers/index.js';
+import { SdkChildProvider } from '../../../src/evaluation/providers/sdk-child-provider.js';
 
 const mockClaudeConfig = {
+  command: ['claude'],
   executable: 'claude',
   model: undefined,
   cwd: undefined,
@@ -31,23 +32,23 @@ describe('Claude provider alias resolution', () => {
     expect(provider.id).toBe('claude-cli:test-target');
   });
 
-  it('creates a ClaudeCliProvider for claude kind (alias for claude-cli)', () => {
-    const provider = registry.create({
-      name: 'test-target',
-      kind: 'claude',
-      config: mockClaudeConfig,
-    });
-    expect(provider).toBeInstanceOf(ClaudeCliProvider);
-    expect(provider.kind).toBe('claude-cli');
+  it('does not register a bare claude provider alias', () => {
+    expect(() =>
+      registry.create({
+        name: 'test-target',
+        kind: 'claude' as never,
+        config: mockClaudeConfig,
+      }),
+    ).toThrow(/Unknown provider kind: "claude"/);
   });
 
-  it('creates a ClaudeSdkProvider for claude-sdk kind', () => {
+  it('creates an isolated child provider for claude-sdk kind', () => {
     const provider = registry.create({
       name: 'test-target',
       kind: 'claude-sdk',
       config: mockClaudeConfig,
     });
-    expect(provider).toBeInstanceOf(ClaudeSdkProvider);
+    expect(provider).toBeInstanceOf(SdkChildProvider);
     expect(provider.kind).toBe('claude-sdk');
     expect(provider.id).toBe('claude-sdk:test-target');
   });
@@ -59,7 +60,7 @@ describe('Claude provider alias resolution', () => {
     expect(cliProvider).toBeInstanceOf(ClaudeCliProvider);
     expect(sdkProvider).toBeInstanceOf(ClaudeProvider);
     expect(cliProvider.kind).toBe('claude-cli');
-    expect(sdkProvider.kind).toBe('claude');
+    expect(sdkProvider.kind).toBe('claude-sdk');
   });
 });
 
@@ -89,5 +90,34 @@ describe('ClaudeCliProvider buildArgs', () => {
     // biome-ignore lint/suspicious/noExplicitAny: testing private method
     const args: string[] = (provider as any).buildArgs();
     expect(args).not.toContain('--dangerously-skip-permissions');
+  });
+});
+
+describe('ClaudeCliProvider target execution envelopes', () => {
+  const originalLogEnv = process.env.AGENTV_CLAUDE_STREAM_LOGS;
+
+  afterEach(() => {
+    process.env.AGENTV_CLAUDE_STREAM_LOGS = originalLogEnv;
+  });
+
+  it('maps subprocess nonzero exits to target execution errors', async () => {
+    process.env.AGENTV_CLAUDE_STREAM_LOGS = 'false';
+    const provider = new ClaudeCliProvider('target', {
+      ...mockClaudeConfig,
+      command: ['node', '--eval', 'process.stderr.write("boom"); process.exit(7)', '--'],
+      executable: 'node',
+    });
+
+    const response = await provider.invoke({ question: 'hello' });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('nonzero_exit');
+    expect(response.targetExecution?.exitCode).toBe(7);
+    expect(response.targetExecution?.command?.argv?.slice(0, 3)).toEqual([
+      'node',
+      '--eval',
+      'process.stderr.write("boom"); process.exit(7)',
+    ]);
+    expect(response.targetExecution?.logs?.stderr?.text).toContain('boom');
   });
 });

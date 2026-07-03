@@ -12,7 +12,7 @@ describe('normalizeToolCall', () => {
   // Claude providers (already canonical — should be identity)
   // -------------------------------------------------------------------------
   describe('claude providers (identity)', () => {
-    for (const provider of ['claude', 'claude-cli', 'claude-sdk'] as ProviderKind[]) {
+    for (const provider of ['claude-cli', 'claude-sdk'] as ProviderKind[]) {
       it(`${provider}: Skill → Skill`, () => {
         const result = normalizeToolCall(provider, tc('Skill', { skill: 'my-skill' }));
         expect(result.tool).toBe('Skill');
@@ -116,17 +116,20 @@ describe('normalizeToolCall', () => {
   // -------------------------------------------------------------------------
   describe('codex', () => {
     it('command_execution → Bash', () => {
-      const result = normalizeToolCall('codex', tc('command_execution', { command: 'cat file' }));
+      const result = normalizeToolCall(
+        'codex-cli',
+        tc('command_execution', { command: 'cat file' }),
+      );
       expect(result.tool).toBe('Bash');
     });
 
     it('file_change → Edit', () => {
-      const result = normalizeToolCall('codex', tc('file_change', { changes: [] }));
+      const result = normalizeToolCall('codex-cli', tc('file_change', { changes: [] }));
       expect(result.tool).toBe('Edit');
     });
 
     it('"mcp:server/skill-name" prefix → Skill with extracted name', () => {
-      const result = normalizeToolCall('codex', tc('mcp:my-server/my-skill', {}));
+      const result = normalizeToolCall('codex-cli', tc('mcp:my-server/my-skill', {}));
       expect(result.tool).toBe('Skill');
       expect((result.input as Record<string, unknown>).skill).toBe('my-server/my-skill');
     });
@@ -154,7 +157,7 @@ describe('normalizeToolCall', () => {
   // -------------------------------------------------------------------------
   describe('input field normalization', () => {
     it('Read: copies path → file_path when file_path missing', () => {
-      const result = normalizeToolCall('claude', tc('Read', { path: '/foo.ts' }));
+      const result = normalizeToolCall('claude-sdk', tc('Read', { path: '/foo.ts' }));
       expect((result.input as Record<string, unknown>).file_path).toBe('/foo.ts');
       expect((result.input as Record<string, unknown>).path).toBe('/foo.ts');
     });

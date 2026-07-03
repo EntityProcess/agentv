@@ -17,9 +17,9 @@ Test AI targets on real repo tasks and measure what actually works.
 - **Eval suite / imports / tests** are the task corpus: the prompts, cases, datasets, and imported benchmarks you want to evaluate.
 - **Category** is derived from where the eval lives, such as folder path and file name. Use paths to organize the corpus instead of repeating category labels in every eval.
 - **Workspace / fixtures / graders** are task-owned context: repos, setup scripts, files, fixtures, isolation, deterministic checks, and LLM grading prompts.
-- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target`, either by label from `targets.yaml` or with an eval-local target object.
+- **Target** is the system under test: an agent, provider, gateway, replay target, CLI wrapper, transcript provider, or future app/service wrapper. Each eval selects one `target` by configured target `id` or with an eval-local target object.
 - **Tags** are run/result grouping labels. `tags.experiment` is the default experiment namespace, such as `with-skills` or `without-skills`; keep suite/category and target/model names out of that tag.
-- **Evaluate options** configure runner-level behavior such as repeat policy, optional timeouts, and `max_concurrency` under `evaluate_options`.
+- **Execution** configures runner-level behavior such as general suite concurrency with `execution.max_concurrency`; `evaluate_options` holds eval behaviors such as repeat policy and budgets.
 - **Default test** configures inherited per-test defaults such as score `threshold`.
 - **Run** is one concrete execution of a tagged eval against a resolved target that writes portable artifacts for readers such as Dashboard, compare, and trend.
 
@@ -31,16 +31,31 @@ npm install -g agentv
 agentv init
 ```
 
-**2. Configure targets** in `.agentv/targets.yaml` — point to the system under test, such as an agent, provider, gateway, replay source, or CLI wrapper. Provider-specific budgets belong here:
+**2. Configure targets and graders** in `.agentv/config.yaml` — point to the system under test and the reusable grader. Provider settings live under `config`, and target `id` is the selection name used by evals and CLI flags:
 
 ```yaml
 targets:
-  - label: local-openai
+  - id: local-openai
     provider: openai
-    api_format: chat
-    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    runtime: host
+    config:
+      api_format: chat
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+
+graders:
+  - id: local-openai-grader
+    provider: openai
+    config:
+      api_format: chat
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+
+defaults:
+  target: local-openai
+  grader: local-openai-grader
 ```
 
 **3. Create shared test defaults** in `evals/default-test.yaml`. This is a promptfoo-style partial test config that AgentV applies to each test:
@@ -68,7 +83,7 @@ description: Code generation quality
 tags:
   experiment: with-skills
 target: local-openai
-evaluate_options:
+execution:
   max_concurrency: 1
 
 default_test: file://./default-test.yaml
@@ -104,8 +119,14 @@ description: Code generation quality with eval-local target settings
 tags:
   experiment: with-skills
 target:
-  extends: local-openai
-  model: gpt-5.4-mini
+  id: local-mini
+  provider: openai
+  runtime: host
+  config:
+    api_format: chat
+    base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+    api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+    model: gpt-5.4-mini
 evaluate_options:
   repeat:
     count: 2
@@ -119,7 +140,7 @@ tests:
     input: Write FizzBuzz in Python
 ```
 
-`target: local-openai` resolves the target label from `.agentv/targets.yaml` or `targets.yaml` and uses its default provider, model, hooks, and provider settings. The object form above starts from `local-openai`, then applies the eval-local fields for this eval. If `extends` is omitted, the object defines the full target inline and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
+`target: local-openai` resolves the configured target id from `.agentv/config.yaml` and uses its provider, model, hooks, and provider settings. The object form above defines a full eval-local target and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
 
 Use `default_test.threshold` for the inherited per-test pass cutoff. `default_test` can also point at a shared file, matching promptfoo's external defaults pattern:
 
@@ -150,7 +171,7 @@ agentv results compare .agentv/results/<baseline-run-id>/index.jsonl .agentv/res
 
 ## Results
 
-Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `tags.experiment: with-skills` names the condition being measured and `target: local-openai` selects the system under test from `targets.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv results compare`; per-case sidecars include the resolved eval and target configuration used for the run.
+Each run writes a portable bundle directly under `.agentv/results/<run_id>/`. In this example, `tags.experiment: with-skills` names the condition being measured and `target: local-openai` selects the system under test from `.agentv/config.yaml`; both are recorded as metadata, not path segments. The root `index.jsonl` manifest is the portable row index used by scripts, CI, and `agentv results compare`; per-case sidecars include the resolved eval and target configuration used for the run.
 
 ```bash
 agentv eval evals/my-eval.eval.yaml

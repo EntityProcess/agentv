@@ -23,6 +23,11 @@ import type {
 } from '../types.js';
 import { isJsonObject } from '../types.js';
 import { parseYamlValue } from '../yaml-loader.js';
+import {
+  type ComposableConfigGraph,
+  normalizeComposableConfigGraph,
+  resolveConfigFieldReferences,
+} from './config-graph.js';
 import { buildDirectoryChain, fileExists } from './file-resolver.js';
 
 const ANSI_YELLOW = '\u001b[33m';
@@ -37,7 +42,7 @@ export const DEFAULT_EVAL_PATTERNS: readonly string[] = [
 ];
 
 export type ExecutionDefaults = {
-  readonly workers?: number;
+  readonly max_concurrency?: number;
   readonly verbose?: boolean;
   readonly keep_workspaces?: boolean;
   readonly workspace_path?: string;
@@ -76,7 +81,7 @@ export type AgentVConfig = {
    * reserved key `experiment` participates in experiment-namespace resolution.
    */
   readonly tags?: Record<string, string>;
-};
+} & ComposableConfigGraph;
 
 /**
  * Load optional AgentV YAML configuration.
@@ -145,9 +150,15 @@ async function readConfigFilePair(
   repoRoot: string,
 ): Promise<AgentVConfig | null> {
   const localConfigPath = getLocalConfigPath(configPath);
-  const base = stripLocalOnlyExecutionDefaults(await readConfigObjectFile(configPath), configPath);
+  const base = stripLocalOnlyExecutionDefaults(
+    await resolveConfigObjectFileReferences(await readConfigObjectFile(configPath), configPath),
+    configPath,
+  );
   const local = stripLocalOnlyExecutionDefaults(
-    await readConfigObjectFile(localConfigPath),
+    await resolveConfigObjectFileReferences(
+      await readConfigObjectFile(localConfigPath),
+      localConfigPath,
+    ),
     localConfigPath,
   );
   const rawMerged = base && local ? mergeConfigObjects(base, local) : (local ?? base);
@@ -155,6 +166,16 @@ async function readConfigFilePair(
     return null;
   }
   return parseConfigObject(rawMerged, local ? localConfigPath : configPath, repoRoot);
+}
+
+async function resolveConfigObjectFileReferences(
+  rawConfig: Record<string, unknown> | undefined,
+  configPath: string,
+): Promise<Record<string, unknown> | undefined> {
+  if (!rawConfig) {
+    return undefined;
+  }
+  return resolveConfigFieldReferences(rawConfig, configPath);
 }
 
 function parseConfigObject(
@@ -189,23 +210,36 @@ function parseConfigObject(
       return null;
     }
 
-    const executionDefaults = parseExecutionDefaults(
-      (parsed as Record<string, unknown>).execution,
-      configPath,
-    );
+    const rawExecution = (parsed as Record<string, unknown>).execution;
+    if (isJsonObject(rawExecution) && rawExecution.workers !== undefined) {
+      logWarning(
+        `Invalid execution.workers in ${configPath}; use execution.max_concurrency for eval parallelism.`,
+      );
+      return null;
+    }
+
+    const executionDefaults = parseExecutionDefaults(rawExecution, configPath);
     const results = parseResultsConfig((parsed as Record<string, unknown>).results, configPath);
     const hooks = parseHooksConfig((parsed as Record<string, unknown>).hooks, configPath);
     const tags = parseTagsConfig((parsed as Record<string, unknown>).tags, configPath);
     const refs = parseRefsConfig((parsed as Record<string, unknown>).refs, configPath);
+    const graph = normalizeComposableConfigGraph(parsed as Record<string, unknown>, configPath, {
+      allowExecutionDefaultFields: true,
+    });
+    const execution = mergeExecutionConfig(executionDefaults, graph.execution);
 
     return {
       required_version: requiredVersion as string | undefined,
       eval_patterns: evalPatterns as readonly string[] | undefined,
-      execution: executionDefaults,
+      ...(execution && { execution }),
       results,
       ...(hooks && { hooks }),
       ...(refs && { refs }),
       ...(tags && { tags }),
+      ...(graph.targets && { targets: graph.targets }),
+      ...(graph.graders && { graders: graph.graders }),
+      ...(graph.tests && { tests: graph.tests }),
+      ...(graph.defaults && { defaults: graph.defaults }),
     };
   } catch (error) {
     const message = (error as Error).message;
@@ -215,6 +249,14 @@ function parseConfigObject(
     logWarning(`Could not parse AgentV config at ${configPath}: ${message}`);
     return null;
   }
+}
+
+function mergeExecutionConfig(
+  defaults: ExecutionDefaults | undefined,
+  graph: ComposableConfigGraph['execution'],
+): ExecutionDefaults | undefined {
+  const merged = { ...(defaults ?? {}), ...(graph ?? {}) };
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 function parseRefsConfig(raw: unknown, configPath: string): ReferenceMap | undefined {
@@ -317,8 +359,31 @@ function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
     throw new Error("Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd.");
   }
   if (suite.execution !== undefined) {
+    assertAllowedSuiteExecution(suite.execution);
+  }
+}
+
+function assertAllowedSuiteExecution(rawExecution: JsonValue): void {
+  if (!isJsonObject(rawExecution)) {
+    throw new Error("Invalid top-level 'execution': expected an object.");
+  }
+  for (const key of Object.keys(rawExecution)) {
+    if (key !== 'max_concurrency') {
+      throw new Error(
+        `Top-level 'execution.${key}' is not part of eval YAML. Use execution.max_concurrency for AgentV eval parallelism; keep target and other run controls at their supported top-level or evaluate_options fields.`,
+      );
+    }
+  }
+  const maxConcurrency = rawExecution.max_concurrency;
+  if (
+    maxConcurrency !== undefined &&
+    (typeof maxConcurrency !== 'number' ||
+      !Number.isInteger(maxConcurrency) ||
+      maxConcurrency < 1 ||
+      maxConcurrency > 50)
+  ) {
     throw new Error(
-      "Top-level 'execution' is not part of eval YAML. Put target and run controls at the top level, authored concurrency under evaluate_options.max_concurrency, and operational defaults in CLI flags or project config.",
+      "Invalid top-level 'execution.max_concurrency': expected an integer between 1 and 50.",
     );
   }
 }
@@ -538,11 +603,15 @@ export function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
 /**
  * Extract suite-level max concurrency from eval YAML.
  *
- * Preferred authoring uses evaluate_options.max_concurrency, matching the
- * lowest-common-denominator naming used by other eval runners. Internal
- * TypeScript continues to pass this as workers/maxConcurrency at runtime.
+ * AgentV eval YAML accepts execution.max_concurrency as the config-graph field
+ * and evaluate_options.max_concurrency for promptfoo-shaped eval options. The
+ * runner still receives the resolved value through its historical workers slot.
  */
 export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
+  rejectAuthoredRuntimeContainers(suite);
+  if (isJsonObject(suite.execution) && typeof suite.execution.max_concurrency === 'number') {
+    return suite.execution.max_concurrency;
+  }
   return getSuiteEvaluateOptionsNumber(
     suite,
     'max_concurrency',
@@ -681,11 +750,22 @@ export function parseExecutionDefaults(
   const obj = raw as Record<string, unknown>;
   const result: Record<string, unknown> = {};
 
-  const workers = obj.workers;
-  if (typeof workers === 'number' && Number.isInteger(workers) && workers >= 1 && workers <= 50) {
-    result.workers = workers;
-  } else if (workers !== undefined) {
-    logWarning(`Invalid execution.workers in ${configPath}, expected integer 1-50`);
+  if (obj.workers !== undefined) {
+    logWarning(
+      `execution.workers in ${configPath} has been removed; use execution.max_concurrency`,
+    );
+  }
+
+  const maxConcurrency = obj.max_concurrency;
+  if (
+    typeof maxConcurrency === 'number' &&
+    Number.isInteger(maxConcurrency) &&
+    maxConcurrency >= 1 &&
+    maxConcurrency <= 50
+  ) {
+    result.max_concurrency = maxConcurrency;
+  } else if (maxConcurrency !== undefined) {
+    logWarning(`Invalid execution.max_concurrency in ${configPath}, expected integer 1-50`);
   }
 
   if (typeof obj.verbose === 'boolean') {

@@ -615,6 +615,26 @@ function primaryTrialArtifactPath(trial: EvalCaseTrial): string | null {
   );
 }
 
+function formatTargetError(
+  error: string | undefined,
+  kind: string | undefined,
+): string | undefined {
+  if (!error) return kind ? `Target error: ${kind}` : undefined;
+  return kind ? `[target:${kind}] ${error}` : error;
+}
+
+function targetErrorKind(value: {
+  targetExecution?: { error_kind?: string; errorKind?: string };
+  target_execution?: { error_kind?: string; errorKind?: string };
+}): string | undefined {
+  return (
+    value.target_execution?.error_kind ??
+    value.target_execution?.errorKind ??
+    value.targetExecution?.error_kind ??
+    value.targetExecution?.errorKind
+  );
+}
+
 function TrialResultCell({
   column,
   row,
@@ -656,7 +676,12 @@ function TrialResultCell({
     case 'review':
       return <span className="text-gray-700">-</span>;
     case 'error':
-      return <TruncatedMuted value={trial.error} tone="text-red-300" />;
+      return (
+        <TruncatedMuted
+          value={formatTargetError(trial.error, targetErrorKind(trial))}
+          tone="text-red-300"
+        />
+      );
     default:
       return <span className="text-gray-700">-</span>;
   }
@@ -840,7 +865,12 @@ function ResultCell({
     case 'cost_tokens':
       return <CostTokenCell row={row} repeatGroup={repeatGroup} />;
     case 'error':
-      return <TruncatedMuted value={row.result.error} tone="text-red-300" />;
+      return (
+        <TruncatedMuted
+          value={formatTargetError(row.result.error, targetErrorKind(row.result))}
+          tone="text-red-300"
+        />
+      );
     default:
       return <span className="text-gray-600">-</span>;
   }

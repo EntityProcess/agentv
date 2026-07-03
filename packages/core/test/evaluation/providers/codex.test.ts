@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { CodexCliProvider } from '../../../src/evaluation/providers/codex-cli.js';
+import {
+  CodexAppServerProvider,
+  CodexCliProvider,
+} from '../../../src/evaluation/providers/codex-cli.js';
 import {
   type CodexLogEntry,
   consumeCodexLogEntries,
@@ -45,8 +48,9 @@ describe('CodexCliProvider', () => {
     const provider = new CodexCliProvider(
       'codex-target',
       {
-        executable: process.execPath,
-        args: ['--profile', 'default', '--model', 'test'],
+        command: [process.execPath, '--profile', 'default'],
+        model: 'test',
+        runtime: { mode: 'host' },
         timeoutMs: 1000,
         logDir: fixturesRoot,
       },
@@ -71,15 +75,17 @@ describe('CodexCliProvider', () => {
     expect(extractLastAssistantContent(response.output)).toBe('done');
     expect(runner).toHaveBeenCalledTimes(1);
     const invocation = runner.mock.calls[0][0];
+    expect(invocation.executable).toBe(process.execPath);
     expect(invocation.args.slice(0, 7)).toEqual([
-      '--ask-for-approval',
-      'never',
+      '--profile',
+      'default',
+      '--model',
+      'test',
       'exec',
       '--json',
       '--color',
-      'never',
-      '--skip-git-repo-check',
     ]);
+    expect(invocation.args.slice(7, 9)).toEqual(['never', '--skip-git-repo-check']);
     expect(invocation.args).toContain('--profile');
     expect(invocation.args).toContain('default');
     expect(invocation.args).toContain('--model');
@@ -98,7 +104,7 @@ describe('CodexCliProvider', () => {
     expect(inputFilePaths).toContain(attachmentFile);
   });
 
-  it('fails when Codex CLI emits invalid JSON', async () => {
+  it('returns a target error envelope when Codex CLI emits invalid JSON', async () => {
     const runner = mock(async () => ({
       stdout: 'not json',
       stderr: '',
@@ -107,7 +113,8 @@ describe('CodexCliProvider', () => {
     const provider = new CodexCliProvider(
       'codex-target',
       {
-        executable: process.execPath,
+        command: [process.execPath],
+        runtime: { mode: 'host' },
         logDir: fixturesRoot,
       },
       runner,
@@ -117,7 +124,12 @@ describe('CodexCliProvider', () => {
       question: 'Hello',
     };
 
-    await expect(provider.invoke(request)).rejects.toThrow(/invalid JSON|assistant message/i);
+    const response = await provider.invoke(request);
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('malformed_output');
+    expect(response.targetExecution?.logs?.stdout?.text).toBe('not json');
+    expect(extractLastAssistantContent(response.output)).toContain('Error:');
   });
 
   it('parses JSONL output from codex exec', async () => {
@@ -138,7 +150,8 @@ describe('CodexCliProvider', () => {
     const provider = new CodexCliProvider(
       'codex-target',
       {
-        executable: process.execPath,
+        command: [process.execPath],
+        runtime: { mode: 'host' },
         logDir: fixturesRoot,
       },
       runner,
@@ -174,7 +187,8 @@ describe('CodexCliProvider', () => {
     const provider = new CodexCliProvider(
       'codex-target',
       {
-        executable: process.execPath,
+        command: [process.execPath],
+        runtime: { mode: 'host' },
         logDir: fixturesRoot,
       },
       runner,
@@ -219,7 +233,8 @@ describe('CodexCliProvider', () => {
     const provider = new CodexCliProvider(
       'codex-target',
       {
-        executable: process.execPath,
+        command: [process.execPath],
+        runtime: { mode: 'host' },
         logDir: fixturesRoot,
         streamLog: 'raw',
       },
@@ -232,5 +247,137 @@ describe('CodexCliProvider', () => {
     const logContent = await readFile(logFile, 'utf8');
     expect(logContent).toContain('"tool": "search"');
     expect(logContent).toContain('"q": "hello"');
+  });
+
+  it('builds an isolated profile environment without copying host HOME or CODEX_HOME', async () => {
+    const profileHome = path.join(fixturesRoot, 'profile-home');
+    const codexHome = path.join(fixturesRoot, 'codex-home');
+    const tmp = path.join(fixturesRoot, 'tmp');
+    const runner = mock(async () => ({
+      stdout: JSON.stringify({ messages: [{ role: 'assistant', content: 'profile ok' }] }),
+      stderr: '',
+      exitCode: 0,
+    }));
+    const provider = new CodexCliProvider(
+      'codex-profile',
+      {
+        command: [process.execPath],
+        runtime: {
+          mode: 'profile',
+          home: profileHome,
+          codexHome,
+          tmpDir: tmp,
+          env: { AGENTV_PROFILE_MARKER: 'yes' },
+        },
+      },
+      runner,
+    );
+
+    await provider.invoke({ question: 'profile env' });
+
+    const invocation = runner.mock.calls[0][0];
+    expect(invocation.env.HOME).toBe(profileHome);
+    expect(invocation.env.CODEX_HOME).toBe(codexHome);
+    expect(invocation.env.TMPDIR).toBe(tmp);
+    expect(invocation.env.AGENTV_PROFILE_MARKER).toBe('yes');
+    expect(invocation.env.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  it('returns a nonzero-exit target envelope with captured stderr', async () => {
+    const runner = mock(async () => ({
+      stdout: '',
+      stderr: 'boom',
+      exitCode: 3,
+    }));
+    const provider = new CodexCliProvider(
+      'codex-crash',
+      {
+        command: [process.execPath],
+        runtime: { mode: 'host' },
+      },
+      runner,
+    );
+
+    const response = await provider.invoke({ question: 'fail' });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('nonzero_exit');
+    expect(response.targetExecution?.exitCode).toBe(3);
+    expect(response.targetExecution?.logs?.stderr?.text).toBe('boom');
+  });
+
+  it('returns a timeout target envelope', async () => {
+    const runner = mock(async () => ({
+      stdout: 'partial',
+      stderr: '',
+      exitCode: null,
+      timedOut: true,
+    }));
+    const provider = new CodexCliProvider(
+      'codex-timeout',
+      {
+        command: [process.execPath],
+        runtime: { mode: 'host' },
+        timeoutMs: 10,
+      },
+      runner,
+    );
+
+    const response = await provider.invoke({ question: 'hang' });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('timeout');
+    expect(response.targetExecution?.logs?.stdout?.text).toBe('partial');
+  });
+
+  it('returns unsupported target error for sandbox runtime until sandbox runtime is available', async () => {
+    const runner = mock(async () => {
+      throw new Error('should not run');
+    });
+    const provider = new CodexCliProvider(
+      'codex-sandbox',
+      {
+        command: [process.execPath],
+        runtime: { mode: 'sandbox' },
+      },
+      runner,
+    );
+
+    const response = await provider.invoke({ question: 'sandbox' });
+
+    expect(runner).not.toHaveBeenCalled();
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('sandbox_infra_failure');
+  });
+
+  it('runs codex-app-server through the configured argv and JSON request payload', async () => {
+    const runner = mock(
+      async (opts: { prompt: string; executable: string; args: readonly string[] }) => ({
+        stdout: JSON.stringify({ output: [{ text: 'app server answer' }] }),
+        stderr: '',
+        exitCode: 0,
+      }),
+    );
+    const provider = new CodexAppServerProvider(
+      'codex-app',
+      {
+        command: [process.execPath, 'app-server', '--profile', 'eng'],
+        runtime: { mode: 'host' },
+      },
+      runner,
+    );
+
+    const response = await provider.invoke({ question: 'hello', evalCaseId: 'case-app' });
+
+    const invocation = runner.mock.calls[0][0];
+    expect(invocation.executable).toBe(process.execPath);
+    expect(invocation.args).toEqual(['app-server', '--profile', 'eng']);
+    expect(JSON.parse(invocation.prompt)).toMatchObject({
+      type: 'agentv.invoke',
+      question: 'hello',
+      eval_case_id: 'case-app',
+    });
+    expect(response.targetExecution?.providerKind).toBe('codex-app-server');
+    expect(extractLastAssistantContent(response.output)).toBe('app server answer');
   });
 });

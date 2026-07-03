@@ -5,35 +5,173 @@ sidebar:
   order: 1
 ---
 
-Targets define which agent or LLM provider to evaluate. They are configured in `.agentv/targets.yaml` to decouple eval files from provider details.
+Targets define which agent or LLM provider to evaluate. AgentV uses one
+composable config graph across project manifests and eval files:
+
+- `.agentv/config.yaml` is the project-local discovery and composition root. It
+  can hold targets, graders, tests, defaults, execution policy, results
+  settings, and repo-local project policy.
+- `$AGENTV_HOME/config.yaml` is the user/operator config. Use it for defaults
+  that apply across projects, project registry data, default result locations,
+  and provider defaults that should not be copied into each repo.
+- `eval.yaml` is a focused, shareable slice of the same graph. Use it for a
+  suite-specific target, grader, tests, evaluator settings, or run controls
+  that should travel with the eval.
+
+Any supported top-level field can stay inline or become a direct field
+reference such as `targets: file://targets.yaml`. Both forms normalize to the
+same config graph.
 
 ## Structure
 
 ```yaml
 targets:
-  - label: azure-base
-    provider: azure
+  - id: local-openai
+    provider: openai
+    runtime: host
     config:
-      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
-      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      api_format: chat
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
 
-  - label: vscode_dev
-    provider: vscode
-    grader_target: azure-base
-
-  - label: local_agent
-    provider: cli
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
     config:
-      command: 'python agent.py --prompt {PROMPT}'
-    grader_target: azure-base
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+defaults:
+  target: codex-local
+  grader: openai-grader
 ```
 
-Use `label` for AgentV target references and comparison names. Use `id` only when you need to carry a promptfoo provider/backend identifier. The
-`provider` field selects the backend kind. Provider-specific settings belong in
-`config`; AgentV target extensions such as `grader_target`, `use_target`,
-`fallback_targets`, `workers`, and `batch_requests` remain top-level fields on
-the target object.
+Use `id` for the stable AgentV target identity. `provider` selects the adapter
+or control boundary. `runtime` describes where the provider runs; use `host` as
+the shorthand for the current machine, or object form when you need
+`mode: host | profile | sandbox` plus runtime-specific settings. Provider
+settings belong under `config`. Process-backed coding-agent providers use
+`config.command` as a non-empty argv array.
+
+## Runtime Modes
+
+Use `runtime: host` when you want AgentV to run the target exactly as it is
+installed on the current machine. This is the best fit for local research,
+subscription-auth workflows, and evaluating the same CLI profile an engineer
+uses manually.
+
+Use `runtime.mode: profile` when the target still runs as a host process but
+should use an isolated home/config directory, such as a dedicated `CODEX_HOME`
+or `HOME`.
+
+Use `runtime.mode: sandbox` when the target should run inside a separate
+execution substrate. The built-in sandbox runner currently supports Docker for
+`provider: cli`; provider-specific coding-agent adapters such as `codex-cli`,
+`claude-cli`, `copilot-cli`, and `pi-cli` return a structured unsupported target
+error until their transcript parsers are wired through sandbox-aware runners.
+
+```yaml
+targets:
+  - id: codex-sandbox
+    provider: codex-cli
+    runtime:
+      mode: sandbox
+      engine: docker
+      image: ghcr.io/acme/codex-agent:sha256
+      workdir: /workspace
+      network: none
+      mounts:
+        - source: ./workspace
+          target: /workspace
+          access: rw
+        - source: ./.agentv/results
+          target: /results
+          access: rw
+      env:
+        AGENTV_RESULT_DIR: /results
+      secrets:
+        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+    config:
+      command: ["codex", "exec", "--json"]
+      timeout_seconds: 300
+```
+
+Sandbox mode does not inherit host credentials by default. Mount only the
+workspace, results, cache, or credential paths the target needs, and pass only
+the environment variables and secrets listed under `runtime.env` and
+`runtime.secrets`. Install the target CLI by using an image that already
+contains it or by adding explicit setup under `runtime.setup`; locate the CLI
+with `config.command`.
+
+For CI, API-key or explicitly injected secret auth is the most reproducible
+path. Subscription OAuth can work in a sandbox only when you intentionally mount
+or seed the relevant profile directory into the sandbox. That makes the run less
+portable than API-key CI and should be reserved for workflows where matching a
+local subscription profile is the point of the evaluation.
+
+Inline and decomposed forms are equivalent. This single-file config:
+
+```yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+tests:
+  - id: smoke
+    input: Fix the failing test.
+
+defaults:
+  target: codex-local
+  grader: openai-grader
+```
+
+can be decomposed like this:
+
+```yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
+tests: file://tests.yaml
+defaults: file://defaults.yaml
+```
+
+Referenced field files contain the field value directly. `targets.yaml` contains
+a bare array, not an object wrapped in `targets:`:
+
+```yaml
+# .agentv/targets.yaml
+- id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+    model: gpt-5-codex
+```
+
+```yaml
+# .agentv/defaults.yaml
+target: codex-local
+grader: openai-grader
+```
+
+File refs are optional. Use them when a config field is large, reused, or owned
+by a separate team; keep fields inline when that is easier to read.
 
 ## Environment Variables
 
@@ -43,8 +181,9 @@ eval directory hierarchy when present:
 
 ```yaml
 targets:
-  - label: my_target
+  - id: my-target
     provider: anthropic
+    runtime: host
     config:
       api_key: ${{ ANTHROPIC_API_KEY }}
       model: ${{ ANTHROPIC_MODEL }}
@@ -60,9 +199,17 @@ already-exported secrets into `.env`.
 | `azure` | LLM | Azure OpenAI |
 | `anthropic` | LLM | Anthropic Claude API |
 | `gemini` | LLM | Google Gemini |
-| `claude` | Agent | Claude Agent SDK |
-| `codex` | Agent | Codex CLI |
-| `pi-coding-agent` | Agent | Pi Coding Agent |
+| `claude-cli` | Agent | Claude CLI subprocess |
+| `claude-sdk` | Agent | Claude Agent SDK in an isolated child runner |
+| `codex-cli` | Agent | Codex CLI subprocess |
+| `codex-app-server` | Agent | Codex app-server subprocess |
+| `codex-sdk` | Agent | Codex SDK in an isolated child runner |
+| `copilot-cli` | Agent | Copilot CLI subprocess |
+| `copilot-log` | Agent | Passive Copilot CLI session log reader |
+| `copilot-sdk` | Agent | Copilot SDK in an isolated child runner |
+| `pi-sdk` | Agent | Pi SDK in an isolated child runner |
+| `pi-cli` | Agent | Pi CLI subprocess |
+| `pi-rpc` | Agent | Pi RPC subprocess over stdio |
 | `vscode` | Agent | VS Code with Copilot |
 | `vscode-insiders` | Agent | VS Code Insiders |
 | `cli` | Agent | Any CLI command — see [CLI Provider](/docs/targets/cli-provider) |
@@ -70,45 +217,35 @@ already-exported secrets into `.env`.
 
 ## Referencing Targets in Evals
 
-Select the system under test with top-level `target` or CLI `--target`.
-Test cases do not choose targets; split target-specific cases into separate eval
-suites, select them with tags/filters, or run the same eval with different
-`--target` values.
+Select the system under test with `defaults.target`, top-level `target`, or CLI
+`--target`, depending on the command flow. Test cases do not choose targets;
+split target-specific cases into separate eval suites, select them with
+tags/filters, or run the same eval with different `--target` values.
 
 ```yaml
-target: azure-base
+target: local-openai
 
 tests:
   - id: test-1
   - id: test-2
 ```
 
-The string is a target `label` from `.agentv/targets.yaml` or `targets.yaml`.
-Use object form when an eval needs a local target variant:
+The string is a configured target `id`. Use object form when an eval needs a
+local target variant:
 
 ```yaml
 target:
-  extends: azure-base
-  label: azure-high-reasoning
-  model: gpt-5.4
-  reasoning_effort: high
+  id: codex-high-reasoning
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+    model: gpt-5-codex
+    reasoning_effort: high
 ```
 
-`extends` names the base target label. `label` names the eval-local variant for
-results and comparison. If `label` is omitted, the eval overrides the base target
-under the same label. If `extends` is omitted, the object is a complete inline
-target definition and must include enough provider configuration to run.
-
-## Grader Target
-
-Agent targets that need LLM-based evaluation specify a `grader_target` — the LLM used to run LLM grader graders:
-
-```yaml
-targets:
-  - label: codex_target
-    provider: codex
-    grader_target: azure-base  # LLM used for grading
-```
+Use `defaults.grader` for the project default grader. A specific evaluator can
+still choose its own grader target when the evaluator supports that override.
 
 ### Lifecycle Extensions
 

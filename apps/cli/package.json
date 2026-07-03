@@ -28,12 +28,9 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.49",
-    "@github/copilot-sdk": "^1.0.3",
     "@hono/node-server": "^1.19.11",
     "@inquirer/prompts": "^8.2.1",
     "@earendil-works/pi-ai": "^0.74.0",
-    "@openai/codex-sdk": "^0.136.0",
     "cmd-ts": "^0.14.3",
     "dotenv": "^16.4.5",
     "fast-glob": "^3.3.3",
@@ -44,9 +41,21 @@
     "yaml": "^2.8.3"
   },
   "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.88",
+    "@github/copilot-sdk": "^1.0.3",
+    "@openai/codex-sdk": "^0.136.0",
     "@earendil-works/pi-coding-agent": "^0.74.0"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
+    "@github/copilot-sdk": {
+      "optional": true
+    },
+    "@openai/codex-sdk": {
+      "optional": true
+    },
     "@earendil-works/pi-coding-agent": {
       "optional": true
     }

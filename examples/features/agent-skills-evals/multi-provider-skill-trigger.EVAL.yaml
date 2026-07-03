@@ -2,7 +2,7 @@
 #
 # Uses an isolated workspace template (workspace/) so no global skill installation
 # is needed. The workspace contains:
-#   .claude/skills/acme-deploy/  — for claude/copilot providers
+#   .claude/skills/acme-deploy/  — for claude-cli/copilot-cli providers
 #   .agents/skills/acme-deploy/  — for codex/pi providers
 #   .codex/skills/acme-deploy/   — for codex provider (fallback)
 #
@@ -12,9 +12,9 @@
 #
 # The same EVAL.yaml works with any provider — just change --target:
 #
-#   agentv eval this-file.EVAL.yaml --target claude --targets ../.agentv/targets.yaml
-#   agentv eval this-file.EVAL.yaml --target copilot --targets ../.agentv/targets.yaml
-#   agentv eval this-file.EVAL.yaml --target codex --targets ../.agentv/targets.yaml
+#   agentv eval this-file.EVAL.yaml --target claude-cli --targets ../.agentv/targets.yaml
+#   agentv eval this-file.EVAL.yaml --target copilot-cli --targets ../.agentv/targets.yaml
+#   agentv eval this-file.EVAL.yaml --target codex-cli --targets ../.agentv/targets.yaml
 #
 # The grader automatically resolves the correct tool names for each
 # provider. No provider-specific config needed in test cases.

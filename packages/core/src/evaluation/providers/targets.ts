@@ -2,6 +2,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { renderEnvTemplateString } from '../interpolation.js';
+import type { TargetRuntimeConfig, TargetRuntimeMode } from './sandbox-runner.js';
 import type { EnvLookup, TargetDefinition } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -429,8 +430,8 @@ export interface CodexResolvedConfig {
   readonly apiFormat?: ApiFormat;
   readonly sandboxMode?: CodexSandboxMode;
   readonly approvalPolicy?: CodexApprovalPolicy;
-  readonly executable: string;
-  readonly args?: readonly string[];
+  readonly command?: readonly string[];
+  readonly runtime: CodingAgentRuntimeConfig;
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
@@ -439,7 +440,19 @@ export interface CodexResolvedConfig {
   readonly systemPrompt?: string;
 }
 
+export type CodingAgentRuntimeMode = 'host' | 'profile' | 'sandbox';
+
+export interface CodingAgentRuntimeConfig {
+  readonly mode: CodingAgentRuntimeMode;
+  readonly home?: string;
+  readonly codexHome?: string;
+  readonly tmpDir?: string;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly envAllowlist?: readonly string[];
+}
+
 export interface CopilotCliResolvedConfig {
+  readonly command: readonly string[];
   readonly executable: string;
   readonly model?: string;
   readonly args?: readonly string[];
@@ -510,6 +523,7 @@ export interface PiCodingAgentResolvedConfig {
 }
 
 export interface PiCliResolvedConfig {
+  readonly command: readonly string[];
   readonly executable: string;
   readonly subprovider?: string;
   readonly model?: string;
@@ -517,7 +531,6 @@ export interface PiCliResolvedConfig {
   readonly baseUrl?: string;
   readonly tools?: string;
   readonly thinking?: string;
-  readonly args?: readonly string[];
   readonly cwd?: string;
   readonly timeoutMs?: number;
   readonly logDir?: string;
@@ -525,9 +538,35 @@ export interface PiCliResolvedConfig {
   /** New stream_log field. false=no stream log (default), 'raw'=per-event, 'summary'=consolidated. */
   readonly streamLog?: false | 'raw' | 'summary';
   readonly systemPrompt?: string;
+  readonly runtime: PiRuntimeResolvedConfig;
+}
+
+export interface PiRpcResolvedConfig {
+  readonly command: readonly string[];
+  readonly subprovider?: string;
+  readonly model?: string;
+  readonly apiKey?: string;
+  readonly baseUrl?: string;
+  readonly tools?: string;
+  readonly thinking?: string;
+  readonly cwd?: string;
+  readonly timeoutMs?: number;
+  readonly logDir?: string;
+  readonly logFormat?: 'summary' | 'json';
+  readonly streamLog?: false | 'raw' | 'summary';
+  readonly systemPrompt?: string;
+  readonly runtime: PiRuntimeResolvedConfig;
+}
+
+export interface PiRuntimeResolvedConfig {
+  readonly mode: 'host' | 'profile' | 'sandbox';
+  readonly home?: string;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly [key: string]: unknown;
 }
 
 export interface ClaudeResolvedConfig {
+  readonly command: readonly string[];
   readonly executable: string;
   readonly model?: string;
   readonly systemPrompt?: string;
@@ -684,7 +723,7 @@ export function normalizeTargetDefinition(
     typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
   const legacyName =
     typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : undefined;
-  const name = label ?? legacyName ?? options.defaultName;
+  const name = label ?? legacyName ?? id ?? options.defaultName;
   if (!name || name.trim().length === 0) {
     throw new Error("Target definition is missing a valid 'label' field");
   }
@@ -802,6 +841,7 @@ export type CliHealthcheck = Readonly<CliNormalizedHealthcheck>;
 interface ResolvedTargetBase {
   readonly name: string;
   readonly label?: string;
+  readonly runtime?: TargetRuntimeConfig;
   readonly graderTarget?: string;
   readonly workers?: number;
   readonly providerBatching?: boolean;
@@ -827,7 +867,10 @@ export type ResolvedTarget =
   | (ResolvedTargetBase & { readonly kind: 'azure'; readonly config: AzureResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'anthropic'; readonly config: AnthropicResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'gemini'; readonly config: GeminiResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'codex'; readonly config: CodexResolvedConfig })
+  | (ResolvedTargetBase & {
+      readonly kind: 'codex-cli' | 'codex-app-server' | 'codex-sdk';
+      readonly config: CodexResolvedConfig;
+    })
   | (ResolvedTargetBase & {
       readonly kind: 'copilot-sdk';
       readonly config: CopilotSdkResolvedConfig;
@@ -841,11 +884,11 @@ export type ResolvedTarget =
       readonly config: CopilotLogResolvedConfig;
     })
   | (ResolvedTargetBase & {
-      readonly kind: 'pi-coding-agent';
+      readonly kind: 'pi-sdk' | 'pi-coding-agent';
       readonly config: PiCodingAgentResolvedConfig;
     })
   | (ResolvedTargetBase & { readonly kind: 'pi-cli'; readonly config: PiCliResolvedConfig })
-  | (ResolvedTargetBase & { readonly kind: 'claude'; readonly config: ClaudeResolvedConfig })
+  | (ResolvedTargetBase & { readonly kind: 'pi-rpc'; readonly config: PiRpcResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'claude-cli'; readonly config: ClaudeResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'claude-sdk'; readonly config: ClaudeResolvedConfig })
   | (ResolvedTargetBase & { readonly kind: 'mock'; readonly config: MockResolvedConfig })
@@ -865,6 +908,7 @@ export type ResolvedTarget =
  */
 export const COMMON_TARGET_SETTINGS = [
   'use_target',
+  'runtime',
   'batch_requests',
   'subagent_mode_allowed',
   'fallback_targets',
@@ -880,6 +924,7 @@ const BASE_TARGET_SCHEMA = z
     label: z.string().optional(),
     provider: z.string().optional(),
     config: z.record(z.unknown()).optional(),
+    runtime: z.unknown().optional(),
     use_target: z.string().optional(),
     grader_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
@@ -893,6 +938,7 @@ const BASE_TARGET_SCHEMA = z
 // (`2024-12-01-preview`) is no longer reachable from the Azure provider here.
 const DEFAULT_AZURE_API_VERSION = 'v1';
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const TARGET_RUNTIME_MODE_VALUES = new Set<TargetRuntimeMode>(['host', 'profile', 'sandbox']);
 
 function normalizeAzureApiVersion(value: string | undefined): string {
   if (!value) {
@@ -945,6 +991,30 @@ function resolveRetryConfig(target: z.infer<typeof BASE_TARGET_SCHEMA>): RetryCo
     backoffFactor,
     retryableStatusCodes,
   };
+}
+
+function resolveTargetRuntime(
+  rawRuntime: unknown,
+  targetName: string,
+): TargetRuntimeConfig | undefined {
+  if (rawRuntime === undefined || rawRuntime === null) {
+    return undefined;
+  }
+  if (typeof rawRuntime === 'string') {
+    const mode = rawRuntime.trim();
+    if (TARGET_RUNTIME_MODE_VALUES.has(mode as TargetRuntimeMode)) {
+      return { mode: mode as TargetRuntimeMode };
+    }
+  }
+  if (isRecord(rawRuntime)) {
+    const mode = typeof rawRuntime.mode === 'string' ? rawRuntime.mode.trim() : '';
+    if (TARGET_RUNTIME_MODE_VALUES.has(mode as TargetRuntimeMode)) {
+      return { ...rawRuntime, mode: mode as TargetRuntimeMode };
+    }
+  }
+  throw new Error(
+    `Invalid runtime for target "${targetName}": use 'host' or an object with mode: host|profile|sandbox.`,
+  );
 }
 
 export function resolveDelegatedTargetDefinition(
@@ -1032,6 +1102,11 @@ export function resolveTargetDefinition(
     `${parsed.name} provider`,
     true,
   ).toLowerCase();
+  if (provider === 'claude' || provider === 'copilot') {
+    throw new Error(
+      `Target "${parsed.name}" uses ambiguous provider '${provider}'. Choose an explicit provider such as '${provider}-cli' or '${provider}-sdk'.`,
+    );
+  }
   const providerBatching = resolveOptionalBoolean(parsed.batch_requests);
   const subagentModeAllowed = resolveOptionalBoolean(parsed.subagent_mode_allowed);
 
@@ -1040,6 +1115,7 @@ export function resolveTargetDefinition(
   const base = {
     name: parsed.name,
     label: parsed.label,
+    runtime: resolveTargetRuntime(parsed.runtime, parsed.name),
     graderTarget: parsed.grader_target,
     workers: parsed.workers,
     providerBatching,
@@ -1079,10 +1155,16 @@ export function resolveTargetDefinition(
         config: resolveGeminiConfig(parsed, env),
       };
     case 'codex':
+      throw new Error(
+        `Target "${parsed.name}" uses ambiguous provider 'codex'. Choose 'codex-cli', 'codex-app-server', or 'codex-sdk'.`,
+      );
+    case 'codex-cli':
+    case 'codex-app-server':
+    case 'codex-sdk':
       return {
-        kind: 'codex',
+        kind: provider as 'codex-cli' | 'codex-app-server' | 'codex-sdk',
         ...base,
-        config: resolveCodexConfig(parsed, env, evalFilePath),
+        config: resolveCodexConfig(parsed, env, provider, evalFilePath),
       };
     case 'copilot-sdk':
       return {
@@ -1102,9 +1184,10 @@ export function resolveTargetDefinition(
         ...base,
         config: resolveCopilotLogConfig(parsed, env),
       };
+    case 'pi-sdk':
     case 'pi-coding-agent':
       return {
-        kind: 'pi-coding-agent',
+        kind: provider as 'pi-sdk' | 'pi-coding-agent',
         ...base,
         config: resolvePiCodingAgentConfig(parsed, env, evalFilePath),
       };
@@ -1114,7 +1197,12 @@ export function resolveTargetDefinition(
         ...base,
         config: resolvePiCliConfig(parsed, env, evalFilePath),
       };
-    case 'claude':
+    case 'pi-rpc':
+      return {
+        kind: 'pi-rpc',
+        ...base,
+        config: resolvePiRpcConfig(parsed, env, evalFilePath),
+      };
     case 'claude-cli':
       return {
         kind: 'claude-cli',
@@ -1366,6 +1454,7 @@ function resolveGeminiConfig(
 function resolveCodexConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
+  provider: string,
   _evalFilePath?: string,
 ): CodexResolvedConfig {
   const modelSource = target.model;
@@ -1376,12 +1465,18 @@ function resolveCodexConfig(
   const apiFormatSource = target.api_format;
   const sandboxModeSource = target.sandbox_mode;
   const approvalPolicySource = target.approval_policy;
-  const executableSource = target.executable ?? target.command ?? target.binary;
-  const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
   const systemPromptSource = target.system_prompt;
+  const runtime = resolveCodingAgentRuntime(target.runtime, env, target.name);
+
+  if (provider === 'codex') {
+    throw new Error(
+      `Target "${target.name}" uses ambiguous provider 'codex'. Choose 'codex-cli', 'codex-app-server', or 'codex-sdk'.`,
+    );
+  }
+  assertNoCodexProcessFieldAliases(target, provider);
 
   const streamLogResult = resolveStreamLog({ name: target.name, stream_log: target.stream_log });
 
@@ -1433,13 +1528,10 @@ function resolveCodexConfig(
     }),
   );
 
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} codex executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'codex';
-
-  const args = resolveOptionalStringArray(argsSource, env, `${target.name} codex args`);
+  const command =
+    provider === 'codex-sdk'
+      ? resolveOptionalCommandArgv(target.command, env, `${target.name} codex command`)
+      : resolveRequiredCommandArgv(target.command, env, `${target.name} codex command`);
 
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} codex cwd`, {
     allowLiteral: true,
@@ -1466,14 +1558,167 @@ function resolveCodexConfig(
     apiFormat,
     sandboxMode,
     approvalPolicy,
-    executable,
-    args,
+    command,
+    runtime,
     cwd,
     timeoutMs,
     logDir,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
   };
+}
+
+function assertNoCodexProcessFieldAliases(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  provider: string,
+): void {
+  if (provider === 'codex-sdk') {
+    return;
+  }
+  for (const field of ['executable', 'binary', 'args', 'arguments'] as const) {
+    if (target[field] !== undefined) {
+      throw new Error(
+        `Target "${target.name}" (${provider}) uses removed field '${field}'. Use config.command as a non-empty argv array instead.`,
+      );
+    }
+  }
+}
+
+function resolveRequiredCommandArgv(
+  value: unknown,
+  env: EnvLookup,
+  label: string,
+): readonly string[] {
+  const command = resolveOptionalCommandArgv(value, env, label);
+  if (!command || command.length === 0) {
+    throw new Error(`${label} must be a non-empty argv array`);
+  }
+  return command;
+}
+
+function resolveOptionalCommandArgv(
+  value: unknown,
+  env: EnvLookup,
+  label: string,
+): readonly string[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be a non-empty argv array`);
+  }
+  const resolved = value.map((entry, index) =>
+    resolveString(entry, env, `${label}[${index}]`, true),
+  );
+  if (resolved.length === 0 || resolved.some((entry) => entry.trim().length === 0)) {
+    throw new Error(`${label} must be a non-empty argv array`);
+  }
+  return resolved;
+}
+
+function resolveCodingAgentRuntime(
+  value: unknown,
+  env: EnvLookup,
+  targetName: string,
+): CodingAgentRuntimeConfig {
+  if (value === undefined || value === null) {
+    return { mode: 'host' };
+  }
+  if (typeof value === 'string') {
+    return { mode: normalizeCodingAgentRuntimeMode(value, targetName) };
+  }
+  if (!isRecord(value)) {
+    throw new Error(
+      `Target "${targetName}" runtime must be 'host' or an object with mode: host|profile|sandbox.`,
+    );
+  }
+
+  const mode = normalizeCodingAgentRuntimeMode(value.mode, targetName);
+  const runtimeEnv = resolveRuntimeEnv(value.env, env, targetName);
+  const envAllowlist = resolveRuntimeEnvAllowlist(value.env_allowlist ?? value.envAllowlist);
+  return {
+    mode,
+    home: resolveOptionalString(value.home, env, `${targetName} runtime home`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    }),
+    codexHome: resolveOptionalString(
+      value.codex_home ?? value.codexHome,
+      env,
+      `${targetName} runtime CODEX_HOME`,
+      {
+        allowLiteral: true,
+        optionalEnv: true,
+      },
+    ),
+    tmpDir: resolveOptionalString(
+      value.tmp_dir ?? value.tmpDir,
+      env,
+      `${targetName} runtime tmp dir`,
+      {
+        allowLiteral: true,
+        optionalEnv: true,
+      },
+    ),
+    ...(runtimeEnv ? { env: runtimeEnv } : {}),
+    ...(envAllowlist ? { envAllowlist } : {}),
+  };
+}
+
+function normalizeCodingAgentRuntimeMode(
+  value: unknown,
+  targetName: string,
+): CodingAgentRuntimeMode {
+  if (typeof value !== 'string') {
+    throw new Error(`Target "${targetName}" runtime.mode must be one of: host, profile, sandbox.`);
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'host' || normalized === 'profile' || normalized === 'sandbox') {
+    return normalized;
+  }
+  throw new Error(`Target "${targetName}" runtime.mode must be one of: host, profile, sandbox.`);
+}
+
+function resolveRuntimeEnvAllowlist(value: unknown): readonly string[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) {
+    throw new Error('runtime.env_allowlist must be an array of strings.');
+  }
+  return value.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+}
+
+function assertNoProcessCommandAliases(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  provider: 'claude-cli' | 'copilot-cli',
+): void {
+  const raw = target as Record<string, unknown>;
+  for (const field of ['executable', 'binary', 'args', 'arguments']) {
+    if (Object.prototype.hasOwnProperty.call(raw, field)) {
+      throw new Error(
+        `Target "${target.name}" (provider: ${provider}) uses removed field '${field}'. Use config.command as a non-empty argv array instead.`,
+      );
+    }
+  }
+}
+
+function resolveCommandArgv(
+  value: unknown,
+  env: EnvLookup,
+  label: string,
+  defaultCommand: readonly string[],
+): readonly string[] {
+  if (value === undefined || value === null) {
+    return defaultCommand;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be a non-empty argv array of strings.`);
+  }
+  if (value.length === 0) {
+    throw new Error(`${label} must be a non-empty argv array of strings.`);
+  }
+  return resolveOptionalStringArray(value, env, label) ?? defaultCommand;
 }
 
 function normalizeCodexModelReasoningEffort(
@@ -1728,9 +1973,11 @@ function resolveCopilotCliConfig(
   env: EnvLookup,
   _evalFilePath?: string,
 ): CopilotCliResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
+  assertNoProcessCommandAliases(target, 'copilot-cli');
+  const command = resolveCommandArgv(target.command, env, `${target.name} copilot-cli command`, [
+    'copilot',
+  ]);
   const modelSource = target.model;
-  const argsSource = target.args ?? target.arguments;
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
   const logDirSource = target.log_dir ?? target.log_directory;
@@ -1738,18 +1985,10 @@ function resolveCopilotCliConfig(
 
   const streamLogResult = resolveStreamLog(target);
 
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} copilot-cli executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'copilot';
-
   const model = resolveOptionalString(modelSource, env, `${target.name} copilot-cli model`, {
     allowLiteral: true,
     optionalEnv: true,
   });
-
-  const args = resolveOptionalStringArray(argsSource, env, `${target.name} copilot-cli args`);
 
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} copilot-cli cwd`, {
     allowLiteral: true,
@@ -1775,9 +2014,10 @@ function resolveCopilotCliConfig(
   const customProvider = resolveCopilotFlatProviderConfig(target, env);
 
   return {
-    executable,
+    command,
+    executable: command[0] ?? 'copilot',
+    args: command.slice(1),
     model,
-    args,
     cwd,
     timeoutMs,
     logDir,
@@ -1879,7 +2119,7 @@ function resolvePiCliConfig(
   env: EnvLookup,
   _evalFilePath?: string,
 ): PiCliResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
+  const command = resolveProcessCommandArgv(target, env, `${target.name} pi-cli command`, ['pi']);
   const subproviderSource = target.subprovider;
   const modelSource = target.model ?? target.pi_model;
   const apiKeySource = target.api_key;
@@ -1891,12 +2131,6 @@ function resolvePiCliConfig(
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} pi-cli executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'pi';
 
   const subprovider = resolveOptionalString(
     subproviderSource,
@@ -1932,9 +2166,6 @@ function resolvePiCliConfig(
     optionalEnv: true,
   });
 
-  const rawArgs = target.args ?? target.arguments;
-  const args = resolveOptionalStringArray(rawArgs, env, `${target.name} pi-cli args`);
-
   const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi-cli cwd`, {
     allowLiteral: true,
     optionalEnv: true,
@@ -1953,20 +2184,97 @@ function resolvePiCliConfig(
       : undefined;
 
   return {
-    executable,
+    command,
+    executable: command[0],
     subprovider: piCliSubprovider,
     model,
     apiKey,
     baseUrl,
     tools,
     thinking,
-    args,
     cwd,
     timeoutMs,
     logDir,
     logFormat: streamLogResult.logFormat,
     streamLog: streamLogResult.streamLog,
     systemPrompt,
+    runtime: resolvePiRuntimeConfig(target, env),
+  };
+}
+
+function resolvePiRpcConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  _evalFilePath?: string,
+): PiRpcResolvedConfig {
+  const command = resolveProcessCommandArgv(target, env, `${target.name} pi-rpc command`, ['pi']);
+  const subproviderSource = target.subprovider;
+  const modelSource = target.model ?? target.pi_model;
+  const apiKeySource = target.api_key;
+  const toolsSource = target.tools ?? target.pi_tools;
+  const thinkingSource = target.reasoning_effort ?? target.thinking ?? target.pi_thinking;
+  const cwdSource = target.cwd;
+  const timeoutSource = target.timeout_seconds;
+  const logDirSource = target.log_dir ?? target.log_directory;
+  const systemPromptSource = target.system_prompt;
+  const streamLogResult = resolveStreamLog(target);
+
+  const subprovider = resolveOptionalString(
+    subproviderSource,
+    env,
+    `${target.name} pi-rpc subprovider`,
+    { allowLiteral: true, optionalEnv: true },
+  );
+  const model = resolveOptionalString(modelSource, env, `${target.name} pi-rpc model`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const apiKey = resolveOptionalString(apiKeySource, env, `${target.name} pi-rpc api key`, {
+    allowLiteral: false,
+    optionalEnv: true,
+  });
+  const baseUrlSource = target.base_url ?? target.endpoint;
+  const baseUrl = resolveOptionalString(baseUrlSource, env, `${target.name} pi-rpc base url`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const tools = resolveOptionalString(toolsSource, env, `${target.name} pi-rpc tools`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const thinking = resolveOptionalString(thinkingSource, env, `${target.name} pi-rpc thinking`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const cwd = resolveOptionalString(cwdSource, env, `${target.name} pi-rpc cwd`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const timeoutMs = resolveTimeoutMs(timeoutSource, `${target.name} pi-rpc timeout`);
+  const logDir = resolveOptionalString(logDirSource, env, `${target.name} pi-rpc log directory`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const systemPrompt =
+    typeof systemPromptSource === 'string' && systemPromptSource.trim().length > 0
+      ? systemPromptSource.trim()
+      : undefined;
+
+  return {
+    command,
+    subprovider,
+    model,
+    apiKey,
+    baseUrl,
+    tools,
+    thinking,
+    cwd,
+    timeoutMs,
+    logDir,
+    logFormat: streamLogResult.logFormat,
+    streamLog: streamLogResult.streamLog,
+    systemPrompt,
+    runtime: resolvePiRuntimeConfig(target, env),
   };
 }
 
@@ -1984,12 +2292,110 @@ function normalizePiCliSubprovider(
   return subprovider;
 }
 
+function resolveProcessCommandArgv(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+  description: string,
+  defaultCommand: readonly string[],
+): readonly string[] {
+  const rawCommand = target.command;
+  if (Array.isArray(rawCommand)) {
+    const command = resolveOptionalStringArray(rawCommand, env, description);
+    if (!command || command.length === 0) {
+      throw new Error(`${description} must be a non-empty argv array`);
+    }
+    return command;
+  }
+
+  const executableSource = target.executable ?? target.command ?? target.binary;
+  const executable = resolveOptionalString(executableSource, env, `${description} executable`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const args = resolveOptionalStringArray(
+    target.args ?? target.arguments,
+    env,
+    `${description} args`,
+  );
+  return [...(executable ? [executable] : defaultCommand), ...(args ?? [])];
+}
+
+function resolvePiRuntimeConfig(
+  target: z.infer<typeof BASE_TARGET_SCHEMA>,
+  env: EnvLookup,
+): PiRuntimeResolvedConfig {
+  const raw = target.runtime;
+  if (raw === undefined || raw === null) {
+    return { mode: 'host' };
+  }
+  if (typeof raw === 'string') {
+    return { mode: normalizeRuntimeMode(raw, target.name) };
+  }
+  if (!isRecord(raw)) {
+    throw new Error(`${target.name} runtime must be 'host' or an object with mode`);
+  }
+
+  const mode = normalizeRuntimeMode(String(raw.mode ?? ''), target.name);
+  const home = resolveOptionalString(raw.home, env, `${target.name} runtime home`, {
+    allowLiteral: true,
+    optionalEnv: true,
+  });
+  const runtimeEnv = resolveRuntimeEnv(raw.env, env, target.name);
+  const rest = Object.fromEntries(
+    Object.entries(raw).filter(([key]) => key !== 'mode' && key !== 'home' && key !== 'env'),
+  );
+  return {
+    ...rest,
+    mode,
+    ...(home ? { home } : {}),
+    ...(runtimeEnv ? { env: runtimeEnv } : {}),
+  };
+}
+
+function normalizeRuntimeMode(value: string, targetName: string): PiRuntimeResolvedConfig['mode'] {
+  const mode = value.trim();
+  if (mode === 'host' || mode === 'profile' || mode === 'sandbox') {
+    return mode;
+  }
+  throw new Error(`${targetName} runtime.mode must be one of: host, profile, sandbox`);
+}
+
+function resolveRuntimeEnv(
+  raw: unknown,
+  env: EnvLookup,
+  targetName: string,
+): Readonly<Record<string, string>> | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (!isRecord(raw)) {
+    throw new Error(`${targetName} runtime.env must be an object`);
+  }
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(`${targetName} runtime.env has invalid variable name '${key}'`);
+    }
+    const resolved = resolveOptionalString(value, env, `${targetName} runtime.env.${key}`, {
+      allowLiteral: true,
+      optionalEnv: true,
+    });
+    if (resolved !== undefined) {
+      result[key] = resolved;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function resolveClaudeConfig(
   target: z.infer<typeof BASE_TARGET_SCHEMA>,
   env: EnvLookup,
   _evalFilePath?: string,
 ): ClaudeResolvedConfig {
-  const executableSource = target.executable ?? target.command ?? target.binary;
+  assertNoProcessCommandAliases(target, 'claude-cli');
+  const command = resolveCommandArgv(target.command, env, `${target.name} claude-cli command`, [
+    'claude',
+  ]);
   const modelSource = target.model;
   const cwdSource = target.cwd;
   const timeoutSource = target.timeout_seconds;
@@ -1997,12 +2403,6 @@ function resolveClaudeConfig(
   const systemPromptSource = target.system_prompt;
 
   const streamLogResult = resolveStreamLog(target);
-
-  const executable =
-    resolveOptionalString(executableSource, env, `${target.name} claude-cli executable`, {
-      allowLiteral: true,
-      optionalEnv: true,
-    }) ?? 'claude';
 
   const model = resolveOptionalString(modelSource, env, `${target.name} claude model`, {
     allowLiteral: true,
@@ -2037,7 +2437,8 @@ function resolveClaudeConfig(
       : undefined;
 
   return {
-    executable,
+    command,
+    executable: command[0] ?? 'claude',
     model,
     systemPrompt,
     cwd,

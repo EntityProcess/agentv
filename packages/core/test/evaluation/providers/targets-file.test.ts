@@ -27,8 +27,9 @@ describe('readTargetDefinitions', () => {
     const filePath = await writeTargetsYaml(`targets:
   - label: candidate-agent
     id: openai:gpt-5-codex
-    provider: codex
+    provider: codex-cli
     config:
+      command: ["codex"]
       model: gpt-5-codex
       reasoning_effort: low
     grader_target: grader
@@ -41,7 +42,8 @@ describe('readTargetDefinitions', () => {
         id: 'openai:gpt-5-codex',
         name: 'candidate-agent',
         label: 'candidate-agent',
-        provider: 'codex',
+        provider: 'codex-cli',
+        command: ['codex'],
         model: 'gpt-5-codex',
         reasoning_effort: 'low',
         grader_target: 'grader',

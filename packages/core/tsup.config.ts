@@ -1,7 +1,11 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/evaluation/validation/index.ts'],
+  entry: [
+    'src/index.ts',
+    'src/evaluation/validation/index.ts',
+    'src/evaluation/providers/sdk-child-runner.ts',
+  ],
   format: ['esm', 'cjs'],
   shims: true,
   sourcemap: true,
@@ -14,7 +18,13 @@ export default defineConfig({
   },
   target: 'node20',
   tsconfig: './tsconfig.build.json',
-  external: ['@earendil-works/pi-coding-agent', '@earendil-works/pi-ai'],
+  external: [
+    '@anthropic-ai/claude-agent-sdk',
+    '@github/copilot-sdk',
+    '@openai/codex-sdk',
+    '@earendil-works/pi-coding-agent',
+    '@earendil-works/pi-ai',
+  ],
   outExtension({ format }) {
     return {
       js: format === 'cjs' ? '.cjs' : '.js',

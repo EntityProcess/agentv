@@ -4,6 +4,10 @@ import path from 'node:path';
 import { getLocalConfigPath } from '../../config-overlays.js';
 import { getAgentvConfigDir } from '../../paths.js';
 import { interpolateEnv } from '../interpolation.js';
+import {
+  normalizeComposableConfigGraph,
+  resolveConfigFieldReferences,
+} from '../loaders/config-graph.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import type { ValidationError, ValidationResult } from './types.js';
 
@@ -31,7 +35,17 @@ export async function validateConfigFile(
       return { valid: false, filePath, fileType: 'config', errors };
     }
 
-    const config = parsed as Record<string, unknown>;
+    let config: Record<string, unknown>;
+    try {
+      config = await resolveConfigFieldReferences(parsed as Record<string, unknown>, filePath);
+    } catch (error) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        message: (error as Error).message,
+      });
+      return { valid: false, filePath, fileType: 'config', errors };
+    }
 
     // Validate eval_patterns if present
     const evalPatterns = config.eval_patterns;
@@ -77,6 +91,8 @@ export async function validateConfigFile(
     validateResultsConfig(errors, filePath, config.results, 'results');
     validateRepoResolversConfig(errors, filePath, config.repo_resolvers);
     validateRefsConfig(errors, filePath, config.refs);
+    validateComposableGraph(errors, filePath, config);
+    validateDashboardConfig(errors, filePath, config.dashboard);
 
     const projects = config.projects;
     if (projects !== undefined) {
@@ -108,6 +124,10 @@ export async function validateConfigFile(
       'results',
       'repo_resolvers',
       'refs',
+      'targets',
+      'graders',
+      'tests',
+      'defaults',
       'projects',
       'dashboard',
       'studio',
@@ -135,6 +155,40 @@ export async function validateConfigFile(
       message: `Failed to parse config file: ${(error as Error).message}`,
     });
     return { valid: false, filePath, fileType: 'config', errors };
+  }
+}
+
+function validateComposableGraph(
+  errors: ValidationError[],
+  filePath: string,
+  config: Record<string, unknown>,
+): void {
+  try {
+    normalizeComposableConfigGraph(config, filePath);
+  } catch (error) {
+    addError(errors, filePath, undefined, (error as Error).message);
+  }
+}
+
+function validateDashboardConfig(
+  errors: ValidationError[],
+  filePath: string,
+  rawDashboard: unknown,
+): void {
+  if (rawDashboard === undefined) {
+    return;
+  }
+  if (!isPlainObject(rawDashboard)) {
+    addError(errors, filePath, 'dashboard', "Field 'dashboard' must be an object");
+    return;
+  }
+  if (Object.prototype.hasOwnProperty.call(rawDashboard, 'app_name')) {
+    addError(
+      errors,
+      filePath,
+      'dashboard.app_name',
+      "Field 'dashboard.app_name' has been removed; the Dashboard app name is not user-configurable.",
+    );
   }
 }
 
@@ -291,10 +345,10 @@ function validateProjects(errors: ValidationError[], filePath: string, projects:
 function addError(
   errors: ValidationError[],
   filePath: string,
-  location: string,
+  location: string | undefined,
   message: string,
 ): void {
-  errors.push({ severity: 'error', filePath, location, message });
+  errors.push({ severity: 'error', filePath, ...(location ? { location } : {}), message });
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -636,7 +636,7 @@ function normalizeOptions(
   yamlExecution?: ExecutionDefaults,
 ): NormalizedOptions {
   const cliWorkers = normalizeOptionalNumber(rawOptions.workers);
-  const configWorkers = config?.execution?.workers ?? yamlExecution?.workers;
+  const configWorkers = config?.execution?.maxConcurrency ?? yamlExecution?.max_concurrency;
   const workers = cliWorkers ?? configWorkers ?? 0;
 
   const cliOutputDir = normalizeString(rawOptions.output);

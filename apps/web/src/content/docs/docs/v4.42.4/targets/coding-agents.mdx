@@ -3,37 +3,305 @@ title: Coding Agents
 description: Evaluate coding agent targets
 sidebar:
   order: 3
-slug: docs/v4.42.4/targets/coding-agents
-editUrl: false
-pagefind: false
 ---
 
-Coding agent targets evaluate AI coding assistants and CLI-based agents. These targets require a `grader_target` (also accepts `judge_target` for backward compatibility) to run LLM-based graders.
+Coding agent targets evaluate assistants that run against a real workspace. They
+use the target shape `id`, `provider`, `runtime`, and `config`. The target `id`
+is AgentV's stable selection and artifact identity. `provider` names the
+adapter or control boundary. `runtime` names where the target runs. Provider
+settings live under `config`.
 
-## Prompt format
+Use `defaults.grader`, CLI `--grader` / `--grader-target`, or an
+evaluator-specific target override for LLM-based grading. Grader selection is
+separate from the coding-agent target, so target definitions do not carry a
+grader field.
 
-Agent providers receive a structured prompt document with two sections: a **preread block** listing files the agent must read, and the **user query** containing the eval input.
+```yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+      reasoning_effort: high
 
-### File handling
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
 
-When an eval test includes `type: file` inputs, agent providers do **not** receive the file content inline. Instead, they receive:
+defaults:
+  target: codex-local
+  grader: openai-grader
 
-1. A preread block with `file://` URIs pointing to absolute paths on disk
-2. The user query with `<file: path="...">` reference tags
-
-The agent is expected to read the files itself using its filesystem tools.
-
-This differs from [LLM providers](/docs/v4.42.4/targets/llm-providers/), which receive file content embedded directly in the prompt as XML:
-
-```xml
-<file path="src/example.ts">
-// file content is inlined here
-</file>
+execution:
+  max_concurrency: 3
 ```
 
-### Example prompt
+Process-backed coding-agent providers use `config.command` as a non-empty argv
+array. The first element is the executable or shim, and the remaining elements
+are arguments.
 
-Given an eval with file inputs:
+## Runtime placement
+
+| Runtime | Boundary | Best fit |
+| --- | --- | --- |
+| `host` | Runs the installed CLI or child runner on the current machine. | Local research, subscription OAuth, and evaluating the same profile an engineer uses manually. |
+| `profile` | Runs a host process with isolated home/config/env such as `HOME`, `CODEX_HOME`, or temp dirs. | Cleaner local evals without container cost. |
+| `sandbox` | Runs through a separate substrate such as Docker or a managed sandbox. | CI, reproducibility, untrusted tasks, and stronger filesystem containment. |
+
+Sandbox mode does not inherit host credentials. For CI, prefer API keys or
+explicit secrets injected through sandbox configuration. Subscription OAuth can
+be evaluated only by intentionally mounting or seeding the profile directory
+the agent needs, which trades portability for fidelity to the local agent setup.
+
+```yaml
+targets:
+  - id: codex-clean-profile
+    provider: codex-cli
+    runtime:
+      mode: profile
+      codex_home: .agentv/profiles/codex-clean
+      tmp_dir: .agentv/tmp/codex-clean
+    config:
+      command: ["codex", "exec", "--json"]
+      model: gpt-5-codex
+      sandbox_mode: workspace-write
+      approval_policy: never
+```
+
+```yaml
+targets:
+  - id: codex-ci-sandbox
+    provider: codex-cli
+    runtime:
+      mode: sandbox
+      engine: docker
+      image: ghcr.io/acme/codex-agent:sha256
+      workdir: /workspace
+      mounts:
+        - source: ./workspace
+          target: /workspace
+          access: rw
+        - source: ./.agentv/results
+          target: /results
+          access: rw
+      secrets:
+        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}
+    config:
+      command: ["codex", "exec", "--json"]
+      model: gpt-5-codex
+      timeout_seconds: 300
+```
+
+## Provider tradeoffs
+
+| Provider | Boundary | Transcript and isolation notes |
+| --- | --- | --- |
+| `codex-app-server` | Codex app-server subprocess. | Preferred Codex path for rich protocol events, session control, cancellation, and structured transcripts. |
+| `codex-cli` | Codex CLI subprocess. | Best for simple local/CI process isolation and evaluating an installed Codex shim or profile. |
+| `codex-sdk` | Codex SDK in an AgentV child runner. | Explicit SDK path. SDK crashes, malformed child output, and missing optional SDK packages are target execution errors. |
+| `pi-rpc` | Pi launched in RPC mode over stdio. | Preferred rich Pi control boundary; AgentV launches the configured command with RPC mode when needed. |
+| `pi-cli` | Pi CLI subprocess. | Simple process boundary; transcript richness depends on Pi CLI output. |
+| `pi-sdk` | Pi SDK in an AgentV child runner. | Explicit SDK path for SDK-native events with child-process isolation. |
+| `claude-cli` | Claude CLI subprocess. | Default Claude path; captures structured stream output when available. |
+| `claude-sdk` | Claude Agent SDK in an AgentV child runner. | Explicit SDK path; useful when SDK-native events matter more than matching a local CLI invocation. |
+| `copilot-cli` | Copilot CLI subprocess/protocol path. | Active Copilot eval run through the installed process. |
+| `copilot-log` | Passive Copilot session-log reader. | Zero-cost transcript grading for existing sessions; it does not run a new agent. |
+| `copilot-sdk` | Copilot SDK in an AgentV child runner. | Explicit SDK path with child-process isolation. |
+
+Every coding-agent provider returns a structured target execution envelope.
+Run bundles preserve target id, provider kind, runtime mode, command argv, cwd,
+stdout/stderr, transcripts or logs, final output when available, timing,
+timeouts, exit codes, signals, and partial artifacts on failure.
+
+## Codex
+
+Use `codex-app-server` when you want rich protocol control:
+
+```yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+      reasoning_effort: high
+      model_verbosity: medium
+```
+
+Use `codex-cli` when a simple CLI boundary is enough or when you want an
+operator-specific shim:
+
+```yaml
+targets:
+  - id: codex-eng
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex-eng", "exec", "--json"]
+      model: ${{ CODEX_MODEL }}
+```
+
+Use `codex-sdk` only when you intentionally want the Codex SDK path:
+
+```yaml
+targets:
+  - id: codex-sdk-isolated
+    provider: codex-sdk
+    runtime: host
+    config:
+      model: gpt-5-codex
+```
+
+Common Codex config fields include `command`, `model`, `reasoning_effort`,
+`model_verbosity`, `base_url`, `api_key`, `api_format`, `sandbox_mode`,
+`approval_policy`, `cwd`, `timeout_seconds`, `log_dir`, `stream_log`, and
+`system_prompt`.
+
+## Pi
+
+Use `pi-rpc` for the rich stdio/RPC boundary:
+
+```yaml
+targets:
+  - id: pi-rpc-local
+    provider: pi-rpc
+    runtime: host
+    config:
+      command: ["pi"]
+      model: gpt-5-codex
+      thinking: medium
+```
+
+Use `pi-cli` for simple subprocess execution:
+
+```yaml
+targets:
+  - id: pi-cli-local
+    provider: pi-cli
+    runtime:
+      mode: profile
+      home: .agentv/profiles/pi-local
+    config:
+      command: ["pi"]
+      subprovider: openrouter
+      model: ${{ OPENROUTER_MODEL }}
+      api_key: ${{ OPENROUTER_API_KEY }}
+```
+
+Use `pi-sdk` only when you intentionally want the SDK path:
+
+```yaml
+targets:
+  - id: pi-sdk-isolated
+    provider: pi-sdk
+    runtime: host
+    config:
+      subprovider: openai-codex
+      model: gpt-5.5
+      thinking: medium
+```
+
+Pi config fields include `command`, `subprovider`, `model`, `thinking`,
+`tools`, `api_key`, `base_url`, `cwd`, `timeout_seconds`, `log_dir`,
+`stream_log`, and `system_prompt`. With `pi-cli`, the built-in OpenAI provider
+does not expose a CLI base-url option; use a Pi custom provider name or Pi's
+Azure provider path for custom gateways.
+
+## Claude
+
+```yaml
+targets:
+  - id: claude-local
+    provider: claude-cli
+    runtime: host
+    config:
+      command: ["claude"]
+      model: claude-sonnet-4-20250514
+      max_turns: 10
+```
+
+Use `claude-cli` when you want AgentV to spawn the same Claude CLI a user runs
+locally. Use `claude-sdk` only when you intentionally want the Claude Agent SDK
+path:
+
+```yaml
+targets:
+  - id: claude-sdk-isolated
+    provider: claude-sdk
+    runtime: host
+    config:
+      model: claude-sonnet-4-20250514
+      max_turns: 10
+```
+
+Claude config fields include `command`, `model`, `cwd`, `timeout_seconds`,
+`max_turns`, `max_budget_usd`, `bypass_permissions`, `log_dir`, `stream_log`,
+and `system_prompt`.
+
+## Copilot
+
+```yaml
+targets:
+  - id: copilot-local
+    provider: copilot-cli
+    runtime: host
+    config:
+      command: ["copilot"]
+      model: gpt-5-mini
+```
+
+Route Copilot through an OpenAI-compatible endpoint:
+
+```yaml
+targets:
+  - id: copilot-openai
+    provider: copilot-cli
+    runtime: host
+    config:
+      command: ["copilot"]
+      subprovider: openai
+      base_url: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}
+      api_format: responses
+```
+
+Read an existing Copilot session log without running a new agent:
+
+```yaml
+targets:
+  - id: copilot-session-log
+    provider: copilot-log
+    runtime: host
+    config:
+      discover: latest
+```
+
+Use `copilot-sdk` only when you intentionally want the SDK path:
+
+```yaml
+targets:
+  - id: copilot-sdk-isolated
+    provider: copilot-sdk
+    runtime: host
+    config:
+      model: gpt-5-mini
+```
+
+Copilot config fields include `command`, `model`, `cwd`, `timeout_seconds`,
+`subprovider`, `base_url`, `api_key`, `bearer_token`, `api_version`,
+`api_format`, `log_dir`, `stream_log`, `system_prompt`, and session-log fields
+such as `discover`, `session_id`, and `session_dir` for `copilot-log`.
+
+## File inputs
+
+Agent providers receive file inputs as paths, not inline file content. The
+prompt includes a preread block with `file://` URIs pointing to absolute paths
+on disk, then the user query references each file:
 
 ```yaml
 input:
@@ -47,7 +315,7 @@ input:
 
 The agent receives a prompt like:
 
-```
+```text
 Read all input files:
 * [example.ts](file:///abs/path/src/example.ts).
 
@@ -59,233 +327,18 @@ Then apply system_instructions on the user query below.
 Review this code
 ```
 
-The preread block instructs the agent to read input files before processing the query. If a `system_prompt` is configured on the target, it is passed separately via the provider SDK (not in the prompt document).
+LLM providers receive file content inline instead; see
+[LLM providers](/docs/targets/llm-providers).
 
-## Claude
+## Mock provider
 
-```yaml
-targets:
-  - name: claude_agent
-    provider: claude
-    grader_target: azure-base
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `executable` | No | CLI binary name or path (default: `claude`). Accepts a bare name looked up on PATH or an absolute/relative file path. |
-| `cwd` | No | Working directory |
-| `grader_target` | Yes | LLM target for evaluation |
-
-## Codex CLI
+For deterministic harness checks without a real provider:
 
 ```yaml
 targets:
-  - name: codex_target
-    provider: codex
-    executable: codex-eng
-    model: ${{ CODEX_MODEL }}
-    model_reasoning_effort: ${{ CODEX_REASONING_EFFORT }}
-    grader_target: azure-base
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `executable` | No | Codex binary or profile shim to run, such as `codex-eng` |
-| `model` | No | Model to use |
-| `model_reasoning_effort` | No | Codex SDK reasoning effort: `minimal`, `low`, `medium`, `high`, or `xhigh` |
-| `cwd` | No | Working directory |
-| `grader_target` | Yes | LLM target for evaluation |
-
-## Copilot CLI
-
-```yaml
-targets:
-  - name: copilot
-    provider: copilot
-    model: gpt-5-mini
-    grader_target: azure-base
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `model` | No | Model to use (defaults to copilot's default) |
-| `cwd` | No | Working directory |
-| `subprovider` | No | OpenAI-compatible provider type for `copilot`, `copilot-cli`, or `copilot-sdk`, such as `openai` or `azure` |
-| `base_url` | No | Provider base URL or Azure resource URL/name |
-| `api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. |
-| `bearer_token` | No | Provider bearer token. Prefer `${{ ENV_VAR }}` references. Takes precedence over `api_key` when set. |
-| `api_version` | No | Provider API version, primarily for Azure endpoints |
-| `api_format` | No | Provider API format, such as `responses` |
-| `grader_target` | Yes | LLM target for evaluation |
-
-Route Copilot through an OpenAI-compatible endpoint:
-
-```yaml
-targets:
-  - name: copilot-openai
-    provider: copilot-cli
-    subprovider: openai
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    api_format: responses
-    grader_target: azure-base
-```
-
-Values can come from environment variables through `${{ ... }}` interpolation. For `copilot-cli`, AgentV maps these flat fields to Copilot's documented provider environment variables before spawning `copilot`; omitted fields leave existing ambient `COPILOT_PROVIDER_*` values unchanged.
-
-## Pi Coding Agent
-
-```yaml
-targets:
-  - name: pi_target
-    provider: pi-coding-agent
-    subprovider: openai-codex
-    model: gpt-5.5
-    thinking: medium
-    grader_target: azure-base
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `subprovider` | No | Pi provider to use, such as `google`, `openai`, `openai-codex`, `azure`, `anthropic`, or `openrouter`. Defaults to Pi's default provider. |
-| `model` | No | Model to use. For OpenAI subscription auth through Pi, use `subprovider: openai-codex` with a subscription model such as `gpt-5.5`. |
-| `thinking` | No | Pi reasoning level: `off`, `minimal`, `low`, `medium`, `high`, or `xhigh`. Passed to the Pi SDK as `thinkingLevel`. |
-| `tools` | No | Comma-separated Pi tool allowlist, such as `read,bash,edit,write`. |
-| `api_key` | No | Provider API key. Prefer `${{ ENV_VAR }}` references. Omit for subscription auth handled by Pi. |
-| `base_url` | No | Provider base URL or Azure resource URL/name. |
-| `cwd` | No | Working directory |
-| `timeout_seconds` | No | Per-case timeout |
-| `grader_target` | Yes | LLM target for evaluation |
-
-For `provider: pi-coding-agent`, `base_url` is passed through the Pi SDK model
-configuration. This works for OpenAI-compatible endpoints:
-
-```yaml
-targets:
-  - name: pi-sdk-openai
-    provider: pi-coding-agent
-    subprovider: openai
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    model: ${{ OPENAI_MODEL }}
-    grader_target: azure-base
-```
-
-Use `provider: pi-cli` instead when you want AgentV to spawn the `pi` binary directly. It accepts the same Pi fields above plus:
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `executable` | No | Pi binary or shim to run. Defaults to `pi`. |
-| `args` | No | Extra arguments appended before the prompt. |
-
-Pi CLI has one important difference from the SDK path: the built-in `openai`
-provider does not currently expose a CLI base-url option. With `provider: pi-cli`
-and `subprovider: openai`, AgentV can pass the API key and model, but `base_url`
-does not re-route the built-in OpenAI provider. For custom endpoints, either
-configure a Pi custom provider in Pi's own `models.json` and reference that
-provider name as `subprovider`, or use Pi's Azure provider path when your gateway
-is compatible with Azure OpenAI Responses:
-
-```yaml
-targets:
-  - name: pi-cli-gateway
-    provider: pi-cli
-    subprovider: azure
-    base_url: ${{ OPENAI_ENDPOINT }}
-    api_key: ${{ OPENAI_API_KEY }}
-    model: ${{ OPENAI_MODEL }}
-    grader_target: azure-base
-```
-
-## VS Code
-
-```yaml
-targets:
-  - name: vscode_dev
-    provider: vscode
-    grader_target: azure-base
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `executable` | No | Path to VS Code binary. Supports `${{ ENV_VAR }}` syntax or literal paths. Defaults to `code` (or `code-insiders` for the insiders provider). |
-| `grader_target` | Yes | LLM target for evaluation |
-
-Using a custom executable path:
-
-```yaml
-targets:
-  - name: vscode_dev
-    provider: vscode
-    executable: ${{ VSCODE_CMD }}
-    grader_target: azure-base
-```
-
-## VS Code Insiders
-
-```yaml
-targets:
-  - name: vscode_insiders
-    provider: vscode-insiders
-    grader_target: azure-base
-```
-
-Same configuration as VS Code.
-
-## Custom CLI Agent
-
-Evaluate any command-line agent:
-
-```yaml
-targets:
-  - name: local_agent
-    provider: cli
-    command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
-    grader_target: azure-base
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `command` | Yes | Command to run. `{PROMPT}` is inline prompt text and `{PROMPT_FILE}` is a temp file path containing the prompt. |
-| `cwd` | No | Working directory |
-| `grader_target` | Yes | LLM target for evaluation |
-
-## Mock Provider
-
-For testing the evaluation harness without calling real providers:
-
-```yaml
-targets:
-  - name: mock_target
+  - id: mock-target
     provider: mock
+    runtime: host
+    config:
+      response: ok
 ```
-
-## Known limitations
-
-### VS Code
-
-The VS Code provider uses a **subagent file-messaging architecture**. AgentV provisions pre-configured VS Code workspace directories (subagents), dispatches requests by writing prompt files, and the AI agent writes its response to a file. Lock files control concurrency.
-
-- **Per-target worker limit**: VS Code evals run with 1 worker per target because the provider requires window focus to dispatch requests. When multiple targets are configured (e.g., `vscode` + `copilot`), they run concurrently — the single-worker limit only applies within each VS Code target. Subagents are provisioned automatically if needed.
-- **Windows only**: VS Code is not available on Linux CI. E2E testing must be done on a Windows machine.
-- **`.code-workspace` support**: When your eval uses `workspace.template` with a `.code-workspace` file, the template folders are opened in the VS Code window alongside the subagent directory.
-
-### Copilot CLI
-
-- **MCP OAuth token expiration**: If your copilot CLI has MCP servers configured that use OAuth authentication, **expired tokens will block eval execution**. The copilot CLI attempts to re-authenticate via a browser OAuth flow, which cannot complete in non-interactive mode and causes the eval to hang indefinitely. Before running evals, either re-authenticate your MCP servers manually (`copilot` → `/mcp`) or remove MCP servers with expired tokens. See [copilot-cli#1797](https://github.com/github/copilot-cli/issues/1797) and [copilot-cli#1491](https://github.com/github/copilot-cli/issues/1491) for upstream tracking.
-- **Windows shell shim vs process spawn**: On Windows, `copilot -h` may work in PowerShell while AgentV still fails with `spawn copilot ENOENT`. Shell commands can execute `copilot.ps1`/`copilot.bat`, but AgentV launches a subprocess that expects a directly spawnable executable path. If this occurs, set an explicit target executable (for example via env var):
-
-```yaml
-targets:
-  - name: copilot
-    provider: copilot
-    executable: ${{ COPILOT_EXE }}
-    grader_target: azure-base
-```
-
-Use a native binary path for `COPILOT_EXE` (for example `copilot.exe` from `@github/copilot-win32-x64`).
-
-### Claude Code
-
-- **Run evals externally**: Run agentv evals from **outside** Claude Code. Running `agentv eval` with the `claude` target from within a Claude Code session can cause unintended behavior — the spawned Claude agent may interfere with the parent session.
-- **`ANTHROPIC_API_KEY` overrides subscription auth**: Claude Code loads `.env` from the working directory on startup. If your `.env` contains `ANTHROPIC_API_KEY`, the spawned Claude Code process will use that API key instead of your Claude subscription (Max/Pro). If the API key has insufficient credits, evals will fail with "Credit balance is too low". To use subscription auth, remove `ANTHROPIC_API_KEY` from your `.env` file.

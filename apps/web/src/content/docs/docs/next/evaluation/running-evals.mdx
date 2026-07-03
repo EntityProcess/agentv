@@ -455,9 +455,77 @@ Project-local YAML config takes precedence over home/global YAML config. AgentV 
 
 Within one config directory, AgentV reads `config.yaml` first and `config.local.yaml` second. The local overlay wins: plain objects deep-merge, arrays replace, and scalar values from `config.local.yaml` override `config.yaml`.
 
-Use `config.yaml` for portable defaults that can be committed with the eval project. Use `config.local.yaml` for machine-local overrides such as private paths, local result remotes, Dashboard project registry entries, or temporary execution defaults. Project-local `config.local.yaml` is gitignored by default.
+Use `config.yaml` for portable defaults and shared eval-definition fields that can be committed with the eval project. Use `config.local.yaml` for machine-local overrides such as private paths, local result remotes, Dashboard project registry entries, or temporary execution defaults. Project-local `config.local.yaml` is gitignored by default.
 
 ### YAML config (`config.yaml` plus optional `config.local.yaml`)
+
+Project config and eval YAML share the same eval-definition graph for targets,
+graders, tests, defaults, and execution policy. Small projects can keep that
+graph inline:
+
+```yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+
+tests:
+  - id: smoke
+    input: Fix the failing test
+
+defaults:
+  target: codex-local
+  grader: openai-grader
+
+execution:
+  max_concurrency: 3
+```
+
+Larger projects can decompose any supported top-level field with a direct
+`file://...` reference. The referenced file contains that field's value
+directly:
+
+```yaml
+targets: file://targets.yaml
+graders: file://graders.yaml
+tests: file://tests.yaml
+defaults: file://defaults.yaml
+execution: file://execution.yaml
+```
+
+```yaml
+# .agentv/targets.yaml
+- id: codex-local
+  provider: codex-app-server
+  runtime: host
+  config:
+    command: ["codex", "app-server"]
+```
+
+```yaml
+# .agentv/defaults.yaml
+target: codex-local
+grader: openai-grader
+```
+
+Do not wrap referenced field files in another object. For example,
+`targets: file://targets.yaml` expects `targets.yaml` to contain a bare array,
+not `{ targets: [...] }`.
+
+`execution.max_concurrency` is AgentV's general eval parallelism field for this
+config graph. It is AgentV's run-policy shape, aligned with the general
+max-concurrency concept in eval runners, not a copied Promptfoo YAML path.
+
+Other project defaults can live beside the graph:
 
 ```yaml
 execution:
@@ -481,6 +549,7 @@ eval_patterns:
 | Field | CLI equivalent | Type | Default | Description |
 |-------|---------------|------|---------|-------------|
 | `verbose` | `--verbose` | boolean | `false` | Enable verbose logging |
+| `max_concurrency` | `--workers` | integer | none | Default eval parallelism for the composable config graph |
 | `keep_workspaces` | `--keep-workspaces` | boolean | `false` | Always keep temp workspaces after eval |
 | `workspace_path` | `--workspace-path` | string | none | Machine-local existing workspace directory |
 | `refs` | none | object | none | Project-defined named references for fields that support `ref://name`, such as shared `default_test` files |
@@ -542,16 +611,20 @@ Then add a replay target alias in `.agentv/targets.yaml`:
 
 ```yaml
 targets:
-  - label: live_coding_agent
-    provider: codex
-    model: gpt-5
-    grader_target: grader_gpt_5_mini
+  - id: live_coding_agent
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex"]
+      model: gpt-5
 
-  - label: replay_coding_agent
+  - id: replay_coding_agent
     provider: replay
-    fixtures: ../fixtures/legal-review-target-output.jsonl
-    source_target: live_coding_agent
-    suite: legal-review
+    runtime: host
+    config:
+      fixtures: ../fixtures/legal-review-target-output.jsonl
+      source_target: live_coding_agent
+      suite: legal-review
 ```
 
 Run the same eval against the replay alias:
@@ -592,6 +665,19 @@ projects:
     results:
       path: /home/user/agentv-results
       branch: agentv/results/v1
+```
+
+For larger registries, `$AGENTV_HOME/config.yaml` can point `projects` at a
+bare project array:
+
+```yaml
+projects: file://projects.yaml
+```
+
+```yaml
+# $AGENTV_HOME/projects.yaml
+- id: agentv
+  path: /home/user/projects/agentv
 ```
 
 When running AgentV from a worktree that needs environment from a primary checkout, load the primary `.env` through the runtime instead of shell-sourcing it:

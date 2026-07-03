@@ -110,11 +110,7 @@ const CODEX_SETTINGS = new Set([
   'model_verbosity',
   'sandbox_mode',
   'approval_policy',
-  'executable',
   'command',
-  'binary',
-  'args',
-  'arguments',
   'cwd',
   'timeout_seconds',
   'log_dir',
@@ -167,6 +163,33 @@ const COPILOT_CLI_SETTINGS = new Set([
   'api_format',
   'model_id',
   'wire_model',
+]);
+
+const PI_AGENT_SETTINGS = new Set([
+  ...COMMON_SETTINGS,
+  'executable',
+  'command',
+  'binary',
+  'args',
+  'arguments',
+  'subprovider',
+  'model',
+  'pi_model',
+  'api_key',
+  'base_url',
+  'endpoint',
+  'tools',
+  'pi_tools',
+  'thinking',
+  'pi_thinking',
+  'reasoning_effort',
+  'cwd',
+  'timeout_seconds',
+  'log_dir',
+  'log_directory',
+  'stream_log',
+  'system_prompt',
+  'runtime',
 ]);
 
 const VSCODE_SETTINGS = new Set([
@@ -226,16 +249,22 @@ function getKnownSettings(provider: string): Set<string> | null {
       return ANTHROPIC_SETTINGS;
     case 'gemini':
       return GEMINI_SETTINGS;
-    case 'codex':
+    case 'codex-cli':
+    case 'codex-app-server':
+    case 'codex-sdk':
       return CODEX_SETTINGS;
     case 'copilot-sdk':
       return COPILOT_SDK_SETTINGS;
     case 'copilot-cli':
       return COPILOT_CLI_SETTINGS;
-    case 'claude':
     case 'claude-cli':
     case 'claude-sdk':
       return CLAUDE_SETTINGS;
+    case 'pi-cli':
+    case 'pi-rpc':
+    case 'pi-sdk':
+    case 'pi-coding-agent':
+      return PI_AGENT_SETTINGS;
     case 'vscode':
     case 'vscode-insiders':
       return VSCODE_SETTINGS;
@@ -630,6 +659,13 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         location: `${location}.provider`,
         message:
           "Missing or invalid 'provider' field (must be a non-empty string, or use use_target for delegation)",
+      });
+    } else if (!isTemplated && (providerValue === 'claude' || providerValue === 'copilot')) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.provider`,
+        message: `Ambiguous provider '${providerValue}' is not supported. Choose an explicit provider such as '${providerValue}-cli' or '${providerValue}-sdk'.`,
       });
     } else if (typeof provider === 'string' && !isTemplated && !knownProviders.includes(provider)) {
       // Warning for unknown providers (non-fatal); skip when provider uses ${{ VAR }}

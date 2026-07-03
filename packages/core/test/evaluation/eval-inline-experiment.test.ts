@@ -561,7 +561,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(legacyPath, tempDir)).rejects.toThrow(/top-level 'execution'/);
+    await expect(loadTestSuite(legacyPath, tempDir)).rejects.toThrow(/execution\.target/);
 
     const removedPath = path.join(tempDir, 'removed.eval.yaml');
     await writeFile(
@@ -1139,7 +1139,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(/top-level 'execution'/);
+    await expect(loadTestSuite(parentPath, tempDir)).rejects.toThrow(/execution\.workspace/);
   });
 
   it('does not apply imported child run controls when parent has no run controls', async () => {

@@ -297,7 +297,7 @@ describe('CopilotSdkProvider', () => {
     mock.module('@github/copilot-sdk', () => sdkMock);
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
-    const provider = new CopilotSdkProvider('test-target', {});
+    const provider = new CopilotSdkProvider('test-target', { cliPath: 'copilot-native' });
 
     await provider.invoke({ question: 'Test' });
 
@@ -394,7 +394,7 @@ describe('CopilotSdkProvider', () => {
     }));
     const { CopilotSdkProvider } = await import('../../../src/evaluation/providers/copilot-sdk.js');
 
-    const provider = new CopilotSdkProvider('test-target', {});
+    const provider = new CopilotSdkProvider('test-target', { cliPath: 'copilot-native' });
 
     await provider.invoke({ question: 'First' });
     await provider.invoke({ question: 'Second' });

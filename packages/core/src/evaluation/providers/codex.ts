@@ -22,7 +22,8 @@ import type {
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import type
 let codexSdkModule: any = null;
 
-async function loadCodexSdk(): Promise<typeof import('@openai/codex-sdk')> {
+// biome-ignore lint/suspicious/noExplicitAny: optional SDK package is loaded only inside child runner
+async function loadCodexSdk(): Promise<any> {
   if (!codexSdkModule) {
     try {
       codexSdkModule = await import('@openai/codex-sdk');
@@ -44,14 +45,14 @@ async function loadCodexSdk(): Promise<typeof import('@openai/codex-sdk')> {
  */
 export class CodexProvider implements Provider {
   readonly id: string;
-  readonly kind = 'codex' as const;
+  readonly kind = 'codex-sdk' as const;
   readonly targetName: string;
   readonly supportsBatch = false;
 
   private readonly config: CodexResolvedConfig;
 
   constructor(targetName: string, config: CodexResolvedConfig) {
-    this.id = `codex:${targetName}`;
+    this.id = `codex-sdk:${targetName}`;
     this.targetName = targetName;
     this.config = config;
   }
@@ -71,8 +72,9 @@ export class CodexProvider implements Provider {
     // Build Codex SDK options
     // biome-ignore lint/suspicious/noExplicitAny: SDK constructor options are dynamic
     const codexOptions: any = {};
-    if (this.config.executable) {
-      codexOptions.codexPathOverride = this.config.executable;
+    const codexCommand = this.config.command?.[0];
+    if (codexCommand) {
+      codexOptions.codexPathOverride = codexCommand;
     }
     if (this.config.apiKey) {
       codexOptions.apiKey = this.config.apiKey;
@@ -279,7 +281,7 @@ export class CodexProvider implements Provider {
 
     if (itemType === 'command_execution') {
       completedToolCalls.push(
-        normalizeToolCall('codex', {
+        normalizeToolCall('codex-sdk', {
           tool: 'command_execution',
           input: { command: item.command },
           output: item.aggregated_output,
@@ -290,7 +292,7 @@ export class CodexProvider implements Provider {
 
     if (itemType === 'file_change') {
       completedToolCalls.push(
-        normalizeToolCall('codex', {
+        normalizeToolCall('codex-sdk', {
           tool: 'file_change',
           input: item.changes,
           id: item.id,
@@ -300,7 +302,7 @@ export class CodexProvider implements Provider {
 
     if (itemType === 'mcp_tool_call') {
       completedToolCalls.push(
-        normalizeToolCall('codex', {
+        normalizeToolCall('codex-sdk', {
           tool: `mcp:${item.server}/${item.tool}`,
           input: item.arguments,
           output: item.result ?? item.error,

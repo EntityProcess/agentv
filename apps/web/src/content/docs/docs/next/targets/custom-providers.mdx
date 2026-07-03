@@ -175,11 +175,24 @@ registry.register('http-agent', (target: ResolvedTarget) => {
 Then reference it in your targets file:
 
 ```yaml
-# .agentv/targets.yaml
+# .agentv/config.yaml
 targets:
-  - label: my_http_agent
+  - id: my-http-agent
     provider: http-agent
-    grader_target: azure-base
+    runtime: host
+    config:
+      base_url: http://localhost:8080
+
+graders:
+  - id: azure-grader
+    provider: azure
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+defaults:
+  grader: azure-grader
 ```
 
 :::note
@@ -208,9 +221,11 @@ Use `provider: cli` when:
 
 ```yaml
 targets:
-  - label: python_agent
+  - id: python-agent
     provider: cli
-    command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
+    runtime: host
+    config:
+      command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
 ```
 
 ### When to use native providers

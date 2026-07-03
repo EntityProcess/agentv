@@ -2917,6 +2917,58 @@
             }
           ]
         },
+        "graders": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["id", "provider"],
+                "additionalProperties": false
+              }
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "defaults": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "grader": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
         "eval_cases": {
           "anyOf": [
             {
@@ -10801,7 +10853,23 @@
           "not": {}
         },
         "execution": {
-          "not": {}
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "max_concurrency": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
         },
         "assert": {
           "type": "array",

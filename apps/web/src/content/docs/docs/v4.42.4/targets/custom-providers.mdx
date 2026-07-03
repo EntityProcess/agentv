@@ -3,9 +3,6 @@ title: Custom Providers (SDK)
 description: Implement native TypeScript providers using the ProviderRegistry API
 sidebar:
   order: 6
-slug: docs/v4.42.4/targets/custom-providers
-editUrl: false
-pagefind: false
 ---
 
 Custom providers let you implement evaluation targets in TypeScript instead of shelling out to a CLI command. This is useful when you want to call an HTTP API, use an SDK, or implement custom logic that goes beyond what the CLI provider supports.
@@ -178,11 +175,24 @@ registry.register('http-agent', (target: ResolvedTarget) => {
 Then reference it in your targets file:
 
 ```yaml
-# .agentv/targets.yaml
+# .agentv/config.yaml
 targets:
-  - name: my_http_agent
+  - id: my-http-agent
     provider: http-agent
-    grader_target: azure-base
+    runtime: host
+    config:
+      base_url: http://localhost:8080
+
+graders:
+  - id: azure-grader
+    provider: azure
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
+
+defaults:
+  grader: azure-grader
 ```
 
 :::note
@@ -211,9 +221,11 @@ Use `provider: cli` when:
 
 ```yaml
 targets:
-  - name: python_agent
+  - id: python-agent
     provider: cli
-    command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
+    runtime: host
+    config:
+      command: 'python agent.py --prompt-file {PROMPT_FILE} --output {OUTPUT_FILE}'
 ```
 
 ### When to use native providers

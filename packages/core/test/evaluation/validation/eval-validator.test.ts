@@ -104,6 +104,70 @@ tests:
     ).toBe(true);
   });
 
+  it('validates composable execution.max_concurrency and defaults in eval YAML', async () => {
+    const filePath = path.join(tempDir, 'composable-eval-graph.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
+defaults:
+  target: codex-local
+  grader: openai-grader
+execution:
+  max_concurrency: 3
+tests:
+  - id: local-case
+    input: "Hello"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects removed top-level execution fields in eval YAML', async () => {
+    const filePath = path.join(tempDir, 'invalid-composable-execution.yaml');
+    await writeFile(
+      filePath,
+      `execution:
+  target: claude
+  workers: 4
+  max_concurrency: 3
+tests:
+  - id: local-case
+    input: "Hello"
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'execution.target',
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'execution.workers',
+        message: expect.stringContaining("Unsupported execution field 'workers'"),
+      }),
+    );
+  });
+
   it('validates default_test.threshold', async () => {
     const filePath = path.join(tempDir, 'default-test-threshold.yaml');
     await writeFile(
@@ -242,7 +306,8 @@ prompts:
   - raw: "Review {{ vars.diff }}"
 targets:
   - label: local-agent
-    provider: codex
+    provider: codex-cli
+    command: ["codex"]
 default_test:
   vars:
     tone: concise
@@ -808,8 +873,8 @@ tests:
     expect(
       result.errors.some(
         (error) =>
-          error.location === 'execution' &&
-          error.message.includes("Top-level 'execution' is not part of eval YAML"),
+          error.location === 'execution.target' &&
+          error.message.includes("Unsupported execution field 'target'"),
       ),
     ).toBe(true);
   });

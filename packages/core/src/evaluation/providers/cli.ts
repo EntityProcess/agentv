@@ -1,14 +1,19 @@
-import { type ExecException, type ExecOptions, exec as execWithCallback } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import { z } from 'zod';
 
 import type { Content } from '../content.js';
 import { isContentArray } from '../content.js';
 import { readTextFile } from '../file-utils.js';
+import {
+  type SandboxCommandRunOptions,
+  type TargetRuntimeConfig,
+  runDockerSandboxCommand,
+} from './sandbox-runner.js';
+import { buildTargetExecutionEnvelope, captureTargetExecutionLog } from './target-execution.js';
 import type { CliResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -16,7 +21,10 @@ import type {
   ProviderRequest,
   ProviderResponse,
   ProviderTokenUsage,
+  TargetExecutionEnvelope,
+  TargetExecutionErrorKind,
 } from './types.js';
+import { extractLastAssistantContent } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for CLI Output Parsing
@@ -70,6 +78,7 @@ const TokenUsageSchema = z.object({
  */
 const CliOutputSchema = z.object({
   text: z.unknown().optional(),
+  error: z.string().optional(),
   output: z.array(MessageInputSchema).optional(),
   output_messages: z.array(MessageInputSchema).optional(),
   token_usage: TokenUsageSchema.optional(),
@@ -149,7 +158,6 @@ function convertMessages(
   }));
 }
 
-const execAsync = promisify(execWithCallback);
 const DEFAULT_MAX_BUFFER = 10 * 1024 * 1024; // 10 MB to accommodate verbose CLI output
 
 export interface CommandRunOptions {
@@ -166,6 +174,9 @@ export interface CommandRunResult {
   readonly failed: boolean;
   readonly timedOut?: boolean;
   readonly signal?: NodeJS.Signals | null;
+  readonly spawnErrorCode?: string;
+  readonly sandboxInfraFailure?: boolean;
+  readonly sandboxDetails?: Record<string, unknown>;
 }
 
 export type CommandRunner = (
@@ -173,47 +184,200 @@ export type CommandRunner = (
   options: CommandRunOptions,
 ) => Promise<CommandRunResult>;
 
+export type SandboxCommandRunner = (
+  command: string,
+  options: SandboxCommandRunOptions,
+) => Promise<CommandRunResult>;
+
 async function defaultCommandRunner(
   command: string,
   options: CommandRunOptions,
 ): Promise<CommandRunResult> {
-  const execOptions: ExecOptions = {
-    cwd: options.cwd,
-    env: options.env,
-    timeout: options.timeoutMs,
-    signal: options.signal,
-    maxBuffer: DEFAULT_MAX_BUFFER,
-    shell: process.platform === 'win32' ? 'powershell.exe' : undefined,
-  };
+  return new Promise((resolve) => {
+    const useWindowsShell = process.platform === 'win32';
+    const shell = useWindowsShell ? 'powershell.exe' : '/bin/sh';
+    const args = useWindowsShell ? ['-NoProfile', '-Command', command] : ['-lc', command];
+    const child = spawn(shell, args, {
+      cwd: options.cwd,
+      env: options.env,
+      detached: !useWindowsShell,
+      windowsHide: true,
+    });
 
-  try {
-    const { stdout, stderr } = await execAsync(command, execOptions);
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let cancelled = false;
+    let settled = false;
 
-    return {
-      stdout,
-      stderr,
-      exitCode: 0,
-      failed: false,
-      timedOut: false,
-      signal: null,
-    };
-  } catch (error) {
-    const execError = error as ExecException & {
-      stdout?: string;
-      stderr?: string;
-      timedOut?: boolean;
-      killed?: boolean;
+    const append = (current: string, chunk: Buffer) => {
+      if (Buffer.byteLength(current, 'utf8') >= DEFAULT_MAX_BUFFER) {
+        return current;
+      }
+      return `${current}${chunk.toString('utf8')}`;
     };
 
-    return {
-      stdout: execError.stdout ?? '',
-      stderr: execError.stderr ?? '',
-      exitCode: typeof execError.code === 'number' ? execError.code : null,
-      failed: true,
-      timedOut: execError.timedOut === true || execError.killed === true,
-      signal: execError.signal ?? null,
+    const terminate = (signal: NodeJS.Signals) => {
+      if (child.pid === undefined) {
+        return;
+      }
+      try {
+        if (useWindowsShell) {
+          child.kill(signal);
+        } else {
+          process.kill(-child.pid, signal);
+        }
+      } catch {
+        child.kill(signal);
+      }
     };
+
+    const timeout = options.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true;
+          terminate('SIGTERM');
+          setTimeout(() => terminate('SIGKILL'), 2_000).unref?.();
+        }, options.timeoutMs)
+      : undefined;
+    timeout?.unref?.();
+
+    const abort = () => {
+      cancelled = true;
+      terminate('SIGTERM');
+      setTimeout(() => terminate('SIGKILL'), 2_000).unref?.();
+    };
+    if (options.signal) {
+      if (options.signal.aborted) {
+        abort();
+      } else {
+        options.signal.addEventListener('abort', abort, { once: true });
+      }
+    }
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdout = append(stdout, chunk);
+    });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr = append(stderr, chunk);
+    });
+
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      if (options.signal) options.signal.removeEventListener('abort', abort);
+      resolve({
+        stdout,
+        stderr: stderr || error.message,
+        exitCode: null,
+        failed: true,
+        timedOut,
+        signal: null,
+        spawnErrorCode: error.code,
+      });
+    });
+
+    child.on('close', (code, signal) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      if (options.signal) options.signal.removeEventListener('abort', abort);
+      resolve({
+        stdout,
+        stderr,
+        exitCode: code,
+        failed: code !== 0 || signal !== null || timedOut || cancelled,
+        timedOut,
+        signal,
+      });
+    });
+  });
+}
+
+function commandEnvelopeBase(params: {
+  targetName: string;
+  providerId: string;
+  providerKind: string;
+  command: string;
+  cwd?: string;
+  timeoutMs?: number;
+  startedAt: number;
+  endedAt: number;
+  runtimeMode?: string;
+  result?: CommandRunResult;
+}): Omit<TargetExecutionEnvelope, 'status'> {
+  const argv =
+    process.platform === 'win32'
+      ? ['powershell.exe', '-NoProfile', '-Command', params.command]
+      : ['/bin/sh', '-lc', params.command];
+  return buildTargetExecutionEnvelope({
+    targetName: params.targetName,
+    providerId: params.providerId,
+    providerKind: params.providerKind,
+    status: 'success',
+    runtimeMode: params.runtimeMode ?? 'host',
+    commandArgv: argv,
+    commandLine: params.command,
+    cwd: params.cwd,
+    timeoutMs: params.timeoutMs,
+    startedAt: params.startedAt,
+    endedAt: params.endedAt,
+    exitCode: params.result?.exitCode,
+    signal: params.result?.signal ?? null,
+    stdout: params.result?.stdout ?? '',
+    stderr: params.result?.stderr ?? '',
+  });
+}
+
+function classifyCommandFailure(
+  result: CommandRunResult,
+  signalAborted: boolean | undefined,
+): TargetExecutionErrorKind {
+  if (signalAborted) {
+    return 'cancelled';
   }
+  if (result.timedOut) {
+    return 'timeout';
+  }
+  if (result.sandboxInfraFailure) {
+    return 'sandbox_infra_failure';
+  }
+  if (result.spawnErrorCode) {
+    return 'spawn_failure';
+  }
+  if (result.signal && result.exitCode === null) {
+    return 'signal_crash';
+  }
+  return 'nonzero_exit';
+}
+
+function commandFailureMessage(result: CommandRunResult, errorKind: TargetExecutionErrorKind) {
+  if (errorKind === 'cancelled') {
+    return 'CLI provider request was aborted';
+  }
+  if (errorKind === 'timeout') {
+    return 'CLI provider timed out';
+  }
+  if (errorKind === 'sandbox_infra_failure') {
+    return result.stderr.trim() || result.stdout.trim() || 'Sandbox runtime failed';
+  }
+  if (errorKind === 'spawn_failure') {
+    return (
+      result.stderr.trim() ||
+      result.stdout.trim() ||
+      `CLI failed to spawn (${result.spawnErrorCode})`
+    );
+  }
+  if (errorKind === 'signal_crash') {
+    return `CLI terminated by signal ${result.signal ?? 'unknown'}`;
+  }
+  const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
+  const detail = result.stderr.trim() || result.stdout.trim();
+  return detail ? `${detail} (exit code ${codeText})` : `CLI exited with code ${codeText}`;
 }
 
 export class CliProvider implements Provider {
@@ -224,6 +388,8 @@ export class CliProvider implements Provider {
 
   private readonly config: CliResolvedConfig;
   private readonly runCommand: CommandRunner;
+  private readonly runSandboxCommand: SandboxCommandRunner;
+  private readonly runtime?: TargetRuntimeConfig;
   private readonly verbose: boolean;
   private readonly keepTempFiles: boolean;
   private healthcheckPromise?: Promise<void>;
@@ -232,11 +398,15 @@ export class CliProvider implements Provider {
     targetName: string,
     config: CliResolvedConfig,
     runner: CommandRunner = defaultCommandRunner,
+    runtime?: TargetRuntimeConfig,
+    sandboxRunner: SandboxCommandRunner = runDockerSandboxCommand,
   ) {
     this.targetName = targetName;
     this.id = `cli:${targetName}`;
     this.config = config;
     this.runCommand = runner;
+    this.runSandboxCommand = sandboxRunner;
+    this.runtime = runtime;
     this.verbose = config.verbose ?? false;
     this.keepTempFiles = config.keepTempFiles ?? false;
   }
@@ -268,7 +438,7 @@ export class CliProvider implements Provider {
     // Measure wall-clock time as fallback for duration
     try {
       const startTime = Date.now();
-      const result = await this.runCommand(renderedCommand, {
+      const result = await this.runCommandForRuntime(renderedCommand, {
         cwd: effectiveCwd,
         env: process.env,
         timeoutMs: this.config.timeoutMs,
@@ -277,34 +447,131 @@ export class CliProvider implements Provider {
       const measuredDurationMs = Date.now() - startTime;
 
       if (result.failed || (result.exitCode ?? 0) !== 0) {
-        if (request.signal?.aborted) {
-          throw new Error('CLI provider request was aborted');
-        }
-        if (result.timedOut) {
-          throw new Error(
-            `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-          );
-        }
-        const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
-        const detail = result.stderr.trim() || result.stdout.trim();
-        const message = detail
-          ? `${detail} (exit code ${codeText})`
-          : `CLI exited with code ${codeText}`;
-        throw new Error(message);
+        const errorKind = classifyCommandFailure(result, request.signal?.aborted);
+        const baseMessage = commandFailureMessage(result, errorKind);
+        const message =
+          errorKind === 'timeout'
+            ? `${baseMessage}${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`
+            : baseMessage;
+        return {
+          output: [{ role: 'assistant', content: `Error: ${message}` }],
+          durationMs: measuredDurationMs,
+          targetExecution: {
+            ...commandEnvelopeBase({
+              targetName: this.targetName,
+              providerId: this.id,
+              providerKind: this.kind,
+              command: renderedCommand,
+              cwd: effectiveCwd,
+              timeoutMs: this.config.timeoutMs,
+              startedAt: startTime,
+              endedAt: Date.now(),
+              runtimeMode: this.runtimeMode(),
+              result,
+            }),
+            status: 'error',
+            errorKind,
+            message,
+            transcript: {
+              messages: [{ role: 'assistant', content: `Error: ${message}` }],
+              finalOutput: `Error: ${message}`,
+            },
+            details: {
+              outputFile: outputFilePath,
+              spawnErrorCode: result.spawnErrorCode,
+              sandbox: result.sandboxDetails,
+            },
+          },
+          raw: {
+            command: renderedCommand,
+            stderr: result.stderr,
+            stdout: result.stdout,
+            exitCode: result.exitCode,
+            signal: result.signal,
+            cwd: effectiveCwd,
+            outputFile: outputFilePath,
+            error: message,
+          },
+        };
       }
 
       // Read from output file and parse as JSON if possible
-      const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+      let responseContent: string;
+      try {
+        responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          output: [{ role: 'assistant', content: `Error: ${message}` }],
+          durationMs: measuredDurationMs,
+          targetExecution: {
+            ...commandEnvelopeBase({
+              targetName: this.targetName,
+              providerId: this.id,
+              providerKind: this.kind,
+              command: renderedCommand,
+              cwd: effectiveCwd,
+              timeoutMs: this.config.timeoutMs,
+              startedAt: startTime,
+              endedAt: Date.now(),
+              runtimeMode: this.runtimeMode(),
+              result,
+            }),
+            status: 'error',
+            errorKind: 'malformed_output',
+            message,
+            transcript: {
+              messages: [{ role: 'assistant', content: `Error: ${message}` }],
+              finalOutput: `Error: ${message}`,
+            },
+            details: { outputFile: outputFilePath },
+          },
+          raw: {
+            command: renderedCommand,
+            stderr: result.stderr,
+            stdout: result.stdout,
+            exitCode: result.exitCode ?? 0,
+            cwd: effectiveCwd,
+            outputFile: outputFilePath,
+            error: message,
+          },
+        };
+      }
       const parsed = this.parseOutputContent(responseContent);
+      const finalOutput = extractLastAssistantContent(parsed.output);
+      const targetTaskFailure = parsed.error?.trim();
 
       return {
         output: parsed.output,
         tokenUsage: parsed.tokenUsage,
         costUsd: parsed.costUsd,
         durationMs: parsed.durationMs ?? measuredDurationMs,
+        targetExecution: {
+          ...commandEnvelopeBase({
+            targetName: this.targetName,
+            providerId: this.id,
+            providerKind: this.kind,
+            command: renderedCommand,
+            cwd: effectiveCwd,
+            timeoutMs: this.config.timeoutMs,
+            startedAt: startTime,
+            endedAt: Date.now(),
+            runtimeMode: this.runtimeMode(),
+            result,
+          }),
+          status: targetTaskFailure ? 'error' : 'success',
+          errorKind: targetTaskFailure ? 'target_task_failure' : undefined,
+          message: targetTaskFailure,
+          transcript: {
+            messages: parsed.output,
+            finalOutput,
+          },
+          details: { outputFile: outputFilePath },
+        },
         raw: {
           command: renderedCommand,
           stderr: result.stderr,
+          stdout: result.stdout,
           exitCode: result.exitCode ?? 0,
           cwd: effectiveCwd,
           outputFile: outputFilePath,
@@ -369,7 +636,7 @@ export class CliProvider implements Provider {
     // Measure wall-clock time for batch (used as fallback if records don't provide duration)
     try {
       const startTime = Date.now();
-      const result = await this.runCommand(renderedCommand, {
+      const result = await this.runCommandForRuntime(renderedCommand, {
         cwd: effectiveCwd,
         env: process.env,
         timeoutMs: this.config.timeoutMs,
@@ -378,24 +645,77 @@ export class CliProvider implements Provider {
       const measuredDurationMs = Date.now() - startTime;
 
       if (result.failed || (result.exitCode ?? 0) !== 0) {
-        if (controller.signal.aborted) {
-          throw new Error('CLI provider request was aborted');
-        }
-        if (result.timedOut) {
-          throw new Error(
-            `CLI provider timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-          );
-        }
-        const codeText = result.exitCode !== null ? result.exitCode : 'unknown';
-        const detail = result.stderr.trim() || result.stdout.trim();
-        const message = detail
-          ? `${detail} (exit code ${codeText})`
-          : `CLI exited with code ${codeText}`;
-        throw new Error(message);
+        const errorKind = classifyCommandFailure(result, controller.signal.aborted);
+        const baseMessage = commandFailureMessage(result, errorKind);
+        const message =
+          errorKind === 'timeout'
+            ? `${baseMessage}${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`
+            : baseMessage;
+        return requests.map((request) =>
+          this.buildBatchErrorResponse({
+            request,
+            renderedCommand,
+            effectiveCwd,
+            outputFilePath,
+            result,
+            startedAt: startTime,
+            durationMs: measuredDurationMs,
+            perRequestFallbackMs: Math.round(measuredDurationMs / requests.length),
+            errorKind,
+            message,
+          }),
+        );
       }
 
-      const responseContent = await this.readAndCleanupOutputFile(outputFilePath);
-      const recordsById = this.parseJsonlBatchOutput(responseContent);
+      let responseContent: string;
+      try {
+        responseContent = await this.readAndCleanupOutputFile(outputFilePath);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return requests.map((request) =>
+          this.buildBatchErrorResponse({
+            request,
+            renderedCommand,
+            effectiveCwd,
+            outputFilePath,
+            result,
+            startedAt: startTime,
+            durationMs: measuredDurationMs,
+            perRequestFallbackMs: Math.round(measuredDurationMs / requests.length),
+            errorKind: 'malformed_output',
+            message,
+          }),
+        );
+      }
+      let recordsById: Map<
+        string,
+        {
+          output: readonly Message[];
+          error?: string;
+          tokenUsage?: ProviderTokenUsage;
+          costUsd?: number;
+          durationMs?: number;
+        }
+      >;
+      try {
+        recordsById = this.parseJsonlBatchOutput(responseContent);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return requests.map((request) =>
+          this.buildBatchErrorResponse({
+            request,
+            renderedCommand,
+            effectiveCwd,
+            outputFilePath,
+            result,
+            startedAt: startTime,
+            durationMs: measuredDurationMs,
+            perRequestFallbackMs: Math.round(measuredDurationMs / requests.length),
+            errorKind: 'malformed_output',
+            message,
+          }),
+        );
+      }
 
       // Calculate per-request fallback duration (total time / number of requests)
       const perRequestFallbackMs = Math.round(measuredDurationMs / requests.length);
@@ -406,9 +726,30 @@ export class CliProvider implements Provider {
           return {
             output: [],
             durationMs: perRequestFallbackMs,
+            targetExecution: {
+              ...commandEnvelopeBase({
+                targetName: this.targetName,
+                providerId: this.id,
+                providerKind: this.kind,
+                command: renderedCommand,
+                cwd: effectiveCwd,
+                timeoutMs: this.config.timeoutMs,
+                startedAt: startTime,
+                endedAt: Date.now(),
+                runtimeMode: this.runtimeMode(),
+                result,
+              }),
+              status: 'success',
+              transcript: {
+                messages: [],
+                finalOutput: '',
+              },
+              details: { outputFile: outputFilePath },
+            },
             raw: {
               command: renderedCommand,
               stderr: result.stderr,
+              stdout: result.stdout,
               exitCode: result.exitCode ?? 0,
               cwd: effectiveCwd,
               outputFile: outputFilePath,
@@ -427,9 +768,32 @@ export class CliProvider implements Provider {
           return {
             output: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
             durationMs: perRequestFallbackMs,
+            targetExecution: {
+              ...commandEnvelopeBase({
+                targetName: this.targetName,
+                providerId: this.id,
+                providerKind: this.kind,
+                command: renderedCommand,
+                cwd: effectiveCwd,
+                timeoutMs: this.config.timeoutMs,
+                startedAt: startTime,
+                endedAt: Date.now(),
+                runtimeMode: this.runtimeMode(),
+                result,
+              }),
+              status: 'error',
+              errorKind: 'malformed_output',
+              message: errorMessage,
+              transcript: {
+                messages: [{ role: 'assistant', content: `Error: ${errorMessage}` }],
+                finalOutput: `Error: ${errorMessage}`,
+              },
+              details: { outputFile: outputFilePath, recordId: evalCaseId },
+            },
             raw: {
               command: renderedCommand,
               stderr: result.stderr,
+              stdout: result.stdout,
               exitCode: result.exitCode ?? 0,
               cwd: effectiveCwd,
               outputFile: outputFilePath,
@@ -443,9 +807,32 @@ export class CliProvider implements Provider {
           tokenUsage: parsed.tokenUsage,
           costUsd: parsed.costUsd,
           durationMs: parsed.durationMs ?? perRequestFallbackMs,
+          targetExecution: {
+            ...commandEnvelopeBase({
+              targetName: this.targetName,
+              providerId: this.id,
+              providerKind: this.kind,
+              command: renderedCommand,
+              cwd: effectiveCwd,
+              timeoutMs: this.config.timeoutMs,
+              startedAt: startTime,
+              endedAt: Date.now(),
+              runtimeMode: this.runtimeMode(),
+              result,
+            }),
+            status: parsed.error ? 'error' : 'success',
+            errorKind: parsed.error ? 'target_task_failure' : undefined,
+            message: parsed.error,
+            transcript: {
+              messages: parsed.output,
+              finalOutput: extractLastAssistantContent(parsed.output),
+            },
+            details: { outputFile: outputFilePath, recordId: evalCaseId },
+          },
           raw: {
             command: renderedCommand,
             stderr: result.stderr,
+            stdout: result.stdout,
             exitCode: result.exitCode ?? 0,
             cwd: effectiveCwd,
             outputFile: outputFilePath,
@@ -473,6 +860,7 @@ export class CliProvider implements Provider {
    */
   private parseOutputContent(content: string): {
     output: readonly Message[];
+    error?: string;
     tokenUsage?: ProviderTokenUsage;
     costUsd?: number;
     durationMs?: number;
@@ -504,6 +892,7 @@ export class CliProvider implements Provider {
     if (output && output.length > 0) {
       return {
         output,
+        error: obj.error,
         tokenUsage: obj.token_usage,
         costUsd: metrics.costUsd,
         durationMs: metrics.durationMs,
@@ -515,6 +904,7 @@ export class CliProvider implements Provider {
       const text = typeof obj.text === 'string' ? obj.text : String(obj.text);
       return {
         output: [{ role: 'assistant', content: text }],
+        error: obj.error,
         tokenUsage: obj.token_usage,
         costUsd: metrics.costUsd,
         durationMs: metrics.durationMs,
@@ -522,13 +912,14 @@ export class CliProvider implements Provider {
     }
 
     // No output or text, treat original content as plain text
-    return { output: [{ role: 'assistant', content }] };
+    return { output: [{ role: 'assistant', content }], error: obj.error };
   }
 
   private parseJsonlBatchOutput(content: string): Map<
     string,
     {
       output: readonly Message[];
+      error?: string;
       tokenUsage?: ProviderTokenUsage;
       costUsd?: number;
       durationMs?: number;
@@ -538,6 +929,7 @@ export class CliProvider implements Provider {
       string,
       {
         output: readonly Message[];
+        error?: string;
         tokenUsage?: ProviderTokenUsage;
         costUsd?: number;
         durationMs?: number;
@@ -595,6 +987,7 @@ export class CliProvider implements Provider {
 
       records.set(obj.id, {
         output: finalMessages,
+        error: obj.error,
         tokenUsage: obj.token_usage,
         costUsd: metrics.costUsd,
         durationMs: metrics.durationMs,
@@ -602,6 +995,63 @@ export class CliProvider implements Provider {
     }
 
     return records;
+  }
+
+  private buildBatchErrorResponse(params: {
+    readonly request: ProviderRequest;
+    readonly renderedCommand: string;
+    readonly effectiveCwd?: string;
+    readonly outputFilePath: string;
+    readonly result: CommandRunResult;
+    readonly startedAt: number;
+    readonly durationMs: number;
+    readonly perRequestFallbackMs: number;
+    readonly errorKind: TargetExecutionErrorKind;
+    readonly message: string;
+  }): ProviderResponse {
+    const content = `Error: ${params.message}`;
+    return {
+      output: [{ role: 'assistant', content }],
+      durationMs: params.perRequestFallbackMs,
+      targetExecution: {
+        ...commandEnvelopeBase({
+          targetName: this.targetName,
+          providerId: this.id,
+          providerKind: this.kind,
+          command: params.renderedCommand,
+          cwd: params.effectiveCwd,
+          timeoutMs: this.config.timeoutMs,
+          startedAt: params.startedAt,
+          endedAt: params.startedAt + params.durationMs,
+          runtimeMode: this.runtimeMode(),
+          result: params.result,
+        }),
+        status: 'error',
+        errorKind: params.errorKind,
+        message: params.message,
+        transcript: {
+          messages: [{ role: 'assistant', content }],
+          finalOutput: content,
+        },
+        details: {
+          outputFile: params.outputFilePath,
+          recordId: params.request.evalCaseId,
+          spawnErrorCode: params.result.spawnErrorCode,
+          sandbox: params.result.sandboxDetails,
+        },
+      },
+      raw: {
+        command: params.renderedCommand,
+        stderr: params.result.stderr,
+        stdout: params.result.stdout,
+        exitCode: params.result.exitCode,
+        signal: params.result.signal,
+        cwd: params.effectiveCwd,
+        outputFile: params.outputFilePath,
+        recordId: params.request.evalCaseId,
+        error: params.message,
+      },
+    };
   }
 
   private async readAndCleanupOutputFile(filePath: string): Promise<string> {
@@ -686,7 +1136,7 @@ export class CliProvider implements Provider {
     }
 
     try {
-      const result = await this.runCommand(renderedCommand, {
+      const result = await this.runCommandForRuntime(renderedCommand, {
         cwd: hcCwd ?? this.config.cwd,
         env: process.env,
         timeoutMs,
@@ -704,6 +1154,25 @@ export class CliProvider implements Provider {
     } finally {
       await cleanupTempFile(promptFilePath, this.keepTempFiles);
     }
+  }
+
+  private runtimeMode(): string {
+    return this.runtime?.mode ?? 'host';
+  }
+
+  private async runCommandForRuntime(
+    command: string,
+    options: CommandRunOptions,
+  ): Promise<CommandRunResult> {
+    if (this.runtime?.mode !== 'sandbox') {
+      return this.runCommand(command, options);
+    }
+    return this.runSandboxCommand(command, {
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      signal: options.signal,
+      runtime: this.runtime,
+    });
   }
 }
 

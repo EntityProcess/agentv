@@ -125,7 +125,7 @@ export function parseCodexSession(jsonl: string): TranscriptEntry {
               input = payload.arguments;
             }
 
-            const toolCall: ToolCall = normalizeToolCall('codex', {
+            const toolCall: ToolCall = normalizeToolCall('codex-cli', {
               tool: toolName,
               input,
               id: callId,
@@ -156,7 +156,7 @@ export function parseCodexSession(jsonl: string): TranscriptEntry {
               input = payload.arguments;
             }
 
-            const toolCall: ToolCall = normalizeToolCall('codex', {
+            const toolCall: ToolCall = normalizeToolCall('codex-cli', {
               tool: toolName,
               input,
               id: callId,

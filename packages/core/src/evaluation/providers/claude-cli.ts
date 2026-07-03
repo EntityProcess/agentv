@@ -11,6 +11,7 @@ import { recordClaudeLogEntry } from './claude-log-tracker.js';
 import { resolveDefaultProviderLogDir } from './log-directory.js';
 import { normalizeToolCall } from './normalize-tool-call.js';
 import { buildPromptDocument, normalizeInputFiles } from './preread.js';
+import { buildTargetExecutionEnvelope } from './target-execution.js';
 import type { ClaudeResolvedConfig } from './targets.js';
 import type {
   Message,
@@ -54,7 +55,8 @@ export class ClaudeCliProvider implements Provider {
     const inputFiles = normalizeInputFiles(request.inputFiles);
     const prompt = buildPromptDocument(request, inputFiles);
 
-    const args = this.buildArgs();
+    const command = this.resolveCommand();
+    const args = this.buildArgs(command);
     const cwd = this.resolveCwd(request.cwd);
     const env = sanitizeEnvForClaude(request.braintrustSpanIds);
 
@@ -67,6 +69,7 @@ export class ClaudeCliProvider implements Provider {
 
     try {
       const result = await this.runClaude({
+        command,
         args,
         cwd,
         prompt,
@@ -140,15 +143,37 @@ export class ClaudeCliProvider implements Provider {
       });
 
       if (result.timedOut) {
-        throw new Error(
-          `Claude CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`,
-        );
+        const message = `Claude CLI timed out${formatTimeoutSuffix(this.config.timeoutMs ?? undefined)}`;
+        return this.errorResponse({
+          message,
+          errorKind: 'timeout',
+          startMs,
+          startTime,
+          command,
+          args,
+          cwd,
+          result,
+          output,
+          loggerFile: logger?.filePath,
+        });
       }
 
       if (result.exitCode !== 0) {
         const detail = result.stderr.trim() || result.stdout.trim();
         const prefix = `Claude CLI exited with code ${result.exitCode}`;
-        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
+        const message = detail ? `${prefix}: ${detail}` : prefix;
+        return this.errorResponse({
+          message,
+          errorKind: 'nonzero_exit',
+          startMs,
+          startTime,
+          command,
+          args,
+          cwd,
+          result,
+          output,
+          loggerFile: logger?.filePath,
+        });
       }
 
       const endTime = new Date().toISOString();
@@ -158,6 +183,7 @@ export class ClaudeCliProvider implements Provider {
         raw: {
           model: this.config.model,
           logFile: logger?.filePath,
+          command,
           args,
           exitCode: result.exitCode,
         },
@@ -167,15 +193,51 @@ export class ClaudeCliProvider implements Provider {
         durationMs: totalDurationMs,
         startTime,
         endTime,
+        targetExecution: buildTargetExecutionEnvelope({
+          targetName: this.targetName,
+          providerId: this.id,
+          providerKind: this.kind,
+          status: 'success',
+          commandArgv: [command, ...args],
+          cwd,
+          timeoutMs: this.config.timeoutMs,
+          startedAt: startMs,
+          endedAt: Date.now(),
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          output,
+          finalOutput: extractFinalOutput(output),
+          details: { logFile: logger?.filePath },
+        }),
       };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return this.errorResponse({
+        message,
+        errorKind: classifyClaudeError(message),
+        startMs,
+        startTime,
+        command,
+        args,
+        cwd,
+        result: { stdout: '', stderr: message, exitCode: null, timedOut: false },
+        output,
+        loggerFile: logger?.filePath,
+      });
     } finally {
       await logger?.close();
     }
   }
 
-  private buildArgs(): string[] {
+  private resolveCommand(): string {
+    return this.config.command?.[0] ?? this.config.executable;
+  }
+
+  private buildArgs(command = this.resolveCommand()): string[] {
     // --verbose is required when combining -p with --output-format stream-json
     const args = [
+      ...(this.config.command?.[0] === command ? (this.config.command?.slice(1) ?? []) : []),
       '-p',
       '--output-format',
       'stream-json',
@@ -206,6 +268,62 @@ export class ClaudeCliProvider implements Provider {
       return path.resolve(this.config.cwd);
     }
     return undefined;
+  }
+
+  private errorResponse(params: {
+    readonly message: string;
+    readonly errorKind: NonNullable<ProviderResponse['targetExecution']>['errorKind'];
+    readonly startMs: number;
+    readonly startTime: string;
+    readonly command: string;
+    readonly args: readonly string[];
+    readonly cwd: string | undefined;
+    readonly result: {
+      readonly stdout: string;
+      readonly stderr: string;
+      readonly exitCode: number | null;
+      readonly timedOut: boolean;
+    };
+    readonly output: readonly Message[];
+    readonly loggerFile?: string;
+  }): ProviderResponse {
+    const content = `Error: ${params.message}`;
+    const output = params.output.length > 0 ? params.output : [{ role: 'assistant', content }];
+    const endTime = new Date().toISOString();
+    const endMs = Date.now();
+    return {
+      raw: {
+        model: this.config.model,
+        logFile: params.loggerFile,
+        command: params.command,
+        args: params.args,
+        exitCode: params.result.exitCode,
+        error: params.message,
+      },
+      output,
+      durationMs: endMs - params.startMs,
+      startTime: params.startTime,
+      endTime,
+      targetExecution: buildTargetExecutionEnvelope({
+        targetName: this.targetName,
+        providerId: this.id,
+        providerKind: this.kind,
+        status: 'error',
+        commandArgv: [params.command, ...params.args],
+        cwd: params.cwd,
+        timeoutMs: this.config.timeoutMs,
+        startedAt: params.startMs,
+        endedAt: endMs,
+        exitCode: params.result.exitCode,
+        errorKind: params.errorKind,
+        message: params.message,
+        stdout: params.result.stdout,
+        stderr: params.result.stderr,
+        output,
+        finalOutput: extractFinalOutput(output) || content,
+        details: { logFile: params.loggerFile },
+      }),
+    };
   }
 
   private resolveLogDirectory(request: ProviderRequest): string | undefined {
@@ -262,6 +380,7 @@ export class ClaudeCliProvider implements Provider {
   }
 
   private async runClaude(options: {
+    readonly command: string;
     readonly args: string[];
     readonly cwd: string | undefined;
     readonly prompt: string;
@@ -278,7 +397,7 @@ export class ClaudeCliProvider implements Provider {
         spawnOptions.cwd = options.cwd;
       }
 
-      const child = spawn(this.config.executable, options.args, spawnOptions);
+      const child = spawn(options.command, options.args, spawnOptions);
       trackChild(child);
 
       let stdout = '';
@@ -372,6 +491,28 @@ export class ClaudeCliProvider implements Provider {
       });
     });
   }
+}
+
+function classifyClaudeError(
+  message: string,
+): NonNullable<ProviderResponse['targetExecution']>['errorKind'] {
+  if (/not found|enoent/i.test(message)) {
+    return 'spawn_failure';
+  }
+  if (/timed out|timeout/i.test(message)) {
+    return 'timeout';
+  }
+  return 'target_task_failure';
+}
+
+function extractFinalOutput(output: readonly Message[]): string {
+  for (let i = output.length - 1; i >= 0; i--) {
+    const content = output[i]?.content;
+    if (typeof content === 'string') {
+      return content;
+    }
+  }
+  return '';
 }
 
 class ClaudeCliStreamLogger {

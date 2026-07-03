@@ -5,17 +5,32 @@ sidebar:
   order: 1
 ---
 
-Evaluation files define the test cases, graders, workspace lifecycle, and run controls for an evaluation run. The reserved `tags.experiment` key is the run/result grouping label, top-level `target` identifies the system under test, and fields such as `evaluate_options.repeat`, `threshold`, `timeout_seconds`, `evaluate_options.budget_usd`, and `evaluate_options.max_concurrency` control repeated attempts and gates. Workspace lifetime belongs under `workspace.scope`; repository provenance belongs under `workspace.repos`; Docker/container binding belongs under `workspace.docker`. Non-provisioning setup commands belong in top-level `extensions`; reset policy stays under `workspace.hooks.after_each.reset`; runner-specific setup belongs in the `target` object or `targets.yaml`. AgentV supports two eval data formats: YAML and JSONL.
+Evaluation files define the test cases, graders, workspace lifecycle, and run
+controls for an evaluation run. The reserved `tags.experiment` key is the
+run/result grouping label, top-level `target` identifies the system under test,
+and fields such as `evaluate_options.repeat`, `threshold`, `timeout_seconds`,
+`evaluate_options.budget_usd`, and `execution.max_concurrency` control repeated
+attempts and gates. Workspace lifetime belongs under `workspace.scope`;
+repository provenance belongs under `workspace.repos`; Docker/container binding
+belongs under `workspace.docker`. Non-provisioning setup commands belong in
+top-level `extensions`; reset policy stays under
+`workspace.hooks.after_each.reset`; runner-specific setup belongs in the
+`target` object, in `targets`, or in project config. AgentV supports two eval
+data formats: YAML and JSONL.
 
 YAML is the canonical portable model. TypeScript helpers, generated fixtures, and Python scripts should lower to the same YAML/JSONL shapes rather than inventing a separate eval contract.
-Eval files describe the task, target binding, and run controls. Use `evaluate_options.max_concurrency` for authored suite concurrency. Operators can still override concurrency with `--workers` or set defaults with `execution.workers` in `agentv.config.*` / `.agentv/config.yaml`; do not author legacy `workers` fields in eval YAML.
+Eval files describe the task, target binding, and run controls. Use
+`execution.max_concurrency` for authored suite concurrency. Operators can still
+override concurrency with `agentv eval --workers N`; do not author legacy
+`workers` fields in eval YAML.
 
 ## Authoring Shapes
 
-Eval YAML is AgentV's composable and runnable authoring primitive. Use ordinary
-`*.eval.yaml` files for direct task suites and for wrapper evals that compose
-other suites. Raw case files are reusable data inputs, not a second runnable
-experiment format.
+Eval YAML is AgentV's composable and runnable authoring primitive. It is a
+focused, shareable slice of the same config graph as `.agentv/config.yaml`.
+Use ordinary `*.eval.yaml` files for direct task suites and for wrapper evals
+that compose other suites. Raw case files are reusable data inputs, not a
+second runnable experiment format.
 
 - A **task suite** is eval YAML that owns task context: `workspace`, shared
   `input`, shared `assert`, fixtures, graders, and test cases. It can run
@@ -65,6 +80,9 @@ A wrapper eval stays ordinary eval YAML while choosing a target and run controls
 # experiments/refunds-codex.eval.yaml
 name: refunds-codex
 target: codex-gpt5
+execution:
+  max_concurrency: 3
+
 evaluate_options:
   repeat:
     count: 2
@@ -117,13 +135,14 @@ tests:
 | `description` | Human-readable description of the evaluation |
 | `suite` | Optional suite identifier |
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
-| `target` | Named system under test from `.agentv/targets.yaml` or `--targets` |
+| `target` | System under test by configured target `id` or inline target object |
 | `tags` | Optional promptfoo-style metadata map. Use `tags.experiment` as the run/result grouping label. |
 | `prompts` | Optional top-level prompt matrix. Entries can be strings, chat message arrays, files, or generated prompt functions. |
-| `targets` | Optional target matrix. Entries reference target labels or inline target objects. |
+| `targets` | Optional target matrix. Entries reference target ids or inline target objects. |
 | `evaluate_options.repeat` | Optional repeat policy as a positive integer shorthand or object with `count`, `strategy`, `early_exit`, and `cost_limit_usd` |
 | `timeout_seconds` | Optional per-case timeout |
-| `evaluate_options` | Optional evaluation runtime options such as `budget_usd` and `max_concurrency` |
+| `evaluate_options` | Optional evaluation runtime options such as `budget_usd` and `repeat` |
+| `execution.max_concurrency` | Optional general eval parallelism for this suite |
 | `threshold` | Optional suite quality threshold |
 | `workspace` | Suite-level task environment — inline object or string path to an external workspace file. Repo entries declare identity and checkout pins; acquisition is covered in [Workspace Architecture](/docs/guides/workspace-architecture/#repo-provenance-vs-acquisition). |
 | `extensions` | Promptfoo-style lifecycle hooks: `file://path/to/hooks.mjs:beforeAll`, `beforeEach`, `afterEach`, `afterAll`, plus the built-in `agentv:agent-rules`. Hooks run after `workspace.repos` materializes. |
@@ -163,10 +182,17 @@ prompts:
     prompt: "In one sentence, summarize {{ vars.topic }}."
 
 targets:
-  - label: local-mini
-    id: openai:gpt-5.4-mini
-  - label: local-codex
-    id: codex-auto-review
+  - id: local-mini
+    provider: openai
+    runtime: host
+    config:
+      model: gpt-5.4-mini
+  - id: local-codex
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "app-server"]
+      model: gpt-5-codex
 
 tests:
   - id: release-notes

@@ -11,6 +11,6 @@ describe('extractCacheConfig', () => {
 
   it('rejects authored execution blocks', () => {
     const suite: JsonObject = { execution: { target: 'default' } };
-    expect(() => extractCacheConfig(suite)).toThrow(/Top-level 'execution'/);
+    expect(() => extractCacheConfig(suite)).toThrow(/Top-level 'execution\.target'/);
   });
 });

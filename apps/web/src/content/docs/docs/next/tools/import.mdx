@@ -231,7 +231,7 @@ uv run scripts/import-huggingface.py \
   --output /tmp/swebench-eval/
 
 # Run with a coding agent target
-agentv eval /tmp/swebench-eval/*.EVAL.yaml --target codex
+agentv eval /tmp/swebench-eval/*.EVAL.yaml --target codex-cli
 ```
 
 The Docker workspace spins up the pre-built SWE-bench image, checks out the imported `commit`, runs the agent to apply a patch, then grades by running the test suite inside the container.

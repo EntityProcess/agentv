@@ -18,13 +18,16 @@ export type ProviderKind =
   | 'azure'
   | 'anthropic'
   | 'gemini'
-  | 'codex'
+  | 'codex-cli'
+  | 'codex-app-server'
+  | 'codex-sdk'
   | 'copilot-sdk'
   | 'copilot-cli'
   | 'copilot-log'
+  | 'pi-sdk'
   | 'pi-coding-agent'
   | 'pi-cli'
-  | 'claude'
+  | 'pi-rpc'
   | 'claude-cli'
   | 'claude-sdk'
   | 'cli'
@@ -44,12 +47,15 @@ export type ProviderKind =
  * (e.g., skill-trigger) to run without a grader_target or LLM API key.
  */
 export const AGENT_PROVIDER_KINDS: readonly ProviderKind[] = [
-  'codex',
+  'codex-cli',
+  'codex-app-server',
+  'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
+  'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
-  'claude',
+  'pi-rpc',
   'claude-cli',
   'claude-sdk',
   'vscode',
@@ -84,13 +90,16 @@ export const KNOWN_PROVIDERS: readonly ProviderKind[] = [
   'azure',
   'anthropic',
   'gemini',
-  'codex',
+  'codex-cli',
+  'codex-app-server',
+  'codex-sdk',
   'copilot-sdk',
   'copilot-cli',
   'copilot-log',
+  'pi-sdk',
   'pi-coding-agent',
   'pi-cli',
-  'claude',
+  'pi-rpc',
   'claude-cli',
   'claude-sdk',
   'cli',
@@ -233,6 +242,81 @@ export interface Message {
   readonly tokenUsage?: ProviderTokenUsage;
 }
 
+export type TargetExecutionErrorKind =
+  | 'target_task_failure'
+  | 'spawn_failure'
+  | 'nonzero_exit'
+  | 'signal_crash'
+  | 'timeout'
+  | 'cancelled'
+  | 'malformed_output'
+  | 'sandbox_infra_failure'
+  | 'agentv_orchestrator_failure';
+
+export interface TargetExecutionLogCapture {
+  readonly text: string;
+  readonly truncated: boolean;
+  readonly bytes: number;
+  readonly storedBytes: number;
+}
+
+export interface TargetExecutionCommand {
+  readonly argv?: readonly string[];
+  readonly commandLine?: string;
+  readonly cwd?: string;
+}
+
+export interface TargetExecutionArtifacts {
+  readonly targetExecutionPath?: string;
+  readonly stdoutPath?: string;
+  readonly stderrPath?: string;
+  readonly transcriptPath?: string;
+  readonly transcriptRawPath?: string;
+  readonly summaryPath?: string;
+  readonly metricsPath?: string;
+  readonly fileChangesPath?: string;
+  readonly outputPath?: string;
+  readonly answerPath?: string;
+}
+
+/**
+ * Provider-neutral target runtime envelope. Providers report target/process
+ * outcomes here so AgentV can serialize target crashes, timeouts, malformed
+ * protocol output, and partial transcripts without treating them as AgentV
+ * orchestrator failures. Provider-specific detail belongs in `details`.
+ */
+export interface TargetExecutionEnvelope {
+  readonly schemaVersion: 'agentv.target_execution.v1';
+  readonly status: 'success' | 'error';
+  readonly targetId: string;
+  readonly providerId: string;
+  readonly providerKind: string;
+  readonly runtimeMode?: 'host' | 'profile' | 'sandbox' | string;
+  readonly command?: TargetExecutionCommand;
+  readonly timeoutMs?: number;
+  readonly startedAt: string;
+  readonly endedAt: string;
+  readonly durationMs: number;
+  readonly exitCode?: number | null;
+  readonly signal?: string | null;
+  readonly errorKind?: TargetExecutionErrorKind;
+  readonly message?: string;
+  readonly logs?: {
+    readonly stdout?: TargetExecutionLogCapture;
+    readonly stderr?: TargetExecutionLogCapture;
+  };
+  readonly transcript?: {
+    readonly messages?: readonly Message[];
+    readonly finalOutput?: string;
+  };
+  readonly fileChanges?: {
+    readonly available: boolean;
+    readonly summary?: string;
+  };
+  readonly artifacts?: TargetExecutionArtifacts;
+  readonly details?: Record<string, unknown>;
+}
+
 /**
  * Token usage metrics reported by provider.
  */
@@ -261,6 +345,7 @@ export interface ProviderStepInfo {
 export interface ProviderResponse {
   readonly raw?: unknown;
   readonly usage?: JsonObject;
+  readonly targetExecution?: TargetExecutionEnvelope;
   /** Output messages from agent execution (primary source for tool trajectory) */
   readonly output?: readonly Message[];
   /** Token usage metrics (optional) */
@@ -350,6 +435,7 @@ export interface TargetDefinition {
   readonly label?: string | undefined;
   /** Promptfoo-shaped provider options bag. Provider settings are flattened at the boundary. */
   readonly config?: unknown | undefined;
+  readonly runtime?: unknown | undefined;
   readonly prompts?: unknown | undefined;
   readonly transform?: unknown | undefined;
   readonly delay?: number | unknown | undefined;
@@ -382,7 +468,7 @@ export interface TargetDefinition {
   readonly max_output_tokens?: number | unknown | undefined;
   // Codex fields
   readonly executable?: string | unknown | undefined;
-  readonly command?: string | unknown | undefined;
+  readonly command?: string | readonly string[] | unknown | undefined;
   readonly binary?: string | unknown | undefined;
   readonly args?: unknown | undefined;
   readonly arguments?: unknown | undefined;

@@ -106,6 +106,26 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.response).toBe('ok');
   });
 
+  it('uses clean target id as identity when label and legacy name are absent', () => {
+    const target = resolveTargetDefinition(
+      {
+        id: 'sandbox-cli',
+        provider: 'cli',
+        runtime: { mode: 'sandbox', image: 'agentv-target:sha256' },
+        config: {
+          command: 'agent run {PROMPT_FILE} {OUTPUT_FILE}',
+        },
+      } as never,
+      {},
+    );
+
+    expect(target.name).toBe('sandbox-cli');
+    expect(target.label).toBe('sandbox-cli');
+    expect(target.kind).toBe('cli');
+    expect(target.runtime).toEqual({ mode: 'sandbox', image: 'agentv-target:sha256' });
+    expect(target.config.command).toBe('agent run {PROMPT_FILE} {OUTPUT_FILE}');
+  });
+
   it('treats provider as backend kind while id remains a provider locator', () => {
     const target = resolveTargetDefinition(
       {
@@ -329,7 +349,7 @@ describe('resolveTargetDefinition', () => {
       resolveTargetDefinition(
         {
           name: 'claude-log-output-format',
-          provider: 'claude',
+          provider: 'claude-cli',
           log_output_format: 'summary',
         } as never,
         {},
@@ -356,7 +376,7 @@ describe('resolveTargetDefinition', () => {
     const summary = resolveTargetDefinition(
       {
         name: 'claude-summary-log',
-        provider: 'claude',
+        provider: 'claude-cli',
         stream_log: 'summary',
       },
       {},
@@ -834,7 +854,7 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/unsupported placeholder/i);
   });
 
-  it('resolves codex args using ${{ }} syntax', () => {
+  it('resolves codex-cli command argv using ${{ }} syntax', () => {
     const env = {
       CODEX_PROFILE: 'default',
       CODEX_MODEL: 'gpt-4',
@@ -842,26 +862,39 @@ describe('resolveTargetDefinition', () => {
 
     const target = resolveTargetDefinition(
       {
-        name: 'codex',
-        provider: 'codex',
-        args: ['--profile', '${{ CODEX_PROFILE }}', '--model', '${{ CODEX_MODEL }}'],
+        name: 'codex-cli',
+        provider: 'codex-cli',
+        command: [
+          'codex-personal',
+          '--profile',
+          '${{ CODEX_PROFILE }}',
+          '--model',
+          '${{ CODEX_MODEL }}',
+        ],
       },
       env,
     );
 
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
+    expect(target.kind).toBe('codex-cli');
+    if (target.kind !== 'codex-cli') {
+      throw new Error('expected codex-cli target');
     }
 
-    expect(target.config.args).toEqual(['--profile', 'default', '--model', 'gpt-4']);
+    expect(target.config.command).toEqual([
+      'codex-personal',
+      '--profile',
+      'default',
+      '--model',
+      'gpt-4',
+    ]);
   });
 
-  it('resolves codex reasoning_effort from env', () => {
+  it('resolves codex-cli reasoning_effort from env', () => {
     const target = resolveTargetDefinition(
       {
-        name: 'codex',
-        provider: 'codex',
+        name: 'codex-cli',
+        provider: 'codex-cli',
+        command: ['codex'],
         model: '${{ CODEX_MODEL }}',
         reasoning_effort: '${{ CODEX_REASONING_EFFORT }}',
       },
@@ -871,20 +904,21 @@ describe('resolveTargetDefinition', () => {
       },
     );
 
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
+    expect(target.kind).toBe('codex-cli');
+    if (target.kind !== 'codex-cli') {
+      throw new Error('expected codex-cli target');
     }
 
     expect(target.config.model).toBe('gpt-5.5');
     expect(target.config.modelReasoningEffort).toBe('low');
   });
 
-  it('resolves codex OpenAI-compatible endpoint settings', () => {
+  it('resolves codex-cli OpenAI-compatible endpoint settings', () => {
     const target = resolveTargetDefinition(
       {
         name: 'codex-local-openai',
-        provider: 'codex',
+        provider: 'codex-cli',
+        command: ['codex-eng'],
         model: '${{ CODEX_MODEL }}',
         reasoning_effort: 'medium',
         model_verbosity: 'medium',
@@ -901,12 +935,13 @@ describe('resolveTargetDefinition', () => {
       },
     );
 
-    expect(target.kind).toBe('codex');
-    if (target.kind !== 'codex') {
-      throw new Error('expected codex target');
+    expect(target.kind).toBe('codex-cli');
+    if (target.kind !== 'codex-cli') {
+      throw new Error('expected codex-cli target');
     }
 
     expect(target.config).toMatchObject({
+      command: ['codex-eng'],
       model: 'gpt-5.3-codex-spark',
       modelReasoningEffort: 'medium',
       modelVerbosity: 'medium',
@@ -918,12 +953,27 @@ describe('resolveTargetDefinition', () => {
     });
   });
 
+  it('resolves codex-sdk as an explicit SDK provider kind', () => {
+    const target = resolveTargetDefinition({
+      name: 'codex-sdk-target',
+      provider: 'codex-sdk',
+      model: 'gpt-5-codex',
+    });
+
+    expect(target.kind).toBe('codex-sdk');
+    if (target.kind !== 'codex-sdk') {
+      throw new Error('expected codex-sdk target');
+    }
+    expect(target.config.model).toBe('gpt-5-codex');
+  });
+
   it('rejects unsupported codex reasoning_effort values', () => {
     expect(() =>
       resolveTargetDefinition(
         {
           name: 'codex',
-          provider: 'codex',
+          provider: 'codex-cli',
+          command: ['codex'],
           reasoning_effort: 'tiny',
         },
         {},
@@ -931,24 +981,42 @@ describe('resolveTargetDefinition', () => {
     ).toThrow(/reasoning_effort must be one of: minimal, low, medium, high, xhigh/);
   });
 
-  it('does not canonicalize removed provider aliases to built-ins', () => {
-    const target = resolveTargetDefinition(
-      {
-        name: 'copilot-alias-removed',
-        provider: 'copilot',
-      },
-      {},
-    );
-
-    expect(target.kind).toBe('cli');
-    if (target.kind !== 'cli') {
-      throw new Error('expected discovered cli target');
-    }
-
-    expect(target.config.command).toBe('bun run .agentv/providers/copilot.ts {PROMPT}');
+  it('rejects bare codex provider alias', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'codex',
+          provider: 'codex',
+          command: ['codex'],
+        },
+        {},
+      ),
+    ).toThrow(/ambiguous provider 'codex'/);
   });
 
-  it('claude-cli defaults executable to claude', () => {
+  it('rejects ambiguous Claude and Copilot provider aliases', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'copilot-alias-removed',
+          provider: 'copilot',
+        },
+        {},
+      ),
+    ).toThrow(/ambiguous provider 'copilot'.*copilot-cli.*copilot-sdk/i);
+
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'claude-alias-removed',
+          provider: 'claude',
+        },
+        {},
+      ),
+    ).toThrow(/ambiguous provider 'claude'.*claude-cli.*claude-sdk/i);
+  });
+
+  it('claude-cli defaults command to claude', () => {
     const target = resolveTargetDefinition(
       {
         name: 'claude-default',
@@ -963,14 +1031,15 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('claude');
+    expect(target.config.command).toEqual(['claude']);
   });
 
-  it('claude-cli accepts custom executable', () => {
+  it('claude-cli accepts custom command argv', () => {
     const target = resolveTargetDefinition(
       {
         name: 'claude-custom',
         provider: 'claude-cli',
-        executable: 'claude-custom',
+        command: ['claude-custom', '--config', 'profile=eval'],
       },
       {},
     );
@@ -981,6 +1050,20 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('claude-custom');
+    expect(target.config.command).toEqual(['claude-custom', '--config', 'profile=eval']);
+  });
+
+  it('claude-cli rejects removed executable and args fields', () => {
+    expect(() =>
+      resolveTargetDefinition(
+        {
+          name: 'claude-custom',
+          provider: 'claude-cli',
+          executable: 'claude-custom',
+        } as never,
+        {},
+      ),
+    ).toThrow(/executable.*config.command/i);
   });
 
   it('resolves copilot-cli as its own provider kind', () => {
@@ -1000,6 +1083,7 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('copilot');
+    expect(target.config.command).toEqual(['copilot']);
     expect(target.config.model).toBe('claude-haiku-4.5');
     expect(target.config.timeoutMs).toBe(600000);
   });
@@ -1019,6 +1103,7 @@ describe('resolveTargetDefinition', () => {
     }
 
     expect(target.config.executable).toBe('copilot');
+    expect(target.config.command).toEqual(['copilot']);
   });
 
   it('resolves copilot-cli flat base_url/api_key as custom provider', () => {
@@ -1576,6 +1661,21 @@ describe('createProvider', () => {
     if (resolved.kind !== 'pi-coding-agent') throw new Error('expected pi-coding-agent');
     expect(resolved.config.model).toBe('gpt-5.5');
     expect(resolved.config.thinking).toBe('medium');
+  });
+
+  it('resolves pi-sdk as an explicit SDK provider kind', () => {
+    const resolved = resolveTargetDefinition(
+      {
+        name: 'pi-sdk-agent',
+        provider: 'pi-sdk',
+        model: 'gpt-5.5',
+      },
+      {},
+    );
+
+    expect(resolved.kind).toBe('pi-sdk');
+    if (resolved.kind !== 'pi-sdk') throw new Error('expected pi-sdk');
+    expect(resolved.config.model).toBe('gpt-5.5');
   });
 
   it('resolves pi-cli with azure subprovider and base_url', () => {

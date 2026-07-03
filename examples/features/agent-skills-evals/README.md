@@ -102,15 +102,15 @@ The `csv-analyzer` skill is included in this example under `.claude/skills/csv-a
 
 ```bash
 bun apps/cli/src/cli.ts eval multi-provider-skill-trigger.EVAL.yaml \
-  --target copilot --targets ../.agentv/targets.yaml
+  --target copilot-cli --targets ../.agentv/targets.yaml
 ```
 
 The `skill-trigger` grader automatically handles each provider's tool-call format:
 
 | Provider | Detection method |
 |----------|-----------------|
-| claude, claude-cli | `Skill` tool with `skill` input field |
-| copilot | `Using skill: <name>` tool prefix |
+| claude-cli | `Skill` tool with `skill` input field |
+| copilot-cli | `Using skill: <name>` tool prefix |
 | codex | `mcp:<server>/<name>` tool prefix |
 
 ## Copilot note

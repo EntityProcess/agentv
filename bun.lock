@@ -24,12 +24,9 @@
         "agentv": "./dist/cli.js",
       },
       "dependencies": {
-        "@anthropic-ai/claude-agent-sdk": "^0.2.49",
         "@earendil-works/pi-ai": "^0.74.0",
-        "@github/copilot-sdk": "^1.0.3",
         "@hono/node-server": "^1.19.11",
         "@inquirer/prompts": "^8.2.1",
-        "@openai/codex-sdk": "^0.136.0",
         "cmd-ts": "^0.14.3",
         "dotenv": "^16.4.5",
         "fast-glob": "^3.3.3",
@@ -46,10 +43,16 @@
         "execa": "^9.3.0",
       },
       "peerDependencies": {
+        "@anthropic-ai/claude-agent-sdk": "^0.2.88",
         "@earendil-works/pi-coding-agent": "^0.74.0",
+        "@github/copilot-sdk": "^1.0.3",
+        "@openai/codex-sdk": "^0.136.0",
       },
       "optionalPeers": [
+        "@anthropic-ai/claude-agent-sdk",
         "@earendil-works/pi-coding-agent",
+        "@github/copilot-sdk",
+        "@openai/codex-sdk",
       ],
     },
     "apps/dashboard": {
@@ -89,8 +92,6 @@
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.14.1",
         "@earendil-works/pi-ai": "^0.74.0",
-        "@github/copilot-sdk": "^1.0.3",
-        "@openai/codex-sdk": "^0.136.0",
         "fast-glob": "^3.3.3",
         "json5": "^2.2.3",
         "micromatch": "^4.0.8",
@@ -106,17 +107,21 @@
       "peerDependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.88",
         "@earendil-works/pi-coding-agent": "^0.74.0",
+        "@github/copilot-sdk": "^1.0.3",
+        "@openai/codex-sdk": "^0.136.0",
       },
       "optionalPeers": [
         "@anthropic-ai/claude-agent-sdk",
         "@earendil-works/pi-coding-agent",
+        "@github/copilot-sdk",
+        "@openai/codex-sdk",
       ],
     },
     "packages/sdk": {
       "name": "@agentv/sdk",
       "version": "5.0.0-next.1",
       "dependencies": {
-        "@agentv/core": "workspace:*",
+        "@agentv/core": "5.0.0-next.1",
         "yaml": "^2.8.3",
         "zod": "^3.23.8",
       },
@@ -132,8 +137,6 @@
     "@agentv/sdk": ["@agentv/sdk@workspace:packages/sdk"],
 
     "@agentv/web": ["@agentv/web@workspace:apps/web"],
-
-    "@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.2.49", "", { "optionalDependencies": { "@img/sharp-darwin-arm64": "^0.34.2", "@img/sharp-darwin-x64": "^0.34.2", "@img/sharp-linux-arm": "^0.34.2", "@img/sharp-linux-arm64": "^0.34.2", "@img/sharp-linux-x64": "^0.34.2", "@img/sharp-linuxmusl-arm64": "^0.34.2", "@img/sharp-linuxmusl-x64": "^0.34.2", "@img/sharp-win32-arm64": "^0.34.2", "@img/sharp-win32-x64": "^0.34.2" }, "peerDependencies": { "zod": "^4.0.0" } }, "sha512-3avi409dwuGkPEETpWa0gyJvRMr3b6LxeuW5/sAPCOtLD9WxH9fYltbA5wZoazxTw5mlbXmjDp7JqO1rlmpaIQ=="],
 
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.91.1", "", { "dependencies": { "json-schema-to-ts": "^3.1.1" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-LAmu761tSN9r66ixvmciswUj/ZC+1Q4iAfpedTfSVLeswRwnY3n2Nb6Tsk+cLPP28aLOPWeMgIuTuCcMC6W/iw=="],
 
@@ -355,26 +358,6 @@
 
     "@expressive-code/plugin-text-markers": ["@expressive-code/plugin-text-markers@0.41.6", "", { "dependencies": { "@expressive-code/core": "^0.41.6" } }, "sha512-PBFa1wGyYzRExMDzBmAWC6/kdfG1oLn4pLpBeTfIRrALPjcGA/59HP3e7q9J0Smk4pC7U+lWkA2LHR8FYV8U7Q=="],
 
-    "@github/copilot": ["@github/copilot@1.0.64-1", "", { "dependencies": { "detect-libc": "^2.1.2" }, "optionalDependencies": { "@github/copilot-darwin-arm64": "1.0.64-1", "@github/copilot-darwin-x64": "1.0.64-1", "@github/copilot-linux-arm64": "1.0.64-1", "@github/copilot-linux-x64": "1.0.64-1", "@github/copilot-linuxmusl-arm64": "1.0.64-1", "@github/copilot-linuxmusl-x64": "1.0.64-1", "@github/copilot-win32-arm64": "1.0.64-1", "@github/copilot-win32-x64": "1.0.64-1" }, "bin": { "copilot": "npm-loader.js" } }, "sha512-lojV4Cb7oT4VJnYPEKBRH8KI3W43Q4Lh0Pc+V6sej+xjPJkoqwm68sNKn73/p3wXPBSTVTzPeCm9WhIisgf1Jw=="],
-
-    "@github/copilot-darwin-arm64": ["@github/copilot-darwin-arm64@1.0.64-1", "", { "os": "darwin", "cpu": "arm64", "bin": { "copilot-darwin-arm64": "copilot" } }, "sha512-MQHZT9LhmCiq+ogO1E8cPCWrurZ6x+r9lPJfYUSnOyMO+EHbREpiJwOOChxtLHgL2/tKJSZdId2pg3tDgUlcsw=="],
-
-    "@github/copilot-darwin-x64": ["@github/copilot-darwin-x64@1.0.64-1", "", { "os": "darwin", "cpu": "x64", "bin": { "copilot-darwin-x64": "copilot" } }, "sha512-kOQY7CvI7He0eO3ObQAHePWdkNLWAOegCSzUqUmdcpa1SNVqbZ3GBMsQ7uAZQip2cQxnGZ7pS1v6tKQ0HJdkYw=="],
-
-    "@github/copilot-linux-arm64": ["@github/copilot-linux-arm64@1.0.64-1", "", { "os": "linux", "cpu": "arm64", "bin": { "copilot-linux-arm64": "copilot" } }, "sha512-hIfuO7Q+pWs0SKfIRYqT+CjMaupudnhp4RMS6XoJ5s/e33rvpj2tkTkXYlHJo1PMDI823vvbqgpEdr+KeewMwg=="],
-
-    "@github/copilot-linux-x64": ["@github/copilot-linux-x64@1.0.64-1", "", { "os": "linux", "cpu": "x64", "bin": { "copilot-linux-x64": "copilot" } }, "sha512-VHaE62pha0rDDvuNN3bd97gf0EZ+EJebstM1ejHsMYoPT1IOUkYEXlNfGGHY+GfUGYxAiy/+Uew4xw5mJyy/Sw=="],
-
-    "@github/copilot-linuxmusl-arm64": ["@github/copilot-linuxmusl-arm64@1.0.64-1", "", { "os": "linux", "cpu": "arm64", "bin": { "copilot-linuxmusl-arm64": "copilot" } }, "sha512-L/YrZPotRujAP0QERq+DlkR1SLr7abbTSz/56JqKKOqEdjKZPdQW1bUlhL/w1CZg1gXlTNUsNVyKz/fUfrEBgw=="],
-
-    "@github/copilot-linuxmusl-x64": ["@github/copilot-linuxmusl-x64@1.0.64-1", "", { "os": "linux", "cpu": "x64", "bin": { "copilot-linuxmusl-x64": "copilot" } }, "sha512-AGMjXqR128oyjiJhoI6Gd7JP5ddWkib+P4YH/JoHm05iNn23ZYl4tSc0XihHzeyMI1ix7Aacn8UINYB7lGOGOA=="],
-
-    "@github/copilot-sdk": ["@github/copilot-sdk@1.0.3", "", { "dependencies": { "@github/copilot": "^1.0.64-1", "vscode-jsonrpc": "^8.2.1", "zod": "^4.3.6" } }, "sha512-ujnH2QVw3+xvjgo9cbpY0wik4fNxAmdMDSFnxGScDSvRuK2vUCL2xWW4V2ANc9pWwRHPBpEpMuNJMtmydmLCIQ=="],
-
-    "@github/copilot-win32-arm64": ["@github/copilot-win32-arm64@1.0.64-1", "", { "os": "win32", "cpu": "arm64", "bin": { "copilot-win32-arm64": "copilot.exe" } }, "sha512-vvv+gnemi9WKaxF41zz7Xmq6a493n8Yjps5UFaOY6a3WR222kKXZXfOpeRvIYsDgnIPHGBHIj1TBOmnHQT4V4w=="],
-
-    "@github/copilot-win32-x64": ["@github/copilot-win32-x64@1.0.64-1", "", { "os": "win32", "cpu": "x64", "bin": { "copilot-win32-x64": "copilot.exe" } }, "sha512-mcHvD0fjGDuqr/YXzy8mKuDmah1F+qjPujxoFuGmabmTJZ33cSIJ3nq7RRvxZNIdp8YJ57NkbcW30WvIcOeJ3w=="],
-
     "@google/genai": ["@google/genai@1.51.0", "", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-vTZZF3CSimN7cn2zsLpW2p5WF0eZa5Gz69ITMPCNHpPrDlAstOfGifSfi0p/s9Z9400f7xJRkgvkQNrcM7pJ6w=="],
 
     "@hono/node-server": ["@hono/node-server@1.19.11", "", { "peerDependencies": { "hono": "^4" } }, "sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g=="],
@@ -486,22 +469,6 @@
     "@nodelib/fs.stat": ["@nodelib/fs.stat@2.0.5", "", {}, "sha512-RkhPPp2zrqDAQA/2jNhnztcPAlv64XdhIp7a7454A5ovI7Bukxgt7MX7udwAu3zg1DcpPU0rz3VV1SeaqvY4+A=="],
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
-
-    "@openai/codex": ["@openai/codex@0.136.0", "", { "optionalDependencies": { "@openai/codex-darwin-arm64": "npm:@openai/codex@0.136.0-darwin-arm64", "@openai/codex-darwin-x64": "npm:@openai/codex@0.136.0-darwin-x64", "@openai/codex-linux-arm64": "npm:@openai/codex@0.136.0-linux-arm64", "@openai/codex-linux-x64": "npm:@openai/codex@0.136.0-linux-x64", "@openai/codex-win32-arm64": "npm:@openai/codex@0.136.0-win32-arm64", "@openai/codex-win32-x64": "npm:@openai/codex@0.136.0-win32-x64" }, "bin": { "codex": "bin/codex.js" } }, "sha512-yu+diXznSOt8h296/CDOf2CNi55z1raA7aZ6sejjGy1QWPqn72YkBc2ByTzZG6G+1yiUqlm2G5Hid54hm3/kaA=="],
-
-    "@openai/codex-darwin-arm64": ["@openai/codex@0.136.0-darwin-arm64", "", { "os": "darwin", "cpu": "arm64" }, "sha512-9xnEohnUO9l6qtPSDbG0Y2UXX5mBZ9Lsn0VMgjtkREGfWL9TawNC1d7D1ERMSJtHTlVvieoaFyK9LHPLQCO9Vw=="],
-
-    "@openai/codex-darwin-x64": ["@openai/codex@0.136.0-darwin-x64", "", { "os": "darwin", "cpu": "x64" }, "sha512-HD9YLalPg0cv+CiZSmRWOl/8sefuJlxJcAmxyzb8mSaAMchD3V+2yS6M6E1Z2I6NX1irp4Polt1fPsjGdlHYhQ=="],
-
-    "@openai/codex-linux-arm64": ["@openai/codex@0.136.0-linux-arm64", "", { "os": "linux", "cpu": "arm64" }, "sha512-xDxTOk5ClEX/nzlQseqEoiubjIzVZfcWKn9nmKkHOLKknz+c7n6tbmw7eY4mwt29zTAAoFoecdRnbbsPZUHJ1g=="],
-
-    "@openai/codex-linux-x64": ["@openai/codex@0.136.0-linux-x64", "", { "os": "linux", "cpu": "x64" }, "sha512-Q6yZHRtUWD+27B5yAiOYyPAtM0BzW0Mm23YGaXDmfNEO5BYgHuUT80VDofUpjSyo2+ShYoZQUFVQAsNPKqd+Sw=="],
-
-    "@openai/codex-sdk": ["@openai/codex-sdk@0.136.0", "", { "dependencies": { "@openai/codex": "0.136.0" } }, "sha512-qrSirrVxrpVHR1YIQQ4WSouneaQrQrRAAlQWJYRflvMCcruFXorsmIPeIbDqFXOa8A9H9FHHyc+2U4tdbEGGiQ=="],
-
-    "@openai/codex-win32-arm64": ["@openai/codex@0.136.0-win32-arm64", "", { "os": "win32", "cpu": "arm64" }, "sha512-mAHZXfygQxBg1JjZ9+bAZfBXe6fg8MabJhuDYhj5z0VF++orKSFsC1lMiv6PksQN36ikQefgVjc9EOlaE4lt7g=="],
-
-    "@openai/codex-win32-x64": ["@openai/codex@0.136.0-win32-x64", "", { "os": "win32", "cpu": "x64" }, "sha512-zS6DAmvjdWeAB1CL9KTUMkwzTwfXtxHy8GAtePw2a93jIqawoG07fBxAXuyoHZ3QXQkwEgqBx1zEEh33gdIKAw=="],
 
     "@oslojs/encoding": ["@oslojs/encoding@1.1.0", "", {}, "sha512-70wQhgYmndg4GCPxPPxPGevRKqTIJ2Nh4OkiMWmDAVYsTQ+Ta7Sq+rPevXyXGdzr30/qZBnyOalCszoMxlyldQ=="],
 
@@ -1813,8 +1780,6 @@
 
     "vitefu": ["vitefu@1.1.1", "", { "peerDependencies": { "vite": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0" }, "optionalPeers": ["vite"] }, "sha512-B/Fegf3i8zh0yFbpzZ21amWzHmuNlLlmJT6n7bu5e+pCHUKQIfXSYokrqOBGEMMe9UG2sostKQF9mml/vYaWJQ=="],
 
-    "vscode-jsonrpc": ["vscode-jsonrpc@8.2.1", "", {}, "sha512-kdjOSJ2lLIn7r1rtrMbbNCHjyMPfRnowdKjBQ+mGq6NAW5QY2bEZC/khaC5OR8svbbjvLEaIXkOq45e2X9BIbQ=="],
-
     "web-namespaces": ["web-namespaces@2.0.1", "", {}, "sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ=="],
 
     "web-streams-polyfill": ["web-streams-polyfill@3.3.3", "", {}, "sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="],
@@ -1857,8 +1822,6 @@
 
     "zwitch": ["zwitch@2.0.4", "", {}, "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="],
 
-    "@anthropic-ai/claude-agent-sdk/zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
-
     "@astrojs/mdx/source-map": ["source-map@0.7.6", "", {}, "sha512-i5uvt8C3ikiWeNZSVZNWcfZPItFQOsYTUAOkcUPGd8DqDy1uOUikjt5dG+uRlwyvR108Fb9DOd4GvXfT0N2/uQ=="],
 
     "@aws-crypto/sha256-browser/@smithy/util-utf8": ["@smithy/util-utf8@2.3.0", "", { "dependencies": { "@smithy/util-buffer-from": "^2.2.0", "tslib": "^2.6.2" } }, "sha512-R8Rdn8Hy72KKcebgLiv8jQcQkXoLMOGGv5uI1/k0l+snqkOzQ1R0ChUBCxWMlBsFMekWjq0wRudIweFs7sKT5A=="],
@@ -1884,8 +1847,6 @@
     "@babel/template/@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
 
     "@babel/traverse/@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
-
-    "@github/copilot-sdk/zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 
     "@mdx-js/mdx/source-map": ["source-map@0.7.6", "", {}, "sha512-i5uvt8C3ikiWeNZSVZNWcfZPItFQOsYTUAOkcUPGd8DqDy1uOUikjt5dG+uRlwyvR108Fb9DOd4GvXfT0N2/uQ=="],
 

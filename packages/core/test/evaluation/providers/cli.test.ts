@@ -63,6 +63,9 @@ describe('CliProvider', () => {
     expect(runner).toHaveBeenCalledTimes(1);
     expect(extractLastAssistantContent(response.output)).toContain('Test response from CLI');
     expect(response.raw && (response.raw as Record<string, unknown>).command).toBeDefined();
+    expect(response.targetExecution?.status).toBe('success');
+    expect(response.targetExecution?.targetId).toBe('cli-target');
+    expect(response.targetExecution?.logs?.stdout?.text).toContain('agent-cli run');
     const command = runner.mock.calls[0]?.[0] as string;
     expect(command).toContain('--file');
     expect(command).toContain('Hello world');
@@ -107,7 +110,7 @@ describe('CliProvider', () => {
     expect(command).toContain('.prompt.txt');
   });
 
-  it('throws on non-zero exit codes with stderr context', async () => {
+  it('returns target execution envelopes for non-zero exit codes', async () => {
     const runner = mock(
       async (_command, _options): Promise<CommandRunResult> => ({
         stdout: '',
@@ -119,7 +122,12 @@ describe('CliProvider', () => {
 
     const provider = new CliProvider('cli-target', baseConfig, runner);
 
-    await expect(provider.invoke(baseRequest)).rejects.toThrow(/exit code 2/i);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('nonzero_exit');
+    expect(response.targetExecution?.exitCode).toBe(2);
+    expect((response.raw as { error?: string }).error).toMatch(/exit code 2/i);
   });
 
   it('treats timed out commands as failures', async () => {
@@ -135,7 +143,252 @@ describe('CliProvider', () => {
 
     const provider = new CliProvider('cli-target', baseConfig, runner);
 
-    await expect(provider.invoke(baseRequest)).rejects.toThrow(/timed out/i);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('timeout');
+    expect(response.targetExecution?.message).toMatch(/timed out/i);
+  });
+
+  it('returns target execution envelopes for spawn failures', async () => {
+    const runner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: '',
+        stderr: 'not found',
+        exitCode: null,
+        failed: true,
+        spawnErrorCode: 'ENOENT',
+      }),
+    );
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('spawn_failure');
+    expect(response.targetExecution?.logs?.stderr?.text).toBe('not found');
+  });
+
+  it('returns target execution envelopes for signal crashes', async () => {
+    const runner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: 'partial stdout',
+        stderr: 'partial stderr',
+        exitCode: null,
+        failed: true,
+        signal: 'SIGSEGV',
+      }),
+    );
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('signal_crash');
+    expect(response.targetExecution?.signal).toBe('SIGSEGV');
+    expect(response.targetExecution?.logs?.stdout?.text).toBe('partial stdout');
+  });
+
+  it('returns target execution envelopes for cancellation', async () => {
+    const controller = new AbortController();
+    const runner = mock(async (_command, _options): Promise<CommandRunResult> => {
+      controller.abort();
+      return {
+        stdout: 'partial stdout before cancel',
+        stderr: '',
+        exitCode: null,
+        failed: true,
+        signal: 'SIGTERM',
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke({ ...baseRequest, signal: controller.signal });
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('cancelled');
+    expect(response.targetExecution?.logs?.stdout?.text).toContain('partial stdout');
+  });
+
+  it('returns malformed-output envelopes when the output file is missing', async () => {
+    const runner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: '{"event":"partial"}\n',
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      }),
+    );
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('malformed_output');
+    expect(response.targetExecution?.logs?.stdout?.text).toContain('partial');
+  });
+
+  it('returns target task failure envelopes for CLI-reported errors', async () => {
+    const runner = mock(async (command: string): Promise<CommandRunResult> => {
+      const match = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        await writeFile(
+          outputFilePath,
+          JSON.stringify({ text: 'partial answer', error: 'task failed' }),
+          'utf-8',
+        );
+        createdFiles.push(outputFilePath);
+      }
+
+      return {
+        stdout: 'structured event before failure',
+        stderr: '',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider('cli-target', baseConfig, runner);
+    const response = await provider.invoke(baseRequest);
+
+    expect(extractLastAssistantContent(response.output)).toBe('partial answer');
+    expect(response.targetExecution?.status).toBe('error');
+    expect(response.targetExecution?.errorKind).toBe('target_task_failure');
+    expect(response.targetExecution?.message).toBe('task failed');
+  });
+
+  it('runs sandbox runtime commands without inheriting host env', async () => {
+    process.env.AGENTV_SANDBOX_SHOULD_NOT_LEAK = 'host-secret';
+    let capturedRuntime: Record<string, unknown> | undefined;
+    const sandboxRunner = mock(async (command: string, options): Promise<CommandRunResult> => {
+      capturedRuntime = options.runtime as Record<string, unknown>;
+      const match = command.match(/agentv-case-1-\d+-\w+\.json/);
+      if (match) {
+        const outputFilePath = path.join(os.tmpdir(), match[0]);
+        await writeFile(outputFilePath, JSON.stringify({ text: 'sandbox response' }), 'utf-8');
+        createdFiles.push(outputFilePath);
+      }
+      return {
+        stdout: 'sandbox stdout',
+        stderr: 'sandbox stderr',
+        exitCode: 0,
+        failed: false,
+      };
+    });
+
+    const provider = new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      {
+        mode: 'sandbox',
+        image: 'agentv-target:sha256',
+        env: { SAFE_ENV: '1' },
+        secrets: { OPENAI_API_KEY: 'explicit-key' },
+        mounts: [{ source: '/host/workspace', target: '/workspace', access: 'rw' }],
+      },
+      sandboxRunner,
+    );
+
+    const response = await provider.invoke(baseRequest);
+
+    expect(sandboxRunner).toHaveBeenCalledTimes(1);
+    expect(capturedRuntime?.env).toEqual({ SAFE_ENV: '1' });
+    expect(capturedRuntime?.secrets).toEqual({ OPENAI_API_KEY: 'explicit-key' });
+    expect(JSON.stringify(capturedRuntime)).not.toContain('host-secret');
+    expect(response.targetExecution?.runtimeMode).toBe('sandbox');
+    expect(response.targetExecution?.status).toBe('success');
+    expect(response.targetExecution?.logs?.stdout?.text).toBe('sandbox stdout');
+    expect(response.targetExecution?.logs?.stderr?.text).toBe('sandbox stderr');
+    expect(extractLastAssistantContent(response.output)).toBe('sandbox response');
+    process.env.AGENTV_SANDBOX_SHOULD_NOT_LEAK = undefined;
+  });
+
+  it('distinguishes sandbox infra failure from target nonzero exit', async () => {
+    const infraRunner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: '',
+        stderr: 'docker daemon unavailable',
+        exitCode: 125,
+        failed: true,
+        sandboxInfraFailure: true,
+      }),
+    );
+    const targetFailureRunner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: 'target stdout',
+        stderr: 'target failed',
+        exitCode: 2,
+        failed: true,
+      }),
+    );
+    const runtime = { mode: 'sandbox' as const, image: 'agentv-target:sha256' };
+
+    const infraResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      infraRunner,
+    ).invoke(baseRequest);
+    const targetResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      targetFailureRunner,
+    ).invoke(baseRequest);
+
+    expect(infraResponse.targetExecution?.runtimeMode).toBe('sandbox');
+    expect(infraResponse.targetExecution?.errorKind).toBe('sandbox_infra_failure');
+    expect(targetResponse.targetExecution?.runtimeMode).toBe('sandbox');
+    expect(targetResponse.targetExecution?.errorKind).toBe('nonzero_exit');
+    expect(targetResponse.targetExecution?.logs?.stdout?.text).toBe('target stdout');
+  });
+
+  it('returns timeout and cancellation envelopes for sandbox work', async () => {
+    const timeoutRunner = mock(
+      async (_command, _options): Promise<CommandRunResult> => ({
+        stdout: 'partial transcript',
+        stderr: '',
+        exitCode: null,
+        failed: true,
+        timedOut: true,
+      }),
+    );
+    const controller = new AbortController();
+    const cancelRunner = mock(async (_command, _options): Promise<CommandRunResult> => {
+      controller.abort();
+      return {
+        stdout: 'cancel partial',
+        stderr: '',
+        exitCode: null,
+        failed: true,
+        signal: 'SIGTERM',
+      };
+    });
+    const runtime = { mode: 'sandbox' as const, image: 'agentv-target:sha256' };
+
+    const timeoutResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      timeoutRunner,
+    ).invoke(baseRequest);
+    const cancelResponse = await new CliProvider(
+      'cli-target',
+      baseConfig,
+      undefined,
+      runtime,
+      cancelRunner,
+    ).invoke({ ...baseRequest, signal: controller.signal });
+
+    expect(timeoutResponse.targetExecution?.errorKind).toBe('timeout');
+    expect(timeoutResponse.targetExecution?.logs?.stdout?.text).toBe('partial transcript');
+    expect(cancelResponse.targetExecution?.errorKind).toBe('cancelled');
+    expect(cancelResponse.targetExecution?.logs?.stdout?.text).toBe('cancel partial');
   });
 
   it('uses request.cwd as working directory override in invoke', async () => {
@@ -295,6 +548,7 @@ describe('CliProvider', () => {
     const errorContent = extractLastAssistantContent(responses[1]?.output);
     expect(errorContent).toMatch(/Batch output missing id 'case-2'/);
     expect(responses[1]?.raw?.error).toBe("Batch output missing id 'case-2'");
+    expect(responses[1]?.targetExecution?.errorKind).toBe('malformed_output');
   });
 
   it('parses output from single case JSON output', async () => {

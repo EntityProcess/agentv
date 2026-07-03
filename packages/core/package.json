@@ -41,9 +41,7 @@
   "files": ["dist", "README.md"],
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
-    "@github/copilot-sdk": "^1.0.3",
     "@earendil-works/pi-ai": "^0.74.0",
-    "@openai/codex-sdk": "^0.136.0",
     "fast-glob": "^3.3.3",
     "json5": "^2.2.3",
     "micromatch": "^4.0.8",
@@ -53,10 +51,18 @@
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.88",
+    "@github/copilot-sdk": "^1.0.3",
+    "@openai/codex-sdk": "^0.136.0",
     "@earendil-works/pi-coding-agent": "^0.74.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
+    "@github/copilot-sdk": {
+      "optional": true
+    },
+    "@openai/codex-sdk": {
       "optional": true
     },
     "@earendil-works/pi-coding-agent": {

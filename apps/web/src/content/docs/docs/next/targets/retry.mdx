@@ -13,16 +13,18 @@ Add retry fields to any target:
 
 ```yaml
 targets:
-  - label: azure-base
+  - id: azure-base
     provider: azure
-    endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: ${{ AZURE_OPENAI_API_KEY }}
-    model: ${{ AZURE_DEPLOYMENT_NAME }}
-    max_retries: 5
-    retry_initial_delay_ms: 2000
-    retry_max_delay_ms: 120000
-    retry_backoff_factor: 2
-    retry_status_codes: [500, 408, 429, 502, 503, 504]
+    runtime: host
+    config:
+      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
+      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      max_retries: 5
+      retry_initial_delay_ms: 2000
+      retry_max_delay_ms: 120000
+      retry_backoff_factor: 2
+      retry_status_codes: [500, 408, 429, 502, 503, 504]
 ```
 
 ## Fields

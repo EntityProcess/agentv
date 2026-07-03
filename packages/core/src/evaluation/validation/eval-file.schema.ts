@@ -648,6 +648,45 @@ const TestsSchema = z.union([
   z.string().min(1),
 ]);
 
+const ConfigRuntimeSchema = z.union([
+  z.enum(['host', 'profile', 'sandbox']),
+  z
+    .object({
+      mode: z.enum(['host', 'profile', 'sandbox']),
+    })
+    .passthrough(),
+]);
+
+const ConfigTargetSchema = z
+  .object({
+    id: z.string().min(1),
+    provider: z.string().min(1),
+    runtime: ConfigRuntimeSchema,
+    config: JsonRecordSchema.optional(),
+  })
+  .strict();
+
+const ConfigGraderSchema = z
+  .object({
+    id: z.string().min(1),
+    provider: z.string().min(1),
+    config: JsonRecordSchema.optional(),
+  })
+  .strict();
+
+const ConfigDefaultsSchema = z
+  .object({
+    target: z.string().min(1).optional(),
+    grader: z.string().min(1).optional(),
+  })
+  .strict();
+
+const ConfigExecutionSchema = z
+  .object({
+    max_concurrency: z.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
 const ScenarioConfigSchema = z
   .object({
     vars: JsonObjectSchema.optional(),
@@ -710,6 +749,9 @@ export const EvalFileSchema: z.ZodType = z
     imports: ImportsSchema.optional(),
     // Tests (inline raw cases, legacy include entries, or external raw-case path)
     tests: TestsSchema.optional(),
+    // Shared composable config graph fields
+    graders: z.union([z.array(ConfigGraderSchema), z.string().min(1)]).optional(),
+    defaults: z.union([ConfigDefaultsSchema, z.string().min(1)]).optional(),
     // Deprecated aliases
     eval_cases: TestsSchema.optional(),
     // Target
@@ -735,7 +777,7 @@ export const EvalFileSchema: z.ZodType = z
     extensions: z.array(ExtensionSchema).optional(),
     on_run_complete: z.never().optional(),
     policy: z.never().optional(),
-    execution: z.never().optional(),
+    execution: z.union([ConfigExecutionSchema, z.string().min(1)]).optional(),
     // Suite-level assert entries
     assert: z.array(AssertionItemSchema).optional(),
     // Suite-level content preprocessors shared by evaluators
