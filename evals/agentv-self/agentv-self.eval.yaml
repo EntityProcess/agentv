@@ -30,7 +30,7 @@ tests:
       workflow, verification, and conventions. Include the top-level title from
       each file after the path.
       Reply with one path and title per line and nothing else.
-    assertions:
+    assert:
       - name: required-guidance-reads
         type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]
@@ -48,8 +48,8 @@ tests:
         value: .agents/verification.md
       - type: contains
         value: .agents/conventions.md
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - Returns the detailed `.agents/*.md` paths rather than treating `AGENTS.md` as the full instruction body
           - Uses relative repo paths, not prose summaries
 
@@ -58,7 +58,7 @@ tests:
     input: |
       What two exact shell commands must start every repo change in this repository?
       Reply with one command per line and nothing else.
-    assertions:
+    assert:
       - name: required-guidance-reads
         type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]
@@ -79,7 +79,7 @@ tests:
       What key naming convention should anything that crosses a process boundary use
       in this repository?
       Reply with just the convention name.
-    assertions:
+    assert:
       - name: required-guidance-reads
         type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]

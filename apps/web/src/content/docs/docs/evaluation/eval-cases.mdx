@@ -15,7 +15,7 @@ tests:
     input: What is 15 + 27?
 
     expected_output: "42"
-    assertions:
+    assert:
       - The answer is exactly 42
 ```
 
@@ -27,7 +27,7 @@ tests:
 | `input` | Yes | Input sent to the target (string, object, or message array) |
 | `criteria` | No | Optional shared grader guidance for the case |
 | `expected_output` | No | Passive gold/reference data available to graders (string, object, or message array) |
-| `assertions` / `assert` | Yes | Per-test graders; plain strings become `llm-rubric` rubric checks |
+| `assert` | Yes | Per-test graders; plain strings become `llm-rubric` rubric checks |
 | `execution` | No | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | No | Per-case workspace config (overrides suite-level) |
 | `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
@@ -111,17 +111,17 @@ tests:
   - id: complex-case
     input: Explain quicksort algorithm
 
-    assertions:
+    assert:
       - Provides a detailed explanation
       - name: depth_check
         type: llm-grader
         prompt: ./graders/depth.md
 ```
 
-Per-case `assertions` graders are **merged** with root-level `assertions` graders — test-specific graders run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
+Per-case `assert` graders are **merged** with root-level `assert` graders: test-specific graders run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
 
 ```yaml
-assertions:
+assert:
   - name: latency_check
     type: latency
     threshold: 5000
@@ -129,7 +129,7 @@ assertions:
 tests:
   - id: normal-case
     input: What is 2+2?
-    assertions:
+    assert:
       - Returns the correct answer
     # Gets latency_check from root-level assertions
 
@@ -137,7 +137,7 @@ tests:
     input: Handle this edge case
     execution:
       skip_defaults: true
-    assertions:
+    assert:
       - Handles the edge case
       - name: custom_eval
         type: llm-grader
@@ -157,7 +157,7 @@ workspace:
 tests:
   - id: case-1
     input: Do something
-    assertions:
+    assert:
       - Completes the requested task
     workspace:
       hooks:
@@ -166,7 +166,7 @@ tests:
 
   - id: case-2
     input: Do something else
-    assertions:
+    assert:
       - Completes the requested task
     # Inherits suite-level hooks.before_all
 ```
@@ -211,20 +211,20 @@ workspace:
 For benchmark task packs with source pins, patches, generated rows, and
 supporting files, see [Benchmark Provenance](/docs/guides/benchmark-provenance/).
 
-## Per-Test Assertions
+## Per-Test Assert
 
-The `assertions` field defines graders directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
+The `assert` field defines graders directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
 
 ### Rubric Shorthand
 
-For semantic or agent-behavior checks, prefer plain strings in `assertions`.
+For semantic or agent-behavior checks, prefer plain strings in `assert`.
 AgentV groups the strings into a rubric grader automatically:
 
 ```yaml
 tests:
   - id: bug-fix-review
     input: Review this failing parser implementation.
-    assertions:
+    assert:
       - Identifies the root cause of the parser failure
       - Proposes a concrete code change
       - Adds or updates a regression test
@@ -261,7 +261,7 @@ Multi-word assertion types use kebab-case (`contains-all`, `is-json`, etc.).
 tests:
   - id: json-api
     input: Return the system status as JSON
-    assertions:
+    assert:
       - type: is-json
       - type: contains
         value: '"status"'
@@ -275,13 +275,13 @@ Use `contains-all` or `contains-any` to check multiple values in a single assert
 tests:
   - id: required-fields
     input: "Confirm details: name is Alice, email is alice@example.com"
-    assertions:
+    assert:
       - type: contains-all
         value: ["Alice", "alice@example.com"]
 
   - id: greeting-variant
     input: "Greet the user warmly."
-    assertions:
+    assert:
       - type: contains-any
         value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
 ```
@@ -302,7 +302,7 @@ All deterministic assertions support these optional fields:
 tests:
   - id: no-competitors
     input: "Describe our product advantages."
-    assertions:
+    assert:
       - Response must not mention any competitor
       - type: contains-any
         value: ["CompetitorA", "CompetitorB", "CompetitorC"]
@@ -310,7 +310,7 @@ tests:
 
   - id: required-inputs
     input: "Process customs entry for country BE."
-    assertions:
+    assert:
       - Agent asks for missing rule codes
       - name: asks-for-rule-codes
         type: icontains-any
@@ -338,7 +338,7 @@ tests:
     expected_output:
       - role: assistant
         content: "DENIED"
-    assertions:
+    assert:
       - type: contains
         value: "DENIED"
         required: true
@@ -354,7 +354,7 @@ tests:
 
 ### Required Gates
 
-Any grader in `assertions` can be marked as `required`. When a required grader fails, the overall test verdict is `fail` regardless of the aggregate score.
+Any grader in `assert` can be marked as `required`. When a required grader fails, the overall test verdict is `fail` regardless of the aggregate score.
 
 | Value | Behavior |
 |-------|----------|
@@ -362,7 +362,7 @@ Any grader in `assertions` can be marked as `required`. When a required grader f
 | `required: true` + `min_score: 0.6` | Must score >= 0.6 to pass (custom threshold between 0 and 1) |
 
 ```yaml
-assertions:
+assert:
   - type: contains
     value: "DENIED"
     required: true          # must pass (>= 0.8)
@@ -377,21 +377,21 @@ assertions:
 
 Required gates are evaluated after all graders run. If any required grader falls below its threshold, the verdict is forced to `fail`.
 
-### Assertions Merge Behavior
+### Assert Merge Behavior
 
-`assertions` can be defined at both suite and test levels:
+`assert` can be defined at both suite and test levels:
 
-- Per-test `assertions` graders run first.
-- Suite-level `assertions` graders are appended automatically.
+- Per-test `assert` graders run first.
+- Suite-level `assert` graders are appended automatically.
 - Set `execution.skip_defaults: true` on a test to skip suite-level defaults.
 
-## How Reference Fields and `assertions` Interact
+## How Reference Fields and `assert` Interact
 
 `expected_output` is reference data, not a grader. It is stored on the case and
 provided to graders that know how to use it, but it does not create an LLM
 grading call by itself. A grader can use that data as an exact target, a
 semantic reference, a structured comparison object, or supporting context. Put
-the grading contract in `assertions` or `assert`.
+the grading contract in `assert`.
 
 Plain assertion strings are the default shape for semantic checks:
 
@@ -399,7 +399,7 @@ Plain assertion strings are the default shape for semantic checks:
 tests:
   - id: simple-eval
     input: "Debug this function..."
-    assertions:
+    assert:
       - Assistant correctly explains the bug and proposes a fix
 ```
 
@@ -414,11 +414,11 @@ preprocessors:
 tests:
   - id: spreadsheet-eval
     input: Generate the spreadsheet report
-    assertions:
+    assert:
       - Output includes the revenue rows
 ```
 
-When `assertions` is defined, only the declared graders run. No implicit grader is
+When `assert` is defined, only the declared graders run. No implicit grader is
 added because `expected_output` exists. Declared graders such as plain rubric
 strings, `llm-grader`, `script`, or `llm-rubric` receive the case context, including
 `expected_output`, as input automatically.
@@ -431,13 +431,13 @@ tests:
   - id: deterministic-reference
     input: "What is 2 + 2?"
     expected_output: "4"        # reference data only
-    assertions:
+    assert:
       - type: contains          # only this grader runs
         value: "4"
 ```
 
 For contract-style evals where assertion strings express every semantic check,
-keep those checks in `assertions`:
+keep those checks in `assert`:
 
 ```yaml
 tests:
@@ -448,7 +448,7 @@ tests:
     expected_output: |
       The durable repo change is to update .agents/verification.md with the
       reusable verification workflow lessons.
-    assertions:
+    assert:
       - The answer recommends updating .agents/verification.md rather than leaving the learning only in PR comments or private evidence.
       - The answer avoids preserving one-off observations as durable guidance.
 ```
@@ -459,7 +459,7 @@ To combine deterministic checks with semantic checks, add both explicitly:
 tests:
   - id: mixed-eval
     input: "Debug this function..."
-    assertions:
+    assert:
       - Explains why the bug happens
       - type: contains
         value: "fix"
@@ -475,7 +475,7 @@ preprocessors:
 tests:
   - id: mixed-eval
     input: "Debug this function..."
-    assertions:
+    assert:
       - Response is helpful and mentions the fix
       - type: llm-grader        # use explicit form for custom preprocessors
         preprocessors:
@@ -496,11 +496,11 @@ tests:
       language: python
       difficulty: medium
     input: Write a function to sort a list
-    assertions:
+    assert:
       - Generates valid Python
 ```
 
 `metadata` is passed to workspace lifecycle hooks as `case_metadata`, preserved
 in result records, and available to in-process custom assertions. AgentV does
 not interpret arbitrary metadata keys itself; use `workspace`, `execution`,
-`input`, `expected_output`, and `assertions` for operational behavior.
+`input`, `expected_output`, and `assert` for operational behavior.

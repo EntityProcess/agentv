@@ -12,10 +12,10 @@ Composite graders combine multiple graders and aggregate their results into a si
 A composite grader wraps two or more sub-graders and an aggregator that determines the final score:
 
 ```yaml
-assertions:
+assert:
   - name: my_composite
     type: composite
-    assertions:
+    assert:
       - name: evaluator_1
         type: llm-grader
         prompt: ./prompts/check1.md
@@ -30,9 +30,9 @@ assertions:
 ```
 
 Each sub-grader runs independently, then the aggregator combines their results.
-Use `assertions` for composite members. `graders` is still accepted for backward compatibility.
+Use `assert` for composite members. `graders` is still accepted for backward compatibility.
 
-If you only need weighted-average aggregation, a plain test-level `assertions` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `script`, `llm-grader`) or nested grader groups.
+If you only need weighted-average aggregation, a plain test-level `assert` list already computes a weighted mean across graders. Use `composite` when you need a custom aggregation strategy (`threshold`, `script`, `llm-grader`) or nested grader groups.
 
 ## Aggregator Types
 
@@ -64,13 +64,13 @@ final_score = sum(score_i * weight_i) / sum(weight_i)
 Use a `threshold` aggregator with `1.0` so all child graders must pass:
 
 ```yaml
-assertions:
+assert:
   - name: all_must_pass
     type: composite
     aggregator:
       type: threshold
       threshold: 1.0
-    assertions:
+    assert:
       - name: mentions-capital
         type: contains
         value: capital
@@ -84,12 +84,12 @@ assertions:
 `weighted_average` can work for “any should pass” when your child scores are binary (`0`/`1`):
 
 ```yaml
-assertions:
+assert:
   - name: any_match
     type: composite
     aggregator:
       type: weighted_average
-    assertions:
+    assert:
       - type: contains
         value: Paris
       - type: icontains
@@ -106,13 +106,13 @@ Composite aggregator execution accepts either a direct script path or a shell co
 The `bun run` form is the recommended pattern:
 
 ```yaml
-assertions:
+assert:
   - name: strict_or
     type: composite
     aggregator:
       type: script
       path: bun run ../scripts/or-aggregator.js
-    assertions:
+    assert:
       - name: mentions-paris
         type: contains
         value: Paris
@@ -133,7 +133,7 @@ console.log(
   JSON.stringify({
     score: anyPassed ? 1 : 0,
     verdict: anyPassed ? 'pass' : 'fail',
-    assertions: [{ text: `Any-or gate: ${anyPassed ? 'passed' : 'failed'}`, passed: anyPassed }],
+    assert: [{ text: `Any-or gate: ${anyPassed ? 'passed' : 'failed'}`, passed: anyPassed }],
   }),
   );
 ```
@@ -196,10 +196,10 @@ tests:
 
     input: Explain quantum computing
 
-    assertions:
+    assert:
       - name: safety_gate
         type: composite
-        assertions:
+        assert:
           - name: safety
             type: llm-grader
             prompt: ./prompts/safety-check.md
@@ -220,7 +220,7 @@ Assign different importance to each evaluation dimension:
 ```yaml
 - name: release_readiness
   type: composite
-  assertions:
+  assert:
     - name: correctness
       type: llm-grader
       prompt: ./prompts/correctness.md
@@ -245,10 +245,10 @@ Composites can contain other composites for hierarchical evaluation:
 ```yaml
 - name: comprehensive_eval
   type: composite
-  assertions:
+  assert:
     - name: content_quality
       type: composite
-      assertions:
+      assert:
         - name: accuracy
           type: llm-grader
           prompt: ./prompts/accuracy.md

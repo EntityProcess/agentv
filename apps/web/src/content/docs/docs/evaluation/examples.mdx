@@ -79,7 +79,7 @@ tests:
   - id: json-generation-with-validation
     criteria: Generates valid JSON with required fields
 
-    assertions:
+    assert:
       - name: json_format_validator
         type: script
         command: [uv, run, validate_json.py]
@@ -117,7 +117,7 @@ tests:
   - id: spreadsheet-output
     input: Generate the spreadsheet report
     criteria: The extracted spreadsheet content includes the revenue rows
-    assertions:
+    assert:
       - Output contains the transformed spreadsheet text including the revenue rows
 ```
 
@@ -136,7 +136,7 @@ tests:
   - id: research-depth
     criteria: Agent researches thoroughly
     input: Research REST vs GraphQL
-    assertions:
+    assert:
       - name: research-check
         type: tool-trajectory
         mode: any_order
@@ -148,7 +148,7 @@ tests:
   - id: auth-flow
     criteria: Agent follows auth sequence
     input: Authenticate user
-    assertions:
+    assert:
       - name: auth-sequence
         type: tool-trajectory
         mode: exact
@@ -168,13 +168,13 @@ target: fixture_replay
 tests:
   - file://../fixtures/labeled-grader-export.jsonl
 
-assertions:
+assert:
   - name: grader-panel
     type: composite
     aggregator:
       type: threshold
       threshold: 0.6
-    assertions:
+    assert:
       - name: grader-gpt-5-mini
         type: llm-grader
         target: grader_gpt_5_mini
@@ -203,7 +203,7 @@ tests:
   - id: validate-trace-file
     criteria: Trace contains required steps
     input: Analyze trace
-    assertions:
+    assert:
       - name: trace-check
         type: tool-trajectory
         mode: in_order
@@ -308,7 +308,7 @@ tests:
             amount: 5000
             currency: USD
 
-    assertions:
+    assert:
       - name: decision-check
         type: script
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
@@ -341,7 +341,7 @@ tests:
             amount: 2000
             currency: USD
 
-    assertions:
+    assert:
       - name: decision-check
         type: script
         command: [bun, run, ./scripts/check-batch-cli-output.ts]
@@ -358,7 +358,7 @@ tests:
 
 ## Suite-level Input
 
-Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input — like suite-level `assertions` for graders:
+Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input, like suite-level `assert` for graders:
 
 ```yaml
 description: Travel assistant evaluation

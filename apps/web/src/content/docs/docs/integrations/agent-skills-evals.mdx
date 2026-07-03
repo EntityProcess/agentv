@@ -156,7 +156,7 @@ tests:
       - "evals/files/sales.csv"
     # Promoted from evals.json expected_output, assertions[], and expectations[]
     # Replace with type: is-json, contains, or regex for deterministic checks
-    assertions:
+    assert:
       - name: agent-skills-criteria
         type: llm-rubric
         value:
@@ -211,7 +211,7 @@ tests:
       A customer says their order #12345 hasn't arrived after 2 weeks. Help them.
     criteria: |
       An empathetic response that offers to track the order and provides next steps.
-    assertions:
+    assert:
       - name: agent-skills-criteria
         type: llm-rubric
         value:

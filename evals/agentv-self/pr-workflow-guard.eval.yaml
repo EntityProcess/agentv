@@ -6,9 +6,7 @@ description: >-
 
 tags: [agent, guidance, workflow, pr]
 
-execution:
-  fail_on_error: true
-  threshold: 0.8
+threshold: 0.8
 
 workspace:
   hooks:
@@ -50,7 +48,7 @@ tests:
 
       Reply with a concise PR workflow decision. Include the instruction files
       you used, the safe merge path for #9001, and what happens to #9002.
-    assertions:
+    assert:
       - name: required-guidance-reads
         type: script
         command: ["bun", "run", "./graders/required-file-reads.ts"]

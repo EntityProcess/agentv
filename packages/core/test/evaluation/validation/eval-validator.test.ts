@@ -2082,7 +2082,7 @@ tests:
   });
 
   describe('unknown field detection', () => {
-    it('warns on unknown test-level fields', async () => {
+    it('errors on unknown test-level fields', async () => {
       const filePath = path.join(tempDir, 'unknown-test-field.yaml');
       await writeFile(
         filePath,
@@ -2098,11 +2098,11 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'asserts'"))).toBe(true);
+      const errors = result.errors.filter((e) => e.severity === 'error');
+      expect(errors.some((e) => e.message.includes("Unknown test field 'asserts'"))).toBe(true);
     });
 
-    it('warns on unknown top-level fields', async () => {
+    it('errors on unknown top-level fields', async () => {
       const filePath = path.join(tempDir, 'unknown-top-field.yaml');
       await writeFile(
         filePath,
@@ -2116,8 +2116,10 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const warnings = result.errors.filter((e) => e.severity === 'warning');
-      expect(warnings.some((e) => e.message.includes("Unknown field 'provider'"))).toBe(true);
+      const errors = result.errors.filter((e) => e.severity === 'error');
+      expect(errors.some((e) => e.message.includes("Unknown top-level field 'provider'"))).toBe(
+        true,
+      );
     });
 
     it('does not warn on known test-level fields', async () => {
@@ -2167,7 +2169,7 @@ tests:
       expect(unknownWarnings).toHaveLength(0);
     });
 
-    it('warns on multiple unknown fields in one test', async () => {
+    it('errors on multiple unknown fields in one test', async () => {
       const filePath = path.join(tempDir, 'multiple-unknown-fields.yaml');
       await writeFile(
         filePath,
@@ -2181,12 +2183,12 @@ tests:
 
       const result = await validateEvalFile(filePath);
 
-      const unknownWarnings = result.errors.filter(
-        (e) => e.severity === 'warning' && e.message.includes('Unknown field'),
+      const unknownErrors = result.errors.filter(
+        (e) => e.severity === 'error' && e.message.includes('Unknown test field'),
       );
-      expect(unknownWarnings).toHaveLength(2);
-      expect(unknownWarnings.some((e) => e.message.includes("'foo'"))).toBe(true);
-      expect(unknownWarnings.some((e) => e.message.includes("'baz'"))).toBe(true);
+      expect(unknownErrors).toHaveLength(2);
+      expect(unknownErrors.some((e) => e.message.includes("'foo'"))).toBe(true);
+      expect(unknownErrors.some((e) => e.message.includes("'baz'"))).toBe(true);
     });
   });
 

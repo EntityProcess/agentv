@@ -79,7 +79,7 @@ import { defineCodeGrader } from '@agentv/sdk';
 
 export default defineCodeGrader(({ output, traceSummary }) => ({
   score: (output ?? '').length > 0 ? 1.0 : 0.0,
-  assertions: [
+  assert: [
     { text: 'Output received', passed: (output ?? '').length > 0 },
     { text: 'Trace summary available', passed: traceSummary !== null },
   ],

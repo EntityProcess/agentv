@@ -52,7 +52,7 @@ tests:
             name: Example A
             amount: 5000
 
-    assertions:
+    assert:
       - name: decision-check
         type: script
         command: [bun, run, ./scripts/check-output.ts]
@@ -80,7 +80,7 @@ tests:
             name: Example B
             amount: 25000
 
-    assertions:
+    assert:
       - name: decision-check
         type: script
         command: [bun, run, ./scripts/check-output.ts]

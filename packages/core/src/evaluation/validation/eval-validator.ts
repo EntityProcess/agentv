@@ -368,7 +368,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
     });
   }
 
-  // Warn on deprecated or unknown top-level fields
+  // Match promptfoo-style validation: unknown authored suite fields are hard
+  // errors, not advisory warnings, because they otherwise silently do nothing.
   for (const key of Object.keys(parsed)) {
     const removedMessage = REMOVED_TOP_LEVEL_FIELDS.get(key);
     if (removedMessage) {
@@ -390,10 +391,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       });
     } else if (!KNOWN_TOP_LEVEL_FIELDS.has(key)) {
       errors.push({
-        severity: 'warning',
+        severity: 'error',
         filePath: absolutePath,
         location: key,
-        message: `Unknown field '${key}'. This field will be ignored.`,
+        message: `Unknown top-level field '${key}'.`,
       });
     }
   }
@@ -479,7 +480,8 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
       continue;
     }
 
-    // Warn on deprecated or unknown test-level fields
+    // Match promptfoo-style validation: unknown authored test fields are hard
+    // errors, not advisory warnings, because they otherwise silently do nothing.
     for (const key of Object.keys(evalCase)) {
       const removedMessage = REMOVED_TEST_FIELDS.get(key);
       if (removedMessage) {
@@ -501,10 +503,10 @@ export async function validateEvalFile(filePath: string): Promise<ValidationResu
         });
       } else if (!KNOWN_TEST_FIELDS.has(key)) {
         errors.push({
-          severity: 'warning',
+          severity: 'error',
           filePath: absolutePath,
           location: `${location}.${key}`,
-          message: `Unknown field '${key}'. This field will be ignored.`,
+          message: `Unknown test field '${key}'.`,
         });
       }
     }

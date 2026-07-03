@@ -61,7 +61,7 @@ tests:
       - role: user
         content: "What is the capital of France?"
     expected_output: "Paris is the capital of France."
-    assertions:
+    assert:
       - name: factuality
         type: script
         command: ["bun", "run", "graders/factuality.ts"]
@@ -95,7 +95,7 @@ const rationale = result.metadata?.rationale ?? "No rationale provided";
 console.log(
   JSON.stringify({
     score,
-    assertions: [{ text: rationale, passed: score >= 0.5 }],
+    assert: [{ text: rationale, passed: score >= 0.5 }],
     reasoning: rationale,
   })
 );
@@ -116,7 +116,7 @@ tests:
       - role: user
         content: "Summarize the key findings from the research paper."
     expected_output: "The paper found that transformer models outperform RNNs on long-range tasks."
-    assertions:
+    assert:
       - name: faithfulness
         type: script
         command: ["python", "graders/faithfulness.py"]
@@ -213,7 +213,7 @@ tests:
       - role: user
         content: "What are the benefits of exercise?"
     expected_output: "Exercise improves cardiovascular health, mental well-being, and longevity."
-    assertions:
+    assert:
       - name: rag-quality
         type: script
         command: ["bun", "run", "graders/rag-suite.ts"]

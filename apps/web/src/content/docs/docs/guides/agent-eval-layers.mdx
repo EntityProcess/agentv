@@ -20,12 +20,12 @@ Covers plan quality, plan adherence, and tool selection rationale. Use LLM-based
 
 ```yaml
 # Layer 1: Reasoning — verify the agent's plan makes sense
-assertions:
+assert:
   - Agent formed a coherent plan before acting
   - Agent selected appropriate tools for the task
   - name: workspace-audit
     type: llm-rubric
-    criteria:
+    value:
       - id: plan-before-act
         outcome: Agent formed a plan before making changes
         weight: 1.0
@@ -47,7 +47,7 @@ Covers tool call correctness, argument validity, execution path, and redundancy.
 
 ```yaml
 # Layer 2: Action — verify the agent called the right tools
-assertions:
+assert:
   - name: tool-sequence
     type: tool-trajectory
     mode: in_order
@@ -79,7 +79,7 @@ Covers task completion, output correctness, step efficiency, latency, and cost. 
 
 ```yaml
 # Layer 3: End-to-End — verify task completion and efficiency
-assertions:
+assert:
   - name: answer-correct
     type: contains
     value: "42"
@@ -108,7 +108,7 @@ Covers prompt injection resilience, policy adherence, bias, and content safety. 
 
 ```yaml
 # Layer 4: Safety — verify the agent doesn't do harmful things
-assertions:
+assert:
   - name: no-pii-leak
     type: regex
     value: "\\d{3}-\\d{2}-\\d{4}"
@@ -147,7 +147,7 @@ tests:
 
     expected_output: "The capital of France is Paris."
 
-    assertions:
+    assert:
       # Layer 1: Reasoning
       - Agent reasoned about which tool to use before acting
 

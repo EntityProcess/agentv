@@ -20,7 +20,7 @@ const suite = {
       id: 'sdk-define-eval',
       input: 'Say hello',
       expectedOutput: 'hello there',
-      assertions: [{ type: 'contains', value: 'hello' }],
+      assert: [{ type: 'contains', value: 'hello' }],
       workspace: {
         hooks: {
           beforeEach: {
@@ -60,7 +60,7 @@ export default Object.defineProperties(suite, {
           id: 'sdk-define-eval',
           input: 'Say hello',
           expected_output: 'hello there',
-          assertions: [{ type: 'contains', value: 'hello' }],
+          assert: [{ type: 'contains', value: 'hello' }],
           workspace: {
             hooks: {
               before_each: {

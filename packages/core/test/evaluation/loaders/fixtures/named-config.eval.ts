@@ -5,7 +5,7 @@ export const config: EvalConfig = {
     {
       id: 'named-config',
       input: 'Say hello',
-      assertions: [{ type: 'contains', value: 'hello' }],
+      assert: [{ type: 'contains', value: 'hello' }],
     },
   ],
   target: { provider: 'mock_agent' },
