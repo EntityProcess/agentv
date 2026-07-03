@@ -1,0 +1,421 @@
+---
+title: Tests
+description: Defining individual tests
+sidebar:
+  order: 2
+slug: docs/v4.42.4/evaluation/eval-cases
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+Tests are individual test entries within an evaluation file. Each test defines input messages, expected outcomes, and optional grader overrides.
+
+## Basic Structure
+
+```yaml
+tests:
+  - id: addition
+    criteria: Correctly calculates 15 + 27 = 42
+
+    input: What is 15 + 27?
+
+    expected_output: "42"
+```
+
+## Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier for the test |
+| `criteria` | Yes | Description of what a correct response should contain |
+| `input` | Yes | Input sent to the target (string, object, or message array). Alias: `input` |
+| `expected_output` | No | Expected response for comparison (string, object, or message array). Alias: `expected_output` |
+| `execution` | No | Per-case execution overrides (for example `target`, `skip_defaults`) |
+| `workspace` | No | Per-case workspace config (overrides suite-level) |
+| `metadata` | No | Arbitrary key-value pairs passed to graders and workspace scripts |
+| `rubrics` | No | Structured evaluation criteria |
+| `assertions` | No | Per-test graders |
+
+## Input
+
+The simplest form is a string, which expands to a single user message:
+
+```yaml
+input: What is 15 + 27?
+```
+
+For multi-turn or system messages, use a message array:
+
+```yaml
+input:
+  - role: system
+    content: You are a helpful math tutor.
+  - role: user
+    content: What is 15 + 27?
+```
+
+When suite-level `input` is defined in the eval file, those messages are prepended to the test's input. See [Suite-level Input](/docs/v4.42.4/evaluation/eval-files/#suite-level-input).
+
+## Expected Output
+
+Optional reference response for comparison by graders. A string expands to a single assistant message:
+
+```yaml
+expected_output: "42"
+```
+
+For structured or multi-message expected output, use a message array:
+
+```yaml
+expected_output:
+  - role: assistant
+    content: "42"
+```
+
+## Per-Case Execution Overrides
+
+Override the default target or graders for specific tests:
+
+```yaml
+tests:
+  - id: complex-case
+    criteria: Provides detailed explanation
+    input: Explain quicksort algorithm
+
+    execution:
+      target: gpt4_target
+    assertions:
+      - name: depth_check
+        type: llm-grader
+        prompt: ./graders/depth.md
+```
+
+Per-case `assertions` graders are **merged** with root-level `assertions` graders — test-specific graders run first, then root-level defaults are appended. To opt out of root-level defaults for a specific test, set `execution.skip_defaults: true`:
+
+```yaml
+assertions:
+  - name: latency_check
+    type: latency
+    threshold: 5000
+
+tests:
+  - id: normal-case
+    criteria: Returns correct answer
+    input: What is 2+2?
+    # Gets latency_check from root-level assertions
+
+  - id: special-case
+    criteria: Handles edge case
+    input: Handle this edge case
+    execution:
+      skip_defaults: true
+    assertions:
+      - name: custom_eval
+        type: llm-grader
+    # Does NOT get latency_check
+```
+
+## Per-Case Workspace Config
+
+Override the suite-level workspace config for individual tests. Test-level fields replace suite-level fields:
+
+```yaml
+workspace:
+  hooks:
+    before_all:
+      command: ["bun", "run", "default-setup.ts"]
+
+tests:
+  - id: case-1
+    criteria: Should work
+    input: Do something
+    workspace:
+      hooks:
+        before_all:
+          command: ["bun", "run", "custom-setup.ts"]
+
+  - id: case-2
+    criteria: Should also work
+    input: Do something else
+    # Inherits suite-level hooks.before_all
+```
+
+See [Workspace Lifecycle Hooks](/docs/v4.42.4/targets/configuration/#workspace-lifecycle-hooks) for the full workspace config reference.
+
+## Per-Case Metadata
+
+Pass arbitrary key-value pairs to lifecycle commands via the `metadata` field. This is useful for benchmark datasets where each case needs repo info, commit hashes, or other context:
+
+```yaml
+tests:
+  - id: sympy-20590
+    criteria: Bug should be fixed
+    input: Fix the diophantine equation bug in repo/.
+    metadata:
+      source_repo: sympy/sympy
+      source_commit: "abc123def"
+      test_patch: cases/sympy-20590/test.patch
+    workspace:
+      repos:
+        - path: ./repo
+          repo: sympy/sympy
+          base_commit: "abc123def"
+      hooks:
+        before_each:
+          command: ["python", "apply_test_patch.py"]
+```
+
+The `metadata` field is included in the stdin JSON passed to lifecycle commands as `case_metadata`.
+Operational checkout state belongs under `workspace.repos[].base_commit`; matching metadata fields such as `source_commit` are informational only.
+For benchmark task packs with source pins, patches, generated rows, and
+supporting files, see [Benchmark Provenance](/docs/v4.42.4/guides/benchmark-provenance/).
+
+## Per-Test Assertions
+
+The `assertions` field defines graders directly on a test. It supports both deterministic assertion types and LLM-based rubric evaluation.
+
+### Deterministic Assertions
+
+These graders run without an LLM call and produce binary (0 or 1) scores:
+
+| Type | Value | Description |
+|------|-------|-------------|
+| `contains` | `string` | Pass if output includes the substring |
+| `contains-any` | `string[]` | Pass if output includes ANY of the strings |
+| `contains-all` | `string[]` | Pass if output includes ALL of the strings |
+| `icontains` | `string` | Case-insensitive `contains` |
+| `icontains-any` | `string[]` | Case-insensitive `contains-any` |
+| `icontains-all` | `string[]` | Case-insensitive `contains-all` |
+| `starts-with` | `string` | Pass if output starts with value (trimmed) |
+| `ends-with` | `string` | Pass if output ends with value (trimmed) |
+| `regex` | `string` | Pass if output matches regex (optional `flags: "i"`) |
+| `is-json` | — | Pass if output is valid JSON |
+| `equals` | `string` | Pass if output exactly equals the value (trimmed) |
+
+Underscore variants (`contains_all`, `is_json`, etc.) are also accepted.
+
+```yaml
+tests:
+  - id: json-api
+    criteria: Returns valid JSON with status field
+    input: Return the system status as JSON
+    assertions:
+      - type: is-json
+      - type: contains
+        value: '"status"'
+```
+
+#### Array Assertions
+
+Use `contains-all` or `contains-any` to check multiple values in a single assertion instead of repeating `contains` multiple times:
+
+```yaml
+tests:
+  - id: required-fields
+    criteria: Response mentions all required fields
+    input: "Confirm details: name is Alice, email is alice@example.com"
+    assertions:
+      - type: contains-all
+        value: ["Alice", "alice@example.com"]
+
+  - id: greeting-variant
+    criteria: Response includes some form of greeting
+    input: "Greet the user warmly."
+    assertions:
+      - type: contains-any
+        value: ["Hello", "Hi", "Hey", "Welcome", "Greetings"]
+```
+
+#### Assertion Modifiers
+
+All deterministic assertions support these optional fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `negate` | `boolean` | Invert the result (pass becomes fail, fail becomes pass) |
+| `weight` | `number` | Relative weight when aggregating scores (default: 1) |
+| `required` | `boolean \| number` | Gate that must pass for overall test to pass. `true` uses 0.8 threshold; a number sets a custom threshold. |
+| `name` | `string` | Custom name for the assertion (auto-generated if omitted) |
+| `flags` | `string` | Regex flags for `regex` type (e.g., `"i"` for case-insensitive) |
+
+```yaml
+tests:
+  - id: no-competitors
+    criteria: Response must not mention any competitor
+    input: "Describe our product advantages."
+    assertions:
+      - type: contains-any
+        value: ["CompetitorA", "CompetitorB", "CompetitorC"]
+        negate: true
+
+  - id: required-inputs
+    criteria: Agent asks for missing rule codes
+    input: "Process customs entry for country BE."
+    assertions:
+      - name: asks-for-rule-codes
+        type: icontains-any
+        value: ["rule code", "rule codes"]
+        required: true
+      - name: mentions-format
+        type: icontains-any
+        value: ["true/false", "boolean", "expected value"]
+```
+
+Assertion graders auto-generate a `name` when one is not provided (e.g., `contains-DENIED`, `is_json`).
+
+### Rubric Assertions
+
+Use `type: rubrics` with a `criteria` array to define structured LLM-graded evaluation criteria inline:
+
+```yaml
+tests:
+  - id: denied-party
+    criteria: Must identify denied party
+    input:
+      - role: user
+        content: Screen "Acme Corp" against denied parties list
+    expected_output:
+      - role: assistant
+        content: "DENIED"
+    assertions:
+      - type: contains
+        value: "DENIED"
+        required: true
+      - type: rubrics
+        criteria:
+          - id: accuracy
+            outcome: Correctly identifies the denied party
+            weight: 5.0
+          - id: reasoning
+            outcome: Provides clear reasoning for the decision
+            weight: 3.0
+```
+
+### Required Gates
+
+Any grader in `assertions` can be marked as `required`. When a required grader fails, the overall test verdict is `fail` regardless of the aggregate score.
+
+| Value | Behavior |
+|-------|----------|
+| `required: true` | Must score >= 0.8 (default threshold) to pass |
+| `required: 0.6` | Must score >= 0.6 to pass (custom threshold between 0 and 1) |
+
+```yaml
+assertions:
+  - type: contains
+    value: "DENIED"
+    required: true          # must pass (>= 0.8)
+  - type: rubrics
+    required: 0.6           # must score at least 0.6
+    criteria:
+      - id: quality
+        outcome: Response is well-structured
+        weight: 1.0
+```
+
+Required gates are evaluated after all graders run. If any required grader falls below its threshold, the verdict is forced to `fail`.
+
+### Assertions Merge Behavior
+
+`assertions` can be defined at both suite and test levels:
+
+- Per-test `assertions` graders run first.
+- Suite-level `assertions` graders are appended automatically.
+- Set `execution.skip_defaults: true` on a test to skip suite-level defaults.
+
+## How `criteria` and `assertions` Interact
+
+The `criteria` field is a **data field** that describes what the response should accomplish. It is not an grader itself — how it gets used depends on whether `assertions` is present.
+
+### No `assertions` — implicit LLM grader
+
+When a test has no `assertions` field, a default `llm-grader` grader runs automatically and uses `criteria` as the evaluation prompt:
+
+```yaml
+tests:
+  - id: simple-eval
+    criteria: Assistant correctly explains the bug and proposes a fix
+    input: "Debug this function..."
+    # No assertions → default llm-grader evaluates against criteria
+```
+
+Suite-level `preprocessors` also apply to this implicit grader. That matters when the agent output is a `ContentFile` block rather than plain text:
+
+```yaml
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+
+tests:
+  - id: spreadsheet-eval
+    criteria: Output includes the revenue rows
+    input: Generate the spreadsheet report
+```
+
+### `assertions` present — explicit graders only
+
+When `assertions` is defined, only the declared graders run. No implicit grader is added. Graders that are declared (such as `llm-grader`, `code-grader`, or `rubrics`) receive `criteria` as input automatically.
+
+If `assertions` contains only deterministic graders (like `contains` or `regex`), the `criteria` field is not evaluated and a warning is emitted:
+
+```
+Warning: Test 'my-test': criteria is defined but no grader in assertions
+will evaluate it. Add 'type: llm-grader' to assertions, or remove criteria
+if it is documentation-only.
+```
+
+To use `criteria` alongside deterministic checks, add a grader explicitly:
+
+```yaml
+tests:
+  - id: mixed-eval
+    criteria: Response is helpful and mentions the fix
+    input: "Debug this function..."
+    assertions:
+      - type: llm-grader        # explicit — receives criteria automatically
+      - type: contains
+        value: "fix"
+```
+
+When you need a custom file conversion for only one grader, add `preprocessors` directly to that grader:
+
+```yaml
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+
+tests:
+  - id: mixed-eval
+    criteria: Response is helpful and mentions the fix
+    input: "Debug this function..."
+    assertions:
+      - type: llm-grader
+        preprocessors:
+          - type: xlsx
+            command: ["bun", "run", "scripts/preprocessors/xlsx-to-json.ts"]
+      - type: contains
+        value: "fix"
+```
+
+## Metadata
+
+Pass additional context through the `metadata` field:
+
+```yaml
+tests:
+  - id: code-gen
+    criteria: Generates valid Python
+    metadata:
+      language: python
+      difficulty: medium
+    input: Write a function to sort a list
+```
+
+`metadata` is passed to workspace lifecycle hooks as `case_metadata`, preserved
+in result records, and available to in-process custom assertions. AgentV does
+not interpret arbitrary metadata keys itself; use `workspace`, `execution`,
+`input`, `expected_output`, and `assertions` for operational behavior.

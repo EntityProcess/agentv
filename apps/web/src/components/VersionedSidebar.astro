@@ -1,0 +1,65 @@
+---
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
+import archiveRoutes from '../data/docs-v4.42.4-routes.json';
+
+const ARCHIVE_PREFIX = '/docs/v4.42.4/';
+const { sidebar } = Astro.locals.starlightRoute;
+const pathname = withTrailingSlash(Astro.url.pathname);
+const routeSet = new Set(archiveRoutes);
+const renderedSidebar = isArchivePath(pathname) ? toArchiveSidebar(sidebar) : sidebar;
+
+function toArchiveSidebar(entries: SidebarEntry[]): SidebarEntry[] {
+  return entries.flatMap((entry) => {
+    if (entry.type === 'link') {
+      const archiveHref = toArchiveHref(entry.href);
+      if (!routeSet.has(stripHash(archiveHref))) return [];
+
+      return [
+        {
+          ...entry,
+          href: archiveHref,
+          isCurrent: stripHash(archiveHref) === stripHash(pathname),
+        },
+      ];
+    }
+
+    const childEntries = toArchiveSidebar(entry.entries);
+    if (!childEntries.length) return [];
+
+    return [
+      {
+        ...entry,
+        entries: childEntries,
+      },
+    ];
+  });
+}
+
+function toArchiveHref(href: string) {
+  if (!href.startsWith('/docs/') || href.startsWith(ARCHIVE_PREFIX)) return href;
+  return href.replace('/docs/', ARCHIVE_PREFIX);
+}
+
+function withTrailingSlash(path: string) {
+  return path.endsWith('/') ? path : `${path}/`;
+}
+
+function isArchivePath(path: string) {
+  return path === ARCHIVE_PREFIX || path.startsWith(ARCHIVE_PREFIX);
+}
+
+function stripHash(href: string) {
+  return withTrailingSlash(href.split('#')[0] || '');
+}
+---
+
+<SidebarPersister>
+  <SidebarSublist sublist={renderedSidebar} />
+</SidebarPersister>
+
+<div class="md:sl-hidden">
+  <MobileMenuFooter />
+</div>

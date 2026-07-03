@@ -1,0 +1,188 @@
+---
+title: Rubrics
+description: Structured evaluation criteria with weights
+sidebar:
+  order: 3
+slug: docs/v4.42.4/evaluation/rubrics
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+Rubrics are defined with `assertions` entries and support binary checklist grading and score-range analytic grading.
+
+## Basic Usage
+
+The simplest form — list plain strings in `assertions` and each one becomes a required criterion:
+
+```yaml
+tests:
+  - id: quicksort-explain
+    criteria: Explain how quicksort works
+    input: Explain quicksort algorithm
+    assertions:
+      - Mentions divide-and-conquer approach
+      - Explains partition step
+      - States time complexity
+```
+
+All strings are collected into a single rubrics grader automatically.
+
+### Full form for advanced options
+
+Use `type: rubrics` explicitly when you need weights, required flags, or score ranges:
+
+```yaml
+tests:
+  - id: quicksort-explain
+    criteria: Explain how quicksort works
+    input: Explain quicksort algorithm
+    assertions:
+      - type: rubrics
+        criteria:
+          - Mentions divide-and-conquer approach
+          - Explains partition step
+          - States time complexity
+```
+
+## Checklist Mode
+
+For fine-grained control, use rubric objects with weights and requirements:
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: core-concept
+        outcome: Explains divide-and-conquer
+        weight: 2.0
+        required: true
+      - id: partition
+        outcome: Describes partition step
+        weight: 1.5
+      - id: complexity
+        outcome: States O(n log n) average time
+        weight: 1.0
+```
+
+### Rubric Object Fields
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `id` | Auto-generated | Unique identifier for the criterion |
+| `outcome` | — | Description of what to check |
+| `operator` | — | Optional intent hint: `correctness` or `contradiction` |
+| `weight` | `1.0` | Relative importance for scoring |
+| `required` | `false` | If true, failing this criterion fails the entire eval |
+| `min_score` | — | Minimum score (0–1) for this criterion to pass |
+| `score_ranges` | — | Score range definitions (analytic mode) |
+
+:::note
+`required_min_score` (0–10 integer scale) is deprecated. Use `min_score` (0–1 scale) instead. For example, `required_min_score: 8` becomes `min_score: 0.8`.
+:::
+
+### Criterion Operators
+
+Use `operator` when the criterion outcome should be interpreted with a specific grading intent instead of relying on the wording in `outcome`.
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: supported-revenue
+        operator: correctness
+        outcome: States revenue increased to $10M
+        required: true
+      - id: no-revenue-conflict
+        operator: contradiction
+        outcome: Revenue increased to $10M
+        required: true
+```
+
+`correctness` requires the answer to positively satisfy the outcome. `contradiction` is a guard: the answer passes when it does not make an incompatible claim, even if it omits the outcome entirely.
+
+## Score-Range Mode (Analytic)
+
+For quality gradients instead of binary pass/fail, use score ranges:
+
+```yaml
+assertions:
+  - type: rubrics
+    criteria:
+      - id: accuracy
+        outcome: Provides correct answer
+        weight: 2.0
+        score_ranges:
+          0: Completely wrong
+          3: Partially correct with major errors
+          5: Mostly correct with minor issues
+          7: Correct with minor omissions
+          10: Perfectly accurate and complete
+```
+
+Each criterion is scored 0–10 by the LLM grader with granular feedback.
+
+## Scoring
+
+### Checklist Mode
+
+```
+score = sum(satisfied_weights) / sum(total_weights)
+```
+
+### Score-Range Mode
+
+```
+score = sum(criterion_score / 10 * weight) / sum(total_weights)
+```
+
+### Verdicts
+
+| Verdict | Score |
+|---------|-------|
+| `pass` | ≥ 0.8 |
+| `fail` | < 0.8 |
+
+## Authoring Rubrics
+
+Write rubric criteria directly in `assertions`. If you want help choosing between plain assertions, deterministic graders, and rubric or LLM-based grading, use the `agentv-eval-writer` skill. Keep the grader choice driven by the criteria rather than one fixed recipe.
+
+## Context Available to Rubric Graders
+
+Rubric assertions automatically receive the full evaluation context, not just the agent's text answer. When present, the following are appended to the grader prompt:
+
+- **`file_changes`** — unified diff of workspace file changes (when `workspace` is configured)
+- **`tool_calls`** — formatted summary of tool calls from agent execution (tool name + key inputs)
+
+This means rubric criteria can reason about *what the agent did*, not only what it said. For example, you can check whether an agent invoked a specific skill:
+
+```yaml
+assertions:
+  - The agent invoked the acme-deploy skill
+  - The agent used Read to inspect the config file before editing
+```
+
+This is a lightweight alternative to the `skill-trigger` evaluator when you want to check tool usage with natural-language criteria.
+
+## Combining with Other Graders
+
+Rubrics work alongside code and LLM graders:
+
+```yaml
+tests:
+  - id: code-quality
+    criteria: Generates correct, clean Python code
+    input: Write a fibonacci function
+    assertions:
+      - type: rubrics
+        criteria:
+          - Returns correct values for n=0,1,2,10
+          - Uses meaningful variable names
+          - Includes docstring
+      - name: syntax_check
+        type: code-grader
+        command: [./validators/check_python.py]
+```

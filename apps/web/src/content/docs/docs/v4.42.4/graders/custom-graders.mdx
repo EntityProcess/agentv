@@ -1,0 +1,97 @@
+---
+title: Custom Graders
+description: Patterns for building custom evaluation logic
+sidebar:
+  order: 3
+slug: docs/v4.42.4/graders/custom-graders
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+AgentV supports multiple grader types that can be combined for comprehensive evaluation.
+
+## Grader Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `code_grader` | Deterministic command (Python/TS/any) | Exact matching, format validation, programmatic checks |
+| `llm_grader` | LLM-based evaluation with custom prompt | Semantic evaluation, nuance, subjective quality |
+| `rubrics` | Structured rubric grader via `assertions` | Multi-criterion grading with weights |
+
+## Referencing Graders
+
+Graders are configured using `assertions` — either top-level (applies to all tests) or per-test:
+
+### Top-Level (Default for All Tests)
+
+```yaml
+description: My evaluation
+assertions:
+  - name: correctness
+    type: llm-grader
+    prompt: ./graders/correctness.md
+
+tests:
+  - id: test-1
+    # Uses the top-level grader
+    ...
+```
+
+### Per-Case Override
+
+```yaml
+tests:
+  - id: test-1
+    criteria: Returns valid JSON
+    input: Generate a JSON config
+    assertions:
+      - name: json_check
+        type: code-grader
+        command: [./validators/check_json.py]
+```
+
+## Combining Graders
+
+Use multiple graders on the same case for comprehensive scoring:
+
+```yaml
+tests:
+  - id: code-generation
+    criteria: Generates correct Python code
+    input: Write a sorting function
+    assertions:
+      - type: rubrics
+        criteria:
+          - Code is syntactically valid
+          - Handles edge cases (empty list, single element)
+          - Uses appropriate algorithm
+      - name: syntax_check
+        type: code-grader
+        command: [./validators/check_syntax.py]
+      - name: quality_review
+        type: llm-grader
+        prompt: ./graders/code_quality.md
+```
+
+Each grader produces its own score. Results appear in `scores[]` in the output JSONL.
+
+For multiple graders in `assertions`, the test score is the weighted mean:
+
+```
+final_score = sum(score_i * weight_i) / sum(weight_i)
+```
+
+If `weight` is omitted, it defaults to `1.0` (equal weighting).
+If any grader has `required: true` (or `required: <threshold>`) and scores below its required threshold, the overall test score is forced to `0`.
+
+## Best Practices
+
+- **Use code graders for deterministic checks** — exact value matching, format validation, schema compliance
+- **Use LLM graders for semantic evaluation** — meaning, quality, helpfulness
+- **Use rubrics for structured multi-criteria grading** — when you need weighted, itemized scoring
+- **Combine grader types** for comprehensive coverage
+- **Test code graders locally** before running full evaluations

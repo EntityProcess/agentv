@@ -1,0 +1,428 @@
+---
+title: Code Graders
+description: Deterministic code graders in Python or TypeScript
+sidebar:
+  order: 1
+slug: docs/v4.42.4/graders/code-graders
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+Code graders are scripts that evaluate agent responses deterministically. Write them in any language — Python, TypeScript, Node, or any executable.
+
+## Contract
+
+Code graders receive eval context via stdin JSON and return a result via stdout.
+
+**Input (stdin, raw wire format):**
+```json
+{
+  "input": [{ "role": "user", "content": "What is 15 + 27?" }],
+  "input_files": [],
+  "criteria": "Correctly calculates 15 + 27 = 42",
+  "output": "The answer is 42.",
+  "expected_output": [{ "role": "assistant", "content": "42" }],
+  "messages": [{ "role": "assistant", "content": "The answer is 42." }],
+  "trace_summary": {
+    "event_count": 1,
+    "tool_calls": {},
+    "error_count": 0,
+    "llm_call_count": 1
+  }
+}
+```
+
+Raw grader stdin is a process-boundary wire format, so keys are `snake_case`. TypeScript and JavaScript graders that use `@agentv/sdk` receive the same payload converted to `camelCase`. The repo-local Python helper in `examples/features/sdk-python/` keeps the same `snake_case` field names.
+
+| Raw stdin key | TypeScript SDK field | Meaning |
+|---------------|----------------------|---------|
+| `output` | `output` | Final answer / scored result as a string |
+| `messages` | `messages` | Transcript messages for transcript-aware graders |
+| `expected_output` | `expectedOutput` | Reference answer messages |
+| `output_path` | `outputPath` | Temp file containing large final answer JSON, when used |
+| `trace_summary` | `traceSummary` | Lightweight metrics summary |
+| `token_usage` | `tokenUsage` | Token usage metrics |
+| `cost_usd` | `costUsd` | Estimated cost in USD |
+| `duration_ms` | `durationMs` | Total execution duration |
+| `workspace_path` | `workspacePath` | Temp workspace path, when configured |
+
+Do not treat `output` as a message array. Use `output` for answer-text checks, and use `messages`, `trace.messages`, or `trace.events` only when the grader intentionally evaluates transcript or tool behavior.
+
+### JSON output (full protocol)
+
+Emit a JSON object for numeric scores or multi-aspect results:
+
+```json
+{
+  "score": 1.0,
+  "assertions": [
+    { "text": "Answer contains correct value (42)", "passed": true }
+  ]
+}
+```
+
+| Output Field | Type | Description |
+|-------------|------|-------------|
+| `score` | `number` | 0.0 to 1.0 |
+| `assertions` | `Array<{ text, passed, evidence? }>` | Per-aspect results with verdict and optional evidence |
+
+### Plain-text output (exit-code convention)
+
+For simple pass/fail checks, skip the JSON protocol entirely. The exit code determines the score and stdout becomes the assertion text:
+
+| Exit code | Score | Verdict |
+|-----------|-------|---------|
+| 0 | 1.0 | pass |
+| non-zero (no stderr) | 0.0 | fail |
+
+```bash
+#!/bin/bash
+# check-pages.sh — passes when PDF has at least 5 pages
+pages=$(pdfinfo report.pdf | grep Pages | awk '{print $2}')
+if [ "$pages" -ge 5 ]; then
+  echo "PDF has $pages pages (≥5 required)"
+else
+  echo "PDF has only $pages pages (<5 required)"
+  exit 1
+fi
+```
+
+```yaml
+assertions:
+  - type: code-grader
+    command: [bash, scripts/check-pages.sh]
+```
+
+Silent one-liners work too — stdout is optional:
+
+```yaml
+assertions:
+  - type: code-grader
+    command: ["bash", "-c", "[ $(wc -l < output.txt) -ge 10 ]"]
+```
+
+Scripts that write to stderr and exit non-zero surface as execution errors rather than quality failures.
+
+## Python Example
+
+This version uses the raw stdin/stdout contract and works in any Python environment:
+
+```python
+# validators/check_answer.py
+import json, sys
+data = json.load(sys.stdin)
+output = data.get("output") or ""
+
+assertions = []
+
+if "42" in output:
+    assertions.append({"text": "Output contains correct value (42)", "passed": True})
+else:
+    assertions.append({"text": "Output does not contain expected value (42)", "passed": False})
+
+passed = sum(1 for a in assertions if a["passed"])
+score = passed / len(assertions) if assertions else 0.0
+
+print(json.dumps({
+    "score": score,
+    "assertions": assertions,
+}))
+```
+
+The repo-local helper in `examples/features/sdk-python/` wraps the same contract for that example checkout:
+
+```python
+from agentv_py.grader import Assertion, CodeGraderResult, define_code_grader
+
+
+def evaluate(context):
+    candidate = context.output or ""
+    passed = "42" in candidate
+    return CodeGraderResult(
+        score=1.0 if passed else 0.0,
+        assertions=[
+            Assertion(
+                text="Output contains correct value (42)",
+                passed=passed,
+            )
+        ],
+    )
+
+if __name__ == "__main__":
+    define_code_grader(evaluate)
+```
+
+Deprecated wire aliases like `output_text`, `input_text`, `reference_answer`, and `expected_output_text` are not accepted by the Python helper.
+
+## TypeScript Example
+
+```typescript
+// validators/check_answer.ts
+import { readFileSync } from "fs";
+
+const data = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const output: string = data.output ?? "";
+
+const assertions: Array<{ text: string; passed: boolean }> = [];
+
+if (output.includes("42")) {
+  assertions.push({ text: "Output contains correct value (42)", passed: true });
+} else {
+  assertions.push({ text: "Output does not contain expected value (42)", passed: false });
+}
+
+const passed = assertions.filter(a => a.passed).length;
+
+console.log(JSON.stringify({
+  score: passed > 0 ? 1.0 : 0.0,
+  assertions,
+}));
+```
+
+## Referencing in Eval Files
+
+```yaml
+assertions:
+  - name: my_validator
+    type: code-grader
+    command: [./validators/check_answer.py]
+```
+
+## TypeScript SDK
+
+The `@agentv/sdk` package provides a declarative API with automatic stdin/stdout handling. Use `defineCodeGrader` to skip boilerplate:
+
+```typescript
+#!/usr/bin/env bun
+import { defineCodeGrader } from '@agentv/sdk';
+
+export default defineCodeGrader(({ output, criteria }) => {
+  const outputText = output ?? '';
+  const assertions: Array<{ text: string; passed: boolean }> = [];
+
+  if (outputText.includes(criteria)) {
+    assertions.push({ text: 'Output matches expected outcome', passed: true });
+  } else {
+    assertions.push({ text: 'Output does not match expected outcome', passed: false });
+  }
+
+  const passed = assertions.filter(a => a.passed).length;
+  return {
+    score: assertions.length === 0 ? 0 : passed / assertions.length,
+    assertions,
+  };
+});
+```
+
+**SDK exports:** `defineCodeGrader`, `Message`, `ToolCall`, `Trace`, `TraceSummary`, `CodeGraderInput`, `CodeGraderResult`
+
+## Target Access
+
+Code graders can call an LLM through a target proxy for metrics that require multiple LLM calls (contextual precision, semantic similarity, etc.).
+
+### Configuration
+
+Add a `target` block to the grader config:
+
+```yaml
+assertions:
+  - name: contextual-precision
+    type: code-grader
+    command: [bun, scripts/contextual-precision.ts]
+    target:
+      max_calls: 10  # Default: 50
+```
+
+### Usage
+
+Use `createTargetClient` from the SDK:
+
+```typescript
+#!/usr/bin/env bun
+import { createTargetClient, defineCodeGrader } from '@agentv/sdk';
+
+export default defineCodeGrader(async ({ input, output }) => {
+  const inputText = input
+    .filter((message) => message.role === 'user')
+    .map((message) => typeof message.content === 'string' ? message.content : '')
+    .join('\n');
+  const outputText = output ?? '';
+  const target = createTargetClient();
+  if (!target) return { score: 0, assertions: [{ text: 'Target not configured', passed: false }] };
+
+  const response = await target.invoke({
+    question: `Is this relevant to: ${inputText}? Response: ${outputText}`,
+    systemPrompt: 'Respond with JSON: { "relevant": true/false }'
+  });
+
+  const result = JSON.parse(response.rawText ?? '{}');
+  return { score: result.relevant ? 1.0 : 0.0 };
+});
+```
+
+Use `target.invokeBatch(requests)` for multiple calls in parallel.
+
+**Environment variables** (set automatically when `target` is configured):
+
+| Variable | Description |
+|----------|-------------|
+| `AGENTV_TARGET_PROXY_URL` | Local proxy URL |
+| `AGENTV_TARGET_PROXY_TOKEN` | Bearer token for authentication |
+
+## Advanced Input Fields
+
+Beyond the basic fields (`input`, `output`, `expected_output`, `criteria`), code graders receive additional structured context:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `Message[]` | Full resolved input message array |
+| `output` | `string \| null` | Final answer / scored result only |
+| `messages` | `Message[]` | Transcript messages from the target execution |
+| `expected_output` | `Message[]` | Expected/reference output messages |
+| `output_path` | `string` | Temp file containing large final answer JSON, when `output` is omitted |
+| `input_files` | `string[]` | Paths to input files referenced in the eval |
+| `trace` | `Trace` | Full execution trace with messages, events, metrics, and provenance |
+| `trace_summary` | `TraceSummary` | Lightweight execution metrics summary |
+| `token_usage` | `{input, output}` | Token consumption |
+| `cost_usd` | `number` | Estimated cost in USD |
+| `duration_ms` | `number` | Total execution duration |
+| `start_time` | `string` | ISO timestamp of first event |
+| `end_time` | `string` | ISO timestamp of last event |
+| `file_changes` | `string \| null` | Unified diff of workspace file changes (populated when `workspace` is configured; includes files at workspace root, changes inside nested repos, and Copilot session-state artifacts) |
+| `workspace_path` | `string \| null` | Absolute path to the temp workspace directory (populated when `workspace` is configured) |
+
+### trace_summary structure
+
+```json
+{
+  "event_count": 5,
+  "tool_calls": { "search": 2, "fetch": 1 },
+  "error_count": 0,
+  "llm_call_count": 2
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_count` | `number` | Total tool invocations |
+| `tool_calls` | `Record<string, number>` | Count per tool |
+| `error_count` | `number` | Failed tool calls |
+| `llm_call_count` | `number` | Number of LLM calls (assistant messages) |
+
+Use `expected_output` for reference answers and `output` for the actual final answer from live runs. Use `messages` or `trace` when you need tool calls, intermediate messages, or replay/provenance data.
+
+## Workspace Access
+
+When `workspace` is configured in the eval YAML (via `workspace.template`, `workspace.path`, or `workspace.repos`), code graders receive the workspace path in two ways:
+
+1. **JSON payload**: `workspace_path` field in the stdin input
+2. **Environment variable**: `AGENTV_WORKSPACE_PATH`
+
+This enables **functional grading** — running commands like `npm test`, `pytest`, or `cargo test` directly in the agent's workspace.
+
+#### What `file_changes` covers
+
+`file_changes` is a unified diff built from two sources, merged in order:
+
+1. **Git baseline**: `git diff` against a baseline commit taken before the agent ran. Captures edits, new files at workspace root, and changes inside any nested git repos materialized via `workspace.repos` or set up via a `before_all` hook.
+2. **Provider-reported artifacts**: Copilot providers scan their session-state `files/` directory after each run and append those as synthetic diffs. This surfaces files the agent wrote *outside* `workspace_path` entirely (e.g. `~/.copilot/session-state/<uuid>/files/`).
+
+### Example: Deploy-and-Test Pattern
+
+```typescript
+#!/usr/bin/env bun
+import { readFileSync } from "fs";
+import { execFileSync } from "child_process";
+
+const input = JSON.parse(readFileSync("/dev/stdin", "utf-8"));
+const cwd = input.workspace_path;
+
+const assertions: Array<{ text: string; passed: boolean }> = [];
+
+// Stage 1: Install dependencies
+try {
+  execFileSync("npm", ["install"], { cwd, stdio: "pipe" });
+  assertions.push({ text: "npm install passed", passed: true });
+} catch { assertions.push({ text: "npm install failed", passed: false }); }
+
+// Stage 2: Typecheck
+try {
+  execFileSync("npx", ["tsc", "--noEmit"], { cwd, stdio: "pipe" });
+  assertions.push({ text: "typecheck passed", passed: true });
+} catch { assertions.push({ text: "typecheck failed", passed: false }); }
+
+// Stage 3: Run tests
+try {
+  execFileSync("npm", ["test"], { cwd, stdio: "pipe" });
+  assertions.push({ text: "tests passed", passed: true });
+} catch { assertions.push({ text: "tests failed", passed: false }); }
+
+const passed = assertions.filter(a => a.passed).length;
+console.log(JSON.stringify({
+  score: assertions.length > 0 ? passed / assertions.length : 0,
+  assertions,
+}));
+```
+
+```yaml
+# dataset.eval.yaml
+workspace:
+  template: ./workspace-template   # copied into a temp dir before each run
+
+execution:
+  target: my_agent
+
+tests:
+  - id: implement-feature
+    criteria: Agent implements the feature correctly
+    input: "Implement the TODO functions in src/index.ts"
+    assertions:
+      - name: functional-check
+        type: code-grader
+        command: [bun, scripts/functional-check.ts]
+```
+
+See `examples/features/functional-grading/` for a complete working example.
+
+#### Examples
+
+| Example | What it demonstrates |
+|---------|----------------------|
+| `examples/features/functional-grading/` | `workspace_path` — deploy-and-test with `npm install` + `tsc` + `npm test` |
+| `examples/features/file-changes/` | `file_changes` — edits, creates, and deletes captured via git baseline |
+| `examples/features/workspace-artifact/` | `file_changes` — new file generated by agent (CSV) captured via git baseline |
+| `examples/features/file-changes-with-repos/` | `file_changes` — workspace-root files AND changes inside nested repos both captured |
+
+## Testing Locally
+
+### With `agentv eval assert`
+
+Run a grader from `.agentv/graders/` by name — no manual JSON piping required:
+
+```bash
+# Pass agent output and input directly
+agentv eval assert rouge-score --agent-output "The fox jumps over the dog" --agent-input "Summarise this"
+
+# Or pass a JSON file with { output, input } fields
+agentv eval assert rouge-score --file result.json
+```
+
+The command:
+1. Discovers the grader script by walking up directories looking for `.agentv/graders/<name>.{ts,js,mts,mjs}`
+2. Passes `{ output, input, criteria }` to the script via stdin
+3. Prints the grader's JSON result to stdout
+4. Exits 0 if score >= 0.5, exit 1 otherwise
+
+This is the same interface that agent-orchestrated evals use — the EVAL.yaml transpiler emits `agentv eval assert` instructions for code graders so external grading agents can run them directly.
+
+### With stdin pipe
+
+Pipe JSON directly to the grader script for full control:
+
+```bash
+echo '{"input":[{"role":"user","content":"What is 2+2?"}],"input_files":[],"criteria":"4","output":"4","expected_output":[{"role":"assistant","content":"4"}]}' | python validators/check_answer.py
+```

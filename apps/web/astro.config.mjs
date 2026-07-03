@@ -4,6 +4,9 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
   site: 'https://agentv.dev',
   image: { service: { entrypoint: 'astro/assets/services/noop' } },
+  redirects: {
+    '/docs/v4': '/docs/v4.42.4/',
+  },
   integrations: [
     starlight({
       title: 'AgentV',
@@ -13,6 +16,8 @@ export default defineConfig({
       },
       components: {
         SiteTitle: './src/components/StarlightSiteTitle.astro',
+        LanguageSelect: './src/components/VersionSelect.astro',
+        Sidebar: './src/components/VersionedSidebar.astro',
       },
       disable404Route: true,
       head: [

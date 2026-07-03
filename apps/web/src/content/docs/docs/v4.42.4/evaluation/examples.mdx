@@ -1,0 +1,435 @@
+---
+title: Example Evaluations
+description: Complete working examples of eval files for common patterns
+sidebar:
+  order: 6
+slug: docs/v4.42.4/evaluation/examples
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+This page collects complete eval file examples you can copy and adapt. Each demonstrates a different AgentV pattern.
+
+## Basic Q&A
+
+A minimal eval with a single question and expected answer:
+
+```yaml
+description: Basic arithmetic evaluation
+execution:
+  target: default
+
+tests:
+  - id: simple-addition
+    criteria: Correctly calculates 2+2
+
+    input: What is 2 + 2?
+
+    expected_output: "4"
+```
+
+## Code Review with File References
+
+Use multipart content to attach files alongside text prompts:
+
+````yaml
+description: Code review with guidelines
+execution:
+  target: azure-base
+
+tests:
+  - id: code-review-basic
+    criteria: Assistant provides helpful code analysis with security considerations
+
+    input:
+      - role: system
+        content: You are an expert code reviewer.
+      - role: user
+        content:
+          - type: text
+            value: |-
+              Review this function for security issues:
+
+              ```python
+              def get_user(user_id):
+                  query = f"SELECT * FROM users WHERE id = {user_id}"
+                  return db.execute(query)
+              ```
+          - type: file
+            value: /prompts/security-guidelines.md
+
+    expected_output:
+      - role: assistant
+        content: |-
+          This code has a critical SQL injection vulnerability. The user_id is directly
+          interpolated into the query string without sanitization.
+
+          Recommended fix:
+          ```python
+          def get_user(user_id):
+              query = "SELECT * FROM users WHERE id = ?"
+              return db.execute(query, (user_id,))
+          ```
+````
+
+## Multi-Grader
+
+Combine a code grader and an LLM grader on the same test:
+
+```yaml
+description: JSON generation with validation
+execution:
+  target: default
+
+tests:
+  - id: json-generation-with-validation
+    criteria: Generates valid JSON with required fields
+
+    assertions:
+      - name: json_format_validator
+        type: code-grader
+        command: [uv, run, validate_json.py]
+        cwd: ./graders
+      - name: content_evaluator
+        type: llm-grader
+        prompt: ./graders/semantic_correctness.md
+
+    input: |-
+      Generate a JSON object for a user with name "Alice",
+      email "alice@example.com", and role "admin".
+
+    expected_output: |-
+      {
+        "name": "Alice",
+        "email": "alice@example.com",
+        "role": "admin"
+      }
+```
+
+## File Output Preprocessing
+
+Convert a binary file output into text before the `llm-grader` sees it:
+
+```yaml
+description: Grade spreadsheet output via a preprocessor
+
+preprocessors:
+  - type: xlsx
+    command: ["bun", "run", "../scripts/preprocessors/xlsx-to-csv.ts"]
+
+execution:
+  target: file_output
+
+tests:
+  - id: spreadsheet-output
+    input: Generate the spreadsheet report
+    criteria: The extracted spreadsheet content includes the revenue rows
+    assertions:
+      - Output contains the transformed spreadsheet text including the revenue rows
+```
+
+See [`examples/features/preprocessors/`](../../../../../examples/features/preprocessors/) for a runnable end-to-end example with a file-producing target and custom grader target.
+
+## Tool Trajectory
+
+Validate that an agent uses specific tools during execution:
+
+```yaml
+description: Tool usage validation
+execution:
+  target: mock_agent
+
+tests:
+  # Validate minimum tool usage (order doesn't matter)
+  - id: research-depth
+    criteria: Agent researches thoroughly
+    input: Research REST vs GraphQL
+    assertions:
+      - name: research-check
+        type: tool-trajectory
+        mode: any_order
+        minimums:
+          knowledgeSearch: 2
+          documentRetrieve: 1
+
+  # Validate exact tool sequence
+  - id: auth-flow
+    criteria: Agent follows auth sequence
+    input: Authenticate user
+    assertions:
+      - name: auth-sequence
+        type: tool-trajectory
+        mode: exact
+        expected:
+          - tool: checkCredentials
+          - tool: generateToken
+```
+
+## Offline Grader Benchmark
+
+Benchmark a five-model grader panel against a human-labeled export, then compare grader setups:
+
+```yaml
+description: Offline grader benchmark
+execution:
+  target: fixture_replay
+
+tests:
+  - file://../fixtures/labeled-grader-export.jsonl
+
+assertions:
+  - name: grader-panel
+    type: composite
+    aggregator:
+      type: threshold
+      threshold: 0.6
+    assertions:
+      - name: grader-gpt-5-mini
+        type: llm-grader
+        target: grader_gpt_5_mini
+        prompt: ../prompts/grader-pass-fail-v1.md
+      - name: grader-claude-haiku
+        type: llm-grader
+        target: grader_claude_haiku
+        prompt: ../prompts/grader-pass-fail-v1.md
+      - name: grader-gemini-flash
+        type: llm-grader
+        target: grader_gemini_flash
+        prompt: ../prompts/grader-pass-fail-v1.md
+```
+
+See [`examples/showcase/offline-grader-benchmark/`](../../../../../examples/showcase/offline-grader-benchmark/) for the full workflow, replay target, export contract, scoring script, and A/B compare commands.
+
+## Static Trace
+
+Evaluate pre-existing trace files without running an agent:
+
+```yaml
+description: Static trace evaluation
+execution:
+  target: static_trace
+
+tests:
+  - id: validate-trace-file
+    criteria: Trace contains required steps
+    input: Analyze trace
+    assertions:
+      - name: trace-check
+        type: tool-trajectory
+        mode: in_order
+        expected:
+          - tool: webSearch
+          - tool: readFile
+```
+
+## Multi-Turn Conversation
+
+Test multi-turn interactions where intermediate messages set context:
+
+````yaml
+description: Multi-turn debugging session with clarifying questions
+execution:
+  target: default
+
+tests:
+  - id: debug-with-clarification
+    criteria: |-
+      Assistant conducts a multi-turn debugging session, asking clarification
+      questions when needed, correctly diagnosing the bug, and proposing a clear
+      fix with rationale.
+
+    input:
+      - role: system
+        content: You are an expert debugging assistant who reasons step by step, asks clarifying questions, and explains fixes clearly.
+      - role: user
+        content: |-
+          I'm getting an off-by-one error in this function, but I can't see why:
+
+          ```python
+          def get_items(items):
+              result = []
+              for i in range(len(items) - 1):
+                  result.append(items[i])
+              return result
+          ```
+
+          Sometimes the last element is missing. Can you help debug this?
+      - role: assistant
+        content: |-
+          I can help debug this. Before I propose a fix, could you tell me:
+          - What output you expect for an example input list
+          - What output you actually get
+      - role: user
+        content: |-
+          For `[1, 2, 3, 4]` I expect `[1, 2, 3, 4]`, but I get `[1, 2, 3]`.
+
+    expected_output:
+      - role: assistant
+        content: |-
+          You have an off-by-one error in your loop bounds.
+          You're iterating with `range(len(items) - 1)`, which stops before the last index.
+          To include all items, you can either:
+          - Use `range(len(items))`, or
+          - Iterate directly over the list: `for item in items:`
+
+          Here's a corrected version:
+
+          ```python
+          def get_items(items):
+              result = []
+              for item in items:
+                  result.append(item)
+              return result
+          ```
+````
+
+## Batch CLI
+
+Evaluate external batch runners that process all tests in one invocation:
+
+```yaml
+description: Batch CLI demo (AML screening)
+execution:
+  target: batch_cli
+
+tests:
+  - id: aml-001
+    criteria: |-
+      Batch runner returns JSON with decision=CLEAR.
+
+    expected_output:
+      - role: assistant
+        content:
+          decision: CLEAR
+
+    input:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-001
+            customer_name: Example Customer A
+            origin_country: NZ
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 5000
+            currency: USD
+
+    assertions:
+      - name: decision-check
+        type: code-grader
+        command: [bun, run, ./scripts/check-batch-cli-output.ts]
+        cwd: .
+
+  - id: aml-002
+    criteria: |-
+      Batch runner returns JSON with decision=REVIEW.
+
+    expected_output:
+      - role: assistant
+        content:
+          decision: REVIEW
+
+    input:
+      - role: system
+        content: You are a deterministic AML screening batch checker.
+      - role: user
+        content:
+          request:
+            type: aml_screening_check
+            jurisdiction: AU
+            effective_date: 2025-01-01
+          row:
+            id: aml-002
+            customer_name: Example Customer B
+            origin_country: IR
+            destination_country: AU
+            transaction_type: INTERNATIONAL_TRANSFER
+            amount: 2000
+            currency: USD
+
+    assertions:
+      - name: decision-check
+        type: code-grader
+        command: [bun, run, ./scripts/check-batch-cli-output.ts]
+        cwd: .
+```
+
+### Batch CLI Pattern Notes
+
+- `execution.target: batch_cli` -- configure CLI provider with `provider_batching: true`
+- The batch runner reads the eval YAML via `--eval` flag and outputs JSONL keyed by `id`
+- Put structured data in `user.content` as objects for the runner to extract
+- Use `expected_output` with object fields for structured expected output
+- Each test has its own grader to validate its portion of the output
+
+## Suite-level Input
+
+Share a common prompt or system instruction across all tests. Suite-level `input` messages are prepended to each test's input — like suite-level `assertions` for graders:
+
+```yaml
+description: Travel assistant evaluation
+input:
+  - role: user
+    content:
+      - type: file
+        value: ./system-prompt.md
+
+tests: ./cases.yaml
+```
+
+```yaml
+# cases.yaml — tests only need their own queries
+- id: japan-spring
+  criteria: Recommends spring for cherry blossoms and mentions visa requirements
+  input: When is the best time to visit Japan?
+
+- id: iceland-lights
+  criteria: Recommends winter for Northern Lights
+  input: I want to see the Northern Lights in Iceland. When should I go?
+
+- id: currency-only
+  criteria: Provides direct answer about currency
+  input: What currency does Thailand use?
+  execution:
+    skip_defaults: true   # no suite-level input
+```
+
+See the [suite-level-input example](https://github.com/EntityProcess/agentv/tree/main/examples/features/suite-level-input) for a complete working version.
+
+## File Path Conventions
+
+- **Absolute paths** (start with `/`): resolved from the repository root
+  - Example: `/prompts/guidelines.md` resolves to `<repo_root>/prompts/guidelines.md`
+- **Relative paths** (start with `./` or `../`): resolved from the eval file directory
+  - Example: `../../prompts/file.md` goes two directories up, then into `prompts/`
+
+## Tips for Writing criteria
+
+- Be specific about what success looks like
+- Mention key elements that must be present
+- For classification tasks, specify the expected category
+- For reasoning tasks, describe the thought process expected
+
+## Tips for Writing expected_output
+
+- Show the pattern, not rigid templates
+- Allow for natural language variation
+- Focus on semantic correctness over exact matching
+- Graders handle the actual validation logic
+
+## Showcases
+
+For complete end-to-end workflows that combine multiple features, see the showcases in [`examples/showcase/`](https://github.com/EntityProcess/agentv/tree/main/examples/showcase):
+
+- **[Multi-Model Benchmark](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/multi-model-benchmark)** — targets matrix × weighted metrics × trials × compare workflow. Runs the same tests against multiple models, scores with weighted graders, measures variability, and compares results side-by-side.
+- **[Export Screening](https://github.com/EntityProcess/agentv/tree/main/examples/showcase/export-screening)** — classification eval with confusion matrix metrics and CI gating.

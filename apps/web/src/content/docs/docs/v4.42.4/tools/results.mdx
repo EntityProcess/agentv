@@ -1,0 +1,140 @@
+---
+title: Results
+description: Inspect, export, and share AgentV result workspaces from the CLI.
+sidebar:
+  order: 6
+slug: docs/v4.42.4/tools/results
+editUrl: false
+pagefind: false
+banner:
+  content: |
+    You are viewing the frozen v4.42.4 docs. Use <a href="/docs/">Canary docs</a> for the current development version.
+
+---
+
+import { Image } from 'astro:assets';
+import resultsReportOverview from '../../../../../assets/screenshots/results-report-overview.png';
+import resultsReportDetails from '../../../../../assets/screenshots/results-report-details.png';
+
+The `results` command family works on existing local AgentV run workspaces and `index.jsonl` manifests. Use it after an eval run to inspect failures, validate manifests, export artifact layouts, combine/delete local run workspaces, or generate a shareable HTML report.
+
+Remote result repository exchange is intentionally not part of `agentv results`. New eval runs publish completed artifacts to a configured results repo or branch; `sync.auto_push: true` additionally pushes that branch to the remote. Manual remote status and sync are Dashboard/API workflows. See [Dashboard Remote Results](/docs/v4.42.4/tools/dashboard/#remote-results) for configuration and sync behavior, and [WIP checkpoints](/docs/v4.42.4/tools/wip-checkpoints/) for recovering in-progress runs before final publish.
+
+## Subcommands
+
+| Subcommand | Purpose |
+|-----------|---------|
+| `results report` | Generate a self-contained static HTML report from an existing run workspace |
+| `results export` | Materialize or normalize the artifact workspace structure for a manifest |
+| `results combine` | Combine partial local run workspaces into a new local run workspace |
+| `results delete` | Delete one or more local run workspaces |
+| `results summary` | Print aggregate metrics for a run |
+| `results failures` | Show only failing cases |
+| `results show` | Display case-level rows from a run workspace |
+| `results validate` | Validate that a workspace or manifest resolves correctly |
+
+## `results report`
+
+The `results report` command turns an existing run workspace or `index.jsonl` manifest into a self-contained HTML report for sharing, inspection, and human review.
+
+<Image src={resultsReportOverview} alt="AgentV results report overview showing 11 tests across 2 eval files with pass, fail, pass rate, duration, and cost summary cards" />
+
+```bash
+agentv results report <run-workspace-or-index.jsonl>
+```
+
+Examples:
+
+```bash
+# Generate report.html next to the run manifest
+agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude
+
+# Use an explicit output path
+agentv results report .agentv/results/runs/2026-03-14T10-32-00_claude/index.jsonl \
+  --out ./reports/human-review.html
+```
+
+What it shows:
+
+- **Summary stats** — total tests, passed, failed, pass rate, duration, and cost
+- **Eval file groups** — test cases grouped by eval file with pass rate, test count, and duration
+- **Expandable details** — unified assertions with pass/fail indicators and type badges, collapsible input/output
+- **Criteria column** — shows the test prompt or description inline for quick scanning
+
+### Publish a static report with GitHub Pages
+
+The generated file is self-contained HTML: no Dashboard server, API endpoint, or external asset host is required after it is written. That makes it a good fit for public result repositories served by GitHub Pages.
+
+One minimal publication workflow is:
+
+```bash
+# 1. Run an eval and sync or copy the run workspace into your public results repo.
+agentv eval evals/demo.eval.yaml --output .agentv/results/runs/demo-live
+
+# 2. In the public results repo, render the report into the Pages source directory.
+agentv results report .agentv/results/runs/demo-live --out docs/index.html
+
+# 3. Review the generated HTML before publishing.
+grep -RInE 'sk-[A-Za-z0-9]|Bearer |localhost|127\.0\.0\.1|/home/|/Users/|/tmp/' docs/index.html
+
+# 4. Commit the run artifacts and docs/index.html, then enable GitHub Pages
+#    for the repository's docs/ directory or the branch used for Pages.
+git add .agentv/results/runs/demo-live docs/index.html README.md
+git commit -m "docs(results): publish static AgentV report"
+git push
+```
+
+Use `--out docs/<name>.html` when a repository should publish multiple runs. Link those files from the result repository README so readers can browse a dashboard-like report from GitHub Pages instead of running `agentv dashboard` or opening raw JSONL.
+
+<Image src={resultsReportDetails} alt="AgentV results report showing an expanded failing test case with unified assertions, deterministic type badges, pass/fail indicators, evidence text, and collapsible input/output" />
+
+| Option | Description |
+|--------|-------------|
+| `--out`, `-o` | Output HTML file (defaults to `<run-dir>/report.html`) |
+| `--dir`, `-d` | Working directory used to resolve the source path |
+
+## `results export`
+
+Use `results export` when you need the artifact workspace layout itself rather than a rendered report.
+
+```bash
+agentv results export <run-workspace-or-index.jsonl> [--out <dir>] [--duplicate-policy update]
+```
+
+This is useful when a manifest needs to be materialized into a predictable artifact tree for other tooling, review, or archiving. The run workspace is also where generated task bundles live: `index.jsonl` rows may point to per-result `task_dir`, `eval_path`, `targets_path`, `files_path`, and `graders_path` entries. Keep those generated artifacts with the run when sharing or auditing results.
+
+Each exported trace sidecar and `index.jsonl` row includes a stable `projection_identity` derived from AgentV-owned fields: `run_id`, `suite` or `eval_path`, `test_id`, `target`, `source_target`, `attempt`, `variant`, `envelope_id`, `trace_id`, `root_span_id`, and the projection format/version. Retrying the same completed run keeps the same projection ID even when you choose a different `--out` directory, because `run_id` comes from the source run directory or source manifest name rather than the export destination.
+
+Duplicate policy is explicit:
+
+| Policy | Behavior |
+|--------|----------|
+| `update` | Default. Rewrites the local projection for the same identity. |
+| `skip` | Leaves the existing local projection in place and records `export_metadata.duplicate_policy: skip`. |
+| `error` | Fails before rewriting local projection files when the identity already exists. |
+
+`attempt` defaults to `0`, `variant` defaults to `null`, and `source_target` defaults to `target` when a run has no replay source. Replay and rerun sources can set `source_target`, `attempt`, or `variant`; those values are part of the identity, so different attempts, variants, or source targets produce distinct projection IDs.
+
+## Inspection helpers
+
+For lightweight terminal workflows:
+
+```bash
+agentv results summary .agentv/results/runs/<timestamp>
+agentv results failures .agentv/results/runs/<timestamp>
+agentv results show .agentv/results/runs/<timestamp> --test-id my-case
+agentv results validate .agentv/results/runs/<timestamp>
+```
+
+For a review-centric workflow built around these artifacts, see [Human Review Checkpoint](/docs/v4.42.4/guides/human-review/).
+
+## Remote results sync/status
+
+The CLI contract is deliberately narrow: `agentv results` manages local result artifacts only. It does not expose `results remote status` or `results remote sync` subcommands.
+
+Use these supported remote workflows instead:
+
+- **Automatic publishing:** configure `projects[].results` or top-level `results`; new `agentv eval` and `agentv pipeline bench` runs publish completed artifacts after the run completes. Use `repo_path: .` with `branch: agentv/results/v1` to store results on a dedicated branch of the source repo. `repo_path` means an existing local Git checkout, distinct from `workspace.repos[].repo`, which is a portable repository identity. Set `sync.auto_push: true` to push after publish, or `sync.require_push: true` in CI to fail when that push fails. While an eval is still running, [WIP checkpoints](/docs/v4.42.4/tools/wip-checkpoints/) can keep partial run output durable on `agentv/wip/...` branches when auto-push is enabled.
+- **Manual Dashboard sync:** run `agentv dashboard`, open the project, and use **Sync Project**.
+- **Manual API sync:** while Dashboard is running, call `GET /api/projects/:projectId/remote/status` or `POST /api/projects/:projectId/remote/sync` for project-scoped automation. Single-project sessions also expose `GET /api/remote/status` and `POST /api/remote/sync`.
+- **Git escape hatch:** for advanced recovery, inspect or repair the configured `projects[].results.path` clone with `git` directly, then sync again.
