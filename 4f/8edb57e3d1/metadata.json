@@ -3,7 +3,7 @@
   "checkpoint_id": "4f8edb57e3d1",
   "strategy": "manual-commit",
   "branch": "fix/suite-yaml-examples",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".agentv/targets.yaml",
     "apps/cli/src/commands/eval/discover.ts",
@@ -348,6 +348,12 @@
       "transcript": "/4f/8edb57e3d1/1/full.jsonl",
       "content_hash": "/4f/8edb57e3d1/1/content_hash.txt",
       "prompt": "/4f/8edb57e3d1/1/prompt.txt"
+    },
+    {
+      "metadata": "/4f/8edb57e3d1/2/metadata.json",
+      "transcript": "/4f/8edb57e3d1/2/full.jsonl",
+      "content_hash": "/4f/8edb57e3d1/2/content_hash.txt",
+      "prompt": "/4f/8edb57e3d1/2/prompt.txt"
     }
   ],
   "token_usage": {
@@ -355,6 +361,6 @@
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
     "output_tokens": 562,
-    "api_call_count": 2
+    "api_call_count": 3
   }
 }
