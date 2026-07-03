@@ -51,6 +51,7 @@ targets:
     runtime: host
     config:
       command: codex
+      args: ["--config", "model_reasoning_effort=high"]
       model: gpt-5-codex
 ```
 
@@ -65,6 +66,7 @@ targets:
       home: .agentv/profiles/codex-clean
     config:
       command: codex
+      args: ["--sandbox", "workspace-write"]
       model: gpt-5-codex
 ```
 
@@ -87,11 +89,56 @@ targets:
 | `label` | Human and result identity for the target. Used by CLI selection, run artifacts, Dashboard, and comparisons. |
 | `provider` | Adapter/control protocol kind: `codex-cli`, `codex-app-server`, `codex-sdk`, `pi-cli`, `pi-rpc`, `claude-cli`, `claude-sdk`, etc. |
 | `runtime` | Where and how the provider runs: `host`, `profile`, or `sandbox`. May be a string shorthand or an object with `mode`. |
-| `config` | Provider-specific configuration. Keep `model`, `command`, timeouts, permission flags, and provider knobs here. |
+| `config` | Provider-specific configuration. Keep `model`, `command`, `args`, timeouts, permission flags, and provider knobs here. |
 
 Do not add competing top-level fields such as `isolation`, `sandbox`,
 `install`, `container`, `environment`, or `profile`. Those details live under
 `runtime` or `config` only when a provider needs them.
+
+### Preserve Existing AgentV Surface
+
+This plan is a targeted provider-boundary cleanup, not a rewrite from Promptfoo
+or another framework. Preserve AgentV's current target capabilities unless an
+implementation Bead explicitly removes one.
+
+For coding-agent providers, `config.command` is the executable or shim identity,
+such as `codex`, `codex-personal`, `pi`, or an absolute binary path. It may
+also be a non-empty argv array where the first token is the executable and the
+remaining tokens are extra arguments. Normalize that form internally to
+executable plus argv tokens. `config.args` remains the explicit argv token array
+for extra provider-specific arguments. Keep the existing `executable`/`binary`
+compatibility aliases and the existing `args`/`arguments` array aliases during
+migration. Do not require users to pass shell-joined command strings for
+coding-agent providers.
+
+If `config.command` is an argv array, reject simultaneous `config.args` unless
+the provider defines an unambiguous merge order. This keeps command resolution
+predictable and avoids hidden shell parsing.
+
+The generic `provider: cli` path is different: it currently uses a command
+template string with placeholders such as `{PROMPT}` and healthcheck support.
+Keep that compatibility path intact while adding coding-agent-specific runtime
+boundaries.
+
+Also preserve the common and provider-specific knobs already used by AgentV:
+
+- common target behavior: `grader_target`, `fallback_targets`, `workers`,
+  `subagent_mode_allowed`, env interpolation, `cwd`, and `timeout_seconds`
+- artifact/log behavior: `stream_log`, `log_dir`/`log_directory`, stdout/stderr
+  capture, raw protocol events, and partial logs on failure
+- Codex knobs: `model`, `reasoning_effort`/`model_reasoning_effort`,
+  `model_verbosity`, `base_url`/`endpoint`, `api_key`, `api_format`,
+  `sandbox_mode`, `approval_policy`, and `system_prompt`
+- Pi knobs: `subprovider`, `model`/`pi_model`, `api_key`, `base_url`/`endpoint`,
+  `tools`/`pi_tools`, `thinking`/`pi_thinking`, `args`, and `system_prompt`
+- Claude knobs: `model`, `max_turns`, `max_budget_usd`,
+  `bypass_permissions`, and `system_prompt`
+- Copilot knobs: `model`, custom provider settings, GitHub token/auth knobs,
+  ACP/prompt execution behavior, `args`, and `system_prompt`
+
+Where the new normalized contract uses nested `config`, implement migration by
+normalizing the existing flat target fields into that internal shape. Do not
+drop existing accepted YAML fields as a side effect of adding `runtime`.
 
 ### Runtime Modes
 
@@ -172,7 +219,9 @@ Use explicit provider kinds:
 Do not add `codex-rpc` unless Codex exposes a distinct RPC mode separate from
 app-server. For Codex, app-server is the protocol provider.
 
-`config.command` is the executable or shim, not the provider identity:
+`config.command` is the executable or shim, not the provider identity. Extra
+arguments may be supplied with `config.args` or, for compact argv-style input,
+as a command array:
 
 ```yaml
 targets:
@@ -181,6 +230,16 @@ targets:
     runtime: host
     config:
       command: codex-personal
+      args: ["--model", "gpt-5-codex"]
+```
+
+```yaml
+targets:
+  - label: codex-eng
+    provider: codex-cli
+    runtime: host
+    config:
+      command: ["codex-eng", "--model", "gpt-5-codex"]
 ```
 
 ### Pi
