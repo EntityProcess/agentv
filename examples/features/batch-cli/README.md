@@ -52,7 +52,7 @@ The `tool_trajectory` grader extracts tool calls directly from `output[].tool_ca
 - `batch-cli-demo.yaml` — Ground truth: tests with inputs and expected outputs
 - `scripts/build-csv-from-eval.ts` — Utilities to convert YAML tests to CSV format (imported by batch-cli-runner.ts)
 - `scripts/batch-cli-runner.ts` — Main batch runner: converts inputs to CSV, processes them, writes actual responses as JSONL
-- `.agentv/targets.yaml` — Defines the `batch_cli` CLI target with provider batching enabled
+- `.agentv/targets.yaml` — Defines the `batch_cli` CLI target with request batching enabled
 
 ## Run
 

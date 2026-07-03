@@ -908,7 +908,7 @@ export async function runEvaluation(
     !batchingDisabledByRuntimePolicy
   ) {
     console.warn(
-      `Provider batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
+      `Request batching requested for target '${target.name}', but provider does not advertise batch support. Using per-case dispatch.`,
     );
   }
 
@@ -949,7 +949,7 @@ export async function runEvaluation(
       if (verbose) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(
-          `Provider batch execution failed, falling back to per-case dispatch: ${message}`,
+          `Request batch execution failed, falling back to per-case dispatch: ${message}`,
         );
       }
     }
@@ -1764,11 +1764,11 @@ async function runBatchEvaluation(options: {
 
   const batchResponse = await provider.invokeBatch?.(batchRequests);
   if (!Array.isArray(batchResponse)) {
-    throw new Error('Provider batching failed: invokeBatch did not return an array');
+    throw new Error('Request batching failed: invokeBatch did not return an array');
   }
   if (batchResponse.length !== evalCases.length) {
     throw new Error(
-      `Provider batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`,
+      `Request batching failed: expected ${evalCases.length} responses, received ${batchResponse.length}`,
     );
   }
 

@@ -244,7 +244,7 @@ targets:
   batch_cli:
     provider: cli
     command: bun run ./scripts/batch-runner.ts --eval {EVAL_FILE} --output {OUTPUT_FILE}
-    provider_batching: true
+    batch_requests: true
 ```
 
 Key settings:
@@ -252,7 +252,7 @@ Key settings:
 | Setting | Description |
 |---------|-------------|
 | `provider: cli` | Use the CLI provider |
-| `provider_batching: true` | Run once for all tests instead of per-test |
+| `batch_requests: true` | Run once for all tests instead of per-test |
 | `{EVAL_FILE}` | Placeholder replaced with the eval file path |
 | `{OUTPUT_FILE}` | Placeholder replaced with the JSONL output path |
 

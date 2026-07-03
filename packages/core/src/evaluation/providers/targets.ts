@@ -112,7 +112,7 @@ export const CliTargetInputSchema = z
     // Common target fields
     grader_target: z.string().optional(),
     workers: z.number().int().min(1).optional(),
-    provider_batching: z.boolean().optional(),
+    batch_requests: z.boolean().optional(),
   })
   .passthrough();
 
@@ -582,7 +582,7 @@ export interface TargetDeprecationWarning {
 }
 
 const DEPRECATED_TARGET_CAMEL_CASE_FIELDS = new Map<string, string>([
-  ['providerBatching', 'provider_batching'],
+  ['providerBatching', 'batch_requests'],
   ['subagentModeAllowed', 'subagent_mode_allowed'],
   ['fallbackTargets', 'fallback_targets'],
   ['resourceName', 'endpoint'],
@@ -746,6 +746,11 @@ function assertNoRemovedTargetFields(definition: TargetDefinition): void {
       `target "${definition.name}".judge_target: field 'judge_target' has been removed. Use 'grader_target' instead.`,
     );
   }
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'provider_batching')) {
+    throw new Error(
+      `target "${definition.name}".provider_batching: field 'provider_batching' has been removed. Use 'batch_requests' instead.`,
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(rawDefinition, 'log_format')) {
     throw new Error(
       `target "${definition.name}".log_format: field 'log_format' has been removed. Use 'stream_log' instead.`,
@@ -860,7 +865,7 @@ export type ResolvedTarget =
  */
 export const COMMON_TARGET_SETTINGS = [
   'use_target',
-  'provider_batching',
+  'batch_requests',
   'subagent_mode_allowed',
   'fallback_targets',
 ] as const;
@@ -1027,7 +1032,7 @@ export function resolveTargetDefinition(
     `${parsed.name} provider`,
     true,
   ).toLowerCase();
-  const providerBatching = resolveOptionalBoolean(parsed.provider_batching);
+  const providerBatching = resolveOptionalBoolean(parsed.batch_requests);
   const subagentModeAllowed = resolveOptionalBoolean(parsed.subagent_mode_allowed);
 
   // Shared base fields for all resolved targets

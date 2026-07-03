@@ -56,6 +56,7 @@ describe('validateTargetsFile', () => {
       api_format: responses
     grader_target: grader
     fallback_targets: [backup-agent]
+    batch_requests: true
   - label: grader
     provider: openai
     config:
@@ -72,6 +73,30 @@ describe('validateTargetsFile', () => {
 
     expect(result.valid).toBe(true);
     expect(result.errors.filter((error) => error.severity === 'warning')).toEqual([]);
+  });
+
+  it('rejects removed provider_batching in favor of batch_requests', async () => {
+    const filePath = path.join(tempDir, 'removed-provider-batching.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - label: batch-cli
+    provider: mock
+    provider_batching: true
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.severity === 'error' &&
+          error.location === 'targets[0].provider_batching' &&
+          error.message.includes("Use 'batch_requests' instead"),
+      ),
+    ).toBe(true);
   });
 
   it('rejects authored target name in favor of label', async () => {

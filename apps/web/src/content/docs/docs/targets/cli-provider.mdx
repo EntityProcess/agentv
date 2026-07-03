@@ -80,18 +80,18 @@ echo "Hello, world!" > {OUTPUT_FILE}
 | `keep_temp_files` | boolean | no | `false` | Preserve `{PROMPT_FILE}` / `{OUTPUT_FILE}` after the run — handy while iterating on your command. |
 | `healthcheck` | object | no | — | Pre-run health check (HTTP or command); the eval aborts if it fails. |
 | `workers` | number | no | — | Concurrent test-case executions against this target. |
-| `provider_batching` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
+| `batch_requests` | boolean | no | `false` | Run all cases in one command invocation — see [Batching](#batching). |
 | `grader_target` | string | no | — | LLM target used by this target's LLM graders. Required if your evals use LLM-based graders. |
 
 ## Batching
 
-For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `provider_batching: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
+For targets where spin-up cost dominates per-case work (e.g. loading a model, authenticating), set `batch_requests: true`. AgentV invokes the command *once*, hands it a JSONL stream of cases, and expects a JSONL response keyed by each case's `id`:
 
 ```yaml
 targets:
   - label: batched_agent
     provider: cli
-    provider_batching: true
+    batch_requests: true
     command: python agent.py --batch-in {PROMPT_FILE} --batch-out {OUTPUT_FILE}
 ```
 
