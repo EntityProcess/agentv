@@ -3185,7 +3185,7 @@ async function runConversationMode(options: {
       // Turn skipped due to on_turn_failure: stop
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: 0,
         verdict: 'skip' as EvaluationVerdict,
         assertions: [{ text: 'Skipped due to previous turn failure', passed: false }],
@@ -3222,7 +3222,7 @@ async function runConversationMode(options: {
       const message = error instanceof Error ? error.message : String(error);
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: 0,
         verdict: 'fail' as EvaluationVerdict,
         assertions: [{ text: `Provider error: ${message}`, passed: false }],
@@ -3243,7 +3243,7 @@ async function runConversationMode(options: {
       // No assertions or expected_output — turn scores 1.0
       turnScores.push({
         name: `turn-${turnIndex}`,
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: 1.0,
         verdict: 'pass' as EvaluationVerdict,
         assertions: [],
@@ -3301,7 +3301,7 @@ async function runConversationMode(options: {
 
     turnScores.push({
       name: `turn-${turnIndex}`,
-      type: 'rubrics' as GraderKind,
+      type: 'llm-rubric' as GraderKind,
       score: turnScore,
       verdict: scoreToVerdict(turnScore, threshold ?? DEFAULT_THRESHOLD) as EvaluationVerdict,
       assertions: turnResult.assertions ? [...turnResult.assertions] : [],
@@ -3361,7 +3361,7 @@ async function runConversationMode(options: {
     conversationScores = [
       {
         name: 'conversation',
-        type: 'rubrics' as GraderKind,
+        type: 'llm-rubric' as GraderKind,
         score: conversationResult.score,
         verdict: scoreToVerdict(
           conversationResult.score,
@@ -3452,7 +3452,7 @@ function buildTurnGraderInput(history: readonly ChatMessage[], windowSize?: numb
 
 /**
  * Convert per-turn assertions to GraderConfig[].
- * String assertions are grouped into a single rubrics evaluator.
+ * String assertions are grouped into a single llm-rubric evaluator.
  * Structured assertions pass through as-is.
  */
 function buildTurnAssertions(turn: ConversationTurn): GraderConfig[] {
@@ -3471,13 +3471,11 @@ function buildTurnAssertions(turn: ConversationTurn): GraderConfig[] {
 
   const result: GraderConfig[] = [];
 
-  // Group string assertions into a single llm-grader evaluator with rubrics.
-  // Uses llm-grader (not rubrics) because 'rubrics' is a YAML shorthand resolved by
-  // the grader-parser — at runtime we always dispatch through 'llm-grader'.
+  // Group string assertions into a single structured llm-rubric evaluator.
   if (stringCriteria.length > 0) {
     result.push({
-      name: 'turn-rubrics',
-      type: 'llm-grader' as GraderKind,
+      name: 'turn-llm-rubric',
+      type: 'llm-rubric' as GraderKind,
       rubrics: stringCriteria.map((text, idx) => ({
         id: `criterion-${idx + 1}`,
         outcome: text,

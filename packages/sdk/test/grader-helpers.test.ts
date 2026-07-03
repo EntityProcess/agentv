@@ -10,8 +10,8 @@ import {
   isJsonGrader,
   jsonGrader,
   llmGrader,
+  llmRubricGrader,
   regexGrader,
-  rubricsGrader,
   scriptGrader,
   serializeEvalYaml,
   toEvalYamlObject,
@@ -35,9 +35,9 @@ describe('grader helper config builders', () => {
     });
     expect(isJsonGrader({ required: true })).toEqual({ type: 'is-json', required: true });
     expect(jsonGrader()).toEqual({ type: 'is-json' });
-    expect(rubricsGrader(['Mentions the greeting'], { weight: 2 })).toEqual({
-      type: 'rubrics',
-      criteria: ['Mentions the greeting'],
+    expect(llmRubricGrader(['Mentions the greeting'], { weight: 2 })).toEqual({
+      type: 'llm-rubric',
+      value: ['Mentions the greeting'],
       weight: 2,
     });
     expect(
@@ -89,7 +89,7 @@ describe('grader helper config builders', () => {
             graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
             graders.regex(/"message"\s*:/, { name: 'message-key' }),
             graders.json({ name: 'valid-json', required: true }),
-            graders.rubrics(
+            graders.llmRubric(
               [
                 'Greets the user',
                 {
@@ -138,8 +138,8 @@ describe('grader helper config builders', () => {
       { name: 'valid-json', type: 'is-json', required: true },
       {
         name: 'rubric-review',
-        type: 'rubrics',
-        criteria: [
+        type: 'llm-rubric',
+        value: [
           'Greets the user',
           {
             id: 'quality',

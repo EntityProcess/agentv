@@ -239,7 +239,7 @@ tests:
     input: "Review this Python function for bugs:..."
     assertions:
       - name: agent-skills-criteria
-        type: g-eval
+        type: llm-rubric
         criteria:
           - id: expected-outcome
             outcome: "The function should handle division by zero."

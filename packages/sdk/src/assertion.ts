@@ -38,11 +38,9 @@ export type AssertionContext = CodeGraderInput;
 export type AssertionType =
   // kebab-case (canonical internal form)
   | 'llm-grader'
-  | 'g-eval'
   | 'llm-rubric'
   | 'script'
   | 'assert-set'
-  | 'rubrics'
   | 'composite'
   | 'tool-trajectory'
   | 'field-accuracy'

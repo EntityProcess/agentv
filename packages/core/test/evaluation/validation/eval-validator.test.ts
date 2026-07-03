@@ -193,7 +193,7 @@ tests:
       - type: contains
         value: safe
         metric: safety_text
-      - type: g-eval
+      - type: llm-rubric
         value:
           - Identifies user impact
           - Avoids unsupported claims
@@ -1032,8 +1032,8 @@ tests:
     criteria: Keep supported facts and avoid contradictions
     input: Summarize the finance note
     assertions:
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - id: supported-revenue
             operator: correctness
             outcome: States revenue increased to $10M

@@ -43,8 +43,8 @@ describe('criteria is optional when expected_output or assertions is present', (
   - id: test-02
     input: "sample prompt"
     assertions:
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - response includes sample expected output
 `,
     );

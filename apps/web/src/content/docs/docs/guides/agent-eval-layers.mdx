@@ -15,8 +15,8 @@ Covers plan quality, plan adherence, and tool selection rationale. Use LLM-based
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Plan quality & coherence | `g-eval` |
-| Workspace-aware auditing | `g-eval` with `required: true` criteria |
+| Plan quality & coherence | `llm-rubric` |
+| Workspace-aware auditing | `llm-rubric` with `required: true` criteria |
 
 ```yaml
 # Layer 1: Reasoning — verify the agent's plan makes sense
@@ -24,7 +24,7 @@ assertions:
   - Agent formed a coherent plan before acting
   - Agent selected appropriate tools for the task
   - name: workspace-audit
-    type: g-eval
+    type: llm-rubric
     criteria:
       - id: plan-before-act
         outcome: Agent formed a plan before making changes
@@ -72,7 +72,7 @@ Covers task completion, output correctness, step efficiency, latency, and cost. 
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Output correctness | `g-eval`, `equals`, `contains`, `regex` |
+| Output correctness | `llm-rubric`, `equals`, `contains`, `regex` |
 | Structured data accuracy | `field-accuracy` |
 | Efficiency budgets | `execution-metrics` |
 | Multi-signal rollup | `composite` |
@@ -102,7 +102,7 @@ Covers prompt injection resilience, policy adherence, bias, and content safety. 
 
 | Concern | AgentV grader |
 |---------|-----------------|
-| Content safety | `g-eval` |
+| Content safety | `llm-rubric` |
 | Policy enforcement | `script` with policy command |
 | "Must NOT" assertions | Any grader with `negate: true` |
 

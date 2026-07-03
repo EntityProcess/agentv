@@ -50,7 +50,7 @@ interface RawAssertEntry {
   skill?: string;
   should_trigger?: boolean;
   criteria?: string;
-  value?: string;
+  value?: unknown;
   name?: string;
   description?: string;
   command?: unknown;
@@ -117,13 +117,8 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
       // Handled separately — not an NL assertion
       return null;
 
-    case 'rubrics': {
-      // criteria may be a string (NL) or array of rubric items
-      if (typeof entry.criteria === 'string') {
-        return entry.criteria;
-      }
-      return null;
-    }
+    case 'llm-rubric':
+      return typeof entry.value === 'string' ? entry.value : null;
 
     case 'contains':
       return `Output contains '${entry.value}'`;
@@ -231,6 +226,18 @@ function assertionToNaturalLanguage(entry: RawAssertEntry): string | null {
  * Most assertions produce exactly one string; llm-grader with rubrics expands to many.
  */
 function assertionToNaturalLanguageList(entry: RawAssertEntry): string[] {
+  if (entry.type === 'llm-rubric') {
+    if (Array.isArray(entry.value) && entry.value.length > 0) {
+      return entry.value
+        .map((rubric) => {
+          if (typeof rubric === 'string') return rubric;
+          if (!rubric || typeof rubric !== 'object') return undefined;
+          const item = rubric as { outcome?: string; criteria?: string; id?: string };
+          return item.outcome ?? item.criteria ?? item.id;
+        })
+        .filter((value): value is string => typeof value === 'string');
+    }
+  }
   if (entry.type === 'llm-grader') {
     if (Array.isArray(entry.rubrics) && entry.rubrics.length > 0) {
       return (entry.rubrics as Array<{ outcome?: string; criteria?: string; id?: string }>)

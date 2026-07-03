@@ -95,8 +95,8 @@ tests:
       - Implements correct FizzBuzz logic for multiples of 3, 5, and 15
       - type: script
         command: ["python3", "./validators/check_syntax.py"]
-      - type: g-eval
-        criteria:
+      - type: llm-rubric
+        value:
           - outcome: Solution is simple and idiomatic Python
             weight: 0.5
           - outcome: Handles the 3, 5, and 15 branches correctly
@@ -104,9 +104,9 @@ tests:
 ```
 
 Plain assertion strings are short-form rubric criteria: AgentV groups them into
-`g-eval` and writes each criterion to `grading.json.assertion_results` for the
-Dashboard. Use explicit `type: g-eval` when you need weights, required flags, or
-`score_ranges`; use `type: llm-rubric` for promptfoo-compatible free-form rubric
+`llm-rubric` and writes each criterion to `grading.json.assertion_results` for the
+Dashboard. Use explicit `type: llm-rubric` when you need weights, required flags, or
+`score_ranges`; use string `value` for promptfoo-compatible free-form rubric
 assertions; use `type: llm-grader` only when you need a custom grader prompt,
 grader target, or preprocessing. Executable graders use `type: script`.
 
@@ -199,7 +199,7 @@ const { results, summary } = await evaluate({
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
         { type: 'script', command: ['python3', './validators/check_syntax.py'] },
-        { type: 'g-eval', criteria: ['Solution is simple and idiomatic Python'] },
+        { type: 'llm-rubric', value: ['Solution is simple and idiomatic Python'] },
       ],
     },
   ],
@@ -244,7 +244,7 @@ export default defineEval({
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
         { type: 'script', command: ['python3', './validators/check_syntax.py'] },
-        { type: 'g-eval', criteria: ['Solution is simple and idiomatic Python'] },
+        { type: 'llm-rubric', value: ['Solution is simple and idiomatic Python'] },
       ],
     },
   ],

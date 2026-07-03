@@ -103,8 +103,6 @@ const RubricItemSchema = z.object({
   score_ranges: z.array(ScoreRangeSchema).optional(),
 });
 
-const RubricCriterionSchema = z.union([z.string().min(1), RubricItemSchema]);
-
 // --- Type-specific evaluator schemas ---
 
 const CodeGraderSchema = EvaluatorCommonSchema.extend({
@@ -252,15 +250,9 @@ const EqualsSchema = EvaluatorCommonSchema.extend({
   value: z.string(),
 });
 
-const RubricsSchema = EvaluatorCommonSchema.extend({
-  type: z.literal('rubrics'),
-  criteria: z.array(RubricCriterionSchema).min(1),
-});
-
 const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
   type: z.enum([
     'assert-set',
-    'g-eval',
     'llm-rubric',
     'javascript',
     'python',
@@ -280,9 +272,6 @@ const PromptfooAssertionSchema = EvaluatorCommonSchema.extend({
   ]),
   value: z.unknown().optional(),
   threshold: z.number().min(0).max(1).optional(),
-  criteria: z.union([z.string(), z.array(RubricCriterionSchema)]).optional(),
-  rubrics: z.array(RubricItemSchema).optional(),
-  score_ranges: z.array(ScoreRangeSchema).optional(),
   provider: z.union([z.string(), JsonObjectSchema]).optional(),
   config: JsonRecordSchema.optional(),
   assert: z.array(z.union([z.string(), JsonObjectSchema])).optional(),
@@ -307,7 +296,6 @@ const EvaluatorSchema = z.union([
   RegexSchema,
   IsJsonSchema,
   EqualsSchema,
-  RubricsSchema,
 ]);
 
 /** Assertion item: string shorthand (becomes a criteria/rubric grader) or full evaluator config. */

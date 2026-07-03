@@ -40,7 +40,7 @@ AgentV's core should remain minimal. Complex or domain-specific logic belongs in
 Prefer these extension points before adding a built-in:
 
 - `script` graders for custom executable evaluation logic
-- plain assertion strings or `g-eval` for structured rubric criteria
+- plain assertion strings or `llm-rubric` for structured rubric criteria
 - `llm-rubric` for promptfoo-compatible free-form rubric checks
 - `llm-grader` only when a custom prompt, custom grader target, or preprocessing is needed
 - CLI wrappers that consume AgentV JSON or JSONL output for post-processing such as aggregation, comparison, or reporting

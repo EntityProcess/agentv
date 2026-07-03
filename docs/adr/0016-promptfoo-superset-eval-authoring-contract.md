@@ -30,20 +30,22 @@ keep AgentV's only where its semantics are genuinely better.**
    Promptfoo type names adopted (`contains`/`equals`/`regex`/`is-json`/`icontains`/
    `contains-all|any`/`starts-with`/`similar`/`latency`/`cost`/`webhook`/`javascript`/
    `python`/`assert-set`). `composite` removed → `assert-set`.
-2. **LLM judge vocabulary follows semantics.** `g-eval` is the criteria/rubric
-   scoring type; AgentV's `rubrics` and bare-string `assert` entries desugar to a
-   grouped `g-eval` (N criteria, one judge flow) as an AgentV superset extension.
-   `llm-rubric` remains the promptfoo-compatible free-form rubric judge. Agentic
-   evidence-gathering judges stay an AgentV extension rather than being forced into
-   `llm-rubric`. Structured AgentV rubric criteria are preserved, not flattened
-   into a single text blob: criteria objects keep `weight`, `operator`,
+2. **LLM judge vocabulary follows semantics.** `llm-rubric` is the criteria/rubric
+   scoring type. Bare-string `assert` entries desugar to grouped `llm-rubric`
+   assertions as an AgentV superset extension. Structured AgentV rubric criteria
+   are authored directly in promptfoo's permissive `llm-rubric.value` field; old
+   `rubric`/`rubrics` assertion type names are removed. `llm-rubric` also remains
+   the promptfoo-compatible free-form rubric judge. Agentic evidence-gathering
+   judges stay an AgentV extension rather than being forced into `llm-rubric`.
+   Structured AgentV rubric criteria are preserved, not flattened into a single
+   text blob: criteria objects keep `weight`, `operator`, `required`,
    `score_ranges`, and `min_score`. Artifact assertion rows are the generic
-   AgentV grader contract, not a `g-eval` special case: each grader returns
+   AgentV grader contract, not a `llm-rubric` special case: each grader returns
    `assertions[]`, the orchestrator flattens those rows into
    `grading.json.assertions[]`, and `grading.json.graders[].assertions[]` keeps
    the per-grader breakdown. Deterministic graders usually emit one row, while
    multi-aspect graders emit one row per authored check or result unit. Structured
-   `g-eval` criteria therefore populate one assertion row per criterion so the
+   `llm-rubric` criteria therefore populate one assertion row per criterion so the
    Dashboard can show criterion-level evidence, using the same mechanism as code
    graders, field accuracy, execution metrics, and tool trajectory.
 3. **Grader execution**: `javascript` in-process (Bun `import`), `python` subprocess,
@@ -95,7 +97,7 @@ keep AgentV's only where its semantics are genuinely better.**
     (`beforeAll`/`afterAll`/`beforeEach`/`afterEach`), running *after* materialization —
     e.g. `agentv:agent-rules` (stage skills/hooks/agents) and custom `file://` hooks.
     Removed: `on_run_complete`, `preprocessors` (→ `extensions`).
-11. **Scope**: `similar` ships with a configured embeddings provider, and `g-eval` ships
+11. **Scope**: `similar` ships with a configured embeddings provider, and `llm-rubric` ships
     as the structured criteria/rubric judge. Exotic promptfoo assertions
     (`context-*`/`moderation`/…) and `redteam` are **future scope** —
     treated as unrecognized fields, not stubbed. Superset holds over the *implemented*

@@ -136,7 +136,7 @@ Before adding a new pointer family, verify that the artifact is large enough or 
 
 Grader types use kebab-case everywhere.
 
-- YAML config: `type: g-eval`, `type: llm-rubric`, `type: script`, `type: is-json`
+- YAML config: `type: llm-rubric`, `type: llm-rubric`, `type: script`, `type: is-json`
 - Internal TypeScript: `EvaluatorKind = 'llm-grader' | 'is-json' | ...`
 - Output `scores[].type`: `"llm-grader"`, `"is-json"`
 - Registry keys: `registry.register('llm-grader', ...)`

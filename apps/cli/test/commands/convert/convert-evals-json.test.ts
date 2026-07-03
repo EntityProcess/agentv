@@ -44,7 +44,8 @@ describe('convertEvalsJsonToYaml', () => {
     expect(yaml).toContain('criteria: |-');
     expect(yaml).toContain('Something done');
     expect(yaml).toContain('agent-skills-criteria');
-    expect(yaml).toContain('type: g-eval');
+    expect(yaml).toContain('type: llm-rubric');
+    expect(yaml).toContain('value:');
     expect(yaml).toContain('expected-outcome');
     expect(yaml).toContain('assertion-1');
     expect(yaml).toContain('expectation-1');
@@ -87,13 +88,17 @@ describe('convertEvalsJsonToYaml', () => {
   it('maps skill_name to tags.skill in the read adapter', () => {
     const filePath = writeTempJson({
       skill_name: 'test-skill',
-      evals: [{ id: 1, prompt: 'Just a prompt' }],
+      evals: [{ id: 1, prompt: 'Just a prompt', assertions: ['Check A'] }],
     });
 
     const yamlObject = agentSkillsToAgentVYamlObject(readAgentSkillsEvalsFile(filePath));
 
     expect(yamlObject.tags).toEqual({ skill: 'test-skill' });
     expect(yamlObject.metadata).toEqual({ source_adapter: 'agent-skills-evals-json' });
+    expect(yamlObject.tests?.[0]?.assertions?.[0]).toMatchObject({
+      type: 'llm-rubric',
+      value: [{ id: 'assertion-1', outcome: 'Check A' }],
+    });
   });
 
   it('throws on invalid format', () => {

@@ -10,7 +10,7 @@ LLM graders use a language model to evaluate agent responses against custom crit
 ## Explicit LLM Graders
 
 Put semantic grading requirements in `assert`. Plain strings are
-handled by the built-in `g-eval` rubric grader. Use `type: llm-grader` when you
+handled by the built-in `llm-rubric` rubric grader. Use `type: llm-grader` when you
 need a custom prompt, target, or grader-specific preprocessing:
 
 ```yaml
@@ -76,7 +76,8 @@ Score the response from 0.0 to 1.0 based on:
 | `output` | Candidate answer text |
 | `metadata` | Test metadata as formatted JSON |
 | `metadata_json` | Test metadata as compact JSON |
-| `g-eval` | LLM-grader rubric items as formatted JSON |
+| `rubric` | Rubric data as structured JSON when available, or criteria text otherwise |
+| `rubrics` | LLM-grader rubric items as formatted JSON |
 | `rubrics_json` | LLM-grader rubric items as compact JSON |
 | `file_changes` | Unified diff of workspace file changes (populated when `workspace` is configured) |
 | `tool_calls` | Formatted summary of tool calls from agent execution (tool name + key inputs per call) |
@@ -104,7 +105,7 @@ tests:
       - name: dexter_semantic
         type: llm-grader
         prompt: file://prompts/dexter-grader.md
-        g-eval:
+        rubrics:
           - operator: correctness
             criteria: Uses the provided ticker and company.
 ```

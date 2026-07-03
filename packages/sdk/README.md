@@ -183,7 +183,7 @@ export default defineEval({
         graders.contains('Hello', { name: 'mentions-hello' }),
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
-        graders.rubrics(['Greets the user'], { name: 'rubric-review' }),
+        graders.llmRubric(['Greets the user'], { name: 'rubric-review' }),
         graders.llmGrader({
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
@@ -235,7 +235,7 @@ Python workflows should emit canonical YAML/JSONL or implement code graders over
 - `definePromptTemplate(handler)` - Define a dynamic prompt template
 - `defineEval(definition)` / `evalSuite(definition)` - Define a YAML-aligned `.eval.ts` suite
 - `graders` - Catalog of built-in AgentV grader config helpers
-- `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `rubricsGrader`, `llmGrader`, `codeGrader` - Named grader helper functions
+- `containsGrader`, `equalsGrader`, `exactGrader`, `regexGrader`, `isJsonGrader`, `jsonGrader`, `llmRubricGrader`, `llmGrader`, `scriptGrader` - Named grader helper functions
 - `toEvalYamlObject(definition)` / `serializeEvalYaml(definition)` - Lower or serialize canonical eval YAML
 - `EvalConfig`, `EvalRunResult`, `EvalSummary`, `EvalTestInput`, `EvalAssertionInput` - Programmatic evaluation types
 - `AssertionContext`, `AssertionScore` - Assertion types

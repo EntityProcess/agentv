@@ -30,7 +30,7 @@ const SINGLE_SKILL_SUITE = {
         'The top 3 months by revenue are November ($22,500), September ($20,100), and December ($19,400).',
       assertions: [
         { type: 'skill-trigger', skill: 'csv-analyzer', should_trigger: true },
-        { type: 'rubrics', criteria: 'Output identifies November as the highest revenue month' },
+        { type: 'llm-rubric', value: 'Output identifies November as the highest revenue month' },
         { type: 'contains', value: '$22,500' },
       ],
     },

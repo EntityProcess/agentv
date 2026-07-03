@@ -46,7 +46,6 @@ const ASSERTION_TYPES_WITH_ARRAY_VALUE = new Set([
 ]);
 const PROMPTFOO_ASSERTION_TYPES = new Set([
   'assert-set',
-  'g-eval',
   'llm-rubric',
   'javascript',
   'python',
@@ -54,6 +53,14 @@ const PROMPTFOO_ASSERTION_TYPES = new Set([
   'similar',
   'select-best',
   'human',
+]);
+const REMOVED_ASSERTION_TYPE_REPLACEMENTS = new Map<string, string>([
+  ['g-eval', 'llm-rubric'],
+  ['rubrics', 'llm-rubric with value'],
+  ['rubric', 'llm-rubric with value'],
+  ['code-grader', 'script'],
+  ['code-judge', 'script'],
+  ['llm-judge', 'llm-grader'],
 ]);
 
 /** Valid file extensions for external test files. */
@@ -211,7 +218,6 @@ const KNOWN_TEST_FIELDS = new Set([
   'assert_scoring_function',
   'options',
   'threshold',
-  'rubrics',
   'execution',
   'run',
   'workspace',
@@ -1216,6 +1222,16 @@ function validateDefaultTest(
       message: "Invalid 'default_test.threshold' field (must be a number between 0 and 1)",
     });
   }
+
+  const options = defaultTest.options;
+  if (options !== undefined && !isObject(options)) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: 'default_test.options',
+      message: "Invalid 'default_test.options' field (must be an object)",
+    });
+  }
 }
 
 function validateEvaluateOptions(
@@ -2113,6 +2129,16 @@ function validateAssertArray(
 
     // Normalize snake_case to kebab-case for backward compatibility
     const typeValue = rawTypeValue.replace(/_/g, '-');
+    const replacement = REMOVED_ASSERTION_TYPE_REPLACEMENTS.get(typeValue);
+    if (replacement) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${itemLocation}.type`,
+        message: `Unsupported assertion type '${rawTypeValue}'. Use '${replacement}' instead.`,
+      });
+      continue;
+    }
 
     if (
       !isGraderKind(typeValue) &&

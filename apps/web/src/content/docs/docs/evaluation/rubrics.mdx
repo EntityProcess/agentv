@@ -22,11 +22,11 @@ tests:
       - States time complexity
 ```
 
-All strings are collected into a single g-eval grader automatically.
+All strings are collected into a single llm-rubric grader automatically.
 
 ### Full form for advanced options
 
-Use `type: g-eval` explicitly when you need weights, required flags, or score ranges:
+Use `type: llm-rubric` explicitly when you need weights, required flags, or score ranges. Put structured rubric items in `value` so the assertion stays compatible with promptfoo's `llm-rubric.value` object/array field:
 
 ```yaml
 tests:
@@ -34,8 +34,8 @@ tests:
     criteria: Explain how quicksort works
     input: Explain quicksort algorithm
     assert:
-      - type: g-eval
-        criteria:
+      - type: llm-rubric
+        value:
           - Mentions divide-and-conquer approach
           - Explains partition step
           - States time complexity
@@ -47,8 +47,8 @@ For fine-grained control, use rubric objects with weights and requirements:
 
 ```yaml
 assert:
-  - type: g-eval
-    criteria:
+  - type: llm-rubric
+    value:
       - id: core-concept
         outcome: Explains divide-and-conquer
         weight: 2.0
@@ -69,13 +69,27 @@ assert:
 | `outcome` | — | Description of what to check |
 | `operator` | — | Optional intent hint: `correctness` or `contradiction` |
 | `weight` | `1.0` | Relative importance for scoring |
-| `required` | `false` | If true, failing this criterion fails the entire eval |
+| `required` | `true` | If true, failing this criterion fails the entire eval |
 | `min_score` | — | Minimum score (0–1) for this criterion to pass |
 | `score_ranges` | — | Score range definitions (analytic mode) |
 
 :::note
-Use `min_score` for analytic rubric gating. The only 0–10 values in authored g-eval are `score_ranges` bands and grader outputs.
+Use `min_score` for analytic rubric gating. The only 0–10 values in authored llm-rubric are `score_ranges` bands and grader outputs.
 :::
+
+`weight` controls score contribution. `required` controls the verdict: a required checklist criterion can fail the eval even when the weighted score would otherwise pass.
+
+`llm-rubric.value` can also be free-form text or an arbitrary JSON/YAML object. AgentV uses structured scoring when `value` is an array of rubric strings or rubric objects with fields such as `outcome` and `score_ranges`; other objects are passed to the rubric prompt as rubric data.
+
+To replace AgentV's built-in rubric judge prompt for a suite, set a default prompt override:
+
+```yaml
+default_test:
+  options:
+    rubric_prompt: file://graders/judge-prompt.txt
+```
+
+Most evals do not need this. Plain strings and structured `value` arrays use the built-in prompt automatically.
 
 ### Criterion Operators
 
@@ -83,8 +97,8 @@ Use `operator` when the criterion outcome should be interpreted with a specific 
 
 ```yaml
 assert:
-  - type: g-eval
-    criteria:
+  - type: llm-rubric
+    value:
       - id: supported-revenue
         operator: correctness
         outcome: States revenue increased to $10M
@@ -103,8 +117,8 @@ For quality gradients instead of binary pass/fail, use score ranges:
 
 ```yaml
 assert:
-  - type: g-eval
-    criteria:
+  - type: llm-rubric
+    value:
       - id: accuracy
         outcome: Provides correct answer
         weight: 2.0
@@ -170,8 +184,8 @@ tests:
     criteria: Generates correct, clean Python code
     input: Write a fibonacci function
     assert:
-      - type: g-eval
-        criteria:
+      - type: llm-rubric
+        value:
           - Returns correct values for n=0,1,2,10
           - Uses meaningful variable names
           - Includes docstring

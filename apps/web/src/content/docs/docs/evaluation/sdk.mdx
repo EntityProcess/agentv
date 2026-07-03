@@ -140,7 +140,7 @@ export default defineEval({
         graders.exact('{"message":"Hello"}', { name: 'exact-json', minScore: 1 }),
         graders.regex(/"message"\s*:/, { name: 'message-key' }),
         graders.json({ name: 'valid-json', required: true }),
-        graders.g-eval(['Greets the user'], { name: 'rubric-review' }),
+        graders.llm-rubric(['Greets the user'], { name: 'rubric-review' }),
         graders.llmGrader({
           name: 'llm-review',
           prompt: 'Grade whether the answer is useful.',
@@ -153,7 +153,7 @@ export default defineEval({
 });
 ```
 
-The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `g-eval`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
+The catalog covers `contains`, `equals`/`exact`, `regex`, `is-json`/`json`, `llm-rubric`, `llm-grader`, and `script`. CamelCase SDK options such as `minScore`, `maxSteps`, and rubric `scoreRanges` lower to `min_score`, `max_steps`, and `score_ranges` when AgentV loads or serializes the suite.
 
 ## AgentV-Native Helper Factories
 

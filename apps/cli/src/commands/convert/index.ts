@@ -72,7 +72,7 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
   lines.push('# AgentV features you can add:');
   lines.push('#   - type: is-json, contains, regex for deterministic graders');
   lines.push('#   - type: script for custom scoring scripts');
-  lines.push('#   - type: g-eval criteria with weights and score ranges for rubrics');
+  lines.push('#   - type: llm-rubric value arrays with weights and score ranges for rubrics');
   lines.push('#   - Multi-turn conversations via input message arrays');
   lines.push('#   - Multiple assertions with weighted scoring');
   lines.push('#   - Workspace isolation with repos and hooks');
@@ -127,8 +127,8 @@ export function convertEvalsJsonToYaml(inputPath: string): string {
       lines.push('    # Replace with type: is-json, contains, or regex for deterministic checks');
       lines.push('    assertions:');
       lines.push('      - name: agent-skills-criteria');
-      lines.push('        type: g-eval');
-      lines.push('        criteria:');
+      lines.push('        type: llm-rubric');
+      lines.push('        value:');
       for (const criterion of test.criteria) {
         lines.push(`          - id: ${quoteYamlString(criterion.id)}`);
         lines.push(`            outcome: ${quoteYamlString(criterion.outcome)}`);

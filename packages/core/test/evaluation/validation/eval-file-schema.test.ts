@@ -217,7 +217,7 @@ describe('EvalFileSchema input shorthand', () => {
               threshold: 0.5,
             },
             {
-              type: 'g-eval',
+              type: 'llm-rubric',
               value: ['Identifies user impact', 'Avoids unsupported claims'],
               score_ranges: [{ score_range: [0, 10], outcome: 'overall quality' }],
             },
@@ -308,15 +308,15 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts explicit rubrics criteria string shorthand', () => {
+  it('accepts explicit llm-rubric value string shorthand', () => {
     const result = EvalFileSchema.safeParse({
       tests: [
         {
           ...baseTest,
           assertions: [
             {
-              type: 'rubrics',
-              criteria: ['Must be polite', 'Must be accurate'],
+              type: 'llm-rubric',
+              value: ['Must be polite', 'Must be accurate'],
             },
           ],
         },

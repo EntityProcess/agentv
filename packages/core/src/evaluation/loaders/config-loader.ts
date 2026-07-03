@@ -17,6 +17,7 @@ import type {
   EvalTargetRef,
   FailOnError,
   JsonObject,
+  JsonValue,
   TargetHooksConfig,
   WorkspaceHookConfig,
 } from '../types.js';
@@ -600,6 +601,41 @@ export function extractDefaultTestThreshold(suite: JsonObject): number | undefin
   logWarning(
     `Invalid default_test.threshold. Must be a number between 0 and 1: ${rawThreshold}. Ignoring.`,
   );
+  return undefined;
+}
+
+/**
+ * Extract an optional inherited rubric prompt override for llm-rubric assertions.
+ * Accepts default_test.options.rubric_prompt.
+ */
+export function extractDefaultTestRubricPrompt(suite: JsonObject): JsonValue | undefined {
+  rejectAuthoredRuntimeContainers(suite);
+  const rawDefaultTest = suite.default_test;
+  if (rawDefaultTest === undefined || rawDefaultTest === null) {
+    return undefined;
+  }
+  if (!isJsonObject(rawDefaultTest)) {
+    return undefined;
+  }
+
+  const rawOptions = rawDefaultTest.options;
+  if (rawOptions === undefined || rawOptions === null) {
+    return undefined;
+  }
+  if (!isJsonObject(rawOptions)) {
+    logWarning(`Invalid default_test.options: ${rawOptions}. Ignoring rubric prompt.`);
+    return undefined;
+  }
+
+  const rawPrompt = rawOptions.rubric_prompt;
+  if (rawPrompt === undefined || rawPrompt === null) {
+    return undefined;
+  }
+  if (typeof rawPrompt === 'string' || isJsonObject(rawPrompt) || Array.isArray(rawPrompt)) {
+    return rawPrompt as JsonValue;
+  }
+
+  logWarning('Invalid default_test.options.rubric_prompt. Must be string, object, or array.');
   return undefined;
 }
 

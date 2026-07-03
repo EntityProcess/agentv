@@ -24,8 +24,8 @@ describe('rubric criterion operators', () => {
     input: "Summarize the finance note"
     criteria: "Keep supported facts and avoid contradictions"
     assertions:
-      - type: rubrics
-        criteria:
+      - type: llm-rubric
+        value:
           - id: supported-revenue
             operator: correctness
             outcome: "States revenue increased to $10M"
@@ -39,9 +39,9 @@ describe('rubric criterion operators', () => {
     const tests = await loadTests(path.join(dir, 'suite.eval.yaml'), dir);
     const evaluator = tests[0]?.assertions?.[0];
 
-    expect(evaluator?.type).toBe('g-eval');
-    if (!evaluator || evaluator.type !== 'g-eval') {
-      throw new Error('expected rubrics to normalize to g-eval');
+    expect(evaluator?.type).toBe('llm-rubric');
+    if (!evaluator || evaluator.type !== 'llm-rubric') {
+      throw new Error('expected rubrics to normalize to llm-rubric');
     }
 
     expect(evaluator.rubrics?.map((rubric) => rubric.operator)).toEqual([

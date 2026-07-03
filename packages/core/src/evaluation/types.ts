@@ -166,7 +166,6 @@ export function isTestMessage(value: unknown): value is TestMessage {
 const GRADER_KIND_VALUES = [
   'script',
   'llm-grader',
-  'rubric',
   'composite',
   'tool-trajectory',
   'field-accuracy',
@@ -176,7 +175,6 @@ const GRADER_KIND_VALUES = [
   'execution-metrics',
   'skill-trigger',
   'assert-set',
-  'g-eval',
   'llm-rubric',
   'contains',
   'contains-any',
@@ -193,7 +191,6 @@ const GRADER_KIND_VALUES = [
   'python',
   'webhook',
   'similar',
-  'rubrics',
   'inline-assert',
 ] as const;
 
@@ -471,17 +468,13 @@ export type LlmGraderConfig = {
   readonly preprocessors?: readonly ContentPreprocessorConfig[];
 };
 
-export type GEvalGraderConfig = Omit<LlmGraderConfig, 'type'> & {
-  readonly type: 'g-eval';
-};
-
-export type LlmRubricGraderConfig = Omit<LlmGraderConfig, 'type' | 'rubrics'> & {
+export type LlmRubricGraderConfig = Omit<LlmGraderConfig, 'type'> & {
   readonly type: 'llm-rubric';
-  /** Promptfoo-compatible free-form rubric text. */
-  readonly value?: string;
+  /** Free-form rubric text. Omit when using structured rubric criteria. */
+  readonly value?: JsonValue;
 };
 
-export type LlmBackedGraderConfig = LlmGraderConfig | GEvalGraderConfig | LlmRubricGraderConfig;
+export type LlmBackedGraderConfig = LlmGraderConfig | LlmRubricGraderConfig;
 
 /**
  * Score range definition for analytic rubric scoring.
@@ -870,22 +863,6 @@ export type EqualsGraderConfig = {
   readonly negate?: boolean;
 };
 
-/**
- * Configuration for the rubrics evaluator.
- * Evaluates candidate output against a list of rubric criteria.
- */
-export type RubricsEvaluatorConfig = {
-  readonly name: string;
-  readonly type: 'rubrics';
-  readonly criteria: readonly RubricItem[];
-  readonly weight?: number;
-  readonly required?: boolean;
-  /** Minimum score (0-1) for this evaluator to pass. Independent of `required` gate. */
-  readonly min_score?: number;
-  /** When true, inverts the grader score (1 - score) and swaps pass/fail verdict */
-  readonly negate?: boolean;
-};
-
 export type ScriptAssertionGraderConfig = {
   readonly name: string;
   readonly type: 'javascript' | 'python' | 'webhook';
@@ -960,7 +937,6 @@ export type GraderConfig = (
   | ScriptGraderConfig
   | CodeGraderConfig
   | LlmGraderConfig
-  | GEvalGraderConfig
   | LlmRubricGraderConfig
   | CompositeGraderConfig
   | ToolTrajectoryGraderConfig
@@ -981,7 +957,6 @@ export type GraderConfig = (
   | RegexGraderConfig
   | IsJsonGraderConfig
   | EqualsGraderConfig
-  | RubricsEvaluatorConfig
   | ScriptAssertionGraderConfig
   | SimilarGraderConfig
   | AssertSetGraderConfig

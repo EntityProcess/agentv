@@ -10,10 +10,10 @@ import type {
   CompositeGraderConfig,
   ContainsGraderConfig,
   EqualsGraderConfig,
-  GEvalGraderConfig,
   IsJsonGraderConfig,
   LatencyGraderConfig,
   LlmGraderConfig,
+  LlmRubricGraderConfig,
   RegexGraderConfig,
 } from '../../../src/evaluation/types.js';
 
@@ -212,24 +212,25 @@ describe('parseGraders - deterministic assertion types', () => {
     expect(evaluators).toBeUndefined();
   });
 
-  it('parses type: rubrics with criteria as g-eval', async () => {
-    const evaluators = await parseGraders(
-      {
-        assert: [
-          {
-            name: 'rubrics-eval',
-            type: 'rubrics',
-            criteria: [{ id: 'r1', outcome: 'Must be polite', weight: 1.0, required: true }],
-          },
-        ],
-      },
-      undefined,
-      [tempDir],
-      'test-1',
+  it('rejects removed rubrics assertion type with llm-rubric migration hint', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [
+            {
+              name: 'rubrics-eval',
+              type: 'rubrics',
+              criteria: [{ id: 'r1', outcome: 'Must be polite', weight: 1.0, required: true }],
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(
+      "Unsupported grader 'rubrics' in 'test-1'. Use 'llm-rubric with value' instead.",
     );
-    expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('g-eval');
-    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(1);
   });
 
   it('parses multiple assertion types in one evaluators array', async () => {
@@ -253,14 +254,14 @@ describe('parseGraders - deterministic assertion types', () => {
     expect(evaluators?.[3].type).toBe('equals');
   });
 
-  it('parses explicit g-eval criteria with score ranges', async () => {
+  it('parses explicit llm-rubric criteria with score ranges', async () => {
     const evaluators = await parseGraders(
       {
         assert: [
           {
             name: 'quality',
-            type: 'g-eval',
-            rubric_item: {
+            type: 'llm-rubric',
+            value: {
               id: 'quality',
               outcome: 'Answer quality',
               min_score: 0.8,
@@ -278,8 +279,8 @@ describe('parseGraders - deterministic assertion types', () => {
       'test-1',
     );
 
-    const config = evaluators?.[0] as GEvalGraderConfig;
-    expect(config.type).toBe('g-eval');
+    const config = evaluators?.[0] as LlmRubricGraderConfig;
+    expect(config.type).toBe('llm-rubric');
     expect(config.rubrics?.[0]).toMatchObject({
       id: 'quality',
       outcome: 'Answer quality',
@@ -307,6 +308,111 @@ describe('parseGraders - deterministic assertion types', () => {
       type: 'llm-rubric',
       value: 'Judge whether it is helpful',
     });
+  });
+
+  it('keeps arbitrary llm-rubric object value for promptfoo-compatible prompts', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            name: 'object-rubric',
+            type: 'llm-rubric',
+            value: {
+              role: 'system',
+              content: 'Evaluate the response for accuracy',
+            },
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    const config = evaluators?.[0] as LlmRubricGraderConfig;
+    expect(config.type).toBe('llm-rubric');
+    expect(config.value).toEqual({
+      role: 'system',
+      content: 'Evaluate the response for accuracy',
+    });
+    expect(config.rubrics).toBeUndefined();
+  });
+
+  it('parses promptfoo-style llm-rubric value array as structured rubrics', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            name: 'structured-array',
+            type: 'llm-rubric',
+            value: [
+              {
+                id: 'implementation-repositories',
+                outcome: 'Routes branch setup to implementation repositories',
+                weight: 2,
+                required: true,
+              },
+              {
+                id: 'not-docs-only',
+                outcome: 'Does not route only to the docs repository',
+                weight: 1.5,
+                required: true,
+              },
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    const config = evaluators?.[0] as LlmRubricGraderConfig;
+    expect(config.type).toBe('llm-rubric');
+    expect(config.value).toBeUndefined();
+    expect(config.rubrics).toHaveLength(2);
+    expect(config.rubrics?.[1]).toMatchObject({
+      id: 'not-docs-only',
+      outcome: 'Does not route only to the docs repository',
+      weight: 1.5,
+      required: true,
+    });
+  });
+
+  it('inherits default rubric prompt for llm-rubric assertions only', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          { name: 'rubric', type: 'llm-rubric', value: 'Judge whether it is helpful' },
+          { name: 'grader', type: 'llm-grader' },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+      undefined,
+      'Grade {{ output }} against {{ rubric }}',
+    );
+
+    expect(evaluators?.[0]).toMatchObject({
+      name: 'rubric',
+      type: 'llm-rubric',
+      prompt: 'Grade {{ output }} against {{ rubric }}',
+    });
+    expect((evaluators?.[1] as LlmGraderConfig).prompt).toBeUndefined();
+  });
+
+  it('rejects explicit g-eval until AgentV implements promptfoo two-call semantics', async () => {
+    await expect(
+      parseGraders(
+        {
+          assert: [{ name: 'geval', type: 'g-eval', value: 'Judge whether it is helpful' }],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow("Unsupported grader 'g-eval' in 'test-1'. Use 'llm-rubric' instead.");
   });
 
   it('rejects known unimplemented promptfoo assertion types', async () => {
@@ -1749,11 +1855,11 @@ assertions:
   });
 });
 
-describe('parseGraders - type: rubrics with criteria', () => {
+describe('parseGraders - structured llm-rubric value', () => {
   let tempDir: string;
 
   beforeAll(async () => {
-    tempDir = path.join(os.tmpdir(), `agentv-test-rubrics-criteria-${Date.now()}`);
+    tempDir = path.join(os.tmpdir(), `agentv-test-llm-rubric-value-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
   });
 
@@ -1761,13 +1867,13 @@ describe('parseGraders - type: rubrics with criteria', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parses rubrics type with criteria array', async () => {
+  it('parses structured value array as rubric items', async () => {
     const evaluators = await parseGraders(
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: [
+            type: 'llm-rubric',
+            value: [
               { id: 'accuracy', outcome: 'Correct answer', weight: 5.0 },
               { id: 'reasoning', outcome: 'Clear reasoning', weight: 3.0 },
             ],
@@ -1780,9 +1886,9 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('g-eval');
-    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(2);
-    expect((evaluators?.[0] as GEvalGraderConfig).weight).toBe(4.0);
+    expect(evaluators?.[0].type).toBe('llm-rubric');
+    expect((evaluators?.[0] as LlmRubricGraderConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmRubricGraderConfig).weight).toBe(4.0);
   });
 
   it('preserves optional rubric criterion operators', async () => {
@@ -1790,8 +1896,8 @@ describe('parseGraders - type: rubrics with criteria', () => {
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: [
+            type: 'llm-rubric',
+            value: [
               {
                 id: 'correct-fact',
                 operator: 'correctness',
@@ -1811,7 +1917,7 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
 
-    const config = evaluators?.[0] as LlmGraderConfig;
+    const config = evaluators?.[0] as LlmRubricGraderConfig;
     expect(config.rubrics?.[0]?.operator).toBe('correctness');
     expect(config.rubrics?.[1]?.operator).toBe('contradiction');
   });
@@ -1822,8 +1928,8 @@ describe('parseGraders - type: rubrics with criteria', () => {
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: [
+            type: 'llm-rubric',
+            value: [
               {
                 id: 'fact',
                 operator: 'unsupported',
@@ -1838,20 +1944,20 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
 
-    const config = evaluators?.[0] as LlmGraderConfig;
+    const config = evaluators?.[0] as LlmRubricGraderConfig;
     expect(config.rubrics).toHaveLength(1);
     expect(config.rubrics?.[0]?.operator).toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Ignoring invalid operator'));
     warnSpy.mockRestore();
   });
 
-  it('auto-generates name for rubrics type', async () => {
+  it('auto-generates name for llm-rubric type', async () => {
     const evaluators = await parseGraders(
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: [{ id: 'check-1', outcome: 'Some check', weight: 1.0 }],
+            type: 'llm-rubric',
+            value: [{ id: 'check-1', outcome: 'Some check', weight: 1.0 }],
           },
         ],
       },
@@ -1863,14 +1969,14 @@ describe('parseGraders - type: rubrics with criteria', () => {
     expect(evaluators?.[0].name).toBeTruthy();
   });
 
-  it('skips rubrics with empty criteria array', async () => {
+  it('skips llm-rubric with empty value array', async () => {
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     const evaluators = await parseGraders(
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: [],
+            type: 'llm-rubric',
+            value: [],
           },
         ],
       },
@@ -1879,19 +1985,17 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('criteria must be a non-empty array'),
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('expected value or prompt'));
     warnSpy.mockRestore();
   });
 
-  it('skips rubrics with missing criteria', async () => {
+  it('skips llm-rubric with missing value', async () => {
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     const evaluators = await parseGraders(
       {
         assertions: [
           {
-            type: 'rubrics',
+            type: 'llm-rubric',
           },
         ],
       },
@@ -1900,19 +2004,17 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('criteria must be a non-empty array'),
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('expected value or prompt'));
     warnSpy.mockRestore();
   });
 
-  it('supports string shorthand in criteria', async () => {
+  it('supports string items in value arrays', async () => {
     const evaluators = await parseGraders(
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: ['Must be polite', 'Must be accurate'],
+            type: 'llm-rubric',
+            value: ['Must be polite', 'Must be accurate'],
           },
         ],
       },
@@ -1921,16 +2023,16 @@ describe('parseGraders - type: rubrics with criteria', () => {
       'test-1',
     );
     expect(evaluators).toHaveLength(1);
-    expect((evaluators?.[0] as LlmGraderConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmRubricGraderConfig).rubrics).toHaveLength(2);
   });
 
-  it('preserves score_ranges in rubrics assertion criteria', async () => {
+  it('preserves score_ranges in structured value array', async () => {
     const evaluators = await parseGraders(
       {
         assertions: [
           {
-            type: 'rubrics',
-            criteria: [
+            type: 'llm-rubric',
+            value: [
               {
                 id: 'quality',
                 outcome: 'Answer quality',
@@ -1951,15 +2053,35 @@ describe('parseGraders - type: rubrics with criteria', () => {
     );
 
     expect(evaluators).toHaveLength(1);
-    const config = evaluators?.[0] as GEvalGraderConfig;
-    expect(config.name).toBe('rubrics');
-    expect(config.type).toBe('g-eval');
+    const config = evaluators?.[0] as LlmRubricGraderConfig;
+    expect(config.name).toBe('llm-rubric');
+    expect(config.type).toBe('llm-rubric');
     expect(config.rubrics?.[0]?.min_score).toBe(0.8);
     expect(config.rubrics?.[0]?.score_ranges).toEqual([
       { score_range: [0, 4], outcome: 'Weak' },
       { score_range: [5, 7], outcome: 'Adequate' },
       { score_range: [8, 10], outcome: 'Strong' },
     ]);
+  });
+
+  it('rejects structured criteria fields on llm-rubric', async () => {
+    await expect(
+      parseGraders(
+        {
+          assertions: [
+            {
+              type: 'llm-rubric',
+              criteria: [{ id: 'check-1', outcome: 'Some check' }],
+            },
+          ],
+        },
+        undefined,
+        [tempDir],
+        'test-1',
+      ),
+    ).rejects.toThrow(
+      "Unsupported llm-rubric field 'criteria' in 'test-1' for evaluator 'llm-rubric'. Use 'value' instead.",
+    );
   });
 });
 
@@ -2291,13 +2413,13 @@ describe('parseGraders - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(1);
     const rubrics = evaluators?.[0];
-    expect(rubrics?.type).toBe('g-eval');
-    expect((rubrics as GEvalGraderConfig).rubrics).toHaveLength(3);
-    expect((rubrics as GEvalGraderConfig).rubrics?.[0].outcome).toBe(
+    expect(rubrics?.type).toBe('llm-rubric');
+    expect((rubrics as LlmRubricGraderConfig).rubrics).toHaveLength(3);
+    expect((rubrics as LlmRubricGraderConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
     );
-    expect((rubrics as GEvalGraderConfig).rubrics?.[1].outcome).toBe('Explains partition step');
-    expect((rubrics as GEvalGraderConfig).rubrics?.[2].outcome).toBe('States time complexity');
+    expect((rubrics as LlmRubricGraderConfig).rubrics?.[1].outcome).toBe('Explains partition step');
+    expect((rubrics as LlmRubricGraderConfig).rubrics?.[2].outcome).toBe('States time complexity');
   });
 
   it('groups strings into rubrics and preserves object evaluators', async () => {
@@ -2316,9 +2438,9 @@ describe('parseGraders - string shorthand in assertions', () => {
 
     expect(evaluators).toHaveLength(2);
     // First: rubrics (at position of first string)
-    expect(evaluators?.[0].type).toBe('g-eval');
-    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(2);
-    expect((evaluators?.[0] as GEvalGraderConfig).rubrics?.[0].outcome).toBe(
+    expect(evaluators?.[0].type).toBe('llm-rubric');
+    expect((evaluators?.[0] as LlmRubricGraderConfig).rubrics).toHaveLength(2);
+    expect((evaluators?.[0] as LlmRubricGraderConfig).rubrics?.[0].outcome).toBe(
       'Mentions divide-and-conquer approach',
     );
     // Second: the contains evaluator
@@ -2337,9 +2459,9 @@ describe('parseGraders - string shorthand in assertions', () => {
     );
 
     expect(evaluators).toHaveLength(1);
-    expect(evaluators?.[0].type).toBe('g-eval');
-    expect((evaluators?.[0] as GEvalGraderConfig).rubrics).toHaveLength(1);
-    expect((evaluators?.[0] as GEvalGraderConfig).rubrics?.[0].outcome).toBe(
+    expect(evaluators?.[0].type).toBe('llm-rubric');
+    expect((evaluators?.[0] as LlmRubricGraderConfig).rubrics).toHaveLength(1);
+    expect((evaluators?.[0] as LlmRubricGraderConfig).rubrics?.[0].outcome).toBe(
       'Response must be polite',
     );
   });
@@ -2375,8 +2497,8 @@ describe('parseGraders - string shorthand in assertions', () => {
     );
 
     expect(evaluators).toHaveLength(2);
-    const rubrics = evaluators?.[0] as GEvalGraderConfig;
-    expect(rubrics.type).toBe('g-eval');
+    const rubrics = evaluators?.[0] as LlmRubricGraderConfig;
+    expect(rubrics.type).toBe('llm-rubric');
     expect(rubrics.rubrics).toHaveLength(3);
     expect(rubrics.weight).toBe(3);
     expect(evaluators?.[1].type).toBe('contains');

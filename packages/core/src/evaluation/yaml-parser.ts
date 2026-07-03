@@ -27,6 +27,7 @@ import {
 import {
   extractBudgetUsd,
   extractCacheConfig,
+  extractDefaultTestRubricPrompt,
   extractDefaultTestThreshold,
   extractFailOnError,
   extractTargetFromSuite,
@@ -46,7 +47,6 @@ import {
   coerceEvaluator,
   collectAssertionTemplateSourceReferences,
   parseGraders,
-  parseInlineRubrics,
   parsePreprocessors,
   warnUnconsumedCriteria,
 } from './loaders/grader-parser.js';
@@ -99,6 +99,7 @@ export { buildPromptInputs, type PromptInputs } from './formatting/prompt-builde
 export {
   DEFAULT_EVAL_PATTERNS,
   extractCacheConfig,
+  extractDefaultTestRubricPrompt,
   extractDefaultTestThreshold,
   extractFailOnError,
   extractTargetFromSuite,
@@ -247,7 +248,6 @@ type RawEvalCase = JsonObject & {
   readonly run?: JsonValue;
   readonly assertions?: JsonValue;
   readonly assert?: JsonValue;
-  readonly rubrics?: JsonValue;
   readonly workspace?: JsonValue;
   readonly metadata?: JsonValue;
   readonly depends_on?: JsonValue;
@@ -347,9 +347,6 @@ function interpolateRawEvalCase(
       : {}),
     ...(raw.assertions !== undefined
       ? { assertions: interpolateCaseField(raw.assertions, vars, filters) }
-      : {}),
-    ...(raw.rubrics !== undefined
-      ? { rubrics: interpolateCaseField(raw.rubrics, vars, filters) }
       : {}),
     ...(raw.turns !== undefined ? { turns: interpolateCaseTurns(raw.turns, vars, filters) } : {}),
   };
@@ -886,6 +883,7 @@ export type EvalSuiteResult = {
 
 export type EvalDefaultTestDefaults = {
   readonly threshold?: number;
+  readonly rubricPrompt?: JsonValue;
 };
 
 export type EvalTargetSpec = {
@@ -1028,6 +1026,7 @@ async function loadTestsFromParsedYamlValue(
     '<suite>',
     absoluteTestPath,
   );
+  const defaultTestRubricPrompt = extractDefaultTestRubricPrompt(suite);
   const suiteExtensions = parseExtensions(suite.extensions, evalFileDir);
 
   const importedSuiteTests: EvalTest[] = [];
@@ -1196,9 +1195,7 @@ async function loadTestsFromParsedYamlValue(
       const effectiveSuiteInputMessages = expandInputShorthand(effectiveSuiteInputValue);
 
       const hasExplicitCaseGraders =
-        renderedCase.assert !== undefined ||
-        renderedCase.assertions !== undefined ||
-        renderedCase.rubrics !== undefined;
+        renderedCase.assert !== undefined || renderedCase.assertions !== undefined;
       const hasExplicitRootGraders =
         skipDefaults === true
           ? false
@@ -1211,7 +1208,7 @@ async function loadTestsFromParsedYamlValue(
       // A test is complete when it has id, input, and at least one of: criteria,
       // expected_output, assertions, or turns (conversation mode). Legacy test-level
       // criteria is desugared to a bare-string assert above so it uses the canonical
-      // g-eval path instead of the implicit default LLM grader.
+      // llm-rubric path instead of the implicit default LLM grader.
       const hasEvaluationSpec =
         !!outcome ||
         expectedMessages.length > 0 ||
@@ -1300,6 +1297,7 @@ async function loadTestsFromParsedYamlValue(
           searchRoots,
           id ?? 'unknown',
           suitePreprocessors,
+          defaultTestRubricPrompt,
         );
       } catch (error) {
         // Skip entire test if evaluator validation fails
@@ -1314,16 +1312,6 @@ async function loadTestsFromParsedYamlValue(
         searchRoots,
         id ?? 'unknown',
       );
-
-      // Handle inline rubrics field (deprecated: use assertions: [{type: rubrics, criteria: [...]}] instead)
-      const inlineRubrics = renderedCase.rubrics;
-      if (inlineRubrics !== undefined && Array.isArray(inlineRubrics)) {
-        const rubricEvaluator = parseInlineRubrics(inlineRubrics);
-        if (rubricEvaluator) {
-          // Prepend rubric evaluator to existing evaluators
-          evaluators = evaluators ? [rubricEvaluator, ...evaluators] : [rubricEvaluator];
-        }
-      }
 
       warnUnconsumedCriteria(outcome, evaluators, id ?? 'unknown');
 
@@ -1435,8 +1423,16 @@ function buildEvalSuiteResult(parsed: JsonObject, tests: readonly EvalTest[]): E
   const failOnError = extractFailOnError(parsed);
   const threshold = extractThreshold(parsed);
   const defaultTestThreshold = extractDefaultTestThreshold(parsed);
+  const defaultTestRubricPrompt = extractDefaultTestRubricPrompt(parsed);
   const defaultTest =
-    defaultTestThreshold !== undefined ? { threshold: defaultTestThreshold } : undefined;
+    defaultTestThreshold !== undefined || defaultTestRubricPrompt !== undefined
+      ? {
+          ...(defaultTestThreshold !== undefined ? { threshold: defaultTestThreshold } : {}),
+          ...(defaultTestRubricPrompt !== undefined
+            ? { rubricPrompt: defaultTestRubricPrompt }
+            : {}),
+        }
+      : undefined;
   const experimentConfig = normalizeSuiteExperimentConfig(parsed);
   const tags = extractSuiteTagMap(parsed);
 

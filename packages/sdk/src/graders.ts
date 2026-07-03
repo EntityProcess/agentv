@@ -62,20 +62,9 @@ export interface GraderRubric {
 
 export type GraderRubricCriterion = string | GraderRubric;
 
-export interface RubricsGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
-  readonly type: 'rubrics';
-  readonly criteria: readonly GraderRubricCriterion[];
-}
-
-export interface GEvalGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
-  readonly type: 'g-eval';
-  readonly criteria: readonly GraderRubricCriterion[];
-  readonly target?: string;
-}
-
 export interface LlmRubricGraderConfig extends EvalAssertionConfig, GraderCommonConfig {
   readonly type: 'llm-rubric';
-  readonly value: string;
+  readonly value?: unknown;
   readonly target?: string;
 }
 
@@ -133,8 +122,6 @@ export type GraderHelperConfig =
   | EqualsGraderConfig
   | RegexGraderConfig
   | IsJsonGraderConfig
-  | RubricsGraderConfig
-  | GEvalGraderConfig
   | LlmRubricGraderConfig
   | LlmGraderConfig
   | ScriptGraderConfig;
@@ -190,35 +177,14 @@ export function jsonGrader(options?: GraderHelperOptions): IsJsonGraderConfig {
   return isJsonGrader(options);
 }
 
-export function rubricsGrader(
-  criteria: readonly GraderRubricCriterion[],
-  options?: GraderHelperOptions,
-): RubricsGraderConfig {
-  return withCommon({ type: 'rubrics', criteria }, options);
-}
-
-export function gEvalGrader(
-  criteria: readonly GraderRubricCriterion[],
-  options: GraderHelperOptions & { readonly target?: string } = {},
-): GEvalGraderConfig {
-  return withCommon(
-    {
-      type: 'g-eval',
-      criteria,
-      ...(options.target !== undefined ? { target: options.target } : {}),
-    },
-    options,
-  );
-}
-
 export function llmRubricGrader(
-  value: string,
+  valueOrCriteria: string | readonly GraderRubricCriterion[] | Readonly<Record<string, unknown>>,
   options: GraderHelperOptions & { readonly target?: string } = {},
 ): LlmRubricGraderConfig {
   return withCommon(
     {
       type: 'llm-rubric',
-      value,
+      value: valueOrCriteria,
       ...(options.target !== undefined ? { target: options.target } : {}),
     },
     options,
@@ -272,8 +238,6 @@ export const graders = Object.freeze({
   regex: regexGrader,
   isJson: isJsonGrader,
   json: jsonGrader,
-  rubrics: rubricsGrader,
-  gEval: gEvalGrader,
   llmRubric: llmRubricGrader,
   llmGrader,
   codeGrader,
