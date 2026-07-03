@@ -13,7 +13,6 @@ eval_patterns:
 
 # Publish completed run bundles to the git-backed results branch.
 results:
-  mode: github
   path: .
   branch: agentv/results/v1
   auto_push: true
