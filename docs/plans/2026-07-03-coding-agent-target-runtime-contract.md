@@ -105,22 +105,23 @@ arguments. Do not add separate `args`, `arguments`, `executable`, or `binary`
 fields to the new contract.
 
 ```yaml
-targets: file://targets.yaml
-graders: file://graders.yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex", "--config", "model_reasoning_effort=high"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
 
 defaults:
   target: codex-local
   grader: openai-grader
-```
-
-```yaml
-# targets.yaml
-- id: codex-local
-  provider: codex-app-server
-  runtime: host
-  config:
-    command: ["codex", "--config", "model_reasoning_effort=high"]
-    model: gpt-5-codex
 ```
 
 Keep provider-specific knobs under `config`, using one canonical name per
@@ -134,9 +135,11 @@ concept. Examples:
 - Claude config: `max_turns`, `max_budget_usd`, `bypass_permissions`
 - Copilot config: custom provider/auth settings and ACP/prompt mode settings
 
-Orchestration policy is not target runtime config. Keep `workers`, batching,
-retry policy, and subagent dispatch under project/run policy such as
-`execution`, not inside target definitions.
+Orchestration policy is not target runtime config. Keep general eval
+concurrency, batching, retry policy, and subagent dispatch under project/run
+policy such as `execution`, not inside target definitions. Use
+`execution.max_concurrency` for general parallelism. Reserve `workers` for a
+provider-specific config only when that provider truly uses worker processes.
 
 Grader selection is a separate registry/default concern. Do not put
 `grader_target` on targets in the clean schema. Use `defaults.grader` for the
@@ -150,49 +153,70 @@ providers. It does not put grader selection in the target provider runtime.
 
 ### Project File Layout
 
-Keep registries separate from policy:
+Support composable/decomposable configuration. A single `.agentv/config.yaml`
+and split files should be two authoring forms of the same config graph:
 
 ```text
 .agentv/
   config.yaml
-  targets.yaml
-  graders.yaml
 ```
 
-Project-local `.agentv/config.yaml` should remain the portable project policy
-file: defaults, `execution`, `eval_patterns`, `refs`, tags, result defaults, and
-other run-level settings. It may point at the default target/grader by name, but
-it should not become the registry that holds all target and grader definitions.
-Following Promptfoo's modular-config idiom, use direct field references rather
-than a named import table:
+Project-local `.agentv/config.yaml` should be able to hold the full project
+contract: targets, graders, defaults, `execution`, `eval_patterns`, refs, tags,
+result defaults, and other run-level settings. This matches Promptfoo's primary
+authoring model, where `promptfooconfig.yaml` commonly contains providers,
+prompts, tests, defaultTest, and run options in one file.
+
+In other words, `.agentv/config.yaml` can technically contain every supported
+field that an `eval.yaml` can contain. An eval file is a focused, shareable
+slice of the same config graph, while `.agentv/config.yaml` is the project-root
+manifest that can also carry project defaults and policy. Avoid creating two
+competing top-level schemas for "project config" versus "eval config" unless a
+field is intentionally scoped to one of those contexts.
+
+The `.agentv/` folder still matters even though Promptfoo does not have the same
+project/global split. It gives AgentV a conventional project root for automatic
+discovery, checked-in defaults, repo-local policy, result/artifact adjacency,
+and composable config without requiring every command to pass explicit file
+paths. The global AgentV config can provide operator/user defaults across
+projects, while `.agentv/config.yaml` overrides or composes project-specific
+targets, graders, tests, datasets, and execution policy.
 
 ```yaml
 # .agentv/config.yaml
-targets: file://targets.yaml
-graders: file://graders.yaml
+targets:
+  - id: codex-local
+    provider: codex-app-server
+    runtime: host
+    config:
+      command: ["codex"]
+      model: gpt-5-codex
+
+graders:
+  - id: openai-grader
+    provider: openai
+    config:
+      model: gpt-5-mini
 
 defaults:
   target: codex-local
   grader: openai-grader
 
 execution:
-  workers: 3
+  max_concurrency: 3
 ```
 
-Do not introduce a greenfield `files:` or `imports:` section for this unless
-AgentV needs a capability that direct field references cannot express.
-Promptfoo's pattern is `providers: file://configs/providers.yaml`,
-`tests: file://tests/`, and `defaultTest: file://configs/default-test.yaml`;
-the field being configured names the thing being loaded.
-
-`targets.yaml` should remain the registry of subjects under test. `graders.yaml`
-should be the registry of reusable grading providers. This keeps target runtime
-contracts reviewable, keeps grader credentials/endpoints separate from agent
-runtimes, and matches AgentV's existing artifact model where run manifests carry
-explicit `targets_path` and `graders_path` entries.
+For larger projects, generated configs, or secret-splitting workflows, any
+supported config field can be decomposed into a Promptfoo-style direct field
+reference whose target file contains that field's value. Do not introduce a
+greenfield `files:` or `imports:` section unless AgentV needs a capability that
+direct field references cannot express. Promptfoo's pattern is `providers:
+file://configs/providers.yaml`, `tests: file://tests/`, and `defaultTest:
+file://configs/default-test.yaml`; the field being configured names the thing
+being loaded.
 
 For Promptfoo-style field references, the referenced file should contain the
-value for that field. Greenfield examples:
+value for that field. Optional split-file examples:
 
 ```yaml
 # .agentv/targets.yaml
@@ -212,29 +236,26 @@ value for that field. Greenfield examples:
 ```
 
 Do not accept wrapped forms such as `targets: [...]` inside a file already
-loaded through `targets: file://targets.yaml`. The referenced file is the field
-value.
+loaded through `targets: file://targets.yaml`, or `tests: [...]` inside a file
+already loaded through `tests: file://tests.yaml`. The referenced file is the
+field value.
 
-The global `$AGENTV_HOME/config.yaml` is different: it owns Dashboard/operator
-state such as the `projects:` registry. Do not use the existence of global
-`projects:` as a reason to put project-local target/grader registries into
-project-local `.agentv/config.yaml`.
+The global `$AGENTV_HOME/config.yaml` can also use the same direct-field style,
+including inline `projects:` for small installations or `projects:
+file://projects.yaml` for larger registries. Do not add a separate import table
+for global config either.
 
-Greenfield, the cleanest global shape would put Dashboard project registry
-state in `$AGENTV_HOME/projects.yaml` and leave `$AGENTV_HOME/config.yaml` for
-global settings. If using Promptfoo-style references, the global config would
-say `projects: file://projects.yaml`.
+Greenfield, the cleanest default is one readable config graph. Inline and split
+forms should normalize to the same internal shape.
 
 Do not add `dashboard.app_name` or other user-configurable AgentV branding to
 the clean config contract. Dashboard product identity is not project policy.
 
-Promptfoo's comparable file-structure guidance is simpler: a main
-`promptfooconfig.yaml` commonly contains `providers`, `prompts`, `defaultTest`,
-and `tests`, while larger configs can reference external files such as provider
-YAML with `file://...`. Promptfoo does not have AgentV's separate home-scoped
-Dashboard project registry, so it is useful as a modular-config reference but
-not a direct reason to collapse AgentV's project, target, and grader registries
-into one file.
+Promptfoo's comparable file-structure guidance is the closest reference here:
+a main `promptfooconfig.yaml` commonly contains `providers`, `prompts`,
+`defaultTest`, `tests`, and run options, while larger configs can reference
+external files with `file://...`. AgentV should follow that authoring posture
+while keeping cleaner AgentV field names.
 
 ### Runtime Modes
 
