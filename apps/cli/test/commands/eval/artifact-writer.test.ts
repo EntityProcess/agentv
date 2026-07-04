@@ -12,6 +12,7 @@ import {
   type GraderResult,
   METRICS_SCHEMA_VERSION,
   MetricsArtifactWireSchema,
+  aggregateRunDir,
   buildEvalTestTargetKey,
   buildEvaluationResultTargetKey,
   buildResultIndexArtifact,
@@ -25,6 +26,7 @@ import {
   type GradingArtifact,
   type IndexArtifactEntry,
   RESULT_INDEX_FILENAME,
+  RUN_CONFIG_FILENAME,
   type RunSummaryArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
@@ -1172,7 +1174,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLines[0]?.metrics_path).toBe(`${alphaRowDir}/sample-1/metrics.json`);
   });
 
-  it('writes optional runtime source metadata to summary and index rows', async () => {
+  it('writes optional runtime source metadata to summary only', async () => {
     const runtimeSource = {
       schema_version: 'agentv.runtime_source.v1' as const,
       kind: 'direct_suite' as const,
@@ -1194,7 +1196,53 @@ describe('writeArtifactsFromResults', () => {
       .map(JSON.parse);
 
     expect(summary.metadata.runtime_source).toEqual(runtimeSource);
-    expect(indexLine.runtime_source).toEqual(runtimeSource);
+    expect(indexLine.runtime_source).toBeUndefined();
+  });
+
+  it('moves experiment config metadata to an internal run config sidecar', async () => {
+    const experimentMetadata = {
+      name: 'native-exp',
+      target: 'codex-target',
+      threshold: 0.8,
+      fingerprint: 'a'.repeat(64),
+    };
+    const paths = await writeArtifactsFromResults([makeResult({ testId: 'alpha' })], testDir, {
+      evalFile: 'evals/native-exp.eval.yaml',
+      experiment: 'native-exp',
+      experimentMetadata,
+    });
+
+    const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
+    expect(summary.metadata).not.toHaveProperty('experiment_config');
+    expect(summary.metadata.run_config_path).toBe(`.internal/${RUN_CONFIG_FILENAME}`);
+
+    const runConfig = JSON.parse(
+      await readFile(path.join(paths.testArtifactDir, '.internal', RUN_CONFIG_FILENAME), 'utf8'),
+    );
+    expect(runConfig).toEqual({
+      schema_version: 'agentv.run_config.v1',
+      experiment_config: experimentMetadata,
+    });
+
+    await aggregateRunDir(paths.testArtifactDir);
+    const rewrittenSummary: RunSummaryArtifact = JSON.parse(
+      await readFile(paths.summaryPath, 'utf8'),
+    );
+    expect(rewrittenSummary.metadata.run_config_path).toBe(`.internal/${RUN_CONFIG_FILENAME}`);
+  });
+
+  it('omits duplicated root instances from run summary', () => {
+    const summary = buildRunSummaryArtifact(
+      [
+        makeResult({ testId: 'alpha', target: 'target-a', score: 1 }),
+        makeResult({ testId: 'beta', target: 'target-a', score: 0 }),
+      ],
+      'evals/smoke.eval.yaml',
+    );
+
+    expect(summary.counts.total_instances).toBe(2);
+    expect(summary.cases).toHaveLength(2);
+    expect(summary).not.toHaveProperty('instances');
   });
 
   it('emits the resolved tags map to summary metadata and every index row', async () => {

@@ -697,7 +697,15 @@ describe('agentv eval CLI', () => {
         await readFile(path.join(runDirFromIndexPath(outputPath), 'summary.json'), 'utf8'),
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.experiment).toBe('native-exp');
-      expect(benchmark.metadata?.experiment_config).toMatchObject({
+      expect(benchmark.metadata).not.toHaveProperty('experiment_config');
+      expect(benchmark.metadata?.run_config_path).toBe('.internal/run-config.json');
+      const runConfig = JSON.parse(
+        await readFile(
+          path.join(runDirFromIndexPath(outputPath), '.internal', 'run-config.json'),
+          'utf8',
+        ),
+      ) as { experiment_config?: Record<string, unknown> };
+      expect(runConfig.experiment_config).toMatchObject({
         target: 'codex-target',
         repeat: {
           count: 2,
@@ -708,9 +716,9 @@ describe('agentv eval CLI', () => {
         budget_usd: 3,
         timeout_seconds: 12,
       });
-      expect(
-        (benchmark.metadata?.experiment_config as Record<string, unknown>).fingerprint,
-      ).toMatch(/^[a-f0-9]{64}$/);
+      expect((runConfig.experiment_config as Record<string, unknown>).fingerprint).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
         kind: 'wrapper_eval',
