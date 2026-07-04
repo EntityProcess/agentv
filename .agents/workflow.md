@@ -95,6 +95,7 @@ Issue and tracker workflow:
 - Push focused commits to the assigned branch and open or update the PR requested by the tracker item or user.
 - A branch, pushed commit, or draft PR is not done for ordinary scoped work.
 - Mark tracker items complete only after the scoped work is complete, verified, merged to `main` through a PR, and documented with verification evidence.
+- Run focused local validation that matches the changed code and helps debug or build confidence, then push/open the PR so GitHub Actions runs the broad suite. Do not spend local capacity on a full `bun run test` pass before every PR unless the operator asks for it, CI is unavailable, you are debugging a suite-level failure, or focused validation cannot cover the change.
 - If the work intentionally remains on an ongoing branch, open a draft PR and record the branch name, PR URL, worktree path, current head commit, and remaining scope in the parent tracker item. Keep the child item open or in progress until the PR is merged or explicitly superseded.
 - If a commit is a self-contained unit of completed, verified work, push it directly to its assigned remote branch instead of leaving it local for handoff. This does not override the rule against pushing directly to `main`.
 - Do not merge feature, worker, or integration branches into local `main` to stage completion. If multiple branches need integration, create an integration branch, push it, and review it through a PR.

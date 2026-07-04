@@ -8,7 +8,18 @@ This file expands [AGENTS.md](../AGENTS.md) for testing, manual UAT, CLI and bro
 - The `CI` workflow runs build, typecheck, lint, tests, marketplace checks, docs link checks, and eval schema validation on pushes to `main`, pull requests to `main`, and manual dispatches.
 - The CI build job publishes a short-lived, commit-addressed build artifact after `bun run build`. It is a reuse aid for workers and workflows only when the manifest's commit SHA, `bun.lock` hash, runner OS/architecture, Bun version source/value, and included output paths match the consuming checkout.
 - The build artifact is intentionally limited to compiled outputs such as `packages/core/dist/**`, `packages/sdk/dist/**`, `apps/cli/dist/**`, `apps/dashboard/dist/**`, plus its manifest. It must not contain `node_modules`, Bun caches, `.turbo`, `.cache`, `.tsbuildinfo`, tracker state, evidence, or generated runtime artifacts.
-- Run the same core checks locally when you need fast feedback:
+- Use local checks for fast, targeted feedback while developing. Prefer the
+  smallest command that exercises the changed code, such as a package-specific
+  test, a single test file, `bun run typecheck` for type-facing changes, or
+  `bun run validate:examples` for eval example changes.
+
+- Do not default to full local workspace validation before every PR. Push/open
+  the PR so GitHub Actions runs the broad build, typecheck, lint, test,
+  marketplace, link, and eval validation suite. The full local `bun run test` or
+  `bun run verify` pass is reserved for debugging, explicit operator request,
+  lack of usable CI, or changes where focused validation cannot cover the risk.
+
+- When you do need the broad local checks, use:
 
 ```bash
 bun run verify
@@ -182,15 +193,16 @@ The copied file is local-only and must remain uncommitted. If there is no
 primary/main `.env`, record that as a live-provider blocker before claiming
 grader dogfood is unavailable.
 
-2. Run unit tests with `bun run test`.
-3. Blocking manual red and green UAT:
+2. Run focused local validation for the changed surface and record what you ran. Use `bun run test` only when debugging, explicitly requested, CI is unavailable, or focused validation cannot cover the risk.
+3. Push/open the PR so GitHub Actions runs the authoritative full-suite merge gate.
+4. Blocking manual red and green UAT:
 
 - Red: run the scenario on `main` or the pre-change state and confirm the bug or missing feature is observable.
 - Green: run the identical scenario on your branch and confirm the fix or feature works from the end user's perspective.
 - Document both red and green evidence in the PR description or comments.
 
-4. Verify no regressions in adjacent areas.
-5. For scoring, threshold, or grader changes, run at least one real eval with a live provider and verify the output JSONL.
-6. For Dashboard config, scoring-display, or dashboard API changes, use `agent-browser` to verify the UI still renders and behaves correctly.
-7. If visual evidence was captured, push it to an `agentv-private` evidence branch and include the resulting branch, commit, or PR link in the handoff.
-8. Mark the PR ready only after the checklist is complete and the red or green evidence is attached.
+5. Verify no regressions in adjacent areas.
+6. For scoring, threshold, or grader changes, run at least one real eval with a live provider and verify the output JSONL.
+7. For Dashboard config, scoring-display, or dashboard API changes, use `agent-browser` to verify the UI still renders and behaves correctly.
+8. If visual evidence was captured, push it to an `agentv-private` evidence branch and include the resulting branch, commit, or PR link in the handoff.
+9. Mark the PR ready only after the checklist is complete, the red or green evidence is attached, and required GitHub Actions are passing.
