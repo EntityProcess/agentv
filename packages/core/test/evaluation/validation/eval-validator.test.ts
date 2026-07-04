@@ -104,7 +104,7 @@ tests:
     ).toBe(true);
   });
 
-  it('validates composable execution.max_concurrency and defaults in eval YAML', async () => {
+  it('rejects authored execution.max_concurrency in eval YAML', async () => {
     const filePath = path.join(tempDir, 'composable-eval-graph.yaml');
     await writeFile(
       filePath,
@@ -132,8 +132,14 @@ tests:
 
     const result = await validateEvalFile(filePath);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'execution.max_concurrency',
+        message: expect.stringContaining('evaluate_options.max_concurrency'),
+      }),
+    );
   });
 
   it('rejects removed top-level execution fields in eval YAML', async () => {
@@ -163,7 +169,7 @@ tests:
       expect.objectContaining({
         severity: 'error',
         location: 'execution.workers',
-        message: expect.stringContaining("Unsupported execution field 'workers'"),
+        message: expect.stringContaining('authored run controls'),
       }),
     );
   });

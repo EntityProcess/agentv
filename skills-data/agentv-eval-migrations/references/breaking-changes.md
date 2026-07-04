@@ -36,9 +36,9 @@ For a v4.42.4-era eval:
    `evaluate_options.repeat`.
 8. Move suite budget from `execution.budget_usd` to
    `evaluate_options.budget_usd`.
-9. Move authored suite concurrency from `execution.workers` to
-   `evaluate_options.max_concurrency`, or leave it to `--workers` /
-   project config if it is operator policy.
+9. Move authored suite concurrency from `execution.workers` or
+   `execution.max_concurrency` to `evaluate_options.max_concurrency`, or leave
+   it to `--workers` / project config if it is operator policy.
 10. Remove top-level `execution`; current eval YAML rejects it.
 11. Replace `workspace.isolation: shared|per_test` with
     `workspace.scope: suite|attempt`.
@@ -247,10 +247,10 @@ assert:
 - `execution.targets` -> top-level `targets`.
 - `execution.threshold` -> top-level `threshold`.
 - `execution.budget_usd` -> `evaluate_options.budget_usd`.
-- `execution.workers` -> `evaluate_options.max_concurrency` when authored
-  suite concurrency is part of the eval. If it is operator policy, use
-  `--workers` or `.agentv/config.yaml` / `agentv.config.*` `execution.workers`
-  instead.
+- `execution.workers` and `execution.max_concurrency` ->
+  `evaluate_options.max_concurrency` when authored suite concurrency is part of
+  the eval. If it is operator policy, use `--workers` or `.agentv/config.yaml`
+  / `agentv.config.*` `execution.max_concurrency` instead.
 - `execution.fail_on_error` has no current eval-YAML home. Treat it as
   operational policy; do not commit it into migrated eval YAML.
 - `execution.cache` has no current eval-YAML home. Use project/operator config

@@ -404,7 +404,7 @@ function rejectExperimentWorkers(raw: unknown): void {
     return;
   }
   throw new Error(
-    'Experiment workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.',
+    'Experiment workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.',
   );
 }
 

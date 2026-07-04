@@ -524,9 +524,9 @@ Do not wrap referenced field files in another object. For example,
 `targets: file://targets.yaml` expects `targets.yaml` to contain a bare array,
 not `{ targets: [...] }`.
 
-`execution.max_concurrency` is AgentV's general eval parallelism field for this
-config graph. It is AgentV's run-policy shape, aligned with the general
-max-concurrency concept in eval runners, not a copied Promptfoo YAML path.
+In authored eval YAML, use `evaluate_options.max_concurrency` for suite
+parallelism. In `.agentv/config.yaml`, operators can set
+`execution.max_concurrency` as project-level default run policy.
 
 Other project defaults can live beside the graph:
 

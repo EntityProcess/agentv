@@ -454,7 +454,7 @@ export async function prepareSharedWorkspaceSetup(
       [
         `Warning: This eval uses a shared workspace with ${workers} workers.`,
         'If the agent under test makes file edits, concurrent runs may corrupt each other.',
-        'To limit concurrency, pass --workers 1 on the command line or set execution.max_concurrency in eval YAML or .agentv/config.yaml.',
+        'To limit concurrency, pass --workers 1 on the command line, set evaluate_options.max_concurrency in eval YAML, or set execution.max_concurrency in .agentv/config.yaml.',
       ].join('\n'),
     );
   }

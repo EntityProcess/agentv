@@ -50,7 +50,7 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts eval-level execution.max_concurrency', () => {
+  it('rejects eval-level execution.max_concurrency', () => {
     const result = EvalFileSchema.safeParse({
       execution: {
         max_concurrency: 2,
@@ -58,7 +58,7 @@ describe('EvalFileSchema input shorthand', () => {
       tests: [baseTest],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it('rejects removed eval-level execution fields', () => {
