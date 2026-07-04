@@ -5,8 +5,10 @@
   "branch": "fix/targets-id-validation",
   "checkpoints_count": 5,
   "files_touched": [
-    "packages/core/test/evaluation/eval-inline-experiment.test.ts",
-    "packages/core/test/evaluation/interpolation-integration.test.ts"
+    "apps/cli/src/commands/eval/task-bundle.ts",
+    "apps/cli/src/commands/runs/rerun.ts",
+    "apps/cli/test/commands/eval/targets.test.ts",
+    "packages/core/test/evaluation/validation/eval-validator.test.ts"
   ],
   "sessions": [
     {
@@ -17,10 +19,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 37396,
+    "input_tokens": 264663,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 3695872,
-    "output_tokens": 4136,
-    "api_call_count": 18
+    "cache_read_tokens": 4801664,
+    "output_tokens": 10791,
+    "api_call_count": 48
   }
 }
