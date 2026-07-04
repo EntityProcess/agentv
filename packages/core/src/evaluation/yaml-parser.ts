@@ -510,6 +510,40 @@ function combineInheritedAssertions(
   return parts.length > 0 ? parts : undefined;
 }
 
+function readDefaultTestVars(defaultTest: JsonValue | undefined): JsonObject | undefined {
+  if (!isJsonObject(defaultTest) || !isJsonObject(defaultTest.vars)) {
+    return undefined;
+  }
+  return defaultTest.vars;
+}
+
+function mergeDefaultTestVarsIntoCases(
+  rawCases: readonly JsonValue[],
+  defaultTest: JsonValue | undefined,
+): readonly JsonValue[] {
+  const defaultVars = readDefaultTestVars(defaultTest);
+  if (!defaultVars || Object.keys(defaultVars).length === 0) {
+    return rawCases;
+  }
+
+  return rawCases.map((rawCase) => {
+    if (!isJsonObject(rawCase)) {
+      return rawCase;
+    }
+    if (rawCase.vars !== undefined && !isJsonObject(rawCase.vars)) {
+      return rawCase;
+    }
+    const caseVars = isJsonObject(rawCase.vars) ? rawCase.vars : {};
+    return {
+      ...rawCase,
+      vars: {
+        ...defaultVars,
+        ...caseVars,
+      },
+    };
+  });
+}
+
 function isChatPromptArray(value: readonly JsonValue[]): boolean {
   return value.length > 0 && value.every((entry) => isJsonObject(entry) && isTestMessage(entry));
 }
@@ -1189,6 +1223,8 @@ async function loadTestsFromParsedYamlValue(
   } else {
     throw new Error(`Invalid test file format: ${evalFilePath} - missing 'tests' field`);
   }
+
+  expandedTestCases = mergeDefaultTestVarsIntoCases(expandedTestCases, suite.default_test);
 
   const promptDefinitions = await parseSuitePrompts(suite.prompts, searchRoots);
   const promptExpansion = expandPromptMatrix(expandedTestCases, promptDefinitions, suite);

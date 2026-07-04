@@ -1,18 +1,28 @@
-# Per-test vars templating example
+# Prompt and vars templating example
 #
-# tests[].vars provides per-test data for {{ vars.name }} placeholders in eval fields.
-# Placeholders support dotted paths like {{ vars.expected.answer }}.
+# Top-level prompts define the prompt templates. tests[].vars provides per-test
+# data, and default_test.vars provides shared defaults. Prompt templates can use
+# Promptfoo-style {{ name }} placeholders or explicit {{ vars.name }} placeholders.
 #
 # Usage:
 #   agentv eval examples/features/test-vars-templating/evals/suite.yaml
 
-description: Demonstrates tests[].vars templating in eval fields
+description: Demonstrates prompt templates rendered from default_test.vars and tests[].vars
 
 target: llm
 
-input:
-  - role: system
-    content: "You are a concise assistant answering {{ vars.category }} questions."
+prompts:
+  - id: support-chat
+    label: Support chat
+    file: ./prompts/support-chat.json
+  - id: terse
+    label: Terse answer
+    prompt: "Answer for {{ audience }} in one sentence: {{ question }}"
+
+default_test:
+  vars:
+    audience: users
+    category: general
 
 tests:
   - id: capital-france
@@ -23,19 +33,17 @@ tests:
         answer: Paris
     assert:
       - "Answers {{ vars.question }} correctly"
-    input: "Question: {{ vars.question }}"
     expected_output: "{{ vars.expected.answer }}"
 
   - id: greet-ada
     vars:
-      category: etiquette
+      audience: new teammates
+      category: onboarding
       person:
         name: Ada
+      question: "How should I greet {{ vars.person.name }}?"
       expected:
         answer: Hello, Ada!
     assert:
       - "Greets {{ vars.person.name }} warmly"
-    input:
-      - role: user
-        content: "Say hello to {{ vars.person.name }}."
     expected_output: "{{ vars.expected.answer }}"
