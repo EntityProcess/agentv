@@ -78,7 +78,6 @@ export function buildResumeRequestBody(params: BuildResumeRequestParams): RunEva
   if (params.mode === 'resume') {
     body.resume = true;
   } else {
-    body.resume = true;
     body.rerun_failed = true;
   }
   return body;

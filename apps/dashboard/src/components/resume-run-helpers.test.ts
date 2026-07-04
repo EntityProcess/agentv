@@ -82,7 +82,7 @@ describe('buildResumeRequestBody', () => {
     });
   });
 
-  it('builds a rerun-failed request with resume:true and rerun_failed:true', () => {
+  it('builds a rerun-failed request with rerun_failed:true and no resume key', () => {
     const body = buildResumeRequestBody({
       mode: 'rerun',
       runDir: 'runs/r1',
@@ -93,9 +93,9 @@ describe('buildResumeRequestBody', () => {
       suite_filter: 'examples/demo.eval.yaml',
       output: 'runs/r1',
       target: 'gpt-4o',
-      resume: true,
       rerun_failed: true,
     });
+    expect(body.resume).toBeUndefined();
   });
 
   it('omits target when none is provided', () => {
