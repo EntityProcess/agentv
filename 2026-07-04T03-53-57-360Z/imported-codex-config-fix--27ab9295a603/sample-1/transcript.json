@@ -1,0 +1,55 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "transcript",
+  "target": "transcript",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "--grader-target \"local-openai-grader\" not found in targets"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Inspect the project and change the default request timeout to 5000ms."
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "transcript",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Error occurred: --grader-target \"local-openai-grader\" not found in targets"
+        }
+      ]
+    }
+  ]
+}
