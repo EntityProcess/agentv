@@ -1,0 +1,7 @@
+{
+  "schema_version": "agentv.run_config.v1",
+  "experiment_config": {
+    "fingerprint": "2ff6841f6fbc3894778adeae5f02e788eedd599cabfa1475dbd5e5eaaf604196",
+    "target": "local-openai"
+  }
+}

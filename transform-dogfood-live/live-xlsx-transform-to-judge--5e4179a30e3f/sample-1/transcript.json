@@ -1,0 +1,51 @@
+{
+  "schema_version": "agentv.normalized_transcript.v1",
+  "provider_id": "openai",
+  "target": "local-openai",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [],
+    "thinking_blocks": 0
+  },
+  "turns": [
+    {
+      "v": 1,
+      "agent": "openai",
+      "type": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Return only this JSON object, with no markdown fence:\n{\"sheet\":\"orders\",\"rows\":[{\"item\":\"widgets\",\"quantity\":3},{\"item\":\"gadgets\",\"quantity\":2}]}"
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "agent": "openai",
+      "type": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"sheet\":\"orders\",\"rows\":[{\"item\":\"widgets\",\"quantity\":3},{\"item\":\"gadgets\",\"quantity\":2}]}"
+        }
+      ]
+    }
+  ]
+}
