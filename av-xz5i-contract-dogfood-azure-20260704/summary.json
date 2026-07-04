@@ -1,0 +1,142 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "av-xz5i-contract-dogfood-azure-20260704",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "usage": {
+    "total_tokens": 109,
+    "input_tokens": 63,
+    "output_tokens": 46,
+    "reasoning_tokens": 0,
+    "cost_usd": 0.00025425000000000003
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "finance-summary-operator-guards",
+      "suite": "rubric-operators",
+      "eval_path": "examples/features/rubric/evals/operators.eval.yaml",
+      "target": "azure",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "finance-summary-operator-guards",
+          "suite": "rubric-operators",
+          "eval_path": "examples/features/rubric/evals/operators.eval.yaml",
+          "target": "azure",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 1622,
+          "cost_usd": 0.00025425000000000003
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "metadata": {
+    "run_id": "av-xz5i-contract-dogfood-azure-20260704",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/results-artifact-contract-tighten/examples/features/rubric/evals/operators.eval.yaml",
+    "timestamp": "2026-07-04T08:12:12.000Z",
+    "targets": [
+      "azure"
+    ],
+    "tests_run": [
+      "finance-summary-operator-guards"
+    ],
+    "experiment": "av-xz5i-dogfood",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "config_source": "mixed",
+      "eval_files": [
+        "examples/features/rubric/evals/operators.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "azure": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 1.622,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 109,
+        "stddev": 0
+      },
+      "cost_usd": {
+        "mean": 0,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 1622,
+      "total_seconds": 1.622,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 109,
+      "input": 63,
+      "output": 46,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": 0.00025425000000000003,
+      "source": "provider_reported"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}

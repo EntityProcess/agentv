@@ -1,0 +1,76 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "[supported-revenue] States Q4 revenue increased to $10M from $8M.",
+      "passed": true,
+      "evidence": "The answer explicitly states, \"Q4 revenue increased to $10 million from $8 million,\" which matches the required revenue change.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[no-margin-contradiction] Gross margin declined to 42% from 45%.",
+      "passed": true,
+      "evidence": "The answer says gross margin \"declined to 42% from 45%,\" which is consistent with the required margin change and does not contradict it.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-1] Summarize the source faithfully. Include supported material facts and avoid\nclaims that contradict the source.",
+      "passed": true,
+      "evidence": "The answer preserves the two source facts: Q4 revenue increased to $10 million from $8 million, and gross margin declined to 42% from 45%. It adds interpretive phrasing ('year-over-year growth', 'pressure on profitability') but nothing that contradicts the source.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "[supported-revenue] States Q4 revenue increased to $10M from $8M.",
+          "passed": true,
+          "evidence": "The answer explicitly states, \"Q4 revenue increased to $10 million from $8 million,\" which matches the required revenue change.",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "[no-margin-contradiction] Gross margin declined to 42% from 45%.",
+          "passed": true,
+          "evidence": "The answer says gross margin \"declined to 42% from 45%,\" which is consistent with the required margin change and does not contradict it.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "[rubric-1] Summarize the source faithfully. Include supported material facts and avoid\nclaims that contradict the source.",
+          "passed": true,
+          "evidence": "The answer preserves the two source facts: Q4 revenue increased to $10 million from $8 million, and gross margin declined to 42% from 45%. It adds interpretive phrasing ('year-over-year growth', 'pressure on profitability') but nothing that contradicts the source.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}

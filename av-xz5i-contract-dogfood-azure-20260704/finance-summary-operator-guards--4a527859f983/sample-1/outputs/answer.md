@@ -1,0 +1,1 @@
+Q4 revenue increased to $10 million from $8 million, reflecting year-over-year growth. However, gross margin declined to 42% from 45%, indicating some pressure on profitability despite the higher sales.
