@@ -297,7 +297,12 @@ describe('EvalFileSchema input shorthand', () => {
             },
             {
               type: 'assert-set',
-              assert: [{ type: 'contains', value: 'safe' }],
+              metric: 'grouped_assertions',
+              weight: 2,
+              config: {
+                shared: 'value',
+              },
+              assert: [{ type: 'contains', value: 'safe', config: { shared: 'child' } }],
               threshold: 0.5,
             },
           ],

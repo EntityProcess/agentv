@@ -24,7 +24,9 @@ assert:
         weight: 0.6
 ```
 
-Child assertions run independently. The parent score is the weighted average of child scores. `threshold` defaults to `1`, so omit it when every child must pass.
+Child assertions run independently. The parent score is the weighted average of child scores.
+
+When `threshold` is omitted, the assert set passes only when every nonzero-weight child assertion passes. When `threshold` is present, the aggregate score determines the parent pass/fail verdict, so a partially failing set can pass if its weighted score meets the threshold.
 
 ## Patterns
 
@@ -55,6 +57,27 @@ assert:
       - type: icontains
         value: capital of france
 ```
+
+Share config across children:
+
+```yaml
+assert:
+  - metric: semantic_similarity
+    type: assert-set
+    config:
+      embedding_provider:
+        base_url: http://127.0.0.1:10531/v1
+        model: text-embedding-3-small
+    assert:
+      - metric: similarity
+        type: similar
+        value: Paris is the capital of France.
+      - metric: script_check
+        type: javascript
+        value: context.config.embedding_provider.model.length > 0
+```
+
+Parent `config` is inherited by child assertions. A child assertion can set its own `config` fields to override shared values.
 
 Nest `assert-set` only when the hierarchy helps review the result:
 
@@ -99,4 +122,4 @@ An assert set returns nested child scores:
 
 ## Promptfoo Alignment
 
-AgentV uses Promptfoo's `type: assert-set` spelling for authored assertion groups. `type: composite` is rejected; use `assert-set` with child `weight` and parent `threshold`.
+AgentV uses Promptfoo's `type: assert-set` spelling for authored assertion groups. Public YAML uses nested `assert` entries, child `weight`, optional parent `threshold`, and optional parent `config`. `type: composite` is rejected; use `assert-set`.

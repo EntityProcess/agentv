@@ -866,6 +866,7 @@ export type AssertSetGraderConfig = {
   readonly name: string;
   readonly type: 'assert-set';
   readonly assertions: readonly GraderConfig[];
+  readonly config?: JsonObject;
   readonly threshold?: number;
   readonly weight?: number;
   readonly required?: boolean;

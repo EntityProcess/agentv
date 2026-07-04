@@ -490,19 +490,21 @@ Variables: `{{criteria}}`, `{{input}}`, `{{expected_output}}`, `{{output}}`, `{{
 
 ### assert-set
 ```yaml
-- name: gate
+- metric: gate
   type: assert-set
   threshold: 0.7
+  config:
+    shared_setting: enabled
   assert:
-    - name: safety
+    - metric: safety
       type: llm-rubric
       prompt: ./safety.md
       weight: 0.3
-    - name: quality
+    - metric: quality
       type: llm-rubric
       weight: 0.7
 ```
-Use `assert-set` for Promptfoo-aligned assertion grouping. Do not use `type: composite`; AgentV rejects it.
+Use `assert-set` for Promptfoo-aligned assertion grouping. Without `threshold`, the set passes only when every nonzero-weight child assertion passes. With `threshold`, the weighted aggregate score determines the set verdict. Parent `config` is inherited by children, and child `config` keys override parent keys. Do not use `type: composite`; AgentV rejects it.
 
 ### tool-trajectory
 ```yaml

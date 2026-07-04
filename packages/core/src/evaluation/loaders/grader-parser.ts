@@ -455,6 +455,7 @@ async function parseGraderList(
   evalId: string,
   defaultPreprocessors?: readonly ContentPreprocessorConfig[],
   defaultRubricPrompt?: JsonValue,
+  inheritedAssertionConfig?: JsonObject,
 ): Promise<readonly GraderConfig[] | undefined> {
   const expandedEvaluators = await expandGraderEntries(candidateEvaluators, searchRoots, evalId);
   if (!expandedEvaluators) {
@@ -509,12 +510,13 @@ async function parseGraderList(
 
   const evaluators: GraderConfig[] = [];
 
-  for (const rawEvaluator of processedEvaluators) {
-    if (!isJsonObject(rawEvaluator)) {
+  for (const rawEvaluatorEntry of processedEvaluators) {
+    if (!isJsonObject(rawEvaluatorEntry)) {
       logWarning(`Skipping invalid evaluator entry for '${evalId}' (expected object)`);
       continue;
     }
 
+    const rawEvaluator = withInheritedAssertionConfig(rawEvaluatorEntry, inheritedAssertionConfig);
     const rawName = asString(rawEvaluator.metric);
     const rawType = rawEvaluator.type;
     const typeValue = typeof rawType === 'string' ? normalizeGraderType(rawType) : rawType;
@@ -592,12 +594,14 @@ async function parseGraderList(
         continue;
       }
 
+      const config = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
       const parsedMembers = await parseGraderList(
         rawMembers as JsonValue,
         searchRoots,
         `${evalId}:${name}`,
         defaultPreprocessors,
         defaultRubricPrompt,
+        config,
       );
       if (!parsedMembers || parsedMembers.length === 0) {
         logWarning(
@@ -623,6 +627,7 @@ async function parseGraderList(
         name,
         type: 'assert-set',
         assertions: parsedMembers,
+        ...(config !== undefined ? { config } : {}),
         ...(threshold !== undefined ? { threshold } : {}),
         ...(weight !== undefined ? { weight } : {}),
         ...(required !== undefined ? { required } : {}),
@@ -1673,6 +1678,26 @@ async function parseGraderList(
   }
 
   return evaluators.length > 0 ? evaluators : undefined;
+}
+
+function withInheritedAssertionConfig(
+  rawEvaluator: JsonObject,
+  inheritedConfig?: JsonObject,
+): JsonObject {
+  const ownConfig = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
+  if (!inheritedConfig && !ownConfig) {
+    return rawEvaluator;
+  }
+
+  const mergedConfig = {
+    ...(inheritedConfig ?? {}),
+    ...(ownConfig ?? {}),
+  };
+
+  return {
+    ...rawEvaluator,
+    config: mergedConfig,
+  };
 }
 
 interface ParsedPromptField {
