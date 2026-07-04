@@ -10781,23 +10781,7 @@
           "not": {}
         },
         "execution": {
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "max_concurrency": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 50
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "string",
-              "minLength": 1
-            }
-          ]
+          "not": {}
         },
         "assert": {
           "type": "array",

@@ -679,12 +679,6 @@ const ConfigDefaultsSchema = z
   })
   .strict();
 
-const ConfigExecutionSchema = z
-  .object({
-    max_concurrency: z.number().int().min(1).max(50).optional(),
-  })
-  .strict();
-
 const ScenarioConfigSchema = z
   .object({
     vars: JsonObjectSchema.optional(),
@@ -775,7 +769,7 @@ export const EvalFileSchema: z.ZodType = z
     extensions: z.array(ExtensionSchema).optional(),
     on_run_complete: z.never().optional(),
     policy: z.never().optional(),
-    execution: z.union([ConfigExecutionSchema, z.string().min(1)]).optional(),
+    execution: z.never().optional(),
     // Suite-level assert entries
     assert: z.array(AssertionItemSchema).optional(),
     // Suite-level content preprocessors shared by evaluators

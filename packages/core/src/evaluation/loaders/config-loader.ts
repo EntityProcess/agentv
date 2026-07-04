@@ -359,33 +359,27 @@ function rejectAuthoredRuntimeContainers(suite: JsonObject): void {
     throw new Error("Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd.");
   }
   if (suite.execution !== undefined) {
-    assertAllowedSuiteExecution(suite.execution);
+    rejectAuthoredSuiteExecution(suite.execution);
   }
 }
 
-function assertAllowedSuiteExecution(rawExecution: JsonValue): void {
+function rejectAuthoredSuiteExecution(rawExecution: JsonValue): void {
   if (!isJsonObject(rawExecution)) {
     throw new Error("Invalid top-level 'execution': expected an object.");
   }
   for (const key of Object.keys(rawExecution)) {
-    if (key !== 'max_concurrency') {
+    if (key === 'max_concurrency') {
       throw new Error(
-        `Top-level 'execution.${key}' is not part of eval YAML. Use execution.max_concurrency for AgentV eval parallelism; keep target and other run controls at their supported top-level or evaluate_options fields.`,
+        "Top-level 'execution.max_concurrency' has been removed from eval YAML. Use evaluate_options.max_concurrency for authored suite concurrency.",
       );
     }
-  }
-  const maxConcurrency = rawExecution.max_concurrency;
-  if (
-    maxConcurrency !== undefined &&
-    (typeof maxConcurrency !== 'number' ||
-      !Number.isInteger(maxConcurrency) ||
-      maxConcurrency < 1 ||
-      maxConcurrency > 50)
-  ) {
     throw new Error(
-      "Invalid top-level 'execution.max_concurrency': expected an integer between 1 and 50.",
+      `Top-level 'execution.${key}' is not part of eval YAML. Use supported top-level fields or evaluate_options for authored run controls.`,
     );
   }
+  throw new Error(
+    "Top-level 'execution' is not part of eval YAML. Use supported top-level fields or evaluate_options for authored run controls.",
+  );
 }
 
 function getSuiteTopLevelNumber(
@@ -604,15 +598,12 @@ export function parseTargetHooks(raw: unknown): TargetHooksConfig | undefined {
 /**
  * Extract suite-level max concurrency from eval YAML.
  *
- * AgentV eval YAML accepts execution.max_concurrency as the config-graph field
- * and evaluate_options.max_concurrency for promptfoo-shaped eval options. The
- * runner still receives the resolved value through its historical workers slot.
+ * AgentV eval YAML accepts promptfoo-shaped evaluate_options.max_concurrency.
+ * The runner still receives the resolved value through its historical workers
+ * slot.
  */
 export function extractWorkersFromSuite(suite: JsonObject): number | undefined {
   rejectAuthoredRuntimeContainers(suite);
-  if (isJsonObject(suite.execution) && typeof suite.execution.max_concurrency === 'number') {
-    return suite.execution.max_concurrency;
-  }
   return getSuiteEvaluateOptionsNumber(
     suite,
     'max_concurrency',

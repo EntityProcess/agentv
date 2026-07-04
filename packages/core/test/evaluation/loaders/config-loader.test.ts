@@ -990,9 +990,9 @@ describe('extractWorkersFromSuite', () => {
     expect(extractWorkersFromSuite(suite)).toBe(5);
   });
 
-  it('parses valid execution.max_concurrency', () => {
+  it('rejects authored execution.max_concurrency', () => {
     const suite: JsonObject = { execution: { max_concurrency: 3 } };
-    expect(extractWorkersFromSuite(suite)).toBe(3);
+    expect(() => extractWorkersFromSuite(suite)).toThrow(/evaluate_options\.max_concurrency/);
   });
 
   it('returns undefined for invalid max_concurrency', () => {

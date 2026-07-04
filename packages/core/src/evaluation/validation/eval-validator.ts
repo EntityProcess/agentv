@@ -168,7 +168,7 @@ const KNOWN_TEST_EXECUTION_FIELDS = new Set([
 const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
   [
     'workers',
-    "'workers' has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.",
+    "'workers' has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.",
   ],
   ['model', "Top-level 'model' is not part of eval YAML. Put model inside the target object."],
   [
@@ -658,7 +658,7 @@ function validateTestExecutionFields(
         filePath,
         location: `${location}.execution.workers`,
         message:
-          'tests[].execution.workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.',
+          'tests[].execution.workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.',
       });
       continue;
     }
@@ -708,29 +708,33 @@ function validateExecutionPolicy(
     });
     return;
   }
-  for (const key of Object.keys(execution)) {
-    if (key !== 'max_concurrency') {
+  const keys = Object.keys(execution);
+  if (keys.length === 0) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location,
+      message:
+        "Top-level 'execution' is not part of eval YAML. Use supported top-level fields or evaluate_options for authored run controls.",
+    });
+    return;
+  }
+  for (const key of keys) {
+    if (key === 'max_concurrency') {
       errors.push({
         severity: 'error',
         filePath,
         location: `${location}.${key}`,
-        message: `Unsupported execution field '${key}'. Use execution.max_concurrency for eval parallelism.`,
+        message:
+          "Top-level 'execution.max_concurrency' has been removed from eval YAML. Use evaluate_options.max_concurrency for authored suite concurrency.",
       });
+      continue;
     }
-  }
-  const maxConcurrency = execution.max_concurrency;
-  if (
-    maxConcurrency !== undefined &&
-    (typeof maxConcurrency !== 'number' ||
-      !Number.isInteger(maxConcurrency) ||
-      maxConcurrency < 1 ||
-      maxConcurrency > 50)
-  ) {
     errors.push({
       severity: 'error',
       filePath,
-      location: `${location}.max_concurrency`,
-      message: "Invalid 'execution.max_concurrency' field (must be an integer between 1 and 50)",
+      location: `${location}.${key}`,
+      message: `Unsupported execution field '${key}'. Use supported top-level fields or evaluate_options for authored run controls.`,
     });
   }
 }
@@ -749,7 +753,7 @@ function rejectWorkersField(
       severity: 'error',
       filePath,
       location: `${location}.workers`,
-      message: `${location}.workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.`,
+      message: `${location}.workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.`,
     });
   }
   rejectTargetWorkers(raw.targets, `${location}.targets`, filePath, errors);
@@ -772,7 +776,7 @@ function rejectTargetWorkers(
       severity: 'error',
       filePath,
       location: `${location}[${index}].workers`,
-      message: `${location}[${index}].workers has been removed from eval YAML. Set authored eval concurrency with execution.max_concurrency or evaluate_options.max_concurrency.`,
+      message: `${location}[${index}].workers has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.`,
     });
   });
 }
