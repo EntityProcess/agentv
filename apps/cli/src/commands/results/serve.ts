@@ -554,6 +554,11 @@ function resolveRunArtifactPath(
   return { absolutePath };
 }
 
+function runWorkspaceDirFromManifestPath(manifestPath: string): string {
+  const manifestDir = path.dirname(manifestPath);
+  return path.basename(manifestDir) === '.internal' ? path.dirname(manifestDir) : manifestDir;
+}
+
 function isPathInsideDirectory(baseDir: string, candidatePath: string): boolean {
   const relative = path.relative(baseDir, candidatePath);
   return (
@@ -943,7 +948,7 @@ async function readArtifactCatalogEntryText(
   meta: SourcedResultFileMeta,
   entry: ArtifactCatalogEntry,
 ): Promise<{ content?: string; error?: string }> {
-  const baseDir = path.dirname(meta.path);
+  const baseDir = runWorkspaceDirFromManifestPath(meta.path);
   if (entry.storage === 'local') {
     const resolved = resolveReadableRunArtifactFile(baseDir, entry.displayPath);
     if (resolved.error) return { error: resolved.error };
@@ -1496,7 +1501,7 @@ async function handleRunLog(c: C, { searchDir, projectId }: DataContext) {
   if (meta.source === 'remote') {
     return c.json({ error: 'Run log is not available for remote runs' }, 404);
   }
-  const logPath = path.join(path.dirname(meta.path), 'console.log');
+  const logPath = path.join(runWorkspaceDirFromManifestPath(meta.path), 'console.log');
   if (!existsSync(logPath)) {
     return c.json({ error: 'Run log not found for this run' }, 404);
   }
@@ -1527,7 +1532,7 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const resumeMeta =
       meta.source === 'local' ? deriveResumeMeta(searchDir, meta.path, summaryMetadata) : {};
     const liveStatus = meta.source === 'local' ? getActiveRunStatus(meta.path) : undefined;
-    const baseDir = path.dirname(meta.path);
+    const baseDir = runWorkspaceDirFromManifestPath(meta.path);
     return c.json({
       results: attachExternalTraceFields(
         attachRunDetailReadModelFields(stripHeavyFields(loaded), records, baseDir),
@@ -1906,7 +1911,7 @@ async function handleEvalDetail(c: C, { searchDir, projectId }: DataContext) {
     const selection = manifestRecordSelection(records, evalId, resultDir.value);
     const result = selection ? loaded[selection.index] : undefined;
     if (!selection || !result) return c.json({ error: 'Eval not found' }, 404);
-    const baseDir = path.dirname(meta.path);
+    const baseDir = runWorkspaceDirFromManifestPath(meta.path);
     const [stripped] = attachRunDetailReadModelFields(
       stripHeavyFields([result]),
       [selection.record],
@@ -1932,7 +1937,7 @@ async function handleEvalFiles(c: C, { searchDir, projectId }: DataContext) {
     if (!selection) return c.json({ error: 'Eval not found' }, 404);
     const { record } = selection;
 
-    const baseDir = path.dirname(meta.path);
+    const baseDir = runWorkspaceDirFromManifestPath(meta.path);
     const catalog = buildResultArtifactCatalog(record, {
       runPath: relativeRunPathFromManifestPath(meta.path),
     });
@@ -1978,7 +1983,7 @@ async function handleEvalFileContent(c: C, { searchDir, projectId }: DataContext
   const entry =
     findArtifactCatalogEntry(catalog, filePath) ??
     catalogEntryForDiscoveredLocalFile(
-      buildLocalResultArtifactTree(path.dirname(meta.path), record, catalog),
+      buildLocalResultArtifactTree(runWorkspaceDirFromManifestPath(meta.path), record, catalog),
       filePath,
     );
   if (!entry) {

@@ -3113,6 +3113,85 @@ describe('serve app', () => {
       expect(serializedFiles).toContain('"storage":"local"');
     });
 
+    it('loads canonical .internal index transcript artifacts from the run workspace root', async () => {
+      const runsDir = localResultsExperimentDir(tempDir, 'canonical-transcript');
+      const runId = '2026-03-25T10-30-00-000Z';
+      const timestampDir = path.join(runsDir, runId);
+      const resultDir = 'demo-test-greeting--111111111111';
+      const transcriptArtifactPath = `${resultDir}/sample-1/transcript.json`;
+      const answerArtifactPath = `${resultDir}/sample-1/outputs/answer.md`;
+      const transcriptPath = path.join(timestampDir, transcriptArtifactPath);
+      const answerPath = path.join(timestampDir, answerArtifactPath);
+      const transcriptJson = `${JSON.stringify(
+        {
+          schema_version: 'agentv.normalized_transcript.v1',
+          target: 'codex',
+          turns: [
+            {
+              v: 1,
+              agent: 'codex',
+              type: 'assistant',
+              content: [
+                {
+                  type: 'tool_use',
+                  id: 'call-read-package',
+                  tool_name: 'file_read',
+                  input: { path: 'package.json' },
+                  result: { status: 'success', output: { name: 'demo' } },
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`;
+
+      mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      writeFileSync(transcriptPath, transcriptJson);
+      mkdirSync(path.dirname(answerPath), { recursive: true });
+      writeFileSync(answerPath, 'done');
+      mkdirSync(path.join(timestampDir, '.internal'), { recursive: true });
+      writeFileSync(
+        path.join(timestampDir, '.internal', 'index.jsonl'),
+        toJsonl({
+          ...RESULT_A,
+          experiment: 'canonical-transcript',
+          result_dir: resultDir,
+          transcript_path: transcriptArtifactPath,
+          answer_path: answerArtifactPath,
+        }),
+      );
+
+      const app = createApp([], tempDir, tempDir, undefined, { studioDir });
+      const transcriptRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/transcript?result_dir=${encodeURIComponent(resultDir)}`,
+      );
+
+      expect(transcriptRes.status).toBe(200);
+      const transcriptData = (await transcriptRes.json()) as {
+        status: string;
+        transcript_path: string;
+        content: string;
+        answer_path: string;
+        answer_content: string;
+      };
+      expect(transcriptData).toMatchObject({
+        status: 'ok',
+        transcript_path: transcriptArtifactPath,
+        content: transcriptJson,
+        answer_path: answerArtifactPath,
+        answer_content: 'done',
+      });
+
+      const rawRes = await app.request(
+        `/api/runs/${encodeURIComponent(runId)}/evals/test-greeting/files/${transcriptArtifactPath}?result_dir=${encodeURIComponent(resultDir)}&raw=1`,
+      );
+
+      expect(rawRes.status).toBe(200);
+      expect(await rawRes.text()).toBe(transcriptJson);
+    });
+
     it('loads pointer-shaped transcript metadata when it resolves to a local artifact path', async () => {
       const runsDir = localResultsExperimentDir(tempDir, 'pointer-transcript');
       const runId = '2026-03-25T11-00-00-000Z';

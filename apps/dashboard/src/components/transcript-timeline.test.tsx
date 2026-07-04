@@ -5,6 +5,7 @@ import {
   TranscriptTimeline,
   findAnswerPath,
   findTranscriptPath,
+  messageIdsWithToolCalls,
   parseTranscriptJsonl,
 } from './TranscriptTimeline';
 import {
@@ -119,6 +120,12 @@ describe('TranscriptTimeline', () => {
     const html = renderStructuredTranscript();
 
     expect(html).toMatch(/data-testid="tool-call-call-read-1" data-expanded="false"/);
+  });
+
+  it('identifies parent messages that must open when expanding all tool calls', () => {
+    const parsed = parseTranscriptJsonl(structuredTranscriptJsonl);
+
+    expect(messageIdsWithToolCalls(parsed.entries)).toEqual(['1-assistant-1']);
   });
 
   it('renders expand and collapse controls for tool calls', () => {

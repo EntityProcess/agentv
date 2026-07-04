@@ -468,6 +468,12 @@ function defaultExpandedMessageIds(messages: readonly TranscriptMessageViewModel
   return ids;
 }
 
+export function messageIdsWithToolCalls(entries: readonly TranscriptJsonLine[]): string[] {
+  return buildTranscriptViewModel(entries)
+    .filter((message) => message.toolCalls.length > 0)
+    .map((message) => message.id);
+}
+
 function summarizeRoleCounts(messages: readonly TranscriptMessageViewModel[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const message of messages) {
@@ -885,6 +891,19 @@ export function TranscriptTimeline({
     });
   }
 
+  function expandAllToolCalls() {
+    setExpandedToolIds(new Set(allToolIds));
+    setExpandedMessageIds((current) => {
+      const next = new Set(current);
+      for (const message of messages) {
+        if (message.toolCalls.length > 0) {
+          next.add(message.id);
+        }
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-4">
       {hasCanonicalAnswer && (
@@ -964,7 +983,7 @@ export function TranscriptTimeline({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setExpandedToolIds(new Set(allToolIds))}
+                onClick={expandAllToolCalls}
                 className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-amber-800 hover:text-amber-200"
               >
                 Expand all tool calls
