@@ -1,0 +1,37 @@
+# Codex CLI stream log
+# target: codex-cli-local
+# eval: exact-token
+# attempt: 1
+# started: 2026-07-04T03:56:11.403Z
+[+00:03] [stdout] {
+  "type": "thread.started",
+  "thread_id": "019f2b45-0715-75b2-b819-164fe9d433b4"
+}
+[+00:03] [stdout] {
+  "type": "turn.started"
+}
+[+00:06] [stdout] {
+  "type": "item.completed",
+  "item": {
+    "id": "item_0",
+    "type": "error",
+    "message": "Skill descriptions were shortened to fit the 2% skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest."
+  }
+}
+[+00:08] [stdout] {
+  "type": "item.completed",
+  "item": {
+    "id": "item_1",
+    "type": "agent_message",
+    "text": "AGENTV_TRANSCRIPT_PARITY_OK"
+  }
+}
+[+00:08] [stdout] {
+  "type": "turn.completed",
+  "usage": {
+    "input_tokens": 12608,
+    "cached_input_tokens": 4736,
+    "output_tokens": 66,
+    "reasoning_output_tokens": 52
+  }
+}
