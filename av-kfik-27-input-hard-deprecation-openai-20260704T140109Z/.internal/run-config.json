@@ -1,0 +1,7 @@
+{
+  "schema_version": "agentv.run_config.v1",
+  "experiment_config": {
+    "fingerprint": "03784858ab037afff95d94673c1d1b6bd046c4c7a5da64440bd294f1da186a22",
+    "target": "llm"
+  }
+}

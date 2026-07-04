@@ -1,0 +1,7 @@
+targets:
+  - id: openai
+    provider: openai
+    model: ${{ OPENAI_MODEL }}
+    config:
+      endpoint: ${{ OPENAI_ENDPOINT }}
+      api_key: ${{ OPENAI_API_KEY }}

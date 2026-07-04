@@ -1,0 +1,62 @@
+{
+  "execution_status": "execution_error",
+  "verdict": "fail",
+  "sample_index": 0,
+  "retry_index": 2,
+  "duration_seconds": 0,
+  "model": "openai",
+  "grading_path": "./grading.json",
+  "metrics_path": "./metrics.json",
+  "transcript_path": "./transcript.json",
+  "transcript_raw_path": "./transcript-raw.jsonl",
+  "transcript_summary": {
+    "total_turns": 2,
+    "tool_calls": {
+      "file_read": 0,
+      "file_write": 0,
+      "file_edit": 0,
+      "shell": 0,
+      "web_fetch": 0,
+      "web_search": 0,
+      "glob": 0,
+      "grep": 0,
+      "list_dir": 0,
+      "agent_task": 0,
+      "unknown": 0
+    },
+    "files_read": [],
+    "files_modified": [],
+    "shell_commands": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "pi-ai call failed: HTTP 401 Incorrect API key provided: dummy. You can find your API key at https://platform.openai.com/account/api-keys."
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "o11y": {
+    "total_turns": 1,
+    "tool_calls": {},
+    "total_tool_calls": 0,
+    "web_fetches": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_deleted": [],
+    "shell_commands": [],
+    "errors": [
+      {
+        "message": "pi-ai call failed: HTTP 401 Incorrect API key provided: dummy. You can find your API key at https://platform.openai.com/account/api-keys.",
+        "stage": "agent"
+      },
+      {
+        "message": "pi-ai call failed: HTTP 401 Incorrect API key provided: dummy. You can find your API key at https://platform.openai.com/account/api-keys.",
+        "event_id": "error"
+      }
+    ],
+    "thinking_blocks": 0
+  },
+  "output_paths": {
+    "answer": "./outputs/answer.md"
+  }
+}
