@@ -23,6 +23,7 @@ const TEST_TS_FILES = [
   'apps/cli/test/commands/eval/task-bundle.test.ts',
   'apps/cli/test/commands/grade/grade-prepared.test.ts',
   'apps/cli/test/commands/prepare/prepare.test.ts',
+  'apps/cli/test/commands/runs/rerun.test.ts',
   'apps/cli/test/commands/workspace/deps.test.ts',
   'apps/cli/test/eval.integration.test.ts',
   'packages/core/test/evaluation/conversation-mode.test.ts',
