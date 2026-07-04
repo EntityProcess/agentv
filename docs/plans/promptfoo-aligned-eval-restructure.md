@@ -7,6 +7,15 @@ workspaces and `workspace_mode` are removed from the user-facing contract, and
 `--workspace-path` / `execution.workspace_path` are the only static local
 workspace override.
 
+Supersession note (2026-07-04): this plan predates the `av-kfik.28.1` grading
+artifact decision. The current public `grading.json` contract is ADR-0017 plus
+the active Beads: aggregate `pass`/`score`/`reason`, optional
+`threshold`/`details`, always-present `graders[]`, nested `checks[]`, and no
+public `assertion_results`, `assertions`, `passed`-only aliases, top-level
+`checks`, or dynamic one-grader shortcut. Its broad pass@k language is also
+stale unless it refers to an explicit sampling metric with a real `k`; use
+`pass_rate`, `pass_count`, `sample_count`, and `passed`/`pass_any` otherwise.
+
 Sources analyzed (all cloned locally, read-only):
 - promptfoo v0.121.17 — `/home/christso/projects/promptfoo-clone` (authoring format — the thing we clone)
 - Margin-Lab/evals — `/home/christso/projects/margin-lab-evals` (runner, I/O contracts, workspace, analytics)
@@ -322,7 +331,12 @@ Borrow vercel's judge model, which is stronger than a prompt-stuffed rubric:
 - **Judge pinning** knob: `grader_target` = `{ agent?, model }` with self-grade default. AgentV already has `grader_target`; formalize the `{model}`-required pinning for apples-to-apples comparison.
 - **Gap to fix vs vercel:** they capture no token/cost — AgentV already does; keep it.
 
-### 5.3 `grading.json` contract — reconciled with agentskills (owner-flagged main risk)
+### 5.3 `grading.json` contract — stale historical design
+
+Stale after `av-kfik.28.1` and ADR-0017's 2026-07-04 update. Keep this section
+as historical context only; implementation workers must use the current
+`graders[]`/`checks[]` contract documented in ADR-0017 and in the Bead notes.
+
 The output contract originates from agentskills' [evaluating-skills](https://github.com/agentskills/agentskills/blob/main/docs/skill-creation/evaluating-skills.mdx). Its `grading.json` is:
 ```json
 { "assertion_results": [ { "text": "…", "passed": true, "evidence": "…" } ],
