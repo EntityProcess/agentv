@@ -71,10 +71,7 @@ describe('buildRunListItemView', () => {
         experiment: 'smoke-suite',
         runtime_source: {
           schema_version: 'agentv.runtime_source.v1',
-          kind: 'multi_eval',
           config_source: 'mixed',
-          experiment_namespace: 'smoke-suite',
-          experiment_namespace_source: 'cli',
           eval_files: ['evals/a.eval.yaml', 'evals/b.eval.yaml'],
         },
       }),
@@ -82,7 +79,7 @@ describe('buildRunListItemView', () => {
     );
 
     expect(view.experimentNamespace).toBe('smoke-suite');
-    expect(view.runtimeSourceLabel).toBe('Multi-eval · CLI namespace · Mixed runtime config');
+    expect(view.runtimeSourceLabel).toBe('Mixed runtime config');
     expect(view.runtimeSourceTitle).toContain('evals/a.eval.yaml');
   });
 });

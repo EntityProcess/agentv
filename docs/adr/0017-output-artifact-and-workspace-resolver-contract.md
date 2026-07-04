@@ -49,12 +49,13 @@ bundle, and how a workspace is acquired.
    "manifest"/`bundle.json` for the frozen config.
 6. **Merge `timing.json` into `metrics.json`** (sections: duration/tokens/cost always;
    execution/trajectory when a trace exists); drop `timing_path`, keep one `metrics_path`.
-7. **Analytics = one pure `Build()`** (margin-lab shape) producing the `Summary` with
-   pass@k; add promptfoo-shaped `named_scores`/`derived_metrics` on rows.
+7. **Analytics = one pure `Build()`** (margin-lab shape) producing status,
+   count, usage, runtime, case, and failure summaries; add promptfoo-shaped
+   `named_scores`/`derived_metrics` on rows.
 
 ### Multi-suite runs — one run_id, categorize by suite AND tags/experiment
 Confirms ADR-0009 + ADR-0012 (not a new decision):
-- **One `<run_id>` (one timestamp) per CLI invocation**, across any number of suite YAMLs — all suites' cases live under the single `<run_id>/` bundle. **Never a separate timestamp/folder per suite.** `runtime_source.kind = multi_eval` records the multi-suite invocation.
+- **One `<run_id>` (one timestamp) per CLI invocation**, across any number of suite YAMLs — all suites' cases live under the single `<run_id>/` bundle. **Never a separate timestamp/folder per suite.** `runtime_source.eval_files` records the active eval files.
 - **Identity = `eval_path` + `test_id`** (uuid-suffixed dir), so overlapping `test_id`s across suites don't collide. `suite`/`name` are **display/grouping metadata, not routing** (ADR-0009).
 - **Categorize by BOTH, orthogonally** (each `index.jsonl` row carries both): **`suite`** (+`eval_path`) = structural origin; **`tags`** (map, incl **`experiment`**) = semantic/campaign grouping. `experiment` = the run/campaign bucket; `suite` = the intra-run structural group; the Dashboard groups by any tag key, and suite is another grouping dimension. Reports filter/group by either axis.
 

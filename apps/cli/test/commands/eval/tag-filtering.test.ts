@@ -144,20 +144,18 @@ describe('resolveExperimentNamespace', () => {
   it('prefers an explicit --experiment over tags.experiment and the default', () => {
     expect(
       resolveExperimentNamespace({ ...base, cliExperiment: 'cli-exp', tagsExperiment: 'tag-exp' }),
-    ).toEqual({ experiment: 'cli-exp', source: 'cli' });
+    ).toEqual({ experiment: 'cli-exp' });
   });
 
   it('uses tags.experiment when no --experiment is given', () => {
     expect(resolveExperimentNamespace({ ...base, tagsExperiment: 'tag-exp' })).toEqual({
       experiment: 'tag-exp',
-      source: 'tags',
     });
   });
 
   it('falls back to the eval-metadata default when neither is set (e.g. --tag experiment=)', () => {
     expect(resolveExperimentNamespace({ ...base })).toEqual({
       experiment: 'my-suite',
-      source: 'eval_metadata',
     });
   });
 
@@ -167,13 +165,13 @@ describe('resolveExperimentNamespace', () => {
         isMultiEval: false,
         resultGroupName: 'dataset',
       }),
-    ).toEqual({ experiment: 'dataset', source: 'eval_filename' });
+    ).toEqual({ experiment: 'dataset' });
   });
 
   it('labels multi-eval runs when no CLI/tags experiment is set', () => {
     expect(
       resolveExperimentNamespace({ isMultiEval: true, resultGroupName: 'multi-eval' }),
-    ).toEqual({ experiment: 'multi-eval', source: 'multi_eval' });
+    ).toEqual({ experiment: 'multi-eval' });
   });
 
   it('lets tags.experiment win over the multi-eval default', () => {
@@ -183,7 +181,7 @@ describe('resolveExperimentNamespace', () => {
         tagsExperiment: 'tag-exp',
         resultGroupName: 'multi-eval',
       }),
-    ).toEqual({ experiment: 'tag-exp', source: 'tags' });
+    ).toEqual({ experiment: 'tag-exp' });
   });
 });
 

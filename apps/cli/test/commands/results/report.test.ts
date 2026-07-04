@@ -160,13 +160,9 @@ describe('results report', () => {
       experiment: 'named-smoke',
       runtimeSource: {
         schema_version: 'agentv.runtime_source.v1',
-        kind: 'wrapper_eval',
         config_source: 'inline_experiment',
-        experiment_namespace: 'named-smoke',
-        experiment_namespace_source: 'eval_metadata',
-        eval_files: ['evals/wrapper.eval.yaml'],
+        eval_files: ['evals/child.eval.yaml'],
         wrapper_eval_file: 'evals/wrapper.eval.yaml',
-        source_eval_files: ['evals/child.eval.yaml'],
       },
     });
 
@@ -174,9 +170,7 @@ describe('results report', () => {
     const html = readFileSync(outputPath, 'utf8');
 
     expect(html).toContain('Experiment namespace: named-smoke');
-    expect(html).toContain(
-      'Runtime source: Wrapper eval · Eval metadata namespace · Inline experiment config',
-    );
+    expect(html).toContain('Runtime source: Inline experiment config');
   });
 
   it('embeds result text containing replacement tokens without corrupting the inline script', async () => {

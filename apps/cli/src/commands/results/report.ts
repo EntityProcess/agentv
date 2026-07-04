@@ -86,10 +86,7 @@ function serializeReportResult(
   const runtimeSource = manifestRecord?.runtime_source ?? summaryMetadata?.runtimeSource;
   const resultExperiment = (result as EvaluationResult & { experiment?: string }).experiment;
   const experimentNamespace =
-    runtimeSource?.experiment_namespace ??
-    manifestRecord?.experiment ??
-    summaryMetadata?.experiment ??
-    resultExperiment;
+    manifestRecord?.experiment ?? summaryMetadata?.experiment ?? resultExperiment;
   const fallbackEvalFile =
     normalizeEvalFileLabel(manifestRecord?.eval_file) ??
     summaryMetadata?.evalFile ??
@@ -113,25 +110,11 @@ function serializeReportResult(
     output: result.output,
     assertions: result.assertions,
     experiment: experimentNamespace,
-    experiment_namespace: experimentNamespace,
     runtime_source: runtimeSource,
     runtime_source_label: formatRuntimeSourceLabel(runtimeSource),
     runtime_config_source_label: formatRuntimeConfigSourceLabel(runtimeSource?.config_source),
     eval_file: fallbackEvalFile,
   };
-}
-
-function formatRuntimeKindLabel(kind: RunRuntimeSourceMetadata['kind'] | undefined): string {
-  switch (kind) {
-    case 'direct_suite':
-      return 'Direct suite';
-    case 'wrapper_eval':
-      return 'Wrapper eval';
-    case 'multi_eval':
-      return 'Multi-eval';
-    default:
-      return 'Unknown source';
-  }
 }
 
 function formatRuntimeConfigSourceLabel(
@@ -151,36 +134,11 @@ function formatRuntimeConfigSourceLabel(
   }
 }
 
-function formatNamespaceSourceLabel(
-  source: RunRuntimeSourceMetadata['experiment_namespace_source'] | undefined,
-): string {
-  switch (source) {
-    case 'cli':
-      return 'CLI namespace';
-    case 'tags':
-      return 'Tags namespace';
-    case 'eval_metadata':
-      return 'Eval metadata namespace';
-    case 'eval_filename':
-      return 'Eval filename namespace';
-    case 'multi_eval':
-      return 'Multi-eval namespace';
-    default:
-      return '';
-  }
-}
-
 function formatRuntimeSourceLabel(runtimeSource: RunRuntimeSourceMetadata | undefined): string {
   if (!runtimeSource) {
     return '';
   }
-  return [
-    formatRuntimeKindLabel(runtimeSource.kind),
-    formatNamespaceSourceLabel(runtimeSource.experiment_namespace_source),
-    formatRuntimeConfigSourceLabel(runtimeSource.config_source),
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  return formatRuntimeConfigSourceLabel(runtimeSource.config_source);
 }
 
 function uniqueStrings(values: readonly (string | undefined)[]): string[] {
@@ -201,13 +159,7 @@ function escapeHtml(value: string): string {
 
 function formatReportHeaderContext(rows: readonly Record<string, unknown>[]): string {
   const experiments = uniqueStrings(
-    rows.map((row) =>
-      typeof row.experiment_namespace === 'string'
-        ? row.experiment_namespace
-        : typeof row.experiment === 'string'
-          ? row.experiment
-          : undefined,
-    ),
+    rows.map((row) => (typeof row.experiment === 'string' ? row.experiment : undefined)),
   );
   const runtimeSources = uniqueStrings(
     rows.map((row) =>

@@ -15,11 +15,10 @@ source loop by giving evals a promptfoo-compatible way to author it.
 ## Context
 
 AgentV already treats `experiment` as run-grouping metadata: it is written to
-`summary.json.metadata.experiment` and each `index.jsonl` row, with provenance
-in `runtime_source.experiment_namespace_source`. Until now an eval could only
-influence the namespace through the CLI `--experiment` flag or by falling back
-to the suite `metadata.name` / eval filename. There was no first-class,
-in-eval way to label the experiment.
+`summary.json.metadata.experiment` and each `index.jsonl` row. Until now an eval
+could only influence the namespace through the CLI `--experiment` flag or by
+falling back to the suite `metadata.name` / eval filename. There was no
+first-class, in-eval way to label the experiment.
 
 promptfoo — a widely used lowest-common-denominator eval contract — expresses
 run labels through `tags: Record<string,string>` with no first-class
@@ -62,11 +61,6 @@ The experiment namespace is resolved with precedence:
 ```text
 --experiment (CLI)  >  tags.experiment  >  default (multi-eval / suite name / filename)
 ```
-
-`experiment_namespace_source` gains a new `tags` value for provenance, joining
-the existing `cli`, `eval_metadata`, `eval_filename`, `multi_eval`, and
-`unknown` values. The `experiment_namespace` / `experiment_namespace_source`
-contract is otherwise unchanged.
 
 The resolved tags map is emitted to `summary.json.metadata.tags` and to each
 `index.jsonl` row (mirroring promptfoo's `evals_to_tags`) so Dashboard

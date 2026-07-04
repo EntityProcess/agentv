@@ -26,7 +26,6 @@ import {
   type GradingArtifact,
   type IndexArtifactEntry,
   RESULT_INDEX_FILENAME,
-  RUN_CONFIG_FILENAME,
   type RunSummaryArtifact,
   type TimingArtifact,
   buildAggregateGradingArtifact,
@@ -1177,10 +1176,7 @@ describe('writeArtifactsFromResults', () => {
   it('writes optional runtime source metadata to summary only', async () => {
     const runtimeSource = {
       schema_version: 'agentv.runtime_source.v1' as const,
-      kind: 'direct_suite' as const,
       config_source: 'cli_flags' as const,
-      experiment_namespace: 'cli-smoke',
-      experiment_namespace_source: 'cli' as const,
       eval_files: ['evals/smoke.eval.yaml'],
     };
     const paths = await writeArtifactsFromResults([makeResult({ testId: 'alpha' })], testDir, {
@@ -1199,7 +1195,7 @@ describe('writeArtifactsFromResults', () => {
     expect(indexLine.runtime_source).toBeUndefined();
   });
 
-  it('moves experiment config metadata to an internal run config sidecar', async () => {
+  it('does not write experiment config metadata into public run artifacts', async () => {
     const experimentMetadata = {
       name: 'native-exp',
       target: 'codex-target',
@@ -1214,21 +1210,16 @@ describe('writeArtifactsFromResults', () => {
 
     const summary: RunSummaryArtifact = JSON.parse(await readFile(paths.summaryPath, 'utf8'));
     expect(summary.metadata).not.toHaveProperty('experiment_config');
-    expect(summary.metadata.run_config_path).toBe(`.internal/${RUN_CONFIG_FILENAME}`);
-
-    const runConfig = JSON.parse(
-      await readFile(path.join(paths.testArtifactDir, '.internal', RUN_CONFIG_FILENAME), 'utf8'),
-    );
-    expect(runConfig).toEqual({
-      schema_version: 'agentv.run_config.v1',
-      experiment_config: experimentMetadata,
-    });
+    expect(summary.metadata).not.toHaveProperty('run_config_path');
+    await expect(
+      readFile(path.join(paths.testArtifactDir, '.internal', 'run-config.json'), 'utf8'),
+    ).rejects.toThrow();
 
     await aggregateRunDir(paths.testArtifactDir);
     const rewrittenSummary: RunSummaryArtifact = JSON.parse(
       await readFile(paths.summaryPath, 'utf8'),
     );
-    expect(rewrittenSummary.metadata.run_config_path).toBe(`.internal/${RUN_CONFIG_FILENAME}`);
+    expect(rewrittenSummary.metadata).not.toHaveProperty('run_config_path');
   });
 
   it('omits duplicated root instances from run summary', () => {

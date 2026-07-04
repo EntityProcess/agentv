@@ -571,20 +571,14 @@ export function resolveExperimentNamespace(params: {
   resultGroupName: string;
 }): {
   experiment: string;
-  source: RunRuntimeSourceMetadata['experiment_namespace_source'];
 } {
   if (params.cliExperiment) {
-    return { experiment: params.cliExperiment, source: 'cli' };
+    return { experiment: params.cliExperiment };
   }
   if (params.tagsExperiment) {
-    return { experiment: params.tagsExperiment, source: 'tags' };
+    return { experiment: params.tagsExperiment };
   }
-  const source: RunRuntimeSourceMetadata['experiment_namespace_source'] = params.isMultiEval
-    ? 'multi_eval'
-    : params.suiteName
-      ? 'eval_metadata'
-      : 'eval_filename';
-  return { experiment: params.resultGroupName, source };
+  return { experiment: params.resultGroupName };
 }
 
 /**
@@ -902,11 +896,9 @@ function buildRuntimeSourceMetadata(params: {
   readonly activeTestFiles: readonly string[];
   readonly sourceTests: readonly EvalTest[];
   readonly fileMetadata: ReadonlyMap<string, { readonly options: NormalizedOptions }>;
-  readonly experimentNamespace: string;
-  readonly experimentNamespaceSource: RunRuntimeSourceMetadata['experiment_namespace_source'];
   readonly hasCliRuntimeConfig: boolean;
 }): RunRuntimeSourceMetadata {
-  const evalFiles = uniqueRuntimeSourcePaths(
+  const activeEvalFiles = uniqueRuntimeSourcePaths(
     params.activeTestFiles.map((filePath) => toRuntimeSourcePath(params.cwd, filePath)),
   );
   const activeResolvedFiles = new Set(
@@ -920,30 +912,22 @@ function buildRuntimeSourceMetadata(params: {
     const sourceFile = testSourceEvalPathForComparison(test);
     return sourceFile ? !activeResolvedFiles.has(sourceFile) : false;
   });
-  const kind =
-    params.activeTestFiles.length > 1
-      ? 'multi_eval'
-      : hasImportedSuite || hasNonActiveSourceFile
-        ? 'wrapper_eval'
-        : 'direct_suite';
-  const wrapperEvalFile =
-    kind === 'wrapper_eval'
-      ? toRuntimeSourcePath(params.cwd, params.activeTestFiles[0])
-      : undefined;
+  const isWrapperEval =
+    params.activeTestFiles.length === 1 && (hasImportedSuite || hasNonActiveSourceFile);
+  const wrapperEvalFile = isWrapperEval
+    ? toRuntimeSourcePath(params.cwd, params.activeTestFiles[0])
+    : undefined;
+  const evalFiles = sourceEvalFiles.length > 0 ? sourceEvalFiles : activeEvalFiles;
 
   return {
     schema_version: 'agentv.runtime_source.v1',
-    kind,
     config_source: buildRuntimeConfigSource({
       activeTestFiles: params.activeTestFiles,
       fileMetadata: params.fileMetadata,
       hasCliRuntimeConfig: params.hasCliRuntimeConfig,
     }),
-    experiment_namespace: params.experimentNamespace,
-    experiment_namespace_source: params.experimentNamespaceSource,
     eval_files: evalFiles,
     ...(wrapperEvalFile && { wrapper_eval_file: wrapperEvalFile }),
-    ...(sourceEvalFiles.length > 0 && { source_eval_files: sourceEvalFiles }),
   };
 }
 
@@ -1848,14 +1832,13 @@ export async function runEvalCommand(
     configTags: yamlConfig?.tags,
     cliTags: options.tagMap,
   });
-  const { experiment: resolvedExperimentNamespace, source: experimentNamespaceSource } =
-    resolveExperimentNamespace({
-      cliExperiment: resolvedExperiment.name,
-      tagsExperiment: normalizeString(resolvedTags?.experiment),
-      isMultiEval: resolvedTestFiles.length > 1,
-      suiteName: primarySuite?.metadata?.name,
-      resultGroupName,
-    });
+  const { experiment: resolvedExperimentNamespace } = resolveExperimentNamespace({
+    cliExperiment: resolvedExperiment.name,
+    tagsExperiment: normalizeString(resolvedTags?.experiment),
+    isMultiEval: resolvedTestFiles.length > 1,
+    suiteName: primarySuite?.metadata?.name,
+    resultGroupName,
+  });
   // Normalize once so the row `experiment` field, AGENTV_EXPERIMENT, and the
   // emitted tags map all agree (and any invalid-name error surfaces in one place).
   const normalizedExperiment = normalizeExperimentName(resolvedExperimentNamespace);
@@ -2266,8 +2249,6 @@ export async function runEvalCommand(
     activeTestFiles,
     sourceTests: activeSourceTests,
     fileMetadata,
-    experimentNamespace: normalizeExperimentName(options.experiment),
-    experimentNamespaceSource,
     hasCliRuntimeConfig,
   });
   const hasPerFileRuntimeThresholds =

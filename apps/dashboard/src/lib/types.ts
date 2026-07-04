@@ -160,7 +160,7 @@ export interface EvalCaseTrial {
 
 export type EvalTrialAggregation =
   | {
-      strategy: 'pass_at_k';
+      strategy: 'pass_any';
       passed_attempts?: number;
       total_attempts?: number;
     }
@@ -320,19 +320,9 @@ export interface RunDetailResponse {
 
 export interface RunRuntimeSource {
   schema_version?: 'agentv.runtime_source.v1';
-  kind?: 'direct_suite' | 'wrapper_eval' | 'multi_eval' | string;
   config_source?: 'defaults' | 'inline_experiment' | 'cli_flags' | 'mixed' | string;
-  experiment_namespace?: string;
-  experiment_namespace_source?:
-    | 'cli'
-    | 'eval_metadata'
-    | 'eval_filename'
-    | 'multi_eval'
-    | 'unknown'
-    | string;
   eval_files?: string[];
   wrapper_eval_file?: string;
-  source_eval_files?: string[];
 }
 
 export interface SuiteSummary {

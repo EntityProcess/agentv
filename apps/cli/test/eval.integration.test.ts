@@ -698,36 +698,18 @@ describe('agentv eval CLI', () => {
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.experiment).toBe('native-exp');
       expect(benchmark.metadata).not.toHaveProperty('experiment_config');
-      expect(benchmark.metadata?.run_config_path).toBe('.internal/run-config.json');
-      const runConfig = JSON.parse(
-        await readFile(
+      expect(benchmark.metadata).not.toHaveProperty('run_config_path');
+      await expect(
+        readFile(
           path.join(runDirFromIndexPath(outputPath), '.internal', 'run-config.json'),
           'utf8',
         ),
-      ) as { experiment_config?: Record<string, unknown> };
-      expect(runConfig.experiment_config).toMatchObject({
-        target: 'codex-target',
-        repeat: {
-          count: 2,
-          strategy: 'pass_any',
-          early_exit: true,
-        },
-        threshold: 0.8,
-        budget_usd: 3,
-        timeout_seconds: 12,
-      });
-      expect((runConfig.experiment_config as Record<string, unknown>).fingerprint).toMatch(
-        /^[a-f0-9]{64}$/,
-      );
+      ).rejects.toThrow();
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
-        kind: 'wrapper_eval',
         config_source: 'mixed',
-        experiment_namespace: 'native-exp',
-        experiment_namespace_source: 'eval_metadata',
-        eval_files: ['native-exp.eval.yaml'],
+        eval_files: ['sample.test.yaml'],
         wrapper_eval_file: 'native-exp.eval.yaml',
-        source_eval_files: ['sample.test.yaml'],
       });
     } finally {
       await rm(fixture.baseDir, { recursive: true, force: true });
@@ -906,10 +888,7 @@ describe('agentv eval CLI', () => {
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
-        kind: 'multi_eval',
         config_source: 'mixed',
-        experiment_namespace: 'multi-eval',
-        experiment_namespace_source: 'multi_eval',
         eval_files: ['first.eval.yaml', 'second.eval.yaml'],
       });
     } finally {
@@ -1202,10 +1181,7 @@ tests:
       ) as { metadata?: Record<string, unknown> };
       expect(benchmark.metadata?.runtime_source).toMatchObject({
         schema_version: 'agentv.runtime_source.v1',
-        kind: 'direct_suite',
         config_source: 'inline_experiment',
-        experiment_namespace: 'cli-smoke',
-        experiment_namespace_source: 'cli',
         eval_files: ['sample.test.yaml'],
       });
     } finally {
