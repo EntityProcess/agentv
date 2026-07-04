@@ -1,0 +1,124 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Output contains \"fizz\"",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-1] Implements correct FizzBuzz logic for multiples of 3, 5, and 15",
+      "passed": true,
+      "evidence": "The code correctly checks divisibility by 15 first, then 3, then 5, yielding \"fizzbuzz\", \"fizz\", and \"buzz\" respectively, which is the correct FizzBuzz branching logic.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Generated code is executable FizzBuzz-style Python",
+      "passed": true,
+      "evidence": "Found loop, print call, and 3/5 fizzbuzz branch markers.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-1] Solution is simple and idiomatic Python",
+      "passed": true,
+      "evidence": "The solution is concise and idiomatic: uses a simple `for` loop, modulus checks, `if/elif`, and a `yield`-based function in standard Python style.",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "[rubric-2] Handles the 3, 5, and 15 branches correctly",
+      "passed": true,
+      "evidence": "It correctly orders branch checks (`% 15` first, then `% 3`, then `% 5`), producing lowercase outputs `fizzbuzz`, `fizz`, and `buzz` for the correct cases.",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "contains-fizz",
+      "type": "contains",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Output contains \"fizz\"",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "[rubric-1] Implements correct FizzBuzz logic for multiples of 3, 5, and 15",
+          "passed": true,
+          "evidence": "The code correctly checks divisibility by 15 first, then 3, then 5, yielding \"fizzbuzz\", \"fizz\", and \"buzz\" respectively, which is the correct FizzBuzz branching logic.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "script",
+      "type": "script",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Generated code is executable FizzBuzz-style Python",
+          "passed": true,
+          "evidence": "Found loop, print call, and 3/5 fizzbuzz branch markers.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "[rubric-1] Solution is simple and idiomatic Python",
+          "passed": true,
+          "evidence": "The solution is concise and idiomatic: uses a simple `for` loop, modulus checks, `if/elif`, and a `yield`-based function in standard Python style.",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "[rubric-2] Handles the 3, 5, and 15 branches correctly",
+          "passed": true,
+          "evidence": "It correctly orders branch checks (`% 15` first, then `% 3`, then `% 5`), producing lowercase outputs `fizzbuzz`, `fizz`, and `buzz` for the correct cases.",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}
