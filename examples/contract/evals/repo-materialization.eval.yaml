@@ -3,6 +3,7 @@ description: Release gate for public repo materialization, previous-commit
   checkout, and file input substitution.
 
 workspace:
+  scope: suite
   repos:
     - path: ./fixture
       repo: EntityProcess/agentv-contract-fixture

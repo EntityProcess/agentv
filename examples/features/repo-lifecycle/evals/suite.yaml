@@ -3,6 +3,7 @@ description: >-
   check out a specific commit, and have the agent work on it.
 
 workspace:
+  scope: suite
   repos:
     - path: ./repo
       repo: https://github.com/EntityProcess/agentv.git

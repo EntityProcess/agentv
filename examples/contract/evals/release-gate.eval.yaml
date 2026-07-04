@@ -2,6 +2,7 @@ name: release-contract
 description: Lightweight release gate for npm latest promotion.
 
 workspace:
+  scope: suite
   template: ../workspace-template
 
 target: github-models-contract

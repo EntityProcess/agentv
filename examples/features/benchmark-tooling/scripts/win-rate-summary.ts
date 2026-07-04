@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
 /**
- * win-rate-summary — Aggregate win/loss/tie rates from agentv compare output.
+ * win-rate-summary — Aggregate win/loss/tie rates from agentv results compare output.
  *
  * Usage:
  *   bun win-rate-summary.ts <comparison.json> [--tolerance <n>] [--json]
  *   bun win-rate-summary.ts <dir-of-comparisons/> [--tolerance <n>] [--json]
  *
- * Input: JSON output from `agentv compare --json`, saved to a file.
+ * Input: JSON output from `agentv results compare --json`, saved to a file.
  *        When a directory is given, all .json files are read and each is
  *        treated as a separate metric (filename becomes the metric label).
  *
  * Tie Policy:
  *   A result is classified as a "tie" when |delta| < tolerance.
- *   Default tolerance: 0.1 (same as agentv compare default threshold).
+ *   Default tolerance: 0.1 (same as agentv results compare default threshold).
  *   Set --tolerance 0 for strict comparison (no ties unless delta == 0).
  */
 
@@ -211,7 +211,7 @@ function main(): void {
     console.log(
       `Usage: bun win-rate-summary.ts <comparison.json | dir/> [--tolerance <n>] [--json]
 
-Reads JSON output from \`agentv compare --json\` and computes aggregate win/loss/tie rates.
+Reads JSON output from \`agentv results compare --json\` and computes aggregate win/loss/tie rates.
 
 Options:
   --tolerance <n>  Delta tolerance for tie classification (default: 0.1)
@@ -226,7 +226,7 @@ Per-Metric Breakdown:
   Each file is treated as a separate metric; the filename becomes the label.
 
 Examples:
-  agentv compare baseline.jsonl candidate.jsonl --json > comparison.json
+  agentv results compare baseline.jsonl candidate.jsonl --json > comparison.json
   bun win-rate-summary.ts comparison.json
   bun win-rate-summary.ts comparison.json --tolerance 0.05 --json
   bun win-rate-summary.ts ./comparisons/              # per-metric from directory`,
@@ -267,7 +267,7 @@ Examples:
   for (const { label, data } of inputs) {
     if (!data.matched || !Array.isArray(data.matched)) {
       console.error(
-        `Error: "${label}" has no matched array. Is this agentv compare --json output?`,
+        `Error: "${label}" has no matched array. Is this agentv results compare --json output?`,
       );
       process.exit(1);
     }

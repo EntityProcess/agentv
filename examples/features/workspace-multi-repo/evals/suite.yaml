@@ -3,6 +3,7 @@ description: >-
   cloned into the workspace.
 
 workspace:
+  scope: suite
   template: ../workspace-template
   hooks:
     after_each:

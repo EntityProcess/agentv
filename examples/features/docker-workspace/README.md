@@ -30,6 +30,7 @@ image that has the repository, dependencies, and test infrastructure ready.
 
 ```yaml
 workspace:
+  scope: suite
   docker:
     image: swebench/sweb.eval.x86_64.django__django-15180
     timeout: 1800    # seconds (default: 1800)
@@ -41,6 +42,7 @@ For evals that need a repo pinned to a dataset snapshot, use `workspace.repos[].
 
 ```yaml
 workspace:
+  scope: suite
   docker:
     image: swebench/sweb.eval.x86_64.django__django-15180
   repos:

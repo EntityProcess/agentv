@@ -1,6 +1,10 @@
 tags: [ agent, skill-trigger ]
 
+extensions:
+  - agentv:agent-rules
+
 workspace:
+  scope: suite
   template: workspace/
 
 tests:

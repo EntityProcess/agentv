@@ -14,6 +14,7 @@ description: |
   superpowers (obra), compound-engineering (Every Inc), agent-skills (Addy Osmani).
 
 workspace:
+  scope: suite
   repos:
     - path: ./repo
       repo: https://github.com/EntityProcess/agentv

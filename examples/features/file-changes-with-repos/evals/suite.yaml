@@ -23,17 +23,11 @@ description: Verify file_changes captures workspace-root files AND changes
   inside nested repos
 
 workspace:
+  scope: suite
   template: ../workspace-template
-  hooks:
-    before_all:
-      command:
-        - bash
-        - -c
-        - >-
-          cd "{{workspace_path}}/my-lib" && git -c init.defaultBranch=main init
-          && git -c user.email=test@agentv.dev -c user.name="AgentV Test" add .
-          && git -c user.email=test@agentv.dev -c user.name="AgentV Test" commit
-          -m "init"
+
+extensions:
+  - file://../scripts/setup-nested-repo.mjs:beforeAll
 
 target: mock_agent
 
