@@ -56,6 +56,7 @@ export {
 } from './evaluation/evaluate.js';
 export {
   RESULT_INDEX_FILENAME,
+  RUN_CONFIG_FILENAME,
   RUN_SUMMARY_FILENAME,
   aggregateRunDir,
   buildAggregateGradingArtifact,
@@ -69,6 +70,7 @@ export {
   buildTimingArtifact,
   deduplicateByTestIdTarget,
   parseJsonlResults,
+  readRunConfigArtifact,
   writeArtifacts,
   writeArtifactsFromResults,
   writeInitialRunSummaryArtifact,
@@ -84,6 +86,7 @@ export {
   type RunRuntimeConfigSource,
   type RunRuntimeSourceKind,
   type RunRuntimeSourceMetadata,
+  type RunConfigArtifact,
   type RunSummaryArtifact,
   type TimingArtifact,
 } from './evaluation/run-artifacts.js';

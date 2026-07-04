@@ -94,7 +94,8 @@ reserved for rebuildable local state and are skipped by run discovery.
 
 | File or field | Owns | Use it for |
 | --- | --- | --- |
-| `summary.json` | Aggregate run metadata and rollups: run id, experiment metadata, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
+| `summary.json` | Aggregate run metadata and rollups: run id, experiment label, tags, runtime source, counts, pass rate, score summaries, duration, token/cost totals, and writer metadata. | Listing runs, CI summaries, quick dashboards, trend cards, and validating that a run is complete enough to inspect. |
+| `.internal/run-config.json` | Internal reproducibility metadata that is useful to rerun or audit the invocation but too noisy for the public aggregate summary, such as resolved experiment config and fingerprints. | Debugging run setup, reproducing wrapper-eval choices, and reviewing config provenance without repeating it in every row. |
 | `.internal/index.jsonl` | Canonical per-run row index: one row per case/result aggregate, with identity fields, filter metadata, scores, status, and explicit run-relative paths to sidecars. | Filtering, compare/trend inputs, Dashboard detail routing, rerun/resume lookup, export adapters, and artifact discovery. |
 | `result.json` | Compact per-attempt manifest for one attempt directory, including AgentV `execution_status` and `verdict`. | Loading one attempt without scanning the whole run index. |
 | `grading.json` | Grader outputs, `assertion_results`, rubric evidence, execution-metric grader facts, and scoring provenance. | Explaining why a row passed or failed. |
@@ -107,11 +108,12 @@ reserved for rebuildable local state and are skipped by run discovery.
 | `test/` | Generated test bundle for the exact eval slice and target settings that produced a row. | Audit, external review, and rerun workflows that should not depend on a mutable source checkout. |
 | `artifact_pointers` | Offload indirection for large detached payload bytes. | Finding payloads published outside the primary metadata/control-plane branch, such as transcript bytes on `agentv/artifacts/v1`. |
 
-`summary.json` and `.internal/index.jsonl` are complementary, not redundant. A run list
-should not scan every row just to show pass rate or total duration, and a row
-reader should not parse aggregate summary structures to find one case's grading
-or transcript. Keep aggregate questions on `summary.json`; keep row and artifact
-discovery on `.internal/index.jsonl`.
+`summary.json`, `.internal/run-config.json`, and `.internal/index.jsonl` are
+complementary, not redundant. A run list should not scan every row just to show
+pass rate or total duration, and a row reader should not parse aggregate summary
+structures to find one case's grading or transcript. Keep aggregate questions on
+`summary.json`; keep run setup details in `.internal/run-config.json`; keep row
+and artifact discovery on `.internal/index.jsonl`.
 
 ## Grading Contract
 
@@ -175,6 +177,8 @@ adds providers and projections, but stable rows follow these rules:
 - Field names are `snake_case`.
 - Identity and filter fields live on the row, not only in directory names.
 - Sidecar references are explicit path fields, relative to the run directory.
+- Run-level provenance such as `runtime_source` belongs in `summary.json`, not
+  repeated on every row.
 - Large detached payloads may also have `artifact_pointers`, but ordinary
   sidecars should still be discoverable through path fields.
 - Unknown fields should be preserved by adapters when they rewrite or project
