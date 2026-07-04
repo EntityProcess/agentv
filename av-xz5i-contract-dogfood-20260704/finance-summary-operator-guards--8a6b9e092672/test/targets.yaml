@@ -1,0 +1,3 @@
+targets:
+  - id: llm
+    use_target: ${{ LLM_TARGET }}
