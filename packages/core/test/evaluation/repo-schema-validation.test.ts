@@ -5,8 +5,12 @@ import { EvalFileSchema } from '../../src/evaluation/validation/eval-file.schema
 describe('repo lifecycle schema validation', () => {
   const baseEval = {
     description: 'test',
+    prompts: ['{{ input }}'],
     tests: [
-      { id: 'test-1', input: [{ role: 'user', content: [{ type: 'text', value: 'hello' }] }] },
+      {
+        id: 'test-1',
+        vars: { input: [{ role: 'user', content: [{ type: 'text', value: 'hello' }] }] },
+      },
     ],
   };
 

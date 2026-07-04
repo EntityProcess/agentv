@@ -2286,7 +2286,15 @@ describe('writeArtifactsFromResults', () => {
     const envFile = path.join(sourceRoot, '.env');
     await writeFile(
       evalFile,
-      ['api_key: literal-secret', 'tests:', '  - id: trace-case', '    input: hello'].join('\n'),
+      [
+        'api_key: literal-secret',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: trace-case',
+        '    vars:',
+        '      input: hello',
+      ].join('\n'),
     );
     await writeFile(inputFile, 'input fixture\n');
     await writeFile(promptFile, 'grade this response\n');
@@ -2427,7 +2435,8 @@ describe('writeArtifactsFromResults', () => {
     const [testCase] = parsedEval.tests as Record<string, unknown>[];
     const [assertion] = testCase.assert as Record<string, unknown>[];
     expect(parsedEval.target).toBe('gpt-4o');
-    expect(testCase.input).toBe('file://files/src/input.txt');
+    expect(parsedEval.prompts).toEqual(['{{ input }}']);
+    expect((testCase.vars as Record<string, unknown>).input).toBe('file://files/src/input.txt');
     expect(assertion.prompt).toBe('file://graders/src/grader.md');
     expect(assertion.prompt_script).toEqual([
       'bun',
@@ -2450,7 +2459,17 @@ describe('writeArtifactsFromResults', () => {
     await mkdir(path.dirname(evalFile), { recursive: true });
     await writeFile(
       evalFile,
-      ['tests:', '  - id: alpha', '    input: A', '  - id: beta', '    input: B'].join('\n'),
+      [
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: alpha',
+        '    vars:',
+        '      input: A',
+        '  - id: beta',
+        '    vars:',
+        '      input: B',
+      ].join('\n'),
     );
     const sourceTests = ['alpha', 'beta'].map(
       (id) =>

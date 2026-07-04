@@ -330,6 +330,9 @@ function interpolateRawEvalCase(
   return {
     ...raw,
     ...(raw.id !== undefined ? { id: interpolateCaseField(raw.id, vars, filters) } : {}),
+    ...(raw.description !== undefined
+      ? { description: interpolateCaseField(raw.description, vars, filters) }
+      : {}),
     ...(raw.criteria !== undefined
       ? { criteria: interpolateCaseField(raw.criteria, vars, filters) }
       : {}),
@@ -945,25 +948,33 @@ function expandPromptMatrix(
       expandedCases.push(rawCase);
       continue;
     }
-    if (rawCase.input !== undefined || rawCase.input_files !== undefined) {
-      throw new Error(
-        "tests[].input and tests[].input_files cannot be combined with top-level 'prompts'. Use tests[].vars for prompt-matrix data, or remove top-level 'prompts' for direct input suites.",
-      );
-    }
+    const promptCase: JsonObject =
+      rawCase.input !== undefined
+        ? (() => {
+            const { input, input_files: _inputFiles, ...caseWithoutInput } = rawCase;
+            return {
+              ...caseWithoutInput,
+              vars: {
+                ...(isJsonObject(rawCase.vars) ? rawCase.vars : {}),
+                input,
+              },
+            };
+          })()
+        : rawCase;
 
-    const sourceTestId = asString(rawCase.id);
-    const vars = isJsonObject(rawCase.vars) ? rawCase.vars : undefined;
+    const sourceTestId = asString(promptCase.id);
+    const vars = isJsonObject(promptCase.vars) ? promptCase.vars : undefined;
     for (const prompt of prompts) {
       const promptId = safePromptId(prompt.identity.id);
       const expandedId =
         sourceTestId && prompts.length > 1 ? `${sourceTestId}__prompt_${promptId}` : sourceTestId;
-      const expandedDependsOn = Array.isArray(rawCase.depends_on)
-        ? rawCase.depends_on.map((dep) =>
+      const expandedDependsOn = Array.isArray(promptCase.depends_on)
+        ? promptCase.depends_on.map((dep) =>
             typeof dep === 'string' && prompts.length > 1 ? `${dep}__prompt_${promptId}` : dep,
           )
-        : rawCase.depends_on;
+        : promptCase.depends_on;
       const expandedCase: JsonObject = {
-        ...rawCase,
+        ...promptCase,
         ...(expandedId ? { id: expandedId } : {}),
         ...(expandedDependsOn !== undefined ? { depends_on: expandedDependsOn } : {}),
         input: renderPromptInput(prompt, vars),
@@ -1214,6 +1225,7 @@ async function loadTestsFromParsedYamlValue(
     throw new Error(`Invalid test file format: ${evalFilePath}`);
   }
   rejectAuthoredWorkers(interpolated);
+  rejectAuthoredDirectInput(interpolated);
 
   const rawSuite = rawParsed as RawTestSuite;
   const resolvedDefaultTest = await resolveDefaultTestValue(
@@ -1604,6 +1616,9 @@ async function loadTestsFromParsedYamlValue(
         suite: suiteName,
         category,
         conversation_id: conversationId,
+        ...(typeof renderedCase.description === 'string'
+          ? { description: renderedCase.description }
+          : {}),
         ...(promptIdentity ? { prompt: promptIdentity } : {}),
         question: question,
         input: inputMessages,
@@ -1740,6 +1755,28 @@ function rejectAuthoredWorkers(parsed: JsonObject): void {
   throw new Error(
     `${locations[0]} has been removed from eval YAML. Set authored eval concurrency with evaluate_options.max_concurrency.`,
   );
+}
+
+function rejectAuthoredDirectInput(parsed: JsonObject): void {
+  if (parsed.input !== undefined) {
+    throw new Error(
+      "Top-level 'input' has been removed from authored eval YAML. Author prompt text or chat messages in top-level 'prompts' and put shared data in default_test.vars or per-row data in tests[].vars.",
+    );
+  }
+
+  if (!Array.isArray(parsed.tests)) {
+    return;
+  }
+
+  for (let index = 0; index < parsed.tests.length; index++) {
+    const entry = parsed.tests[index];
+    if (!isJsonObject(entry) || entry.input === undefined) {
+      continue;
+    }
+    throw new Error(
+      `tests[${index}].input has been removed from authored eval YAML. Put prompt text or chat/system/user messages in top-level 'prompts' and put row-specific data in tests[].vars.`,
+    );
+  }
 }
 
 function collectWorkersLocations(raw: unknown, location: string, locations: string[]): void {

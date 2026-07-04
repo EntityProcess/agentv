@@ -30,7 +30,7 @@ describe('env interpolation in YAML loading', () => {
     const evalFile = path.join(testDir, 'interp-criteria.eval.yaml');
     await writeFile(
       evalFile,
-      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "{{ env.AGENTV_TEST_CRITERIA }}"\n',
+      'prompts:\n  - "{{ input }}"\ntests:\n  - id: test-1\n    criteria: "{{ env.AGENTV_TEST_CRITERIA }}"\n    vars:\n      input: "hello"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('Must return correct answer');
@@ -45,11 +45,13 @@ describe('env interpolation in YAML loading', () => {
         '  repos:',
         '    - path: ./RepoA',
         '      repo: "{{ env.AGENTV_TEST_PATH }}"',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: test-1',
-        '    input: "hello"',
         '    criteria: "{{ env.AGENTV_TEST_CRITERIA }}"',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -67,11 +69,13 @@ describe('env interpolation in YAML loading', () => {
         '  repos:',
         '    - path: ./RepoA',
         '      repo: "{{ env.AGENTV_TEST_PATH }}"',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: test-1',
-        '    input: "hello"',
-        '    criteria: "do something"',
-        '',
+        '    criteria: do something',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
     const cases = await loadTests(evalFile, testDir);
@@ -89,11 +93,13 @@ describe('env interpolation in YAML loading', () => {
       evalFile,
       [
         'workspace: workspace.yaml',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: test-1',
-        '    input: "hello"',
-        '    criteria: "do something"',
-        '',
+        '    criteria: do something',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
     const cases = await loadTests(evalFile, testDir);
@@ -130,7 +136,7 @@ describe('env interpolation in YAML loading', () => {
     const evalFile = path.join(testDir, 'interp-none.eval.yaml');
     await writeFile(
       evalFile,
-      'tests:\n  - id: test-1\n    input: "plain input"\n    criteria: "plain criteria"\n',
+      'prompts:\n  - "{{ input }}"\ntests:\n  - id: test-1\n    criteria: "plain criteria"\n    vars:\n      input: "plain input"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('plain criteria');
@@ -142,7 +148,7 @@ describe('env interpolation in YAML loading', () => {
     // (empty criteria alone causes the test loader to skip it as incomplete)
     await writeFile(
       evalFile,
-      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "prefix {{ env.AGENTV_NONEXISTENT_VAR }} suffix"\n    expected_output: "some output"\n',
+      'prompts:\n  - "{{ input }}"\ntests:\n  - id: test-1\n    criteria: "prefix {{ env.AGENTV_NONEXISTENT_VAR }} suffix"\n    expected_output: "some output"\n    vars:\n      input: "hello"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('prefix  suffix');
@@ -152,7 +158,7 @@ describe('env interpolation in YAML loading', () => {
     const evalFile = path.join(testDir, 'interp-default.eval.yaml');
     await writeFile(
       evalFile,
-      'tests:\n  - id: test-1\n    input: "hello"\n    criteria: "{{ env.AGENTV_NONEXISTENT_VAR | default(\\"fallback criteria\\") }}"\n',
+      'prompts:\n  - "{{ input }}"\ntests:\n  - id: test-1\n    criteria: "{{ env.AGENTV_NONEXISTENT_VAR | default(\\"fallback criteria\\") }}"\n    vars:\n      input: "hello"\n',
     );
     const cases = await loadTests(evalFile, testDir);
     expect(cases[0].criteria).toBe('fallback criteria');

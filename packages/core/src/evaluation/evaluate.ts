@@ -10,10 +10,11 @@
  * import { evaluate } from '@agentv/core';
  *
  * const results = await evaluate({
+ *   prompts: ['{{ question }}'],
  *   tests: [
  *     {
  *       id: 'capital',
- *       input: 'What is the capital of France?',
+ *       vars: { question: 'What is the capital of France?' },
  *       expectedOutput: 'Paris',
  *       assert: [{ type: 'contains', value: 'Paris' }],
  *     },
@@ -29,10 +30,11 @@
  * import { evaluate } from '@agentv/core';
  *
  * const { summary } = await evaluate({
+ *   prompts: ['{{ text }}'],
  *   tests: [
  *     {
  *       id: 'echo',
- *       input: 'hello',
+ *       vars: { text: 'hello' },
  *       expectedOutput: 'Echo: hello',
  *       assert: [
  *         { type: 'contains', value: 'hello' },
@@ -68,6 +70,7 @@ import {
   shouldSkipCacheForTemperature,
 } from './cache/response-cache.js';
 import { DEFAULT_THRESHOLD } from './graders/scoring.js';
+import { interpolateTemplateVars } from './interpolation.js';
 import type { EvalMetadata } from './metadata.js';
 import { runEvaluation } from './orchestrator.js';
 import { createFunctionProvider } from './providers/function-provider.js';
@@ -95,10 +98,12 @@ import { loadTestSuite } from './yaml-parser.js';
 export interface EvalTestInput {
   /** Unique test identifier */
   readonly id: string;
+  /** Optional human-readable test description */
+  readonly description?: string;
   /** What the response should accomplish */
   readonly criteria?: string;
-  /** Input to the agent (string or message array). Omit when using turns[]. */
-  readonly input?: string | readonly { role: string; content: string }[];
+  /** Per-test prompt variables used by config.prompts templates. */
+  readonly vars?: Record<string, unknown>;
   /** Expected reference output */
   readonly expectedOutput?: string;
   /** Assertion graders — accepts factory functions, config objects, or inline functions */
@@ -169,6 +174,8 @@ export interface EvalConfig {
   readonly tests?: readonly EvalTestInput[];
   /** Path to an EVAL.yaml spec file (mutually exclusive with tests) */
   readonly specFile?: string;
+  /** Prompt templates for inline tests. Use tests[].vars for per-row values. */
+  readonly prompts?: readonly (string | readonly { role: string; content: string }[])[];
   /** Target provider configuration */
   readonly target?: TargetDefinition;
   /** Custom task function — mutually exclusive with target */
@@ -268,10 +275,11 @@ export interface EvalRunArtifacts {
  * @example Inline tests with assertions
  * ```typescript
  * const { results, summary } = await evaluate({
+ *   prompts: ['{{ input }}'],
  *   tests: [
  *     {
  *       id: 'greeting',
- *       input: 'Say hello',
+ *       vars: { input: 'Say hello' },
  *       assert: [{ type: 'contains', value: 'hello' }],
  *     },
  *   ],
@@ -465,12 +473,45 @@ function toMessageArray(
   return input as unknown as EvalTest['input'];
 }
 
+function isPromptMessageArray(
+  value: unknown,
+): value is readonly { role: string; content: string }[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (entry) =>
+        entry !== null &&
+        typeof entry === 'object' &&
+        typeof (entry as { role?: unknown }).role === 'string' &&
+        typeof (entry as { content?: unknown }).content === 'string',
+    )
+  );
+}
+
+function renderInlinePrompt(
+  prompt: string | readonly { role: string; content: string }[],
+  vars: Readonly<Record<string, unknown>>,
+  location: string,
+): EvalTest['input'] {
+  const rendered = interpolateTemplateVars(prompt, vars);
+  if (typeof rendered === 'string' || isPromptMessageArray(rendered)) {
+    return toMessageArray(rendered);
+  }
+  throw new Error(
+    `${location}: rendered prompt must be a string or chat message array. Check tests[].vars values used by config.prompts.`,
+  );
+}
+
 /**
  * Extract the user-facing question string from a flexible input.
  */
 function extractQuestion(input: string | readonly { role: string; content: string }[]): string {
   if (typeof input === 'string') return input;
   return input.find((m) => m.role === 'user')?.content ?? '';
+}
+
+function extractEvalQuestion(input: EvalTest['input']): string {
+  return String(input.find((message) => message.role === 'user')?.content ?? '');
 }
 
 /**
@@ -547,24 +588,22 @@ function buildInlineEvalTests(
     .replace(/\.eval\.[cm]?ts$/i, '')
     .replace(/\.[cm]?ts$/i, '');
   const suiteName = config.metadata?.name ?? (derivedSuiteName || 'eval');
+  const inlinePrompts = config.prompts && config.prompts.length > 0 ? config.prompts : undefined;
 
   return (config.tests ?? [])
     .filter((test) => !options.filter || matchesFilter(test.id, options.filter))
-    .map((test): EvalTest => {
+    .flatMap((test): EvalTest[] => {
       rejectRemovedProgrammaticExpectedOutputKey(test, `Test '${test.id}'`);
       const isConversation = test.mode === 'conversation' || (test.turns && test.turns.length > 0);
 
-      if (!isConversation && !test.input) {
-        throw new Error(`Test '${test.id}': input is required for non-conversation tests`);
+      if (!isConversation && Object.prototype.hasOwnProperty.call(test, 'input')) {
+        throw new Error(
+          `Test '${test.id}': tests[].input has been removed. Use config.prompts with tests[].vars instead.`,
+        );
       }
-
-      const input = isConversation
-        ? toMessageArray(test.turns?.[0]?.input ?? '')
-        : toMessageArray(test.input ?? '');
-
-      const question = isConversation
-        ? extractQuestion(test.turns?.[0]?.input ?? '')
-        : extractQuestion(test.input ?? '');
+      if (!isConversation && !inlinePrompts) {
+        throw new Error(`Test '${test.id}': prompts are required for non-conversation tests`);
+      }
 
       const expectedOutputValue = test.expectedOutput;
       const expectedOutput = expectedOutputValue
@@ -589,23 +628,44 @@ function buildInlineEvalTests(
         };
       });
 
-      return {
-        id: test.id,
-        suite: suiteName,
-        category: options.category,
-        criteria: test.criteria ?? '',
-        question: String(question),
-        input,
-        expected_output: expectedOutput,
-        reference_answer: expectedOutputValue,
-        file_paths: [],
-        assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
-        metadata: test.metadata,
-        ...(suiteWorkspace && { workspace: suiteWorkspace }),
-        ...(isConversation && { mode: 'conversation' as const }),
-        ...(turns && { turns }),
-        ...(test.aggregation && { aggregation: test.aggregation }),
-      };
+      const prompts =
+        !isConversation && inlinePrompts
+          ? inlinePrompts.map((prompt, index) => ({
+              id: inlinePrompts.length > 1 ? `prompt_${index + 1}` : undefined,
+              input: renderInlinePrompt(
+                prompt,
+                test.vars ?? {},
+                `Test '${test.id}' prompt ${index + 1}`,
+              ),
+            }))
+          : [
+              {
+                id: undefined,
+                input: toMessageArray(test.turns?.[0]?.input ?? ''),
+              },
+            ];
+
+      return prompts.map(({ id: promptId, input }): EvalTest => {
+        const question = extractEvalQuestion(input);
+        return {
+          id: promptId ? `${test.id}__${promptId}` : test.id,
+          suite: suiteName,
+          category: options.category,
+          ...(test.description !== undefined ? { description: test.description } : {}),
+          criteria: test.criteria ?? '',
+          question: String(question),
+          input,
+          expected_output: expectedOutput,
+          reference_answer: expectedOutputValue,
+          file_paths: [],
+          assertions: assertConfigs.length > 0 ? assertConfigs : undefined,
+          metadata: test.metadata,
+          ...(suiteWorkspace && { workspace: suiteWorkspace }),
+          ...(isConversation && { mode: 'conversation' as const }),
+          ...(turns && { turns }),
+          ...(test.aggregation && { aggregation: test.aggregation }),
+        };
+      });
     });
 }
 

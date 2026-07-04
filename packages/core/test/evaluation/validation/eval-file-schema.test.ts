@@ -20,34 +20,42 @@ describe('EvalFileSchema input shorthand', () => {
   const baseTest = {
     id: 'test-1',
     criteria: 'Goal',
-    input: 'Classify this request.',
+    vars: { request: 'Classify this request.' },
   };
 
-  it('accepts structured object input shorthand without a top-level role key', () => {
+  it('rejects authored top-level input', () => {
     const result = EvalFileSchema.safeParse({
       input: { task: 'classify', labels: ['bug', 'feature'] },
       tests: [baseTest],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
-  it('accepts a single message-shaped input object with a top-level role key', () => {
+  it('rejects authored top-level message input', () => {
     const result = EvalFileSchema.safeParse({
       input: { role: 'user', content: { task: 'classify' } },
       tests: [baseTest],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
-  it('rejects object input with a reserved top-level role key unless it is a valid message', () => {
+  it('rejects authored test input', () => {
     const result = EvalFileSchema.safeParse({
-      input: { role: 'admin', task: 'classify' },
-      tests: [baseTest],
+      tests: [{ ...baseTest, input: 'Question' }],
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('accepts canonical prompts plus vars authoring', () => {
+    const result = EvalFileSchema.safeParse({
+      prompts: ['Classify this request: {{ request }}'],
+      tests: [baseTest],
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it('rejects eval-level execution.max_concurrency', () => {
@@ -532,7 +540,7 @@ describe('EvalFileSchema input shorthand', () => {
       tests: [
         {
           id: 'case-1',
-          input: 'Question',
+          vars: { question: 'Question' },
           criteria: 'Goal',
           run: {
             target: 'other-agent',

@@ -1,77 +1,25 @@
-# AgentV Tool Trajectory Grader Demo
-# Demonstrates trace events and the tool-trajectory grader for agent execution tracking
-#
-# The tool-trajectory grader validates that an agent used the expected tools
-# during execution. It works with trace data returned by agent providers.
-#
-# Five trajectory matching modes are available:
-# - any_order: Validates minimum tool call counts (tools can appear in any order)
-# - in_order: Validates tools appear in expected sequence (allows gaps)
-# - exact: Validates exact tool sequence match (no gaps, no extra tools)
-# - superset: Every expected tool must be found in actual (extras OK, greedy matching)
-# - subset: Every actual call must be in the allowed set (expected items reusable)
-#
-# Argument matching modes (per-item `args_match` or grader-level `args_match`):
-# - exact: Bidirectional deep equality, no extra keys (default)
-# - superset: Actual args must contain all expected keys (extras OK)
-# - subset: Actual args must be a subset of expected (no unexpected keys)
-# - ignore: Skip argument checking entirely
-# - [field list]: Check only listed fields (dot-notation supported)
-#
-# Legacy shorthand:
-# - args: any - validate tool name only, ignore arguments
-# Note: For pattern/regex matching, use a script grader instead.
-#
-# This demo uses a CLI provider (mock-agent.ts) that simulates an agent with tool usage.
-# The mock agent generates different traces based on the prompt content.
-#
-# Setup:
-#   1. Create examples/features/.env with:
-#      TOOL_TRAJECTORY_DIR=/absolute/path/to/examples/features/tool-trajectory-simple
-#   2. Run: cd examples/features && npx agentv eval tool-trajectory-simple/evals/suite.yaml --target mock_agent
-
 name: tool-trajectory-simple
 description: Tool trajectory grader examples for agent execution validation
-
-# Use mock_agent CLI target that returns trace data
 target: mock_agent
-
+prompts:
+  - "{{ input }}"
 tests:
-  # ==========================================
-  # Example 1: any_order mode - Validate minimum tool usage
-  # Use case: Ensure agent uses required tools at least N times, regardless of order
-  # The mock agent triggers "research" scenario -> knowledgeSearch x2, documentRetrieve x1
-  # Expected score: 1.0
-  # ==========================================
   - id: any-order-pass
-
-    input:
-      - role: user
-        content: Research the key differences between REST and GraphQL APIs.
-
     assert:
       - metric: tool-usage-check
         type: tool-trajectory
         mode: any_order
         minimums:
-          knowledgeSearch: 2 # Mock agent calls this 2 times
-          documentRetrieve: 1 # Mock agent calls this 1 time
+          knowledgeSearch: 2
+          documentRetrieve: 1
       - |-
         Agent successfully researches the topic by searching knowledge base multiple times
         and retrieving relevant documents.
-
-  # ==========================================
-  # Example 2: in_order mode - Validate tool sequence
-  # Use case: Ensure agent follows a logical workflow order
-  # The mock agent triggers "data pipeline" scenario with correct sequence
-  # Expected score: 1.0
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: Research the key differences between REST and GraphQL APIs.
   - id: in-order-pass
-
-    input:
-      - role: user
-        content: Process the customer data from the API endpoint.
-
     assert:
       - metric: workflow-sequence
         type: tool-trajectory
@@ -81,21 +29,12 @@ tests:
           - tool: validateSchema
           - tool: transformData
           - tool: saveResults
-      - |-
-        Agent follows the correct data processing workflow.
-
-  # ==========================================
-  # Example 3: exact mode - Validate precise tool sequence
-  # Use case: Strict workflow validation where exact steps matter
-  # The mock agent triggers "auth" scenario with exactly these 3 tools
-  # Expected score: 1.0
-  # ==========================================
+      - Agent follows the correct data processing workflow.
+    vars:
+      input:
+        - role: user
+          content: Process the customer data from the API endpoint.
   - id: exact-auth-flow
-
-    input:
-      - role: user
-        content: Authenticate the user with provided credentials.
-
     assert:
       - metric: auth-sequence-exact
         type: tool-trajectory
@@ -104,21 +43,12 @@ tests:
           - tool: checkCredentials
           - tool: generateToken
           - tool: auditLog
-      - |-
-        Agent performs authentication in the exact required sequence.
-
-  # ==========================================
-  # Example 4: any_order with metrics tools
-  # Use case: Validate agent uses metrics retrieval tools
-  # The mock agent triggers "metrics" scenario
-  # Expected score: 1.0
-  # ==========================================
+      - Agent performs authentication in the exact required sequence.
+    vars:
+      input:
+        - role: user
+          content: Authenticate the user with provided credentials.
   - id: metrics-check
-
-    input:
-      - role: user
-        content: What are the current system metrics for CPU and memory?
-
     assert:
       - metric: metrics-tools
         type: tool-trajectory
@@ -126,107 +56,63 @@ tests:
         minimums:
           getCpuMetrics: 1
           getMemoryMetrics: 1
-      - |-
-        Agent uses the metrics tools to check CPU and memory.
-
-  # ==========================================
-  # Example 5: Partial match - demonstrates scoring
-  # Use case: Show partial scoring when some tools are missing
-  # The mock agent triggers "research" scenario but we expect an extra tool
-  # Expected score: ~0.67 (2 out of 3 tool requirements met)
-  # ==========================================
+      - Agent uses the metrics tools to check CPU and memory.
+    vars:
+      input:
+        - role: user
+          content: What are the current system metrics for CPU and memory?
   - id: partial-match
-
-    input:
-      - role: user
-        content: Search for information and generate a report.
-
     assert:
       - metric: tool-check
         type: tool-trajectory
         mode: any_order
         minimums:
-          knowledgeSearch: 1 # Present in research trace (will pass)
-          documentRetrieve: 1 # Present in research trace (will pass)
-          generateReport: 1 # NOT present (will fail - demonstrates partial scoring)
-      - |-
-        Agent should use search, retrieve, and report tools.
-
-  # ==========================================
-  # ARGUMENT MATCHING EXAMPLES
-  # ==========================================
-
-  # ==========================================
-  # Example 6: Exact argument matching (default mode)
-  # Use case: Validate tool is called with specific argument values
-  # Note: With the default `exact` args matching, actual args must match
-  # expected args exactly (bidirectional deep equality, no extra keys).
-  # ==========================================
+          knowledgeSearch: 1
+          documentRetrieve: 1
+          generateReport: 1
+      - Agent should use search, retrieve, and report tools.
+    vars:
+      input:
+        - role: user
+          content: Search for information and generate a report.
   - id: exact-args-match
-
-    input:
-      - role: user
-        content: What's the weather like in Paris?
-
     assert:
       - metric: arg-validation
         type: tool-trajectory
         mode: in_order
-        # Use superset args matching to allow extra keys in actual args
         args_match: superset
         expected:
           - tool: search
             args:
-              query: "weather Paris"
+              query: weather Paris
           - tool: get_weather
             args:
-              location: "Paris"
-      - |-
-        Agent searches for weather and retrieves forecast for the correct city.
-
-  # ==========================================
-  # Example 7: Skip argument validation with `any`
-  # Use case: Validate tool sequence but ignore specific arguments
-  # ==========================================
+              location: Paris
+      - Agent searches for weather and retrieves forecast for the correct city.
+    vars:
+      input:
+        - role: user
+          content: What's the weather like in Paris?
   - id: skip-args-validation
-
-    input:
-      - role: user
-        content: Load customer data, normalize it, and save
-
     assert:
       - metric: workflow-sequence-only
         type: tool-trajectory
         mode: in_order
         expected:
-          # Superset match: must include this key, extras OK
           - tool: load_data
             args:
-              source: "customers"
+              source: customers
             args_match: superset
-          # Skip: any transformation is acceptable
           - tool: transform
             args: any
-          # Skip: we don't care about save arguments
           - tool: save_data
             args: any
-      - |-
-        Agent loads data, transforms it, and saves. Arguments don't matter.
-
-  # ==========================================
-  # TRAJECTORY MODE EXAMPLES (v2)
-  # ==========================================
-
-  # ==========================================
-  # Example 8: superset mode - actual trajectory must contain all expected
-  # Use case: Verify required tools were called, regardless of order or extras
-  # ==========================================
+      - Agent loads data, transforms it, and saves. Arguments don't matter.
+    vars:
+      input:
+        - role: user
+          content: Load customer data, normalize it, and save
   - id: superset-mode
-
-    input:
-      - role: user
-        content: Research and analyze the data.
-
     assert:
       - metric: required-tools
         type: tool-trajectory
@@ -238,17 +124,11 @@ tests:
       - |-
         Agent must call both search and analyze tools during execution.
         Extra tool calls are acceptable.
-
-  # ==========================================
-  # Example 9: subset mode - all actual calls must be in allowed set
-  # Use case: Restrict agent to only use approved tools (safety guardrail)
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: Research and analyze the data.
   - id: subset-mode
-
-    input:
-      - role: user
-        content: Look up the current system status.
-
     assert:
       - metric: safe-tools-only
         type: tool-trajectory
@@ -261,40 +141,27 @@ tests:
       - |-
         Agent must only use approved read-only tools.
         No write or delete operations should occur.
-
-  # ==========================================
-  # Example 10: Per-item args_match override
-  # Use case: Mixed matching requirements within a single trajectory
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: Look up the current system status.
   - id: mixed-args-match
-
-    input:
-      - role: user
-        content: Process the customer data from the API endpoint.
-
     assert:
       - metric: mixed-precision
         type: tool-trajectory
         mode: in_order
-        args_match: ignore # Default: don't check args
+        args_match: ignore
         expected:
           - tool: fetchData
           - tool: validateSchema
           - tool: transformData
           - tool: saveResults
-      - |-
-        Agent calls tools with varying argument precision requirements.
-
-  # ==========================================
-  # Example 11: Field list args matching
-  # Use case: Check only specific fields in tool arguments
-  # ==========================================
+      - Agent calls tools with varying argument precision requirements.
+    vars:
+      input:
+        - role: user
+          content: Process the customer data from the API endpoint.
   - id: field-list-match
-
-    input:
-      - role: user
-        content: Process the customer data from the API endpoint.
-
     assert:
       - metric: check-source-only
         type: tool-trajectory
@@ -302,11 +169,15 @@ tests:
         expected:
           - tool: fetchData
             args:
-              source: "api"
+              source: api
             args_match:
-              - source # Only check this field
+              - source
           - tool: saveResults
-            args_match: ignore # Don't check args at all
+            args_match: ignore
       - |-
         Agent fetches data from the correct source.
         Other arguments like pagination or format don't matter.
+    vars:
+      input:
+        - role: user
+          content: Process the customer data from the API endpoint.

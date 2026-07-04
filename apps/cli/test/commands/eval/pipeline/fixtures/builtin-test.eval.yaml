@@ -1,14 +1,19 @@
 name: builtin-test
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-01
-    input: hello world
-    criteria: Response echoes the input
     assert:
+      - metric: echoes_input
+        type: llm-rubric
+        value: Response echoes the input
       - metric: has_hello
         type: contains
         value: hello
       - metric: matches_pattern
         type: regex
-        value: "h[aeiou]llo"
+        value: h[aeiou]llo
       - metric: is_valid_json
         type: is-json
+    vars:
+      input: hello world

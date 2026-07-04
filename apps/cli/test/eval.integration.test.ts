@@ -4,6 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
+import {
+  buildProjectionIdentity,
+  toProjectionIdentityWire,
+} from '../../../packages/core/src/evaluation/projection-identity.js';
 import packageJson from '../package.json' with { type: 'json' };
 import { assertCoreBuild } from './setup-core-build.js';
 
@@ -28,6 +32,32 @@ function runIndexPath(runDir: string): string {
 
 function runDirFromIndexPath(indexPath: string): string {
   return path.dirname(path.dirname(indexPath));
+}
+
+function rebuildProjectionIdentityWire(
+  wireIdentity: unknown,
+  dimensions: Record<string, unknown>,
+): unknown {
+  if (typeof wireIdentity !== 'object' || wireIdentity === null || Array.isArray(wireIdentity)) {
+    return wireIdentity;
+  }
+  return toProjectionIdentityWire(
+    buildProjectionIdentity({
+      runId: dimensions.run_id as string | undefined,
+      suite: dimensions.suite as string | undefined,
+      evalPath: dimensions.eval_path as string | undefined,
+      testId: dimensions.test_id as string | undefined,
+      target: dimensions.target as string | undefined,
+      sourceTarget: dimensions.source_target as string | undefined,
+      attempt: dimensions.attempt as number | undefined,
+      variant: dimensions.variant as string | null | undefined,
+      envelopeId: dimensions.envelope_id as string | undefined,
+      traceId: dimensions.trace_id as string | undefined,
+      rootSpanId: dimensions.root_span_id as string | undefined,
+      projectionFormat: dimensions.projection_format as string | undefined,
+      projectionVersion: dimensions.projection_version as string | undefined,
+    }),
+  );
 }
 
 async function createFixture(): Promise<EvalFixture> {
@@ -56,26 +86,29 @@ targets:
   const testFilePath = path.join(suiteDir, 'sample.test.yaml');
   const testFileContent = `description: CLI integration test
 target: file-target
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    input:
-      - role: user
-        content: |
-          Please respond with alpha
     expected_output:
       - role: assistant
-        content: "Alpha"
+        content: Alpha
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with alpha
   - id: case-beta
     criteria: System responds with beta
-    input:
-      - role: user
-        content: |
-          Please respond with beta
     expected_output:
       - role: assistant
-        content: "Beta"
+        content: Beta
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with beta
 `;
   await writeFile(testFilePath, testFileContent, 'utf8');
 
@@ -106,26 +139,29 @@ targets:
 
   const testFilePath = path.join(evalDir, 'sample.test.yaml');
   const testFileContent = `description: CLI nested env integration test
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    input:
-      - role: user
-        content: |
-          Please respond with alpha
     expected_output:
       - role: assistant
-        content: "Alpha"
+        content: Alpha
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with alpha
   - id: case-beta
     criteria: System responds with beta
-    input:
-      - role: user
-        content: |
-          Please respond with beta
     expected_output:
       - role: assistant
-        content: "Beta"
+        content: Beta
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with beta
 `;
   await writeFile(testFilePath, testFileContent, 'utf8');
 
@@ -592,11 +628,13 @@ describe('agentv eval CLI', () => {
           'target: file-target',
           'evaluate_options:',
           '  budget_usd: 1.25',
+          'prompts:',
+          '  - "{{ input }}"',
           'tests:',
           '  - id: case-alpha',
           '    criteria: System responds with alpha',
-          '    input: alpha',
-          '',
+          '    vars:',
+          '      input: alpha',
         ].join('\n'),
         'utf8',
       );
@@ -627,12 +665,14 @@ describe('agentv eval CLI', () => {
         [
           'description: unmatched eval file should not resolve targets',
           'target: missing-target',
+          'prompts:',
+          '  - "{{ input }}"',
           'tests:',
           '  - id: case-unused',
           '    criteria: System responds with unused',
-          '    input: unused',
           '    expected_output: unused',
-          '',
+          '    vars:',
+          '      input: unused',
         ].join('\n'),
         'utf8',
       );
@@ -726,18 +766,21 @@ describe('agentv eval CLI', () => {
           'name: default-threshold',
           'target: file-target',
           'threshold: 0.9',
+          'prompts:',
+          '  - "{{ input }}"',
           'default_test:',
           '  threshold: 0.6',
           'tests:',
           '  - id: default-case',
-          '    input: default',
           '    criteria: ok',
+          '    vars:',
+          '      input: default',
           '  - id: strict-case',
-          '    input: strict',
           '    criteria: ok',
           '    run:',
-          '      threshold: 1.0',
-          '',
+          '      threshold: 1',
+          '    vars:',
+          '      input: strict',
         ].join('\n'),
         'utf8',
       );
@@ -776,13 +819,15 @@ describe('agentv eval CLI', () => {
         [
           'name: first-default-threshold',
           'target: file-target',
+          'prompts:',
+          '  - "{{ input }}"',
           'default_test:',
           '  threshold: 0.6',
           'tests:',
           '  - id: first-default-case',
-          '    input: first',
           '    criteria: ok',
-          '',
+          '    vars:',
+          '      input: first',
         ].join('\n'),
         'utf8',
       );
@@ -791,13 +836,15 @@ describe('agentv eval CLI', () => {
         [
           'name: second-default-threshold',
           'target: file-target',
+          'prompts:',
+          '  - "{{ input }}"',
           'default_test:',
           '  threshold: 0.7',
           'tests:',
           '  - id: second-default-case',
-          '    input: second',
           '    criteria: ok',
-          '',
+          '    vars:',
+          '      input: second',
         ].join('\n'),
         'utf8',
       );
@@ -824,11 +871,13 @@ describe('agentv eval CLI', () => {
           'timeout_seconds: 11',
           'evaluate_options:',
           '  budget_usd: 0.11',
+          'prompts:',
+          '  - "{{ input }}"',
           'tests:',
           '  - id: first-case',
-          '    input: first',
           '    criteria: ok',
-          '',
+          '    vars:',
+          '      input: first',
         ].join('\n'),
         'utf8',
       );
@@ -840,11 +889,13 @@ describe('agentv eval CLI', () => {
           'timeout_seconds: 22',
           'evaluate_options:',
           '  budget_usd: 0.22',
+          'prompts:',
+          '  - "{{ input }}"',
           'tests:',
           '  - id: second-case',
-          '    input: second',
           '    criteria: ok',
-          '',
+          '    vars:',
+          '      input: second',
         ].join('\n'),
         'utf8',
       );
@@ -907,11 +958,13 @@ describe('agentv eval CLI', () => {
           'target: file-target',
           'evaluate_options:',
           '  max_concurrency: 2',
+          'prompts:',
+          '  - "{{ input }}"',
           'tests:',
           '  - id: first-case',
-          '    input: first',
           '    criteria: ok',
-          '',
+          '    vars:',
+          '      input: first',
         ].join('\n'),
         'utf8',
       );
@@ -967,35 +1020,39 @@ describe('agentv eval CLI', () => {
         fixture.testFilePath,
         `description: CLI integration test
 target: file-target
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-alpha
     criteria: System responds with alpha
-    input:
-      - role: user
-        content: |
-          Please respond with alpha
     expected_output:
       - role: assistant
-        content: "Alpha"
+        content: Alpha
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with alpha
   - id: case-beta
     criteria: System responds with beta
-    input:
-      - role: user
-        content: |
-          Please respond with beta
     expected_output:
       - role: assistant
-        content: "Beta"
+        content: Beta
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with beta
   - id: case-gamma
     criteria: System responds with gamma
-    input:
-      - role: user
-        content: |
-          Please respond with gamma
     expected_output:
       - role: assistant
-        content: "Gamma"
+        content: Gamma
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond with gamma
 `,
         'utf8',
       );
@@ -1032,17 +1089,19 @@ tests:
       const secondEvalPath = path.join(fixture.suiteDir, 'collision-b.eval.yaml');
       const evalContent = (name: string) => `description: ${name}
 target: file-target
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: shared-case
     criteria: System responds
-    input:
-      - role: user
-        content: |
-          Please respond for ${name}
     expected_output:
       - role: assistant
-        content: "Shared"
+        content: Shared
+    vars:
+      input:
+        - role: user
+          content: |
+            Please respond for ${name}
 `;
       await writeFile(firstEvalPath, evalContent('collision a'), 'utf8');
       await writeFile(secondEvalPath, evalContent('collision b'), 'utf8');
@@ -1067,19 +1126,23 @@ tests:
       }
       const baseProjection = baseRow.projection_identity as Record<string, unknown>;
       const baseDimensions = baseProjection.dimensions as Record<string, unknown>;
-      const secondProjection = {
-        ...baseProjection,
-        dimensions: {
-          ...baseDimensions,
-          eval_path: secondEvalPath,
-        },
+      const secondDimensions = {
+        ...baseDimensions,
+        eval_path: secondEvalPath,
       };
+      const secondProjection = rebuildProjectionIdentityWire(baseProjection, secondDimensions);
       await writeFile(
         priorIndexPath,
         `${[
           { ...baseRow, execution_status: 'ok' },
           {
             ...baseRow,
+            eval_path: secondEvalPath,
+            source: {
+              ...((baseRow.source as Record<string, unknown> | undefined) ?? {}),
+              eval_file_path: secondEvalPath,
+              eval_file_absolute_path: secondEvalPath,
+            },
             projection_identity: secondProjection,
             execution_status: 'quality_failure',
           },
@@ -1131,14 +1194,17 @@ tests:
         [
           'name: target-matrix',
           'target: file-target',
+          'prompts:',
+          '  - "{{ input }}"',
           'tests:',
           '  - id: first-case',
-          '    input: first',
           '    criteria: ok',
+          '    vars:',
+          '      input: first',
           '  - id: second-case',
-          '    input: second',
           '    criteria: ok',
-          '',
+          '    vars:',
+          '      input: second',
         ].join('\n'),
         'utf8',
       );

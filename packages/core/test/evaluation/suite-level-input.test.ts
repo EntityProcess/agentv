@@ -20,14 +20,25 @@ describe('suite-level input', () => {
   it('prepends suite-level input string to each test input', async () => {
     await writeFile(
       path.join(tempDir, 'string-input.eval.yaml'),
-      `input: "You are a helpful assistant."
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    criteria: "Responds helpfully"
-    input: "What is 2+2?"
+    criteria: Responds helpfully
+    vars:
+      input:
+        - role: user
+          content: You are a helpful assistant.
+        - role: user
+          content: What is 2+2?
   - id: test-2
-    criteria: "Responds accurately"
-    input: "What is the capital of France?"
+    criteria: Responds accurately
+    vars:
+      input:
+        - role: user
+          content: You are a helpful assistant.
+        - role: user
+          content: What is the capital of France?
 `,
     );
 
@@ -51,13 +62,19 @@ tests:
   it('prepends suite-level input block scalar to each test input', async () => {
     await writeFile(
       path.join(tempDir, 'block-input.eval.yaml'),
-      `input: |
-  Read AGENTS.md before answering.
-  Mention tradeoffs.
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: block-test
-    criteria: "Uses shared instructions"
-    input: "Summarize the repo."
+    criteria: Uses shared instructions
+    vars:
+      input:
+        - role: user
+          content: |
+            Read AGENTS.md before answering.
+            Mention tradeoffs.
+        - role: user
+          content: Summarize the repo.
 `,
     );
 
@@ -75,15 +92,21 @@ tests:
   it('prepends suite-level structured input object to each test input', async () => {
     await writeFile(
       path.join(tempDir, 'object-input.eval.yaml'),
-      `input:
-  instruction: "Classify the request"
-  labels:
-    - bug
-    - feature
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: object-test
-    criteria: "Uses shared structured context"
-    input: "The login button is broken."
+    criteria: Uses shared structured context
+    vars:
+      input:
+        - role: user
+          content:
+            instruction: Classify the request
+            labels:
+              - bug
+              - feature
+        - role: user
+          content: The login button is broken.
 `,
     );
 
@@ -107,15 +130,19 @@ tests:
   it('prepends suite-level input message array to each test input', async () => {
     await writeFile(
       path.join(tempDir, 'array-input.eval.yaml'),
-      `input:
-  - role: system
-    content: "You are a code reviewer."
-  - role: user
-    content: "Review the following code."
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: review-1
-    criteria: "Provides code review"
-    input: "function add(a, b) { return a + b; }"
+    criteria: Provides code review
+    vars:
+      input:
+        - role: system
+          content: You are a code reviewer.
+        - role: user
+          content: Review the following code.
+        - role: user
+          content: function add(a, b) { return a + b; }
 `,
     );
 
@@ -134,10 +161,13 @@ tests:
   it('does not change test input when no suite-level input is present', async () => {
     await writeFile(
       path.join(tempDir, 'no-suite-input.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
-    criteria: "Works normally"
-    input: "Hello world"
+    criteria: Works normally
+    vars:
+      input: Hello world
 `,
     );
 
@@ -151,16 +181,23 @@ tests:
   it('skips suite-level input when test has execution.skip_defaults: true', async () => {
     await writeFile(
       path.join(tempDir, 'skip-defaults.eval.yaml'),
-      `input: "System prompt context"
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: with-defaults
-    criteria: "Uses suite input"
-    input: "Query A"
+    criteria: Uses suite input
+    vars:
+      input:
+        - role: user
+          content: System prompt context
+        - role: user
+          content: Query A
   - id: without-defaults
-    criteria: "Skips suite input"
-    input: "Query B"
+    criteria: Skips suite input
     execution:
       skip_defaults: true
+    vars:
+      input: Query B
 `,
     );
 
@@ -182,14 +219,19 @@ tests:
     await writeFile(
       path.join(tempDir, 'ext-cases.yaml'),
       `- id: ext-1
-  criteria: "External test"
-  input: "External query"
+  criteria: External test
+  vars:
+    input: External query
 `,
     );
 
     await writeFile(
       path.join(tempDir, 'suite-external.eval.yaml'),
-      `input: "Shared context"
+      `prompts:
+  - - role: user
+      content: Shared context
+    - role: user
+      content: "{{ input }}"
 tests: ./ext-cases.yaml
 `,
     );
@@ -205,11 +247,17 @@ tests: ./ext-cases.yaml
   it('includes suite-level input text in the question field', async () => {
     await writeFile(
       path.join(tempDir, 'question-field.eval.yaml'),
-      `input: "Context: You are helpful."
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: question-test
-    criteria: "Has combined question"
-    input: "What is 2+2?"
+    criteria: Has combined question
+    vars:
+      input:
+        - role: user
+          content: "Context: You are helpful."
+        - role: user
+          content: What is 2+2?
 `,
     );
 
@@ -224,17 +272,21 @@ tests:
   it('handles suite-level input with test-level message array input', async () => {
     await writeFile(
       path.join(tempDir, 'mixed-formats.eval.yaml'),
-      `input: "Shared system context"
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: mixed-test
-    criteria: "Handles mixed formats"
-    input:
-      - role: user
-        content: "First user message"
-      - role: assistant
-        content: "I understand."
-      - role: user
-        content: "Follow-up question"
+    criteria: Handles mixed formats
+    vars:
+      input:
+        - role: user
+          content: Shared system context
+        - role: user
+          content: First user message
+        - role: assistant
+          content: I understand.
+        - role: user
+          content: Follow-up question
 `,
     );
 
@@ -251,20 +303,23 @@ tests:
   it('applies per-test vars to suite and test input templates', async () => {
     await writeFile(
       path.join(tempDir, 'templated-input.eval.yaml'),
-      `input: "Answer clearly: {{question}}"
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: templated
     vars:
-      question: "What is the capital of France?"
-      expected_answer: "Paris"
-    criteria: "Answers {{question}} correctly"
-    input:
-      - role: user
-        content: "Question: {{question}}"
-      - role: assistant
-        content: "Thinking about {{question}}"
-      - role: user
-        content: "Final answer only."
+      question: What is the capital of France?
+      expected_answer: Paris
+      input:
+        - role: user
+          content: "Answer clearly: {{question}}"
+        - role: user
+          content: "Question: {{question}}"
+        - role: assistant
+          content: Thinking about {{question}}
+        - role: user
+          content: Final answer only.
+    criteria: Answers {{question}} correctly
     expected_output: "{{expected_answer}}"
     metadata:
       untouched: "{{question}}"
@@ -295,10 +350,8 @@ tests:
   it('applies namespaced vars with loops in suite and test input templates', async () => {
     await writeFile(
       path.join(tempDir, 'templated-namespaced-input.eval.yaml'),
-      `input: |
-  Items:
-  {% for item in vars.group.items %}- {{ item | upper }}
-  {% endfor %}
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: templated-namespaced
     vars:
@@ -306,8 +359,15 @@ tests:
         items:
           - alpha
           - beta
-    criteria: "Mentions {{ vars.group.items | length }} items"
-    input: "Question: {{ vars.group.items[0] }}"
+      input:
+        - role: user
+          content: |
+            Items:
+            {% for item in vars.group.items %}- {{ item | upper }}
+            {% endfor %}
+        - role: user
+          content: "Question: {{ vars.group.items[0] }}"
+    criteria: Mentions {{ vars.group.items | length }} items
 `,
     );
 
@@ -338,12 +398,14 @@ tests:
       path.join(tempDir, 'templated-custom-filter.eval.yaml'),
       `nunjucks_filters:
   slug: ./slug-filter.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: filter-test
     vars:
-      title: "Hello AgentV"
-    criteria: "Slug is {{ vars.title | slug }}"
-    input: "Write {{ vars.title | slug }}"
+      title: Hello AgentV
+      input: Write {{ vars.title | slug }}
+    criteria: Slug is {{ vars.title | slug }}
 `,
     );
 
@@ -357,8 +419,10 @@ tests:
   it('expands string array vars into multiple rendered rows', async () => {
     await writeFile(
       path.join(tempDir, 'templated-array-vars.eval.yaml'),
-      `tests:
-  - id: "fruit-{{ vars.fruit }}"
+      `prompts:
+  - "{{ input }}"
+tests:
+  - id: fruit-{{ vars.fruit }}
     vars:
       fruit:
         - apple
@@ -368,8 +432,8 @@ tests:
         - green
       tags:
         - stable
+      input: Describe {{ vars.color }} {{ vars.fruit }}
     criteria: "{{ vars.color }} {{ vars.fruit }}"
-    input: "Describe {{ vars.color }} {{ vars.fruit }}"
 `,
     );
 
@@ -398,12 +462,18 @@ tests:
   it('renders then parses chat-array prompt strings', async () => {
     await writeFile(
       path.join(tempDir, 'templated-chat-array.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: chat-array
     vars:
-      topic: "templating"
-    criteria: "Uses chat array"
-    input: '[{"role":"system","content":"You review {{ vars.topic }}"},{"role":"user","content":"Explain {{ vars.topic }}"}]'
+      topic: templating
+      input:
+        - role: system
+          content: "You review {{ vars.topic }}"
+        - role: user
+          content: "Explain {{ vars.topic }}"
+    criteria: Uses chat array
 `,
     );
 
@@ -419,12 +489,14 @@ tests:
   it('renders assertion values and metrics with per-test vars', async () => {
     await writeFile(
       path.join(tempDir, 'templated-assertions.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: assertions
     vars:
-      expected: "DENIED"
-      metric_name: "policy"
-    input: "Check access"
+      expected: DENIED
+      metric_name: policy
+      input: Check access
     assert:
       - type: contains
         metric: "{{ vars.metric_name }}_decision"
@@ -445,17 +517,19 @@ tests:
   it('applies per-test vars inside conversation turns', async () => {
     await writeFile(
       path.join(tempDir, 'templated-turns.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: conversation
     vars:
       bug: parser null check
+      input: Fix {{bug}}
     mode: conversation
-    input: "Fix {{bug}}"
     turns:
-      - input: "Fix {{bug}}"
-        expected_output: "Fixed {{bug}}"
+      - input: Fix {{bug}}
+        expected_output: Fixed {{bug}}
         assert:
-          - "Mentions {{bug}}"
+          - Mentions {{bug}}
 `,
     );
 

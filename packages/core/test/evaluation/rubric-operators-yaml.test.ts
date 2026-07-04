@@ -19,19 +19,22 @@ describe('rubric criterion operators', () => {
 
     await writeFile(
       path.join(dir, 'suite.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: finance-summary
-    input: "Summarize the finance note"
-    criteria: "Keep supported facts and avoid contradictions"
+    criteria: Keep supported facts and avoid contradictions
     assert:
       - type: llm-rubric
         value:
           - id: supported-revenue
             operator: correctness
-            outcome: "States revenue increased to $10M"
+            outcome: States revenue increased to $10M
           - id: no-revenue-conflict
             operator: contradiction
-            outcome: "Revenue increased to $10M"
+            outcome: Revenue increased to $10M
+    vars:
+      input: Summarize the finance note
 `,
       'utf8',
     );

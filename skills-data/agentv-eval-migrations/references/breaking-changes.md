@@ -198,6 +198,78 @@ templates and custom graders can consume it. The breaking authoring change is
 that workers should not depend on missing `assert` plus `criteria` to define
 the whole grading contract for new migrated YAML.
 
+## Authored `input` Moved To `prompts` Plus Vars
+
+### v4.42.4 Shape
+
+Older AgentV eval YAML allowed top-level `input` and inline `tests[].input` as
+the public task authoring surface:
+
+```yaml
+input: Read AGENTS.md before answering.
+
+tests:
+  - id: addition
+    input: What is 15 + 27?
+    assert:
+      - type: contains
+        value: "42"
+```
+
+### Current Shape
+
+Current normal eval YAML uses top-level `prompts` rendered with
+`default_test.vars` and `tests[].vars`:
+
+```yaml
+prompts:
+  - - role: system
+      content: "{{ system_instruction }}"
+    - role: user
+      content: "{{ question }}"
+
+default_test:
+  vars:
+    system_instruction: Read AGENTS.md before answering.
+
+tests:
+  - id: addition
+    vars:
+      question: What is 15 + 27?
+    assert:
+      - type: contains
+        value: "42"
+```
+
+### Migration Steps
+
+- Replace simple top-level `input: <text>` with a prompt entry or
+  `default_test.vars.system_instruction` rendered from a chat prompt.
+- Replace simple `tests[].input: <text>` with `tests[].vars.input: <text>` and
+  a top-level prompt such as `"{{ input }}"` or `"{{ vars.input }}"`.
+- Replace message-array input with a top-level chat prompt entry. Move any
+  per-row values into `tests[].vars` and render them from the message content.
+- Replace `input_files` plus string input with a chat prompt content array that
+  contains `{type: file, value: "{{ file_path }}"}` and a text block. Store file
+  paths in `default_test.vars` or `tests[].vars`.
+- Keep `input` only in external raw-case files imported through
+  `tests: file://...` or `imports.tests` when preserving existing raw datasets.
+  Do not copy that compatibility shape back into normal eval YAML.
+
+### Verification
+
+```bash
+bun apps/cli/src/cli.ts validate path/to/eval.eval.yaml
+rg -n "^[[:space:]]*input:|input_files:" path/to/evals
+```
+
+### Compatibility Notes
+
+The runtime `EvalTest.input` representation remains internal after prompts are
+rendered. External raw-case loaders may still ingest `input` rows for imported
+datasets, but authored eval YAML now hard-errors on top-level `input` and inline
+`tests[].input`.
+
 ## Top-Level `execution` Removed From Eval YAML
 
 ### v4.42.4 Shape

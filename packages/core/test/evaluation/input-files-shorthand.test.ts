@@ -19,7 +19,7 @@ describe('input_files shorthand', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('expands input_files + string input to type:file + type:text content blocks', async () => {
+  it('rejects input_files combined with authored tests[].input', async () => {
     await writeFile(
       path.join(tempDir, 'input-files-basic.eval.yaml'),
       `tests:
@@ -31,39 +31,32 @@ describe('input_files shorthand', () => {
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'input-files-basic.eval.yaml'), tempDir);
-
-    expect(tests).toHaveLength(1);
-    expect(tests[0].id).toBe('summarize-csv');
-
-    // The test should have a single user message with content blocks
-    expect(tests[0].input).toHaveLength(1);
-    const message = tests[0].input[0];
-    expect(message.role).toBe('user');
-
-    // Content should be an array of content blocks
-    const content = message.content;
-    expect(Array.isArray(content)).toBe(true);
-    const blocks = content as Array<{ type: string; value: string }>;
-    expect(blocks).toHaveLength(2);
-    expect(blocks[0].type).toBe('file');
-    expect(blocks[0].value).toBe('./sales.csv');
-    expect(blocks[1].type).toBe('text');
-    expect(blocks[1].value).toBe('Summarize the monthly trends in this CSV.');
+    await expect(
+      loadTests(path.join(tempDir, 'input-files-basic.eval.yaml'), tempDir),
+    ).rejects.toThrow(/tests\[0\]\.input has been removed.*top-level 'prompts'.*tests\[\]\.vars/);
   });
 
-  it('places multiple file blocks before text block', async () => {
+  it('renders canonical prompt content blocks with file vars', async () => {
     await writeFile(path.join(tempDir, 'b.csv'), 'month,revenue\nMar,300\n');
 
     await writeFile(
       path.join(tempDir, 'input-files-multi.eval.yaml'),
-      `tests:
+      `prompts:
+  - - role: user
+      content:
+        - type: file
+          value: "{{ first_file }}"
+        - type: file
+          value: "{{ second_file }}"
+        - type: text
+          value: "{{ instruction }}"
+tests:
   - id: compare-csvs
     criteria: "Compares two CSV files"
-    input_files:
-      - ./sales.csv
-      - ./b.csv
-    input: "Compare these two files."
+    vars:
+      first_file: ./sales.csv
+      second_file: ./b.csv
+      instruction: Compare these two files.
 `,
     );
 
@@ -73,12 +66,12 @@ describe('input_files shorthand', () => {
     const message = tests[0].input[0];
     const content = message.content as Array<{ type: string; value: string }>;
     expect(content).toHaveLength(3);
-    expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
-    expect(content[1]).toMatchObject({ type: 'file', value: './b.csv', path: './b.csv' });
+    expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv' });
+    expect(content[1]).toMatchObject({ type: 'file', value: './b.csv' });
     expect(content[2]).toEqual({ type: 'text', value: 'Compare these two files.' });
   });
 
-  it('produces identical runtime behaviour to explicit type:file + type:text form', async () => {
+  it('rejects deprecated input_files + input instead of treating it like explicit prompt content', async () => {
     await writeFile(
       path.join(tempDir, 'input-files-shorthand.eval.yaml'),
       `tests:
@@ -92,38 +85,36 @@ describe('input_files shorthand', () => {
 
     await writeFile(
       path.join(tempDir, 'input-files-explicit.eval.yaml'),
-      `tests:
+      `prompts:
+  - - role: user
+      content:
+        - type: file
+          value: ./sales.csv
+        - type: text
+          value: "Summarize this."
+tests:
   - id: explicit-form
     criteria: "Explicit form works"
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ./sales.csv
-          - type: text
-            value: "Summarize this."
 `,
     );
 
-    const [shorthandTests, explicitTests] = await Promise.all([
+    await expect(
       loadTests(path.join(tempDir, 'input-files-shorthand.eval.yaml'), tempDir),
-      loadTests(path.join(tempDir, 'input-files-explicit.eval.yaml'), tempDir),
-    ]);
+    ).rejects.toThrow(/tests\[0\]\.input has been removed/);
 
-    expect(shorthandTests).toHaveLength(1);
+    const explicitTests = await loadTests(
+      path.join(tempDir, 'input-files-explicit.eval.yaml'),
+      tempDir,
+    );
     expect(explicitTests).toHaveLength(1);
-
-    // Both forms should resolve to the same input structure
-    const shorthandMsg = shorthandTests[0].input[0];
     const explicitMsg = explicitTests[0].input[0];
-    expect(shorthandMsg.role).toBe(explicitMsg.role);
-    expect(shorthandMsg.content).toEqual(explicitMsg.content);
-
-    // Both should produce the same file_paths resolution
-    expect(shorthandTests[0].file_paths).toEqual(explicitTests[0].file_paths);
+    expect(explicitMsg.content).toMatchObject([
+      { type: 'file', value: './sales.csv' },
+      { type: 'text', value: 'Summarize this.' },
+    ]);
   });
 
-  it('merges suite-level input_files into tests with string input', async () => {
+  it('rejects suite-level input_files with authored string inputs', async () => {
     await writeFile(
       path.join(tempDir, 'suite-input-files.eval.yaml'),
       `description: Suite-level input_files test
@@ -139,29 +130,12 @@ tests:
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'suite-input-files.eval.yaml'), tempDir);
-
-    expect(tests).toHaveLength(2);
-
-    // Both tests should have file blocks from suite-level input_files
-    for (const test of tests) {
-      expect(test.input).toHaveLength(1);
-      const message = test.input[0];
-      expect(message.role).toBe('user');
-      const content = message.content as Array<{ type: string; value: string }>;
-      expect(content).toHaveLength(2);
-      expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
-      expect(content[1].type).toBe('text');
-    }
-
-    // Verify per-test text is preserved
-    const msg0Content = tests[0].input[0].content as Array<{ type: string; value: string }>;
-    expect(msg0Content[1].value).toBe('Summarize the important constraints.');
-    const msg1Content = tests[1].input[0].content as Array<{ type: string; value: string }>;
-    expect(msg1Content[1].value).toBe('Analyze the revenue data.');
+    await expect(
+      loadTests(path.join(tempDir, 'suite-input-files.eval.yaml'), tempDir),
+    ).rejects.toThrow(/tests\[0\]\.input has been removed/);
   });
 
-  it('per-test input_files overrides suite-level input_files', async () => {
+  it('rejects per-test input_files with authored string inputs', async () => {
     await writeFile(path.join(tempDir, 'override.csv'), 'override data');
 
     await writeFile(
@@ -180,28 +154,12 @@ tests:
 `,
     );
 
-    const tests = await loadTests(
-      path.join(tempDir, 'suite-input-files-override.eval.yaml'),
-      tempDir,
-    );
-
-    expect(tests).toHaveLength(2);
-
-    // First test uses suite-level input_files
-    const content0 = tests[0].input[0].content as Array<{ type: string; value: string }>;
-    expect(content0[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
-
-    // Second test uses its own input_files (overrides suite-level)
-    const content1 = tests[1].input[0].content as Array<{ type: string; value: string }>;
-    expect(content1[0]).toMatchObject({
-      type: 'file',
-      value: './override.csv',
-      path: './override.csv',
-    });
-    expect(content1).toHaveLength(2); // only override.csv + text, not sales.csv
+    await expect(
+      loadTests(path.join(tempDir, 'suite-input-files-override.eval.yaml'), tempDir),
+    ).rejects.toThrow(/tests\[0\]\.input has been removed/);
   });
 
-  it('suite-level input_files with multiple files prepends all file blocks', async () => {
+  it('rejects suite-level input_files with authored input even with multiple files', async () => {
     await writeFile(path.join(tempDir, 'schema.json'), '{"type": "object"}');
 
     await writeFile(
@@ -216,21 +174,12 @@ tests:
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'suite-multi-files.eval.yaml'), tempDir);
-
-    expect(tests).toHaveLength(1);
-    const content = tests[0].input[0].content as Array<{ type: string; value: string }>;
-    expect(content).toHaveLength(3);
-    expect(content[0]).toMatchObject({ type: 'file', value: './sales.csv', path: './sales.csv' });
-    expect(content[1]).toMatchObject({
-      type: 'file',
-      value: './schema.json',
-      path: './schema.json',
-    });
-    expect(content[2]).toEqual({ type: 'text', value: 'Summarize the constraints.' });
+    await expect(
+      loadTests(path.join(tempDir, 'suite-multi-files.eval.yaml'), tempDir),
+    ).rejects.toThrow(/tests\[0\]\.input has been removed/);
   });
 
-  it('suite-level input_files is skipped when skip_defaults is true', async () => {
+  it('rejects authored input even when skip_defaults is true', async () => {
     await writeFile(
       path.join(tempDir, 'suite-skip-defaults.eval.yaml'),
       `input_files:
@@ -244,14 +193,12 @@ tests:
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'suite-skip-defaults.eval.yaml'), tempDir);
-
-    expect(tests).toHaveLength(1);
-    // Should be plain string input, not expanded with file blocks
-    expect(tests[0].input[0]).toEqual({ role: 'user', content: 'Plain question.' });
+    await expect(
+      loadTests(path.join(tempDir, 'suite-skip-defaults.eval.yaml'), tempDir),
+    ).rejects.toThrow(/tests\[0\]\.input has been removed/);
   });
 
-  it('is skipped and falls back to plain input when input_files is absent', async () => {
+  it('rejects authored input when input_files is absent', async () => {
     await writeFile(
       path.join(tempDir, 'no-input-files.eval.yaml'),
       `tests:
@@ -261,10 +208,9 @@ tests:
 `,
     );
 
-    const tests = await loadTests(path.join(tempDir, 'no-input-files.eval.yaml'), tempDir);
-
-    expect(tests).toHaveLength(1);
-    expect(tests[0].input[0]).toEqual({ role: 'user', content: 'What is 2+2?' });
+    await expect(
+      loadTests(path.join(tempDir, 'no-input-files.eval.yaml'), tempDir),
+    ).rejects.toThrow(/tests\[0\]\.input has been removed/);
   });
 
   it('uses a sibling PROMPT.md when input is omitted', async () => {

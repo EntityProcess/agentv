@@ -124,10 +124,13 @@ describe('materializeTaskBundle', () => {
     const [assertion] = testCase.assert as Record<string, unknown>[];
 
     expect(parsedEval.target).toBe('selected');
+    expect(parsedEval.prompts).toEqual(['{{ input }}']);
     expect(parsedEval.execution).toBeUndefined();
     expect(parsedEval.tests as unknown[]).toHaveLength(1);
     expect(testCase.id).toBe('direct-case');
-    expect(testCase.input).toBe('file://files/fixtures/input.txt');
+    expect((testCase.vars as Record<string, unknown>).input).toBe(
+      'file://files/fixtures/input.txt',
+    );
     expect(assertion.prompt).toBe('file://graders/graders/prompt.md');
     expect(assertion.command).toEqual(['bun', 'graders/graders/check.ts', '--token', '[redacted]']);
     expect(taskTargets).toContain('api_key: ${{ MOCK_API_KEY }}');

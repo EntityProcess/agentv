@@ -22,7 +22,7 @@ import { readFile } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 
-import type { GraderConfig, LlmGraderConfig, ScriptGraderConfig } from '@agentv/core';
+import type { GraderConfig, LlmBackedGraderConfig, ScriptGraderConfig } from '@agentv/core';
 
 /** Assertion types that can be graded deterministically without external scripts or LLMs. */
 const BUILTIN_ASSERTION_TYPES = new Set([
@@ -150,6 +150,7 @@ export const evalInputCommand = command({
       await writeJson(join(testDir, 'input.json'), {
         input: inputMessages,
         input_files: test.file_paths,
+        ...(test.description ? { description: test.description } : {}),
         metadata: test.metadata ?? {},
       });
 
@@ -266,12 +267,12 @@ async function writeGraderConfigs(
         weight: config.weight ?? 1.0,
         config: config.config ?? {},
       });
-    } else if (assertion.type === 'llm-grader') {
+    } else if (assertion.type === 'llm-grader' || assertion.type === 'llm-rubric') {
       if (!hasLlmGraders) {
         await mkdir(llmGradersDir, { recursive: true });
         hasLlmGraders = true;
       }
-      const config = assertion as LlmGraderConfig;
+      const config = assertion as LlmBackedGraderConfig;
       let promptContent = '';
 
       if (config.resolvedPromptPath) {
@@ -286,7 +287,7 @@ async function writeGraderConfigs(
 
       // For rubrics assertions, include the criteria array directly
       // so grader subagents can evaluate without needing a prompt file.
-      const rubrics = (config as LlmGraderConfig).rubrics;
+      const rubrics = config.rubrics;
       const rubricsData = rubrics?.map((r) => ({
         id: r.id,
         outcome: r.outcome,
@@ -298,7 +299,11 @@ async function writeGraderConfigs(
 
       await writeJson(join(llmGradersDir, `${config.name}.json`), {
         name: config.name,
+        type: config.type,
         prompt_content: promptContent,
+        ...(config.type === 'llm-rubric' && config.value !== undefined
+          ? { value: config.value }
+          : {}),
         ...(rubricsData && rubricsData.length > 0 ? { rubrics: rubricsData } : {}),
         weight: config.weight ?? 1.0,
         threshold: 0.5,

@@ -573,7 +573,7 @@ const EvalTestSchema = z.object({
   providers: EvalTargetsSchema.optional(),
   prompts: PromptsSchema.optional(),
   provider_output: ExpectedOutputSchema.optional(),
-  input: InputSchema.optional(),
+  input: z.never().optional(),
   input_files: z.array(z.string()).optional(),
   expected_output: ExpectedOutputSchema.optional(),
   assert: z.array(AssertionItemSchema).optional(),
@@ -732,7 +732,7 @@ export const EvalFileSchema: z.ZodType = z
     license: z.string().optional(),
     requires: z.object({ agentv: z.string().optional() }).optional(),
     // Suite-level input
-    input: InputSchema.optional(),
+    input: z.never().optional(),
     prompts: PromptsSchema.optional(),
     // Suite-level input_files shorthand
     input_files: z.array(z.string()).optional(),

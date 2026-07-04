@@ -39,16 +39,11 @@ describe('eval source traceability metadata', () => {
       evalFile,
       `assert:
   - include: shared
+prompts:
+  - "{{ input }}"
 tests:
   - id: trace-case
     criteria: ok
-    input:
-      - role: user
-        content:
-          - type: file
-            value: snippets/input.txt
-          - type: text
-            value: Review the fixture.
     assert:
       - metric: prompt-file
         type: llm-grader
@@ -56,21 +51,35 @@ tests:
       - metric: prompt-script
         type: llm-grader
         prompt:
-          command: ["bun", "graders/prompt.ts"]
+          command:
+            - bun
+            - graders/prompt.ts
           config:
             secret_token: should-not-persist
             apiKey: should-not-persist
             secret-token: should-not-persist
       - metric: code-check
         type: script
-        command: ["bun", "graders/code.ts"]
+        command:
+          - bun
+          - graders/code.ts
         cwd: graders
       - metric: preprocessed
         type: llm-grader
         prompt: Inline prompt
         preprocessors:
           - type: text
-            command: ["bun", "graders/pre.ts"]
+            command:
+              - bun
+              - graders/pre.ts
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: snippets/input.txt
+            - type: text
+              value: Review the fixture.
 `,
     );
 

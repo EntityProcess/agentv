@@ -78,10 +78,11 @@ describe('grader helper config builders', () => {
   it('composes inside defineEval and serializes to canonical AgentV YAML assert entries', () => {
     const suite = defineEval({
       name: 'grader-helper-suite',
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'helper-output',
-          input: 'Return a JSON greeting.',
+          vars: { input: 'Return a JSON greeting.' },
           assert: [
             graders.contains('Hello', { metric: 'mentions-hello' }),
             graders.exact('{"message":"Hello"}', { metric: 'exact-json', minScore: 1 }),

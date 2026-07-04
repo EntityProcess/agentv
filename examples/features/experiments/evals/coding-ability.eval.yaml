@@ -1,31 +1,30 @@
 name: coding-ability
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: review-null-check
-    input: |
-      Review this TypeScript function for bugs:
-
-      function getUser(users: Map<string, User>, id: string) {
-        return users.get(id).name;
-      }
     assert:
       - metric: mentions_undefined
         type: contains
-        value: "undefined"
-      - Review identifies that users.get(id) can return undefined and suggests a
-        fix
-      - Identifies the potential undefined access when the key is missing from
-        the map
+        value: undefined
+      - Review identifies that users.get(id) can return undefined and suggests a fix
+      - Identifies the potential undefined access when the key is missing from the map
+    vars:
+      input: |
+        Review this TypeScript function for bugs:
 
+        function getUser(users: Map<string, User>, id: string) {
+          return users.get(id).name;
+        }
   - id: review-clean-function
-    input: |
-      Review this TypeScript function for bugs:
-
-      function add(a: number, b: number): number {
-        return a + b;
-      }
     assert:
-      - Review correctly identifies the function as simple and correct without
-        flagging false issues
+      - Review correctly identifies the function as simple and correct without flagging false issues
       - Recognizes the function is correct and does not flag false issues
+    vars:
+      input: |
+        Review this TypeScript function for bugs:
+
+        function add(a: number, b: number): number {
+          return a + b;
+        }

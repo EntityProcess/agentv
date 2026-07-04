@@ -414,12 +414,15 @@ describe('loadTests with format detection', () => {
     const yamlPath = path.join(tempDir, 'test.yaml');
     await writeFile(
       yamlPath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: yaml-test
     criteria: Goal
-    input:
-      - role: user
-        content: Query
+    vars:
+      input:
+        - role: user
+          content: Query
 `,
     );
 
@@ -435,10 +438,13 @@ describe('loadTests with format detection', () => {
     const yamlPath = path.join(tempDir, 'expected-output-only.yaml');
     await writeFile(
       yamlPath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: expected-only
-    input: Query
     expected_output: Reference answer
+    vars:
+      input: Query
 `,
     );
 
@@ -454,11 +460,17 @@ describe('loadTests with format detection', () => {
     const yamlPath = path.join(tempDir, 'direct-input-shorthand.yaml');
     await writeFile(
       yamlPath,
-      `input: Shared instruction
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: direct-input
     criteria: Answer directly
-    input: Query
+    vars:
+      input:
+        - role: user
+          content: Shared instruction
+        - role: user
+          content: Query
 `,
     );
     const warn = console.warn;
@@ -482,12 +494,15 @@ tests:
     const ymlPath = path.join(tempDir, 'test.yml');
     await writeFile(
       ymlPath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: yml-test
     criteria: Goal
-    input:
-      - role: user
-        content: Query
+    vars:
+      input:
+        - role: user
+          content: Query
 `,
     );
 
@@ -525,12 +540,15 @@ describe('JSONL and YAML produce equivalent EvalTests', () => {
     await writeFile(
       yamlPath,
       `name: my-dataset
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    criteria: "The agent should respond with a helpful answer"
-    input:
-      - role: user
-        content: "What is 2+2?"
+    criteria: The agent should respond with a helpful answer
+    vars:
+      input:
+        - role: user
+          content: What is 2+2?
 `,
     );
 
@@ -664,10 +682,13 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-shorthand.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Goal
-    input: "What is 2+2?"
+    vars:
+      input: What is 2+2?
 `,
       );
 
@@ -683,14 +704,17 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-array.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Goal
-    input:
-      - role: system
-        content: Be helpful
-      - role: user
-        content: Hello
+    vars:
+      input:
+        - role: system
+          content: Be helpful
+        - role: user
+          content: Hello
 `,
       );
 
@@ -706,11 +730,14 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-string.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Goal
-    input: Query
-    expected_output: "The answer is 4"
+    expected_output: The answer is 4
+    vars:
+      input: Query
 `,
       );
 
@@ -726,13 +753,16 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'expected-object.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Goal
-    input: Query
     expected_output:
       riskLevel: High
       confidence: 0.95
+    vars:
+      input: Query
 `,
       );
 
@@ -749,12 +779,15 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'input-messages.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Goal
-    input:
-      - role: user
-        content: Hello from YAML
+    vars:
+      input:
+        - role: user
+          content: Hello from YAML
 `,
       );
 
@@ -770,19 +803,23 @@ describe('Input/expected_output aliases and shorthand', () => {
       const yamlPath = path.join(tempDir, 'mixed.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-canonical
     criteria: Goal
-    input:
-      - role: user
-        content: Using canonical
     expected_output:
       - role: assistant
         content: Canonical response
+    vars:
+      input:
+        - role: user
+          content: Using canonical
   - id: test-alias
     criteria: Goal
-    input: "Using alias shorthand"
-    expected_output: "Alias response"
+    expected_output: Alias response
+    vars:
+      input: Using alias shorthand
 `,
       );
 
@@ -802,12 +839,15 @@ describe('Input/expected_output aliases and shorthand', () => {
 
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Goal
-    input: "What is 2+2?"
     expected_output:
       answer: 4
+    vars:
+      input: What is 2+2?
 `,
       );
 
@@ -855,9 +895,12 @@ describe('Backward-compat aliases', () => {
         `eval_cases:
   - id: test-1
     criteria: Goal
-    input:
-      - role: user
-        content: Query
+    vars:
+      input:
+        - role: user
+          content: Query
+prompts:
+  - "{{ input }}"
 `,
       );
 
@@ -891,12 +934,15 @@ describe('Backward-compat aliases', () => {
       const yamlPath = path.join(tempDir, 'cases-precedence.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: canonical
     criteria: Goal
-    input:
-      - role: user
-        content: Query
+    vars:
+      input:
+        - role: user
+          content: Query
 eval_cases:
   - id: deprecated
     criteria: Goal
@@ -918,12 +964,15 @@ eval_cases:
       const yamlPath = path.join(tempDir, 'expected-outcome-alias.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     expected_outcome: Goal
-    input:
-      - role: user
-        content: Query
+    vars:
+      input:
+        - role: user
+          content: Query
 `,
       );
 
@@ -938,13 +987,16 @@ eval_cases:
       const yamlPath = path.join(tempDir, 'criteria-precedence.yaml');
       await writeFile(
         yamlPath,
-        `tests:
+        `prompts:
+  - "{{ input }}"
+tests:
   - id: test-1
     criteria: Canonical
     expected_outcome: Deprecated
-    input:
-      - role: user
-        content: Query
+    vars:
+      input:
+        - role: user
+          content: Query
 `,
       );
 

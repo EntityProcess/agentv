@@ -1,77 +1,46 @@
-# Tool Evaluation Plugins Demo
-# Demonstrates plugin-based (script grader) tool evaluation patterns
-#
-# These patterns complement the built-in tool_trajectory grader with
-# semantic evaluation capabilities that require domain-specific logic.
-#
-# Run: cd examples/showcase/tool-evaluation-plugins
-#      npx agentv eval tool-eval-demo.eval.yaml --target mock_agent
-
 description: Showcase of tool evaluation plugin patterns
-
-# Use mock_agent target (configure in .agentv/targets.yaml)
 target: mock_agent
-
+prompts:
+  - "{{ input }}"
 tests:
-  # ==========================================
-  # Example 1: Tool Selection Evaluation
-  # Use case: Verify agent chose appropriate tools for the task
-  # ==========================================
   - id: tool-selection-demo
-
-    input:
-      - role: user
-        content: Find information about the current weather in Tokyo and fetch the
-          detailed forecast.
-
     assert:
-      # Built-in: Check minimum tool calls
       - metric: trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
           search: 1
           fetch: 1
-
-      # Plugin: Semantic tool selection evaluation
       - metric: selection-quality
         type: script
-        command: [ "bun", "run", "scripts/tool-selection-grader.ts" ]
+        command:
+          - bun
+          - run
+          - scripts/tool-selection-grader.ts
       - |-
         Agent should search for relevant information and fetch data from APIs.
         Uses search and fetch tools appropriately for the research task.
-
-  # ==========================================
-  # Example 2: Efficiency Scoring
-  # Use case: Evaluate resource efficiency of agent execution
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: Find information about the current weather in Tokyo and fetch the detailed forecast.
   - id: efficiency-demo
-
-    input:
-      - role: user
-        content: Get the current time.
-
     assert:
-      # Plugin: Efficiency metrics scoring
       - metric: efficiency-check
         type: script
-        command: [ "bun", "run", "scripts/efficiency-scorer.ts" ]
+        command:
+          - bun
+          - run
+          - scripts/efficiency-scorer.ts
       - |-
         Agent efficiently processes the request with minimal redundant operations.
         Simple task requiring straightforward tool usage.
-
-  # ==========================================
-  # Example 3: Combined Built-in + Plugin Evaluation
-  # Use case: Comprehensive tool usage assessment
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: Get the current time.
   - id: combined-evaluation
-
-    input:
-      - role: user
-        content: Analyze the quarterly sales data and generate a summary report.
-
     assert:
-      # Built-in: Verify required workflow sequence
       - metric: workflow-trajectory
         type: tool-trajectory
         mode: in_order
@@ -79,36 +48,29 @@ tests:
           - tool: search
           - tool: validate
           - tool: process
-
-      # Plugin: Check if tools were appropriate choices
       - metric: selection-check
         type: script
-        command: [ "bun", "run", "scripts/tool-selection-grader.ts" ]
-
-      # Plugin: Evaluate efficiency
+        command:
+          - bun
+          - run
+          - scripts/tool-selection-grader.ts
       - metric: efficiency
         type: script
-        command: [ "bun", "run", "scripts/efficiency-scorer.ts" ]
+        command:
+          - bun
+          - run
+          - scripts/efficiency-scorer.ts
       - |-
         Agent performs comprehensive data analysis:
         1. Search multiple sources
         2. Validate data quality
         3. Process and transform results
         4. Output formatted report
-
-  # ==========================================
-  # Example 4: Pairwise Comparison
-  # Use case: Compare candidate against baseline response
-  # Requires expected_output to supply a reference answer
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: Analyze the quarterly sales data and generate a summary report.
   - id: pairwise-demo
-
-    input:
-      - role: user
-        content: Summarize the main points of the user manual.
-
-    # Reference answer for comparison (from a baseline agent)
-    # Note: the reference answer is derived from expected_output content
     expected_output:
       - role: assistant
         content: |-
@@ -116,11 +78,15 @@ tests:
           1. Installation: Follow the setup wizard
           2. Configuration: Edit settings.json
           3. Usage: Run the main command
-
     assert:
-      # Plugin: Pairwise comparison with position bias mitigation
       - metric: pairwise-quality
         type: script
-        command: [ "bun", "run", "scripts/pairwise-tool-compare.ts" ]
-      - |-
-        Agent should retrieve and summarize the document efficiently.
+        command:
+          - bun
+          - run
+          - scripts/pairwise-tool-compare.ts
+      - Agent should retrieve and summarize the document efficiently.
+    vars:
+      input:
+        - role: user
+          content: Summarize the main points of the user manual.

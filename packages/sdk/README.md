@@ -31,10 +31,11 @@ import { defineScriptGrader } from '@agentv/sdk';
 import { evaluate } from '@agentv/sdk';
 
 const { results, summary } = await evaluate({
+  prompts: ['{{ input }}'],
   tests: [
     {
       id: 'greeting',
-      input: 'Say hello',
+      vars: { input: 'Say hello' },
       expectedOutput: 'Hello there!',
       assert: [{ type: 'contains', value: 'Hello' }],
     },
@@ -153,10 +154,11 @@ import { defineEval, graders } from '@agentv/sdk';
 export default defineEval({
   name: 'hello-suite',
   target: 'mock-sdk',
+  prompts: ['{{ input }}'],
   tests: [
     {
       id: 'hello',
-      input: 'Say hello',
+      vars: { input: 'Say hello' },
       expectedOutput: 'Hello from the mock target',
       assert: [graders.contains('Hello')],
     },
@@ -175,10 +177,11 @@ import { defineEval, graders } from '@agentv/sdk';
 
 export default defineEval({
   name: 'grader-helper-suite',
+  prompts: ['{{ input }}'],
   tests: [
     {
       id: 'json-greeting',
-      input: 'Return a JSON greeting.',
+      vars: { input: 'Return a JSON greeting.' },
       assert: [
         graders.contains('Hello', { metric: 'mentions-hello' }),
         graders.regex(/"message"\s*:/, { metric: 'message-key' }),
@@ -213,10 +216,11 @@ function ragFaithfulness() {
 
 export default defineEval({
   name: 'rag-suite',
+  prompts: ['{{ input }}'],
   tests: [
     {
       id: 'grounded-answer',
-      input: 'Answer using the retrieved context.',
+      vars: { input: 'Answer using the retrieved context.' },
       assert: [ragFaithfulness()],
     },
   ],
@@ -247,7 +251,7 @@ Python workflows should emit canonical YAML/JSONL or implement script graders ov
 ## Documentation
 
 For complete documentation including:
-- Full input/output schemas
+- Full grader request/result schemas
 - Typed config examples
 - Execution metrics usage
 - Best practices

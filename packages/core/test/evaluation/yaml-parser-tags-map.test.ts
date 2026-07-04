@@ -14,16 +14,18 @@ function createTempYaml(content: string): { filePath: string; dir: string } {
 
 describe('loadTestSuite - promptfoo-shaped tags map', () => {
   it('parses map-form tags into EvalSuiteResult.tags and exposes the experiment key', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: mapped-eval
+    const { filePath, dir } = createTempYaml(`name: mapped-eval
 description: A map-form tags eval
 tags:
   experiment: baseline-v2
   team: compliance
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Hello"
-    criteria: "Greet"
+    criteria: Greet
+    vars:
+      input: Hello
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -35,14 +37,16 @@ tests:
   });
 
   it('does not crash when a named suite authors map-form tags', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: named-eval
+    const { filePath, dir } = createTempYaml(`name: named-eval
 tags:
   experiment: run-a
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Hi"
-    criteria: "Greet"
+    criteria: Greet
+    vars:
+      input: Hi
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -51,15 +55,17 @@ tests:
   });
 
   it('keeps list-form tags as a selection list, with no tags map', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: listed-eval
+    const { filePath, dir } = createTempYaml(`name: listed-eval
 tags:
   - unit
   - smoke
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Hello"
-    criteria: "Greet"
+    criteria: Greet
+    vars:
+      input: Hello
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -71,15 +77,17 @@ tests:
   });
 
   it('reads a tags map authored under the metadata block', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: metadata-mapped
+    const { filePath, dir } = createTempYaml(`name: metadata-mapped
 metadata:
   tags:
     experiment: from-metadata
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Hi"
-    criteria: "Greet"
+    criteria: Greet
+    vars:
+      input: Hi
 `);
 
     const suite = await loadTestSuite(filePath, dir);
@@ -88,31 +96,35 @@ tests:
   });
 
   it('rejects a malformed scalar tags value loudly rather than dropping it', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: scalar-tags
+    const { filePath, dir } = createTempYaml(`name: scalar-tags
 tags: not-a-list
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Hi"
-    criteria: "Greet"
+    criteria: Greet
+    vars:
+      input: Hi
 `);
 
     await expect(loadTestSuite(filePath, dir)).rejects.toThrow(/Invalid .*tags/);
   });
 
   it('lets top-level tags override metadata-block tags on key collisions', async () => {
-    const { filePath, dir } = createTempYaml(`
-name: collision-eval
+    const { filePath, dir } = createTempYaml(`name: collision-eval
 tags:
   experiment: top-level
 metadata:
   tags:
     experiment: metadata-block
     team: compliance
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Hi"
-    criteria: "Greet"
+    criteria: Greet
+    vars:
+      input: Hi
 `);
 
     const suite = await loadTestSuite(filePath, dir);

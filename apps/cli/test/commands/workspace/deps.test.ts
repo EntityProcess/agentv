@@ -21,17 +21,19 @@ describe('workspace deps', () => {
       await mkdir(path.dirname(evalPath), { recursive: true });
       await writeFile(
         evalPath,
-        `
-workspace:
+        `workspace:
   repos:
     - path: ./repo
       source:
         type: git
         url: https://github.com/org/repo.git
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: hello
     criteria: world
+    vars:
+      input: hello
 `,
         'utf8',
       );

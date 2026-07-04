@@ -228,19 +228,22 @@ function buildPlannedResumeIdentityKeys(
     test.source?.evalFileAbsolutePath,
   ]);
   const suites = Array.from(new Set<string | null>([test.suite ?? null, null]));
+  const promptIds = Array.from(new Set<string | null>([test.prompt?.id ?? null, null]));
 
   for (const evalPath of evalPaths) {
     for (const suite of suites) {
-      keys.add(
-        JSON.stringify({
-          eval_path: evalPath,
-          suite,
-          test_id: test.id ?? 'unknown',
-          prompt_id: test.prompt?.id ?? null,
-          target: target ?? 'unknown',
-          variant: variant ?? null,
-        }),
-      );
+      for (const promptId of promptIds) {
+        keys.add(
+          JSON.stringify({
+            eval_path: evalPath,
+            suite,
+            test_id: test.id ?? 'unknown',
+            prompt_id: promptId,
+            target: target ?? 'unknown',
+            variant: variant ?? null,
+          }),
+        );
+      }
     }
   }
 

@@ -63,7 +63,7 @@ For each assertion in the test's `assertions[]`, evaluate it natively based on i
 
 | Type | How to evaluate |
 |------|----------------|
-| `llm-rubric` | Read the `prompt` field. Evaluate the response against those criteria. Score 0.0-1.0 with evidence. |
+| `llm-rubric` | Read `value` for free-form criteria, `rubrics` for itemized criteria, or `prompt_content`/`prompt` for a custom grading prompt. Evaluate the response against those criteria. Score 0.0-1.0 with evidence. |
 | `rubric` / `rubrics` | Read rubric items/criteria. Score each item 0.0-1.0. Aggregate as weighted average. |
 
 For LLM-graded types: be rigorous and fair. Score based on substance, not exact wording. If a `criteria` field exists on the test case, use it as additional context for your evaluation. If `expected_output` exists, use it as a reference answer (not as the only correct answer).

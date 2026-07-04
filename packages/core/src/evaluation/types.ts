@@ -1049,6 +1049,7 @@ export interface EvalTest {
   readonly suite?: string;
   readonly category?: string;
   readonly conversation_id?: string;
+  readonly description?: string;
   readonly prompt?: EvalPromptIdentity;
   readonly question: string;
   readonly input: readonly TestMessage[];

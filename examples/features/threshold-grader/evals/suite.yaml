@@ -1,19 +1,15 @@
 name: threshold-grader-example
 description: Demonstrates assert-set threshold grouping
-
-# Demonstrates assert-set threshold scoring across child graders.
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: flexible-gate
-    input:
-      - role: user
-        content: "Summarize the benefits of renewable energy."
     expected_output:
       - role: assistant
-        content: |
-          Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and decreases dependence on finite fossil fuels.
+        content: >
+          Renewable energy reduces greenhouse gas emissions, lowers long-term energy costs, and
+          decreases dependence on finite fossil fuels.
     assert:
       - metric: flexible_gate
         type: assert-set
@@ -22,8 +18,7 @@ tests:
           - metric: accuracy_check
             type: llm-rubric
             value:
-              - Response accurately describes the benefits of renewable energy
-                with correct facts
+              - Response accurately describes the benefits of renewable energy with correct facts
           - metric: completeness_check
             type: llm-rubric
             value:
@@ -34,3 +29,7 @@ tests:
               - Response is concise and well-structured
       - |
         The response should be accurate, concise, and cover key benefits of renewable energy.
+    vars:
+      input:
+        - role: user
+          content: Summarize the benefits of renewable energy.

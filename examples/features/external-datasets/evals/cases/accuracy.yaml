@@ -1,9 +1,10 @@
 - id: accuracy-basic-math
   assert:
-    - "The agent should correctly answer the math question"
-  input: "What is 15 + 27?"
-
+    - The agent should correctly answer the math question
+  vars:
+    input: What is 15 + 27?
 - id: accuracy-capital
   assert:
-    - "The agent should correctly identify the capital city"
-  input: "What is the capital of France?"
+    - The agent should correctly identify the capital city
+  vars:
+    input: What is the capital of France?

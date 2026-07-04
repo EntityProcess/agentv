@@ -16,6 +16,72 @@ import { RESULT_INDEX_FILENAME } from '../../src/evaluation/run-artifacts.js';
 const PROGRAMMATIC_API_TIMEOUT_MS = 15_000;
 
 describe('evaluate() — programmatic API extensions', () => {
+  it(
+    'renders inline prompts with per-test vars',
+    async () => {
+      const { results, summary } = await evaluate({
+        prompts: ['Say {{ greeting }} to {{ name }}'],
+        tests: [
+          {
+            id: 'prompt-vars',
+            vars: { greeting: 'hello', name: 'Ada' },
+            assert: [{ type: 'contains', value: 'hello to Ada' }],
+          },
+        ],
+        task: async (input) => input,
+      });
+
+      expect(summary.passed).toBe(1);
+      expect(results[0].input).toEqual([{ role: 'user', content: 'Say hello to Ada' }]);
+    },
+    PROGRAMMATIC_API_TIMEOUT_MS,
+  );
+
+  it(
+    'renders inline chat prompts with per-test vars',
+    async () => {
+      const { results, summary } = await evaluate({
+        prompts: [
+          [
+            { role: 'system', content: 'You are concise.' },
+            { role: 'user', content: '{{ request }}' },
+          ],
+        ],
+        tests: [
+          {
+            id: 'chat-prompt-vars',
+            vars: { request: 'Say hello' },
+            assert: [{ type: 'contains', value: 'Say hello' }],
+          },
+        ],
+        task: async (input) => input,
+      });
+
+      expect(summary.passed).toBe(1);
+      expect(results[0].input).toEqual([
+        { role: 'system', content: 'You are concise.' },
+        { role: 'user', content: 'Say hello' },
+      ]);
+    },
+    PROGRAMMATIC_API_TIMEOUT_MS,
+  );
+
+  it('rejects non-conversation tests[].input', async () => {
+    await expect(
+      evaluate({
+        prompts: ['{{ input }}'],
+        tests: [
+          {
+            id: 'mixed-input',
+            input: 'Say hello',
+            vars: { input: 'Say goodbye' },
+          } as never,
+        ],
+        task: async (input) => input,
+      }),
+    ).rejects.toThrow('tests[].input has been removed');
+  });
+
   // ---------------------------------------------------------------------------
   // budgetUsd
   // ---------------------------------------------------------------------------
@@ -24,10 +90,11 @@ describe('evaluate() — programmatic API extensions', () => {
     'accepts budgetUsd and passes it to the orchestrator',
     async () => {
       const { summary } = await evaluate({
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'budget-test',
-            input: 'hello',
+            vars: { input: 'hello' },
             assertions: [{ type: 'contains', value: 'hello' }],
           },
         ],
@@ -43,15 +110,16 @@ describe('evaluate() — programmatic API extensions', () => {
     'excludes execution errors from quality summary counts',
     async () => {
       const { results, summary } = await evaluate({
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'quality-pass',
-            input: 'ok',
+            vars: { input: 'ok' },
             assertions: [{ type: 'contains', value: 'task ok' }],
           },
           {
             id: 'provider-error',
-            input: 'explode',
+            vars: { input: 'explode' },
             assertions: [{ type: 'contains', value: 'task ok' }],
           },
         ],
@@ -87,10 +155,11 @@ describe('evaluate() — programmatic API extensions', () => {
       const cachePath = mkdtempSync(path.join(tmpdir(), 'agentv-programmatic-cache-'));
       try {
         const { summary } = await evaluate({
+          prompts: ['{{ input }}'],
           tests: [
             {
               id: 'programmatic-cache-path',
-              input: 'hello',
+              vars: { input: 'hello' },
               assertions: [{ type: 'contains', value: 'cached' }],
             },
           ],
@@ -118,10 +187,11 @@ describe('evaluate() — programmatic API extensions', () => {
       const outputDir = mkdtempSync(path.join(tmpdir(), 'agentv-programmatic-artifacts-'));
       try {
         const result = await evaluate({
+          prompts: ['{{ input }}'],
           tests: [
             {
               id: 'programmatic-artifacts',
-              input: 'hello',
+              vars: { input: 'hello' },
               assertions: [{ type: 'contains', value: 'mock' }],
             },
           ],
@@ -352,10 +422,11 @@ describe('evaluate() — programmatic API extensions', () => {
       // beforeAll requires a workspace to execute in; without repos it just attaches
       // the hook config. This test verifies the type is accepted without throwing.
       const { summary } = await evaluate({
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'before-all-string',
-            input: 'hello',
+            vars: { input: 'hello' },
             assertions: [{ type: 'contains', value: 'test' }],
           },
         ],
@@ -371,10 +442,11 @@ describe('evaluate() — programmatic API extensions', () => {
     'accepts beforeAll as a string array',
     async () => {
       const { summary } = await evaluate({
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'before-all-array',
-            input: 'hello',
+            vars: { input: 'hello' },
             assertions: [{ type: 'contains', value: 'test' }],
           },
         ],
@@ -420,18 +492,15 @@ describe('evaluate() — programmatic API extensions', () => {
     PROGRAMMATIC_API_TIMEOUT_MS,
   );
 
-  // ---------------------------------------------------------------------------
-  // Backwards compatibility: input still works as before
-  // ---------------------------------------------------------------------------
-
   it(
-    'still works with standard single-turn input',
+    'uses prompts with standard single-turn vars',
     async () => {
       const { summary } = await evaluate({
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'standard-input',
-            input: 'hello',
+            vars: { input: 'hello' },
             assertions: [{ type: 'contains', value: 'hello' }],
           },
         ],
@@ -462,15 +531,15 @@ describe('evaluate() — programmatic API extensions', () => {
   // ---------------------------------------------------------------------------
 
   it(
-    'throws when input is missing on a non-conversation test',
+    'throws when prompts are missing on a non-conversation test',
     async () => {
-      expect(() =>
+      await expect(
         evaluate({
           // biome-ignore lint/suspicious/noExplicitAny: intentionally testing invalid input
           tests: [{ id: 'no-input', assertions: [{ type: 'contains', value: 'x' }] } as any],
           target: { name: 'default', provider: 'mock', response: 'hello' },
         }),
-      ).toThrow("Test 'no-input': input is required for non-conversation tests");
+      ).rejects.toThrow("Test 'no-input': prompts are required for non-conversation tests");
     },
     PROGRAMMATIC_API_TIMEOUT_MS,
   );

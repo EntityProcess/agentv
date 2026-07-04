@@ -5,10 +5,11 @@ const config: EvalConfig = {
     name: 'default-export-suite',
     tags: ['sdk', 'typescript'],
   },
+  prompts: ['{{ input }}'],
   tests: [
     {
       id: 'greeting',
-      input: 'Say hello',
+      vars: { input: 'Say hello' },
       assert: [{ type: 'contains', value: 'hello' }],
     },
   ],

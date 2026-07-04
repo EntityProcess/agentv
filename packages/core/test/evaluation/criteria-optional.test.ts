@@ -20,13 +20,16 @@ describe('criteria is optional when expected_output or assertions is present', (
   it('accepts test with expected_output and no criteria', async () => {
     await writeFile(
       path.join(tempDir, 'expected-output.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: test-01
-    input: "sample prompt"
-    expected_output: "sample expected output"
+    expected_output: sample expected output
     assert:
       - type: contains
         value: sample
+    vars:
+      input: sample prompt
 `,
     );
 
@@ -39,13 +42,16 @@ describe('criteria is optional when expected_output or assertions is present', (
   it('accepts test with assertions only and no criteria', async () => {
     await writeFile(
       path.join(tempDir, 'assert-only.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: test-02
-    input: "sample prompt"
     assert:
       - type: llm-rubric
         value:
           - response includes sample expected output
+    vars:
+      input: sample prompt
 `,
     );
 
@@ -73,9 +79,12 @@ describe('criteria is optional when expected_output or assertions is present', (
   it('skips test with no criteria, no expected_output, and no assertions', async () => {
     await writeFile(
       path.join(tempDir, 'no-eval-spec.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: test-04
-    input: "sample prompt"
+    vars:
+      input: sample prompt
 `,
     );
 
@@ -86,10 +95,13 @@ describe('criteria is optional when expected_output or assertions is present', (
   it('accepts test with criteria (original behavior)', async () => {
     await writeFile(
       path.join(tempDir, 'with-criteria.eval.yaml'),
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: test-05
-    input: "sample prompt"
-    criteria: "responds correctly"
+    criteria: responds correctly
+    vars:
+      input: sample prompt
 `,
     );
 

@@ -1,23 +1,13 @@
-# Multi-turn conversation evaluation (live turn-by-turn)
-# Each turn generates a fresh LLM call; per-turn assertions grade each response.
-# This is different from multi-turn-conversation/ which scripts intermediate turns.
-
 description: Live multi-turn conversation evaluation with per-turn grading
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
-  # Test 1: Basic context retention across turns
   - id: context-retention
     mode: conversation
     assert:
       - Agent maintains context and provides relevant responses across turns
     aggregation: mean
-    input:
-      - role: system
-        content: |-
-          You are a helpful math tutor. Be concise and accurate.
-          Always show your work step by step.
     turns:
       - input: What is 15% of 200?
         assert:
@@ -31,16 +21,17 @@ tests:
         assert:
           - Recalls that the user asked about 15% and 200
           - Demonstrates memory of the conversation context
-
-  # Test 2: With aggregation: min (weakest-link scoring)
+    vars:
+      input:
+        - role: system
+          content: |-
+            You are a helpful math tutor. Be concise and accurate.
+            Always show your work step by step.
   - id: weakest-link-scoring
     mode: conversation
     assert:
       - Agent provides accurate, well-structured responses
     aggregation: min
-    input:
-      - role: system
-        content: You are a concise geography expert. Answer in 1-2 sentences.
     turns:
       - input: What is the capital of France?
         assert:
@@ -49,16 +40,15 @@ tests:
         assert:
           - Recognizes the question refers to Paris from the previous turn
           - Confirms Paris is in France
-
-  # Test 3: With on_turn_failure: stop
+    vars:
+      input:
+        - role: system
+          content: You are a concise geography expert. Answer in 1-2 sentences.
   - id: stop-on-failure
     mode: conversation
     on_turn_failure: stop
     assert:
       - Agent follows instructions precisely
-    input:
-      - role: system
-        content: You are a helpful assistant. Be precise and accurate.
     turns:
       - input: What is 2 + 2?
         assert:
@@ -67,15 +57,14 @@ tests:
         assert:
           - References the previous answer
           - Calculates 12 correctly
-
-  # Test 4: Mixed string and structured assertions
+    vars:
+      input:
+        - role: system
+          content: You are a helpful assistant. Be precise and accurate.
   - id: mixed-assertions
     mode: conversation
     assert:
       - Agent writes correct, well-formed Python code
-    input:
-      - role: system
-        content: You are a helpful coding assistant.
     turns:
       - input: Write a Python function that adds two numbers.
         assert:
@@ -86,14 +75,13 @@ tests:
         assert:
           - Includes type hints (int, float, or similar)
           - type: contains
-            value: "->"
-
-  # Test 5: Conversation-level assertions
+            value: ->
+    vars:
+      input:
+        - role: system
+          content: You are a helpful coding assistant.
   - id: conversation-coherence
     mode: conversation
-    input:
-      - role: system
-        content: You are a helpful travel advisor. Be concise.
     turns:
       - input: I want to visit somewhere warm in December.
         assert:
@@ -103,7 +91,10 @@ tests:
           - Adjusts recommendations toward beach destinations
           - Does not suggest purely urban destinations
     assert:
-      - Agent maintains consistency — later suggestions align with earlier
-        preferences
+      - Agent maintains consistency — later suggestions align with earlier preferences
       - Agent does not contradict its own prior recommendations
       - Agent maintains a coherent, helpful conversation
+    vars:
+      input:
+        - role: system
+          content: You are a helpful travel advisor. Be concise.

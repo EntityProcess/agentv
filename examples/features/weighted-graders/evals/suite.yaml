@@ -1,72 +1,65 @@
 name: weighted-graders-examples
-
-# This example demonstrates per-grader weights for top-level aggregation
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
-  # Example 1: Different weights for multiple graders
   - id: weighted-multi-grader
-    input:
-      - role: user
-        content: "Explain the concept of neural networks."
     expected_output:
       - role: assistant
-        content: |
-          Neural networks are computational models inspired by biological neurons. They consist of interconnected layers of nodes (neurons) that process information through weighted connections. These networks learn patterns from data by adjusting connection weights during training.
+        content: >
+          Neural networks are computational models inspired by biological neurons. They consist of
+          interconnected layers of nodes (neurons) that process information through weighted
+          connections. These networks learn patterns from data by adjusting connection weights
+          during training.
     assert:
-      # Safety is most important - weight 3.0
       - metric: safety-check
         type: llm-rubric
         prompt: file://../prompts/safety-check.md
-        weight: 3.0
-      # Quality is important but less critical than safety - weight 2.0
+        weight: 3
       - metric: quality-check
         type: llm-rubric
         prompt: file://../prompts/quality-evaluation.md
-        weight: 2.0
-      # Style is least important - weight 1.0 (or omit for default)
+        weight: 2
       - metric: style-check
         type: llm-rubric
         prompt: file://../prompts/style-evaluation.md
-        weight: 1.0
+        weight: 1
       - |
         The response should be accurate, safe, and well-structured.
-
-  # Example 2: Using weight 0 to exclude an grader
+    vars:
+      input:
+        - role: user
+          content: Explain the concept of neural networks.
   - id: experimental-grader-disabled
-    input:
-      - role: user
-        content: "What is reinforcement learning?"
     expected_output:
       - role: assistant
-        content: |
-          Reinforcement learning is a type of machine learning where an agent learns to make decisions by interacting with an environment. The agent receives rewards or penalties for its actions and learns to maximize cumulative rewards over time.
+        content: >
+          Reinforcement learning is a type of machine learning where an agent learns to make
+          decisions by interacting with an environment. The agent receives rewards or penalties for
+          its actions and learns to maximize cumulative rewards over time.
     assert:
       - metric: accuracy
         type: llm-rubric
         prompt: file://../prompts/accuracy-check.md
-        weight: 1.0
-      # Experimental grader - excluded from aggregation with weight 0
-      # Useful for collecting data without affecting the score
+        weight: 1
       - metric: experimental-metric
         type: llm-rubric
         prompt: file://../prompts/experimental-check.md
         weight: 0
       - |
         The response should be accurate and complete.
-
-  # Example 3: Default weights (all graders weighted equally)
+    vars:
+      input:
+        - role: user
+          content: What is reinforcement learning?
   - id: equal-weights-default
-    input:
-      - role: user
-        content: "Describe deep learning."
     expected_output:
       - role: assistant
-        content: |
-          Deep learning is a subset of machine learning that uses neural networks with multiple layers (deep neural networks). Each layer learns to extract increasingly abstract features from the input data, enabling the model to learn complex patterns and representations.
+        content: >
+          Deep learning is a subset of machine learning that uses neural networks with multiple
+          layers (deep neural networks). Each layer learns to extract increasingly abstract features
+          from the input data, enabling the model to learn complex patterns and representations.
     assert:
-      # Omitting weight defaults to 1.0
       - metric: correctness
         type: llm-rubric
         prompt: file://../prompts/correctness-check.md
@@ -78,3 +71,7 @@ tests:
         prompt: file://../prompts/clarity-check.md
       - |
         The response should be comprehensive and accurate.
+    vars:
+      input:
+        - role: user
+          content: Describe deep learning.

@@ -1,17 +1,20 @@
 name: script-grader-contract
 description: Release gate verifying the script-grader stdin payload contract.
-
 target: github-models-contract
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: script-grader-stdin-payload
-    input:
-      - role: system
-        content: "Use the literal token RELEASE as the first word in your response."
-      - role: user
-        content: "Use the literal token CONTRACT as the second word in your response."
     assert:
       - metric: script-grader-payload-contract
         type: script
-        command: [ "bun", "../scripts/check-script-grader-payload.ts" ]
+        command:
+          - bun
+          - ../scripts/check-script-grader-payload.ts
       - Response includes both literal tokens RELEASE and CONTRACT.
+    vars:
+      input:
+        - role: system
+          content: Use the literal token RELEASE as the first word in your response.
+        - role: user
+          content: Use the literal token CONTRACT as the second word in your response.

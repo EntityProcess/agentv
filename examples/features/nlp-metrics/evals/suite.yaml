@@ -1,97 +1,99 @@
-# NLP Metrics Grader Examples
-# Demonstrates ROUGE, BLEU, cosine similarity, and Levenshtein distance
-# as script_grader graders — no external dependencies required.
-
 name: nlp-metrics
 description: NLP text-quality metrics using script_grader graders
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: summarisation-rouge
-
-    input:
-      - role: user
-        content: Summarise the following article in one sentence.
-
     expected_output:
       - role: assistant
         content: The quick brown fox jumps over the lazy dog near the river bank.
-
     assert:
       - metric: rouge-score
         type: script
-        command: [ "bun", "run", "../graders/rouge.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/rouge.ts
       - Summary captures key points from the original text.
-
+    vars:
+      input:
+        - role: user
+          content: Summarise the following article in one sentence.
   - id: translation-bleu
-
-    input:
-      - role: user
-        content: Translate the following sentence to English.
-
     expected_output:
       - role: assistant
         content: The cat sat on the mat and watched the birds in the garden.
-
     assert:
       - metric: bleu-score
         type: script
-        command: [ "bun", "run", "../graders/bleu.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/bleu.ts
       - Translation preserves meaning and word choice of the reference.
-
+    vars:
+      input:
+        - role: user
+          content: Translate the following sentence to English.
   - id: paraphrase-similarity
-
-    input:
-      - role: user
-        content: Paraphrase the following sentence.
-
     expected_output:
       - role: assistant
-        content: Machine learning models require large amounts of training data to
-          perform well.
-
+        content: Machine learning models require large amounts of training data to perform well.
     assert:
       - metric: cosine-similarity
         type: script
-        command: [ "bun", "run", "../graders/similarity.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/similarity.ts
       - Paraphrase conveys the same meaning as the reference.
-
+    vars:
+      input:
+        - role: user
+          content: Paraphrase the following sentence.
   - id: extraction-levenshtein
-
-    input:
-      - role: user
-        content: Extract the product name from this invoice.
-
     expected_output:
       - role: assistant
-        content: "Widget Pro 3000"
-
+        content: Widget Pro 3000
     assert:
       - metric: edit-distance
         type: script
-        command: [ "bun", "run", "../graders/levenshtein.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/levenshtein.ts
       - Extracted text closely matches the expected value.
-
+    vars:
+      input:
+        - role: user
+          content: Extract the product name from this invoice.
   - id: multi-metric-evaluation
-
-    input:
-      - role: user
-        content: Rewrite the following paragraph more concisely.
-
     expected_output:
       - role: assistant
-        content: Artificial intelligence is transforming healthcare by enabling faster
-          diagnosis and personalised treatment plans.
-
+        content: Artificial intelligence is transforming healthcare by enabling faster diagnosis and
+          personalised treatment plans.
     assert:
       - metric: rouge-score
         type: script
-        command: [ "bun", "run", "../graders/rouge.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/rouge.ts
       - metric: cosine-similarity
         type: script
-        command: [ "bun", "run", "../graders/similarity.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/similarity.ts
       - metric: edit-distance
         type: script
-        command: [ "bun", "run", "../graders/levenshtein.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/levenshtein.ts
       - Response is evaluated by multiple NLP metrics simultaneously.
+    vars:
+      input:
+        - role: user
+          content: Rewrite the following paragraph more concisely.

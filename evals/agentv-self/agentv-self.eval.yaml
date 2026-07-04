@@ -1,39 +1,29 @@
 name: agentv-self-guidance
-description: >-
-  Validates the current AgentV repo guidance split, repo-change preflight,
-  and wire-format naming rules by requiring the agent to inspect the live
-  AGENTS index and linked `.agents/*.md` files from the prepared eval workspace.
-
-tags: [agent, guidance]
-
+description: Validates the current AgentV repo guidance split, repo-change preflight, and
+  wire-format naming rules by requiring the agent to inspect the live AGENTS index and linked
+  `.agents/*.md` files from the prepared eval workspace.
+tags:
+  - agent
+  - guidance
 workspace:
   hooks:
     before_all:
       command:
         - node
         - ./scripts/setup.mjs
-
-input:
-  - role: user
-    content:
-      - type: text
-        value: |
-          The eval harness has prepared the current AgentV repo in your working
-          directory. Follow the repo-facing agent instructions from disk. Start
-          with AGENTS.md and read any linked guidance needed for the request.
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: guidance-split-paths
-    criteria: Agent points detailed workflow, verification, and conventions questions at the linked `.agents` docs after reading the relevant guidance files.
-    input: |
-      List the three relative file paths that contain the detailed rules for
-      workflow, verification, and conventions. Include the top-level title from
-      each file after the path.
-      Reply with one path and title per line and nothing else.
+    criteria: Agent points detailed workflow, verification, and conventions questions at the linked
+      `.agents` docs after reading the relevant guidance files.
     assert:
       - name: required-guidance-reads
         type: script
-        command: ["bun", "run", "./graders/required-file-reads.ts"]
+        command:
+          - bun
+          - run
+          - ./graders/required-file-reads.ts
         cwd: .
         required: true
         config:
@@ -50,18 +40,34 @@ tests:
         value: .agents/conventions.md
       - type: llm-rubric
         value:
-          - Returns the detailed `.agents/*.md` paths rather than treating `AGENTS.md` as the full instruction body
+          - Returns the detailed `.agents/*.md` paths rather than treating `AGENTS.md` as the full
+            instruction body
           - Uses relative repo paths, not prose summaries
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: text
+              value: |
+                The eval harness has prepared the current AgentV repo in your working
+                directory. Follow the repo-facing agent instructions from disk. Start
+                with AGENTS.md and read any linked guidance needed for the request.
+        - role: user
+          content: |
+            List the three relative file paths that contain the detailed rules for
+            workflow, verification, and conventions. Include the top-level title from
+            each file after the path.
+            Reply with one path and title per line and nothing else.
   - id: repo-change-preflight
-    criteria: Agent names the required git commands that must start every repo change after reading the repo workflow guidance.
-    input: |
-      What two exact shell commands must start every repo change in this repository?
-      Reply with one command per line and nothing else.
+    criteria: Agent names the required git commands that must start every repo change after reading the
+      repo workflow guidance.
     assert:
       - name: required-guidance-reads
         type: script
-        command: ["bun", "run", "./graders/required-file-reads.ts"]
+        command:
+          - bun
+          - run
+          - ./graders/required-file-reads.ts
         cwd: .
         required: true
         config:
@@ -72,17 +78,28 @@ tests:
         value: git fetch origin
       - type: contains
         value: git status --short --branch
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: text
+              value: |
+                The eval harness has prepared the current AgentV repo in your working
+                directory. Follow the repo-facing agent instructions from disk. Start
+                with AGENTS.md and read any linked guidance needed for the request.
+        - role: user
+          content: |
+            What two exact shell commands must start every repo change in this repository?
+            Reply with one command per line and nothing else.
   - id: wire-format-snake-case
     criteria: Agent keeps wire-format keys in snake_case after reading the repo conventions guidance.
-    input: |
-      What key naming convention should anything that crosses a process boundary use
-      in this repository?
-      Reply with just the convention name.
     assert:
       - name: required-guidance-reads
         type: script
-        command: ["bun", "run", "./graders/required-file-reads.ts"]
+        command:
+          - bun
+          - run
+          - ./graders/required-file-reads.ts
         cwd: .
         required: true
         config:
@@ -91,3 +108,17 @@ tests:
             - .agents/conventions.md
       - type: equals
         value: snake_case
+    vars:
+      input:
+        - role: user
+          content:
+            - type: text
+              value: |
+                The eval harness has prepared the current AgentV repo in your working
+                directory. Follow the repo-facing agent instructions from disk. Start
+                with AGENTS.md and read any linked guidance needed for the request.
+        - role: user
+          content: |
+            What key naming convention should anything that crosses a process boundary use
+            in this repository?
+            Reply with just the convention name.

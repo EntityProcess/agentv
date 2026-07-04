@@ -1,12 +1,8 @@
 description: Trace grading over an imported Codex transcript fixture
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: imported-codex-config-fix
-
-    input:
-      - role: user
-        content: Inspect the project and change the default request timeout to 5000ms.
-
     assert:
       - metric: imported-tool-sequence
         type: tool-trajectory
@@ -22,17 +18,22 @@ tests:
           - tool: Edit
             args:
               path: src/config.ts
-
       - metric: imported-execution-budget
         type: execution-metrics
         max_tool_calls: 5
         max_llm_calls: 5
         max_duration_ms: 5000
-
       - metric: replay-proof
         type: script
-        command: [ "bun", "run", "../graders/replay-proof.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/replay-proof.ts
         require_metrics: false
       - |-
         The imported coding-agent transcript should show a repository inspection,
         a targeted config edit, and a concise final explanation.
+    vars:
+      input:
+        - role: user
+          content: Inspect the project and change the default request timeout to 5000ms.
