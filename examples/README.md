@@ -2,6 +2,12 @@
 
 This directory contains working examples demonstrating AgentV's evaluation capabilities.
 
+For the authored eval contract behind these examples, start with the
+[Eval files](https://agentv.dev/docs/evaluation/eval-files/) reference. The
+[Promptfoo parity matrix](https://agentv.dev/docs/reference/promptfoo-parity/)
+calls out which fields align with Promptfoo-style evals and which AgentV fields
+are repo-native extensions.
+
 ## Setup
 
 Examples are self-contained packages with their own dependencies. Before running any example, install dependencies from the repository root:
