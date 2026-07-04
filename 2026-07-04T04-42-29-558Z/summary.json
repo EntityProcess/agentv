@@ -1,0 +1,169 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-04T04-42-29-558Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "pass_at_k": {
+    "k": 1,
+    "passed_cases": 1,
+    "total_cases": 1,
+    "rate": 1
+  },
+  "usage": {
+    "total_tokens": 421,
+    "input_tokens": 399,
+    "output_tokens": 22,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "exact-token-local-endpoint",
+      "suite": "provider-followup",
+      "eval_path": ".agentv/cache/av-7yhs/provider-followup.eval.yaml",
+      "target": "pi-cli-local-openai",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "exact-token-local-endpoint",
+          "suite": "provider-followup",
+          "eval_path": ".agentv/cache/av-7yhs/provider-followup.eval.yaml",
+          "target": "pi-cli-local-openai",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 5207
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "instances": [
+    {
+      "test_id": "exact-token-local-endpoint",
+      "suite": "provider-followup",
+      "eval_path": ".agentv/cache/av-7yhs/provider-followup.eval.yaml",
+      "target": "pi-cli-local-openai",
+      "sample_index": 1,
+      "verdict": "pass",
+      "score": 1,
+      "execution_status": "ok",
+      "duration_ms": 5207
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-04T04-42-29-558Z",
+    "eval_file": "/home/entity/projects/EntityProcess/agentv__worktrees/provider-transcript-parity/.agentv/cache/av-7yhs/provider-followup.eval.yaml",
+    "timestamp": "2026-07-04T04:42:37.953Z",
+    "targets": [
+      "pi-cli-local-openai"
+    ],
+    "tests_run": [
+      "exact-token-local-endpoint"
+    ],
+    "experiment": "provider-followup",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "kind": "direct_suite",
+      "config_source": "cli_flags",
+      "experiment_namespace": "provider-followup",
+      "experiment_namespace_source": "eval_filename",
+      "eval_files": [
+        ".agentv/cache/av-7yhs/provider-followup.eval.yaml"
+      ],
+      "source_eval_files": [
+        ".agentv/cache/av-7yhs/provider-followup.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1,
+    "tags": {
+      "verification": "av-7yhs"
+    }
+  },
+  "run_summary": {
+    "pi-cli-local-openai": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 5.207,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 421,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "contains-AGENTV_TRANSCRIPT_PARITY_OK:contains": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "llm-rubric:llm-rubric": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 5207,
+      "total_seconds": 5.207,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 421,
+      "input": 399,
+      "output": 22,
+      "reasoning": 0,
+      "source": "provider_reported"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 1,
+      "total_tool_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "notes": []
+}
