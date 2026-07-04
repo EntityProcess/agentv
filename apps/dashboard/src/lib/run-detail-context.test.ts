@@ -78,24 +78,20 @@ describe('buildRunDetailHeader', () => {
       results: localRunResults,
       runtimeSource: {
         schema_version: 'agentv.runtime_source.v1',
-        kind: 'wrapper_eval',
         config_source: 'inline_experiment',
-        experiment_namespace: 'native-exp',
-        experiment_namespace_source: 'eval_metadata',
-        eval_files: ['evals/native-exp.eval.yaml'],
+        eval_files: ['evals/sample.eval.yaml'],
         wrapper_eval_file: 'evals/native-exp.eval.yaml',
-        source_eval_files: ['evals/sample.eval.yaml'],
       },
       formatTimestamp: (timestamp) => timestamp,
     });
 
     expect(header.sourceContext).toContainEqual({
       label: 'Experiment namespace',
-      value: 'native-exp',
+      value: 'default',
     });
     expect(header.sourceContext).toContainEqual({
       label: 'Runtime source',
-      value: 'Wrapper eval · Eval metadata namespace · Inline experiment config',
+      value: 'Inline experiment config',
     });
   });
 });

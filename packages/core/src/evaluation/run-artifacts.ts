@@ -110,27 +110,13 @@ const TIMING_SOURCE_VALUES = [
 
 type TimingSource = (typeof TIMING_SOURCE_VALUES)[number];
 
-export type RunRuntimeSourceKind = 'direct_suite' | 'wrapper_eval' | 'multi_eval';
-
 export type RunRuntimeConfigSource = 'defaults' | 'inline_experiment' | 'cli_flags' | 'mixed';
-
-export type ExperimentNamespaceSource =
-  | 'cli'
-  | 'tags'
-  | 'eval_metadata'
-  | 'eval_filename'
-  | 'multi_eval'
-  | 'unknown';
 
 export interface RunRuntimeSourceMetadata {
   readonly schema_version: 'agentv.runtime_source.v1';
-  readonly kind: RunRuntimeSourceKind;
   readonly config_source: RunRuntimeConfigSource;
-  readonly experiment_namespace: string;
-  readonly experiment_namespace_source: ExperimentNamespaceSource;
   readonly eval_files: readonly string[];
   readonly wrapper_eval_file?: string;
-  readonly source_eval_files?: readonly string[];
 }
 
 export function buildTestTargetKey(testId?: string, target?: string, variant?: string): string {
@@ -218,9 +204,6 @@ export async function aggregateRunDir(
 
   const previousMetadata = await readRunSummaryMetadata(path.join(runDir, RUN_SUMMARY_FILENAME));
   const plannedTestCount = options?.plannedTestCount ?? previousMetadata.plannedTestCount;
-  const runConfigPath = options?.experimentMetadata
-    ? `${RUN_INTERNAL_DIRNAME}/${RUN_CONFIG_FILENAME}`
-    : previousMetadata.runConfigPath;
   const runtimeSource = options?.runtimeSource ?? previousMetadata.runtimeSource;
   const tags = options?.tags ?? previousMetadata.tags;
 
@@ -233,11 +216,9 @@ export async function aggregateRunDir(
     options?.experimentMetadata,
     runtimeSource,
     tags,
-    runConfigPath,
   );
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-  await writeRunConfigArtifact(runDir, options?.experimentMetadata);
 
   const targetSet = new Set(results.map((r) => r.target ?? 'unknown'));
   return { summaryPath, testCount: results.length, targetCount: targetSet.size };
@@ -295,7 +276,6 @@ async function resolveExistingResultManifestPath(runDir: string): Promise<string
 
 async function readRunSummaryMetadata(summaryPath: string): Promise<{
   plannedTestCount?: number;
-  runConfigPath?: string;
   runtimeSource?: RunRuntimeSourceMetadata;
   tags?: Record<string, string>;
 }> {
@@ -304,7 +284,6 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
     const parsed = JSON.parse(raw) as {
       metadata?: {
         planned_test_count?: number;
-        run_config_path?: unknown;
         runtime_source?: RunRuntimeSourceMetadata;
         tags?: unknown;
       };
@@ -315,15 +294,9 @@ async function readRunSummaryMetadata(summaryPath: string): Promise<{
     const runtimeSource = isRunRuntimeSourceMetadata(parsed.metadata?.runtime_source)
       ? parsed.metadata.runtime_source
       : undefined;
-    const runConfigPath =
-      typeof parsed.metadata?.run_config_path === 'string' &&
-      parsed.metadata.run_config_path.trim().length > 0
-        ? parsed.metadata.run_config_path
-        : undefined;
     const tags = normalizeStringRecord(parsed.metadata?.tags);
     return {
       ...(plannedTestCount !== undefined && { plannedTestCount }),
-      ...(runConfigPath !== undefined && { runConfigPath }),
       ...(runtimeSource !== undefined && { runtimeSource }),
       ...(tags !== undefined && { tags }),
     };
@@ -357,20 +330,10 @@ function isRunRuntimeSourceMetadata(value: unknown): value is RunRuntimeSourceMe
   const candidate = value as Partial<RunRuntimeSourceMetadata>;
   return (
     candidate.schema_version === 'agentv.runtime_source.v1' &&
-    (candidate.kind === 'direct_suite' ||
-      candidate.kind === 'wrapper_eval' ||
-      candidate.kind === 'multi_eval') &&
     (candidate.config_source === 'defaults' ||
       candidate.config_source === 'inline_experiment' ||
       candidate.config_source === 'cli_flags' ||
       candidate.config_source === 'mixed') &&
-    typeof candidate.experiment_namespace === 'string' &&
-    (candidate.experiment_namespace_source === 'cli' ||
-      candidate.experiment_namespace_source === 'tags' ||
-      candidate.experiment_namespace_source === 'eval_metadata' ||
-      candidate.experiment_namespace_source === 'eval_filename' ||
-      candidate.experiment_namespace_source === 'multi_eval' ||
-      candidate.experiment_namespace_source === 'unknown') &&
     Array.isArray(candidate.eval_files) &&
     candidate.eval_files.every((entry) => typeof entry === 'string')
   );
@@ -520,12 +483,6 @@ export interface RunSummaryArtifact {
     readonly failed_cases: number;
     readonly errored_instances: number;
   };
-  readonly pass_at_k: {
-    readonly k: number;
-    readonly passed_cases: number;
-    readonly total_cases: number;
-    readonly rate: number;
-  };
   readonly usage: {
     readonly total_tokens: number;
     readonly input_tokens: number;
@@ -546,7 +503,6 @@ export interface RunSummaryArtifact {
     readonly variants?: readonly string[];
     readonly tests_run: readonly string[];
     readonly experiment?: string;
-    readonly run_config_path?: string;
     readonly runtime_source?: RunRuntimeSourceMetadata;
     readonly planned_test_count?: number;
     /**
@@ -574,7 +530,6 @@ export interface RunSummaryArtifact {
 
 export interface RunConfigArtifact {
   readonly schema_version: 'agentv.run_config.v1';
-  readonly experiment_config?: ExperimentArtifactMetadata;
 }
 
 export interface AggregateGradingArtifact {
@@ -1663,10 +1618,10 @@ export function buildRunSummaryArtifact(
   experiment?: string,
   runId?: string,
   plannedTestCount?: number,
-  experimentMetadata?: ExperimentArtifactMetadata,
+  _experimentMetadata?: ExperimentArtifactMetadata,
   runtimeSource?: RunRuntimeSourceMetadata,
   tags?: Record<string, string>,
-  runConfigPath?: string,
+  _runConfigPath?: string,
 ): RunSummaryArtifact {
   const targetSet = new Set<string>();
   const variantSet = new Set<string>();
@@ -1868,12 +1823,6 @@ export function buildRunSummaryArtifact(
       failed_cases: failedCases,
       errored_instances: erroredInstances,
     },
-    pass_at_k: {
-      k: 1,
-      passed_cases: passedCases,
-      total_cases: caseSummaries.length,
-      rate: percentage(passedCases, caseSummaries.length),
-    },
     usage: {
       total_tokens: runMetrics.tokens.total,
       input_tokens: runMetrics.tokens.input,
@@ -1896,10 +1845,6 @@ export function buildRunSummaryArtifact(
       variants: variants.length > 0 ? variants : undefined,
       tests_run: testIds,
       experiment,
-      run_config_path:
-        experimentMetadata !== undefined
-          ? `${RUN_INTERNAL_DIRNAME}/${RUN_CONFIG_FILENAME}`
-          : runConfigPath,
       runtime_source: runtimeSource,
       planned_test_count: plannedTestCount,
       tags: tags && Object.keys(tags).length > 0 ? tags : undefined,
@@ -1938,23 +1883,6 @@ export async function writeInitialRunSummaryArtifact(
   );
   const summaryPath = path.join(runDir, RUN_SUMMARY_FILENAME);
   await writeFile(summaryPath, `${JSON.stringify(stub, null, 2)}\n`, 'utf8');
-  await writeRunConfigArtifact(runDir, options.experimentMetadata);
-}
-
-async function writeRunConfigArtifact(
-  runDir: string,
-  experimentMetadata: ExperimentArtifactMetadata | undefined,
-): Promise<void> {
-  if (!experimentMetadata) {
-    return;
-  }
-  const config: RunConfigArtifact = {
-    schema_version: 'agentv.run_config.v1',
-    experiment_config: experimentMetadata,
-  };
-  const configPath = runInternalPath(runDir, RUN_CONFIG_FILENAME);
-  await mkdir(path.dirname(configPath), { recursive: true });
-  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 }
 
 export async function readRunConfigArtifact(
@@ -3404,9 +3332,6 @@ export async function writeArtifactsFromResults(
 
   const previousMetadata = await readRunSummaryMetadata(summaryPath);
   const plannedTestCount = options?.plannedTestCount ?? previousMetadata.plannedTestCount;
-  const runConfigPath = options?.experimentMetadata
-    ? `${RUN_INTERNAL_DIRNAME}/${RUN_CONFIG_FILENAME}`
-    : previousMetadata.runConfigPath;
   const runtimeSource = options?.runtimeSource ?? previousMetadata.runtimeSource;
   const summaryTags = resolvedTags ?? previousMetadata.tags;
   const summary = buildRunSummaryArtifact(
@@ -3418,10 +3343,8 @@ export async function writeArtifactsFromResults(
     options?.experimentMetadata,
     runtimeSource,
     summaryTags,
-    runConfigPath,
   );
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
-  await writeRunConfigArtifact(outputDir, options?.experimentMetadata);
 
   await mkdir(path.dirname(indexPath), { recursive: true });
   await writeJsonlFile(indexPath, indexRecords);

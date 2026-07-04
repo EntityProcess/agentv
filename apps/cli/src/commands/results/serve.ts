@@ -1447,7 +1447,6 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
           runtimeSource = deriveDashboardRuntimeSource({
             summaryMetadata,
             records,
-            inferredExperiment: experiment,
           });
         } else {
           // Run is in-progress with 0 results written yet — fall back to the
@@ -1456,7 +1455,6 @@ async function handleRuns(c: C, { searchDir, agentvDir, projectId }: DataContext
           runtimeSource = deriveDashboardRuntimeSource({
             summaryMetadata,
             records: [],
-            inferredExperiment: experiment,
           });
         }
       } catch {
@@ -1524,7 +1522,6 @@ async function handleRunDetail(c: C, { searchDir, projectId }: DataContext) {
     const runtimeSource = deriveDashboardRuntimeSource({
       summaryMetadata,
       records,
-      inferredExperiment: records[0]?.experiment,
     });
     // Surface run_dir + suite_filter for local runs so the UI can launch a
     // Dashboard-side resume against this exact run. Remote runs live in the
@@ -1646,7 +1643,6 @@ function deriveDashboardRuntimeSource(params: {
     runtimeSource?: RunRuntimeSourceMetadata;
     runtime_source?: RunRuntimeSourceMetadata;
   }[];
-  readonly inferredExperiment?: string;
 }): RunRuntimeSourceMetadata | undefined {
   const recordWithRuntimeSource = params.records.find(
     (record) => record.runtimeSource ?? record.runtime_source,
@@ -1659,25 +1655,17 @@ function deriveDashboardRuntimeSource(params: {
     return explicit;
   }
 
-  const experimentNamespace =
-    params.summaryMetadata.experiment ??
-    params.inferredExperiment ??
-    params.records.find((record) => record.experiment)?.experiment ??
-    'default';
   const evalFiles = uniqueRuntimeSourceValues([
     params.summaryMetadata.evalFile,
     ...params.records.map((record) => record.evalPath ?? record.eval_path),
   ]);
-  if (evalFiles.length === 0 && !experimentNamespace) {
+  if (evalFiles.length === 0) {
     return undefined;
   }
 
   return {
     schema_version: 'agentv.runtime_source.v1',
-    kind: evalFiles.length > 1 ? 'multi_eval' : 'direct_suite',
     config_source: 'defaults',
-    experiment_namespace: experimentNamespace,
-    experiment_namespace_source: 'unknown',
     eval_files: evalFiles,
   };
 }
@@ -3173,7 +3161,6 @@ export function createApp(
               runtimeSource = deriveDashboardRuntimeSource({
                 summaryMetadata,
                 records,
-                inferredExperiment: experiment,
               });
             }
           } catch {

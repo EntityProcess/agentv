@@ -893,13 +893,9 @@ describe('serve app', () => {
       const runDir = localRunDir(tempDir, experiment, filename);
       const runtimeSource = {
         schema_version: 'agentv.runtime_source.v1' as const,
-        kind: 'wrapper_eval' as const,
         config_source: 'inline_experiment' as const,
-        experiment_namespace: experiment,
-        experiment_namespace_source: 'eval_metadata' as const,
-        eval_files: ['evals/wrapper.eval.yaml'],
+        eval_files: ['evals/source.test.yaml'],
         wrapper_eval_file: 'evals/wrapper.eval.yaml',
-        source_eval_files: ['evals/source.test.yaml'],
       };
       mkdirSync(runDir, { recursive: true });
       writeFileSync(
@@ -4236,10 +4232,7 @@ describe('serve app', () => {
       const runDir = path.join(runsDir, filename);
       const runtimeSource = {
         schema_version: 'agentv.runtime_source.v1' as const,
-        kind: 'direct_suite' as const,
         config_source: 'defaults' as const,
-        experiment_namespace: 'cli-smoke',
-        experiment_namespace_source: 'cli' as const,
         eval_files: ['examples/demo.eval.yaml'],
       };
       mkdirSync(runDir, { recursive: true });
