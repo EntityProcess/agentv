@@ -22,6 +22,20 @@ export interface BuildResumeRequestParams {
   target?: string;
 }
 
+export interface BuildResumeActionMenuItemsParams {
+  ready: boolean;
+  busy: ResumeMode | null;
+  disabledReason: string;
+}
+
+export interface ResumeActionMenuItem {
+  mode: ResumeMode;
+  label: string;
+  title: string;
+  disabled: boolean;
+  testId: string;
+}
+
 /**
  * Whether the resume actions should be visible. The button is shown when:
  *   1. At least one recorded row has `execution_status: execution_error`, OR
@@ -67,4 +81,28 @@ export function buildResumeRequestBody(params: BuildResumeRequestParams): RunEva
     body.rerun_failed = true;
   }
   return body;
+}
+
+export function buildResumeActionMenuItems(
+  params: BuildResumeActionMenuItemsParams,
+): ResumeActionMenuItem[] {
+  const disabled = !params.ready || params.busy !== null;
+  return [
+    {
+      mode: 'rerun',
+      label: 'Re-run',
+      title: params.ready
+        ? 'Re-run failed or missing work, keep passing results'
+        : params.disabledReason,
+      disabled,
+      testId: 'rerun-failed-menu-item',
+    },
+    {
+      mode: 'resume',
+      label: 'Resume',
+      title: params.ready ? 'Resume missing or errored work' : params.disabledReason,
+      disabled,
+      testId: 'resume-run-menu-item',
+    },
+  ];
 }

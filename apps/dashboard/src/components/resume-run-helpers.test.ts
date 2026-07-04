@@ -2,7 +2,11 @@ import { describe, expect, it } from 'bun:test';
 
 import type { EvalResult } from '~/lib/types';
 
-import { buildResumeRequestBody, shouldShowResumeActions } from './resume-run-helpers';
+import {
+  buildResumeActionMenuItems,
+  buildResumeRequestBody,
+  shouldShowResumeActions,
+} from './resume-run-helpers';
 
 const ok = (testId: string): EvalResult => ({
   testId,
@@ -78,7 +82,7 @@ describe('buildResumeRequestBody', () => {
     });
   });
 
-  it('builds a rerun-failed request with rerun_failed:true (and no resume key)', () => {
+  it('builds a rerun-failed request with rerun_failed:true and no resume key', () => {
     const body = buildResumeRequestBody({
       mode: 'rerun',
       runDir: 'runs/r1',
@@ -106,5 +110,32 @@ describe('buildResumeRequestBody', () => {
       output: 'runs/r1',
       resume: true,
     });
+  });
+});
+
+describe('buildResumeActionMenuItems', () => {
+  it('renders concise action labels in the requested order', () => {
+    expect(
+      buildResumeActionMenuItems({
+        ready: true,
+        busy: null,
+        disabledReason: '',
+      }).map((item) => item.label),
+    ).toEqual(['Re-run', 'Resume']);
+  });
+
+  it('keeps unavailable actions visible but disabled with an explanation', () => {
+    const items = buildResumeActionMenuItems({
+      ready: false,
+      busy: null,
+      disabledReason: 'Run directory unavailable',
+    });
+
+    expect(items[0]?.mode).toBe('rerun');
+    expect(items[0]?.disabled).toBe(true);
+    expect(items[0]?.title).toBe('Run directory unavailable');
+    expect(items[1]?.mode).toBe('resume');
+    expect(items[1]?.disabled).toBe(true);
+    expect(items[1]?.title).toBe('Run directory unavailable');
   });
 });
