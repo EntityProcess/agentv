@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "0847deb64d0a",
+  "strategy": "manual-commit",
+  "branch": "docs/readme-evaluate-options-concurrency",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "apps/web/src/content/docs/docs/next/targets/configuration.mdx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/08/47deb64d0a/0/metadata.json",
+      "transcript": "/08/47deb64d0a/0/full.jsonl",
+      "content_hash": "/08/47deb64d0a/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 126632,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1027840,
+    "output_tokens": 5554,
+    "api_call_count": 14
+  }
+}

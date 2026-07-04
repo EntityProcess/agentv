@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.7.6",
+  "checkpoint_id": "0847deb64d0a",
+  "session_id": "019f280c-276e-73f3-88e4-72f6940bf971",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-03T22:51:01.655806433Z",
+  "branch": "docs/readme-evaluate-options-concurrency",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "apps/web/src/content/docs/docs/next/targets/configuration.mdx"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "be8843b43a4a",
+  "checkpoint_transcript_start": 5421,
+  "transcript_lines_at_start": 5421,
+  "token_usage": {
+    "input_tokens": 126632,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1027840,
+    "output_tokens": 5554,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-03T22:51:01.118207656Z",
+    "agent_lines": 1,
+    "agent_removed": 1,
+    "human_added": 9,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10,
+    "total_lines_changed": 24,
+    "agent_percentage": 8.333333333333332,
+    "metric_version": 2
+  }
+}

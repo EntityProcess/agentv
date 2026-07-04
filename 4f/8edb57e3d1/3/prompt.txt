@@ -1,0 +1,3 @@
+[[ ## user_query ## ]]
+
+Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz". Return only one Python code block.
