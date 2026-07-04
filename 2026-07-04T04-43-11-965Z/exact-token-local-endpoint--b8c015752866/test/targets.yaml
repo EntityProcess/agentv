@@ -1,0 +1,14 @@
+targets:
+  - id: copilot-cli-local-openai
+    model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+    provider: copilot-cli
+    config:
+      subprovider: openai
+      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
+      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
+      model_id: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+      api_format: responses
+      stream_log: raw
+      timeout_seconds: 180
+      runtime: host
+      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
