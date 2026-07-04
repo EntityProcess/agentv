@@ -1,0 +1,75 @@
+{
+  "schema_version": "agentv.metrics.v1",
+  "artifact_id": "metrics-eb428063509d2204aefa",
+  "generated_at": "2026-07-04T04:01:43.613Z",
+  "test_id": "exact-token",
+  "target": "codex-app-server-local",
+  "suite": "provider-sanity",
+  "category": "../../../../../../tmp/agentv-av-7yhs/provider-sanity",
+  "trace": {
+    "schema_version": "agentv.trace.v1",
+    "artifact_id": "execution-trace-eb428063509d2204aefa",
+    "trace_id": "aaa823107222e81e774b1024297ee4cb",
+    "root_span_id": "5418463a7a657511"
+  },
+  "source_artifacts": {
+    "transcript_path": "transcript.json",
+    "grading_path": "grading.json"
+  },
+  "metrics": {
+    "tool_calls": {},
+    "tool_call_counts": {},
+    "tool_category_counts": {},
+    "total_tool_calls": 0,
+    "total_steps": 1,
+    "total_turns": 1,
+    "tool_call_events": [],
+    "shell_commands": [],
+    "files_read": [],
+    "files_modified": [],
+    "files_created": [],
+    "files_deleted": [],
+    "web_fetches": [],
+    "errors": [
+      {
+        "message": "Codex CLI produced no output in --json mode",
+        "stage": "agent"
+      },
+      {
+        "message": "Codex CLI produced no output in --json mode",
+        "event_id": "error-3"
+      }
+    ],
+    "errors_encountered": 2,
+    "output_chars": 50,
+    "transcript_chars": 986,
+    "reasoning_blocks": [],
+    "thinking_blocks": 0
+  },
+  "duration": {
+    "total_ms": 438,
+    "total_seconds": 0.438,
+    "source": "provider_reported"
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "target_malformed_output"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}
