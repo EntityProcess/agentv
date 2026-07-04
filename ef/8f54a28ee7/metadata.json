@@ -5,31 +5,22 @@
   "branch": "fix/targets-id-validation",
   "checkpoints_count": 5,
   "files_touched": [
-    "packages/core/src/evaluation/loaders/config-loader.ts",
-    "packages/core/src/evaluation/providers/targets-file.ts",
-    "packages/core/src/evaluation/providers/targets.ts",
-    "packages/core/src/evaluation/providers/types.ts",
-    "packages/core/src/evaluation/validation/eval-file.schema.ts",
-    "packages/core/src/evaluation/validation/targets-validator.ts",
-    "packages/core/src/evaluation/yaml-parser.ts",
-    "packages/core/test/evaluation/loaders/config-loader.test.ts",
-    "packages/core/test/evaluation/providers/targets-file.test.ts",
-    "packages/core/test/evaluation/providers/targets.test.ts",
-    "packages/core/test/evaluation/validation/targets-validator.test.ts"
+    "packages/core/test/evaluation/eval-inline-experiment.test.ts",
+    "packages/core/test/evaluation/interpolation-integration.test.ts"
   ],
   "sessions": [
     {
       "metadata": "/ef/8f54a28ee7/0/metadata.json",
       "transcript": "/ef/8f54a28ee7/0/full.jsonl",
       "content_hash": "/ef/8f54a28ee7/0/content_hash.txt",
-      "prompt": "/ef/8f54a28ee7/0/prompt.txt"
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 1265724,
+    "input_tokens": 37396,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 16130048,
-    "output_tokens": 50647,
-    "api_call_count": 130
+    "cache_read_tokens": 3695872,
+    "output_tokens": 4136,
+    "api_call_count": 18
   }
 }
