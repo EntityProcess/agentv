@@ -3,7 +3,7 @@
  *
  * Displays all available runs with a pass/fail status dot, human-readable name,
  * a per-run "on remote" indicator (whether the run is backed up to the
- * configured results branch), date, quality test count, execution-error count,
+ * configured results branch), date, total test count, execution-error count,
  * and coloured pass-rate pill. Clicking a row navigates to the run detail view.
  *
  * On phone-width viewports the rows collapse to dense cards so right-side table
@@ -73,6 +73,7 @@ interface RunListItemView {
   label: string;
   display: RunDisplay;
   errors: number;
+  totalCount: number;
   qualityCount: number;
   passing: boolean;
   passedCount: number;
@@ -108,6 +109,7 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
   const display = formatRunDisplay(run, { includePassRate: false });
   const label = display.label;
   const errors = executionErrorCount(run);
+  const totalCount = run.test_count;
   const qualityCount = Math.max(0, run.test_count - errors);
   const passing = qualityCount > 0 ? run.pass_rate >= passThreshold : errors === 0;
   const passedCount = Math.round(run.pass_rate * qualityCount);
@@ -127,6 +129,7 @@ export function buildRunListItemView(run: RunMeta, passThreshold: number): RunLi
     label,
     display,
     errors,
+    totalCount,
     qualityCount,
     passing,
     passedCount,
@@ -431,7 +434,7 @@ export function RunList({
             label,
             display,
             errors,
-            qualityCount,
+            totalCount,
             passedCount,
             failedCount,
             experimentNamespace,
@@ -495,7 +498,7 @@ export function RunList({
                   <PassRatePill rate={run.pass_rate} />
                 </MobileRunMetric>
                 <MobileRunMetric label="Total" valueClassName="text-gray-300">
-                  {qualityCount}
+                  {totalCount}
                 </MobileRunMetric>
                 <MobileRunMetric label="Passed" valueClassName="text-emerald-300">
                   {passedCount}
@@ -548,7 +551,7 @@ export function RunList({
                 label,
                 display,
                 errors,
-                qualityCount,
+                totalCount,
                 passedCount,
                 failedCount,
                 experimentNamespace,
@@ -637,9 +640,7 @@ export function RunList({
                       <span className="text-gray-600">0</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">
-                    {qualityCount}
-                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">{totalCount}</td>
 
                   {/* Pass rate pill */}
                   <td className="px-4 py-3">
