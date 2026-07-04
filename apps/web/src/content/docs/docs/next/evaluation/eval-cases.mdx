@@ -404,17 +404,29 @@ tests:
       - Assistant correctly explains the bug and proposes a fix
 ```
 
-Suite-level `preprocessors` apply to explicit LLM graders. That matters when the
-agent output is a `ContentFile` block rather than plain text:
+Suite-level transforms apply before graders see the target output. That matters
+when the agent output is a `ContentFile` block rather than plain text:
 
 ```yaml
-preprocessors:
-  - type: xlsx
-    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+default_test:
+  options:
+    transform: >-
+      return (() => {
+        const file = Array.isArray(output)
+          ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
+          : undefined;
+        if (!file) return output;
+        const result = Bun.spawnSync(["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"], {
+          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
+        });
+        if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
+        return new TextDecoder().decode(result.stdout).trim();
+      })()
 
 tests:
   - id: spreadsheet-eval
-    input: Generate the spreadsheet report
+    vars:
+      input: Generate the spreadsheet report
     assert:
       - Output includes the revenue rows
 ```
@@ -466,22 +478,17 @@ tests:
         value: "fix"
 ```
 
-When you need a custom file conversion for only one grader, add `preprocessors` directly to that grader:
+When you need a custom output conversion for only one grader, add `transform` directly to that grader:
 
 ```yaml
-preprocessors:
-  - type: xlsx
-    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
-
 tests:
   - id: mixed-eval
-    input: "Debug this function..."
+    vars:
+      input: "Debug this function..."
     assert:
       - Response is helpful and mentions the fix
-      - type: llm-rubric        # use explicit form for custom preprocessors
-        preprocessors:
-          - type: xlsx
-            command: ["bun", "run", "scripts/preprocessors/xlsx-to-json.ts"]
+      - type: llm-rubric
+        transform: file://scripts/transforms/xlsx-to-json.ts
       - type: contains
         value: "fix"
 ```

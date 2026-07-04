@@ -135,8 +135,8 @@ describe('resolveTargetDefinition - fallback_targets', () => {
     const definition = {
       name: 'test-openai',
       provider: 'openai',
-      api_key: '${{ TEST_KEY }}',
-      model: '${{ TEST_MODEL }}',
+      api_key: '{{ env.TEST_KEY }}',
+      model: '{{ env.TEST_MODEL }}',
       fallback_targets: ['azure-llm', 'gemini-flash'],
     };
 
@@ -148,8 +148,8 @@ describe('resolveTargetDefinition - fallback_targets', () => {
     const definition = {
       name: 'test-openai',
       provider: 'openai',
-      api_key: '${{ TEST_KEY }}',
-      model: '${{ TEST_MODEL }}',
+      api_key: '{{ env.TEST_KEY }}',
+      model: '{{ env.TEST_MODEL }}',
       fallbackTargets: ['backup-1'],
     };
 
@@ -162,8 +162,8 @@ describe('resolveTargetDefinition - fallback_targets', () => {
     const definition = {
       name: 'test-openai',
       provider: 'openai',
-      api_key: '${{ TEST_KEY }}',
-      model: '${{ TEST_MODEL }}',
+      api_key: '{{ env.TEST_KEY }}',
+      model: '{{ env.TEST_MODEL }}',
     };
 
     const resolved = resolveTargetDefinition(definition, env);

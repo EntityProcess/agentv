@@ -83,6 +83,45 @@ describe('EvalFileSchema input shorthand', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects removed authored preprocessors and postprocess fields', () => {
+    const result = EvalFileSchema.safeParse({
+      preprocessors: [{ type: 'xlsx', command: ['node', 'xlsx.js'] }],
+      default_test: {
+        options: {
+          postprocess: 'output.trim()',
+        },
+      },
+      tests: [
+        {
+          ...baseTest,
+          options: {
+            postprocess: 'output.trim()',
+          },
+          assert: [
+            {
+              type: 'llm-rubric',
+              value: 'Good',
+              preprocessors: [{ type: 'xlsx', command: ['node', 'xlsx.js'] }],
+            },
+            {
+              type: 'llm-rubric',
+              value: 'Also good',
+              postprocess: 'output.trim()',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error('Expected removed fields to be rejected');
+    const messages = collectIssueMessages(result.error.issues);
+    expect(messages.some((message) => message.includes('preprocessors has been removed'))).toBe(
+      true,
+    );
+    expect(messages.some((message) => message.includes('postprocess has been removed'))).toBe(true);
+  });
+
   it('accepts shared composable graph fields in eval YAML', () => {
     const result = EvalFileSchema.safeParse({
       targets: [

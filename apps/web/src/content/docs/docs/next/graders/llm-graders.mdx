@@ -192,20 +192,32 @@ assert:
 
 The `config` object is available as `ctx.config` inside the template function.
 
-## Preprocessing File Outputs
+## Transforming File Outputs
 
-If an agent returns a `ContentFile` block instead of plain text, you can preprocess that file into text before `llm-rubric` builds the candidate prompt.
+If an agent returns a `ContentFile` block instead of plain text, use `transform` to convert that file into text before `llm-rubric` builds the candidate prompt.
 
-AgentV always tries a default UTF-8 text read first. That is enough for text-based formats such as CSV, JSON, SQL, Markdown, YAML, HTML, XML, and plain text. For binary formats such as `.xlsx`, `.pdf`, or `.docx`, add a preprocessor command:
+AgentV always tries a default UTF-8 text read first. That is enough for text-based formats such as CSV, JSON, SQL, Markdown, YAML, HTML, XML, and plain text. For binary formats such as `.xlsx`, `.pdf`, or `.docx`, add a transform:
 
 ```yaml
-preprocessors:
-  - type: xlsx
-    command: ["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"]
+default_test:
+  options:
+    transform: >-
+      return (() => {
+        const file = Array.isArray(output)
+          ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
+          : undefined;
+        if (!file) return output;
+        const result = Bun.spawnSync(["bun", "run", "scripts/preprocessors/xlsx-to-csv.ts"], {
+          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
+        });
+        if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
+        return new TextDecoder().decode(result.stdout).trim();
+      })()
 
 tests:
   - id: spreadsheet-output
-    input: Generate the spreadsheet report
+    vars:
+      input: Generate the spreadsheet report
     assert:
       - Output includes the revenue rows
       - name: spreadsheet-check
@@ -216,15 +228,14 @@ tests:
           {{ output }}
 ```
 
-`type` accepts either a short alias such as `xlsx` or a full MIME type such as `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
-
 Resolution order:
 
-- per-grader `preprocessors` override suite-level entries
-- if no preprocessor matches, AgentV falls back to a UTF-8 text read
+- `tests[].options.transform` overrides `default_test.options.transform`
+- assertion-level `transform` applies to that grader only
+- if no transform is configured, AgentV falls back to a UTF-8 text read
 - if the fallback read looks binary or invalid, the grader receives a warning note instead of failing the test run
 
-See [`examples/features/preprocessors/`](../../../../../examples/features/preprocessors/) for a runnable example with a file-producing target and a custom preprocessor script.
+See [`examples/features/preprocessors/`](../../../../../examples/features/preprocessors/) for a runnable example with a file-producing target and a spreadsheet conversion script.
 
 ## Available Context Fields
 

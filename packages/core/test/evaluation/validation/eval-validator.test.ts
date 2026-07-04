@@ -233,7 +233,77 @@ tests:
       expect.objectContaining({
         severity: 'error',
         location: 'execution.workers',
-        message: expect.stringContaining('authored run controls'),
+        message: expect.stringContaining('evaluate_options.max_concurrency'),
+      }),
+    );
+  });
+
+  it('rejects removed preprocessor and postprocess authored fields', async () => {
+    const filePath = path.join(tempDir, 'removed-transform-fields.yaml');
+    await writeFile(
+      filePath,
+      `preprocessors:
+  - type: xlsx
+    command: ["node", "xlsx.js"]
+prompts:
+  - "{{ input }}"
+default_test:
+  options:
+    postprocess: output.trim()
+tests:
+  - id: local-case
+    vars:
+      input: "Hello"
+    options:
+      postprocess: output.trim()
+    assert:
+      - type: llm-rubric
+        value: "Good"
+        postprocess: output.trim()
+      - type: llm-rubric
+        value: "Also good"
+        preprocessors:
+          - type: xlsx
+            command: ["node", "xlsx.js"]
+`,
+    );
+
+    const result = await validateEvalFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'preprocessors',
+        message: expect.stringContaining('default_test.options.transform'),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'default_test.options.postprocess',
+        message: expect.stringContaining('default_test.options.transform'),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].options.postprocess',
+        message: expect.stringContaining('tests[0].options.transform'),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].assert[0].postprocess',
+        message: expect.stringContaining('tests[0].assert[0].transform'),
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'tests[0].assert[1].preprocessors',
+        message: expect.stringContaining('tests[0].assert[1].transform'),
       }),
     );
   });

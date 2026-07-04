@@ -8,7 +8,7 @@ describe('CLI cwd fallback to eval directory', () => {
       name: 'test-cli',
       provider: 'cli',
       command: 'echo {PROMPT}',
-      cwd: '${{ EMPTY_CWD_VAR }}',
+      cwd: '{{ env.EMPTY_CWD_VAR }}',
     };
 
     const env = {
@@ -29,7 +29,7 @@ describe('CLI cwd fallback to eval directory', () => {
       name: 'test-cli',
       provider: 'cli',
       command: 'echo {PROMPT}',
-      cwd: '${{ UNDEFINED_CWD_VAR }}',
+      cwd: '{{ env.UNDEFINED_CWD_VAR }}',
     };
 
     const env = {}; // Env var not defined
@@ -48,7 +48,7 @@ describe('CLI cwd fallback to eval directory', () => {
       name: 'test-cli',
       provider: 'cli',
       command: 'echo {PROMPT}',
-      cwd: '${{ EXPLICIT_CWD }}',
+      cwd: '{{ env.EXPLICIT_CWD }}',
     };
 
     const env = {
@@ -69,7 +69,7 @@ describe('CLI cwd fallback to eval directory', () => {
       name: 'test-cli',
       provider: 'cli',
       command: 'echo {PROMPT}',
-      cwd: '${{ MISSING_VAR }}',
+      cwd: '{{ env.MISSING_VAR }}',
     };
 
     const env = {};

@@ -202,7 +202,7 @@ describe('loadConfig', () => {
           '      env:',
           '        AGENTV_RESULT_DIR: /results',
           '      secrets:',
-          '        OPENAI_API_KEY: ${{ OPENAI_API_KEY }}',
+          '        OPENAI_API_KEY: "{{ env.OPENAI_API_KEY }}"',
           '    config:',
           '      command: "agent-cli run {PROMPT_FILE} {OUTPUT_FILE}"',
           '',
@@ -225,7 +225,7 @@ describe('loadConfig', () => {
             { source: './.agentv/results', target: '/results', access: 'rw' },
           ],
           env: { AGENTV_RESULT_DIR: '/results' },
-          secrets: { OPENAI_API_KEY: '${{ OPENAI_API_KEY }}' },
+          secrets: { OPENAI_API_KEY: '{{ env.OPENAI_API_KEY }}' },
         },
         config: { command: 'agent-cli run {PROMPT_FILE} {OUTPUT_FILE}' },
       });

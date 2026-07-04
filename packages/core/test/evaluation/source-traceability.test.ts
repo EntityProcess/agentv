@@ -64,14 +64,6 @@ tests:
           - bun
           - graders/code.ts
         cwd: graders
-      - metric: preprocessed
-        type: llm-grader
-        prompt: Inline prompt
-        preprocessors:
-          - type: text
-            command:
-              - bun
-              - graders/pre.ts
     vars:
       input:
         - role: user
@@ -96,7 +88,6 @@ tests:
       'assertion_template',
       'input_file',
       'llm_grader_prompt',
-      'preprocessor_command',
       'prompt_script',
       'script_grader_command',
       'script_grader_cwd',

@@ -91,11 +91,6 @@ const PromptSchema = z.union([
 
 const PromptsSchema = z.union([PromptSchema, z.array(PromptSchema).min(1)]);
 
-const PreprocessorSchema = z.object({
-  type: z.string().min(1),
-  command: z.union([z.string(), z.array(z.string())]),
-});
-
 /** Score range for analytic rubrics */
 const ScoreRangeSchema = z.object({
   score_range: z.tuple([z.number().int().min(0).max(10), z.number().int().min(0).max(10)]),
@@ -122,7 +117,6 @@ const ScriptGraderSchema = EvaluatorCommonSchema.extend({
   cwd: z.string().optional(),
   target: z.union([z.boolean(), z.object({ max_calls: z.number().optional() })]).optional(),
   config: z.record(z.unknown()).optional(),
-  preprocessors: z.array(PreprocessorSchema).optional(),
 });
 
 const LlmGraderSchema = EvaluatorCommonSchema.extend({
@@ -134,7 +128,6 @@ const LlmGraderSchema = EvaluatorCommonSchema.extend({
   config: z.record(z.unknown()).optional(),
   max_steps: z.number().int().min(1).max(50).optional(),
   temperature: z.number().min(0).max(2).optional(),
-  preprocessors: z.array(PreprocessorSchema).optional(),
 });
 
 const IncludeSchema = z
@@ -276,6 +269,20 @@ const EvaluatorSchema = z.union([
 ]);
 
 const AssertionObjectSchema = JsonObjectSchema.superRefine((value, ctx) => {
+  if (value.preprocessors !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['preprocessors'],
+      message: 'preprocessors has been removed from authored eval YAML. Use transform instead.',
+    });
+  }
+  if (value.postprocess !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['postprocess'],
+      message: 'postprocess has been removed. Use transform instead.',
+    });
+  }
   const rawType = value.type;
   if (typeof rawType !== 'string') {
     return;
@@ -771,8 +778,7 @@ export const EvalFileSchema: z.ZodType = z
     execution: z.never().optional(),
     // Suite-level assert entries
     assert: z.array(AssertionItemSchema).optional(),
-    // Suite-level content preprocessors shared by evaluators
-    preprocessors: z.array(PreprocessorSchema).optional(),
+    preprocessors: z.never().optional(),
     // Workspace (inline object or path to external workspace YAML file)
     workspace: z.union([WorkspaceSchema, z.string()]).optional(),
   })

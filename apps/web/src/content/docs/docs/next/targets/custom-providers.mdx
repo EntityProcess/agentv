@@ -188,9 +188,9 @@ graders:
   - id: azure-grader
     provider: azure
     config:
-      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
-      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+      api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+      model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
 
 defaults:
   grader: azure-grader

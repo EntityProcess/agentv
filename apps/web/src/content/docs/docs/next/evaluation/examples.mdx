@@ -101,22 +101,33 @@ tests:
       }
 ```
 
-## File Output Preprocessing
+## File Output Transform
 
 Convert a binary file output into text before the `llm-rubric` sees it:
 
 ```yaml
-description: Grade spreadsheet output via a preprocessor
-
-preprocessors:
-  - type: xlsx
-    command: ["bun", "run", "../scripts/preprocessors/xlsx-to-csv.ts"]
+description: Grade spreadsheet output via a transform
 
 target: file_output
+default_test:
+  options:
+    transform: >-
+      return (() => {
+        const file = Array.isArray(output)
+          ? output.find((block) => block?.type === "file" && block.path?.endsWith(".xlsx"))
+          : undefined;
+        if (!file) return output;
+        const result = Bun.spawnSync(["bun", "run", "../scripts/preprocessors/xlsx-to-csv.ts"], {
+          stdin: JSON.stringify({ path: file.path, media_type: file.media_type })
+        });
+        if (result.exitCode !== 0) throw new Error(new TextDecoder().decode(result.stderr).trim());
+        return new TextDecoder().decode(result.stdout).trim();
+      })()
 
 tests:
   - id: spreadsheet-output
-    input: Generate the spreadsheet report
+    vars:
+      input: Generate the spreadsheet report
     criteria: The extracted spreadsheet content includes the revenue rows
     assert:
       - Output contains the transformed spreadsheet text including the revenue rows

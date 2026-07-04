@@ -13,7 +13,7 @@ workspace:
       reset: fast
 target:
   name: claude-baseline
-  extends: ${{ AGENT_TARGET }}
+  extends: "{{ env.AGENT_TARGET }}"
   hooks:
     before_each:
       command:

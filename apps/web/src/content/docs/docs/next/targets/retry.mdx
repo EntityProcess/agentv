@@ -18,9 +18,9 @@ targets:
     provider: azure
     runtime: host
     config:
-      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
-      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+      api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+      model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
       max_retries: 5
       retry_initial_delay_ms: 2000
       retry_max_delay_ms: 120000

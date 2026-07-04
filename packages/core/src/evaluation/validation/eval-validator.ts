@@ -170,7 +170,6 @@ const KNOWN_TOP_LEVEL_FIELDS = new Set([
   'nunjucks_filters',
   'extensions',
   'on_run_complete',
-  'preprocessors',
   'workspace',
   'metadata',
   'governance',
@@ -245,6 +244,14 @@ const REMOVED_TOP_LEVEL_FIELDS = new Map<string, string>([
     "Top-level 'early_exit' has been removed. Use evaluate_options.repeat.early_exit instead.",
   ],
   ['budget_usd', "Top-level 'budget_usd' has been removed. Use evaluate_options.budget_usd."],
+  [
+    'on_run_complete',
+    "Top-level 'on_run_complete' has been removed. Use extensions with an afterAll hook instead.",
+  ],
+  [
+    'preprocessors',
+    "Top-level 'preprocessors' has been removed from authored eval YAML. Use default_test.options.transform or assertion-level transform instead.",
+  ],
 ]);
 
 /** Deprecated top-level fields with migration hints. */
@@ -798,6 +805,16 @@ function validateExecutionPolicy(
       });
       continue;
     }
+    if (key === 'workers') {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${location}.${key}`,
+        message:
+          "Top-level 'execution.workers' has been removed from eval YAML. Use evaluate_options.max_concurrency for authored suite concurrency.",
+      });
+      continue;
+    }
     errors.push({
       severity: 'error',
       filePath,
@@ -1269,6 +1286,14 @@ function validateTestOptions(
     });
     return;
   }
+  if (options.postprocess !== undefined) {
+    errors.push({
+      severity: 'error',
+      filePath,
+      location: `${location}.postprocess`,
+      message: `${location}.postprocess has been removed. Use ${location}.transform instead.`,
+    });
+  }
   validateEvaluateOptionsRepeat(options.repeat, `${location}.repeat`, filePath, errors);
 }
 
@@ -1324,6 +1349,7 @@ function validateDefaultTest(
     errors,
     customAssertionTypes,
   );
+  validateTestOptions(defaultTest.options, 'default_test.options', filePath, errors);
   const threshold = defaultTest.threshold;
   if (
     threshold !== undefined &&
@@ -2226,6 +2252,23 @@ function validateAssertArray(
 
   for (const { item, index } of objectItems) {
     const itemLocation = `${location}[${index}]`;
+
+    if (item.postprocess !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${itemLocation}.postprocess`,
+        message: `${itemLocation}.postprocess has been removed. Use ${itemLocation}.transform instead.`,
+      });
+    }
+    if (item.preprocessors !== undefined) {
+      errors.push({
+        severity: 'error',
+        filePath,
+        location: `${itemLocation}.preprocessors`,
+        message: `${itemLocation}.preprocessors has been removed from authored eval YAML. Use ${itemLocation}.transform instead.`,
+      });
+    }
 
     validateAssertArray(
       item.assert,

@@ -16,7 +16,7 @@ targets:
     provider: openai
     runtime: host
     config:
-      api_key: ${{ OPENAI_API_KEY }}
+      api_key: "{{ env.OPENAI_API_KEY }}"
       model: gpt-4o
 ```
 
@@ -47,8 +47,8 @@ targets:
     config:
       api_format: chat
       base_url: https://models.github.ai/inference/v1
-      api_key: ${{ GH_MODELS_TOKEN }}
-      model: ${{ GH_MODELS_MODEL }}
+      api_key: "{{ env.GH_MODELS_TOKEN }}"
+      model: "{{ env.GH_MODELS_MODEL }}"
 
   # Opt in to Responses API for api.openai.com
   - id: openai-responses
@@ -56,7 +56,7 @@ targets:
     runtime: host
     config:
       api_format: responses
-      api_key: ${{ OPENAI_API_KEY }}
+      api_key: "{{ env.OPENAI_API_KEY }}"
       model: gpt-4o
 ```
 
@@ -71,9 +71,9 @@ graders:
     provider: openai
     config:
       api_format: chat
-      base_url: ${{ LOCAL_OPENAI_PROXY_BASE_URL }}
-      api_key: ${{ LOCAL_OPENAI_PROXY_API_KEY }}
-      model: ${{ LOCAL_OPENAI_PROXY_MODEL }}
+      base_url: "{{ env.LOCAL_OPENAI_PROXY_BASE_URL }}"
+      api_key: "{{ env.LOCAL_OPENAI_PROXY_API_KEY }}"
+      model: "{{ env.LOCAL_OPENAI_PROXY_MODEL }}"
 ```
 
 If the local proxy does not require authentication, set
@@ -89,9 +89,9 @@ targets:
     provider: azure
     runtime: host
     config:
-      endpoint: ${{ AZURE_OPENAI_ENDPOINT }}
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
-      model: ${{ AZURE_DEPLOYMENT_NAME }}
+      endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+      api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+      model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
 ```
 
 | Field | Required | Description |
@@ -114,7 +114,7 @@ targets:
     runtime: host
     config:
       base_url: https://<resource>.openai.azure.com/openai/deployments/<deployment>
-      api_key: ${{ AZURE_OPENAI_API_KEY }}
+      api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
       model: <deployment>
       api_format: chat
 ```
@@ -129,7 +129,7 @@ targets:
     provider: anthropic
     runtime: host
     config:
-      api_key: ${{ ANTHROPIC_API_KEY }}
+      api_key: "{{ env.ANTHROPIC_API_KEY }}"
       model: claude-sonnet-4-20250514
 ```
 
@@ -146,7 +146,7 @@ targets:
     provider: gemini
     runtime: host
     config:
-      api_key: ${{ GEMINI_API_KEY }}
+      api_key: "{{ env.GEMINI_API_KEY }}"
       model: gemini-2.0-flash
 ```
 

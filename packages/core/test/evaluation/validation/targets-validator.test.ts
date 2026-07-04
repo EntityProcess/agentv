@@ -24,7 +24,7 @@ describe('validateTargetsFile', () => {
       `targets:
   - id: openrouter-target
     provider: openrouter
-    api_key: \${{ OPENROUTER_API_KEY }}
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
     model: openai/gpt-5-mini
 `,
     );
@@ -49,10 +49,10 @@ describe('validateTargetsFile', () => {
     provider: codex-cli
     config:
       command: ["codex"]
-      model: \${{ CODEX_MODEL }}
+      model: "{{ env.CODEX_MODEL }}"
       reasoning_effort: low
-      base_url: \${{ OPENAI_BASE_URL }}
-      api_key: \${{ OPENAI_API_KEY }}
+      base_url: "{{ env.OPENAI_BASE_URL }}"
+      api_key: "{{ env.OPENAI_API_KEY }}"
       api_format: responses
     grader_target: grader
     fallback_targets: [backup-agent]
@@ -60,7 +60,7 @@ describe('validateTargetsFile', () => {
   - id: grader
     provider: openai
     config:
-      api_key: \${{ OPENAI_API_KEY }}
+      api_key: "{{ env.OPENAI_API_KEY }}"
       model: gpt-5-mini
   - id: backup-agent
     provider: mock
@@ -302,8 +302,8 @@ targets:
   - id: codex-target
     provider: codex-cli
     command: ["codex"]
-    model: \${{ CODEX_MODEL }}
-    reasoning_effort: \${{ CODEX_REASONING_EFFORT }}
+    model: "{{ env.CODEX_MODEL }}"
+    reasoning_effort: "{{ env.CODEX_REASONING_EFFORT }}"
 `,
     );
 
@@ -321,16 +321,16 @@ targets:
     provider: copilot-sdk
     model: gpt-5
     subprovider: openai
-    base_url: \${{ OPENAI_ENDPOINT }}
-    api_key: \${{ OPENAI_API_KEY }}
+    base_url: "{{ env.OPENAI_ENDPOINT }}"
+    api_key: "{{ env.OPENAI_API_KEY }}"
     api_format: responses
     model_id: gpt-5
-    wire_model: \${{ OPENAI_MODEL }}
+    wire_model: "{{ env.OPENAI_MODEL }}"
   - id: copilot-cli-custom-provider
     provider: copilot-cli
     subprovider: openai
-    base_url: \${{ OPENAI_ENDPOINT }}
-    api_key: \${{ OPENAI_API_KEY }}
+    base_url: "{{ env.OPENAI_ENDPOINT }}"
+    api_key: "{{ env.OPENAI_API_KEY }}"
     api_format: responses
 `,
     );
@@ -349,11 +349,11 @@ targets:
   - id: codex-local-openai
     provider: codex-cli
     command: ["codex"]
-    model: \${{ CODEX_MODEL }}
+    model: "{{ env.CODEX_MODEL }}"
     reasoning_effort: medium
     model_verbosity: medium
-    base_url: \${{ OPENAI_ENDPOINT }}
-    api_key: \${{ OPENAI_API_KEY }}
+    base_url: "{{ env.OPENAI_ENDPOINT }}"
+    api_key: "{{ env.OPENAI_API_KEY }}"
     api_format: responses
     sandbox_mode: danger-full-access
     approval_policy: never
@@ -375,20 +375,20 @@ targets:
     provider: copilot-sdk
     custom_provider:
       type: openai
-      base_url: \${{ OPENAI_ENDPOINT }}
-      api_key: \${{ OPENAI_API_KEY }}
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "{{ env.OPENAI_API_KEY }}"
   - label: copilot-sdk-byok
     provider: copilot-sdk
     byok:
       type: openai
-      base_url: \${{ OPENAI_ENDPOINT }}
-      api_key: \${{ OPENAI_API_KEY }}
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "{{ env.OPENAI_API_KEY }}"
   - label: copilot-cli-custom
     provider: copilot-cli
     custom_provider:
       type: openai
-      base_url: \${{ OPENAI_ENDPOINT }}
-      api_key: \${{ OPENAI_API_KEY }}
+      base_url: "{{ env.OPENAI_ENDPOINT }}"
+      api_key: "{{ env.OPENAI_API_KEY }}"
 `,
     );
 
@@ -414,9 +414,9 @@ targets:
       filePath,
       `targets:
   - id: default
-    use_target: \${{ AGENT_TARGET }}
+    use_target: "{{ env.AGENT_TARGET }}"
   - id: grader
-    use_target: \${{ GRADER_TARGET }}
+    use_target: "{{ env.GRADER_TARGET }}"
   - id: codex-agent
     provider: codex-cli
     command: ["codex"]
@@ -452,6 +452,30 @@ targets:
         process.env.GRADER_TARGET = originalGraderTarget;
       }
     }
+  });
+
+  it('rejects legacy env interpolation in target YAML', async () => {
+    const filePath = path.join(tempDir, 'legacy-env-target.yaml');
+    await writeFile(
+      filePath,
+      `targets:
+  - id: openai-target
+    provider: openai
+    api_key: \${{ OPENAI_API_KEY }}
+    model: gpt-5-mini
+`,
+    );
+
+    const result = await validateTargetsFile(filePath);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        location: 'targets[0].api_key',
+        message: expect.stringContaining('Use {{ env.OPENAI_API_KEY }} instead'),
+      }),
+    );
   });
 
   it('rejects removed judge_target alias', async () => {
@@ -525,9 +549,9 @@ targets:
       `targets:
   - label: azure-responses
     provider: azure
-    endpoint: \${{ AZURE_OPENAI_ENDPOINT }}
-    api_key: \${{ AZURE_OPENAI_API_KEY }}
-    model: \${{ AZURE_DEPLOYMENT_NAME }}
+    endpoint: "{{ env.AZURE_OPENAI_ENDPOINT }}"
+    api_key: "{{ env.AZURE_OPENAI_API_KEY }}"
+    model: "{{ env.AZURE_DEPLOYMENT_NAME }}"
     api_format: responses
 `,
     );
