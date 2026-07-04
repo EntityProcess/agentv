@@ -1,28 +1,22 @@
-# Direct-input convenience example
-#
-# Direct input suites do not use top-level prompts. Use string input shorthand
-# for compact single-message tasks, or role/content message arrays when the
-# target needs an explicit conversation shape.
-
 description: Demonstrates AgentV direct-input shorthand and role/content messages
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: direct-string
-    input: "Summarize the onboarding checklist in one sentence."
     expected_output: concise onboarding summary
     assert:
       - Summarizes the request concisely
-
+    vars:
+      input: Summarize the onboarding checklist in one sentence.
   - id: direct-chat-messages
     vars:
       product: AgentV
-    input:
-      - role: system
-        content: "You answer product questions precisely."
-      - role: user
-        content: "Explain what {{ vars.product }} evaluates."
+      input:
+        - role: system
+          content: You answer product questions precisely.
+        - role: user
+          content: Explain what {{ vars.product }} evaluates.
     expected_output: AgentV evaluates agent workflows
     assert:
       - Explains that AgentV evaluates agent workflows

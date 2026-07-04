@@ -1,73 +1,63 @@
 name: assert-demo
 description: Demonstrates eval spec v2 assert features
 version: "1.0"
-tags: [ demo, assert ]
-
+tags:
+  - demo
+  - assert
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
-  # ==========================================
-  # Example 1: contains assertion (case-sensitive)
-  # ==========================================
   - id: contains-check
-    input:
-      - role: system
-        content: "Always include the word 'Hello' in your response."
-      - role: user
-        content: Say hello world
     assert:
       - type: contains
         value: Hello
       - type: regex
         value: "[Hh]ello"
       - Response must contain the word Hello
-
-  # ==========================================
-  # Example 2: is_json assertion with JSON output
-  # ==========================================
+    vars:
+      input:
+        - role: system
+          content: Always include the word 'Hello' in your response.
+        - role: user
+          content: Say hello world
   - id: json-response
-    input:
-      - role: system
-        content: "You are a JSON API. Respond with ONLY raw JSON. Never use markdown
-          code blocks, backticks, or any text outside the JSON object."
-      - role: user
-        content: 'Return a JSON object with fields: status set to "ok" and code set to
-          200.'
     assert:
       - type: is-json
         required: true
       - type: contains
-        value: '"status"'
+        value: "\"status\""
       - type: contains
-        value: '"ok"'
+        value: "\"ok\""
       - Response must be valid JSON with a status field
-
-  # ==========================================
-  # Example 3: regex assertion for pattern matching
-  # ==========================================
+    vars:
+      input:
+        - role: system
+          content: You are a JSON API. Respond with ONLY raw JSON. Never use markdown code blocks, backticks,
+            or any text outside the JSON object.
+        - role: user
+          content: "Return a JSON object with fields: status set to \"ok\" and code set to 200."
   - id: regex-check
-    input:
-      - role: user
-        content: "Greet me with exactly one of: 'Good morning', 'Good afternoon', or
-          'Good evening'. Start your response with that greeting."
     assert:
       - type: regex
-        value: "Good (morning|afternoon|evening)"
+        value: Good (morning|afternoon|evening)
         required: true
       - Response must include a formal greeting pattern
-
-  # ==========================================
-  # Example 4: equals assertion for exact match
-  # ==========================================
+    vars:
+      input:
+        - role: user
+          content: "Greet me with exactly one of: 'Good morning', 'Good afternoon', or 'Good evening'. Start
+            your response with that greeting."
   - id: equals-check
-    input:
-      - role: system
-        content: "You are a calculator. Respond with ONLY the numeric result. No words,
-          no punctuation, no explanation, no newlines. Just the bare number."
-      - role: user
-        content: "What is 2 + 2?"
     assert:
       - type: equals
         value: "4"
         required: true
       - Response must be exactly the number 4
+    vars:
+      input:
+        - role: system
+          content: You are a calculator. Respond with ONLY the numeric result. No words, no punctuation, no
+            explanation, no newlines. Just the bare number.
+        - role: user
+          content: What is 2 + 2?

@@ -1,57 +1,29 @@
-# Field Accuracy Evaluation Dataset
-#
-# This dataset demonstrates the built-in `field_accuracy` grader for per-test-case scoring.
-# Use this pattern when you need simple pass/fail scoring per field.
-#
-# For aggregatable TP/TN/FP/FN metrics across documents, see confusion-metrics.yaml instead.
-#
-# Evaluation patterns demonstrated:
-# - Exact matching for invoice numbers and currency codes
-# - Date matching with format normalization
-# - Numeric tolerance for currency amounts
-# - Fuzzy matching via script-grader plugins
-# - Line item array validation
-#
-# EXPECTED SCORES:
-#   Some test cases intentionally produce lower scores to demonstrate evaluation behavior.
-#
-#   invoice-001: ~1.000 (perfect extraction)
-#   invoice-002: ~1.000 (fuzzy match handles "Acme - Shipping" vs "Acme Shipping")
-#   invoice-003: ~0.923 (supplier.name exact match fails due to dash variation)
-#   invoice-004: ~0.846 (missing invoice_number required field, weight 2.0)
-#   invoice-005: ~1.000 (line items extracted correctly)
-#   invoice-006: ~1.000 (greedy matching handles reordered line items)
-#
 description: Field accuracy grader patterns (per-test-case scoring)
-
 target: mock_extractor
-
 assert:
-  # Primary grader: Correctness via field-level accuracy
   - metric: invoice_field_accuracy
     type: field-accuracy
     fields:
-      # Header fields
       - path: invoice_number
         match: exact
         required: true
-        weight: 2.0
+        weight: 2
       - path: invoice_date
         match: date
-        formats: [ "DD-MMM-YYYY", "YYYY-MM-DD", "MM/DD/YYYY" ]
+        formats:
+          - DD-MMM-YYYY
+          - YYYY-MM-DD
+          - MM/DD/YYYY
         required: true
-        weight: 1.0
+        weight: 1
       - path: currency
         match: exact
         required: true
-        weight: 1.0
-
-      # Party information
-      # Note: For fuzzy matching (OCR variations), use script-grader with fuzzy_match.ts
+        weight: 1
       - path: supplier.name
         match: exact
         required: true
-        weight: 1.0
+        weight: 1
       - path: supplier.address
         match: exact
         required: false
@@ -59,62 +31,27 @@ assert:
       - path: importer.name
         match: exact
         required: true
-        weight: 1.0
+        weight: 1
       - path: importer.address
         match: exact
         required: false
         weight: 0.5
-
-      # Totals - numeric tolerance for rounding
       - path: net_total
         match: numeric_tolerance
-        tolerance: 1.0
+        tolerance: 1
         relative: false
         required: true
-        weight: 3.0
+        weight: 3
       - path: gross_total
         match: numeric_tolerance
-        tolerance: 1.0
+        tolerance: 1
         relative: false
         required: true
-        weight: 3.0
-
+        weight: 3
     aggregation: weighted_average
-  # Alternative: Rubric-based evaluation ("Rubric as Object" pattern)
-  # Demonstrates AgentV's structured evaluation goal with human-readable criteria
-  # - name: invoice_extraction_rubric
-  #   type: rubric
-  #   rubrics:
-  #     - id: header_completeness
-  #       description: "Invoice number, date, and currency extracted correctly"
-  #       weight: 1.0
-  #       required: true
-  #     - id: party_accuracy
-  #       description: "Supplier and importer names and addresses match expected format"
-  #       weight: 1.0
-  #       required: true
-  #     - id: financial_precision
-  #       description: "Net and gross totals within acceptable tolerance (±$1)"
-  #       weight: 2.0
-  #       required: true
-  #     - id: line_items_completeness
-  #       description: "All line items extracted with descriptions, quantities, and amounts"
-  #       weight: 1.5
-  #       required: false
-
-  # Execution metrics graders (optional, require provider to report metrics)
-  # - name: performance_check
-  #   type: latency
-  #   threshold: 2000  # max allowed duration in milliseconds
-  # - name: cost_tracking
-  #   type: cost
-  #   budget: 0.10  # max allowed cost in USD per test
-
+prompts:
+  - "{{ input }}"
 tests:
-  # ============================================
-  # Test Case 1: CMA CGM Shipping Invoice
-  # Perfect extraction scenario
-  # ============================================
   - id: invoice-001
     conversation_id: document-extraction
     assert:
@@ -126,110 +63,101 @@ tests:
     expected_output:
       - role: assistant
         content:
-          invoice_number: "INV-2025-001234"
-          invoice_date: "15-JAN-2025"
+          invoice_number: INV-2025-001234
+          invoice_date: 15-JAN-2025
           incoterm: null
-          currency: "USD"
+          currency: USD
           net_total: 1889
           gross_total: 1889
           supplier:
-            name: "Acme Shipping"
-            address: "Acme - Shipping
-
+            name: Acme Shipping
+            address: |-
+              Acme - Shipping
               123 Harbor Boulevard
-
               Suite 400
-
               90001  Los Angeles
-
-              USA"
+              USA
           importer:
-            name: "Global Trade Co"
-            address: "Global Trade Co
-
+            name: Global Trade Co
+            address: |-
+              Global Trade Co
               456 Commerce Street
-
               10001  New York
-
-              USA"
+              USA
           line_items:
-            - description: "OCEAN FREIGHT"
+            - description: OCEAN FREIGHT
               quantity: 1
               unit_price: 1370
               line_total: 1370
-              unit_type: "C2 1 USD"
+              unit_type: C2 1 USD
               hs_code: "853720"
-            - description: "Bunker Adjustment Factor"
+            - description: Bunker Adjustment Factor
               quantity: 1
               unit_price: 262
               line_total: 262
-              unit_type: "C2 1 TEU"
+              unit_type: C2 1 TEU
               hs_code: "853720"
-            - description: "Container maintenance Fee at destination"
+            - description: Container maintenance Fee at destination
               quantity: 1
               unit_price: 20
               line_total: 20
-              unit_type: "C2 1 TEU"
+              unit_type: C2 1 TEU
               hs_code: "853720"
-            - description: "Advanced Manifest Declaration Fee"
+            - description: Advanced Manifest Declaration Fee
               quantity: 1
               unit_price: 32
               line_total: 32
-              unit_type: "C2 1 FIX"
+              unit_type: C2 1 FIX
               hs_code: "853720"
-            - description: "Energy Transition Surcharge"
+            - description: Energy Transition Surcharge
               quantity: 1
               unit_price: 68
               line_total: 68
-              unit_type: "C2 1 TEU"
+              unit_type: C2 1 TEU
               hs_code: "853720"
-            - description: "Emergency Operational Recovery"
+            - description: Emergency Operational Recovery
               quantity: 1
               unit_price: 75
               line_total: 75
-              unit_type: "C2 1 UNI"
+              unit_type: C2 1 UNI
               hs_code: "853720"
-            - description: "On carriage chassis admin fees"
+            - description: On carriage chassis admin fees
               quantity: 1
               unit_price: 12
               line_total: 12
-              unit_type: "C2 1 UNI"
+              unit_type: C2 1 UNI
               hs_code: "853720"
-            - description: "On Carriage Additional - Emergency Fuel Surch."
+            - description: On Carriage Additional - Emergency Fuel Surch.
               quantity: 1
               unit_price: 50
               line_total: 50
-              unit_type: "C2 1 UNI"
+              unit_type: C2 1 UNI
               hs_code: "853720"
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../fixtures/invoice-001.json
-          - type: text
-            value: |
-              Extract all structured data from this commercial shipping invoice.
-              Return a JSON object with invoice header, party details, line items, and totals.
-
-  # ============================================
-  # Test Case 2: Supplier Name Spacing Variation
-  # Demonstrates fuzzy matching via script-grader with config pass-through
-  # ============================================
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../fixtures/invoice-001.json
+            - type: text
+              value: |
+                Extract all structured data from this commercial shipping invoice.
+                Return a JSON object with invoice header, party details, line items, and totals.
   - id: invoice-002
     conversation_id: document-extraction
     assert:
-      # Multi-field fuzzy match with config pass-through
       - metric: party_names_fuzzy
         type: script
-        command: [ "bun", "run", "../graders/multi_field_fuzzy.ts" ]
-        # These properties are passed to the script via stdin config
+        command:
+          - bun
+          - run
+          - ../graders/multi_field_fuzzy.ts
         fields:
           - path: supplier.name
             threshold: 0.85
           - path: importer.name
-            threshold: 0.90
+            threshold: 0.9
         algorithm: levenshtein
-      # Exact/numeric matching for other fields
       - metric: other_fields
         type: field-accuracy
         fields:
@@ -238,12 +166,14 @@ tests:
             required: true
           - path: invoice_date
             match: date
-            formats: [ "DD-MMM-YYYY", "YYYY-MM-DD" ]
+            formats:
+              - DD-MMM-YYYY
+              - YYYY-MM-DD
           - path: currency
             match: exact
           - path: net_total
             match: numeric_tolerance
-            tolerance: 1.0
+            tolerance: 1
       - |
         ACTUAL EXTRACTOR OUTPUT: supplier.name = "Acme - Shipping" (preserves document punctuation)
         EXPECTED GROUND TRUTH: supplier.name = "Acme Shipping" (normalized)
@@ -253,32 +183,23 @@ tests:
     expected_output:
       - role: assistant
         content:
-          invoice_number: "INV-2025-001234"
-          invoice_date: "15-JAN-2025"
-          currency: "USD"
+          invoice_number: INV-2025-001234
+          invoice_date: 15-JAN-2025
+          currency: USD
           net_total: 1889
           gross_total: 1889
           supplier:
-            name: "Acme Shipping"
+            name: Acme Shipping
           importer:
-            name: "Global Trade Co"
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../fixtures/invoice-002.json
-          - type: text
-            value: "Extract invoice header and party names."
-
-  # ============================================
-  # Test Case 3: Amount Rounding Tolerance
-  # Tests numeric tolerance for total amounts
-  # NOTE: Low score is intentional — supplier.name exact match fails
-  #   ("Acme - Shipping" vs "Acme Shipping") to demonstrate the need
-  #   for fuzzy matching (see invoice-002 test case above).
-  #   Numeric tolerance (±1.0) correctly accepts 0.5 difference.
-  # Expected score: ~0.923 (supplier.name miss, numeric tolerance pass)
-  # ============================================
+            name: Global Trade Co
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../fixtures/invoice-002.json
+            - type: text
+              value: Extract invoice header and party names.
   - id: invoice-003
     conversation_id: document-extraction
     assert:
@@ -291,31 +212,23 @@ tests:
     expected_output:
       - role: assistant
         content:
-          invoice_number: "INV-2025-001234"
-          invoice_date: "15-JAN-2025"
-          currency: "USD"
+          invoice_number: INV-2025-001234
+          invoice_date: 15-JAN-2025
+          currency: USD
           net_total: 1889
           gross_total: 1889
           supplier:
-            name: "Acme - Shipping"
+            name: Acme - Shipping
           importer:
-            name: "Global Trade Co"
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../fixtures/invoice-003.json
-          - type: text
-            value: "Extract invoice totals."
-
-  # ============================================
-  # Test Case 4: Missing Required Fields
-  # Tests evaluation failure when critical fields missing
-  # NOTE: Low score is intentional — invoice_number is missing from the fixture
-  #   and supplier.name has the dash variation. This demonstrates how required
-  #   field validation reduces scores when critical fields are absent.
-  # Expected score: ~0.846 (lose 2/13 weight for missing invoice_number)
-  # ============================================
+            name: Global Trade Co
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../fixtures/invoice-003.json
+            - type: text
+              value: Extract invoice totals.
   - id: invoice-004
     conversation_id: document-extraction
     assert:
@@ -328,27 +241,23 @@ tests:
     expected_output:
       - role: assistant
         content:
-          invoice_number: "INV-2025-001234" # Expected but missing in candidate
-          invoice_date: "15-JAN-2025"
-          currency: "USD"
+          invoice_number: INV-2025-001234
+          invoice_date: 15-JAN-2025
+          currency: USD
           net_total: 1889
           gross_total: 1889
           supplier:
-            name: "Acme - Shipping"
+            name: Acme - Shipping
           importer:
-            name: "Global Trade Co"
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../fixtures/invoice-004.json
-          - type: text
-            value: "Extract invoice data (incomplete extraction)."
-
-  # ============================================
-  # Test Case 5: Line Items Array Validation
-  # Tests nested field path extraction with array indexing
-  # ============================================
+            name: Global Trade Co
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../fixtures/invoice-004.json
+            - type: text
+              value: Extract invoice data (incomplete extraction).
   - id: invoice-005
     conversation_id: document-extraction
     assert:
@@ -358,21 +267,21 @@ tests:
           - path: line_items[0].description
             match: exact
             required: true
-            weight: 1.0
+            weight: 1
           - path: line_items[0].line_total
             match: numeric_tolerance
-            tolerance: 1.0
+            tolerance: 1
             required: true
-            weight: 1.0
+            weight: 1
           - path: line_items[1].description
             match: exact
             required: true
-            weight: 1.0
+            weight: 1
           - path: line_items[1].line_total
             match: numeric_tolerance
-            tolerance: 1.0
+            tolerance: 1
             required: true
-            weight: 1.0
+            weight: 1
         aggregation: weighted_average
       - |
         Extractor correctly extracts first two line items with proper array structure.
@@ -381,30 +290,33 @@ tests:
       - role: assistant
         content:
           line_items:
-            - description: "OCEAN FREIGHT"
+            - description: OCEAN FREIGHT
               line_total: 1370
-            - description: "Bunker Adjustment Factor"
+            - description: Bunker Adjustment Factor
               line_total: 262
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../fixtures/invoice-005.json
-          - type: text
-            value: "Extract first two line items from invoice."
-
-  # ============================================
-  # Test Case 6: Line Item Reorder (Greedy Matching)
-  # Demonstrates line-item matching where order differs
-  # ============================================
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../fixtures/invoice-005.json
+            - type: text
+              value: Extract first two line items from invoice.
   - id: invoice-006
     conversation_id: document-extraction
     assert:
       - metric: line_items_matched
         type: script
-        command: [ "bun", "run", "../graders/line_item_matching.ts" ]
-        match_fields: [ "description" ]
-        score_fields: [ "description", "quantity", "line_total" ]
+        command:
+          - bun
+          - run
+          - ../graders/line_item_matching.ts
+        match_fields:
+          - description
+        score_fields:
+          - description
+          - quantity
+          - line_total
         threshold: 0.8
         line_items_path: line_items
       - |
@@ -418,16 +330,17 @@ tests:
       - role: assistant
         content:
           line_items:
-            - description: "OCEAN FREIGHT"
+            - description: OCEAN FREIGHT
               quantity: 1
               line_total: 120
-            - description: "Bunker Adjustment Factor"
+            - description: Bunker Adjustment Factor
               quantity: 1
               line_total: 80
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../fixtures/invoice-006.json
-          - type: text
-            value: "Extract line items from invoice (may be reordered)."
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../fixtures/invoice-006.json
+            - type: text
+              value: Extract line items from invoice (may be reordered).

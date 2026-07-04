@@ -1,30 +1,15 @@
 name: agentv-dev-skill-selection
-description: >-
-  Tests whether the agent picks the correct bundled agentv skill (by name)
-  for a given natural-language task using the live `agentv-dev` plugin stub
-  as the source of truth for available skills.
-
-tags: [agent, skills]
-
-input:
-  - role: user
-    content:
-      - type: file
-        value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
-      - type: text
-        value: |
-          The file above is the live `agentv-dev` plugin skill entrypoint.
-          For the next task, name the **single** skill (or skills, only if
-          the task genuinely requires more than one) that best fits.
-          Reply with the skill name(s) only, or `none` if no listed skill fits.
-          No commentary.
-
+description: Tests whether the agent picks the correct bundled agentv skill (by name) for a given
+  natural-language task using the live `agentv-dev` plugin stub as the source of truth for available
+  skills.
+tags:
+  - agent
+  - skills
+prompts:
+  - "{{ input }}"
 tests:
   - id: select-bench-for-eval-run
     criteria: "Task: \"run evals on my agent\" → agent selects agentv-bench."
-    input: |
-      Task: I have a YAML eval file and I need to run it against an LLM target
-      and see the pass rate. Which skill?
     assert:
       - type: contains
         value: agentv-bench
@@ -32,12 +17,25 @@ tests:
         criteria:
           - Selects only agentv-bench (not agentv-eval-writer, which is for authoring)
           - Does not select agentv-trace-analyst (which is for after-the-fact debugging)
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I have a YAML eval file and I need to run it against an LLM target
+            and see the pass rate. Which skill?
   - id: select-eval-writer-for-create
     criteria: "Task: \"write an eval YAML for my skill\" → agent selects agentv-eval-writer."
-    input: |
-      Task: I want to author a brand-new `.eval.yaml` file for my custom skill
-      from scratch. Which skill should I load?
     assert:
       - type: contains
         value: agentv-eval-writer
@@ -45,13 +43,25 @@ tests:
         criteria:
           - Selects only agentv-eval-writer
           - Does not select agentv-bench (running) or agentv-eval-review (auditing existing)
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I want to author a brand-new `.eval.yaml` file for my custom skill
+            from scratch. Which skill should I load?
   - id: select-eval-review-for-audit
     criteria: "Task: \"review my eval file for issues\" → agent selects agentv-eval-review."
-    input: |
-      Task: I already wrote my `.eval.yaml` and want a second pair of eyes to
-      audit it for missing assertions, bad rubric phrasing, and structural
-      issues. Which skill?
     assert:
       - type: contains
         value: agentv-eval-review
@@ -59,12 +69,26 @@ tests:
         criteria:
           - Selects agentv-eval-review (the audit-focused skill)
           - Does not select agentv-eval-writer (which is for writing, not reviewing)
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I already wrote my `.eval.yaml` and want a second pair of eyes to
+            audit it for missing assertions, bad rubric phrasing, and structural
+            issues. Which skill?
   - id: select-governance-for-authoring
     criteria: "Task: \"add governance metadata to my eval\" → agent selects agentv-governance."
-    input: |
-      Task: I'm building a red-team eval and need to add a `governance:` block
-      with OWASP and MITRE coverage metadata. Which skill?
     assert:
       - type: contains
         value: agentv-governance
@@ -72,12 +96,25 @@ tests:
         criteria:
           - Selects agentv-governance for governance block authoring
           - Does not select agentv-eval-review or agentv-trace-analyst for this authoring task
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I'm building a red-team eval and need to add a `governance:` block
+            with OWASP and MITRE coverage metadata. Which skill?
   - id: select-governance-for-lint
     criteria: "Task: \"lint my governance block\" → agent selects agentv-governance."
-    input: |
-      Task: I already wrote the `governance:` block in my `.eval.yaml` and want
-      to lint it against the supported vocabulary before CI runs. Which skill?
     assert:
       - type: contains
         value: agentv-governance
@@ -85,13 +122,25 @@ tests:
         criteria:
           - Selects agentv-governance
           - Does not select agentv-eval-review or agentv-bench for governance-specific linting
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I already wrote the `governance:` block in my `.eval.yaml` and want
+            to lint it against the supported vocabulary before CI runs. Which skill?
   - id: select-trace-analyst-for-debug
     criteria: "Task: \"analyze why this eval failed\" → agent selects agentv-trace-analyst."
-    input: |
-      Task: My eval run produced an `index.jsonl` with several failing rows.
-      I want to dig into the per-test traces and figure out what went wrong.
-      Which skill?
     assert:
       - type: contains
         value: agentv-trace-analyst
@@ -99,12 +148,26 @@ tests:
         criteria:
           - Selects agentv-trace-analyst
           - Does not select agentv-bench (running) or agentv-eval-review (static audit)
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: My eval run produced an `index.jsonl` with several failing rows.
+            I want to dig into the per-test traces and figure out what went wrong.
+            Which skill?
   - id: select-distinguishes-bench-vs-writer
     criteria: "Task: \"I need to write AND run evals\" → agent names both skills."
-    input: |
-      Task: I'm starting a new eval project. I'll need to author the `.eval.yaml`
-      from scratch *and* run it against a target. Which skill or skills?
     assert:
       - type: contains
         value: agentv-eval-writer
@@ -114,17 +177,48 @@ tests:
         criteria:
           - Names both agentv-eval-writer (for authoring) and agentv-bench (for running)
           - Does not name agentv-eval-review or agentv-trace-analyst, which are not asked for
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I'm starting a new eval project. I'll need to author the `.eval.yaml`
+            from scratch *and* run it against a target. Which skill or skills?
   - id: select-no-false-positive
     criteria: "Task: \"help me deploy my app\" → agent names no agentv skill."
-    input: |
-      Task: I want to deploy my Node.js app to a Kubernetes cluster. Which
-      agentv skill should I load?
     assert:
       - type: equals
         value: none
       - type: rubrics
         criteria:
-          - Correctly states that no bundled agentv skill is relevant — these skills are for evaluation workflows, not deployment
+          - Correctly states that no bundled agentv skill is relevant — these skills are for
+            evaluation workflows, not deployment
           - Does not invent a fake skill name
           - Does not falsely select agentv-bench, agentv-eval-writer, or any other listed skill
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin skill entrypoint.
+                For the next task, name the **single** skill (or skills, only if
+                the task genuinely requires more than one) that best fits.
+                Reply with the skill name(s) only, or `none` if no listed skill fits.
+                No commentary.
+        - role: user
+          content: |
+            Task: I want to deploy my Node.js app to a Kubernetes cluster. Which
+            agentv skill should I load?

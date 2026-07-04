@@ -877,25 +877,33 @@ function expandPromptMatrix(
       expandedCases.push(rawCase);
       continue;
     }
-    if (rawCase.input !== undefined || rawCase.input_files !== undefined) {
-      throw new Error(
-        "tests[].input and tests[].input_files cannot be combined with top-level 'prompts'. Use tests[].vars for prompt-matrix data, or remove top-level 'prompts' for direct input suites.",
-      );
-    }
+    const promptCase: JsonObject =
+      rawCase.input !== undefined
+        ? (() => {
+            const { input, input_files: _inputFiles, ...caseWithoutInput } = rawCase;
+            return {
+              ...caseWithoutInput,
+              vars: {
+                ...(isJsonObject(rawCase.vars) ? rawCase.vars : {}),
+                input,
+              },
+            };
+          })()
+        : rawCase;
 
-    const sourceTestId = asString(rawCase.id);
-    const vars = isJsonObject(rawCase.vars) ? rawCase.vars : undefined;
+    const sourceTestId = asString(promptCase.id);
+    const vars = isJsonObject(promptCase.vars) ? promptCase.vars : undefined;
     for (const prompt of prompts) {
       const promptId = safePromptId(prompt.identity.id);
       const expandedId =
         sourceTestId && prompts.length > 1 ? `${sourceTestId}__prompt_${promptId}` : sourceTestId;
-      const expandedDependsOn = Array.isArray(rawCase.depends_on)
-        ? rawCase.depends_on.map((dep) =>
+      const expandedDependsOn = Array.isArray(promptCase.depends_on)
+        ? promptCase.depends_on.map((dep) =>
             typeof dep === 'string' && prompts.length > 1 ? `${dep}__prompt_${promptId}` : dep,
           )
-        : rawCase.depends_on;
+        : promptCase.depends_on;
       const expandedCase: JsonObject = {
-        ...rawCase,
+        ...promptCase,
         ...(expandedId ? { id: expandedId } : {}),
         ...(expandedDependsOn !== undefined ? { depends_on: expandedDependsOn } : {}),
         input: renderPromptInput(prompt, vars),

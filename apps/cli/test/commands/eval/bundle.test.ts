@@ -149,7 +149,10 @@ tests: ../data/cases.yaml
       template: 'workspaces/workspace-template',
       hooks: { before_each: { command: ['bun', 'scripts/scripts/setup.ts'] } },
     });
-    const input = testCase.input as Array<{ content: Array<Record<string, unknown>> }>;
+    expect(bundledEval.prompts).toEqual(['{{ input }}']);
+    const input = (testCase.vars as Record<string, unknown>).input as Array<{
+      content: Array<Record<string, unknown>>;
+    }>;
     expect(input[0]?.content[0]).toEqual({ type: 'file', value: 'files/data/input.txt' });
 
     const bundledTargets = await readFile(path.join(bundleDir, 'targets.yaml'), 'utf8');
@@ -181,12 +184,15 @@ tests: ../data/cases.yaml
   - id: candidate
     provider: mock
     response: '{"answer":"inline bundled response"}'
+prompts:
+  - "{{ input }}"
 tests:
   - id: inline-case
-    input: hello
     assert:
       - type: contains
         value: inline
+    vars:
+      input: hello
 `,
       'utf8',
     );
@@ -223,12 +229,15 @@ tests:
       path.join(sourceDir, 'evals', 'missing-template.eval.yaml'),
       `workspace:
   template: ../does-not-exist
+prompts:
+  - "{{ input }}"
 tests:
   - id: missing-template
-    input: hello
     assert:
       - type: contains
         value: Mock
+    vars:
+      input: hello
 `,
       'utf8',
     );

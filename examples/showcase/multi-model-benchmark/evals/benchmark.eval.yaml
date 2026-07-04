@@ -1,73 +1,57 @@
-# Multi-Model Benchmark Evaluation
-#
-# Demonstrates multi-model × multi-metric × variability workflow:
-#   - Compare multiple models by running the same eval with different CLI targets
-#   - Weighted graders: accuracy (3×), completeness (2×), clarity (1×)
-#   - Repeat policy: 2 attempts to measure variability
-#
-# Default targets use low-cost models for safe experimentation.
-# Override with: agentv eval ... --target <name>
-#
-# Usage:
-#   agentv eval examples/showcase/multi-model-benchmark/evals/benchmark.eval.yaml
-
 name: multi-model-benchmark
 description: Multi-model benchmark — accuracy, completeness, and clarity across models
-tags: [ multi-provider ]
-
+tags:
+  - multi-provider
 target: copilot
 evaluate_options:
   repeat:
     count: 2
     strategy: pass_any
     early_exit: false
-  budget_usd: 2.00
-
+  budget_usd: 2
 assert:
   - metric: accuracy
     type: llm-rubric
     prompt: file://../prompts/accuracy-rubric.md
-    weight: 3.0
+    weight: 3
   - metric: completeness
     type: llm-rubric
     prompt: file://../prompts/completeness-rubric.md
-    weight: 2.0
+    weight: 2
   - metric: clarity
     type: llm-rubric
     prompt: file://../prompts/clarity-rubric.md
-    weight: 1.0
-
+    weight: 1
+prompts:
+  - "{{ input }}"
 tests:
-  # --- Factual reasoning ---
   - id: factual-geography
     assert:
       - |
         Correctly identifies that Mount Everest is the tallest mountain
         above sea level and provides its height (~8,849 m / 29,032 ft).
-    input: What is the tallest mountain in the world and how tall is it?
     expected_output: |
       Mount Everest is the tallest mountain in the world, standing at
       approximately 8,849 meters (29,032 feet) above sea level.
-
+    vars:
+      input: What is the tallest mountain in the world and how tall is it?
   - id: factual-science
     assert:
       - |
         Correctly explains photosynthesis as the process by which plants
         convert sunlight, water, and CO2 into glucose and oxygen.
-    input: Explain how photosynthesis works in 2-3 sentences.
     expected_output: |
       Photosynthesis is the process by which plants convert sunlight,
       water, and carbon dioxide into glucose and oxygen. It occurs
       primarily in the chloroplasts of plant cells, using chlorophyll
       to capture light energy.
-
-  # --- Analytical reasoning ---
+    vars:
+      input: Explain how photosynthesis works in 2-3 sentences.
   - id: analytical-comparison
     assert:
       - |
         Provides a balanced comparison covering key differences: typing
         (static vs dynamic), performance, use cases, and ecosystem.
-    input: Compare Python and Rust. What are the key differences?
     expected_output: |
       Python is dynamically typed, interpreted, and prioritizes
       developer productivity and readability. Rust is statically typed,
@@ -75,29 +59,27 @@ tests:
       excels in scripting, data science, and prototyping, while Rust
       is suited for systems programming, embedded systems, and
       performance-critical applications.
-
-  # --- Creative / open-ended ---
+    vars:
+      input: Compare Python and Rust. What are the key differences?
   - id: creative-explanation
     assert:
       - |
         Uses a clear, accessible analogy to explain recursion. The analogy
         should convey the concept of a function calling itself with a
         base case that stops the recursion.
-    input: Explain recursion using an everyday analogy.
     expected_output: |
       Recursion is like looking up a word in a dictionary and finding
       the definition uses another word you don't know, so you look that
       up too. You keep looking up words until you find one you already
       understand (the base case), then work your way back to the
       original word.
-
-  # --- Structured output ---
+    vars:
+      input: Explain recursion using an everyday analogy.
   - id: structured-list
     assert:
       - |
         Returns exactly 3 distinct advantages of version control. Each
         advantage should be clearly stated and relevant.
-    input: List 3 advantages of using version control in software development.
     expected_output: |
       1. History tracking — every change is recorded, allowing you to
          review, revert, or audit modifications over time.
@@ -105,3 +87,5 @@ tests:
          codebase simultaneously without overwriting each other's work.
       3. Branching and experimentation — you can create isolated branches
          to develop features or test ideas without affecting the main code.
+    vars:
+      input: List 3 advantages of using version control in software development.

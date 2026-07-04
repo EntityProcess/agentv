@@ -1,175 +1,156 @@
-# Batch CLI provider demo (synthetic)
-#
-# Goal: demonstrate a realistic batch pattern for AML screening.
-# - Tests contain structured `input` objects.
-# - A batch runner converts those objects into a CSV input file.
-# - The CLI provider runs the batch runner once, producing JSONL output.
-# - output in JSONL are automatically converted to trace events for tool_trajectory evaluation.
-
 name: batch-cli
-description: Batch CLI demo (AML screening) using structured input → CSV → JSONL
-  with trace extraction
-
+description: Batch CLI demo (AML screening) using structured input → CSV → JSONL with trace extraction
 target: batch_cli
-
-tags: [ agent ]
-
+tags:
+  - agent
+prompts:
+  - "{{ input }}"
 tests:
   - id: aml-001
-
     expected_output:
       - role: assistant
         content:
           decision: CLEAR
-
-    input:
-      - role: system
-        content: |-
-          You are a deterministic AML screening batch checker. Do not use external network calls.
-      - role: user
-        # Structured content object (multiple fields).
-        # The example scripts flatten this into CSV columns.
-        content:
-          request:
-            type: aml_screening_check
-            jurisdiction: AU
-            effective_date: 2025-01-01
-          row:
-            id: aml-001
-            customer_name: Example Customer A
-            origin_country: NZ
-            destination_country: AU
-            transaction_type: INTERNATIONAL_TRANSFER
-            amount: 5000
-            currency: USD
-
     assert:
       - metric: decision-check
         type: script
-        command: [ "bun", "run", "../graders/check-batch-cli-output.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/check-batch-cli-output.ts
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output
       - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
-      - |-
-        Batch runner returns a JSON object with decision=CLEAR.
-
+      - Batch runner returns a JSON object with decision=CLEAR.
+    vars:
+      input:
+        - role: system
+          content: You are a deterministic AML screening batch checker. Do not use external network calls.
+        - role: user
+          content:
+            request:
+              type: aml_screening_check
+              jurisdiction: AU
+              effective_date: 2025-01-01
+            row:
+              id: aml-001
+              customer_name: Example Customer A
+              origin_country: NZ
+              destination_country: AU
+              transaction_type: INTERNATIONAL_TRANSFER
+              amount: 5000
+              currency: USD
   - id: aml-002
-
     expected_output:
       - role: assistant
         content:
           decision: REVIEW
-
-    input:
-      - role: system
-        content: You are a deterministic AML screening batch checker.
-      - role: user
-        content:
-          request:
-            type: aml_screening_check
-            jurisdiction: AU
-            effective_date: 2025-01-01
-          row:
-            id: aml-002
-            customer_name: Example Customer B
-            origin_country: IR
-            destination_country: AU
-            transaction_type: INTERNATIONAL_TRANSFER
-            amount: 2000
-            currency: USD
-
     assert:
       - metric: decision-check
         type: script
-        command: [ "bun", "run", "../graders/check-batch-cli-output.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/check-batch-cli-output.ts
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output
       - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
-      - |-
-        Batch runner returns a JSON object with decision=REVIEW.
-
+      - Batch runner returns a JSON object with decision=REVIEW.
+    vars:
+      input:
+        - role: system
+          content: You are a deterministic AML screening batch checker.
+        - role: user
+          content:
+            request:
+              type: aml_screening_check
+              jurisdiction: AU
+              effective_date: 2025-01-01
+            row:
+              id: aml-002
+              customer_name: Example Customer B
+              origin_country: IR
+              destination_country: AU
+              transaction_type: INTERNATIONAL_TRANSFER
+              amount: 2000
+              currency: USD
   - id: aml-003
-
     expected_output:
       - role: assistant
         content:
           decision: REVIEW
-
-    input:
-      - role: system
-        content: You are a deterministic AML screening batch checker.
-      - role: user
-        content:
-          request:
-            type: aml_screening_check
-            jurisdiction: AU
-            effective_date: 2025-01-01
-          row:
-            id: aml-003
-            customer_name: Example Customer C
-            origin_country: US
-            destination_country: AU
-            transaction_type: INTERNATIONAL_TRANSFER
-            amount: 25000
-            currency: USD
-
     assert:
       - metric: decision-check
         type: script
-        command: [ "bun", "run", "../graders/check-batch-cli-output.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/check-batch-cli-output.ts
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output
       - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
-      - |-
-        Batch runner returns a JSON object with decision=REVIEW.
-
+      - Batch runner returns a JSON object with decision=REVIEW.
+    vars:
+      input:
+        - role: system
+          content: You are a deterministic AML screening batch checker.
+        - role: user
+          content:
+            request:
+              type: aml_screening_check
+              jurisdiction: AU
+              effective_date: 2025-01-01
+            row:
+              id: aml-003
+              customer_name: Example Customer C
+              origin_country: US
+              destination_country: AU
+              transaction_type: INTERNATIONAL_TRANSFER
+              amount: 25000
+              currency: USD
   - id: aml-004-not-exist
-
     expected_output:
       - role: assistant
         content:
           decision: REVIEW
-
-    input:
-      - role: system
-        content: You are a deterministic AML screening batch checker.
-      - role: user
-        content:
-          request:
-            type: aml_screening_check
-            jurisdiction: AU
-            effective_date: 2025-01-01
-          row:
-            id: aml-003
-            customer_name: Example Customer C
-            origin_country: US
-            destination_country: AU
-            transaction_type: INTERNATIONAL_TRANSFER
-            amount: 25000
-            currency: USD
-
     assert:
       - metric: decision-check
         type: script
-        command: [ "bun", "run", "../graders/check-batch-cli-output.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/check-batch-cli-output.ts
         cwd: .
-      # Verify the aml_screening tool was called using trace extracted from output
       - metric: tool-trajectory-check
         type: tool-trajectory
         mode: any_order
         minimums:
           aml_screening: 1
-      - |-
-        Batch runner returns a JSON object with decision=REVIEW.
+      - Batch runner returns a JSON object with decision=REVIEW.
+    vars:
+      input:
+        - role: system
+          content: You are a deterministic AML screening batch checker.
+        - role: user
+          content:
+            request:
+              type: aml_screening_check
+              jurisdiction: AU
+              effective_date: 2025-01-01
+            row:
+              id: aml-003
+              customer_name: Example Customer C
+              origin_country: US
+              destination_country: AU
+              transaction_type: INTERNATIONAL_TRANSFER
+              amount: 25000
+              currency: USD

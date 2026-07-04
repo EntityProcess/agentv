@@ -1,16 +1,16 @@
 name: external-datasets-demo
 version: "1.0"
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 imports:
   tests:
     - path: cases/accuracy.yaml
     - path: cases/regression.jsonl
     - path: cases/magic.csv
-
 tests:
   - id: inline-test
     assert:
-      - "The agent should greet the user politely"
-    input: "Hello, how are you?"
+      - The agent should greet the user politely
+    vars:
+      input: Hello, how are you?

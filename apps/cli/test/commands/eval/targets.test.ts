@@ -38,11 +38,13 @@ describe('eval target selection', () => {
         'name: target-label-suite',
         'targets:',
         '  - id: openai:gpt-5.4-mini',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: target-case',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 

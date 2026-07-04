@@ -1,61 +1,48 @@
-# Bug Fix Benchmark
-# SWE-bench style evaluation: Real-world bug fixing on public GitHub repositories
-#
-# Run the baseline variant:
-#   agentv eval evals/bug-fixes.eval.yaml --workers 3
-#
-# Run specific variants:
-#   agentv eval evals/bug-fixes.eval.yaml \
-#     --target claude-baseline,claude-superpowers --workers 2
-
 description: |
   Evaluate coding agents on real bug fixes from public GitHub repositories.
   Compare baseline performance against plugin-augmented workflows:
   superpowers (obra), compound-engineering (Every Inc), agent-skills (Addy Osmani).
-
 workspace:
   scope: suite
   repos:
     - path: ./repo
       repo: https://github.com/EntityProcess/agentv
-      commit: "6e446b722627e9df017b22e391fa63320362d8c7"
+      commit: 6e446b722627e9df017b22e391fa63320362d8c7
   hooks:
     before_each:
       reset: fast
-
-# Eval-local target: shares the configured agent target and installs the
-# baseline plugin configuration before each case.
 target:
   name: claude-baseline
   extends: ${{ AGENT_TARGET }}
   hooks:
     before_each:
-      command: [ "bash", "../scripts/setup-variant.sh", "baseline" ]
-
-tags: [ coding, bugfix, benchmark, swe-bench ]
-
+      command:
+        - bash
+        - ../scripts/setup-variant.sh
+        - baseline
+tags:
+  - coding
+  - bugfix
+  - benchmark
+  - swe-bench
+prompts:
+  - "{{ input }}"
 tests:
-  # Issue #912: CLI provider retries don't preserve workspace cwd
-  # A real bug from the AgentV repo. The fix is in packages/core/src/evaluation/providers/cli.ts
-  # where invokeBatch() uses this.config.cwd instead of request.cwd.
-  #
-  # This is the same task that was used in the hivespec session:
-  #   /home/christso/.claude/projects/-home-christso-projects-agentv-allagents/e517648a-b812-42a9-aca8-e10d7418c2e9.jsonl
   - id: fix-912-cli-retry-cwd
-    input: |
-      Fix the bug in this repository.
-
-      Bug: CLI provider retries don't preserve workspace cwd
-
-      When a CLI provider command fails and is retried, the retry attempts run
-      in the eval file directory instead of the workspace directory.
-
-      The issue is in packages/core/src/evaluation/providers/cli.ts in the
-      invokeBatch() method. The method uses this.config.cwd directly instead
-      of checking for a per-request cwd override.
-
-      Find the bug, fix it, and add tests to verify the fix.
     assert:
-      - The fix introduces an effectiveCwd variable that prefers request.cwd
-        over this.config.cwd
+      - The fix introduces an effectiveCwd variable that prefers request.cwd over this.config.cwd
       - effectiveCwd is used in the runCommand call and response metadata
+    vars:
+      input: |
+        Fix the bug in this repository.
+
+        Bug: CLI provider retries don't preserve workspace cwd
+
+        When a CLI provider command fails and is retried, the retry attempts run
+        in the eval file directory instead of the workspace directory.
+
+        The issue is in packages/core/src/evaluation/providers/cli.ts in the
+        invokeBatch() method. The method uses this.config.cwd directly instead
+        of checking for a per-request cwd override.
+
+        Find the bug, fix it, and add tests to verify the fix.

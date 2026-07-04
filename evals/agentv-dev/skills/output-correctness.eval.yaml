@@ -1,124 +1,120 @@
 name: agentv-dev-output-correctness
-description: >-
-  Tests whether agent-produced output is structurally and factually correct
-  given live AgentV skill and docs content as ground truth — covers eval YAML
-  structure, CLI command syntax, skill-content accuracy, and grader
-  configuration.
-
-tags: [agent, skills]
-
+description: Tests whether agent-produced output is structurally and factually correct given live
+  AgentV skill and docs content as ground truth — covers eval YAML structure, CLI command syntax,
+  skill-content accuracy, and grader configuration.
+tags:
+  - agent
+  - skills
+prompts:
+  - "{{ input }}"
 tests:
   - id: yaml-valid-structure
     criteria: Agent produces eval YAML with the canonical AgentV fields.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /skills-data/agentv-eval-writer/SKILL.md
-          - type: text
-            value: |
-              Using the live agentv-eval-writer skill above as your reference,
-              produce a minimal but valid `.eval.yaml` snippet (one `description`
-              and one test in `tests:`) for an eval that grades whether an LLM
-              correctly summarises a paragraph.
-
-              Output **only** the YAML — no surrounding prose or fences.
     assert:
       - type: contains
         value: "description:"
       - type: contains
         value: "tests:"
       - type: regex
-        value: "-\\s+id:\\s+\\S"
+        value: -\s+id:\s+\S
       - type: rubrics
         criteria:
-          - "Has top-level `description:` and `tests:` keys"
-          - "At least one test under `tests:` has both `id:` and either `criteria:` or `input:` (or both)"
+          - Has top-level `description:` and `tests:` keys
+          - At least one test under `tests:` has both `id:` and either `criteria:` or `input:` (or
+            both)
           - Uses snake_case keys (no camelCase like `testId` or `expectedOutput`)
           - YAML is syntactically valid (consistent indentation, no tab/space mixing)
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /skills-data/agentv-eval-writer/SKILL.md
+            - type: text
+              value: |
+                Using the live agentv-eval-writer skill above as your reference,
+                produce a minimal but valid `.eval.yaml` snippet (one `description`
+                and one test in `tests:`) for an eval that grades whether an LLM
+                correctly summarises a paragraph.
 
+                Output **only** the YAML — no surrounding prose or fences.
   - id: yaml-assertion-types-valid
     criteria: Agent uses canonical assertion type names from the AgentV registry.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /skills-data/agentv-eval-writer/SKILL.md
-          - type: text
-            value: |
-              Using the live agentv-eval-writer skill as reference, write a
-              single test entry under `tests:` that uses **three** assertions:
-              one `contains`, one `regex`, and one `rubrics` (with at least
-              two criteria). Output only the YAML for the test entry.
     assert:
       - type: regex
-        value: "type:\\s+contains"
+        value: type:\s+contains
       - type: regex
-        value: "type:\\s+regex"
+        value: type:\s+regex
       - type: regex
-        value: "type:\\s+rubrics"
+        value: type:\s+rubrics
       - type: rubrics
         criteria:
-          - "Each assertion has both a `type:` and the field that type expects (`value:` for contains/regex, `criteria:` list for rubrics)"
-          - Does not invent assertion types that are not in the agentv-eval-writer skill (for example `like`, `match`, or `expect`)
-          - Uses kebab-case (for example `llm-grader`, `is-json`) not snake_case (for example `llm_grader`) for any multi-word grader types referenced
-
+          - Each assertion has both a `type:` and the field that type expects (`value:` for
+            contains/regex, `criteria:` list for rubrics)
+          - Does not invent assertion types that are not in the agentv-eval-writer skill (for
+            example `like`, `match`, or `expect`)
+          - Uses kebab-case (for example `llm-grader`, `is-json`) not snake_case (for example
+            `llm_grader`) for any multi-word grader types referenced
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /skills-data/agentv-eval-writer/SKILL.md
+            - type: text
+              value: |
+                Using the live agentv-eval-writer skill as reference, write a
+                single test entry under `tests:` that uses **three** assertions:
+                one `contains`, one `regex`, and one `rubrics` (with at least
+                two criteria). Output only the YAML for the test entry.
   - id: cli-command-correct-syntax
     criteria: Agent produces correct `agentv skills` CLI commands with valid subcommands and flags.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
-          - type: text
-            value: |
-              Using the live installation doc above as your reference, give me
-              three shell commands, one per line, that exercise the
-              `agentv skills` subcommand:
-              1. List all bundled skills as JSON.
-              2. Print the agentv-bench skill including its bundled support files.
-              3. Print the on-disk path of the agentv-bench skill.
     assert:
       - type: regex
-        value: "agentv\\s+skills\\s+list\\s+--json"
+        value: agentv\s+skills\s+list\s+--json
       - type: regex
-        value: "agentv\\s+skills\\s+get\\s+agentv-bench\\s+--full"
+        value: agentv\s+skills\s+get\s+agentv-bench\s+--full
       - type: regex
-        value: "agentv\\s+skills\\s+path\\s+agentv-bench"
-
+        value: agentv\s+skills\s+path\s+agentv-bench
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                Using the live installation doc above as your reference, give me
+                three shell commands, one per line, that exercise the
+                `agentv skills` subcommand:
+                1. List all bundled skills as JSON.
+                2. Print the agentv-bench skill including its bundled support files.
+                3. Print the on-disk path of the agentv-bench skill.
   - id: skill-content-accurate
     criteria: Agent's description of a skill matches the skill's live SKILL.md content.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /skills-data/agentv-trace-analyst/SKILL.md
-          - type: text
-            value: |
-              Read the live agentv-trace-analyst skill above. In one paragraph,
-              describe what this skill does and when it should be invoked.
-              Quote at most one short phrase from the skill text; do not
-              invent capabilities the skill does not mention.
     assert:
       - type: rubrics
         criteria:
-          - Description accurately reflects what agentv-trace-analyst does (analysing eval traces and failure modes)
-          - Does not claim the skill writes or runs evals (those are agentv-eval-writer and agentv-bench respectively)
+          - Description accurately reflects what agentv-trace-analyst does (analysing eval traces
+            and failure modes)
+          - Does not claim the skill writes or runs evals (those are agentv-eval-writer and
+            agentv-bench respectively)
           - Any quoted phrase appears verbatim in the provided SKILL.md
           - Does not hallucinate sub-features not present in the skill
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /skills-data/agentv-trace-analyst/SKILL.md
+            - type: text
+              value: |
+                Read the live agentv-trace-analyst skill above. In one paragraph,
+                describe what this skill does and when it should be invoked.
+                Quote at most one short phrase from the skill text; do not
+                invent capabilities the skill does not mention.
   - id: plugin-skill-list-complete
     criteria: Agent lists all bundled skills from the live `agentv-dev` plugin stub.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
-          - type: text
-            value: |
-              The file above is the live `agentv-dev` plugin entrypoint.
-              Reproduce the list of available bundled skill names as a markdown
-              bulleted list.
     assert:
       - type: contains
         value: agentv-bench
@@ -134,43 +130,56 @@ tests:
         criteria:
           - Lists exactly the five skill names from the live plugin file, no more and no fewer
           - Does not invent additional skill names not present in the plugin file
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: text
+              value: |
+                The file above is the live `agentv-dev` plugin entrypoint.
+                Reproduce the list of available bundled skill names as a markdown
+                bulleted list.
   - id: governance-ref-command-accurate
     criteria: Agent gives the correct command for loading a specific governance reference file.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /skills-data/agentv-governance/SKILL.md
-          - type: text
-            value: |
-              Using the live agentv-governance skill above as reference, what
-              single command should I run to load the `lint-rules` reference
-              file without pulling in the whole skill?
-              Reply with the command on its own line.
     assert:
       - type: regex
-        value: "agentv\\s+skills\\s+get\\s+agentv-governance\\s+--ref\\s+lint-rules"
-
+        value: agentv\s+skills\s+get\s+agentv-governance\s+--ref\s+lint-rules
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /skills-data/agentv-governance/SKILL.md
+            - type: text
+              value: |
+                Using the live agentv-governance skill above as reference, what
+                single command should I run to load the `lint-rules` reference
+                file without pulling in the whole skill?
+                Reply with the command on its own line.
   - id: grader-config-valid
     criteria: Agent configures an llm-grader with the fields the AgentV registry expects.
-    input:
-      - role: user
-        content:
-          - type: file
-            value: /skills-data/agentv-eval-writer/SKILL.md
-          - type: text
-            value: |
-              Using the live agentv-eval-writer skill as reference, produce a
-              YAML snippet for **one** assertion that uses `type: llm-grader`
-              to grade an answer's correctness. Include whatever fields the
-              skill says an `llm-grader` requires (for example target/model or
-              rubric criteria). Output only the YAML for the single assertion.
     assert:
       - type: regex
-        value: "type:\\s+llm-grader"
+        value: type:\s+llm-grader
       - type: rubrics
         criteria:
           - "Uses `type: llm-grader` (kebab-case), not `type: llm_grader` or `type: llmGrader`"
-          - Includes the fields the skill documents for llm-grader (typically a rubric or criteria field; may also include a target or model)
-          - Does not invent fields not mentioned in the skill (for example a fabricated `model_provider` field)
+          - Includes the fields the skill documents for llm-grader (typically a rubric or criteria
+            field; may also include a target or model)
+          - Does not invent fields not mentioned in the skill (for example a fabricated
+            `model_provider` field)
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /skills-data/agentv-eval-writer/SKILL.md
+            - type: text
+              value: |
+                Using the live agentv-eval-writer skill as reference, produce a
+                YAML snippet for **one** assertion that uses `type: llm-grader`
+                to grade an answer's correctness. Include whatever fields the
+                skill says an `llm-grader` requires (for example target/model or
+                rubric criteria). Output only the YAML for the single assertion.

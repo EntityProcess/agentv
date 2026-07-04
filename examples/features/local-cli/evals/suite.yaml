@@ -1,31 +1,25 @@
-# CLI provider demonstration: runs the template-based CLI target
-
 description: Minimal demo showing how to invoke a CLI target with file attachments
-
-# Use the CLI target defined in .agentv/targets.yaml
 target: local_cli
-
-tags: [ agent ]
-
+tags:
+  - agent
+prompts:
+  - "{{ input }}"
 tests:
   - id: cli-provider-echo
     assert:
       - CLI echoes the prompt and mentions all attachment names
-
-    input:
-      - role: system
-        content:
-          - type: file
-            value: python.instructions.md
-      - role: user
-        content:
-          - type: text
-            value: |-
-              Please echo this request in one short sentence and mention all attached files by name.
-          - type: file
-            value: example.txt
-
     expected_output:
       - role: assistant
-        content: |-
-          Attachments detected (2): python.instructions.md, example.txt.
+        content: "Attachments detected (2): python.instructions.md, example.txt."
+    vars:
+      input:
+        - role: system
+          content:
+            - type: file
+              value: python.instructions.md
+        - role: user
+          content:
+            - type: text
+              value: Please echo this request in one short sentence and mention all attached files by name.
+            - type: file
+              value: example.txt

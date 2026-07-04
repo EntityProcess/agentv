@@ -23,18 +23,25 @@ describe('eval YAML preprocessors', () => {
       path.join(dir, 'suite.eval.yaml'),
       `preprocessors:
   - type: xlsx
-    command: ["node", "xlsx-default.js"]
+    command:
+      - node
+      - xlsx-default.js
+prompts:
+  - "{{ input }}"
 tests:
   - id: report
-    input: "grade this"
-    criteria: "works"
+    criteria: works
     assert:
       - name: grade
         type: llm-grader
-        prompt: "Evaluate {{ output }}"
+        prompt: Evaluate {{ output }}
         preprocessors:
           - type: xlsx
-            command: ["node", "xlsx-override.js"]
+            command:
+              - node
+              - xlsx-override.js
+    vars:
+      input: grade this
 `,
       'utf8',
     );
@@ -63,18 +70,25 @@ tests:
       path.join(dir, 'suite.eval.yaml'),
       `preprocessors:
   - type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-    command: ["node", "xlsx-default.js"]
+    command:
+      - node
+      - xlsx-default.js
+prompts:
+  - "{{ input }}"
 tests:
   - id: report
-    input: "grade this"
-    criteria: "works"
+    criteria: works
     assert:
       - name: grade
         type: llm-grader
-        prompt: "Evaluate {{ output }}"
+        prompt: Evaluate {{ output }}
         preprocessors:
           - type: xlsx
-            command: ["node", "xlsx-override.js"]
+            command:
+              - node
+              - xlsx-override.js
+    vars:
+      input: grade this
 `,
       'utf8',
     );

@@ -1,8 +1,11 @@
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-01
-    input: hello world
     criteria: Response echoes the input
     assert:
       - metric: contains_hello
         type: contains
         value: hello
+    vars:
+      input: hello world

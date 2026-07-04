@@ -1,98 +1,88 @@
-# Trial Output Consistency Grader
-# Measures how consistent an agent's outputs are across repeated trials
-# using pairwise cosine similarity (embedding-based or token-overlap fallback).
-#
-# Validate:
-#   bun agentv validate examples/features/trial-output-consistency/evals/suite.yaml
-
 description: Trial output consistency via embedding similarity
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
-  # ── High consistency: semantically identical outputs ──────────────
   - id: high-consistency
-
-    input:
-      - role: user
-        content: What is the capital of France?
-
     expected_output:
       - role: assistant
         content: The capital of France is Paris.
-
     assert:
       - metric: trial-consistency
         type: script
-        command: [ "bun", "run", "../graders/trial-consistency.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/trial-consistency.ts
         config:
           fallback: token
           trialOutputs:
-            - "The capital of France is Paris."
-            - "Paris is the capital of France."
-            - "France's capital city is Paris."
+            - The capital of France is Paris.
+            - Paris is the capital of France.
+            - France's capital city is Paris.
       - Agent produces consistent answers across trials.
-
-  # ── Low consistency: divergent outputs ────────────────────────────
+    vars:
+      input:
+        - role: user
+          content: What is the capital of France?
   - id: low-consistency
-
-    input:
-      - role: user
-        content: Write a creative tagline for a coffee shop.
-
     expected_output:
       - role: assistant
         content: Any creative tagline.
-
     assert:
       - metric: trial-consistency
         type: script
-        command: [ "bun", "run", "../graders/trial-consistency.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/trial-consistency.ts
         config:
           fallback: token
           trialOutputs:
-            - "Wake up and smell the magic."
-            - "Brewed with love, served with a smile."
-            - "Where every cup tells a story."
+            - Wake up and smell the magic.
+            - Brewed with love, served with a smile.
+            - Where every cup tells a story.
       - Agent produces inconsistent answers across trials.
-
-  # ── Edge case: single trial ──────────────────────────────────────
+    vars:
+      input:
+        - role: user
+          content: Write a creative tagline for a coffee shop.
   - id: single-trial
-
-    input:
-      - role: user
-        content: What is 2 + 2?
-
     expected_output:
       - role: assistant
         content: "4"
-
     assert:
       - metric: trial-consistency
         type: script
-        command: [ "bun", "run", "../graders/trial-consistency.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/trial-consistency.ts
         config:
           fallback: token
           trialOutputs:
-            - "The answer is 4."
+            - The answer is 4.
       - Single trial returns perfect consistency.
-
-  # ── Edge case: zero trials ──────────────────────────────────────
+    vars:
+      input:
+        - role: user
+          content: What is 2 + 2?
   - id: zero-trials
-
-    input:
-      - role: user
-        content: Hello
-
     expected_output:
       - role: assistant
         content: Hi
-
     assert:
       - metric: trial-consistency
         type: script
-        command: [ "bun", "run", "../graders/trial-consistency.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/trial-consistency.ts
         config:
           fallback: token
           trialOutputs: []
       - Zero trials returns an error score.
+    vars:
+      input:
+        - role: user
+          content: Hello

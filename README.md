@@ -88,9 +88,13 @@ evaluate_options:
 
 default_test: file://./default-test.yaml
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: fizzbuzz
-    input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz". Return only one Python code block.
+    vars:
+      input: Write FizzBuzz in Python. Use lowercase output strings "fizz", "buzz", and "fizzbuzz". Return only one Python code block.
     assert:
       - type: contains
         value: "fizz"
@@ -135,9 +139,13 @@ evaluate_options:
 default_test:
   threshold: 0.85
 
+prompts:
+  - "{{ input }}"
+
 tests:
   - id: fizzbuzz
-    input: Write FizzBuzz in Python
+    vars:
+      input: Write FizzBuzz in Python
 ```
 
 `target: local-openai` resolves the configured target id from `.agentv/config.yaml` and uses its provider, model, hooks, and provider settings. The object form above defines a full eval-local target and must include enough provider configuration to run. AgentV records the resolved target information in run artifacts so results can be audited and replayed. The `tags.experiment` label stays `with-skills` because the condition is unchanged; the model/provider variation belongs to the resolved target metadata.
@@ -214,10 +222,11 @@ const { results, summary } = await evaluate({
   experiment: 'with-skills',
   task: async (input) => runMyAppTarget(input),
   threshold: 0.8,
+  prompts: ['{{ input }}'],
   tests: [
     {
       id: 'fizzbuzz',
-      input: 'Write FizzBuzz in Python',
+      vars: { input: 'Write FizzBuzz in Python' },
       assert: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',
@@ -249,6 +258,7 @@ export default defineEval({
     earlyExit: false,
   },
   threshold: 0.8,
+  prompts: ['{{ input }}'],
   workspace: {
     scope: 'attempt',
     repos: [
@@ -262,7 +272,7 @@ export default defineEval({
   tests: [
     {
       id: 'fizzbuzz',
-      input: 'Write FizzBuzz in Python',
+      vars: { input: 'Write FizzBuzz in Python' },
       assert: [
         { type: 'contains', value: 'fizz' },
         'Implements correct FizzBuzz logic for multiples of 3, 5, and 15',

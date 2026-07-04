@@ -1,45 +1,42 @@
 name: release-contract
 description: Lightweight release gate for npm latest promotion.
-
 workspace:
   scope: suite
   template: ../workspace-template
-
 target: github-models-contract
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: json-contract
-    input:
-      - role: system
-        content: >-
-          You are a deterministic JSON endpoint. Reply only with raw JSON. Do
-          not include markdown, prose, code fences, or trailing commentary.
-      - role: user
-        content: >-
-          Return this exact JSON object:
-          {"status":"ok","gate":"agentv-contract","checks":2}
     assert:
       - type: is-json
         required: true
       - type: regex
-        value: '"status"\s*:\s*"ok"'
+        value: "\"status\"\\s*:\\s*\"ok\""
       - type: regex
-        value: '"gate"\s*:\s*"agentv-contract"'
-      - The target returns a small valid JSON object with the release gate
-        markers.
-
+        value: "\"gate\"\\s*:\\s*\"agentv-contract\""
+      - The target returns a small valid JSON object with the release gate markers.
+    vars:
+      input:
+        - role: system
+          content: You are a deterministic JSON endpoint. Reply only with raw JSON. Do not include markdown,
+            prose, code fences, or trailing commentary.
+        - role: user
+          content: "Return this exact JSON object:
+            {\"status\":\"ok\",\"gate\":\"agentv-contract\",\"checks\":2}"
   - id: workspace-contract
-    input:
-      - role: system
-        content: >-
-          Reply with exactly the lowercase words: workspace ready
-      - role: user
-        content: Confirm the release contract workspace is ready.
     assert:
       - type: contains
         value: workspace ready
       - metric: workspace-template-materialized
         type: script
-        command: [ "bun", "../scripts/check-workspace.ts" ]
-      - The local workspace template is materialized and deterministic grading
-        can inspect it.
+        command:
+          - bun
+          - ../scripts/check-workspace.ts
+      - The local workspace template is materialized and deterministic grading can inspect it.
+    vars:
+      input:
+        - role: system
+          content: "Reply with exactly the lowercase words: workspace ready"
+        - role: user
+          content: Confirm the release contract workspace is ready.

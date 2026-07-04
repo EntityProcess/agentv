@@ -32,6 +32,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       timeoutSeconds: 600,
       threshold: 0.8,
       budgetUsd: 1.5,
+      prompts: ['{{ input }}'],
       assert: [
         {
           type: 'execution-metrics',
@@ -43,7 +44,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       tests: [
         {
           id: 'reply-with-hello',
-          input: 'Say hello.',
+          vars: { input: 'Say hello.' },
           inputFiles: ['fixtures/prompt.md'],
           expectedOutput: 'Hello there',
           workspace: {
@@ -115,6 +116,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       },
       timeout_seconds: 600,
       threshold: 0.8,
+      prompts: ['{{ input }}'],
       evaluate_options: {
         repeat: {
           count: 3,
@@ -134,7 +136,7 @@ describe('YAML-aligned eval authoring helpers', () => {
       tests: [
         {
           id: 'reply-with-hello',
-          input: 'Say hello.',
+          vars: { input: 'Say hello.' },
           input_files: ['fixtures/prompt.md'],
           expected_output: 'Hello there',
           workspace: {
@@ -185,10 +187,11 @@ describe('YAML-aligned eval authoring helpers', () => {
   it('serializes canonical YAML and uses the assert block', () => {
     const suite = evalSuite({
       name: 'yaml-round-trip',
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'hello',
-          input: 'Say hello',
+          vars: { input: 'Say hello' },
           expectedOutput: 'Hello',
           assert: [{ type: 'contains', value: 'Hello' }],
         },
@@ -209,7 +212,10 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-tags-map',
       tags: { experiment: 'sdk-baseline', team: 'compliance' },
       target: 'mock-target',
-      tests: [{ id: 'hello', input: 'Say hello', assert: [{ type: 'contains', value: 'hi' }] }],
+      prompts: ['{{ input }}'],
+      tests: [
+        { id: 'hello', vars: { input: 'Say hello' }, assert: [{ type: 'contains', value: 'hi' }] },
+      ],
     });
 
     const lowered = toEvalYamlObject(suite);
@@ -221,11 +227,38 @@ describe('YAML-aligned eval authoring helpers', () => {
       name: 'sdk-tags-list',
       tags: ['smoke', 'regression'],
       target: 'mock-target',
-      tests: [{ id: 'hello', input: 'Say hello', assert: [{ type: 'contains', value: 'hi' }] }],
+      prompts: ['{{ input }}'],
+      tests: [
+        { id: 'hello', vars: { input: 'Say hello' }, assert: [{ type: 'contains', value: 'hi' }] },
+      ],
     });
 
     const lowered = toEvalYamlObject(suite);
     expect(lowered.tags).toEqual(['smoke', 'regression']);
+  });
+
+  it('rejects removed direct input authoring surfaces', () => {
+    expect(() =>
+      defineEval({
+        name: 'removed-top-level-input',
+        input: 'Say hello',
+        tests: [],
+      } as never),
+    ).toThrow(/top-level 'input'/);
+
+    expect(() =>
+      defineEval({
+        name: 'removed-test-input',
+        prompts: ['{{ input }}'],
+        tests: [
+          {
+            id: 'hello',
+            input: 'Say hello',
+            assert: [{ type: 'contains', value: 'hello' }],
+          },
+        ],
+      } as never),
+    ).toThrow(/tests\[0\]\.input/);
   });
 
   it('rejects removed experiment authoring blocks', () => {
@@ -233,10 +266,11 @@ describe('YAML-aligned eval authoring helpers', () => {
       defineEval({
         name: 'removed-experiment',
         experiment: { target: 'mock' },
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'hello',
-            input: 'Say hello',
+            vars: { input: 'Say hello' },
             assert: [{ type: 'contains', value: 'hello' }],
           },
         ],
@@ -249,10 +283,11 @@ describe('YAML-aligned eval authoring helpers', () => {
       defineEval({
         name: 'removed-runs',
         runs: 3,
+        prompts: ['{{ input }}'],
         tests: [
           {
             id: 'hello',
-            input: 'Say hello',
+            vars: { input: 'Say hello' },
             assert: [{ type: 'contains', value: 'hello' }],
           },
         ],

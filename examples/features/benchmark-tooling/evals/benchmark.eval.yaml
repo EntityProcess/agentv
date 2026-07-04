@@ -1,20 +1,21 @@
 name: multi-model-benchmark
 description: Compare greeting, code generation, and summarization across three model targets
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: greeting
-    input: Generate a friendly greeting for a new user
     assert:
       - A warm, welcoming greeting that is professional and helpful
-
+    vars:
+      input: Generate a friendly greeting for a new user
   - id: code-generation
-    input: Write a function to reverse a linked list
     assert:
       - A correct, efficient implementation of linked list reversal
-
+    vars:
+      input: Write a function to reverse a linked list
   - id: summarization
-    input: Summarize the key points of the quarterly earnings report
     assert:
       - A concise summary covering revenue, margins, and guidance
+    vars:
+      input: Summarize the key points of the quarterly earnings report

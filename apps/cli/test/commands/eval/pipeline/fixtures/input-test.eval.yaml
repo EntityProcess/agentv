@@ -1,14 +1,17 @@
 name: input-test
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-01
-    input: hello world
     criteria: Response echoes the input
     assert:
       - metric: contains_hello
         type: script
         command: node grader-score-1.js
-        weight: 1.0
+        weight: 1
       - metric: relevance
         type: llm-grader
         prompt: Did the response echo the input?
-        weight: 2.0
+        weight: 2
+    vars:
+      input: hello world

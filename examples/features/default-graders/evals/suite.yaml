@@ -1,46 +1,38 @@
-# Default Graders Example
-# Demonstrates root-level assertions that apply to all tests
-
 name: default-graders-example
 description: Root-level graders that automatically apply to every test
-
 target: llm
-
 assert:
   - Response has a professional, helpful, and polite tone
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: greeting
     assert:
       - The assistant responds with a friendly greeting
-    input: "Hello!"
-    expected_output: "Hello! How can I help you today?"
-    # Gets tone_check from root-level assertions
-
+    expected_output: Hello! How can I help you today?
+    vars:
+      input: Hello!
   - id: with-custom-eval
-    input: "I want a refund"
-    expected_output: "I'd be happy to help you with a refund. Could you provide your
-      order number?"
+    expected_output: I'd be happy to help you with a refund. Could you provide your order number?
     assert:
       - metric: helpfulness
         type: llm-rubric
       - The assistant provides a helpful response about refunds
-    # Also gets tone_check from root-level assertions
-
+    vars:
+      input: I want a refund
   - id: skip-defaults
-    input:
-      - role: system
-        content: "You are a support agent. When a user reports an urgent issue,
-          acknowledge the urgency and offer to help immediately. Do not ask
-          clarifying questions first."
-      - role: user
-        content: "URGENT: System is down"
-    expected_output: "I understand this is urgent. Let me help you right away. Can
-      you tell me which system is affected so I can start troubleshooting?"
+    expected_output: I understand this is urgent. Let me help you right away. Can you tell me which
+      system is affected so I can start troubleshooting?
     execution:
       skip_defaults: true
     assert:
       - metric: urgency_check
         type: llm-rubric
       - The assistant handles urgent requests appropriately
-    # Does NOT get tone_check — skip_defaults opts out
+    vars:
+      input:
+        - role: system
+          content: You are a support agent. When a user reports an urgent issue, acknowledge the urgency and
+            offer to help immediately. Do not ask clarifying questions first.
+        - role: user
+          content: "URGENT: System is down"

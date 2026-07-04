@@ -50,12 +50,15 @@ async function writeTaskBundle(options: {
   await writeFile(
     path.join(bundleDir, 'EVAL.yaml'),
     `target: captured
+prompts:
+  - "{{ input }}"
 tests:
   - id: ${options.testId}
-    input:
-      - role: user
-        content: Prompt for ${options.testId}
     expected_output: []
+    vars:
+      input:
+        - role: user
+          content: Prompt for ${options.testId}
 `,
     'utf8',
   );

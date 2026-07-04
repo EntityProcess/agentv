@@ -95,10 +95,13 @@ describe('promptfoo-compatible lifecycle extensions', () => {
   - id: agentv:agent-rules
     hook: beforeEach
     skills: rules/skills
+prompts:
+  - "{{ input }}"
 tests:
   - id: one
-    input: hello
     criteria: works
+    vars:
+      input: hello
 `,
       'utf8',
     );
@@ -171,10 +174,13 @@ export function afterAll(context) {
     rules: rules/AGENTS.md
 workspace:
   template: template
+prompts:
+  - "{{ input }}"
 tests:
   - id: one
-    input: hello
     criteria: works
+    vars:
+      input: hello
 `,
       'utf8',
     );
@@ -242,12 +248,15 @@ export function afterEach(context) {
   - file://hooks.mjs:afterEach
 workspace:
   template: template
+prompts:
+  - "{{ input }}"
 tests:
   - id: conversation
     mode: conversation
-    input: "You are concise"
     turns:
       - input: hello
+    vars:
+      input: You are concise
 `,
       'utf8',
     );
@@ -294,13 +303,17 @@ workspace:
     - path: ./repo-a
       repo: file://${sourceRepo}
       commit: ${commit}
+prompts:
+  - "{{ input }}"
 tests:
   - id: one
-    input: one
     criteria: works
+    vars:
+      input: one
   - id: two
-    input: two
     criteria: works
+    vars:
+      input: two
 `,
         'utf8',
       );
@@ -361,10 +374,13 @@ export function beforeEach(context) {
   - file://hooks.mjs:beforeEach
 workspace:
   template: template
+prompts:
+  - "{{ input }}"
 tests:
   - id: one
-    input: hello
     criteria: works
+    vars:
+      input: hello
 `,
       'utf8',
     );
@@ -396,10 +412,13 @@ tests:
     await writeFile(
       path.join(dir, 'suite.eval.yaml'),
       `on_run_complete: ./done.sh
+prompts:
+  - "{{ input }}"
 tests:
   - id: one
-    input: hello
     criteria: works
+    vars:
+      input: hello
 `,
       'utf8',
     );

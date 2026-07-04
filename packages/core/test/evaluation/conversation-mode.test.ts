@@ -739,12 +739,15 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'turns-no-mode.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     turns:
       - input: Turn 1
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -758,11 +761,14 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'mode-no-turns.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     mode: conversation
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -774,12 +780,15 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'mode-empty-turns.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     mode: conversation
     turns: []
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -791,14 +800,17 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'turns-expected-output.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     mode: conversation
     turns:
       - input: Turn 1
-    expected_output: "some output"
+    expected_output: some output
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -814,11 +826,14 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'aggregation-no-mode.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     aggregation: mean
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -832,11 +847,14 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'on-turn-failure-no-mode.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     on_turn_failure: stop
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -852,11 +870,14 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'window-no-mode.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     window_size: 3
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -870,13 +891,16 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'turn-missing-input.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     mode: conversation
     turns:
-      - expected_output: "something"
+      - expected_output: something
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -888,13 +912,16 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'turn-whitespace-input.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: t1
     criteria: Goal
-    input: hello
     mode: conversation
     turns:
       - input: "   "
+    vars:
+      input: hello
 `,
     );
     const result = await validateEvalFile(filePath);
@@ -906,20 +933,23 @@ describe('validateEvalFile — conversation mode', () => {
     const filePath = path.join(tempDir, 'valid-conversation.yaml');
     await writeFile(
       filePath,
-      `tests:
+      `prompts:
+  - "{{ input }}"
+tests:
   - id: conv-valid
     criteria: Be helpful
-    input: "System: you are a helpful assistant"
     mode: conversation
     aggregation: mean
     on_turn_failure: continue
     window_size: 5
     turns:
-      - input: "What is 2+2?"
+      - input: What is 2+2?
         expected_output: "4"
-      - input: "And 3+3?"
+      - input: And 3+3?
         assertions:
-          - "Response mentions 6"
+          - Response mentions 6
+    vars:
+      input: "System: you are a helpful assistant"
 `,
     );
     const result = await validateEvalFile(filePath);

@@ -21,19 +21,27 @@ describe('Workspace config parsing', () => {
     const evalFile = path.join(testDir, 'workspace-case.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: test-case-1
-    input: "Do something"
-    criteria: "Should do the thing"
+    criteria: Should do the thing
     workspace:
       hooks:
         before_all:
-          command: ["bun", "run", "setup.ts"]
+          command:
+            - bun
+            - run
+            - setup.ts
           timeout_ms: 120000
         after_each:
-          command: ["bun", "run", "teardown.ts"]
+          command:
+            - bun
+            - run
+            - teardown.ts
           timeout_ms: 30000
+    vars:
+      input: Do something
 `,
     );
 
@@ -54,14 +62,16 @@ tests:
     const evalFile = path.join(testDir, 'metadata-case.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: sympy-20590
-    input: "Fix the bug"
-    criteria: "Bug should be fixed"
+    criteria: Bug should be fixed
     metadata:
       repo: sympy/sympy
-      source_commit: "abc123def"
+      source_commit: abc123def
+    vars:
+      input: Fix the bug
 `,
     );
 
@@ -77,19 +87,24 @@ tests:
     const evalFile = path.join(testDir, 'workspace-suite.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   hooks:
     before_all:
-      command: ["bun", "run", "default-setup.ts"]
-
+      command:
+        - bun
+        - run
+        - default-setup.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
   - id: case-2
-    input: "Do something else"
-    criteria: "Should also work"
+    criteria: Should also work
+    vars:
+      input: Do something else
 `,
     );
 
@@ -108,23 +123,31 @@ tests:
     const evalFile = path.join(testDir, 'workspace-merge.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   hooks:
     before_all:
-      command: ["bun", "run", "default-setup.ts"]
-
+      command:
+        - bun
+        - run
+        - default-setup.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-override
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       hooks:
         before_all:
-          command: ["bun", "run", "custom-setup.ts"]
+          command:
+            - bun
+            - run
+            - custom-setup.ts
+    vars:
+      input: Do something
   - id: case-default
-    input: "Do something else"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something else
 `,
     );
 
@@ -150,20 +173,26 @@ tests:
     const evalFile = path.join(testDir, 'workspace-env-merge.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   hooks:
     before_all:
-      command: ["bun", "run", "default-setup.ts"]
-
+      command:
+        - bun
+        - run
+        - default-setup.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-env
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       env:
-        required_commands: ["git"]
-        required_python_modules: ["json"]
+        required_commands:
+          - git
+        required_python_modules:
+          - json
+    vars:
+      input: Do something
 `,
     );
 
@@ -182,16 +211,21 @@ tests:
     const evalFile = path.join(testDir, 'workspace-cwd.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: test-cwd
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       hooks:
         before_all:
-          command: ["bun", "run", "setup.ts"]
+          command:
+            - bun
+            - run
+            - setup.ts
           cwd: ./scripts
+    vars:
+      input: Do something
 `,
     );
 
@@ -204,14 +238,15 @@ tests:
     const evalFile = path.join(testDir, 'workspace-template.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   template: ./workspace-template
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-template
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
     );
 
@@ -224,17 +259,19 @@ tests:
     const evalFile = path.join(testDir, 'workspace-docker-no-source.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: docker-no-source
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       docker:
         image: swebench/sweb.eval.django__django:latest
       repos:
         - path: /testbed
           commit: abc123def
+    vars:
+      input: Do something
 `,
     );
 
@@ -253,17 +290,19 @@ tests:
     const evalFile = path.join(testDir, 'workspace-repo-path-checkout-only.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: path-checkout-only
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       docker:
         image: myimage:latest
       repos:
         - path: /workspace/project
           commit: v2.0.0
+    vars:
+      input: Do something
 `,
     );
 
@@ -278,8 +317,7 @@ tests:
     const evalFile = path.join(testDir, 'workspace-repos.yaml');
     await writeFile(
       evalFile,
-      `
-description: test
+      `description: test
 workspace:
   repos:
     - path: ./repo-a
@@ -288,10 +326,13 @@ workspace:
       ancestor: 1
       sparse:
         - src/**
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "hello"
-    criteria: "world"
+    criteria: world
+    vars:
+      input: hello
 `,
     );
 
@@ -309,17 +350,19 @@ tests:
     const evalFile = path.join(testDir, 'workspace-repos-resolver.yaml');
     await writeFile(
       evalFile,
-      `
-description: test
+      `description: test
 workspace:
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
       resolver: custom
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "hello"
-    criteria: "world"
+    criteria: world
+    vars:
+      input: hello
 `,
     );
 
@@ -332,16 +375,18 @@ tests:
     const evalFile = path.join(testDir, 'workspace-reset.yaml');
     await writeFile(
       evalFile,
-      `
-description: test
+      `description: test
 workspace:
   hooks:
     after_each:
       reset: fast
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "hello"
-    criteria: "world"
+    criteria: world
+    vars:
+      input: hello
 `,
     );
 
@@ -353,17 +398,19 @@ tests:
     const evalFile = path.join(testDir, 'workspace-scope.yaml');
     await writeFile(
       evalFile,
-      `
-description: test
+      `description: test
 workspace:
   scope: attempt
   repos:
     - path: ./repo-a
       repo: https://github.com/org/repo.git
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "hello"
-    criteria: "world"
+    criteria: world
+    vars:
+      input: hello
 `,
     );
 
@@ -375,14 +422,16 @@ tests:
     const evalFile = path.join(testDir, 'workspace-isolation-legacy.yaml');
     await writeFile(
       evalFile,
-      `
-description: test
+      `description: test
 workspace:
   isolation: per_test
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "hello"
-    criteria: "world"
+    criteria: world
+    vars:
+      input: hello
 `,
     );
 
@@ -395,14 +444,15 @@ tests:
     const evalFile = path.join(testDir, 'workspace-path-removed.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   path: /tmp/shared-workspace
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
     );
 
@@ -413,14 +463,15 @@ tests:
     const evalFile = path.join(testDir, 'workspace-mode-removed.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   mode: temp
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
     );
 
@@ -431,15 +482,16 @@ tests:
     const evalFile = path.join(testDir, 'workspace-static-path-removed.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   mode: static
   static_path: /tmp/shared-workspace
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
     );
 
@@ -452,14 +504,15 @@ tests:
     const evalFile = path.join(testDir, 'workspace-pool-removed.yaml');
     await writeFile(
       evalFile,
-      `
-workspace:
+      `workspace:
   pool: true
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
     );
 
@@ -470,16 +523,18 @@ tests:
     const evalFile = path.join(testDir, 'workspace-string-cmd.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: test-string-cmd
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       hooks:
         before_all:
           command: node scripts/setup.mjs
           timeout_ms: 60000
+    vars:
+      input: Do something
 `,
     );
 
@@ -495,11 +550,13 @@ tests:
     const evalFile = path.join(testDir, 'no-workspace.yaml');
     await writeFile(
       evalFile,
-      `
+      `prompts:
+  - "{{ input }}"
 tests:
   - id: simple-case
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
     );
 
@@ -531,16 +588,18 @@ hooks:
       const evalFile = path.join(testDir, 'ext-workspace.yaml');
       await writeFile(
         evalFile,
-        `
-workspace: ./shared/workspace.yaml
-
+        `workspace: ./shared/workspace.yaml
+prompts:
+  - "{{ input }}"
 tests:
   - id: ext-test-1
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
   - id: ext-test-2
-    input: "Do something else"
-    criteria: "Should also work"
+    criteria: Should also work
+    vars:
+      input: Do something else
 `,
       );
 
@@ -578,13 +637,14 @@ hooks:
       const evalFile = path.join(testDir, 'nested-ext-workspace.yaml');
       await writeFile(
         evalFile,
-        `
-workspace: ./nested/config/workspace.yaml
-
+        `workspace: ./nested/config/workspace.yaml
+prompts:
+  - "{{ input }}"
 tests:
   - id: path-test
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
       );
 
@@ -615,13 +675,14 @@ hooks:
       const evalFile = path.join(testDir, 'wsfiledir-eval.yaml');
       await writeFile(
         evalFile,
-        `
-workspace: ./wsfiledir-test/workspace.yaml
-
+        `workspace: ./wsfiledir-test/workspace.yaml
+prompts:
+  - "{{ input }}"
 tests:
   - id: wsfiledir-test-1
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
       );
 
@@ -634,16 +695,19 @@ tests:
       const evalFile = path.join(testDir, 'inline-workspace.yaml');
       await writeFile(
         evalFile,
-        `
-workspace:
+        `workspace:
   hooks:
     before_all:
-      command: ["echo", "hello"]
-
+      command:
+        - echo
+        - hello
+prompts:
+  - "{{ input }}"
 tests:
   - id: inline-test-1
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
       );
 
@@ -656,13 +720,14 @@ tests:
       const evalFile = path.join(testDir, 'missing-workspace.yaml');
       await writeFile(
         evalFile,
-        `
-workspace: ./nonexistent/workspace.yaml
-
+        `workspace: ./nonexistent/workspace.yaml
+prompts:
+  - "{{ input }}"
 tests:
   - id: test-1
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
       );
 
@@ -689,13 +754,14 @@ workspace:
       const evalFile = path.join(testDir, 'wrapped-workspace-eval.yaml');
       await writeFile(
         evalFile,
-        `
-workspace: ./wrapped-workspace/workspace.yaml
-
+        `workspace: ./wrapped-workspace/workspace.yaml
+prompts:
+  - "{{ input }}"
 tests:
   - id: wrapped-workspace
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
 `,
       );
 
@@ -724,20 +790,24 @@ hooks:
       const evalFile = path.join(testDir, 'override-ext-workspace.yaml');
       await writeFile(
         evalFile,
-        `
-workspace: ./override-shared/workspace.yaml
-
+        `workspace: ./override-shared/workspace.yaml
+prompts:
+  - "{{ input }}"
 tests:
   - id: default-case
-    input: "Do something"
-    criteria: "Should work"
+    criteria: Should work
+    vars:
+      input: Do something
   - id: override-case
-    input: "Do something else"
-    criteria: "Should work"
+    criteria: Should work
     workspace:
       hooks:
         before_all:
-          command: ["node", "custom-setup.mjs"]
+          command:
+            - node
+            - custom-setup.mjs
+    vars:
+      input: Do something else
 `,
       );
 
@@ -769,17 +839,21 @@ tests:
       const evalFile = path.join(testDir, 'hooks-disabled.yaml');
       await writeFile(
         evalFile,
-        `
-workspace:
+        `workspace:
   hooks:
     enabled: false
     before_all:
-      command: ["bun", "run", "setup.ts"]
-
+      command:
+        - bun
+        - run
+        - setup.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
       );
 
@@ -793,17 +867,21 @@ tests:
       const evalFile = path.join(testDir, 'hooks-enabled.yaml');
       await writeFile(
         evalFile,
-        `
-workspace:
+        `workspace:
   hooks:
     enabled: true
     before_all:
-      command: ["bun", "run", "setup.ts"]
-
+      command:
+        - bun
+        - run
+        - setup.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
       );
 
@@ -816,16 +894,20 @@ tests:
       const evalFile = path.join(testDir, 'hooks-default.yaml');
       await writeFile(
         evalFile,
-        `
-workspace:
+        `workspace:
   hooks:
     before_all:
-      command: ["bun", "run", "setup.ts"]
-
+      command:
+        - bun
+        - run
+        - setup.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Hello"
-    criteria: "Should parse"
+    criteria: Should parse
+    vars:
+      input: Hello
 `,
       );
 

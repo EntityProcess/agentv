@@ -1,39 +1,37 @@
-# Custom Assertion Demo
-# Uses a custom 'min-words' assertion from .agentv/assertions/min-words.ts
-
 name: sdk-custom-assertion
 description: Demonstrates custom assertions via defineAssertion() and convention discovery
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: greeting-response
-    input: "Say hello and introduce yourself"
-    expected_output: "Hello! I'm an AI assistant here to help you with your questions."
+    expected_output: Hello! I'm an AI assistant here to help you with your questions.
     assert:
       - type: contains
-        value: "Hello"
+        value: Hello
       - type: min-words
       - Agent gives a multi-word greeting
-
+    vars:
+      input: Say hello and introduce yourself
   - id: short-answer
-    input: "What is 2+2?"
-    expected_output: "The answer is 4."
+    expected_output: The answer is 4.
     assert:
       - type: contains
         value: "4"
       - type: min-words
       - Agent gives a short but valid response
-
+    vars:
+      input: What is 2+2?
   - id: json-response
-    input:
-      - role: system
-        content: "Respond only with valid JSON."
-      - role: user
-        content: "Return a JSON object with name and age fields."
-    expected_output: '{"name": "Alice", "age": 30}'
+    expected_output: "{\"name\": \"Alice\", \"age\": 30}"
     assert:
       - type: is-json
         required: true
       - type: min-words
       - Agent returns valid JSON with sufficient content
+    vars:
+      input:
+        - role: system
+          content: Respond only with valid JSON.
+        - role: user
+          content: Return a JSON object with name and age fields.

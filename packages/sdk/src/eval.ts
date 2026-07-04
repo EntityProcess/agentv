@@ -176,7 +176,6 @@ export interface EvalTest {
   readonly id: string;
   readonly vars?: Readonly<Record<string, unknown>>;
   readonly criteria?: string;
-  readonly input?: string | readonly EvalMessage[];
   readonly inputFiles?: readonly string[];
   readonly expectedOutput?: string | Readonly<Record<string, unknown>> | readonly EvalMessage[];
   readonly assert?: readonly EvalAssertionConfig[];
@@ -216,8 +215,8 @@ export interface EvalDefinition {
   readonly tags?: readonly string[] | Readonly<Record<string, string>>;
   readonly license?: string;
   readonly requires?: EvalRequires;
-  readonly input?: string | readonly EvalMessage[];
   readonly inputFiles?: readonly string[];
+  readonly prompts?: unknown;
   readonly tests: readonly EvalTest[] | string;
   /**
    * @deprecated A top-level `experiment` label no longer sets the run's
@@ -310,6 +309,11 @@ function attachEvalSuiteBrand<T extends EvalDefinition>(definition: T): T & Defi
 
 function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
   const rawDefinition = definition as unknown as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(rawDefinition, 'input')) {
+    throw new Error(
+      "defineEval() does not accept top-level 'input'. Use prompts with default test vars or tests[].vars instead.",
+    );
+  }
   if (
     Object.prototype.hasOwnProperty.call(rawDefinition, 'experiment') &&
     typeof rawDefinition.experiment !== 'string'
@@ -322,6 +326,15 @@ function validateTopLevelRuntimeFields(definition: EvalDefinition): void {
         `defineEval() does not accept top-level '${field}'. Put target overrides in target and repeat controls under repeat, which serializes to evaluate_options.repeat.`,
       );
     }
+  }
+  if (Array.isArray(rawDefinition.tests)) {
+    rawDefinition.tests.forEach((test, index) => {
+      if (test && typeof test === 'object' && Object.prototype.hasOwnProperty.call(test, 'input')) {
+        throw new Error(
+          `defineEval() does not accept tests[${index}].input. Use prompts with tests[].vars instead.`,
+        );
+      }
+    });
   }
 }
 

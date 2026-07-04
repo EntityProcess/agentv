@@ -1,2 +1,2 @@
-{"id":"regression-greeting","input":"Hi there!","assert":["The agent should respond with a greeting"]}
-{"id":"regression-farewell","input":"Goodbye!","assert":["The agent should respond with a farewell"]}
+{"id":"regression-greeting","assert":["The agent should respond with a greeting"],"vars":{"input":"Hi there!"}}
+{"id":"regression-farewell","assert":["The agent should respond with a farewell"],"vars":{"input":"Goodbye!"}}

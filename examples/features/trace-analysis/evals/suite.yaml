@@ -1,37 +1,33 @@
-# Demo eval for the trace-analysis example.
-# Run this eval to generate result traces, then analyze with:
-#   agentv trace evals/multi-agent.eval.results.jsonl
-
 name: trace-analysis-demo
 description: Demo eval for generating execution traces to analyze
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: research-question
-    input: What are the key differences between REST and GraphQL APIs?
     assert:
       - type: contains
         value: REST
       - type: contains
         value: GraphQL
       - type: regex
-        value: "type.?system|schema|typed"
-      - Covers at least three differences including query flexibility,
-        over-fetching, and type system
-
+        value: type.?system|schema|typed
+      - Covers at least three differences including query flexibility, over-fetching, and type system
+    vars:
+      input: What are the key differences between REST and GraphQL APIs?
   - id: code-review-task
-    input: Review this Python function for potential issues and suggest improvements.
     assert:
       - type: contains
         value: suggest
       - type: regex
-        value: "improv|fix|refactor|optim"
+        value: improv|fix|refactor|optim
       - Identifies at least one code quality issue
-
+    vars:
+      input: Review this Python function for potential issues and suggest improvements.
   - id: simple-qa
-    input: What is the capital of France?
     assert:
       - type: contains
         value: Paris
       - Correctly answers Paris
+    vars:
+      input: What is the capital of France?

@@ -1,62 +1,36 @@
-# Multi-provider skill-trigger evaluation example.
-#
-# Uses an isolated workspace template (workspace/) and the built-in
-# agentv:agent-rules extension so no global skill installation is needed. The
-# workspace contains:
-#   .claude/skills/acme-deploy/  — for claude-cli/copilot-cli providers
-#   .agents/skills/acme-deploy/  — for codex/pi providers
-#   .codex/skills/acme-deploy/   — for codex provider (fallback)
-#
-# The skill contains proprietary deployment procedures (internal CLI, service
-# registry, approval rules) that no agent can answer from built-in knowledge.
-# This ensures agents must invoke/read the skill to respond correctly.
-#
-# The same EVAL.yaml works with any provider — just change --target:
-#
-#   agentv eval this-file.EVAL.yaml --target claude-cli --targets ../.agentv/targets.yaml
-#   agentv eval this-file.EVAL.yaml --target copilot-cli --targets ../.agentv/targets.yaml
-#   agentv eval this-file.EVAL.yaml --target codex-cli --targets ../.agentv/targets.yaml
-#
-# The grader automatically resolves the correct tool names for each
-# provider. No provider-specific config needed in test cases.
-
 extensions:
   - agentv:agent-rules
-
 workspace:
   scope: suite
   template: workspace/
-
+prompts:
+  - "{{ input }}"
 tests:
-  # === Positive cases: skill should trigger ===
-
   - id: should-trigger-direct-request
-    input: "How do I deploy payments-api to production?"
     assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: true
-
+    vars:
+      input: How do I deploy payments-api to production?
   - id: should-trigger-casual-phrasing
-    input: "I need to roll back user-service in staging, what's the Acme deploy
-      procedure for that?"
     assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: true
-
-  # === Negative cases: skill should NOT trigger ===
-
+    vars:
+      input: I need to roll back user-service in staging, what's the Acme deploy procedure for that?
   - id: should-not-trigger-unrelated
-    input: "What time is it in Tokyo right now?"
     assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: false
-
+    vars:
+      input: What time is it in Tokyo right now?
   - id: should-not-trigger-near-miss
-    input: "Write a Python function that parses JSON logs and extracts error messages"
     assert:
       - type: skill-trigger
         skill: acme-deploy
         should_trigger: false
+    vars:
+      input: Write a Python function that parses JSON logs and extracts error messages

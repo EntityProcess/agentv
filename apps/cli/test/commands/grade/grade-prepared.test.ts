@@ -100,10 +100,13 @@ ${assertionYaml
   .split('\n')
   .map((line) => `  ${line}`)
   .join('\n')}
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Fix the workspace file."
     expected_output: "done"
+    vars:
+      input: "Fix the workspace file."
 `,
     'utf8',
   );

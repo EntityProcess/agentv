@@ -1,31 +1,29 @@
-# Grader Conformance Demo
-# Demonstrates using the keyword-grader grader in a standard AgentV eval.
-#
-# Validate: cd examples/showcase/grader-conformance
-#           npx agentv validate EVAL.yaml
-#
-# The conformance harness validates this grader separately:
-#      bun run conformance-check.ts
-
 description: Keyword-matching grader used for conformance testing demo
-
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: exact-match
-    input: "What is the capital of France?"
-    expected_output: "Paris"
+    expected_output: Paris
     assert:
       - metric: keyword-grader
         type: script
-        command: [ "bun", "run", "graders/keyword-grader.ts" ]
-      - "Answer must name the capital city of France."
-
+        command:
+          - bun
+          - run
+          - graders/keyword-grader.ts
+      - Answer must name the capital city of France.
+    vars:
+      input: What is the capital of France?
   - id: partial-match
-    input: "Name the primary colors."
-    expected_output: "red, blue, yellow"
+    expected_output: red, blue, yellow
     assert:
       - metric: keyword-grader
         type: script
-        command: [ "bun", "run", "graders/keyword-grader.ts" ]
-      - "Answer must mention red, blue, and yellow."
+        command:
+          - bun
+          - run
+          - graders/keyword-grader.ts
+      - Answer must mention red, blue, and yellow.
+    vars:
+      input: Name the primary colors.

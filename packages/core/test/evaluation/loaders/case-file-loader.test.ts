@@ -44,11 +44,13 @@ describe('resolveFileReference', () => {
     await writeFile(
       path.join(tempDir, 'cases', 'tests.yaml'),
       `- id: yaml-test-1
-  criteria: "Test goal 1"
-  input: "Hello"
+  criteria: Test goal 1
+  vars:
+    input: Hello
 - id: yaml-test-2
-  criteria: "Test goal 2"
-  input: "World"
+  criteria: Test goal 2
+  vars:
+    input: World
 `,
     );
 
@@ -283,8 +285,9 @@ describe('loadTests with file:// references', () => {
     await writeFile(
       path.join(tempDir, 'cases', 'accuracy.yaml'),
       `- id: accuracy-1
-  criteria: "Accurate response"
-  input: "What is 2+2?"
+  criteria: Accurate response
+  vars:
+    input: What is 2+2?
 `,
     );
 
@@ -298,10 +301,13 @@ describe('loadTests with file:// references', () => {
     await writeFile(
       path.join(tempDir, 'dataset.eval.yaml'),
       `name: test-suite
+prompts:
+  - "{{ input }}"
 tests:
   - id: inline-test
-    criteria: "Inline goal"
-    input: "Hello"
+    criteria: Inline goal
+    vars:
+      input: Hello
   - file://cases/accuracy.yaml
   - file://cases/regression.jsonl
 `,
@@ -414,11 +420,13 @@ describe('tests as string path', () => {
     await writeFile(
       path.join(tempDir, 'cases.yaml'),
       `- id: ext-yaml-1
-  criteria: "Goal 1"
-  input: "Hello"
+  criteria: Goal 1
+  vars:
+    input: Hello
 - id: ext-yaml-2
-  criteria: "Goal 2"
-  input: "World"
+  criteria: Goal 2
+  vars:
+    input: World
 `,
     );
 
@@ -426,6 +434,8 @@ describe('tests as string path', () => {
     await writeFile(
       path.join(tempDir, 'suite.yaml'),
       `name: string-path-suite
+prompts:
+  - "{{ input }}"
 tests: ./cases.yaml
 `,
     );
@@ -487,15 +497,17 @@ tests: file://file-url-cases.json
     await writeFile(
       path.join(tempDir, 'import-cases.yaml'),
       `- id: imported-keep
-  criteria: "Imported keep"
-  input: "Imported keep input"
+  criteria: Imported keep
   metadata:
     group: keep
+  vars:
+    input: Imported keep input
 - id: imported-drop
-  criteria: "Imported drop"
-  input: "Imported drop input"
+  criteria: Imported drop
   metadata:
     group: drop
+  vars:
+    input: Imported drop input
 `,
     );
     await writeFile(
@@ -510,6 +522,8 @@ tests: file://file-url-cases.json
       select:
         metadata:
           group: keep
+prompts:
+  - "{{ input }}"
 tests: file://direct-cases.jsonl
 `,
     );
@@ -555,7 +569,8 @@ tests: file://magic-cases.csv
     );
     await writeFile(
       path.join(tempDir, 'promptfoo-vars-suite.yaml'),
-      `input: Answer about {{ topic }}
+      `prompts:
+  - "Answer about {{ topic }}"
 tests: file://promptfoo-vars.csv
 `,
     );
@@ -581,8 +596,9 @@ tests: file://promptfoo-vars.csv
     await writeFile(
       path.join(dirB, 'cases.yaml'),
       `- id: relative-path-test
-  criteria: "Relative path goal"
-  input: "Input"
+  criteria: Relative path goal
+  vars:
+    input: Input
 `,
     );
 
@@ -590,6 +606,8 @@ tests: file://promptfoo-vars.csv
     await writeFile(
       path.join(dirA, 'suite.yaml'),
       `name: relative-path-suite
+prompts:
+  - "{{ input }}"
 tests: ../b/cases.yaml
 `,
     );
@@ -617,8 +635,9 @@ tests: ./nonexistent.yaml
     await writeFile(
       path.join(tempDir, 'meta-cases.yaml'),
       `- id: meta-test
-  criteria: "Meta goal"
-  input: "Meta input"
+  criteria: Meta goal
+  vars:
+    input: Meta input
 `,
     );
 
@@ -626,6 +645,8 @@ tests: ./nonexistent.yaml
       path.join(tempDir, 'meta-suite.yaml'),
       `name: meta-suite
 description: A suite with external tests
+prompts:
+  - "{{ input }}"
 tests: ./meta-cases.yaml
 `,
     );
@@ -642,14 +663,17 @@ tests: ./meta-cases.yaml
     await writeFile(
       path.join(tempDir, 'bare-cases.yaml'),
       `- id: bare-path-test
-  criteria: "Bare path goal"
-  input: "Input"
+  criteria: Bare path goal
+  vars:
+    input: Input
 `,
     );
 
     await writeFile(
       path.join(tempDir, 'bare-suite.yaml'),
       `name: bare-path-suite
+prompts:
+  - "{{ input }}"
 tests: bare-cases.yaml
 `,
     );

@@ -1,123 +1,209 @@
 name: agentv-dev-skill-invocation
-description: >-
-  Tests whether an AI agent correctly invokes `agentv skills` CLI subcommands
-  (list, get, path) with the right flags when asked to retrieve, enumerate,
-  or locate bundled skill content using the live repo docs and plugin stub.
-
-tags: [agent, skills]
-
-input:
-  - role: user
-    content:
-      - type: file
-        value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
-      - type: file
-        value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
-      - type: text
-        value: |
-          The files above are the live repo references for bundled `agentv-dev`
-          skills and the `agentv skills` CLI.
-
+description: Tests whether an AI agent correctly invokes `agentv skills` CLI subcommands (list, get,
+  path) with the right flags when asked to retrieve, enumerate, or locate bundled skill content
+  using the live repo docs and plugin stub.
+tags:
+  - agent
+  - skills
+prompts:
+  - "{{ input }}"
 tests:
   - id: invoke-get-single-skill
     criteria: Agent invokes `agentv skills get <name>` for a single named skill.
-    input: |
-      I want to read the body of the agentv-bench skill so I can follow its
-      benchmarking workflow. What single shell command should I run against the
-      `agentv` CLI to print the skill's SKILL.md to stdout?
-
-      Reply with the command on its own line.
     assert:
       - type: regex
-        value: "agentv\\s+skills\\s+get\\s+agentv-bench"
+        value: agentv\s+skills\s+get\s+agentv-bench
       - type: rubrics
         criteria:
           - Suggests `agentv skills get agentv-bench` (no extra flags needed for the basic case)
           - Does not suggest a plugin-install or marketplace step
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I want to read the body of the agentv-bench skill so I can follow its
+            benchmarking workflow. What single shell command should I run against the
+            `agentv` CLI to print the skill's SKILL.md to stdout?
 
+            Reply with the command on its own line.
   - id: invoke-get-full-flag
     criteria: Agent uses `--full` when bundled references or support files are needed.
-    input: |
-      I need the full agentv-eval-writer skill — not just SKILL.md, but the
-      bundled supporting files too — so I can inspect its reference material.
-
-      What single `agentv skills` command should I run?
     assert:
       - type: contains
         value: --full
       - type: regex
-        value: "agentv\\s+skills\\s+get\\s+agentv-eval-writer"
+        value: agentv\s+skills\s+get\s+agentv-eval-writer
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I need the full agentv-eval-writer skill — not just SKILL.md, but the
+            bundled supporting files too — so I can inspect its reference material.
 
+            What single `agentv skills` command should I run?
   - id: invoke-list-available
     criteria: Agent invokes `agentv skills list` when asked what skills are bundled.
-    input: |
-      I just installed `agentv` globally. How do I list every skill that ships
-      bundled with the CLI? Give me the single command.
     assert:
       - type: regex
-        value: "agentv\\s+skills\\s+list"
+        value: agentv\s+skills\s+list
       - type: rubrics
         criteria:
           - Recommends `agentv skills list`
           - Does not invoke `npx allagents plugin` or any marketplace step
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I just installed `agentv` globally. How do I list every skill that ships
+            bundled with the CLI? Give me the single command.
   - id: invoke-get-nonexistent
     criteria: Agent diagnoses a not-found skill lookup and proposes a fix.
-    input: |
-      I ran `agentv skills get does-not-exist`. What happened, and what command
-      should I run instead to discover the correct skill name?
     assert:
       - type: rubrics
         criteria:
           - Identifies that `does-not-exist` is not a valid skill name
           - Recommends `agentv skills list` to discover valid names
           - Does not invent a skill name that is not listed in the live plugin entrypoint
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I ran `agentv skills get does-not-exist`. What happened, and what command
+            should I run instead to discover the correct skill name?
   - id: invoke-json-flag
     criteria: Agent uses `--json` when machine-readable output is needed.
-    input: |
-      I want to pipe the list of skill names into `jq` so I can build a
-      shell-script loop over each name. Which `agentv skills` invocation
-      gives me machine-readable output suitable for `jq`?
     assert:
       - type: contains
         value: --json
       - type: regex
-        value: "agentv\\s+skills\\s+(list|get).*--json"
-
+        value: agentv\s+skills\s+(list|get).*--json
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I want to pipe the list of skill names into `jq` so I can build a
+            shell-script loop over each name. Which `agentv skills` invocation
+            gives me machine-readable output suitable for `jq`?
   - id: invoke-path-command
     criteria: Agent uses `agentv skills path` when asked where bundled skills live on disk.
-    input: |
-      Where on disk does the installed `agentv` CLI keep its bundled skill
-      files? I want the absolute path so I can open one in my editor. Give me
-      the single CLI command that prints that path.
     assert:
       - type: regex
-        value: "agentv\\s+skills\\s+path"
+        value: agentv\s+skills\s+path
       - type: rubrics
         criteria:
           - Uses `agentv skills path` (with or without a skill name argument)
           - Does not suggest hand-traversing `node_modules` or the npm prefix manually
-
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            Where on disk does the installed `agentv` CLI keep its bundled skill
+            files? I want the absolute path so I can open one in my editor. Give me
+            the single CLI command that prints that path.
   - id: invoke-get-all-flag
     criteria: Agent uses `--all` to retrieve every bundled skill in one call.
-    input: |
-      I want to dump the SKILL.md of every bundled agentv skill into a single
-      stream so I can pass them all into another tool's context. What's the
-      single `agentv skills get` command that does this?
     assert:
       - type: contains
         value: --all
       - type: regex
-        value: "agentv\\s+skills\\s+get.*--all"
-
+        value: agentv\s+skills\s+get.*--all
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I want to dump the SKILL.md of every bundled agentv skill into a single
+            stream so I can pass them all into another tool's context. What's the
+            single `agentv skills get` command that does this?
   - id: invoke-skill-trigger
     criteria: Agent maps a natural-language task to the correct skill name and command.
-    input: |
-      I want to read the skill that helps with debugging eval failures and
-      analysing traces. Give me the single CLI command to print its content.
     assert:
       - type: contains
         value: agentv-trace-analyst
       - type: regex
-        value: "agentv\\s+skills\\s+get\\s+agentv-trace-analyst"
+        value: agentv\s+skills\s+get\s+agentv-trace-analyst
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: /plugins/agentv-dev/skills/agentv-dev/SKILL.md
+            - type: file
+              value: /apps/web/src/content/docs/docs/getting-started/installation.mdx
+            - type: text
+              value: |
+                The files above are the live repo references for bundled `agentv-dev`
+                skills and the `agentv skills` CLI.
+        - role: user
+          content: |
+            I want to read the skill that helps with debugging eval failures and
+            analysing traces. Give me the single CLI command to print its content.

@@ -36,11 +36,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    early_exit: true',
         '  budget_usd: 1.5',
         'timeout_seconds: 30',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -75,11 +77,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'target: codex',
         'evaluate_options:',
         '  repeat: 3',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -96,13 +100,15 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: threshold-suite',
         'target: codex',
         'threshold: 0.9',
+        'prompts:',
+        '  - "{{ input }}"',
         'default_test:',
         '  threshold: 0.6',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -125,12 +131,14 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: default-test-file-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -175,11 +183,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: default-test-alias-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'default_test: ref://global-default',
         'tests:',
         '  - id: one',
-        '    input: hello',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -212,11 +222,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: default-test-assertions-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'default_test: file://{{ env.AGENTV_REPO_ROOT }}/.agentv/default-test.yaml',
         'tests:',
         '  - id: one',
-        '    input: hello',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -324,23 +336,24 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       evalPath,
       [
         'name: direct-default-vars-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'default_test:',
         '  vars:',
         '    tone: concise',
         '    category: support',
         'tests:',
         '  - id: direct-default',
-        '    input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
         '    vars:',
         '      question: How do I reset my password?',
+        '      input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
         '    expected_output: password reset guidance',
         '  - id: direct-override',
-        '    input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
         '    vars:',
         '      category: onboarding',
         '      question: Where is the getting started guide?',
+        '      input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
         '    expected_output: getting started guidance',
-        '',
       ].join('\n'),
     );
 
@@ -445,7 +458,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       ].join('\n'),
     );
 
-    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/tests\[\]\.input/);
+    await expect(loadTestSuite(evalPath, tempDir)).rejects.toThrow(/tests\[0\]\.input/);
   });
 
   it('parses evaluate_options.budget_usd', async () => {
@@ -457,11 +470,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'target: codex',
         'evaluate_options:',
         '  budget_usd: 2.5',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -483,11 +498,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'target: codex',
         'evaluate_options:',
         '  max_concurrency: 2',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -572,11 +589,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  repeat:',
         '    count: 2',
         '    strategy: pass_any',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -591,11 +610,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'providers:',
         '  - label: legacy',
         '    provider: mock',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -614,11 +635,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  count: 2',
         'runs: 2',
         'early_exit: true',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -632,11 +655,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'execution:',
         '  target: mock',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -648,11 +673,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'experiment:',
         '  target: codex',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -668,11 +695,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'target: codex',
         'model: gpt-5.1',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -684,15 +713,17 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await writeFile(
       evalPath,
       [
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
         '    execution:',
         '      workspace:',
         '        mode: static',
         '        path: /tmp/ws',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -706,13 +737,15 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await writeFile(
       evalPath,
       [
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: one',
-        '    input: hello',
         '    criteria: ok',
         '    execution:',
         '      target: codex',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -726,18 +759,11 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await mkdir(casesDir, { recursive: true });
     await writeFile(
       path.join(casesDir, 'b.cases.yaml'),
-      [
-        '- id: b-2',
-        '  input: b2',
-        '  criteria: ok',
-        '- id: b-1',
-        '  input: b1',
-        '  criteria: ok',
-      ].join('\n'),
+      '- id: b-2\n  input: b2\n  criteria: ok\n- id: b-1\n  input: b1\n  criteria: ok\n',
     );
     await writeFile(
       path.join(casesDir, 'a.cases.yaml'),
-      ['- id: a-1', '  input: a1', '  criteria: ok'].join('\n'),
+      '- id: a-1\n  input: a1\n  criteria: ok\n',
     );
     await writeFile(path.join(casesDir, 'c.jsonl'), '{"id":"c-1","input":"c1","criteria":"ok"}\n');
     const evalPath = path.join(tempDir, 'parent.eval.yaml');
@@ -778,11 +804,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(suitesDir, 'child.eval.yaml'),
       [
         'name: child-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: suite-1',
-        '    input: suite',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: suite',
       ].join('\n'),
     );
 
@@ -849,11 +877,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       childPath,
       [
         'name: child',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: child',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -895,11 +925,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       cPath,
       [
         'name: chain-c',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: c-case',
-        '    input: deepest',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: deepest',
       ].join('\n'),
     );
 
@@ -916,22 +948,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await mkdir(casesDir, { recursive: true });
     await writeFile(
       path.join(casesDir, 'selected.cases.yaml'),
-      [
-        '- id: selected',
-        '  input: selected',
-        '  criteria: ok',
-        '  metadata:',
-        '    tags: [sql-migration, review]',
-        '    type: e2e',
-        '    priority: high',
-        '- id: wrong-priority',
-        '  input: wrong',
-        '  criteria: ok',
-        '  metadata:',
-        '    tags: [sql-migration]',
-        '    type: e2e',
-        '    priority: low',
-      ].join('\n'),
+      '- id: selected\n  input: selected\n  criteria: ok\n  metadata:\n    tags: [sql-migration, review]\n    type: e2e\n    priority: high\n- id: wrong-priority\n  input: wrong\n  criteria: ok\n  metadata:\n    tags: [sql-migration]\n    type: e2e\n    priority: low\n',
     );
     const evalPath = path.join(tempDir, 'parent.eval.yaml');
     await writeFile(
@@ -959,16 +976,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     await mkdir(casesDir, { recursive: true });
     await writeFile(
       path.join(casesDir, 'cases.cases.yaml'),
-      [
-        '- id: inherited-tag',
-        '  input: inherited',
-        '  criteria: ok',
-        '- id: case-tag',
-        '  input: case',
-        '  criteria: ok',
-        '  metadata:',
-        '    tags: [review]',
-      ].join('\n'),
+      '- id: inherited-tag\n  input: inherited\n  criteria: ok\n- id: case-tag\n  input: case\n  criteria: ok\n  metadata:\n    tags: [review]\n',
     );
     const inheritedPath = path.join(tempDir, 'inherited.eval.yaml');
     await writeFile(
@@ -1025,15 +1033,20 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  budget_usd: 0.5',
         'workspace:',
         '  template: ./child-workspace',
-        'input: child shared input',
         'assert:',
         '  - type: contains',
         '    value: child',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child case input',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input:',
+        '        - role: user',
+        '          content: child shared input',
+        '        - role: user',
+        '          content: child case input',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1049,14 +1062,14 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '    strategy: pass_any',
         '  budget_usd: 1.5',
         'timeout_seconds: 30',
-        'input: parent shared input',
         'assert:',
         '  - type: contains',
         '    value: parent',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: suite',
-        '',
       ].join('\n'),
     );
 
@@ -1088,17 +1101,20 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  repeat:',
         '    count: 4',
         '    strategy: pass_all',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: global-repeat',
-        '    input: hello',
         '    criteria: ok',
+        '    vars:',
+        '      input: hello',
         '  - id: case-repeat-count',
-        '    input: hello',
         '    criteria: ok',
         '    options:',
         '      repeat: 2',
+        '    vars:',
+        '      input: hello',
         '  - id: case-repeat-object',
-        '    input: hello',
         '    criteria: ok',
         '    run:',
         '      threshold: 0.9',
@@ -1107,7 +1123,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '        count: 3',
         '        strategy: mean',
         '        early_exit: false',
-        '',
+        '    vars:',
+        '      input: hello',
       ].join('\n'),
     );
 
@@ -1133,11 +1150,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: child-suite',
         'workspace:',
         '  path: ./child-workspace',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child case input',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: child case input',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1164,11 +1183,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child case input',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: child case input',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1196,11 +1217,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child case input',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: child case input',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1230,11 +1253,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'timeout_seconds: 10',
         'evaluate_options:',
         '  budget_usd: 0.5',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-default',
-        '    input: default',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: default',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1260,11 +1285,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'timeout_seconds: 10',
         'evaluate_options:',
         '  budget_usd: 0.5',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-default',
-        '    input: default',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: default',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1299,18 +1326,21 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'timeout_seconds: 10',
         'evaluate_options:',
         '  budget_usd: 0.5',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-default',
-        '    input: default',
         '    criteria: ok',
+        '    vars:',
+        '      input: default',
         '  - id: child-critical',
-        '    input: critical',
         '    criteria: ok',
         '    run:',
-        '      threshold: 1.0',
+        '      threshold: 1',
         '      repeat:',
         '        count: 1',
-        '',
+        '    vars:',
+        '      input: critical',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1354,11 +1384,29 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
   it('imports child suites without authored worker controls', async () => {
     await writeFile(
       path.join(tempDir, 'child-a.eval.yaml'),
-      ['name: child-a', 'tests:', '  - id: a', '    input: a', '    criteria: ok', ''].join('\n'),
+      [
+        'name: child-a',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: a',
+        '    criteria: ok',
+        '    vars:',
+        '      input: a',
+      ].join('\n'),
     );
     await writeFile(
       path.join(tempDir, 'child-b.eval.yaml'),
-      ['name: child-b', 'tests:', '  - id: b', '    input: b', '    criteria: ok', ''].join('\n'),
+      [
+        'name: child-b',
+        'prompts:',
+        '  - "{{ input }}"',
+        'tests:',
+        '  - id: b',
+        '    criteria: ok',
+        '    vars:',
+        '      input: b',
+      ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
     await writeFile(
@@ -1386,16 +1434,21 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: child-suite',
         'workspace:',
         '  template: ./child-workspace',
-        'input: child shared input',
         'assert:',
         '  - type: contains',
         '    value: child',
         'threshold: 0.2',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child case input',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input:',
+        '        - role: user',
+        '          content: child shared input',
+        '        - role: user',
+        '          content: child case input',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1405,6 +1458,8 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: parent-suite',
         'target: codex-gpt5',
         'threshold: 0.8',
+        'prompts:',
+        '  - "{{ input }}"',
         'imports:',
         '  suites:',
         '    - path: child.eval.yaml',
@@ -1412,9 +1467,9 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '        timeout_seconds: 60',
         'tests:',
         '  - id: local-edge',
-        '    input: local input',
         '    criteria: local ok',
-        '',
+        '    vars:',
+        '      input: local input',
       ].join('\n'),
     );
 
@@ -1444,7 +1499,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
     await writeFile(
       path.join(tempDir, 'regressions.yaml'),
-      ['- id: yaml-case', '  input: yaml input', '  criteria: ok', ''].join('\n'),
+      '- id: yaml-case\n  input: yaml input\n  criteria: ok\n',
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
     await writeFile(
@@ -1453,19 +1508,23 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: parent-suite',
         'workspace:',
         '  template: ./parent-workspace',
-        'input: parent shared input',
         'assert:',
         '  - type: contains',
         '    value: parent',
+        'prompts:',
+        '  - - role: user',
+        '      content: parent shared input',
+        '    - role: user',
+        '      content: "{{ input }}"',
         'imports:',
         '  tests:',
         '    - path: smoke.jsonl',
         '    - path: regressions.yaml',
         'tests:',
         '  - id: inline-case',
-        '    input: inline input',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: inline input',
       ].join('\n'),
     );
 
@@ -1491,7 +1550,7 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     );
     await writeFile(
       path.join(tempDir, 'local.yaml'),
-      ['- id: local-case', '  input: local input', '  criteria: ok', ''].join('\n'),
+      '- id: local-case\n  input: local input\n  criteria: ok\n',
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
     await writeFile(
@@ -1524,11 +1583,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: child',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1555,11 +1616,13 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child',
         '    criteria: ok',
-        '',
+        '    vars:',
+        '      input: child',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1593,10 +1656,12 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       [
         'name: child-suite',
         'target: child-target',
+        'prompts:',
+        '  - "{{ input }}"',
         'tests:',
         '  - id: child-case',
-        '    input: child',
-        '',
+        '    vars:',
+        '      input: child',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1637,7 +1702,6 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
       path.join(tempDir, 'child.eval.yaml'),
       [
         'name: child-suite',
-        'input: child shared input',
         'assert:',
         '  - type: contains',
         '    value: child',
@@ -1645,7 +1709,6 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         '  - id: raw-case',
         '    input: raw case input',
         '    criteria: ok',
-        '',
       ].join('\n'),
     );
     const parentPath = path.join(tempDir, 'parent.eval.yaml');
@@ -1655,14 +1718,17 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
         'name: parent-suite',
         'workspace:',
         '  template: ./parent-workspace',
-        'input: parent shared input',
         'assert:',
         '  - type: contains',
         '    value: parent',
+        'prompts:',
+        '  - - role: user',
+        '      content: parent shared input',
+        '    - role: user',
+        '      content: "{{ input }}"',
         'tests:',
         '  - include: child.eval.yaml',
         '    type: tests',
-        '',
       ].join('\n'),
     );
 

@@ -319,6 +319,33 @@ function parseMetadataValue(key: string, value: string): JsonValue | undefined {
   return value;
 }
 
+function assignCsvVar(vars: Record<string, JsonValue>, key: string, value: string): void {
+  if (!key.startsWith('vars.')) {
+    vars[key] = value;
+    return;
+  }
+
+  const path = key
+    .slice('vars.'.length)
+    .split('.')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (path.length === 0) {
+    vars[key] = value;
+    return;
+  }
+
+  let current: Record<string, JsonValue> = vars;
+  for (const segment of path.slice(0, -1)) {
+    const existing = current[segment];
+    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, JsonValue>;
+  }
+  current[path[path.length - 1] as string] = value;
+}
+
 function parseCsvCases(content: string, filePath: string): JsonObject[] {
   return parseCsvRows(content, filePath).map((row, rowIndex) => {
     const vars: Record<string, JsonValue> = {};
@@ -386,7 +413,7 @@ function parseCsvCases(content: string, filePath: string): JsonObject[] {
         }
         assertionConfigs.set(targetIndex, { [configKey]: parsedThreshold });
       } else if (key.length > 0) {
-        vars[key] = value;
+        assignCsvVar(vars, key, value);
       }
     }
 

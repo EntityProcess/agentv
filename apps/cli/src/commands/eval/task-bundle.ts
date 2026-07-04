@@ -19,6 +19,7 @@ const TASK_EVAL_FILENAME = 'EVAL.yaml';
 const TASK_TARGETS_FILENAME = 'targets.yaml';
 const TASK_FILES_DIRNAME = 'files';
 const TASK_GRADERS_DIRNAME = 'graders';
+const INPUT_PROMPT = '{{ input }}';
 const BUNDLE_EVALS_DIRNAME = 'evals';
 const BUNDLE_MANIFEST_FILENAME = 'agentv_bundle.json';
 const BUNDLE_TARGETS_FILENAME = 'targets.yaml';
@@ -499,6 +500,20 @@ function withoutLegacyAssertionKeys(testCase: Record<string, unknown>): Record<s
   );
 }
 
+function moveInputToVars(testCase: Record<string, unknown>): Record<string, unknown> {
+  if (!Object.hasOwn(testCase, 'input')) {
+    return testCase;
+  }
+  const { input, input_files: _inputFiles, ...caseWithoutInput } = testCase;
+  return {
+    ...caseWithoutInput,
+    vars: {
+      ...(isRecord(testCase.vars) ? testCase.vars : {}),
+      input,
+    },
+  };
+}
+
 function serializeGraderDefinition(
   definition: Record<string, unknown>,
   rewrites: ReadonlyMap<string, string>,
@@ -518,14 +533,14 @@ function buildEvalCase(
   const testCase = rewritePathsDeep(parseSourceTestCase(test), rewrites) as Record<string, unknown>;
   const graderDefinitions = test.source?.graderDefinitions ?? [];
   if (graderDefinitions.length > 0) {
-    return {
+    return moveInputToVars({
       ...withoutLegacyAssertionKeys(testCase),
       assert: graderDefinitions.map((grader) =>
         serializeGraderDefinition(grader.definition, rewrites),
       ),
-    };
+    });
   }
-  return testCase;
+  return moveInputToVars(testCase);
 }
 
 function targetReferenceNames(target: TargetDefinition): readonly string[] {
@@ -789,7 +804,10 @@ function buildPortableEvalCase(
 ): Record<string, unknown> {
   const testCase = buildEvalCase(test, rewrites);
   testCase.id = test.id;
-  testCase.input = test.input.map((message) => serializeMessage(message, rewrites));
+  testCase.vars = {
+    ...(isRecord(testCase.vars) ? testCase.vars : {}),
+    input: test.input.map((message) => serializeMessage(message, rewrites)),
+  };
 
   if (test.criteria.trim().length > 0) {
     testCase.criteria = test.criteria;
@@ -1037,6 +1055,7 @@ export async function materializeTaskBundle(
 
   await writeYamlFile(evalPath, {
     target: options.targetName,
+    prompts: [INPUT_PROMPT],
     tests: [evalCase],
   });
   await writeYamlFile(targetsPath, { targets: serializeTargetDefinitions(targetDefinitions) });
@@ -1107,6 +1126,7 @@ export async function materializeEvalBundle(
 
   await writeYamlFile(evalPath, {
     ...(runtime ?? {}),
+    prompts: [INPUT_PROMPT],
     tests: options.tests.map((test) => buildPortableEvalCase(test, rewrites)),
   });
   await writeYamlFile(targetsPath, {

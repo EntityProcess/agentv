@@ -8,6 +8,7 @@ const suite = {
   target: 'mock-target',
   budgetUsd: 2,
   threshold: 0.75,
+  prompts: ['{{ input }}'],
   workspace: {
     hooks: {
       beforeAll: {
@@ -18,7 +19,7 @@ const suite = {
   tests: [
     {
       id: 'sdk-define-eval',
-      input: 'Say hello',
+      vars: { input: 'Say hello' },
       expectedOutput: 'hello there',
       assert: [{ type: 'contains', value: 'hello' }],
       workspace: {
@@ -48,6 +49,7 @@ export default Object.defineProperties(suite, {
         budget_usd: suite.budgetUsd,
       },
       threshold: suite.threshold,
+      prompts: suite.prompts,
       workspace: {
         hooks: {
           before_all: {
@@ -58,7 +60,7 @@ export default Object.defineProperties(suite, {
       tests: [
         {
           id: 'sdk-define-eval',
-          input: 'Say hello',
+          vars: { input: 'Say hello' },
           expected_output: 'hello there',
           assert: [{ type: 'contains', value: 'hello' }],
           workspace: {

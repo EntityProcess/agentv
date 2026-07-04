@@ -4,10 +4,11 @@ import { evaluate } from '../../src/evaluation/evaluate.js';
 describe('evaluate() — enhanced features', () => {
   it('supports expectedOutput (camelCase)', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'camel-case',
-          input: 'hello',
+          vars: { input: 'hello' },
           expectedOutput: 'world',
           assertions: [{ type: 'equals', value: 'world' }],
         },
@@ -19,10 +20,11 @@ describe('evaluate() — enhanced features', () => {
 
   it('supports config object assertions', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'config-test',
-          input: 'hello',
+          vars: { input: 'hello' },
           assertions: [{ type: 'contains', value: 'hello' }],
         },
       ],
@@ -33,10 +35,11 @@ describe('evaluate() — enhanced features', () => {
 
   it('supports canonical assert in inline tests', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'canonical-assert',
-          input: 'hello',
+          vars: { input: 'hello' },
           assert: [{ type: 'contains', value: 'hello' }],
         },
       ],
@@ -47,10 +50,11 @@ describe('evaluate() — enhanced features', () => {
 
   it('supports inline assertion functions', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'inline-fn',
-          input: 'test',
+          vars: { input: 'test' },
           assertions: [
             ({ output }) => ({
               name: 'custom',
@@ -66,10 +70,11 @@ describe('evaluate() — enhanced features', () => {
 
   it('supports task function instead of target', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'task-fn',
-          input: 'hello',
+          vars: { input: 'hello' },
           assertions: [{ type: 'contains', value: 'Echo: hello' }],
         },
       ],
@@ -81,7 +86,10 @@ describe('evaluate() — enhanced features', () => {
   it('throws when both task and target are provided', async () => {
     await expect(
       evaluate({
-        tests: [{ id: 'bad', input: 'x', assertions: [{ type: 'contains', value: 'x' }] }],
+        prompts: ['{{ input }}'],
+        tests: [
+          { id: 'bad', vars: { input: 'x' }, assertions: [{ type: 'contains', value: 'x' }] },
+        ],
         target: { name: 'default', provider: 'mock' },
         task: async (input) => input,
       }),
@@ -90,10 +98,11 @@ describe('evaluate() — enhanced features', () => {
 
   it('mixes config objects and inline functions', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'mixed',
-          input: 'hello world',
+          vars: { input: 'hello world' },
           assertions: [
             { type: 'contains', value: 'hello' },
             { type: 'contains', value: 'world' },
@@ -111,9 +120,10 @@ describe('evaluate() — enhanced features', () => {
 
   it('supports suite-level assertions with inline function', async () => {
     const { summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
-        { id: 'a', input: 'hello' },
-        { id: 'b', input: 'world' },
+        { id: 'a', vars: { input: 'hello' } },
+        { id: 'b', vars: { input: 'world' } },
       ],
       assertions: [{ type: 'contains', value: 'response' }],
       target: { name: 'default', provider: 'mock', response: 'response text' },
@@ -126,17 +136,18 @@ describe('evaluate() — enhanced features', () => {
     const removedKey = ['expected', 'output'].join('_');
     const removedAliasTest: {
       readonly id: string;
-      readonly input: string;
+      readonly vars: { readonly input: string };
       readonly assertions: readonly { readonly type: string; readonly value: string }[];
       readonly [key: string]: unknown;
     } = {
       id: 'removed-expected-output',
-      input: 'hello',
+      vars: { input: 'hello' },
       [removedKey]: 'world',
       assertions: [{ type: 'equals', value: 'world' }],
     };
     await expect(
       evaluate({
+        prompts: ['{{ input }}'],
         tests: [removedAliasTest],
         target: { name: 'default', provider: 'mock', response: 'world' },
       }),

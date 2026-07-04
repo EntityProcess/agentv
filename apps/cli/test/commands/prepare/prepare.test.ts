@@ -68,30 +68,46 @@ targets:
   );
   await writeFile(
     evalPath,
-    `
-workspace:
+    `workspace:
   template: ../template
   hooks:
     before_all:
-      command: ["bun", "../scripts/hook.ts", "workspace_before_all"]
+      command:
+        - bun
+        - ../scripts/hook.ts
+        - workspace_before_all
     before_each:
-      command: ["bun", "../scripts/hook.ts", "workspace_before_each"]
+      command:
+        - bun
+        - ../scripts/hook.ts
+        - workspace_before_each
 target:
   extends: codex
   hooks:
     before_all:
-      command: ["bun", "../scripts/hook.ts", "target_before_all"]
+      command:
+        - bun
+        - ../scripts/hook.ts
+        - target_before_all
     before_each:
-      command: ["bun", "../scripts/hook.ts", "target_before_each"]
+      command:
+        - bun
+        - ../scripts/hook.ts
+        - target_before_each
 assertions:
   - name: secret-grader
     type: script
-    command: ["bun", "../scripts/grader.ts"]
+    command:
+      - bun
+      - ../scripts/grader.ts
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Fix the workspace file."
-    expected_output: "SECRET_EXPECTED_OUTPUT"
-    criteria: "SECRET_RUBRIC_DETAIL"
+    expected_output: SECRET_EXPECTED_OUTPUT
+    criteria: SECRET_RUBRIC_DETAIL
+    vars:
+      input: Fix the workspace file.
 `,
     'utf8',
   );
@@ -263,17 +279,19 @@ targets:
     );
     await writeFile(
       evalPath,
-      `
-extensions:
+      `extensions:
   - id: agentv:agent-rules
     hook: beforeAll
     rules: ../rules/AGENTS.md
 workspace:
   template: ../template
+prompts:
+  - "{{ input }}"
 tests:
   - id: case-1
-    input: "Fix the workspace file."
-    criteria: "Works"
+    criteria: Works
+    vars:
+      input: Fix the workspace file.
 `,
       'utf8',
     );

@@ -4,4 +4,6 @@ target: local_cli
 tags:
   - python
   - sdk
+prompts:
+  - "{{ input }}"
 tests: ./cases.jsonl

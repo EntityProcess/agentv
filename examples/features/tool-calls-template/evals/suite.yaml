@@ -1,38 +1,26 @@
-# Tool Calls Template Variable Demo
-#
-# Demonstrates using {{ tool_calls }} with rubric assertions to check
-# whether an agent invoked the right skills — without needing the
-# skill-trigger evaluator.
-#
-# Skills live in workspace/.agents/skills/. The built-in agent-rules extension
-# stages them so supported providers can discover them.
-#
-# Run:
-#   bun agentv eval examples/features/tool-calls-template/evals/suite.yaml --target copilot
-
 name: tool-calls-template
 description: Rubric assertions with {{ tool_calls }} for skill verification
-
 extensions:
   - agentv:agent-rules
-
 workspace:
   scope: suite
   template: ../workspace/
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: deploy-skill-triggered
-    input: How do I deploy payments-api to production?
     assert:
       - The agent invoked the acme-deploy skill
-
+    vars:
+      input: How do I deploy payments-api to production?
   - id: rollback-skill-triggered
-    input: I need to roll back user-service in staging, what's the procedure?
     assert:
       - The agent invoked the acme-deploy skill
-
+    vars:
+      input: I need to roll back user-service in staging, what's the procedure?
   - id: no-skill-for-unrelated
-    input: Write a Python function that parses JSON logs and extracts error messages.
     assert:
-      - The tool_calls section does not contain any entry starting with "Skill:"
-        (file creation, Read, Edit, and Bash are fine)
+      - The tool_calls section does not contain any entry starting with "Skill:" (file creation,
+        Read, Edit, and Bash are fine)
+    vars:
+      input: Write a Python function that parses JSON logs and extracts error messages.

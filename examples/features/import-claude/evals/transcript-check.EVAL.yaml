@@ -1,10 +1,14 @@
 target: llm
-
+prompts:
+  - "{{ input }}"
 tests:
   - id: transcript-quality
-    input: "Analyze the imported Claude Code transcript"
     assert:
       - metric: transcript-quality
         type: script
-        command: [ bun, graders/transcript-quality.ts ]
-      - "Transcript contains meaningful assistant messages with tool calls"
+        command:
+          - bun
+          - graders/transcript-quality.ts
+      - Transcript contains meaningful assistant messages with tool calls
+    vars:
+      input: Analyze the imported Claude Code transcript

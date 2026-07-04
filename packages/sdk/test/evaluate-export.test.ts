@@ -5,10 +5,11 @@ import { evaluate } from '../src/index.js';
 describe('evaluate export', () => {
   it('runs the core programmatic evaluate API through @agentv/sdk', async () => {
     const { results, summary } = await evaluate({
+      prompts: ['{{ input }}'],
       tests: [
         {
           id: 'sdk-evaluate-export',
-          input: 'Say hello',
+          vars: { input: 'Say hello' },
           assert: [{ type: 'contains', value: 'hello' }],
         },
       ],

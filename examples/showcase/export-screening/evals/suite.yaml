@@ -1,34 +1,14 @@
-# Export Risk Classification Eval Dataset
-#
-# This eval measures AI accuracy in classifying export risk levels (Low/Medium/High)
-# against expert assessments. Results can be post-processed to generate confusion
-# matrices and classification metrics (precision, recall, F1).
-#
-# High-risk HS codes are based on the Common High Priority List (CHPL) coordinated
-# among G7, EU, and allies for items at high risk of diversion.
-#
-# CHPL Tiers:
-# - Tier 1: Integrated Circuits (8542.xx) - Highest concern
-# - Tier 2: Electronics Components (8517.62, 8526.91, 8532.xx, 8548.00)
-# - Tier 3.A: Additional Electronic Components (8471.xx, 8504.40, 8541.xx, etc.)
-# - Tier 3.B: Mechanical Components (8482.xx, 8807.30, 9013.xx, 9014.xx)
-# - Tier 4.A: Manufacturing/Testing Equipment (8486.xx, 8534.00, 9030.xx, etc.)
-# - Tier 4.B: CNC Machine Tools (8457.10, 8458.xx, 8459.61, 8466.93)
-
 description: Export control risk classification eval for trade compliance screening
-
 assert:
   - metric: risk_assessment_quality
     type: script
-    command: [ "bun", "run", "validate_risk_output.ts" ]
-
+    command:
+      - bun
+      - run
+      - validate_risk_output.ts
+prompts:
+  - "{{ input }}"
 tests:
-  # ============================================
-  # HIGH RISK CASES (Expert Assessment: High)
-  # Based on CHPL (Common High Priority List) codes
-  # ============================================
-
-  # Tier 1: Integrated Circuits (Highest Concern)
   - id: exp-high-001
     conversation_id: export-screening
     assert:
@@ -40,20 +20,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: RU
-              Product: Microcontroller units (MCU) for industrial automation
-              HS Code: 8542.31
-
+                Origin: US
+                Destination: RU
+                Product: Microcontroller units (MCU) for industrial automation
+                HS Code: 8542.31
   - id: exp-high-002
     conversation_id: export-screening
     assert:
@@ -64,21 +44,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: KR
-              Destination: BY
-              Product: DRAM memory chips (DDR5, 16GB modules)
-              HS Code: 8542.32
-
-  # Tier 3.A: Electronic Components
+                Origin: KR
+                Destination: BY
+                Product: DRAM memory chips (DDR5, 16GB modules)
+                HS Code: 8542.32
   - id: exp-high-003
     conversation_id: export-screening
     assert:
@@ -90,20 +69,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: FR
-              Destination: CN
-              Product: Infrared photodiode array (InGaAs, 640x512 elements)
-              HS Code: 8541.49
-
+                Origin: FR
+                Destination: CN
+                Product: Infrared photodiode array (InGaAs, 640x512 elements)
+                HS Code: 8541.49
   - id: exp-high-004
     conversation_id: export-screening
     assert:
@@ -114,21 +93,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: DE
-              Destination: IR
-              Product: High-frequency power inverter modules (50kW)
-              HS Code: 8504.40
-
-  # Tier 3.B: Mechanical and Optical Components
+                Origin: DE
+                Destination: IR
+                Product: High-frequency power inverter modules (50kW)
+                HS Code: 8504.40
   - id: exp-high-005
     conversation_id: export-screening
     assert:
@@ -139,20 +117,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: JP
-              Destination: RU
-              Product: Precision angular contact ball bearings (ceramic hybrid)
-              HS Code: 8482.10
-
+                Origin: JP
+                Destination: RU
+                Product: Precision angular contact ball bearings (ceramic hybrid)
+                HS Code: 8482.10
   - id: exp-high-006
     conversation_id: export-screening
     assert:
@@ -163,20 +141,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: CN
-              Product: Carbon fiber UAV airframe components
-              HS Code: 8807.30
-
+                Origin: US
+                Destination: CN
+                Product: Carbon fiber UAV airframe components
+                HS Code: 8807.30
   - id: exp-high-007
     conversation_id: export-screening
     assert:
@@ -187,20 +165,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: DE
-              Destination: PK
-              Product: Thermal imaging riflescope (12 micron VOx sensor)
-              HS Code: 9013.10
-
+                Origin: DE
+                Destination: PK
+                Product: Thermal imaging riflescope (12 micron VOx sensor)
+                HS Code: 9013.10
   - id: exp-high-008
     conversation_id: export-screening
     assert:
@@ -211,22 +189,21 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: FR
-              Destination: BY
-              Product: Inertial navigation system (fiber optic gyroscope based)
-              HS Code: 9014.20
-              Consignee: State Aviation Research Institute
-
-  # Tier 4.A: Manufacturing and Testing Equipment
+                Origin: FR
+                Destination: BY
+                Product: Inertial navigation system (fiber optic gyroscope based)
+                HS Code: 9014.20
+                Consignee: State Aviation Research Institute
   - id: exp-high-009
     conversation_id: export-screening
     assert:
@@ -237,20 +214,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: NL
-              Destination: CN
-              Product: DUV lithography system for semiconductor wafer processing
-              HS Code: 8486.20
-
+                Origin: NL
+                Destination: CN
+                Product: DUV lithography system for semiconductor wafer processing
+                HS Code: 8486.20
   - id: exp-high-010
     conversation_id: export-screening
     assert:
@@ -261,20 +238,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: RU
-              Product: Digital storage oscilloscope (8GHz bandwidth, 40GSa/s)
-              HS Code: 9030.20
-
+                Origin: US
+                Destination: RU
+                Product: Digital storage oscilloscope (8GHz bandwidth, 40GSa/s)
+                HS Code: 9030.20
   - id: exp-high-011
     conversation_id: export-screening
     assert:
@@ -285,21 +262,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: TW
-              Destination: BY
-              Product: High-density interconnect PCBs (18-layer, fine pitch)
-              HS Code: 8534.00
-
-  # Tier 4.B: CNC Machine Tools
+                Origin: TW
+                Destination: BY
+                Product: High-density interconnect PCBs (18-layer, fine pitch)
+                HS Code: 8534.00
   - id: exp-high-012
     conversation_id: export-screening
     assert:
@@ -310,25 +286,20 @@ tests:
       - role: assistant
         content:
           riskLevel: High
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: JP
-              Destination: RU
-              Product: 5-axis CNC machining center (positioning accuracy 2 microns)
-              HS Code: 8457.10
-
-  # ============================================
-  # MEDIUM RISK CASES (Expert Assessment: Medium)
-  # Items that may be controlled depending on specs/destination
-  # ============================================
-
+                Origin: JP
+                Destination: RU
+                Product: 5-axis CNC machining center (positioning accuracy 2 microns)
+                HS Code: 8457.10
   - id: exp-med-001
     conversation_id: export-screening
     assert:
@@ -340,20 +311,20 @@ tests:
       - role: assistant
         content:
           riskLevel: Medium
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: JP
-              Product: Enterprise network switch with routing capabilities
-              HS Code: 8517.62
-
+                Origin: US
+                Destination: JP
+                Product: Enterprise network switch with routing capabilities
+                HS Code: 8517.62
   - id: exp-med-002
     conversation_id: export-screening
     assert:
@@ -365,21 +336,21 @@ tests:
       - role: assistant
         content:
           riskLevel: Medium
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: DE
-              Product: Tantalum capacitors (assorted values, 500 units)
-              HS Code: 8532.21
-              Consignee: Electronics Repair GmbH
-
+                Origin: US
+                Destination: DE
+                Product: Tantalum capacitors (assorted values, 500 units)
+                HS Code: 8532.21
+                Consignee: Electronics Repair GmbH
   - id: exp-med-003
     conversation_id: export-screening
     assert:
@@ -391,20 +362,20 @@ tests:
       - role: assistant
         content:
           riskLevel: Medium
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: DE
-              Destination: IN
-              Product: Industrial machine vision camera system
-              HS Code: 9013.80
-
+                Origin: DE
+                Destination: IN
+                Product: Industrial machine vision camera system
+                HS Code: 9013.80
   - id: exp-med-004
     conversation_id: export-screening
     assert:
@@ -416,26 +387,21 @@ tests:
       - role: assistant
         content:
           riskLevel: Medium
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: BR
-              Product: GPS receiver module for commercial drone
-              HS Code: 8526.91
-              Consignee: AgriTech Drones Ltda
-
-  # ============================================
-  # LOW RISK CASES (Expert Assessment: Low)
-  # Non-CHPL items to low-risk destinations
-  # ============================================
-
+                Origin: US
+                Destination: BR
+                Product: GPS receiver module for commercial drone
+                HS Code: 8526.91
+                Consignee: AgriTech Drones Ltda
   - id: exp-low-001
     conversation_id: export-screening
     assert:
@@ -446,20 +412,20 @@ tests:
       - role: assistant
         content:
           riskLevel: Low
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: KR
-              Destination: AU
-              Product: OLED television display panel (65 inch, 4K resolution)
-              HS Code: 8528.72
-
+                Origin: KR
+                Destination: AU
+                Product: OLED television display panel (65 inch, 4K resolution)
+                HS Code: 8528.72
   - id: exp-low-002
     conversation_id: export-screening
     assert:
@@ -470,20 +436,20 @@ tests:
       - role: assistant
         content:
           riskLevel: Low
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: DE
-              Destination: MX
-              Product: AC induction motor for HVAC system (7.5kW)
-              HS Code: 8501.52
-
+                Origin: DE
+                Destination: MX
+                Product: AC induction motor for HVAC system (7.5kW)
+                HS Code: 8501.52
   - id: exp-low-003
     conversation_id: export-screening
     assert:
@@ -494,20 +460,20 @@ tests:
       - role: assistant
         content:
           riskLevel: Low
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: US
-              Destination: CA
-              Product: Tractor-mounted pesticide sprayer
-              HS Code: 8424.82
-
+                Origin: US
+                Destination: CA
+                Product: Tractor-mounted pesticide sprayer
+                HS Code: 8424.82
   - id: exp-low-004
     conversation_id: export-screening
     assert:
@@ -518,21 +484,21 @@ tests:
       - role: assistant
         content:
           riskLevel: Low
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: NL
-              Destination: BR
-              Product: Ultrasound diagnostic imaging system
-              HS Code: 9018.12
-              Consignee: Hospital das Clinicas
-
+                Origin: NL
+                Destination: BR
+                Product: Ultrasound diagnostic imaging system
+                HS Code: 9018.12
+                Consignee: Hospital das Clinicas
   - id: exp-low-005
     conversation_id: export-screening
     assert:
@@ -543,20 +509,20 @@ tests:
       - role: assistant
         content:
           riskLevel: Low
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: CN
-              Destination: GB
-              Product: Robotic vacuum cleaner (consumer model)
-              HS Code: 8508.11
-
+                Origin: CN
+                Destination: GB
+                Product: Robotic vacuum cleaner (consumer model)
+                HS Code: 8508.11
   - id: exp-low-006
     conversation_id: export-screening
     assert:
@@ -567,17 +533,18 @@ tests:
       - role: assistant
         content:
           riskLevel: Low
-    input:
-      - role: user
-        content:
-          - type: file
-            value: ../skills/export-risk-assessment.md
-          - type: text
-            value: |
-              Assess export risk for this shipment:
+    vars:
+      input:
+        - role: user
+          content:
+            - type: file
+              value: ../skills/export-risk-assessment.md
+            - type: text
+              value: |
+                Assess export risk for this shipment:
 
-              Origin: IT
-              Destination: US
-              Product: Commercial pasta extruder machine
-              HS Code: 8438.10
-              Consignee: Italian Foods Inc
+                Origin: IT
+                Destination: US
+                Product: Commercial pasta extruder machine
+                HS Code: 8438.10
+                Consignee: Italian Foods Inc

@@ -1,39 +1,24 @@
-# Copilot Log evaluation example — deterministic + script-grader assertions.
-#
-# Reads a Copilot CLI session transcript from disk and evaluates it with:
-#   1. skill-trigger  — deterministic check for skill invocation
-#   2. script-grader    — custom TypeScript grader inspecting full Message[]
-#
-# No LLM API key needed — all graders are deterministic.
-#
-# Prerequisites:
-#   1. Have at least one Copilot CLI session in ~/.copilot/session-state/
-#   2. Run the eval:
-#        agentv eval evals/skill-trigger.EVAL.yaml --target copilot-log
-#
-# The copilot-log provider discovers the latest session from
-# ~/.copilot/session-state/ and parses events.jsonl into Message[].
-
-tags: [ agent ]
-
+tags:
+  - agent
 target: copilot-log
-
 extensions:
   - file://../scripts/copilot-log-workspace.mjs:beforeAll
-
 workspace:
   scope: suite
   template: ../workspace/
-
+prompts:
+  - "{{ input }}"
 tests:
-  # Negative case: csv-analyzer skill should NOT be triggered
-  # (gpt-5-mini typically reads CSV directly without invoking skills)
   - id: should-not-trigger-csv-analyzer
-    input: "Analyze this CSV file and tell me the top 5 months by revenue"
     assert:
       - type: skill-trigger
         skill: csv-analyzer
         should_trigger: false
       - metric: transcript-quality
         type: script
-        command: [ "bun", "run", "../graders/transcript-quality.ts" ]
+        command:
+          - bun
+          - run
+          - ../graders/transcript-quality.ts
+    vars:
+      input: Analyze this CSV file and tell me the top 5 months by revenue
