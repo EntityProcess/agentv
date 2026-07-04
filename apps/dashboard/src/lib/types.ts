@@ -128,6 +128,8 @@ export interface AssertionEntry {
 
 export interface EvalCaseTrial {
   attempt?: number;
+  sample_index?: number;
+  retry_index?: number;
   attempt_path?: string;
   run_path?: string;
   score?: number;

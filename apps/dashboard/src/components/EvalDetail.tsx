@@ -66,6 +66,19 @@ function caseTrialPath(trial: EvalCaseTrial, index = 0): string {
   return trial.attempt_path ?? trial.run_path ?? `attempt-${trial.attempt ?? index + 1}`;
 }
 
+function trialNumber(trial: EvalCaseTrial, index = 0): number {
+  if (typeof trial.sample_index === 'number') return trial.sample_index;
+  if (typeof trial.attempt === 'number') return trial.attempt + 1;
+  return index + 1;
+}
+
+function trialDisplayLabel(trial: EvalCaseTrial, index = 0): string {
+  const label = `Attempt ${trialNumber(trial, index)}`;
+  return typeof trial.retry_index === 'number' && trial.retry_index > 0
+    ? `${label} retry ${trial.retry_index}`
+    : label;
+}
+
 function caseTrialTokenTotal(trial: EvalCaseTrial): number | undefined {
   if (trial.total_tokens != null) return trial.total_tokens;
   const usage = trial.token_usage;
@@ -564,10 +577,16 @@ function TrialActionRow({
   onSelectTrial?: (trial: EvalCaseTrial, initialTab?: Tab) => void;
 }) {
   const label = caseTrialPath(trial, index);
+  const displayLabel = trialDisplayLabel(trial, index);
   return (
     <div className="grid gap-2 rounded-md border border-gray-800 bg-gray-950/50 p-3 text-sm md:grid-cols-[minmax(8rem,1fr)_auto] md:items-center">
       <div className="min-w-0">
-        <div className="font-medium text-gray-200">{label}</div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="font-medium text-gray-200">{displayLabel}</span>
+          <span className="rounded-md border border-gray-800 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">
+            {label}
+          </span>
+        </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
           <span>{formatPercent(trial.score)} score</span>
           <span>{trial.verdict ?? 'unknown'}</span>
@@ -608,14 +627,20 @@ function RepeatAggregateChecksTab({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <p className="mb-3 text-sm text-gray-400">
+          Aggregate across {group.trialCount} attempts for this test case.
+        </p>
         <div className="grid gap-3 md:grid-cols-4">
           <RunMetricRow label="Attempt success" value={formatPercent(group.passRate)} />
           <RunMetricRow label="Mean score" value={formatPercent(group.meanScore)} />
           <RunMetricRow
-            label="Passed attempts"
+            label="Attempts passed"
             value={`${group.passedTrials}/${group.trialCount}`}
           />
-          <RunMetricRow label="Assertions" value={formatPercent(group.assertionPassRate)} />
+          <RunMetricRow label="Assertion pass" value={formatPercent(group.assertionPassRate)} />
+          {group.executionErrorTrials > 0 ? (
+            <RunMetricRow label="Execution errors" value={String(group.executionErrorTrials)} />
+          ) : null}
         </div>
       </div>
 
@@ -806,6 +831,7 @@ function RepeatAggregateTranscriptTab({
       </h4>
       {group.trials.map((trial, index) => {
         const runLabel = caseTrialPath(trial, index);
+        const displayLabel = trialDisplayLabel(trial, index);
         const transcriptPath = trial.transcript_path;
         const transcriptHref = transcriptPath
           ? artifactFileContentUrl({
@@ -823,7 +849,12 @@ function RepeatAggregateTranscriptTab({
             className="grid gap-2 rounded-md border border-gray-800 bg-gray-950/50 p-3 text-sm md:grid-cols-[minmax(8rem,1fr)_auto] md:items-center"
           >
             <div className="min-w-0">
-              <div className="font-medium text-gray-200">{runLabel}</div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="font-medium text-gray-200">{displayLabel}</span>
+                <span className="rounded-md border border-gray-800 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">
+                  {runLabel}
+                </span>
+              </div>
               <div className="mt-1 truncate font-mono text-xs text-gray-500" title={transcriptPath}>
                 {transcriptPath ?? 'No transcript artifact'}
               </div>
