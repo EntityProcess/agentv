@@ -82,7 +82,7 @@ a[aria-current="page"] {
 }
 
 .version-select select {
-  max-width: 11.5rem;
+  max-width: min(11.5rem, 28vw);
   min-height: 2rem;
   border: 1px solid var(--sl-color-gray-5);
   border-radius: 0.375rem;
@@ -91,6 +91,10 @@ a[aria-current="page"] {
   background: var(--sl-color-gray-6);
   font: inherit;
   font-size: 0.8125rem;
+}
+
+.mobile-version .version-select select {
+  max-width: 7.25rem;
 }
 
 .version-select select:focus {

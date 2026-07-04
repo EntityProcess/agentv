@@ -62,6 +62,7 @@ export default defineConfig({
         alt: 'AgentV mark',
       },
       components: {
+        Header: './src/components/Header.astro',
         SiteTitle: './src/components/StarlightSiteTitle.astro',
         LanguageSelect: './src/components/VersionSelect.astro',
         Sidebar: './src/components/VersionedSidebar.astro',
