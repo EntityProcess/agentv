@@ -17,6 +17,7 @@ import { RUBRIC_OPERATOR_VALUES, isGraderKind } from '../types.js';
 import { validateCustomPromptContent } from '../validation/prompt-validator.js';
 import { parseYamlValue } from '../yaml-loader.js';
 import { resolveFileReference } from './file-resolver.js';
+import { parseTransformSpec } from './transform-parser.js';
 
 const ANSI_YELLOW = '\u001b[33m';
 const ANSI_RESET = '\u001b[0m';
@@ -550,6 +551,19 @@ async function parseGraderList(
     }
 
     const negate = rawEvaluator.negate === true ? true : undefined;
+    if (rawEvaluator.postprocess !== undefined) {
+      throw new Error(
+        `Grader '${name}' in '${evalId}': postprocess has been removed. Use transform instead.`,
+      );
+    }
+    const transform = await parseTransformSpec(
+      rawEvaluator.transform as JsonValue | undefined,
+      searchRoots,
+      `Grader '${name}' in '${evalId}'`,
+    );
+    const pushEvaluator = (config: GraderConfig): void => {
+      evaluators.push(transform !== undefined ? { ...config, transform } : config);
+    };
     const mergedPreprocessors = await parseMergedPreprocessors(
       rawEvaluator.preprocessors as JsonValue | undefined,
       defaultPreprocessors,
@@ -568,14 +582,23 @@ async function parseGraderList(
         evalId,
       );
       // Collect all properties except known meta-keys as pass-through config
-      const knownProps = new Set(['metric', 'type', 'weight', 'required', 'min_score', 'negate']);
+      const knownProps = new Set([
+        'metric',
+        'type',
+        'weight',
+        'required',
+        'min_score',
+        'negate',
+        'transform',
+        'postprocess',
+      ]);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
         if (!knownProps.has(key) && value !== undefined) {
           config[key] = value as JsonValue;
         }
       }
-      evaluators.push({
+      pushEvaluator({
         name,
         type: customTypeName as unknown as GraderKind,
         ...(weight !== undefined ? { weight } : {}),
@@ -623,7 +646,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'assert-set',
         assertions: parsedMembers,
@@ -734,6 +757,8 @@ async function parseGraderList(
         'required',
         'min_score',
         'negate',
+        'transform',
+        'postprocess',
       ]);
       const config: Record<string, JsonValue> = {};
       for (const [key, value] of Object.entries(rawEvaluator)) {
@@ -746,7 +771,7 @@ async function parseGraderList(
         : {};
       const mergedConfig = { ...config, ...topLevelConfig };
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'script',
         command,
@@ -927,7 +952,7 @@ async function parseGraderList(
         ...(argsMatch !== undefined ? { argsMatch } : {}),
       };
 
-      evaluators.push(config);
+      pushEvaluator(config);
       continue;
     }
 
@@ -1006,7 +1031,7 @@ async function parseGraderList(
         evalId,
       );
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'field-accuracy',
         fields,
@@ -1036,7 +1061,7 @@ async function parseGraderList(
         evalId,
       );
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'latency',
         threshold,
@@ -1065,7 +1090,7 @@ async function parseGraderList(
         evalId,
       );
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'cost',
         budget,
@@ -1120,7 +1145,7 @@ async function parseGraderList(
         evalId,
       );
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'token-usage',
         ...validLimits,
@@ -1205,7 +1230,7 @@ async function parseGraderList(
         evalId,
       );
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'execution-metrics',
         ...validThresholds,
@@ -1232,7 +1257,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'skill-trigger',
         skill: skillName,
@@ -1265,7 +1290,7 @@ async function parseGraderList(
         evalId,
       );
       const config = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
-      evaluators.push({
+      pushEvaluator({
         name,
         type: typeValue,
         value,
@@ -1303,7 +1328,7 @@ async function parseGraderList(
           ? rawEvaluator.provider
           : undefined;
       const config = isJsonObject(rawEvaluator.config) ? rawEvaluator.config : undefined;
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'similar',
         value,
@@ -1331,7 +1356,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'contains',
         value,
@@ -1358,7 +1383,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: typeValue,
         value,
@@ -1383,7 +1408,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'icontains',
         value,
@@ -1410,7 +1435,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: typeValue,
         value,
@@ -1435,7 +1460,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: typeValue,
         value,
@@ -1461,7 +1486,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'regex',
         value,
@@ -1482,7 +1507,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'is-json',
         ...(weight !== undefined ? { weight } : {}),
@@ -1506,7 +1531,7 @@ async function parseGraderList(
         name,
         evalId,
       );
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'equals',
         value,
@@ -1572,6 +1597,8 @@ async function parseGraderList(
       'maxSteps',
       'temperature',
       'preprocessors',
+      'transform',
+      'postprocess',
     ]);
     const config: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(rawEvaluator)) {
@@ -1633,7 +1660,7 @@ async function parseGraderList(
         continue;
       }
 
-      evaluators.push({
+      pushEvaluator({
         name,
         type: 'llm-rubric',
         prompt,
@@ -1657,7 +1684,7 @@ async function parseGraderList(
       continue;
     }
 
-    evaluators.push({
+    pushEvaluator({
       name,
       type: 'llm-grader',
       prompt,
