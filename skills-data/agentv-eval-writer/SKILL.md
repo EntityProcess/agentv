@@ -127,20 +127,76 @@ tests:
 ## Eval File Structure
 
 **Required:** `tests` (array or string raw-case path) or `imports`
-**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assert`, `input`
+**Optional:** `name`, `description`, `experiment`, `version`, `author`, `tags`, `license`, `requires`, `target`, `targets`, `prompts`, `default_test`, `timeout_seconds`, `evaluate_options`, `threshold`, `suite`, `workspace`, `assert`, `input`, `input_files`
 
 **Test fields:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Unique identifier |
-| `input` | yes | Input to the agent (string/object shorthand or full message array) |
+| `input` | yes for direct-input suites; no when using top-level `prompts` | Input to the agent (string/object shorthand or full message array) |
 | `expected_output` | no | Gold-standard reference answer (string shorthand or full message array) |
 | `assert` | yes | Graders: deterministic checks, `llm-rubric` checks, script graders, or plain string rubric criteria |
 | `execution` | no | Per-case grader/default overrides such as `skip_defaults`; target selection belongs in top-level `target` or CLI `--target` |
 | `workspace` | no | Per-case workspace config (overrides suite-level) |
 | `metadata` | no | Arbitrary key-value pairs passed to setup/teardown scripts |
 | `conversation_id` | no | Thread grouping |
+
+## Prompt Templates and Vars
+
+Use top-level `prompts` plus `tests[].vars` for the Promptfoo-compatible canonical
+input shape. Shared data defaults belong in `default_test.vars`; per-test
+`vars` override those defaults by key. AgentV renders every prompt with each
+test's merged vars, then expands the run across prompts, targets, tests, and
+repeat attempts.
+
+```yaml
+description: Prompt matrix example
+target: default
+
+prompts:
+  - id: support-chat
+    label: Support chat
+    file: ./prompts/support-chat.json
+  - id: terse
+    label: Terse
+    prompt: "Answer for {{ audience }} in one sentence: {{ question }}"
+
+default_test:
+  vars:
+    audience: users
+    category: support
+
+tests:
+  - id: password-reset
+    vars:
+      question: How do I reset my password?
+    expected_output: Password reset guidance
+    assert:
+      - Gives correct password reset guidance
+  - id: admin-access
+    vars:
+      audience: admins
+      question: How do I revoke a user's access?
+    expected_output: Access revocation guidance
+    assert:
+      - Gives safe access revocation guidance
+```
+
+Prompt templates can use `{{ name }}` or `{{ vars.name }}` placeholders. Use
+top-level names when matching Promptfoo-style prompt templates; use
+`{{ vars.name }}` when explicit namespacing is clearer.
+
+Do not mix top-level `prompts` with direct input fields. `tests[].input`,
+`tests[].input_files`, top-level `input`, and top-level `input_files` are
+AgentV direct-input conveniences and cannot be combined with top-level
+`prompts`. For simple direct text, `input: "Summarize X"` is conceptually
+equivalent to a prompt template such as `"{{ input }}"` or `"{{ vars.input }}"`
+with `tests[].vars.input: "Summarize X"`.
+
+`input_files` is also direct-input convenience sugar. In prompt-template suites,
+model file-backed context as vars containing file paths or `file://` references,
+then render those vars from the prompt template next to the input.
 
 **Shorthand forms:**
 - `input` (string, including YAML block scalars) expands to `[{role: "user", content: "..."}]`

@@ -136,7 +136,7 @@ tests:
 | `category` | Optional slash-delimited analytics taxonomy path. Overrides the category derived from the eval file path. |
 | `target` | System under test by configured target `id` or inline target object |
 | `tags` | Optional metadata map. Use `tags.experiment` as the run/result grouping label. |
-| `prompts` | Optional top-level prompt matrix. Entries can be strings, chat message arrays, files, or generated prompt functions. |
+| `prompts` | Optional top-level prompt matrix. Entries can be strings, chat message arrays, files, or generated prompt functions rendered with `tests[].vars` and `default_test.vars`. |
 | `targets` | Optional target matrix. Entries reference target ids or inline target objects. |
 | `evaluate_options.repeat` | Optional repeat policy as a positive integer shorthand or object with `count`, `strategy`, `early_exit`, and `cost_limit_usd` |
 | `evaluate_options` | Optional evaluation runtime options such as `budget_usd`, `repeat`, and `max_concurrency` |
@@ -160,11 +160,12 @@ context, but it does not materialize a repo for the agent to inspect.
 
 ### Prompts, Vars, and Target Expansion
 
-Use top-level `prompts` when you want a prompt matrix. AgentV
-renders each prompt with each test's `vars`, then expands the run as
-`prompts x targets x tests x repeat` before execution. Each expanded row keeps
-the original `test_id` plus prompt and target identity for Dashboard filtering,
-reruns, and comparisons.
+Use top-level `prompts` when you want the Promptfoo-compatible authoring shape:
+prompt templates at the top level, test data in `tests[].vars`, and shared
+test-data defaults in `default_test.vars`. AgentV renders each prompt with the
+merged vars for each test, then expands the run as `prompts x targets x tests x
+repeat` before execution. Each expanded row keeps the original `test_id` plus
+prompt and target identity for Dashboard filtering, reruns, and comparisons.
 
 ```yaml
 description: Release-note summarization
@@ -174,10 +175,14 @@ tags:
 prompts:
   - id: direct
     label: Direct
-    prompt: "Summarize {{ vars.topic }}."
+    prompt: "Summarize {{ topic }} for {{ audience }}."
   - id: terse
     label: Terse
-    prompt: "In one sentence, summarize {{ vars.topic }}."
+    prompt: "In one sentence, summarize {{ topic }} for {{ audience }}."
+
+default_test:
+  vars:
+    audience: engineers
 
 targets:
   - id: local-mini
@@ -200,12 +205,49 @@ tests:
     assert:
       - Identifies the most important change
       - Avoids unsupported details
+  - id: roadmap
+    vars:
+      audience: executives
+      topic: the next roadmap phase
+    expected_output: concise roadmap summary
+    assert:
+      - Identifies the main product direction
+      - Uses the requested audience framing
 ```
 
-If `prompts` is present, put per-case data in `tests[].vars` rather than
-`tests[].input`. For direct task suites, `input` remains the supported shorthand
-for the target task and can be a string, object, or message array. Use
-`prompts` only when you want a prompt matrix rendered from `tests[].vars`.
+For prompt matrices, put per-case data in `tests[].vars` and shared defaults in
+`default_test.vars`. `tests[].vars` overrides `default_test.vars` by key.
+Prompt templates can use either `{{ name }}` or `{{ vars.name }}` placeholders;
+the top-level form matches Promptfoo-style prompt templates, while the
+`vars.*` namespace is explicit and useful when a key might collide with other
+template context.
+
+Do not mix top-level `prompts` with direct input fields. `tests[].input`,
+`tests[].input_files`, top-level `input`, and top-level `input_files` are
+AgentV direct-input conveniences for suites that already know the target task
+input. They cannot be combined with top-level `prompts`; use `tests[].vars` for
+prompt-matrix data, or remove `prompts` for a direct-input suite.
+
+For simple direct-input text, this:
+
+```yaml
+tests:
+  - id: direct
+    input: Summarize the July release notes.
+```
+
+is conceptually equivalent to a prompt template such as
+`"{{ input }}"` or `"{{ vars.input }}"` with:
+
+```yaml
+tests:
+  - id: direct
+    vars:
+      input: Summarize the July release notes.
+```
+
+Use the direct shorthand for compact AgentV-native suites. Use top-level
+`prompts` when you want Promptfoo-compatible prompt and vars expansion.
 
 ### Lifecycle Extensions
 
@@ -380,7 +422,10 @@ To opt out for a specific test, set `execution.skip_defaults: true` (same flag t
 
 ### Suite-level Input Files
 
-The `input_files` field provides a shorthand for attaching shared file references to every test. When a test has a string `input`, the suite-level files are prepended as `type: file` content blocks in a single user message — the same shape produced by per-test `input_files`.
+The `input_files` field is an AgentV direct-input convenience for attaching
+shared file references to every test. When a test has a string `input`, the
+suite-level files are prepended as `type: file` content blocks in a single user
+message — the same shape produced by per-test `input_files`.
 
 ```yaml
 description: Schema review evaluation
@@ -400,6 +445,12 @@ tests:
 Each test's effective input becomes a single user message with `[file blocks..., text block]`.
 
 Per-test `input_files` overrides the suite-level value (it does not merge). To opt out, set `execution.skip_defaults: true` on the test.
+
+`input_files` cannot be mixed with top-level `prompts`. In Promptfoo-style
+prompt authoring, model file-backed context as vars whose values are file paths
+or `file://` references, then render those vars from the prompt template next to
+the test input. AgentV `input_files` is shorthand for the direct-input version
+of that pattern.
 
 ### PROMPT.md Fallback
 
@@ -575,7 +626,10 @@ MY_REPO_COMMIT=main
 
 ## Per-Test Template Variables
 
-Eval YAML also supports per-test `vars` for data-driven prompt templates. Use `{{ vars.name }}` placeholders in test-facing text fields, and AgentV resolves them when the suite loads.
+Eval YAML also supports per-test `vars` for data-driven direct-input suites.
+Use `{{ vars.name }}` placeholders in test-facing text fields, and AgentV
+resolves them when the suite loads. Shared defaults can live in
+`default_test.vars`; per-test `vars` override those defaults by key.
 
 ```yaml
 input: "Answer clearly: {{ vars.question }}"
@@ -594,7 +648,7 @@ tests:
 
 ### Behavior
 
-- `vars` is defined per test as an object
+- `vars` is defined per test as an object, with optional defaults from `default_test.vars`
 - `{{ vars.name }}` and dotted paths like `{{ vars.user.name }}` are supported
 - Substitution applies to suite-level `input`, test `input`, `input_files`, `criteria`, `expected_output`, assertion values/metrics, and conversation turn `input` / `expected_output` / assertions
 - When the whole string is a single placeholder, the original JSON value is preserved

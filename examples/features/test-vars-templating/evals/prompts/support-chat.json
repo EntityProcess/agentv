@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "You are a concise assistant answering {{ category }} questions for {{ audience }}."
+  },
+  {
+    "role": "user",
+    "content": "{{ question }}"
+  }
+]

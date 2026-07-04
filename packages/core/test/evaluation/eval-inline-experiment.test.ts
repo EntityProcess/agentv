@@ -272,6 +272,86 @@ describe('eval.yaml flat runtime controls and tests imports', () => {
     ]);
   });
 
+  it('merges default_test vars before top-level prompt expansion', async () => {
+    const evalPath = path.join(tempDir, 'prompt-matrix-default-vars.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: prompt-matrix-default-vars-suite',
+        'default_test:',
+        '  vars:',
+        '    audience: engineers',
+        '    tone: concise',
+        'prompts:',
+        '  - id: chat',
+        '    prompt:',
+        '      - role: system',
+        '        content: "Use a {{ tone }} tone for {{ audience }}."',
+        '      - role: user',
+        '        content: "Summarize {{ topic }}."',
+        'tests:',
+        '  - id: inherited-defaults',
+        '    vars:',
+        '      topic: release notes',
+        '    expected_output: concise release-note summary',
+        '  - id: overrides-default',
+        '    vars:',
+        '      audience: executives',
+        '      topic: migration plan',
+        '    expected_output: executive migration summary',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.tests.map((test) => test.id)).toEqual(['inherited-defaults', 'overrides-default']);
+    expect(suite.tests.map((test) => test.input)).toEqual([
+      [
+        { role: 'system', content: 'Use a concise tone for engineers.' },
+        { role: 'user', content: 'Summarize release notes.' },
+      ],
+      [
+        { role: 'system', content: 'Use a concise tone for executives.' },
+        { role: 'user', content: 'Summarize migration plan.' },
+      ],
+    ]);
+  });
+
+  it('merges default_test vars before direct test interpolation', async () => {
+    const evalPath = path.join(tempDir, 'direct-default-vars.eval.yaml');
+    await writeFile(
+      evalPath,
+      [
+        'name: direct-default-vars-suite',
+        'default_test:',
+        '  vars:',
+        '    tone: concise',
+        '    category: support',
+        'tests:',
+        '  - id: direct-default',
+        '    input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
+        '    vars:',
+        '      question: How do I reset my password?',
+        '    expected_output: password reset guidance',
+        '  - id: direct-override',
+        '    input: "Answer in a {{ tone }} {{ category }} style: {{ question }}"',
+        '    vars:',
+        '      category: onboarding',
+        '      question: Where is the getting started guide?',
+        '    expected_output: getting started guidance',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await loadTestSuite(evalPath, tempDir);
+
+    expect(suite.tests.map((test) => test.question)).toEqual([
+      'Answer in a concise support style: How do I reset my password?',
+      'Answer in a concise onboarding style: Where is the getting started guide?',
+    ]);
+  });
+
   it('loads function prompt sources from top-level prompts', async () => {
     const promptScriptPath = path.join(tempDir, 'prompt-source.js');
     const evalPath = path.join(tempDir, 'function-prompts.eval.yaml');
