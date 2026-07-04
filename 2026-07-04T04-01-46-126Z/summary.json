@@ -1,0 +1,174 @@
+{
+  "index_path": ".internal/index.jsonl",
+  "run_id": "2026-07-04T04-01-46-126Z",
+  "status": {
+    "passed": {
+      "count": 1,
+      "percentage": 1
+    },
+    "failed": {
+      "count": 0,
+      "percentage": 0
+    },
+    "errored": {
+      "count": 0,
+      "percentage": 0
+    },
+    "skipped": {
+      "count": 0,
+      "percentage": 0
+    }
+  },
+  "counts": {
+    "total_cases": 1,
+    "total_instances": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "errored_instances": 0
+  },
+  "pass_at_k": {
+    "k": 1,
+    "passed_cases": 1,
+    "total_cases": 1,
+    "rate": 1
+  },
+  "usage": {
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "cost_usd": null
+  },
+  "infra_failures": {
+    "total": 0,
+    "reasons": []
+  },
+  "cases": [
+    {
+      "test_id": "imported-codex-config-fix",
+      "suite": "transcript-deterministic",
+      "eval_path": "/tmp/agentv-av-7yhs/transcript-deterministic.eval.yaml",
+      "target": "transcript",
+      "sample_count": 1,
+      "pass_count": 1,
+      "status_counts": {
+        "ok": 1
+      },
+      "samples": [
+        {
+          "test_id": "imported-codex-config-fix",
+          "suite": "transcript-deterministic",
+          "eval_path": "/tmp/agentv-av-7yhs/transcript-deterministic.eval.yaml",
+          "target": "transcript",
+          "sample_index": 1,
+          "verdict": "pass",
+          "score": 1,
+          "execution_status": "ok",
+          "duration_ms": 1200
+        }
+      ],
+      "pass_rate": 1,
+      "pass_at_1": true
+    }
+  ],
+  "instances": [
+    {
+      "test_id": "imported-codex-config-fix",
+      "suite": "transcript-deterministic",
+      "eval_path": "/tmp/agentv-av-7yhs/transcript-deterministic.eval.yaml",
+      "target": "transcript",
+      "sample_index": 1,
+      "verdict": "pass",
+      "score": 1,
+      "execution_status": "ok",
+      "duration_ms": 1200
+    }
+  ],
+  "metadata": {
+    "run_id": "2026-07-04T04-01-46-126Z",
+    "eval_file": "/tmp/agentv-av-7yhs/transcript-deterministic.eval.yaml",
+    "timestamp": "2026-07-04T04:01:46.281Z",
+    "targets": [
+      "transcript"
+    ],
+    "tests_run": [
+      "imported-codex-config-fix"
+    ],
+    "experiment": "transcript-deterministic",
+    "runtime_source": {
+      "schema_version": "agentv.runtime_source.v1",
+      "kind": "direct_suite",
+      "config_source": "cli_flags",
+      "experiment_namespace": "transcript-deterministic",
+      "experiment_namespace_source": "eval_filename",
+      "eval_files": [
+        "/tmp/agentv-av-7yhs/transcript-deterministic.eval.yaml"
+      ],
+      "source_eval_files": [
+        "/tmp/agentv-av-7yhs/transcript-deterministic.eval.yaml"
+      ]
+    },
+    "planned_test_count": 1
+  },
+  "run_summary": {
+    "transcript": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0
+      },
+      "time_seconds": {
+        "mean": 1.2,
+        "stddev": 0
+      },
+      "tokens": {
+        "mean": 0,
+        "stddev": 0
+      },
+      "tool_calls": {
+        "mean": 3,
+        "stddev": 0
+      }
+    }
+  },
+  "per_grader_summary": {
+    "imported-tool-sequence:tool-trajectory": {
+      "mean": 1,
+      "stddev": 0
+    },
+    "imported-execution-budget:execution-metrics": {
+      "mean": 1,
+      "stddev": 0
+    }
+  },
+  "metrics": {
+    "duration": {
+      "total_ms": 1200,
+      "total_seconds": 1.2,
+      "source": "provider_reported"
+    },
+    "tokens": {
+      "total": 0,
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "source": "unavailable"
+    },
+    "cost": {
+      "usd": null,
+      "source": "unavailable"
+    },
+    "execution": {
+      "status": "ok"
+    },
+    "trajectory": {
+      "total_turns": 5,
+      "total_tool_calls": 3,
+      "tool_calls": {
+        "Read": 1,
+        "Grep": 1,
+        "Edit": 1
+      }
+    }
+  },
+  "notes": []
+}

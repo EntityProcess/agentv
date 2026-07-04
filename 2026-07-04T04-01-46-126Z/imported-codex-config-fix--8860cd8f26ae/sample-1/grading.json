@@ -1,0 +1,118 @@
+{
+  "score": 1,
+  "verdict": "pass",
+  "assertion_results": [
+    {
+      "text": "Found Read at position 0",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Found Grep at position 1",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Found Edit at position 2",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Tool calls 3 <= 5 max",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "LLM calls 5 <= 5 max",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    },
+    {
+      "text": "Duration 1200ms <= 5000ms max",
+      "passed": true,
+      "evidence": "",
+      "score": 1,
+      "verdict": "pass"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  },
+  "graders": [
+    {
+      "name": "imported-tool-sequence",
+      "type": "tool-trajectory",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Found Read at position 0",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Found Grep at position 1",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Found Edit at position 2",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "name": "imported-execution-budget",
+      "type": "execution-metrics",
+      "score": 1,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "pass",
+      "assertion_results": [
+        {
+          "text": "Tool calls 3 <= 5 max",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "LLM calls 5 <= 5 max",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        },
+        {
+          "text": "Duration 1200ms <= 5000ms max",
+          "passed": true,
+          "evidence": "",
+          "score": 1,
+          "verdict": "pass"
+        }
+      ]
+    }
+  ]
+}
