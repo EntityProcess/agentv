@@ -1938,7 +1938,31 @@ describe('writeArtifactsFromResults', () => {
     await expect(readFile(copiedRawLogPath, 'utf8')).rejects.toThrow();
 
     const transcriptPath = runArtifactPath(testDir, indexLine, 'sample-1', 'transcript-raw.jsonl');
-    await expect(readFile(transcriptPath, 'utf8')).resolves.toBe(rawLog);
+    const rawTranscriptLines = (await readFile(transcriptPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    expect(rawTranscriptLines).toEqual([
+      {
+        schema_version: 'agentv.raw_provider_log_line.v1',
+        source: {
+          kind: 'provider_log',
+          format: 'text',
+          line_index: 0,
+        },
+        content: '# provider-native stream log',
+      },
+      {
+        schema_version: 'agentv.raw_provider_log_line.v1',
+        source: {
+          kind: 'provider_log',
+          format: 'text',
+          line_index: 1,
+        },
+        content:
+          '{"time":"00:00","data":{"camelCaseProviderKey":true,"toolInput":{"filePath":"src/index.ts"}}}',
+      },
+    ]);
     await expect(readFile(rawLogPath, 'utf8')).resolves.toBe(rawLog);
     await expect(
       readFile(path.join(testDir, rowDir, 'sample-1', 'transcript.jsonl'), 'utf8'),

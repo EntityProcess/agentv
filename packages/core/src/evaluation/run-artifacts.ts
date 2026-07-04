@@ -2471,11 +2471,57 @@ async function writeRawTranscriptJsonl(
 ): Promise<void> {
   const rawSource = rawProviderLogSourcePath(result);
   if (rawSource) {
-    await copyFile(rawSource, filePath);
+    await copyRawProviderLogAsJsonl(rawSource, filePath);
     await cleanupProviderStagingFile(rawSource).catch(() => undefined);
     return;
   }
   await writeGeneratedRawTranscriptJsonl(filePath, result, envelope);
+}
+
+async function copyRawProviderLogAsJsonl(sourcePath: string, filePath: string): Promise<void> {
+  const content = await readFile(sourcePath, 'utf8');
+  if (isJsonlContent(content)) {
+    await copyFile(sourcePath, filePath);
+    return;
+  }
+
+  const lines = splitLogLines(content);
+  const records = lines.map((line, index) => ({
+    schema_version: 'agentv.raw_provider_log_line.v1',
+    source: {
+      kind: 'provider_log',
+      format: 'text',
+      line_index: index,
+    },
+    content: line,
+  }));
+  await writeJsonlFile(filePath, records);
+}
+
+function isJsonlContent(content: string): boolean {
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) {
+    return true;
+  }
+  return lines.every((line) => {
+    try {
+      JSON.parse(line);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function splitLogLines(content: string): string[] {
+  if (content.length === 0) {
+    return [];
+  }
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  if (lines.at(-1) === '') {
+    lines.pop();
+  }
+  return lines;
 }
 
 function buildMetricsArtifactPayload(params: {
