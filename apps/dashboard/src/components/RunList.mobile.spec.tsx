@@ -18,7 +18,7 @@ function runMeta(overrides: Partial<RunMeta> = {}): RunMeta {
 }
 
 describe('buildRunListItemView', () => {
-  it('deducts execution errors from quality totals for both table and mobile views', () => {
+  it('keeps displayed totals distinct from quality totals when execution errors are present', () => {
     const view = buildRunListItemView(
       runMeta({
         execution_error_count: 2,
@@ -27,6 +27,7 @@ describe('buildRunListItemView', () => {
     );
 
     expect(view.errors).toBe(2);
+    expect(view.totalCount).toBe(10);
     expect(view.qualityCount).toBe(8);
     expect(view.passedCount).toBe(6);
     expect(view.failedCount).toBe(2);
