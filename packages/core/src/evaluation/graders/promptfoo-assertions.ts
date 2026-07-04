@@ -22,7 +22,10 @@ type ScriptResult =
       readonly details?: JsonObject;
     };
 
-function buildAssertionContext(context: EvaluationContext): Record<string, unknown> {
+function buildAssertionContext(
+  context: EvaluationContext,
+  assertionConfig?: JsonObject,
+): Record<string, unknown> {
   return {
     criteria: context.evalCase.criteria,
     expectedOutput: context.evalCase.expected_output,
@@ -35,6 +38,7 @@ function buildAssertionContext(context: EvaluationContext): Record<string, unkno
     fileChanges: context.fileChanges ?? null,
     workspacePath: context.workspacePath ?? null,
     dependencyResults: context.dependencyResults ?? null,
+    ...(assertionConfig ? { config: assertionConfig } : {}),
   };
 }
 
@@ -111,7 +115,10 @@ export class JavascriptAssertionGrader implements Grader {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     try {
       const fn = new Function('output', 'context', buildFunctionBody(this.config.value));
-      const result = (await fn(context.candidate, buildAssertionContext(context))) as ScriptResult;
+      const result = (await fn(
+        context.candidate,
+        buildAssertionContext(context, this.config.config),
+      )) as ScriptResult;
       return normalizeScriptResult(
         result,
         'Javascript assertion returned a failing result',
@@ -162,7 +169,9 @@ export class PythonAssertionGrader implements Grader {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     const payload = JSON.stringify({
       output: context.candidate,
-      context: serializeSnakeCaseBoundaryPayload(buildAssertionContext(context)),
+      context: serializeSnakeCaseBoundaryPayload(
+        buildAssertionContext(context, this.config.config),
+      ),
     });
     try {
       const result = await execFileWithStdin(
@@ -205,7 +214,9 @@ export class WebhookAssertionGrader implements Grader {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           output: context.candidate,
-          context: serializeSnakeCaseBoundaryPayload(buildAssertionContext(context)),
+          context: serializeSnakeCaseBoundaryPayload(
+            buildAssertionContext(context, this.config.config),
+          ),
         }),
       });
       if (!response.ok) {
@@ -242,13 +253,14 @@ export class AssertSetGrader implements Grader {
   async evaluate(context: EvaluationContext): Promise<EvaluationScore> {
     const scores = [];
     for (const childConfig of this.config.assertions) {
-      const child = await this.createChild(childConfig);
+      const resolvedChildConfig = withAssertSetConfig(childConfig, this.config.config);
+      const child = await this.createChild(resolvedChildConfig);
       const result = await child.evaluate(context);
       scores.push({
-        name: childConfig.name,
-        type: childConfig.type,
+        name: resolvedChildConfig.name,
+        type: resolvedChildConfig.type,
         score: result.score,
-        weight: childConfig.weight ?? 1,
+        weight: resolvedChildConfig.weight ?? 1,
         verdict: result.verdict,
         assertions: result.assertions,
         graderRawRequest: result.graderRawRequest,
@@ -261,17 +273,38 @@ export class AssertSetGrader implements Grader {
     const totalWeight = scores.reduce((sum, score) => sum + (score.weight ?? 1), 0) || 1;
     const score =
       scores.reduce((sum, item) => sum + item.score * (item.weight ?? 1), 0) / totalWeight;
-    const threshold = this.config.threshold ?? 1;
-    const passed = score >= threshold;
+    const threshold = this.config.threshold;
+    const passed =
+      threshold !== undefined
+        ? score >= threshold
+        : scores.every((item) => (item.weight ?? 1) === 0 || item.verdict === 'pass');
     return {
       score,
       verdict: passed ? 'pass' : 'fail',
       assertions: scores.flatMap((item) => item.assertions),
       expectedAspectCount: scores.reduce((sum, item) => sum + item.assertions.length, 0) || 1,
       scores,
-      details: { threshold },
+      ...(threshold !== undefined ? { details: { threshold } } : {}),
     };
   }
+}
+
+function withAssertSetConfig(
+  childConfig: AssertSetGraderConfig['assertions'][number],
+  parentConfig?: JsonObject,
+): AssertSetGraderConfig['assertions'][number] {
+  if (!parentConfig) {
+    return childConfig;
+  }
+
+  const existingConfig = (childConfig as { readonly config?: JsonObject }).config;
+  return {
+    ...childConfig,
+    config: {
+      ...parentConfig,
+      ...(existingConfig ?? {}),
+    },
+  } as AssertSetGraderConfig['assertions'][number];
 }
 
 function getEmbeddingConfig(config: SimilarGraderConfig): JsonObject | undefined {

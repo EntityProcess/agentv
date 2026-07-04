@@ -213,9 +213,10 @@ Same as contains variants but explicitly case-insensitive.
 
 #### `assert-set`
 
-- **Fields:** `assert` (array of child assertions), `threshold` (number, optional), child `weight` fields.
+- **Fields:** `assert` (array of child assertions), `threshold` (number, optional), `config` (object, optional), child `weight` fields.
 - **Recipe:** Evaluate each child assertion and compute a weighted average.
-- **PASS:** weighted score meets `threshold` (default `1`).
+- **PASS:** without `threshold`, every nonzero-weight child must pass. With `threshold`, the weighted score must meet the threshold.
+- **Config:** parent `config` is inherited by children. Child `config` keys override parent keys.
 
 ## 3. Negate Support
 

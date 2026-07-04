@@ -194,6 +194,107 @@ describe('promptfoo-compatible built-in assertions', () => {
     expect(result.scores?.map((score) => score.type)).toEqual(['contains', 'starts-with']);
   });
 
+  it('without threshold follows child assertion pass/fail status', async () => {
+    const result = await run({
+      name: 'set',
+      type: 'assert-set',
+      assertions: [
+        { name: 'contains', type: 'contains', value: 'Paris' },
+        { name: 'missing', type: 'contains', value: 'Berlin' },
+      ],
+    });
+
+    expect(result.score).toBe(0.5);
+    expect(result.verdict).toBe('fail');
+    expect(result.details).toBeUndefined();
+  });
+
+  it('uses threshold to override child assertion pass/fail status', async () => {
+    const result = await run({
+      name: 'set',
+      type: 'assert-set',
+      threshold: 0.5,
+      assertions: [
+        { name: 'contains', type: 'contains', value: 'Paris' },
+        { name: 'missing', type: 'contains', value: 'Berlin' },
+      ],
+    });
+
+    expect(result.score).toBe(0.5);
+    expect(result.verdict).toBe('pass');
+    expect(result.details).toEqual({ threshold: 0.5 });
+  });
+
+  it('weights child assertion scores when aggregating assert-set results', async () => {
+    const result = await run({
+      name: 'weighted',
+      type: 'assert-set',
+      threshold: 0.6,
+      assertions: [
+        { name: 'contains', type: 'contains', value: 'Paris', weight: 2 },
+        { name: 'missing', type: 'contains', value: 'Berlin', weight: 1 },
+      ],
+    });
+
+    expect(result.score).toBeCloseTo(2 / 3);
+    expect(result.verdict).toBe('pass');
+    expect(result.scores?.map((score) => score.weight)).toEqual([2, 1]);
+  });
+
+  it('does not let zero-weight child failures fail no-threshold assert-sets', async () => {
+    const result = await run({
+      name: 'metric-only',
+      type: 'assert-set',
+      assertions: [
+        { name: 'contains', type: 'contains', value: 'Paris' },
+        { name: 'diagnostic', type: 'contains', value: 'Berlin', weight: 0 },
+      ],
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+  });
+
+  it('uses metric names for child score names and preserves nested assert-set scores', async () => {
+    const result = await run({
+      name: 'parent_metric',
+      type: 'assert-set',
+      threshold: 0.5,
+      assertions: [
+        { name: 'text_match', type: 'contains', value: 'Paris' },
+        {
+          name: 'nested_metric',
+          type: 'assert-set',
+          threshold: 1,
+          assertions: [{ name: 'starts_metric', type: 'starts-with', value: 'Paris' }],
+        },
+      ],
+    });
+
+    expect(result.scores?.map((score) => score.name)).toEqual(['text_match', 'nested_metric']);
+    expect(result.scores?.[1]?.scores?.map((score) => score.name)).toEqual(['starts_metric']);
+  });
+
+  it('passes assert-set config to script assertion context', async () => {
+    const result = await run({
+      name: 'configured',
+      type: 'assert-set',
+      config: {
+        expectedCity: 'Paris',
+      },
+      assertions: [
+        {
+          name: 'configured-js',
+          type: 'javascript',
+          value: 'context.config.expectedCity === "Paris"',
+        },
+      ],
+    });
+
+    expect(result.score).toBe(1);
+    expect(result.verdict).toBe('pass');
+  });
+
   it('does not count zero-score script children as passing in assert-set thresholds', async () => {
     const result = await run({
       name: 'gate',

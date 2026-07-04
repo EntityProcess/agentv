@@ -2260,6 +2260,78 @@ describe('parseGraders - assert-set grouping', () => {
     expect(assertSet.assertions).toHaveLength(2);
   });
 
+  it('propagates assert-set config into child assertions', async () => {
+    const evaluators = await parseGraders(
+      {
+        assert: [
+          {
+            metric: 'semantic_similarity',
+            type: 'assert-set',
+            config: {
+              embedding_provider: {
+                base_url: 'http://127.0.0.1:1234/v1',
+                model: 'text-embedding-test',
+              },
+              shared: 'parent',
+              child_override: 'parent',
+            },
+            assert: [
+              {
+                metric: 'similarity',
+                type: 'similar',
+                value: 'Paris is the capital of France.',
+                config: {
+                  child_override: 'child',
+                },
+              },
+              {
+                metric: 'scripted',
+                type: 'javascript',
+                value: 'context.config.shared === "parent"',
+              },
+            ],
+          },
+        ],
+      },
+      undefined,
+      [tempDir],
+      'test-1',
+    );
+
+    const assertSet = evaluators?.[0] as AssertSetGraderConfig;
+    expect(assertSet.type).toBe('assert-set');
+    expect(assertSet.config).toEqual({
+      embedding_provider: {
+        base_url: 'http://127.0.0.1:1234/v1',
+        model: 'text-embedding-test',
+      },
+      shared: 'parent',
+      child_override: 'parent',
+    });
+    expect(assertSet.assertions[0]).toMatchObject({
+      type: 'similar',
+      config: {
+        embedding_provider: {
+          base_url: 'http://127.0.0.1:1234/v1',
+          model: 'text-embedding-test',
+        },
+        shared: 'parent',
+        child_override: 'child',
+      },
+    });
+    expect(assertSet.assertions[1]).toMatchObject({
+      type: 'javascript',
+      config: {
+        embedding_provider: {
+          base_url: 'http://127.0.0.1:1234/v1',
+          model: 'text-embedding-test',
+        },
+        shared: 'parent',
+        child_override: 'parent',
+      },
+    });
+  });
+
   it('keeps llm-rubric child assertions inside assert-set groups', async () => {
     const evaluators = await parseGraders(
       {
