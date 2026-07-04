@@ -68,7 +68,7 @@ Before proposing a new feature, enumerate which existing primitives could achiev
 - Oracle validation is a `cli` provider target that runs a reference solution through the same evaluators.
 - Snapshot MCP for benchmarks is frozen data in the workspace template plus `before_all` and `after_all` hooks.
 - Harness variant comparison is target hooks with different `before_each` setup scripts.
-- Skill evaluation is `tool-trajectory` plus `execution-metrics` plus `rubric` composed via `composite`.
+- Skill evaluation is `tool-trajectory` plus `execution-metrics` plus `rubric` composed via `assert-set`.
 
 If existing primitives cover the need, document the pattern instead of building a new feature. New primitives are justified only when composition is impossible, not merely undocumented.
 
