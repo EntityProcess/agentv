@@ -1,0 +1,45 @@
+{
+  "total_attempts": 1,
+  "passed_attempts": 0,
+  "pass_rate": "0%",
+  "mean_duration_ms": 420,
+  "mean_duration_seconds": 0.42,
+  "fingerprint": "agentv-prj-1a303bbd68abefa38532f5d2f83d2d6e",
+  "duration": {
+    "total_ms": 420,
+    "total_seconds": 0.42,
+    "source": "provider_reported",
+    "mean_ms": 420,
+    "mean_seconds": 0.42,
+    "stats": {
+      "count": 1,
+      "mean_ms": 420,
+      "mean_seconds": 0.42,
+      "stddev_ms": 0,
+      "stddev_seconds": 0,
+      "min_ms": 420,
+      "max_ms": 420
+    }
+  },
+  "tokens": {
+    "total": 0,
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "source": "unavailable"
+  },
+  "cost": {
+    "usd": null,
+    "source": "unavailable"
+  },
+  "execution": {
+    "status": "execution_error",
+    "failure_stage": "agent",
+    "failure_reason_code": "target_malformed_output"
+  },
+  "trajectory": {
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "tool_calls": {}
+  }
+}

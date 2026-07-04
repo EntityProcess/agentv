@@ -1,0 +1,76 @@
+{
+  "score": 0,
+  "verdict": "fail",
+  "assertion_results": [
+    {
+      "text": "Output does not contain \"AGENTV_TRANSCRIPT_PARITY_OK\"",
+      "passed": false,
+      "evidence": "",
+      "score": 0,
+      "verdict": "fail"
+    },
+    {
+      "text": "Contains the exact required token AGENTV_TRANSCRIPT_PARITY_OK",
+      "passed": false,
+      "evidence": "The provided answer is \"Error: Codex CLI produced no output in --json mode\", which does not include the required token.",
+      "score": 0,
+      "verdict": "fail"
+    },
+    {
+      "text": "Does not contradict the instruction to reply with exactly the token and no extra words",
+      "passed": false,
+      "evidence": "The answer is an error message rather than the specified token, so it fails the exact-output requirement.",
+      "score": 0,
+      "verdict": "fail"
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 3,
+    "total": 3,
+    "pass_rate": 0
+  },
+  "graders": [
+    {
+      "name": "contains-AGENTV_TRANSCRIPT_PARITY_OK",
+      "type": "contains",
+      "score": 0,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "fail",
+      "assertion_results": [
+        {
+          "text": "Output does not contain \"AGENTV_TRANSCRIPT_PARITY_OK\"",
+          "passed": false,
+          "evidence": "",
+          "score": 0,
+          "verdict": "fail"
+        }
+      ]
+    },
+    {
+      "name": "llm-rubric",
+      "type": "llm-rubric",
+      "score": 0,
+      "reasoning": "",
+      "weight": 1,
+      "verdict": "fail",
+      "assertion_results": [
+        {
+          "text": "Contains the exact required token AGENTV_TRANSCRIPT_PARITY_OK",
+          "passed": false,
+          "evidence": "The provided answer is \"Error: Codex CLI produced no output in --json mode\", which does not include the required token.",
+          "score": 0,
+          "verdict": "fail"
+        },
+        {
+          "text": "Does not contradict the instruction to reply with exactly the token and no extra words",
+          "passed": false,
+          "evidence": "The answer is an error message rather than the specified token, so it fails the exact-output requirement.",
+          "score": 0,
+          "verdict": "fail"
+        }
+      ]
+    }
+  ]
+}

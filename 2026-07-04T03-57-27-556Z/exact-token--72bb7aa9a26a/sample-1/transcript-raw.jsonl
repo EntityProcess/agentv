@@ -1,0 +1,6 @@
+# Codex CLI stream log
+# target: codex-app-server-local
+# eval: exact-token
+# attempt: 1
+# started: 2026-07-04T03:57:27.751Z
+[+00:00] [stderr] 2026-07-04T03:57:28.010521Z ERROR codex_app_server_transport::transport: Failed to deserialize JSONRPCMessage: data did not match any variant of untagged enum JSONRPCMessage
