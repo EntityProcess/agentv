@@ -87,11 +87,10 @@ describe('resolveTargetDefinition', () => {
     piGetModelMock.mockClear();
   });
 
-  it('uses promptfoo-shaped label as AgentV target identity and id as backend metadata', () => {
+  it('uses authored target id as AgentV target identity', () => {
     const target = resolveTargetDefinition(
       {
-        label: 'primary-sut',
-        id: 'mock',
+        id: 'primary-sut',
         provider: 'mock',
         config: {
           response: 'ok',
@@ -126,11 +125,10 @@ describe('resolveTargetDefinition', () => {
     expect(target.config.command).toBe('agent run {PROMPT_FILE} {OUTPUT_FILE}');
   });
 
-  it('treats provider as backend kind while id remains a provider locator', () => {
+  it('treats provider as backend kind while id remains target identity', () => {
     const target = resolveTargetDefinition(
       {
-        label: 'candidate-agent',
-        id: 'openai:gpt-5-mini',
+        id: 'candidate-agent',
         provider: 'openai',
         config: {
           api_key: '${{ OPENAI_API_KEY }}',

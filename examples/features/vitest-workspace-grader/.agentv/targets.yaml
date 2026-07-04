@@ -1,5 +1,5 @@
 targets:
-  - label: mock_agent
+  - id: mock_agent
     provider: cli
     command: |
       bash -c '

@@ -1,5 +1,5 @@
 targets:
-  - label: mock_agent
+  - id: mock_agent
     provider: cli
     grader_target: grader
     command: bun run ./mock-agent.ts --prompt {PROMPT} --output {OUTPUT_FILE}

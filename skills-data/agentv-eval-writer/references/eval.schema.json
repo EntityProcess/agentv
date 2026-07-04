@@ -915,10 +915,6 @@
                                 "type": "string",
                                 "minLength": 1
                               },
-                              "label": {
-                                "type": "string",
-                                "minLength": 1
-                              },
                               "extends": {
                                 "type": "string",
                                 "minLength": 1
@@ -1253,10 +1249,6 @@
                                     "type": "string",
                                     "minLength": 1
                                   },
-                                  "label": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
                                   "extends": {
                                     "type": "string",
                                     "minLength": 1
@@ -1588,10 +1580,6 @@
                                   "type": "object",
                                   "properties": {
                                     "id": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "label": {
                                       "type": "string",
                                       "minLength": 1
                                     },
@@ -3003,10 +2991,6 @@
                                 "type": "string",
                                 "minLength": 1
                               },
-                              "label": {
-                                "type": "string",
-                                "minLength": 1
-                              },
                               "extends": {
                                 "type": "string",
                                 "minLength": 1
@@ -3341,10 +3325,6 @@
                                     "type": "string",
                                     "minLength": 1
                                   },
-                                  "label": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
                                   "extends": {
                                     "type": "string",
                                     "minLength": 1
@@ -3676,10 +3656,6 @@
                                   "type": "object",
                                   "properties": {
                                     "id": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "label": {
                                       "type": "string",
                                       "minLength": 1
                                     },
@@ -5018,10 +4994,6 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "label": {
-                  "type": "string",
-                  "minLength": 1
-                },
                 "extends": {
                   "type": "string",
                   "minLength": 1
@@ -5356,10 +5328,6 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "label": {
-                      "type": "string",
-                      "minLength": 1
-                    },
                     "extends": {
                       "type": "string",
                       "minLength": 1
@@ -5691,10 +5659,6 @@
                     "type": "object",
                     "properties": {
                       "id": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "label": {
                         "type": "string",
                         "minLength": 1
                       },
@@ -6175,10 +6139,6 @@
                           "type": "string",
                           "minLength": 1
                         },
-                        "label": {
-                          "type": "string",
-                          "minLength": 1
-                        },
                         "extends": {
                           "type": "string",
                           "minLength": 1
@@ -6513,10 +6473,6 @@
                               "type": "string",
                               "minLength": 1
                             },
-                            "label": {
-                              "type": "string",
-                              "minLength": 1
-                            },
                             "extends": {
                               "type": "string",
                               "minLength": 1
@@ -6848,10 +6804,6 @@
                             "type": "object",
                             "properties": {
                               "id": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "label": {
                                 "type": "string",
                                 "minLength": 1
                               },
@@ -7504,10 +7456,6 @@
                               "type": "string",
                               "minLength": 1
                             },
-                            "label": {
-                              "type": "string",
-                              "minLength": 1
-                            },
                             "extends": {
                               "type": "string",
                               "minLength": 1
@@ -7842,10 +7790,6 @@
                                   "type": "string",
                                   "minLength": 1
                                 },
-                                "label": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
                                 "extends": {
                                   "type": "string",
                                   "minLength": 1
@@ -8177,10 +8121,6 @@
                                 "type": "object",
                                 "properties": {
                                   "id": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "label": {
                                     "type": "string",
                                     "minLength": 1
                                   },
@@ -8763,10 +8703,6 @@
                               "type": "string",
                               "minLength": 1
                             },
-                            "label": {
-                              "type": "string",
-                              "minLength": 1
-                            },
                             "extends": {
                               "type": "string",
                               "minLength": 1
@@ -9101,10 +9037,6 @@
                                   "type": "string",
                                   "minLength": 1
                                 },
-                                "label": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
                                 "extends": {
                                   "type": "string",
                                   "minLength": 1
@@ -9436,10 +9368,6 @@
                                 "type": "object",
                                 "properties": {
                                   "id": {
-                                    "type": "string",
-                                    "minLength": 1
-                                  },
-                                  "label": {
                                     "type": "string",
                                     "minLength": 1
                                   },

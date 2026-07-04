@@ -9,6 +9,6 @@ targets:
   #   discover: latest             — auto-discover most recent session
   #   session_id: "<uuid>"         — read a specific session by ID
   #   session_dir: "/path/to/dir"  — read from an explicit directory
-  - label: copilot-log
+  - id: copilot-log
     provider: copilot-log
     discover: latest

@@ -23,10 +23,9 @@ describe('readTargetDefinitions', () => {
     return filePath;
   }
 
-  it('normalizes promptfoo-shaped label, backend id, and config fields', async () => {
+  it('normalizes authored id identity and config fields', async () => {
     const filePath = await writeTargetsYaml(`targets:
-  - label: candidate-agent
-    id: openai:gpt-5-codex
+  - id: candidate-agent
     provider: codex-cli
     config:
       command: ["codex"]
@@ -39,7 +38,7 @@ describe('readTargetDefinitions', () => {
 
     expect(definitions).toEqual([
       expect.objectContaining({
-        id: 'openai:gpt-5-codex',
+        id: 'candidate-agent',
         name: 'candidate-agent',
         label: 'candidate-agent',
         provider: 'codex-cli',
@@ -51,12 +50,22 @@ describe('readTargetDefinitions', () => {
     ]);
   });
 
-  it('rejects authored name in favor of label', async () => {
+  it('rejects authored name in favor of id', async () => {
     const filePath = await writeTargetsYaml(`targets:
   - name: legacy-agent
     provider: mock
 `);
 
-    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/missing a valid 'label'/);
+    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/missing a valid 'id'/);
+  });
+
+  it('rejects authored label in favor of id', async () => {
+    const filePath = await writeTargetsYaml(`targets:
+  - id: candidate-agent
+    label: legacy-agent
+    provider: mock
+`);
+
+    await expect(readTargetDefinitions(filePath)).rejects.toThrow(/Use 'id'/);
   });
 });

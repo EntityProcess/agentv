@@ -625,14 +625,20 @@ function uniqueTargetDefinitions(
 }
 
 function serializeTargetDefinition(definition: TargetDefinition): Record<string, unknown> {
-  const target: Record<string, unknown> = { label: definition.name };
+  const target: Record<string, unknown> = { id: definition.name };
   if (definition.id !== undefined) {
     target.id = definition.id;
   }
   const config: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(definition)) {
-    if (value === undefined || key === 'name' || key === 'id' || key === 'config') {
+    if (
+      value === undefined ||
+      key === 'name' ||
+      key === 'id' ||
+      key === 'label' ||
+      key === 'config'
+    ) {
       continue;
     }
     if (AUTHORING_TOP_LEVEL_TARGET_FIELDS.has(key)) {

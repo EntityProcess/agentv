@@ -1,5 +1,5 @@
 targets:
-  - label: batch_cli
+  - id: batch_cli
     provider: cli
     batch_requests: true
     verbose: true

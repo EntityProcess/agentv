@@ -856,11 +856,10 @@ describe('extractTargetFromSuite', () => {
     expect(extractTargetFromSuite(suite)).toBe('codex-gpt5');
   });
 
-  it('extracts target object identity from label or extends', () => {
+  it('extracts target object identity from id or extends', () => {
     const suite: JsonObject = {
       target: {
-        label: 'codex-local',
-        id: 'codex:gpt-5.1',
+        id: 'codex-local',
         extends: 'codex-gpt5',
         config: { model: 'gpt-5.1' },
       },
@@ -868,11 +867,18 @@ describe('extractTargetFromSuite', () => {
     expect(extractTargetFromSuite(suite)).toBe('codex-local');
   });
 
-  it('rejects target object name in favor of label', () => {
+  it('rejects target object name in favor of id', () => {
     const suite: JsonObject = {
       target: { name: 'legacy-target', provider: 'mock' },
     };
-    expect(() => extractTargetFromSuite(suite)).toThrow(/Use 'label'/);
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use 'id'/);
+  });
+
+  it('rejects target object label in favor of id', () => {
+    const suite: JsonObject = {
+      target: { label: 'legacy-target', provider: 'mock' },
+    };
+    expect(() => extractTargetFromSuite(suite)).toThrow(/Use 'id'/);
   });
 
   it('returns undefined when no target specified', () => {
@@ -898,8 +904,7 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       targets: [
         'registry-agent',
         {
-          label: 'inline-agent',
-          id: 'mock',
+          id: 'inline-agent',
           provider: 'mock',
           config: { response: 'ok' },
           fallback_targets: ['registry-agent'],
@@ -912,10 +917,9 @@ describe('extractTargetsFromSuite and extractTargetRefsFromSuite', () => {
       { name: 'registry-agent' },
       {
         name: 'inline-agent',
-        id: 'mock',
-        label: 'inline-agent',
+        id: 'inline-agent',
         definition: expect.objectContaining({
-          id: 'mock',
+          id: 'inline-agent',
           name: 'inline-agent',
           label: 'inline-agent',
           provider: 'mock',

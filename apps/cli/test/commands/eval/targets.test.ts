@@ -18,7 +18,7 @@ describe('eval target selection', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('resolves authored target ids through targets.yaml while keeping labels for display', async () => {
+  it('resolves authored target ids through targets.yaml', async () => {
     const agentvDir = path.join(tempDir, '.agentv');
     await mkdir(agentvDir, { recursive: true });
     await writeFile(
@@ -26,7 +26,7 @@ describe('eval target selection', () => {
       [
         '$schema: agentv-targets-v2.2',
         'targets:',
-        '  - label: openai:gpt-5.4-mini',
+        '  - id: openai:gpt-5.4-mini',
         '    provider: mock',
         '',
       ].join('\n'),
@@ -38,7 +38,6 @@ describe('eval target selection', () => {
         'name: target-label-suite',
         'targets:',
         '  - id: openai:gpt-5.4-mini',
-        '    label: mini',
         'tests:',
         '  - id: target-case',
         '    input: hello',
@@ -60,7 +59,7 @@ describe('eval target selection', () => {
 
     expect(selections).toHaveLength(1);
     expect(selections[0]?.targetName).toBe('openai:gpt-5.4-mini');
-    expect(selections[0]?.targetLabel).toBe('mini');
+    expect(selections[0]?.targetLabel).toBeUndefined();
     expect(selections[0]?.resolvedTarget.kind).toBe('mock');
   });
 });

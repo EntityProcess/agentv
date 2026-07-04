@@ -1,5 +1,5 @@
 targets:
-  - label: mock_extractor
+  - id: mock_extractor
     provider: cli
     provider_batching: false
     verbose: true

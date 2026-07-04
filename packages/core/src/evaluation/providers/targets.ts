@@ -702,10 +702,9 @@ export interface NormalizeTargetDefinitionOptions {
 }
 
 /**
- * Converts the authored promptfoo-shaped target object into AgentV's internal
- * target definition. Authored YAML uses `label` for AgentV's target/comparison
- * name and `id` for the promptfoo provider/backend identifier. The runtime
- * continues to use `name` as its stable resolver and artifact key.
+ * Converts the authored target object into AgentV's internal target definition.
+ * Authored YAML uses `id` as the stable AgentV target identity. The runtime
+ * continues to use `name` as its resolver and artifact key.
  */
 export function normalizeTargetDefinition(
   definition: unknown,
@@ -723,9 +722,9 @@ export function normalizeTargetDefinition(
     typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : undefined;
   const legacyName =
     typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : undefined;
-  const name = label ?? legacyName ?? id ?? options.defaultName;
+  const name = id ?? legacyName ?? label ?? options.defaultName;
   if (!name || name.trim().length === 0) {
-    throw new Error("Target definition is missing a valid 'label' field");
+    throw new Error("Target definition is missing a valid 'id' field");
   }
 
   const config = isRecord(definition.config) ? definition.config : {};

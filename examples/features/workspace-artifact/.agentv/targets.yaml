@@ -1,7 +1,7 @@
 targets:
   # Mock CLI agent that writes a CSV report to outputs/report.csv under workspace_path.
   # Simulates what a real agent (e.g. Copilot) would do when asked to generate a report.
-  - label: mock_csv_agent
+  - id: mock_csv_agent
     provider: cli
     command: >-
       bash -c '

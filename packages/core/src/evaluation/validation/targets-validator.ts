@@ -622,15 +622,22 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
       });
     }
 
-    // Required field: label. Promptfoo `id` is a provider/backend identifier,
-    // not AgentV's target reference key.
-    const label = target.label;
-    if (typeof label !== 'string' || label.trim().length === 0) {
+    // Required field: id. AgentV target identity is separate from provider.
+    const id = target.id;
+    if (typeof id !== 'string' || id.trim().length === 0) {
+      errors.push({
+        severity: 'error',
+        filePath: absolutePath,
+        location: `${location}.id`,
+        message: "Missing or invalid 'id' field (must be a non-empty string)",
+      });
+    }
+    if (typeof target.label === 'string' && target.label.trim().length > 0) {
       errors.push({
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.label`,
-        message: "Missing or invalid 'label' field (must be a non-empty string)",
+        message: "The target 'label' field has been removed. Use 'id' instead.",
       });
     }
     if (typeof target.name === 'string' && target.name.trim().length > 0) {
@@ -638,8 +645,7 @@ export async function validateTargetsFile(filePath: string): Promise<ValidationR
         severity: 'error',
         filePath: absolutePath,
         location: `${location}.name`,
-        message:
-          "The target 'name' field has been removed. Use 'label' for the AgentV target name.",
+        message: "The target 'name' field has been removed. Use 'id' instead.",
       });
     }
 

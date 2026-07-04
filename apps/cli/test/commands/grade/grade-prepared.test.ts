@@ -83,7 +83,7 @@ console.log(JSON.stringify({
     path.join(root, '.agentv', 'targets.yaml'),
     `
 targets:
-  - label: codex
+  - id: codex
     provider: cli
     command: bun ./scripts/target.ts
 `,

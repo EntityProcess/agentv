@@ -452,8 +452,7 @@ const TargetHooksSchema = z
 /** Eval target reference: string shorthand or object with hooks */
 const EvalTargetRefSchema = z
   .object({
-    label: z.string().min(1),
-    id: z.string().min(1).optional(),
+    id: z.string().min(1),
     use_target: z.string().optional(),
     hooks: TargetHooksSchema.optional(),
   })
@@ -462,7 +461,6 @@ const EvalTargetRefSchema = z
 const EvalLocalTargetSchema = z
   .object({
     id: z.string().min(1).optional(),
-    label: z.string().min(1).optional(),
     extends: z.string().min(1).optional(),
     provider: z.string().min(1).optional(),
     model: z.string().min(1).optional(),

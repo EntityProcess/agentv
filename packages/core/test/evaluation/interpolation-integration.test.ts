@@ -164,7 +164,7 @@ describe('env interpolation in YAML loading', () => {
       evalFile,
       [
         'target:',
-        '  label: local-shell',
+        '  id: local-shell',
         '  provider: cli',
         '  command: "echo $RUNTIME ${RUNTIME} {{ env.AGENTV_TEST_PATH }}"',
         'tests:',
