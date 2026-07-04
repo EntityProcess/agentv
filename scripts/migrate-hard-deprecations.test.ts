@@ -31,6 +31,8 @@ workspace:
 results:
   timing_path: .agentv/results/run/timing.json
   manifest_path: .agentv/results/run/manifest.json
+results_jsonl:
+  manifest_path: .agentv/results/run/manifest.jsonl
 tests:
   - id: one
     vars:
@@ -46,7 +48,10 @@ tests:
     });
     expect(parsed.results).toEqual({
       metrics_path: '.agentv/results/run/metrics.json',
-      index_path: '.agentv/results/run/manifest.json',
+      index_path: '.agentv/results/run/index.jsonl',
+    });
+    expect(parsed.results_jsonl).toEqual({
+      index_path: '.agentv/results/run/index.jsonl',
     });
   });
 

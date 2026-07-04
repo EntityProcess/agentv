@@ -230,12 +230,19 @@ function migrateDeprecatedArtifactKeys(value: unknown): boolean {
   }
   if (Object.hasOwn(value, 'manifest_path')) {
     if (value.index_path === undefined) {
-      value.index_path = clone(value.manifest_path);
+      value.index_path = migrateManifestPathToIndexPath(value.manifest_path);
     }
     Reflect.deleteProperty(value, 'manifest_path');
     changed = true;
   }
   return changed;
+}
+
+function migrateManifestPathToIndexPath(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return clone(value);
+  }
+  return value.replace(/manifest\.jsonl?$/i, 'index.jsonl');
 }
 
 function migrateLegacyEnvReferences(value: unknown): boolean {
